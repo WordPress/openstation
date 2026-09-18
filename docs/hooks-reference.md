@@ -984,6 +984,34 @@ add_action( 'openstation_chromeless_after', function ( $hook_suffix ) {
 
 ---
 
+### `openstation_user_enabled` — Experimental
+
+Fires when a user turns OpenStation on, from either path that does so (the admin-bar toggle's AJAX handler and the portal's auto-enable), after the first-run stamps are written: the user's own `openstation_enabled_at` meta and, on the first enable anywhere on the site, the `openstation_first_enabled_at` option. Fires on every enable, not only the first for that user; `$first_on_site` is `true` only when nobody on the site had enabled before.
+
+```php
+do_action( 'openstation_user_enabled', int $user_id, bool $first_on_site );
+```
+
+```php
+add_action( 'openstation_user_enabled', function ( $user_id, $first_on_site ) {
+    if ( $first_on_site ) {
+        // The install just became an activated install.
+    }
+}, 10, 2 );
+```
+
+---
+
+### `openstation_user_disabled` — Experimental
+
+Fires when a user switches back to the classic admin from the admin-bar toggle. No stamp is written (the enable stamps are "first time" facts and survive a switch back), so this is the other half of the lifecycle and nothing more.
+
+```php
+do_action( 'openstation_user_disabled', int $user_id );
+```
+
+---
+
 ### `openstation_prepare_window` — Planned
 Will fire once per window the shell is about to construct (both on fresh open and session restore). Planned signature:
 

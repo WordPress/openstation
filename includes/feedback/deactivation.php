@@ -184,10 +184,16 @@ function openstation_deactivation_feedback_payload( $reasons, $details = '', $co
 
 	// Site-activated plugins, plus the network-activated ones on a
 	// multisite: `active_plugins` alone would under-count a network.
-	$active_plugins = count( (array) get_option( 'active_plugins', array() ) );
-	if ( is_multisite() ) {
-		$active_plugins += count( (array) get_site_option( 'active_sitewide_plugins', array() ) );
-	}
+	// Deduplicated, because network activation does not remove a
+	// plugin from a site's own list.
+	$active_plugins = count(
+		array_unique(
+			array_merge(
+				(array) get_option( 'active_plugins', array() ),
+				is_multisite() ? array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) : array()
+			)
+		)
+	);
 
 	return array(
 		'id'                      => wp_generate_uuid4(),

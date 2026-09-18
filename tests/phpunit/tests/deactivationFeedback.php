@@ -182,6 +182,28 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 		delete_option( OPENSTATION_FIRST_ENABLED_AT_OPTION );
 	}
 
+	/**
+	 * Network activation leaves a plugin in a site's own list, so the
+	 * count must not add it twice.
+	 */
+	public function test_active_plugin_count_does_not_double_count_on_a_network() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Multisite only.' );
+		}
+		$site    = (array) get_option( 'active_plugins', array() );
+		$network = (array) get_site_option( 'active_sitewide_plugins', array() );
+		update_option( 'active_plugins', array_values( array_unique( array_merge( $site, array( 'dupe/dupe.php', 'site-only/site-only.php' ) ) ) ) );
+		update_site_option( 'active_sitewide_plugins', $network + array( 'dupe/dupe.php' => time() ) );
+
+		$expected = count( array_unique( array_merge( get_option( 'active_plugins' ), array_keys( get_site_option( 'active_sitewide_plugins' ) ) ) ) );
+		$payload  = openstation_deactivation_feedback_payload( array( 'other' ) );
+		$this->assertSame( $expected, $payload['active_plugins'] );
+		$this->assertSame( count( get_option( 'active_plugins' ) ) + count( get_site_option( 'active_sitewide_plugins' ) ) - 1, $payload['active_plugins'] );
+
+		update_option( 'active_plugins', $site );
+		update_site_option( 'active_sitewide_plugins', $network );
+	}
+
 	public function test_empty_filtered_payload_suppresses_the_forward() {
 		wp_set_current_user( self::$admin_id );
 		add_filter( 'openstation_deactivation_feedback_payload', '__return_empty_array' );

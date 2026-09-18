@@ -56,6 +56,36 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A site with prior desktop use predates the stamps whatever hook
+	 * writes them: a reactivation is backfilled, the first enable is
+	 * recorded as unknown, and the payload sends null for both ages.
+	 *
+	 * @covers ::openstation_record_installed
+	 */
+	public function test_reactivation_on_a_site_with_a_past_is_backfilled() {
+		update_user_meta( self::$subscriber_id, 'desktop_mode_mode', '1' );
+
+		$this->assertTrue( openstation_record_installed( 'activation' ) );
+		$this->assertSame( 'backfill', openstation_get_install_stamp()['via'] );
+		$this->assertSame(
+			array(
+				'at'  => 0,
+				'via' => 'backfill',
+			),
+			openstation_get_first_enabled_stamp()
+		);
+		$this->assertNull( openstation_install_age_days() );
+
+		// The next enable is not the site's first, and the stamp stays.
+		$this->assertFalse( openstation_record_user_enabled( self::$admin_id ) );
+		$this->assertSame( 0, openstation_get_first_enabled_stamp()['at'] );
+
+		$payload = openstation_deactivation_feedback_payload( array( 'other' ) );
+		$this->assertNull( $payload['install_age_days'] );
+		$this->assertNull( $payload['first_enable_delay_days'] );
+	}
+
+	/**
 	 * A backfilled stamp says so, and every age reads it as unknown.
 	 *
 	 * @covers ::openstation_backfill_install_stamp
