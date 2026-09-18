@@ -85,6 +85,7 @@
 		"typecheck": "tsc --noEmit",
 		"package": "bin/package.sh",
 		"package:dev": "OPENSTATION_BUILD_STAMP=1 bin/package.sh",
+		"package:feedback-intake": "bin/package-feedback-intake.sh",
 		"package:beta": "bin/package-beta.sh",
 		"package:legacy-theme": "bin/package-legacy-theme.sh",
 		"test": "npm run test:js",

@@ -48,4 +48,4 @@ No IP address, no user agent, no referer, no site URL or hash of one, no site id
 
 ## Install
 
-Upload the plugin folder to openstation.blog and activate it. Activation creates the table; a file-copy install heals it on the next admin page load.
+From the OpenStation repo root, `npm run package:feedback-intake` writes `openstation-feedback-intake.zip`; upload it on openstation.blog through Plugins → Add New → Upload and activate it. Activation creates the table; a file-copy install heals it on the next admin page load.
