@@ -72,6 +72,33 @@ See [app layout recipes](./examples/app-layouts.md) for sizing, scrolling, spans
 | `<os-role-picker>` | `OsRolePicker` | `os-role-picker/os-role-picker.ts` | WP role select. |
 | `<os-user-search>` | `OsUserSearch` | `os-user-search/os-user-search.ts` | Live user autocomplete (`/desktop-mode/v1/files/users/search` REST). |
 
+### Named fields in `<os-form>`
+
+Give each field a `name` and use `getValues()` / `setValues(patch)` for the whole
+record. Checkboxes and switches return booleans; tag inputs retain their array
+of `{ label, id? }` objects. Scalar fields retain their existing string values;
+convert numbers explicitly at the storage boundary. Structured values are assigned
+through the component's `value` setter and are not serialized into attributes.
+`reset()` restores the initial field values, including checked switches and tags.
+Structured-cloneable data is copied at capture and on each reset, so editing a
+tag object or array cannot overwrite those defaults. Opaque, non-cloneable custom
+field values retain their existing identity semantics.
+
+`setBusy(true)` makes the fields inert and blocks button, Enter and programmatic
+submission until cleared. Set it before the first asynchronous operation and clear
+it in `finally`. Existing per-field disabled settings are preserved.
+`os-form-input` reports named text, checkbox/switch, select, range and color changes.
+Tag add/remove events are intents: the app still updates `tags.value` explicitly;
+`setValues()` does not emit user-input events.
+
+See [editing a mixed-field record](examples/form-record-editor.md) for a complete
+load/save/reset pattern.
+
+Date fields (`date`, `datetime-local`, `month`, `week`) keep the browser's native
+picker. In browsers exposing the calendar indicator styling hook, its glyph reads
+`--os-ui-fg-muted`, matching the field's other affordances across dark and light
+themes. Forced-colors mode uses the system button text color.
+
 ### A raw `<input>` in the shell is not a styling choice
 
 The desktop shell is a real `wp-admin` document, so WordPress's own

@@ -87,6 +87,20 @@ interface InitialSnapshot {
 	checked: boolean | null;
 }
 
+/** Copy data values so edits never share the form's reset snapshot. */
+function copySnapshotValue( value: unknown ): unknown {
+	if ( value === null || typeof value !== 'object' ) {
+		return value;
+	}
+	try {
+		return structuredClone( value );
+	} catch {
+		// Custom fields may expose opaque values (e.g. DOM nodes or
+		// functions). Preserve their existing identity-based contract.
+		return value;
+	}
+}
+
 export class OsForm extends Component {
 	static props = [
 		'submit-label',
@@ -103,7 +117,7 @@ export class OsForm extends Component {
 	static help = {
 		title: 'Form',
 		summary:
-			'Container-query-driven responsive form. Auto-collects named fields, validates required, exposes setError / setFieldInvalid / setBusy / reset, fires os-form-submit with the collected values map.',
+			'Responsive form. Collects named fields (including boolean switches and tag arrays), restores them with setValues / reset, blocks duplicate submits while busy, and exposes validation and error helpers.',
 		status: 'stable',
 		props: [
 			{
@@ -172,7 +186,7 @@ export class OsForm extends Component {
 			{
 				name: 'os-form-input',
 				description:
-					'Bubbles every keystroke / change inside any descendant field; useful for live validation.',
+					'Reports text, checkbox/switch, select, range and color changes in named fields. Tag add/remove events remain controlled intents; update the tag value in the app.',
 				detail: '{ name: string, value: unknown, form: OsForm }',
 			},
 		],
@@ -215,6 +229,8 @@ export class OsForm extends Component {
 		this.addEventListener( 'os-input-commit', this._fieldChangeListener );
 		this.addEventListener( 'os-checkbox-change', this._fieldChangeListener );
 		this.addEventListener( 'os-select-change', this._fieldChangeListener );
+		this.addEventListener( 'os-range-change', this._fieldChangeListener );
+		this.addEventListener( 'os-color-change', this._fieldChangeListener );
 		this.addEventListener( 'change', this._fieldChangeListener );
 
 		// Pressing Enter inside any descendant `<os-text-field>`
@@ -230,6 +246,8 @@ export class OsForm extends Component {
 			this.removeEventListener( 'os-input-commit', this._fieldChangeListener );
 			this.removeEventListener( 'os-checkbox-change', this._fieldChangeListener );
 			this.removeEventListener( 'os-select-change', this._fieldChangeListener );
+			this.removeEventListener( 'os-range-change', this._fieldChangeListener );
+			this.removeEventListener( 'os-color-change', this._fieldChangeListener );
 			this.removeEventListener( 'change', this._fieldChangeListener );
 			this._fieldChangeListener = null;
 		}
@@ -263,7 +281,7 @@ export class OsForm extends Component {
 			<div class="header" part="header">
 				<slot name="header"></slot>
 			</div>
-			<div class="fields" part="fields">
+			<div class="fields" part="fields" ?inert=${ busy }>
 				<slot></slot>
 			</div>
 			<slot name="error">
@@ -306,7 +324,7 @@ export class OsForm extends Component {
 	// ─── Public API ──────────────────────────────────────────────────
 
 	/**
-	 * Collect every named descendant's current value. Checkboxes
+	 * Collect every named descendant's current value. Checkboxes and switches
 	 * return `boolean`; everything else returns whatever the field
 	 * surfaces on its `value` property (or attribute as fallback).
 	 */
@@ -324,6 +342,7 @@ export class OsForm extends Component {
 
 	/**
 	 * Apply a partial values map to the matching named fields.
+	 * Structured values are assigned to the value property without stringification.
 	 * Unknown names are skipped silently (fields may not be
 	 * mounted yet).
 	 */
@@ -415,7 +434,7 @@ export class OsForm extends Component {
 				}
 				continue;
 			}
-			this._writeField( field, snap.value );
+			this._writeField( field, copySnapshotValue( snap.value ) );
 		}
 		this.dispatchEvent(
 			new CustomEvent( 'os-form-reset', {
@@ -432,6 +451,11 @@ export class OsForm extends Component {
 	 * cancellable `os-form-submit`.
 	 */
 	submit(): void {
+		// Guard synchronously: another Enter can arrive before the busy render.
+		if ( this.hasAttribute( 'busy' ) ) {
+			return;
+		}
+
 		// Validate `required` fields. Fields the host has explicitly
 		// marked invalid via `setFieldInvalid` are also tallied so
 		// the host gets a clear "you have outstanding errors" signal
@@ -498,13 +522,14 @@ export class OsForm extends Component {
 				continue;
 			}
 			const isCheckbox =
+				field.tagName === 'OS-SWITCH' ||
 				field.tagName === 'OS-CHECKBOX' ||
 				field.tagName === 'OS-CHECKBOX-LABEL' ||
 				( field.tagName === 'INPUT' &&
 					( field as HTMLInputElement ).type === 'checkbox' );
 			this._initial.set( name, {
-				value: this._readField( field ),
-				checked: isCheckbox ? Boolean( field.checked ) : null,
+				value: copySnapshotValue( this._readField( field ) ),
+				checked: isCheckbox ? Boolean( this._readField( field ) ) : null,
 			} );
 		}
 		this._captured = true;
@@ -539,6 +564,7 @@ export class OsForm extends Component {
 		// can lag a frame behind keystroke updates.
 		const tag = field.tagName.toUpperCase();
 		const isCheckbox =
+			tag === 'OS-SWITCH' ||
 			tag === 'OS-CHECKBOX' ||
 			tag === 'OS-CHECKBOX-LABEL' ||
 			( tag === 'INPUT' &&
@@ -558,6 +584,7 @@ export class OsForm extends Component {
 	private _writeField( field: FieldElement, value: unknown ): void {
 		const tag = field.tagName.toUpperCase();
 		const isCheckbox =
+			tag === 'OS-SWITCH' ||
 			tag === 'OS-CHECKBOX' ||
 			tag === 'OS-CHECKBOX-LABEL' ||
 			( tag === 'INPUT' &&
@@ -570,6 +597,13 @@ export class OsForm extends Component {
 			} else {
 				field.removeAttribute( 'checked' );
 			}
+			return;
+		}
+		// JS-only values (e.g. tag arrays) belong on the property, never in
+		// a string attribute. Let the component setter own its normalization.
+		if ( ( value !== null && typeof value === 'object' ) ||
+			( field.value !== null && typeof field.value === 'object' ) ) {
+			field.value = value;
 			return;
 		}
 		const str = value === null || value === undefined ? '' : String( value );

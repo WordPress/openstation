@@ -66,6 +66,7 @@ const TAP_SLOP = 4;
 
 export class OsSwitch extends Component {
 	static props = [
+		'name',
 		'checked',
 		'value',
 		'label',
@@ -84,6 +85,7 @@ export class OsSwitch extends Component {
 			'On/off switch for settings that take effect immediately. On is the holographic moment — the track fills with Holomesh and glows. Supports tap, drag and keyboard, and emits os-checkbox-change alongside its own event so it drops straight into checkbox listeners.',
 		status: 'stable',
 		props: [
+			{ name: 'name', type: 'string', description: 'Key used by an enclosing os-form to collect, populate and reset this field.' },
 			{
 				name: 'checked',
 				type: 'boolean attribute',
