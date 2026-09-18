@@ -30,7 +30,7 @@ function mockHost( over: Partial< PluginsHost > = {} ): PluginsHost & { toasts: 
 		ajaxUrl: 'http://example.test/wp-admin/admin-ajax.php',
 		ajaxNonce: 'ajax-nonce',
 		updatesNonce: 'updates-nonce',
-		caps: { activate: true, install: true, delete: true, upload: true, update: true },
+		caps: { activate: true, install: true, delete: true, upload: true, update: true, edit: true },
 		autoUpdatesEnabled: true,
 		selfPluginFile: 'desktop-mode/desktop-mode',
 		adminUrl: 'http://example.test/wp-admin/',

@@ -180,10 +180,13 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 			$this->assertFalse( $caps['install'] );
 			$this->assertFalse( $caps['delete'] );
 			$this->assertFalse( $caps['upload'] );
+			// Core offers no Plugin File Editor on a site screen either.
+			$this->assertFalse( $caps['edit'] );
 		} else {
 			$this->assertTrue( $caps['install'] );
 			$this->assertTrue( $caps['delete'] );
 			$this->assertTrue( $caps['upload'] );
+			$this->assertTrue( $caps['edit'] );
 		}
 	}
 
@@ -197,6 +200,7 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertFalse( $caps['install'] );
 		$this->assertFalse( $caps['delete'] );
 		$this->assertFalse( $caps['upload'] );
+		$this->assertFalse( $caps['edit'] );
 	}
 
 	/**

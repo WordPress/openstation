@@ -13,6 +13,7 @@
  *                          the tab; AJAX routes re-validate).
  *   - `delete_plugins`   → bulk-delete + per-row delete action.
  *   - `upload_plugins`   → .zip upload (file or drag-drop).
+ *   - `edit_plugins`     → the link to Core's Plugin File Editor.
  *
  * UI-side gating is purely UX polish — the AJAX routes in `ajax.php`
  * and the app's server actions re-validate every cap before mutating.
@@ -91,7 +92,7 @@ function openstation_plugins_window_user_can_use( $user_id = null ) {
  * mutation, so a tampered flag here changes nothing security-wise.
  *
  * @param int|null $user_id Optional.
- * @return array{install:bool,delete:bool,upload:bool,activate:bool,update:bool}
+ * @return array{install:bool,delete:bool,upload:bool,activate:bool,update:bool,edit:bool}
  */
 function openstation_plugins_window_caps( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
@@ -115,6 +116,12 @@ function openstation_plugins_window_caps( $user_id = null ) {
 		// roles even when `openstation_update_available.available` is
 		// true. Server-side, `wp_ajax_update_plugin` re-checks the cap.
 		'update'   => $user_id > 0 && user_can( $user_id, 'update_plugins' ),
+		// Core's own gate on the Plugin File Editor menu row. The meta
+		// cap already answers `DISALLOW_FILE_EDIT` and `DISALLOW_FILE_MODS`.
+		// On multisite Core offers no site menu row for it, and the site
+		// screen only redirects to the network admin's editor, which a
+		// site desktop does not open as a window.
+		'edit'     => $site_managed && $user_id > 0 && user_can( $user_id, 'edit_plugins' ),
 	);
 }
 

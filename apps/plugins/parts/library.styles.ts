@@ -38,6 +38,13 @@ export const libraryStyles = css`
 	gap: 12px;
 }
 
+.os-plugins__library-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+}
+
 .os-plugins__eyebrow {
 	font-size: 10px;
 	font-weight: 600;

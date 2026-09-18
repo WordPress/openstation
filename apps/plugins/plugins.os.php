@@ -274,6 +274,9 @@ return App::define( 'desktop-mode-plugins' )
 			// Where the client goes after a self-deactivate: the classic
 			// Dashboard, never a reload of a possibly dead `?page=` URL.
 			'adminUrl'       => esc_url_raw( admin_url() ),
+			// Core's Plugin File Editor stays Core's screen; the Installed
+			// tab opens it as a window for a viewer holding `caps.edit`.
+			'editorUrl'      => esc_url_raw( admin_url( 'plugin-editor.php' ) ),
 		)
 	)
 	// The per-viewer half, resolved when the manifest is built for the
