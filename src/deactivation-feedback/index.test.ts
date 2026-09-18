@@ -86,7 +86,7 @@ describe( 'interceptPluginsScreen', () => {
 		dispose = interceptPluginsScreen( config(), { navigate } );
 		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
 
-		const radio = document.querySelector< HTMLInputElement >( 'input[value="broke_something"]' )!;
+		const radio = document.querySelector< HTMLInputElement >( 'input[value="too_buggy"]' )!;
 		radio.checked = true;
 		radio.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 		const details = document.querySelector< HTMLTextAreaElement >( '.os-deactivation-feedback__details' )!;
@@ -104,7 +104,7 @@ describe( 'interceptPluginsScreen', () => {
 		expect( init?.method ).toBe( 'POST' );
 		expect( ( init?.headers as Record< string, string > )[ 'X-WP-Nonce' ] ).toBe( 'nonce123' );
 		expect( JSON.parse( String( init?.body ) ) ).toEqual( {
-			reason: 'broke_something',
+			reason: 'too_buggy',
 			details: 'Elementor editor went blank',
 			context: 'classic',
 		} );

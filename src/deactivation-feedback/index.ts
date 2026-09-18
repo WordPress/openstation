@@ -50,10 +50,10 @@ export interface DeactivationFeedbackApi {
 
 /** The reasons offered, in display order; the slugs are the route's enum. */
 export const REASONS: ReadonlyArray< { value: string; label: () => string } > = [
-	{ value: 'broke_something', label: () => __( 'It broke something' ) },
-	{ value: 'didnt_understand', label: () => __( "I didn't understand it" ) },
-	{ value: 'not_for_me', label: () => __( "It's not for me" ) },
-	{ value: 'other', label: () => __( 'Something else' ) },
+	{ value: 'changed_too_much', label: () => __( 'It changed WordPress too much' ) },
+	{ value: 'missing_features', label: () => __( 'I\u2019m missing features I need' ) },
+	{ value: 'too_buggy', label: () => __( 'It\u2019s too buggy or unstable' ) },
+	{ value: 'other', label: () => __( 'Other' ) },
 ];
 
 /** Longest free text sent; the server truncates to the same length. */
@@ -173,11 +173,14 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 	card.addEventListener( 'change', () => {
 		const picked = reason();
 		send.disabled = picked === '';
-		// The first reason is the one where a name helps most.
-		details.placeholder =
-			picked === 'broke_something'
-				? __( 'Which page or plugin?' )
-				: __( 'Anything else? (optional)' );
+		// Steer the free text toward what would let us act on it.
+		if ( picked === 'too_buggy' ) {
+			details.placeholder = __( 'Which page or plugin?' );
+		} else if ( picked === 'missing_features' ) {
+			details.placeholder = __( 'Which features?' );
+		} else {
+			details.placeholder = __( 'Anything else? (optional)' );
+		}
 	} );
 
 	return { scrim, form: card, details, skip, send, reason };

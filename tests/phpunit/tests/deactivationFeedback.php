@@ -89,7 +89,7 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 
 		$response = $this->post(
 			array(
-				'reason'  => 'broke_something',
+				'reason'  => 'too_buggy',
 				'details' => str_repeat( 'x', 1200 ),
 				'context' => 'app',
 			)
@@ -120,7 +120,7 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 			),
 			array_keys( $payload )
 		);
-		$this->assertSame( 'broke_something', $payload['reason'] );
+		$this->assertSame( 'too_buggy', $payload['reason'] );
 		$this->assertSame( 1000, strlen( $payload['details'] ) );
 		$this->assertSame( 'app', $payload['context'] );
 		$this->assertSame( OPENSTATION_VERSION, $payload['plugin_version'] );
@@ -139,7 +139,7 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		add_filter( 'openstation_deactivation_feedback_payload', '__return_empty_array' );
 
-		$response = $this->post( array( 'reason' => 'not_for_me' ) );
+		$response = $this->post( array( 'reason' => 'missing_features' ) );
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertFalse( $response->get_data()['sent'] );

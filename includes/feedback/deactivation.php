@@ -17,7 +17,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** The reasons the dialog offers, as the slugs the intake stores. */
-const OPENSTATION_FEEDBACK_REASONS = array( 'broke_something', 'didnt_understand', 'not_for_me', 'other' );
+const OPENSTATION_FEEDBACK_REASONS = array( 'changed_too_much', 'missing_features', 'too_buggy', 'other' );
 
 /** Where a submission came from. */
 const OPENSTATION_FEEDBACK_CONTEXTS = array( 'classic', 'chromeless', 'app' );
