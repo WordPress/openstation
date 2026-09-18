@@ -51,7 +51,6 @@ export interface DeactivationFeedbackApi {
 /** The reasons offered, in display order; the slugs are the route's enum. */
 export const REASONS: ReadonlyArray< { value: string; label: () => string } > = [
 	{ value: 'broke_something', label: () => __( 'It broke something' ) },
-	{ value: 'too_slow', label: () => __( 'It was too slow' ) },
 	{ value: 'didnt_understand', label: () => __( "I didn't understand it" ) },
 	{ value: 'not_for_me', label: () => __( "It's not for me" ) },
 	{ value: 'other', label: () => __( 'Something else' ) },
