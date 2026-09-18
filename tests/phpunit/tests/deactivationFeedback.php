@@ -78,7 +78,7 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 	public function test_subscriber_is_refused_and_nothing_is_forwarded() {
 		wp_set_current_user( self::$subscriber_id );
 
-		$response = $this->post( array( 'reason' => 'other' ) );
+		$response = $this->post( array( 'reasons' => array( 'other' ) ) );
 
 		$this->assertSame( 403, $response->get_status() );
 		$this->assertSame( 0, $this->forward_calls );
@@ -89,7 +89,7 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 
 		$response = $this->post(
 			array(
-				'reason'  => 'too_buggy',
+				'reasons' => array( 'other', 'too_buggy', 'too_buggy' ),
 				'details' => str_repeat( 'x', 1200 ),
 				'context' => 'app',
 			)
@@ -103,7 +103,7 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				'id',
-				'reason',
+				'reasons',
 				'details',
 				'plugin_version',
 				'wp_version',
@@ -120,7 +120,8 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 			),
 			array_keys( $payload )
 		);
-		$this->assertSame( 'too_buggy', $payload['reason'] );
+		// Deduplicated, in the dialog's order.
+		$this->assertSame( array( 'too_buggy', 'other' ), $payload['reasons'] );
 		$this->assertSame( 1000, strlen( $payload['details'] ) );
 		$this->assertSame( 'app', $payload['context'] );
 		$this->assertSame( OPENSTATION_VERSION, $payload['plugin_version'] );
@@ -139,7 +140,7 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		add_filter( 'openstation_deactivation_feedback_payload', '__return_empty_array' );
 
-		$response = $this->post( array( 'reason' => 'missing_features' ) );
+		$response = $this->post( array( 'reasons' => array( 'missing_features' ) ) );
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertFalse( $response->get_data()['sent'] );
@@ -150,9 +151,18 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		add_filter( 'openstation_deactivation_feedback_enabled', '__return_false' );
 
-		$response = $this->post( array( 'reason' => 'other' ) );
+		$response = $this->post( array( 'reasons' => array( 'other' ) ) );
 
 		$this->assertSame( 403, $response->get_status() );
+		$this->assertSame( 0, $this->forward_calls );
+	}
+
+	public function test_unknown_reason_is_rejected_by_the_schema() {
+		wp_set_current_user( self::$admin_id );
+
+		$response = $this->post( array( 'reasons' => array( 'too_slow' ) ) );
+
+		$this->assertSame( 400, $response->get_status() );
 		$this->assertSame( 0, $this->forward_calls );
 	}
 }

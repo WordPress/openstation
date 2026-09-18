@@ -1204,7 +1204,7 @@ add_filter( 'openstation_deactivation_feedback_enabled', '__return_false' );
 
 ### `openstation_deactivation_feedback_payload` — Experimental
 
-The anonymous submission, after it is built and before it is forwarded. The keys are the ones `readme.txt` discloses under "External services" (`id`, `reason`, `details`, `plugin_version`, `wp_version`, `php_version`, `locale`, `multisite`, `install_age_days`, `ever_enabled`, `enabled_user_count`, `first_enable_delay_days`, `deactivator_enabled`, `active_plugins`, `context`). Return an empty array to suppress the send; the route still answers `200` with `sent: false`.
+The anonymous submission, after it is built and before it is forwarded. The keys are the ones `readme.txt` discloses under "External services" (`id`, `reasons`, `details`, `plugin_version`, `wp_version`, `php_version`, `locale`, `multisite`, `install_age_days`, `ever_enabled`, `enabled_user_count`, `first_enable_delay_days`, `deactivator_enabled`, `active_plugins`, `context`). Return an empty array to suppress the send; the route still answers `200` with `sent: false`.
 
 ```php
 apply_filters( 'openstation_deactivation_feedback_payload', array $payload );

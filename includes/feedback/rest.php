@@ -24,10 +24,14 @@ function openstation_register_deactivation_feedback_route() {
 			'callback'            => 'openstation_rest_deactivation_feedback',
 			'permission_callback' => 'openstation_rest_deactivation_feedback_permission',
 			'args'                => array(
-				'reason'  => array(
+				'reasons' => array(
 					'required' => true,
-					'type'     => 'string',
-					'enum'     => OPENSTATION_FEEDBACK_REASONS,
+					'type'     => 'array',
+					'minItems' => 1,
+					'items'    => array(
+						'type' => 'string',
+						'enum' => OPENSTATION_FEEDBACK_REASONS,
+					),
 				),
 				'details' => array(
 					'type'    => 'string',
@@ -80,7 +84,7 @@ function openstation_rest_deactivation_feedback_permission() {
  */
 function openstation_rest_deactivation_feedback( WP_REST_Request $request ) {
 	$payload = openstation_deactivation_feedback_payload(
-		(string) $request->get_param( 'reason' ),
+		(array) $request->get_param( 'reasons' ),
 		(string) $request->get_param( 'details' ),
 		(string) $request->get_param( 'context' )
 	);

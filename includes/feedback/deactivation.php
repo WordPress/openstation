@@ -139,14 +139,19 @@ function openstation_feedback_days_since_option( $option ) {
  * Every field is listed in `readme.txt` under "External services";
  * add one here and add it there in the same change.
  *
- * @param string $reason  One of {@see OPENSTATION_FEEDBACK_REASONS}.
- * @param string $details Free text, optional.
- * @param string $context One of {@see OPENSTATION_FEEDBACK_CONTEXTS}.
+ * @param string[] $reasons Any of {@see OPENSTATION_FEEDBACK_REASONS}; the
+ *                          dialog lets the admin tick several.
+ * @param string   $details Free text, optional.
+ * @param string   $context One of {@see OPENSTATION_FEEDBACK_CONTEXTS}.
  * @return array
  */
-function openstation_deactivation_feedback_payload( $reason, $details = '', $context = 'classic' ) {
-	if ( ! in_array( $reason, OPENSTATION_FEEDBACK_REASONS, true ) ) {
-		$reason = 'other';
+function openstation_deactivation_feedback_payload( $reasons, $details = '', $context = 'classic' ) {
+	// Known slugs only, deduplicated, in the dialog's own order.
+	$reasons = array_values(
+		array_intersect( OPENSTATION_FEEDBACK_REASONS, array_map( 'strval', (array) $reasons ) )
+	);
+	if ( empty( $reasons ) ) {
+		$reasons = array( 'other' );
 	}
 	if ( ! in_array( $context, OPENSTATION_FEEDBACK_CONTEXTS, true ) ) {
 		$context = 'classic';
@@ -164,7 +169,7 @@ function openstation_deactivation_feedback_payload( $reason, $details = '', $con
 
 	return array(
 		'id'                      => wp_generate_uuid4(),
-		'reason'                  => $reason,
+		'reasons'                 => $reasons,
 		'details'                 => $details,
 		'plugin_version'          => OPENSTATION_VERSION,
 		'wp_version'              => get_bloginfo( 'version' ),

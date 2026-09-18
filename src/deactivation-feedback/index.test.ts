@@ -68,7 +68,7 @@ describe( 'interceptPluginsScreen', () => {
 		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
 		expect( dialog() ).not.toBeNull();
 		expect( navigate ).not.toHaveBeenCalled();
-		// Send is inert until a reason is picked.
+		// Send is inert until a reason is ticked.
 		expect( button( 'primary' ).disabled ).toBe( true );
 
 		button( 'ghost' ).click();
@@ -86,9 +86,11 @@ describe( 'interceptPluginsScreen', () => {
 		dispose = interceptPluginsScreen( config(), { navigate } );
 		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
 
-		const radio = document.querySelector< HTMLInputElement >( 'input[value="too_buggy"]' )!;
-		radio.checked = true;
-		radio.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		for ( const value of [ 'too_buggy', 'other' ] ) {
+			const box = document.querySelector< HTMLInputElement >( `input[value="${ value }"]` )!;
+			box.checked = true;
+			box.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		}
 		const details = document.querySelector< HTMLTextAreaElement >( '.os-deactivation-feedback__details' )!;
 		expect( details.placeholder ).toMatch( /page or plugin/ );
 		details.value = 'Elementor editor went blank';
@@ -104,7 +106,7 @@ describe( 'interceptPluginsScreen', () => {
 		expect( init?.method ).toBe( 'POST' );
 		expect( ( init?.headers as Record< string, string > )[ 'X-WP-Nonce' ] ).toBe( 'nonce123' );
 		expect( JSON.parse( String( init?.body ) ) ).toEqual( {
-			reason: 'too_buggy',
+			reasons: [ 'too_buggy', 'other' ],
 			details: 'Elementor editor went blank',
 			context: 'classic',
 		} );

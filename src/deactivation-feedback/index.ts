@@ -87,7 +87,8 @@ interface DialogParts {
 	details: HTMLTextAreaElement;
 	skip: HTMLButtonElement;
 	send: HTMLButtonElement;
-	reason: () => string;
+	/** The checked reasons, in display order. */
+	reasons: () => string[];
 }
 
 /** Build the scrim + card. Exported so a test can read the markup. */
@@ -116,14 +117,14 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 
 	const group = doc.createElement( 'div' );
 	group.className = 'os-deactivation-feedback__reasons';
-	group.setAttribute( 'role', 'radiogroup' );
+	group.setAttribute( 'role', 'group' );
 	group.setAttribute( 'aria-labelledby', 'os-deactivation-feedback-title' );
 	for ( const opt of REASONS ) {
 		const label = doc.createElement( 'label' );
 		label.className = 'os-deactivation-feedback__reason';
 		const input = doc.createElement( 'input' );
-		input.type = 'radio';
-		input.name = 'reason';
+		input.type = 'checkbox';
+		input.name = 'reasons';
 		input.value = opt.value;
 		label.appendChild( input );
 		const text = doc.createElement( 'span' );
@@ -163,33 +164,33 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 	send.type = 'submit';
 	send.className = 'os-deactivation-feedback__btn os-deactivation-feedback__btn--primary';
 	send.textContent = __( 'Send and deactivate' );
-	// Nothing to send until a reason is picked; the route requires one.
+	// Nothing to send until at least one reason is ticked; the route requires one.
 	send.disabled = true;
 	actions.appendChild( send );
 
-	const reason = (): string =>
-		( card.querySelector< HTMLInputElement >( 'input[name="reason"]:checked' )?.value ) ?? '';
+	const reasons = (): string[] =>
+		Array.from( card.querySelectorAll< HTMLInputElement >( 'input[name="reasons"]:checked' ) ).map( ( i ) => i.value );
 
 	card.addEventListener( 'change', () => {
-		const picked = reason();
-		send.disabled = picked === '';
+		const picked = reasons();
+		send.disabled = picked.length === 0;
 		// Steer the free text toward what would let us act on it.
-		if ( picked === 'too_buggy' ) {
+		if ( picked.includes( 'too_buggy' ) ) {
 			details.placeholder = __( 'Which page or plugin?' );
-		} else if ( picked === 'missing_features' ) {
+		} else if ( picked.includes( 'missing_features' ) ) {
 			details.placeholder = __( 'Which features?' );
 		} else {
 			details.placeholder = __( 'Anything else? (optional)' );
 		}
 	} );
 
-	return { scrim, form: card, details, skip, send, reason };
+	return { scrim, form: card, details, skip, send, reasons };
 }
 
 /** POST the answer; resolves whatever happens, within the timeout. */
 async function postAnswer(
 	config: DeactivationFeedbackConfig,
-	reason: string,
+	reasons: string[],
 	details: string,
 ): Promise< void > {
 	const headers: Record< string, string > = { 'Content-Type': 'application/json' };
@@ -202,7 +203,7 @@ async function postAnswer(
 			method: 'POST',
 			headers,
 			body: JSON.stringify( {
-				reason,
+				reasons,
 				details: details.slice( 0, DETAILS_MAX ),
 				context: config.context,
 			} ),
@@ -224,7 +225,7 @@ async function postAnswer(
 
 /**
  * Open the dialog and resolve when the user picks either button.
- * Sends only on "Send", and only once a reason is picked. A second
+ * Sends only on "Send", and only with at least one reason ticked. A second
  * call while one is open resolves immediately.
  */
 export function askDeactivationFeedback( config: DeactivationFeedbackConfig ): Promise< void > {
@@ -280,19 +281,19 @@ export function askDeactivationFeedback( config: DeactivationFeedbackConfig ): P
 		parts.skip.addEventListener( 'click', finish );
 		parts.form.addEventListener( 'submit', ( event ) => {
 			event.preventDefault();
-			const reason = parts.reason();
-			if ( reason === '' || settled ) {
+			const reasons = parts.reasons();
+			if ( reasons.length === 0 || settled ) {
 				return;
 			}
 			parts.send.disabled = true;
 			parts.skip.disabled = true;
 			parts.send.textContent = __( 'Sending…' );
-			void postAnswer( config, reason, parts.details.value ).then( finish, finish );
+			void postAnswer( config, reasons, parts.details.value ).then( finish, finish );
 		} );
 
 		doc.addEventListener( 'keydown', onKeydown, true );
 		doc.body.appendChild( parts.scrim );
-		parts.scrim.querySelector< HTMLElement >( 'input[name="reason"]' )?.focus();
+		parts.scrim.querySelector< HTMLElement >( 'input[name="reasons"]' )?.focus();
 	} );
 }
 
