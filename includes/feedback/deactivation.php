@@ -108,27 +108,39 @@ function openstation_feedback_enqueue_deactivation_dialog( $hook_suffix ) {
 add_action( 'admin_enqueue_scripts', 'openstation_feedback_enqueue_deactivation_dialog' );
 
 /**
- * Days between a stored `Y-m-d H:i:s` / timestamp option and now, or
- * `null` when the option is absent or unreadable.
+ * The real moment a first-run stamp records, in epoch seconds, or
+ * `null` when it is absent or its age is unknown.
  *
- * The install stamp (`openstation_installed_at`) and the first-enable
- * stamp (`openstation_first_enabled_at`) are written by the first-run
- * activation work; until a site has them the answer is `null`, never
- * a guess.
+ * `includes/first-run/stamps.php` writes `{ at, via }`: `via` is
+ * `activation` when the stamp was written at the real moment and
+ * `backfill` when it was reconstructed later for an install that
+ * predates it. A backfilled `at` is the moment we noticed, not the
+ * moment it happened, so it is reported as unknown rather than as a
+ * number wrong by an arbitrary amount.
  *
- * @param string $option Option name.
+ * @param array{at:int,via:string}|null $stamp A normalised stamp.
  * @return int|null
  */
-function openstation_feedback_days_since_option( $option ) {
-	$raw = get_option( $option );
-	if ( empty( $raw ) ) {
+function openstation_feedback_stamp_moment( $stamp ) {
+	if ( null === $stamp || 'activation' !== $stamp['via'] || $stamp['at'] <= 0 ) {
 		return null;
 	}
-	$ts = is_numeric( $raw ) ? (int) $raw : strtotime( (string) $raw );
-	if ( ! $ts ) {
+	return (int) $stamp['at'];
+}
+
+/**
+ * Whole days between two moments, floored at zero, or `null` when
+ * either is unknown.
+ *
+ * @param int|null $from Earlier moment, epoch seconds.
+ * @param int|null $to   Later moment, epoch seconds.
+ * @return int|null
+ */
+function openstation_feedback_days_between( $from, $to ) {
+	if ( null === $from || null === $to ) {
 		return null;
 	}
-	return max( 0, (int) floor( ( time() - $ts ) / DAY_IN_SECONDS ) );
+	return max( 0, (int) floor( ( $to - $from ) / DAY_IN_SECONDS ) );
 }
 
 /**
@@ -167,6 +179,16 @@ function openstation_deactivation_feedback_payload( $reasons, $details = '', $co
 
 	$php = explode( '.', PHP_VERSION );
 
+	$installed_at     = openstation_feedback_stamp_moment( openstation_get_install_stamp() );
+	$first_enabled_at = openstation_feedback_stamp_moment( openstation_get_first_enabled_stamp() );
+
+	// Site-activated plugins, plus the network-activated ones on a
+	// multisite: `active_plugins` alone would under-count a network.
+	$active_plugins = count( (array) get_option( 'active_plugins', array() ) );
+	if ( is_multisite() ) {
+		$active_plugins += count( (array) get_site_option( 'active_sitewide_plugins', array() ) );
+	}
+
 	return array(
 		'id'                      => wp_generate_uuid4(),
 		'reasons'                 => $reasons,
@@ -176,12 +198,12 @@ function openstation_deactivation_feedback_payload( $reasons, $details = '', $co
 		'php_version'             => $php[0] . '.' . ( isset( $php[1] ) ? $php[1] : '0' ),
 		'locale'                  => get_locale(),
 		'multisite'               => is_multisite(),
-		'install_age_days'        => openstation_feedback_days_since_option( 'openstation_installed_at' ),
+		'install_age_days'        => openstation_feedback_days_between( $installed_at, time() ),
 		'ever_enabled'            => count( $enabled_users ) > 0,
 		'enabled_user_count'      => count( $enabled_users ),
-		'first_enable_delay_days' => openstation_feedback_days_since_option( 'openstation_first_enabled_at' ),
+		'first_enable_delay_days' => openstation_feedback_days_between( $installed_at, $first_enabled_at ),
 		'deactivator_enabled'     => openstation_is_enabled(),
-		'active_plugins'          => count( (array) get_option( 'active_plugins', array() ) ),
+		'active_plugins'          => $active_plugins,
 		'context'                 => $context,
 	);
 }

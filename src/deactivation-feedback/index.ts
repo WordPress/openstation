@@ -87,7 +87,7 @@ interface DialogParts {
 	details: HTMLTextAreaElement;
 	skip: HTMLButtonElement;
 	send: HTMLButtonElement;
-	/** The checked reasons, in display order. */
+	/** The reasons to send: the ticked ones in display order, or "other" when only details were typed. */
 	reasons: () => string[];
 }
 
@@ -146,7 +146,7 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 	const disclosure = doc.createElement( 'p' );
 	disclosure.className = 'os-deactivation-feedback__disclosure';
 	disclosure.textContent = __(
-		'What we send: your answer, the plugin, WordPress and PHP versions, your site language, and how long OpenStation was installed. Nothing that identifies you or your site.',
+		'What we send: your answer, the plugin, WordPress and PHP versions, your site language, and a few anonymous site facts listed in the plugin readme. Nothing that identifies you or your site.',
 	);
 	card.appendChild( disclosure );
 
@@ -164,16 +164,23 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 	send.type = 'submit';
 	send.className = 'os-deactivation-feedback__btn os-deactivation-feedback__btn--primary';
 	send.textContent = __( 'Send and deactivate' );
-	// Nothing to send until at least one reason is ticked; the route requires one.
+	// Nothing to send until a reason is ticked or details are typed.
 	send.disabled = true;
 	actions.appendChild( send );
 
-	const reasons = (): string[] =>
+	const ticked = (): string[] =>
 		Array.from( card.querySelectorAll< HTMLInputElement >( 'input[name="reasons"]:checked' ) ).map( ( i ) => i.value );
 
-	card.addEventListener( 'change', () => {
-		const picked = reasons();
-		send.disabled = picked.length === 0;
+	// The route requires at least one reason. Details typed with no
+	// box ticked are still an answer, so they go out as "Other".
+	const reasons = (): string[] => {
+		const picked = ticked();
+		return picked.length === 0 && details.value.trim() !== '' ? [ 'other' ] : picked;
+	};
+
+	const refresh = (): void => {
+		const picked = ticked();
+		send.disabled = picked.length === 0 && details.value.trim() === '';
 		// Steer the free text toward what would let us act on it.
 		if ( picked.includes( 'too_buggy' ) ) {
 			details.placeholder = __( 'Which page or plugin?' );
@@ -182,7 +189,9 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 		} else {
 			details.placeholder = __( 'Anything else? (optional)' );
 		}
-	} );
+	};
+	card.addEventListener( 'change', refresh );
+	details.addEventListener( 'input', refresh );
 
 	return { scrim, form: card, details, skip, send, reasons };
 }
@@ -225,8 +234,8 @@ async function postAnswer(
 
 /**
  * Open the dialog and resolve when the user picks either button.
- * Sends only on "Send", and only with at least one reason ticked. A second
- * call while one is open resolves immediately.
+ * Sends only on "Send", and only with a reason ticked or details typed.
+ * A second call while one is open resolves immediately.
  */
 export function askDeactivationFeedback( config: DeactivationFeedbackConfig ): Promise< void > {
 	if ( open ) {

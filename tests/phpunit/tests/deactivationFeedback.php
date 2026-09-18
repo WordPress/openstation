@@ -126,7 +126,9 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 		$this->assertSame( 'app', $payload['context'] );
 		$this->assertSame( OPENSTATION_VERSION, $payload['plugin_version'] );
 		$this->assertMatchesRegularExpression( '/^\d+\.\d+$/', $payload['php_version'] );
+		// No first-run stamps on this site: unknown, never a guess.
 		$this->assertNull( $payload['install_age_days'] );
+		$this->assertNull( $payload['first_enable_delay_days'] );
 		$this->assertIsInt( $payload['active_plugins'] );
 
 		// Anonymous: nothing about the site or the person.
@@ -134,6 +136,50 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( home_url(), $encoded );
 		$this->assertStringNotContainsString( wp_get_current_user()->user_email, $encoded );
 		$this->assertStringNotContainsString( wp_get_current_user()->user_login, $encoded );
+	}
+
+	/**
+	 * A real (`activation`) pair of first-run stamps gives the two day
+	 * counts; a backfilled one is an unknown age, not a number.
+	 */
+	public function test_first_run_stamps_give_the_day_counts() {
+		wp_set_current_user( self::$admin_id );
+		$now = time();
+		update_option(
+			OPENSTATION_INSTALLED_AT_OPTION,
+			array(
+				'at'  => $now - 10 * DAY_IN_SECONDS,
+				'via' => 'activation',
+			)
+		);
+		update_option(
+			OPENSTATION_FIRST_ENABLED_AT_OPTION,
+			array(
+				'at'  => $now - 7 * DAY_IN_SECONDS,
+				'via' => 'activation',
+			)
+		);
+
+		$this->post( array( 'reasons' => array( 'other' ) ) );
+		$this->assertSame( 10, $this->forwarded['install_age_days'] );
+		$this->assertSame( 3, $this->forwarded['first_enable_delay_days'] );
+
+		openstation_backfill_install_stamp();
+		$this->assertSame( 'activation', openstation_get_install_stamp()['via'], 'A backfill never overwrites a real stamp.' );
+
+		update_option(
+			OPENSTATION_INSTALLED_AT_OPTION,
+			array(
+				'at'  => $now - 10 * DAY_IN_SECONDS,
+				'via' => 'backfill',
+			)
+		);
+		$this->post( array( 'reasons' => array( 'other' ) ) );
+		$this->assertNull( $this->forwarded['install_age_days'] );
+		$this->assertNull( $this->forwarded['first_enable_delay_days'] );
+
+		delete_option( OPENSTATION_INSTALLED_AT_OPTION );
+		delete_option( OPENSTATION_FIRST_ENABLED_AT_OPTION );
 	}
 
 	public function test_empty_filtered_payload_suppresses_the_forward() {

@@ -115,6 +115,29 @@ describe( 'interceptPluginsScreen', () => {
 		expect( navigate ).toHaveBeenCalledWith( HREF );
 	} );
 
+	test( 'details alone are sent as Other', async () => {
+		const link = mountRows();
+		const navigate = vi.fn();
+		dispose = interceptPluginsScreen( config(), { navigate } );
+		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
+
+		const details = document.querySelector< HTMLTextAreaElement >( '.os-deactivation-feedback__details' )!;
+		details.value = 'Conflicts with my page builder';
+		details.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+		expect( button( 'primary' ).disabled ).toBe( false );
+
+		document.querySelector< HTMLFormElement >( '.os-deactivation-feedback__card' )!
+			.dispatchEvent( new Event( 'submit', { bubbles: true, cancelable: true } ) );
+		await settle();
+
+		expect( trackedFetch ).toHaveBeenCalledTimes( 1 );
+		expect( JSON.parse( String( trackedFetch.mock.calls[ 0 ][ 1 ]?.body ) ) ).toMatchObject( {
+			reasons: [ 'other' ],
+			details: 'Conflicts with my page builder',
+		} );
+		expect( navigate ).toHaveBeenCalledWith( HREF );
+	} );
+
 	test( 'Escape is Skip, and another plugin\u2019s Deactivate link is left alone', async () => {
 		const link = mountRows();
 		const navigate = vi.fn();

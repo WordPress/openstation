@@ -358,7 +358,7 @@ function openstation_users_with_prior_desktop_use() {
 				get_users(
 					array(
 						'fields'       => 'ID',
-						'meta_key'     => 'desktop_mode_mode', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- runs once per install; the key is indexed in usermeta and both callers are guarded to a single pass.
+						'meta_key'     => 'desktop_mode_mode', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- the key is indexed in usermeta; the migration callers run once per install, and the deactivation feedback route once per admin submission.
 						'meta_compare' => 'EXISTS',
 					)
 				),
