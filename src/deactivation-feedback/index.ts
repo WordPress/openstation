@@ -305,23 +305,36 @@ export interface InterceptDeps {
  * on OpenStation's own row, ask, then follow the link. Bulk
  * deactivation with OpenStation checked is left alone.
  *
- * @return True when a link was found and wired.
+ * Delegated from `window` in the capture phase, not bound to the
+ * anchor: Gutenberg's client-side admin router (and any plugin doing
+ * the same) claims admin link clicks at the document level with
+ * `preventDefault()` and navigates itself, so a listener on the
+ * anchor sees `defaultPrevented` already set and the page is gone
+ * before the dialog could open. Capture on `window` runs before any
+ * of that, and `stopImmediatePropagation()` keeps the routers out.
+ *
+ * @return A function that removes the listener again.
  */
-export function interceptPluginsScreen( config: DeactivationFeedbackConfig, deps: InterceptDeps = {} ): boolean {
+export function interceptPluginsScreen( config: DeactivationFeedbackConfig, deps: InterceptDeps = {} ): () => void {
 	const doc = deps.doc ?? document;
-	const navigate = deps.navigate ?? ( ( href: string ) => window.location.assign( href ) );
+	const win = doc.defaultView ?? window;
+	const navigate = deps.navigate ?? ( ( href: string ) => win.location.assign( href ) );
 	const plugin = config.plugin.replace( /["\\]/g, '\\$&' );
-	const link = doc.querySelector< HTMLAnchorElement >( `tr[data-plugin="${ plugin }"] .deactivate a[href]` );
-	if ( ! link ) {
-		return false;
-	}
-	link.addEventListener( 'click', ( event ) => {
-		if ( event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey ) {
+	const selector = `tr[data-plugin="${ plugin }"] .deactivate a[href]`;
+	const onClick = ( event: MouseEvent ): void => {
+		if ( event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ) {
+			return;
+		}
+		const target = event.target as Element | null;
+		const link = target?.closest?.< HTMLAnchorElement >( selector );
+		if ( ! link ) {
 			return;
 		}
 		event.preventDefault();
+		event.stopImmediatePropagation();
 		const href = link.href;
 		void askDeactivationFeedback( config ).then( () => navigate( href ) );
-	} );
-	return true;
+	};
+	win.addEventListener( 'click', onClick, true );
+	return () => win.removeEventListener( 'click', onClick, true );
 }

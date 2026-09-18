@@ -4,7 +4,7 @@
  * Two promises are worth guarding: nothing is sent unless the admin
  * clicks Send, and the deactivation goes ahead whatever the send did.
  */
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 type FetchArgs = ( url: string, init?: RequestInit, opts?: unknown ) => Promise< unknown >;
 
@@ -31,7 +31,7 @@ function config(): DeactivationFeedbackConfig {
 function mountRows(): HTMLAnchorElement {
 	document.body.innerHTML =
 		'<table><tbody>' +
-		'<tr data-plugin="akismet/akismet.php"><td><span class="deactivate"><a href="http://example.test/other">Deactivate</a></span></td></tr>' +
+		'<tr data-plugin="akismet/akismet.php"><td><span class="deactivate"><a href="#other">Deactivate</a></span></td></tr>' +
 		`<tr data-plugin="${ PLUGIN }"><td><span class="deactivate"><a href="${ HREF }">Deactivate</a></span></td></tr>` +
 		'</tbody></table>';
 	return document.querySelector< HTMLAnchorElement >( `tr[data-plugin="${ PLUGIN }"] a` )!;
@@ -47,16 +47,23 @@ async function settle(): Promise< void > {
 	}
 }
 
+let dispose: ( () => void ) | null = null;
+
 beforeEach( () => {
 	trackedFetch.mockClear();
 	trackedFetch.mockImplementation( () => Promise.resolve( new Response( '{"sent":true}' ) ) );
+} );
+
+afterEach( () => {
+	dispose?.();
+	dispose = null;
 } );
 
 describe( 'interceptPluginsScreen', () => {
 	test( 'Skip sends nothing and follows the Deactivate link', async () => {
 		const link = mountRows();
 		const navigate = vi.fn();
-		expect( interceptPluginsScreen( config(), { navigate } ) ).toBe( true );
+		dispose = interceptPluginsScreen( config(), { navigate } );
 
 		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
 		expect( dialog() ).not.toBeNull();
@@ -76,7 +83,7 @@ describe( 'interceptPluginsScreen', () => {
 		trackedFetch.mockImplementation( () => Promise.reject( new Error( 'offline' ) ) );
 		const link = mountRows();
 		const navigate = vi.fn();
-		interceptPluginsScreen( config(), { navigate } );
+		dispose = interceptPluginsScreen( config(), { navigate } );
 		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
 
 		const radio = document.querySelector< HTMLInputElement >( 'input[value="broke_something"]' )!;
@@ -106,13 +113,17 @@ describe( 'interceptPluginsScreen', () => {
 		expect( navigate ).toHaveBeenCalledWith( HREF );
 	} );
 
-	test( 'Escape is Skip, and a screen without our row wires nothing', async () => {
-		document.body.innerHTML = '<table><tbody><tr data-plugin="akismet/akismet.php"><td><span class="deactivate"><a href="#">x</a></span></td></tr></tbody></table>';
-		expect( interceptPluginsScreen( config(), { navigate: vi.fn() } ) ).toBe( false );
-
+	test( 'Escape is Skip, and another plugin\u2019s Deactivate link is left alone', async () => {
 		const link = mountRows();
 		const navigate = vi.fn();
-		interceptPluginsScreen( config(), { navigate } );
+		dispose = interceptPluginsScreen( config(), { navigate } );
+
+		const other = document.querySelector< HTMLAnchorElement >( 'tr[data-plugin="akismet/akismet.php"] a' )!;
+		const otherClick = new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } );
+		other.dispatchEvent( otherClick );
+		expect( otherClick.defaultPrevented ).toBe( false );
+		expect( dialog() ).toBeNull();
+
 		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ) );
 		await settle();
