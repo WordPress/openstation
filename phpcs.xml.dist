@@ -72,6 +72,14 @@
 				<element value="OPENSTATION"/>
 				<element value="wpdc"/>
 				<element value="wpdm"/>
+				<!--
+					`tools/feedback-intake/` is a separate plugin that runs on
+					openstation.blog, not on OpenStation sites. Its prefix is
+					its own on purpose: the blog can run OpenStation too, and
+					nothing the intake declares may collide with it.
+				-->
+				<element value="osfi"/>
+				<element value="OSFI"/>
 			</property>
 		</properties>
 	</rule>
