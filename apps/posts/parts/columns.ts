@@ -8,6 +8,10 @@
  *   - `openstation.postsWindow.bulkActions` — the bulk-bar buttons.
  *   - `openstation.postsWindow.toolbarTrailing` — extra toolbar nodes.
  *
+ * The columns and bulk-actions filters receive `{ mode }` as a second
+ * argument (`'posts' | 'pages'`), so a plugin can tell the two windows
+ * apart at registration time (#854). One-arg callbacks are unaffected.
+ *
  * @public
  */
 
@@ -22,6 +26,7 @@ import type {
 	AuthorOption,
 	BulkAction,
 	PostListItem,
+	PostsMode,
 	PostsWindowContext,
 	StatusSegment,
 	TagOption,
@@ -268,7 +273,7 @@ export function buildAllColumns(
 	const cols = buildBaseColumns( env, cache, filterData );
 	const hooks = window.wp?.hooks;
 	return hooks && typeof hooks.applyFilters === 'function'
-		? ( hooks.applyFilters( HOOK_FILTER_COLUMNS, cols ) as OsTableColumn< PostListItem >[] )
+		? ( hooks.applyFilters( HOOK_FILTER_COLUMNS, cols, { mode: env.extra.mode ?? 'posts' } ) as OsTableColumn< PostListItem >[] )
 		: cols;
 }
 
@@ -384,13 +389,13 @@ export function defaultBulkActions(
 	];
 }
 
-export function resolveBulkActions( defaults: BulkAction[] ): BulkAction[] {
+export function resolveBulkActions( defaults: BulkAction[], mode: PostsMode ): BulkAction[] {
 	const hooks = window.wp?.hooks;
 	if ( ! hooks || typeof hooks.applyFilters !== 'function' ) {
 		return defaults;
 	}
 	try {
-		const out = hooks.applyFilters( HOOK_FILTER_BULK_ACTIONS, defaults );
+		const out = hooks.applyFilters( HOOK_FILTER_BULK_ACTIONS, defaults, { mode } );
 		return Array.isArray( out ) ? ( out as BulkAction[] ) : defaults;
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
