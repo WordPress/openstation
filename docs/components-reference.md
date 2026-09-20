@@ -180,6 +180,15 @@ in the value, or on `beforeinput`, where it can still be refused.
 | `<os-button>` | `OsButton` | `os-button/os-button.ts` | Primary / secondary / ghost button. |
 | `<os-window-button>` | `OsWindowButton` | `os-window-button/os-window-button.ts` | Title-bar icon button (minimize / maximize / close / custom). |
 
+An icon-only `<os-button>` names itself through `aria-label` on the
+host. The focusable element is the `<button>` inside the shadow root
+and the host has no role, so a name left on the host alone is inert;
+the component forwards `aria-label` onto that inner button, keeps it
+in sync when you relabel the host, and drops it from the inner button
+when the host has none. `aria-labelledby` / `aria-describedby` are not
+forwarded: an IDREF on the shadow `<button>` resolves inside that
+shadow root only, so it could never reach an id in your markup.
+
 `<os-window-button disabled>` forwards disabled state to its native button, preventing activation and keyboard focus. Optional `aria-pressed="true|false|mixed"` is forwarded to that same focusable button; `active` controls its visual pressed state.
 
 `<os-window-button>` paints an `aria-hidden` glyph inside a shadow
