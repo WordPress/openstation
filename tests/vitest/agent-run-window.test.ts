@@ -196,6 +196,95 @@ describe( 'agent chat window', () => {
 		cleanup();
 	} );
 
+	test( 'a mid-run repaint keeps the reader where they are and follows the newest row from the bottom', async () => {
+		// The transcript is rebuilt on every status poll, and the kit
+		// components inside it draw after the paint returns, so a
+		// synchronous pin to the bottom landed short by the composer's
+		// height on every tick. jsdom has no layout: stand in a 300px
+		// box over 1000px of rows, and a ResizeObserver that reports
+		// when asked.
+		const scrollHeightDesc = Object.getOwnPropertyDescriptor(
+			Element.prototype,
+			'scrollHeight',
+		)!;
+		const clientHeightDesc = Object.getOwnPropertyDescriptor(
+			Element.prototype,
+			'clientHeight',
+		)!;
+		const box = { scrollHeight: 1000, clientHeight: 300 };
+		Object.defineProperty( Element.prototype, 'scrollHeight', {
+			configurable: true,
+			get: () => box.scrollHeight,
+		} );
+		Object.defineProperty( Element.prototype, 'clientHeight', {
+			configurable: true,
+			get: () => box.clientHeight,
+		} );
+		const resizeCallbacks: Array< () => void > = [];
+		vi.stubGlobal(
+			'ResizeObserver',
+			class {
+				constructor( cb: () => void ) {
+					resizeCallbacks.push( cb );
+				}
+				observe(): void {}
+				disconnect(): void {}
+			},
+		);
+		const body = makeBody();
+		const cleanup = getRender()( body );
+		const scrollBox = (): HTMLElement =>
+			body.querySelector< HTMLElement >( '.dm-agent-chat__scroll' )!;
+		try {
+			openAgentChat( {
+				id: 5,
+				name: 'SEO Agent',
+				description: '',
+				avatarUrl: 'https://example.test/agent.svg',
+			} );
+			const pending = { role: 'agent' as const, text: 'Working…', at: 2, pending: true };
+			agentsChatStore.state.transcripts[ 5 ] = [
+				{ role: 'user', text: 'Improve the SEO of this draft', at: 1 },
+				pending,
+			];
+			agentsChatStore.notify();
+			await flush();
+			// First paint: pinned to the bottom.
+			expect( scrollBox().scrollTop ).toBeGreaterThanOrEqual( 700 );
+
+			// The composer draws and the box shrinks: still following.
+			box.clientHeight = 250;
+			box.scrollHeight = 1050;
+			resizeCallbacks.forEach( ( cb ) => cb() );
+			expect( scrollBox().scrollTop ).toBeGreaterThanOrEqual( 800 );
+
+			// The reader scrolls up to re-read an earlier answer, then a
+			// status poll repaints: the offset survives, and a later
+			// resize does not drag them down.
+			scrollBox().scrollTop = 120;
+			scrollBox().dispatchEvent( new Event( 'scroll' ) );
+			pending.text = 'Queued — waiting for a WordPress worker…';
+			agentsChatStore.notify();
+			await flush();
+			expect( scrollBox().scrollTop ).toBe( 120 );
+			resizeCallbacks.forEach( ( cb ) => cb() );
+			expect( scrollBox().scrollTop ).toBe( 120 );
+
+			// Back at the bottom, the next poll keeps them there.
+			scrollBox().scrollTop = 800;
+			scrollBox().dispatchEvent( new Event( 'scroll' ) );
+			pending.text = 'Working in the background…';
+			agentsChatStore.notify();
+			await flush();
+			expect( scrollBox().scrollTop ).toBeGreaterThanOrEqual( 800 );
+		} finally {
+			cleanup();
+			Object.defineProperty( Element.prototype, 'scrollHeight', scrollHeightDesc );
+			Object.defineProperty( Element.prototype, 'clientHeight', clientHeightDesc );
+			vi.unstubAllGlobals();
+		}
+	} );
+
 	test( 'rows carry avatars, agent markdown renders, and New chat resets', async () => {
 		const body = makeBody();
 		const cleanup = getRender()( body );
