@@ -727,6 +727,12 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 
 		$revisions = $this->dispatch( 'relation', $state, array( 'relation' => 'revisions' ) );
 		$this->assertNotEmpty( $revisions['data']['sub']['rows'] );
+		foreach ( $revisions['data']['sub']['rows'] as $row ) {
+			// The client prints the title as text: Core's expanded revision
+			// title leads with an avatar <img>, which read as markup.
+			$this->assertStringNotContainsString( '<', $row['title'], 'A revision title is plain text, never an avatar tag.' );
+			$this->assertMatchesRegularExpression( '/ ago \(/', $row['title'] );
+		}
 
 		$bogus = $this->dispatch( 'relation', $state, array( 'relation' => 'evil' ) );
 		$this->assertSame( '', $bogus['state']['relation'], 'Unknown relations fall back to the folder view.' );
