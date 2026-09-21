@@ -2738,12 +2738,20 @@ function init(): void {
 		captureAppearance: currentWorkspaceLook,
 	} );
 
-	/** The `+`: open the wizard to make a desk. */
-	const createWorkspaceWithWizard = (): void => {
+	/**
+	 * The `+`: open the wizard over the desk it is about to dress.
+	 *
+	 * The desk exists before the wizard does, so the user configures a
+	 * canvas they can see rather than one they are promised. The `+`
+	 * makes it and lands on it, and hands the id here; a programmatic
+	 * caller has done neither, so make it here instead.
+	 */
+	const createWorkspaceWithWizard = ( desktopId?: string ): void => {
 		if ( ! workspaceDeps ) {
 			return;
 		}
 		const deps = workspaceDeps;
+		const target = desktopId ?? createWorkspace( deps ).id;
 		openWorkspaceWizard( {
 			mode: 'create',
 			...wizardWorld( deps ),
@@ -2753,11 +2761,17 @@ function init(): void {
 				// would have from the old dropdown. Anything customized
 				// carries its own profile; a blank desk carries none.
 				createWorkspace( deps, {
+					desktopId: target,
 					label: result.label || undefined,
 					...( result.preset
 						? { preset: result.preset }
 						: { profile: result.profile ?? undefined } ),
 				} );
+				// The desk is already the active one, so the switch that
+				// normally triggers provisioning is a no-op — a template
+				// would land with its look and none of its windows.
+				applyWorkspaceViewForMode( deps, target );
+				provisionWorkspaceForMode( deps, target );
 			},
 		} );
 	};

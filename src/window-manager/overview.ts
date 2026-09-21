@@ -630,21 +630,16 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
  */
 export function commitAddTile( mgr: WindowManager ): void {
 	mgr._overviewAddTileFocused = false;
-	// The `+` opens the wizard when a shell has wired one. Its first
-	// step is a blank desktop, preselected and one Enter away, so the
-	// fast path is as fast as it was — and the same `+` is now also
-	// the way to a desk set up for a job. Overview is left first: the
-	// wizard is a modal over the desk, and the desk it creates is
-	// switched to on Create, which is a switch overview should not be
-	// open for.
-	if ( createWorkspaceFromOverview() ) {
-		exitOverview( mgr );
-		return;
-	}
-	// No wizard installed (a shell that never wired workspaces, or a
-	// test building a bar on its own): the `+` is what it always was.
 	const created = createDesktop( mgr );
 	exitOverviewToDesktop( mgr, created.id );
+	// The wizard runs over the blank desk, not over overview: the user
+	// dresses the canvas they are standing on and can see, and the
+	// wizard's "Use the windows I have open now" acts on the active
+	// desk. Its first step is a blank desktop, preselected and one
+	// Enter away, so the fast path is as fast as it was. A shell that
+	// never wired workspaces answers `false` and the user is simply on
+	// the new desk, which is what the `+` alone has always meant.
+	createWorkspaceFromOverview( created.id );
 }
 
 /** Build a single desktop tile for the overview top bar. */

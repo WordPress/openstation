@@ -31,7 +31,9 @@ Three workspaces ship, and they are three different jobs rather than three arran
 
 ## Using them
 
-Everything happens **in the Workspaces top bar**, and there is **one door: the `+`**. It opens the wizard.
+Everything happens **in the Workspaces top bar**, and there is **one door: the `+`**. It makes a blank desk, lands the user on it, and opens the wizard over that — so the thing being configured is the canvas in front of them rather than a grid of all the other desks. Closing the wizard without creating leaves the blank desk, which is what the `+` on its own has always meant.
+
+**While the wizard is up it owns the keyboard.** The arrow keys that switch desks, open the Workspaces screen and show the desktop are all suppressed for as long as any modal is open: the wizard sits over the desk it is about to dress, and an arrow that moved the desk behind it would leave the user configuring one they are no longer standing on.
 
 There used to be a dropdown beside the `+` as well. Two doors to the same room — one that created desks from templates, one that created a blank desk without asking — and a user had to know which did what. The dropdown is gone; the `+` is the obvious place to press, so it is the only one.
 
@@ -49,7 +51,7 @@ The wizard's first step is **Start**, and it is the escape hatch:
 - **Customize** is the only way into the remaining steps: **Name** (name, glyph, colour) → **Apps** → **Widgets** → **Look** (wallpaper tiles with their names and live previews, accent, dock) → **Windows** (the arrangement, plus the launch list: add any app from a picker, remove one from its chip, or capture the windows open right now). On every one of them, **Create workspace** is still in the footer: the wizard can be left at any point with whatever has been set so far.
 - The pane keeps one generous height across every step, so the footer's buttons never move under the pointer between clicks.
 
-Nothing in the wizard acts on the desk behind it. "Open them now" and "Arrange now" were tried and dropped: both act on a desk hidden behind a modal, where the result is invisible until the modal closes and looks, from inside it, like a button that does nothing. **Restore** under the tile is that action, done where it can be seen.
+Nothing in the wizard acts on the desk behind it, blank or otherwise. "Open them now" and "Arrange now" were tried and dropped: both act on a desk hidden behind a modal, where the result is invisible until the modal closes and looks, from inside it, like a button that does nothing. **Restore** under the tile is that action, done where it can be seen.
 
 A blank start that the user never customized creates a plain Space — no profile at all, behaving exactly as a desktop did before workspaces existed.
 
@@ -190,7 +192,7 @@ wp.os.workspaces.provision( desktopId, { force? } ): void;
 wp.os.workspaces.capture( desktopId ): WorkspaceProfile[ 'windows' ];
 wp.os.workspaces.captureAppearance(): WorkspaceProfile[ 'appearance' ];
 wp.os.workspaces.edit( desktopId ): void;      // the wizard, on an existing desk
-wp.os.workspaces.openCreator(): void;          // the wizard, as the + opens it
+wp.os.workspaces.openCreator(): void;          // a blank desk, then the wizard over it
 wp.os.workspaces.saveDesk( desktopId? ): boolean; // keep the desk as it is — /keep-desk
 wp.os.workspaces.presets(): WorkspacePreset[];
 wp.os.workspaces.registerPreset( preset ): void;

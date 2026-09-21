@@ -173,6 +173,14 @@ export interface CreateWorkspaceOptions {
 	profile?: WorkspaceProfile;
 	/** Switch to the new workspace once it exists. Default true. */
 	activate?: boolean;
+	/**
+	 * Dress this existing desk instead of making one.
+	 *
+	 * The `+` creates its desk and lands on it before the wizard
+	 * opens, so the user configures the canvas in front of them; the
+	 * wizard's Create then has a desk to fill in, not one to make.
+	 */
+	desktopId?: string;
 }
 
 /**
@@ -198,7 +206,10 @@ export function createWorkspace(
 		);
 	}
 
-	const desktop = deps.manager.createDesktop();
+	const existing = options.desktopId
+		? deps.manager.getDesktops().find( ( d ) => d.id === options.desktopId )
+		: undefined;
+	const desktop = existing ?? deps.manager.createDesktop();
 	const label = options.label ?? preset?.defaultLabel ?? preset?.label ?? '';
 	if ( label ) {
 		deps.manager.renameDesktop( desktop.id, label );
