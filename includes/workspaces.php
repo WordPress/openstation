@@ -96,8 +96,14 @@ const OPENSTATION_WORKSPACE_APPEARANCE_KEYS = array(
  * on a site that has them, Commerce is a WooCommerce desk in
  * everything but its label.
  *
+ * And on a site that does not have them, the template is left out:
+ * `requires` names the plugin, and this is the side of the wire that
+ * knows whether it is active. The client's switcher shows what this
+ * list names — see `installWorkspacePresetSync()` — so dropping an
+ * entry here is what hides the card.
+ *
  * Filterable so a site can add a template, or drop one it has no use
- * for. A blog with no store has no reason to be offered a Woo desk.
+ * for.
  *
  * @return array[] List of `array{ id, label, description, icon, color, layout }`.
  */
@@ -111,6 +117,7 @@ function openstation_workspace_presets() {
 			'color'       => '#7f54b3',
 			'layout'      => 'columns',
 			'order'       => 10,
+			'requires'    => array( 'woocommerce/woocommerce.php' ),
 		),
 		array(
 			'id'          => 'learning',
@@ -120,6 +127,7 @@ function openstation_workspace_presets() {
 			'color'       => '#43a047',
 			'layout'      => 'tile',
 			'order'       => 20,
+			'requires'    => array( 'sensei-lms/sensei-lms.php' ),
 		),
 		array(
 			'id'          => 'publishing',
@@ -143,6 +151,11 @@ function openstation_workspace_presets() {
 	 * carry neither, because the client already has their token lists
 	 * and duplicating them here would be two places to keep in step.
 	 *
+	 * `requires` is the one field that stays on this side: a list of
+	 * plugin basenames that must be active for the template to be
+	 * offered at all. Unset it on a shipped entry to be offered that
+	 * desk whatever is installed.
+	 *
 	 * @param array[] $presets List of preset definitions.
 	 */
 	$presets = apply_filters( 'openstation_workspace_presets', $presets );
@@ -153,12 +166,50 @@ function openstation_workspace_presets() {
 
 	$clean = array();
 	foreach ( $presets as $preset ) {
+		if ( ! openstation_workspace_preset_requirements_met( $preset ) ) {
+			continue;
+		}
 		$entry = openstation_sanitize_workspace_preset( $preset );
 		if ( null !== $entry ) {
 			$clean[] = $entry;
 		}
 	}
 	return $clean;
+}
+
+/**
+ * Whether the plugins a template is built around are active here.
+ *
+ * `requires` is a list of plugin basenames — `woocommerce/woocommerce.php`,
+ * the same string `is_plugin_active()` takes — and every one of them has
+ * to be active or the template is not offered at all. A template that
+ * names none is always offered.
+ *
+ * The gate runs after the `openstation_workspace_presets` filter, so a
+ * site that wants a template anyway can unset its `requires` there.
+ *
+ * @param mixed $preset Raw preset definition.
+ * @return bool Whether the template may be offered.
+ */
+function openstation_workspace_preset_requirements_met( $preset ) {
+	if ( ! is_array( $preset ) || empty( $preset['requires'] ) || ! is_array( $preset['requires'] ) ) {
+		return true;
+	}
+	if ( ! function_exists( 'is_plugin_active' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
+	foreach ( $preset['requires'] as $plugin ) {
+		if ( ! is_string( $plugin ) ) {
+			continue;
+		}
+		// A basename is a path, so the traversal characters go — the
+		// value is compared against `active_plugins`, never opened.
+		$plugin = str_replace( '..', '', substr( preg_replace( '#[^A-Za-z0-9_./-]#', '', $plugin ), 0, 256 ) );
+		if ( '' === $plugin || ! is_plugin_active( $plugin ) ) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /**

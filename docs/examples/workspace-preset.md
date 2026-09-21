@@ -19,6 +19,9 @@ add_filter(
             'icon'        => 'dashicons-sos',
             'color'       => '#2271b1',
             'layout'      => 'columns',
+            // Plugin basenames that must be active, or this template
+            // is not offered. Leave it out and it always is.
+            'requires'    => array( 'my-helpdesk/my-helpdesk.php' ),
             // Match TOKENS, not ids. Each is tested as a substring
             // against every navigable item's id, URL, window id and
             // title — so this finds the helpdesk menu whatever slug it
@@ -58,7 +61,7 @@ That is the whole integration. The client resolves the tokens against the live n
 
 ## Drop a shipped template
 
-The same filter removes one. A blog with no store has no reason to be offered a Commerce desk:
+The same filter removes one, everywhere. (A site with no store needs no filter: Commerce declares `requires` and is already hidden there.)
 
 ```php
 add_filter(
@@ -76,7 +79,7 @@ add_filter(
 
 ## From JavaScript
 
-Same shape, registered on the client. Use this when the template depends on something only the browser knows:
+Same shape, registered on the client — minus `requires`, which is a server-side check. A template registered from JavaScript needs none: its plugin is already running, or this call would not have happened. Use this when the template depends on something only the browser knows:
 
 ```js
 wp.os.workspaces.registerPreset( {

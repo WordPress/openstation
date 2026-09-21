@@ -19,8 +19,10 @@
  * products are still what the templates reach for: the tokens below
  * name WooCommerce and Sensei directly, and on a site that has them
  * the Commerce desk is a WooCommerce desk in everything but its
- * label. On a site that does not, it degrades to the core menus its
- * tokens still match rather than promising a product that isn't there.
+ * label. On a site that does not, the template is not offered at all:
+ * `openstation_workspace_presets()` declares the plugin each one
+ * needs, drops the entry when it is not active, and `server-sync.ts`
+ * takes the built-in out of this registry to match.
  *
  * Presets are templates: {@link workspaceProfileFromPreset} reads one
  * once, against the navigation as it stands, and what lands on the
@@ -221,8 +223,7 @@ export function unregisterWorkspacePreset( id: string ): void {
  * Every template, built-ins and plugin registrations together, sorted
  * by `order`.
  *
- * Filterable so a site can drop a shipped preset it has no use for —
- * a blog with no store has no reason to be offered a Commerce desk.
+ * Filterable so a site can drop a shipped preset it has no use for.
  */
 export function listWorkspacePresets(): WorkspacePreset[] {
 	const all = [ ...builtInPresets(), ...registered.values() ];

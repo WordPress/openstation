@@ -23,7 +23,9 @@ Three workspaces ship, and they are three different jobs rather than three arran
 | **Learning** | `tile` | clock, heartbeat, recent comments | aurora, emerald | A course studio. Sensei courses, lessons and learners are a set you move *between*, so they tile — with the room's pulse beside them: who is around, and what is being said. |
 | **Publishing** | `focus` | drafts, post stats, focus timer, notes | mono, rose, dock folds away | A writing desk. A blank page takes two thirds of the screen and the library sits in the margin. Its instruments are about the page, not the audience — no traffic chart — and the quietest ground there is. The one template whose point is what it leaves out, made in paint as well as in the app list. |
 
-**Named for the job, not for the plugin.** A desk called "Woo" is wrong on a store running something else, and wrong again the day the product is renamed — but the *work* is commerce either way. The products are still what the templates reach for: the tokens name WooCommerce and Sensei directly, so on a site that has them the Commerce desk is a WooCommerce desk in everything but its label. On a site that does not, it degrades to the core menus its tokens still match rather than promising a product that isn't there.
+**Named for the job, not for the plugin.** A desk called "Woo" is wrong on a store running something else, and wrong again the day the product is renamed — but the *work* is commerce either way. The products are still what the templates reach for: the tokens name WooCommerce and Sensei directly, so on a site that has them the Commerce desk is a WooCommerce desk in everything but its label.
+
+**And a template is only offered where its plugin is active.** Commerce needs WooCommerce, Learning needs Sensei, Publishing needs nothing and always shows. This is the one place a missing plugin is not answered by degrading: a shop floor with no shop on it is not a smaller desk, it is the wrong desk, and offering it means the user picks a storefront and gets a Dashboard. The check is `requires` on the PHP template list, because whether a plugin is active is a question only the server can answer. If every template ends up hidden, the wizard's Start step still has the Blank desktop card.
 
 ---
 
@@ -76,7 +78,9 @@ A template cannot name nav ids directly and stay useful. The id of the Products 
 
 So a template names what it is **about** — `'post_type=product'`, `'sensei'` — and those tokens are matched as substrings against each item's id, URL, window id and title. Everything that matches lands in the workspace's visible set; a launch entry that matches nothing is **skipped**.
 
-The consequence worth stating: **the Commerce template on a site without WooCommerce is a smaller desk, not four "you do not have permission" pages.**
+The consequence worth stating: **a desk whose plugin is half there is a smaller desk, not four "you do not have permission" pages.**
+
+Whether a template should be *offered* at all is the separate question `requires` answers, and it is not a token match — see [Templates that need a plugin](#templates-that-need-a-plugin).
 
 Every template also keeps Dashboard, Media and Settings, whatever else it names. A desk with no way to reach them is a dead end, and the user would have to leave the workspace to do anything its author did not think of.
 
@@ -295,7 +299,8 @@ openstation_workspace_presets(): array
 The server's view of the template list, shipped to the shell as `openStationConfig.workspacePresets`. Filterable, and the filter has both powers:
 
 ```php
-// Drop the Commerce desk on a site with no store.
+// Drop the Commerce desk everywhere. (A site with no store needs no
+// filter — `requires` already hides it there.)
 add_filter(
     'openstation_workspace_presets',
     function ( $presets ) {
@@ -313,14 +318,15 @@ add_filter(
     'openstation_workspace_presets',
     function ( $presets ) {
         $presets[] = array(
-            'id'      => 'support',
-            'label'   => __( 'Support', 'my-plugin' ),
-            'icon'    => 'dashicons-sos',
-            'color'   => '#2271b1',
-            'layout'  => 'columns',
-            'apps'    => array( 'edit-comments.php', 'users.php' ),
-            'windows' => array( array( 'match' => 'users.php' ) ),
-            'order'   => 40,
+            'id'       => 'support',
+            'label'    => __( 'Support', 'my-plugin' ),
+            'icon'     => 'dashicons-sos',
+            'color'    => '#2271b1',
+            'layout'   => 'columns',
+            'requires' => array( 'my-helpdesk/my-helpdesk.php' ),
+            'apps'     => array( 'edit-comments.php', 'users.php' ),
+            'windows'  => array( array( 'match' => 'users.php' ) ),
+            'order'    => 40,
         );
         return $presets;
     }
@@ -328,6 +334,39 @@ add_filter(
 ```
 
 The three shipped entries deliberately carry **no** `apps` or `windows`: the client already has their token lists, and a second copy in PHP would be a second place to keep in step. A server entry naming a client built-in says only "this one still exists"; an entry with an id of its own is registered whole.
+
+#### Templates that need a plugin
+
+`requires` is a list of **plugin basenames** — the same strings `is_plugin_active()` takes — and every one of them has to be active or the template is left out of this list entirely. The client's switcher shows what this list names, so an entry dropped here is a card that never appears; a template naming none is always offered.
+
+It lives on this side rather than beside the match tokens because "is WooCommerce active?" is a question only the server can answer, and it is a different question from the one the tokens ask. A token that finds nothing costs a menu; a plugin that is not there costs the whole point of the desk.
+
+```php
+'requires' => array( 'woocommerce/woocommerce.php' ),
+```
+
+The gate runs **after** the filter, so a site that wants a shipped template whatever is installed can unset its `requires`:
+
+```php
+add_filter(
+    'openstation_workspace_presets',
+    function ( $presets ) {
+        return array_map(
+            function ( $preset ) {
+                if ( 'commerce' === $preset['id'] ) {
+                    unset( $preset['requires'] );
+                }
+                return $preset;
+            },
+            $presets
+        );
+    }
+);
+```
+
+A template registered from JavaScript has no equivalent, and needs none: its plugin is already running, or the `registerPreset()` call would not have happened. Gate on anything else by checking before you register.
+
+The list reaches the client in the shell config blob at boot, so activating a plugin from inside OpenStation brings its template in on the next reload rather than the next menu refresh.
 
 Every entry the filter returns is sanitized. A malformed template costs that template, not the wizard: an entry with no id is dropped, an unknown layout falls back to `free`, and one with no label is named after its id.
 

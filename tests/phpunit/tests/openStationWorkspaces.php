@@ -32,6 +32,18 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Make the plugins the shipped templates are built around active,
+	 * so the list is the whole list. Without this a test install has
+	 * neither, and Commerce and Learning are correctly withheld.
+	 */
+	private function activate_template_plugins() {
+		update_option(
+			'active_plugins',
+			array( 'woocommerce/woocommerce.php', 'sensei-lms/sensei-lms.php' )
+		);
+	}
+
+	/**
 	 * The three shipped desks, in the order the switcher paints them.
 	 *
 	 * The ids are the contract with `builtInPresets()` in
@@ -43,6 +55,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	 * @covers ::openstation_workspace_presets
 	 */
 	public function test_ships_three_templates_in_order() {
+		$this->activate_template_plugins();
 		$ids = wp_list_pluck( openstation_workspace_presets(), 'id' );
 		$this->assertSame( array( 'commerce', 'learning', 'publishing' ), $ids );
 	}
@@ -53,6 +66,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	 * @covers ::openstation_workspace_presets
 	 */
 	public function test_shipped_layouts_are_valid() {
+		$this->activate_template_plugins();
 		foreach ( openstation_workspace_presets() as $preset ) {
 			$this->assertContains( $preset['layout'], OPENSTATION_WORKSPACE_LAYOUTS );
 			$this->assertNotSame( '', $preset['label'] );
@@ -66,6 +80,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	 * @covers ::openstation_workspace_presets
 	 */
 	public function test_filter_can_drop_a_shipped_template() {
+		$this->activate_template_plugins();
 		add_filter(
 			'openstation_workspace_presets',
 			static function ( $presets ) {
@@ -81,6 +96,63 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 		$ids = wp_list_pluck( openstation_workspace_presets(), 'id' );
 		$this->assertSame( array( 'learning', 'publishing' ), $ids );
+	}
+
+	/**
+	 * A template built around a plugin is only offered where it is
+	 * active.
+	 *
+	 * The whole point: without WooCommerce the Commerce tokens still
+	 * match a handful of core menus, so offering the card means the
+	 * user picks a shop floor and gets a Dashboard.
+	 *
+	 * @covers ::openstation_workspace_preset_requirements_met
+	 */
+	public function test_template_is_withheld_until_its_plugin_is_active() {
+		update_option( 'active_plugins', array() );
+		$this->assertSame(
+			array( 'publishing' ),
+			wp_list_pluck( openstation_workspace_presets(), 'id' )
+		);
+
+		update_option( 'active_plugins', array( 'woocommerce/woocommerce.php' ) );
+		$this->assertSame(
+			array( 'commerce', 'publishing' ),
+			wp_list_pluck( openstation_workspace_presets(), 'id' )
+		);
+	}
+
+	/**
+	 * A plugin's own template gets the same handle, and a site that
+	 * wants a shipped one anyway can unset its requirement.
+	 *
+	 * @covers ::openstation_workspace_preset_requirements_met
+	 */
+	public function test_requires_is_honoured_for_filtered_templates() {
+		update_option( 'active_plugins', array() );
+		add_filter(
+			'openstation_workspace_presets',
+			static function ( $presets ) {
+				$presets = array_map(
+					static function ( $preset ) {
+						if ( 'commerce' === $preset['id'] ) {
+							unset( $preset['requires'] );
+						}
+						return $preset;
+					},
+					$presets
+				);
+				$presets[] = array(
+					'id'       => 'support',
+					'label'    => 'Support',
+					'layout'   => 'columns',
+					'requires' => array( 'my-helpdesk/my-helpdesk.php' ),
+				);
+				return $presets;
+			}
+		);
+		$ids = wp_list_pluck( openstation_workspace_presets(), 'id' );
+		$this->assertSame( array( 'commerce', 'publishing' ), $ids );
 	}
 
 	/**
@@ -118,6 +190,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	 * @covers ::openstation_sanitize_workspace_preset
 	 */
 	public function test_malformed_templates_are_dropped_individually() {
+		$this->activate_template_plugins();
 		add_filter(
 			'openstation_workspace_presets',
 			static function ( $presets ) {
