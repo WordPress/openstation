@@ -214,6 +214,14 @@ Core binds a bubble-phase handler to `.upload-view-toggle` that preventDefaults 
 
 **Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
 
+### Jetpack Stats and Blaze in-app links
+
+Jetpack mounts its Stats (`admin.php?page=stats`) and Blaze (`?page=advertising`) dashboards into `<div id="wpcom">` and writes their in-app links root-relative, the way WordPress.com does: Referrers' **View all** is `/stats/day/referrers/<site>`. A delegated jQuery handler on `#wpcom` rewrites any href starting with `/<page slug>` into a `#!` route on the current screen. The bridge's capture-phase interceptor won the click, resolved the href against the site root, and opened the front end's 404 page as an external sub-tab.
+
+**Fix**: `isJetpackAppRoute()` in `src/chromeless-bridge.js` yields exactly the links Jetpack's handler claims: inside `#wpcom`, with an href starting with `/` plus the screen's `page` arg. Any other link in those apps, such as a post permalink, still reaches the shell.
+
+**Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
+
 ## The script side: dependency repairs
 
 Some plugins / themes register block-editor scripts with incomplete `wp_enqueue_script()` dep arrays. When script load order accidentally resolves in their favor in classic admin, nobody notices; when our chromeless render shifts timing, the underlying bug surfaces and the plugin's React integration crashes before it can mount any UI.

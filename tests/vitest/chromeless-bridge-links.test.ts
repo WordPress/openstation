@@ -206,6 +206,37 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 			'/wp-admin/plugin-install.php'
 		);
 	} );
+
+	// Jetpack Stats writes in-app links root-relative and a delegated
+	// handler on `#wpcom` turns them into `#!` routes. Claiming them
+	// resolved `/stats/…` against the site root and opened the front
+	// end's 404 page as an external sub-tab.
+	test( 'Jetpack Stats routes stay with Jetpack', () => {
+		const before = window.location.href;
+		history.replaceState(
+			null,
+			'',
+			'/wp-admin/admin.php?page=stats&openstation_chromeless=1'
+		);
+
+		try {
+			clickLink(
+				'<div id="wpcom"><a href="/stats/day/referrers/example.com">View all</a></div>'
+			);
+			expect( posted ).toHaveLength( 0 );
+
+			// Only Jetpack's own routes: a permalink in the app is
+			// still escalated to the shell.
+			clickLink(
+				'<div id="wpcom"><a href="/hello-world/">Hello world</a></div>'
+			);
+			expect( posted.map( ( m ) => m.type ) ).toEqual( [
+				'os-external-link',
+			] );
+		} finally {
+			history.replaceState( null, '', before );
+		}
+	} );
 } );
 
 describe( 'chromeless bridge: the label a link ships to the shell', () => {

@@ -8,8 +8,9 @@
  *    user's windows is not the shape this feature takes.
  * 2. **Without an installed shell, the bar is exactly what it was.**
  *    Every export answers `false` before the install and after
- *    teardown, so the `+` falls back to a plain new desk and every
- *    existing overview test still builds the bar it always did.
+ *    teardown, so the `+` leaves the user on the plain new desk it
+ *    made and every existing overview test still builds the bar it
+ *    always did.
  * 3. **One door.** The `+` opens the wizard; there is no second
  *    control that creates desks. The wizard's own escape hatch — a
  *    blank desk one Enter away — is tested in `workspaces-wizard`.
@@ -101,7 +102,7 @@ describe( 'workspaces — overview top bar', () => {
 
 	test( 'without an installed shell, every door answers false', () => {
 		expect( isWorkspaceOverviewInstalled() ).toBe( false );
-		expect( createWorkspaceFromOverview() ).toBe( false );
+		expect( createWorkspaceFromOverview( 'desktop-1' ) ).toBe( false );
 		expect( editWorkspaceFromOverview( 'desktop-1' ) ).toBe( false );
 		expect( restoreWorkspace( 'desktop-1' ) ).toBe( false );
 	} );
@@ -112,19 +113,36 @@ describe( 'workspaces — overview top bar', () => {
 		teardown?.();
 		teardown = null;
 		expect( isWorkspaceOverviewInstalled() ).toBe( false );
-		expect( createWorkspaceFromOverview() ).toBe( false );
+		expect( createWorkspaceFromOverview( 'desktop-1' ) ).toBe( false );
 	} );
 
-	test( 'the + opens the wizard, and creates nothing itself', () => {
+	test( 'the + opens the wizard over the desk the bar just made', () => {
 		install();
 		const before = manager.getDesktops().length;
 
-		expect( createWorkspaceFromOverview() ).toBe( true );
+		expect( createWorkspaceFromOverview( 'desktop-1' ) ).toBe( true );
 
-		expect( openCreator ).toHaveBeenCalledTimes( 1 );
-		// The wizard decides what gets made — a blank desk, a template,
-		// a customized one. The bar only opens the door.
+		expect( openCreator ).toHaveBeenCalledWith( 'desktop-1' );
+		// The desk already exists — the bar made it and landed on it.
+		// This door only dresses it.
 		expect( manager.getDesktops() ).toHaveLength( before );
+	} );
+
+	test( 'clicking the + lands on a new blank desk, then opens the wizard', () => {
+		install();
+		manager.enterOverview();
+		manager._overviewTopBar!.querySelector< HTMLElement >(
+			'.os-overview-top-bar__tile--add',
+		)!.click();
+
+		// The canvas the wizard dresses is the one in front of the
+		// user: made, switched to, and out of overview before the
+		// modal opens.
+		expect( manager.getDesktops() ).toHaveLength( 2 );
+		const created = manager.getDesktops()[ 1 ]!;
+		expect( manager.getActiveDesktopId() ).toBe( created.id );
+		expect( manager._overviewActive ).toBe( false );
+		expect( openCreator ).toHaveBeenCalledWith( created.id );
 	} );
 
 	test( 'Edit opens the wizard on that desk', () => {
@@ -235,7 +253,7 @@ describe( 'workspaces — overview top bar', () => {
 
 	test( 'nothing is ever mounted on the desk', () => {
 		install();
-		createWorkspaceFromOverview();
+		createWorkspaceFromOverview( 'desktop-1' );
 		editWorkspaceFromOverview( 'desktop-1' );
 		// Every door hands off to the shell's wizard. Opening one must
 		// not put anything on the desk or in the document — shell

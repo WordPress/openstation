@@ -1171,6 +1171,34 @@
 	}
 
 	/*
+	 * Whether a link is an in-app route of one of Jetpack's
+	 * WordPress.com-built dashboards: Stats (`admin.php?page=stats`)
+	 * and Blaze (`?page=advertising`).
+	 *
+	 * Both mount their app into `<div id="wpcom">` and write in-app
+	 * links root-relative, the way WordPress.com does: Referrers' "View
+	 * all" is `/stats/day/referrers/<site>`. A delegated jQuery handler
+	 * on `#wpcom` rewrites any href starting with `/<page slug>` into a
+	 * `#!` route on the current screen. Our capture-phase handler gets
+	 * there first, resolves the href against the site root, and opens
+	 * the resulting front-end URL (the site's 404 page) as an external
+	 * sub-tab.
+	 *
+	 * This mirrors Jetpack's own test (inside `#wpcom`, href starts
+	 * with `/` plus the screen's `page` arg), so only the links it
+	 * routes are yielded. Any other link in the app, like a post
+	 * permalink or an off-site doc, still reaches the shell.
+	 */
+	function isJetpackAppRoute( link ) {
+		if ( ! link.closest( '#wpcom' ) ) {
+			return false;
+		}
+		var page = new URLSearchParams( window.location.search ).get( 'page' );
+		var href = link.getAttribute( 'href' ) || '';
+		return !! page && href.indexOf( '/' + page ) === 0;
+	}
+
+	/*
 	 * The text a link actually SHOWS, for use as a window title.
 	 *
 	 * `textContent` is the wrong source on its own. WP Core routinely
@@ -1416,6 +1444,13 @@
 					( document.body.classList.contains( 'themes-php' ) &&
 						document.body.classList.contains( 'network-admin' ) ) ) )
 		) {
+			return;
+		}
+		/*
+		 * Jetpack's Stats and Blaze dashboards route their own
+		 * root-relative links to `#!` hashes; see isJetpackAppRoute().
+		 */
+		if ( isJetpackAppRoute( link ) ) {
 			return;
 		}
 		var href = link.getAttribute( 'href' );

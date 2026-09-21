@@ -62,6 +62,14 @@ const OVERVIEW_INERT_ELEMENTS = [
 const OVERVIEW_FULLSCREEN_DATA_KEY = 'osHadFullscreenBeforeOverview';
 
 /**
+ * How long a click on a tile's NAME waits for a second one before it
+ * switches desks. The name is the rename target (see
+ * `buildDesktopTile`); the rest of the tile switches on the first
+ * click, undelayed.
+ */
+const TILE_LABEL_DOUBLE_CLICK_MS = 250;
+
+/**
  * Make a window usable as an overview thumbnail without changing its
  * logical state. Fullscreen styling and minimized render suppression
  * are restored when the window returns to its desktop layout.
@@ -630,21 +638,16 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
  */
 export function commitAddTile( mgr: WindowManager ): void {
 	mgr._overviewAddTileFocused = false;
-	// The `+` opens the wizard when a shell has wired one. Its first
-	// step is a blank desktop, preselected and one Enter away, so the
-	// fast path is as fast as it was — and the same `+` is now also
-	// the way to a desk set up for a job. Overview is left first: the
-	// wizard is a modal over the desk, and the desk it creates is
-	// switched to on Create, which is a switch overview should not be
-	// open for.
-	if ( createWorkspaceFromOverview() ) {
-		exitOverview( mgr );
-		return;
-	}
-	// No wizard installed (a shell that never wired workspaces, or a
-	// test building a bar on its own): the `+` is what it always was.
 	const created = createDesktop( mgr );
 	exitOverviewToDesktop( mgr, created.id );
+	// The wizard runs over the blank desk, not over overview: the user
+	// dresses the canvas they are standing on and can see, and the
+	// wizard's "Use the windows I have open now" acts on the active
+	// desk. Its first step is a blank desktop, preselected and one
+	// Enter away, so the fast path is as fast as it was. A shell that
+	// never wired workspaces answers `false` and the user is simply on
+	// the new desk, which is what the `+` alone has always meant.
+	createWorkspaceFromOverview( created.id );
 }
 
 /** Build a single desktop tile for the overview top bar. */
@@ -704,7 +707,54 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	const label = document.createElement( 'span' );
 	label.className = 'os-overview-top-bar__tile-label';
 	label.textContent = d.label;
+	// The name is ellipsized when it doesn't fit, so the tooltip
+	// carries it in full — and, with it, the one hint that the rename
+	// gesture exists.
+	label.title = sprintf(
+		// translators: %s is the desktop name.
+		__( '%s — double-click to rename' ),
+		d.label,
+	);
 	tile.appendChild( label );
+
+	// Renaming is the one thing people come back to, and the pencil
+	// spends a modal on it. Double-clicking the name edits it in
+	// place instead.
+	//
+	// The first click of that pair would otherwise have switched desks
+	// and torn overview down before the second one landed, so a click
+	// on the NAME waits out the double-click interval; the rest of the
+	// tile still switches on the first click.
+	let switchTimer: number | undefined;
+	label.addEventListener( 'click', ( e: MouseEvent ) => {
+		if ( label.hasAttribute( 'contenteditable' ) ) {
+			return;
+		}
+		e.preventDefault();
+		e.stopPropagation();
+		if ( switchTimer !== undefined ) {
+			return;
+		}
+		switchTimer = window.setTimeout( () => {
+			switchTimer = undefined;
+			// Overview can have been left by other means while we
+			// waited — a close X on the last tile, Escape, the dock.
+			if ( mgr._overviewActive ) {
+				exitOverviewToDesktop( mgr, d.id );
+			}
+		}, TILE_LABEL_DOUBLE_CLICK_MS );
+	} );
+	label.addEventListener( 'dblclick', ( e: MouseEvent ) => {
+		// Mid-edit, a double-click is the user selecting a word.
+		if ( label.hasAttribute( 'contenteditable' ) ) {
+			return;
+		}
+		e.preventDefault();
+		e.stopPropagation();
+		window.clearTimeout( switchTimer );
+		switchTimer = undefined;
+		beginRename( mgr, label, d );
+	} );
 
 	tile.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
