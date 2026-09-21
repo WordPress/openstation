@@ -57,6 +57,7 @@ The wizard takes its whole world as data (apps, widgets, wallpapers, accents, te
 
 ### On each tile
 
+- **Rename** — double-click the desk's name. It becomes editable where it stands: Enter commits, Escape reverts, blur commits. The wizard can rename too, but renaming is the edit people make most and it should not cost a modal. A single click on the name still switches to that desk, one double-click interval later; the rest of the tile switches at once.
 - **Edit** — the pencil in the tile's corner, revealed on hover and keyboard focus like close. Opens the same wizard on that desk, without the Start step, with Save where Create was and a Delete in the corner. Renaming is the wizard's Name step. Offered on plain Spaces too: for one of those it is how it *becomes* a workspace.
 - **Restore** — below the tile, outside its preview. Always visible, but only on a desk with something to restore: put it back the way its workspace defines it — reopen the windows it names, remount its column, repaint its look, re-run its arrangement.
 
