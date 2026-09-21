@@ -33,24 +33,30 @@ function openstation_users_profile_facts() {
 		return $cache[ $viewer_id ];
 	}
 	$cache[ $viewer_id ] = array(
-		'currentUserId'   => $viewer_id,
+		'currentUserId'    => $viewer_id,
 		// Capability flags — the UI hides actions the viewer can't
 		// perform; every action and route re-checks, so a tampered flag
 		// changes nothing.
-		'canEdit'         => current_user_can( 'edit_users' ),
-		'canPromote'      => current_user_can( 'promote_users' ),
-		'canCreate'       => current_user_can( 'create_users' ),
-		'canDelete'       => is_multisite() ? current_user_can( 'remove_users' ) : current_user_can( 'delete_users' ),
-		'isMultisite'     => is_multisite(),
+		'canEdit'          => current_user_can( 'edit_users' ),
+		'canPromote'       => current_user_can( 'promote_users' ),
+		'canCreate'        => current_user_can( 'create_users' ),
+		'canDelete'        => is_multisite() ? current_user_can( 'remove_users' ) : current_user_can( 'delete_users' ),
+		// The sidebar's door to the activity footprint. The footprint
+		// renders inside WP Explorer and its REST route is gated by that
+		// module's own helper, so the flag mirrors the same gate: a site
+		// that narrows WP Explorer hides the door with it. The guard
+		// covers a host where the module never loaded.
+		'canViewFootprint' => function_exists( 'openstation_my_wordpress_user_can_use' ) && openstation_my_wordpress_user_can_use(),
+		'isMultisite'      => is_multisite(),
 		// Roles the viewer may assign — the dropdowns list only these,
 		// so a narrowed `editable_roles` never yields "pick a role, hit
 		// save, get rejected". `allRoles` is the label catalogue.
-		'assignableRoles' => openstation_users_window_role_label_map( $viewer_id ),
-		'allRoles'        => openstation_users_window_all_roles_map(),
-		'locales'         => openstation_users_window_locales_map(),
-		'defaultRole'     => (string) get_option( 'default_role', 'subscriber' ),
-		'contactMethods'  => (array) wp_get_user_contact_methods(),
-		'colorSchemes'    => openstation_user_edit_window_color_schemes(),
+		'assignableRoles'  => openstation_users_window_role_label_map( $viewer_id ),
+		'allRoles'         => openstation_users_window_all_roles_map(),
+		'locales'          => openstation_users_window_locales_map(),
+		'defaultRole'      => (string) get_option( 'default_role', 'subscriber' ),
+		'contactMethods'   => (array) wp_get_user_contact_methods(),
+		'colorSchemes'     => openstation_user_edit_window_color_schemes(),
 	);
 	return $cache[ $viewer_id ];
 }

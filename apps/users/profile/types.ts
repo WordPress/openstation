@@ -13,6 +13,8 @@ export interface ProfileConfig {
 	canPromote?: boolean;
 	canCreate?: boolean;
 	canDelete?: boolean;
+	/** Whether the sidebar offers the activity footprint (the WP Explorer gate). */
+	canViewFootprint?: boolean;
 	isMultisite?: boolean;
 	assignableRoles?: Record< string, string >;
 	allRoles?: Record< string, string >;

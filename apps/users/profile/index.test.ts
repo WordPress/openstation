@@ -17,6 +17,8 @@ import '../../../src/ui/components/os-button/os-button';
 import './index';
 import type { OsUserProfile } from './index';
 import type { ProfileConfig } from './types';
+import { createSharedStore } from '../../../src/shared-store';
+import { readFootprintTarget } from '../../../src/open-targets/footprint-target';
 
 const wait = ( ms = 0 ): Promise< void > => new Promise( ( r ) => setTimeout( r, ms ) );
 
@@ -95,14 +97,17 @@ function fakeFetch( names: Record< number, string > = {} ) {
 	return { fetch, calls };
 }
 
-function mountProfile( userId: number | null, host?: { fetch: ( p: string, i?: RequestInit ) => Promise< Response > } ): OsUserProfile {
+function mountProfile(
+	userId: number | null,
+	host?: { fetch: ( p: string, i?: RequestInit ) => Promise< Response >; config?: ProfileConfig },
+): OsUserProfile {
 	const el = document.createElement( 'os-user-profile' ) as OsUserProfile;
 	if ( userId ) {
 		el.setAttribute( 'user-id', String( userId ) );
 	}
 	document.body.appendChild( el );
 	if ( host ) {
-		el.config = config;
+		el.config = host.config ?? config;
 		el.fetch = host.fetch;
 		el.toast = () => undefined;
 	}
@@ -116,6 +121,7 @@ beforeEach( () => {
 afterEach( () => {
 	document.body.replaceChildren();
 	vi.restoreAllMocks();
+	delete ( window as unknown as { wp?: unknown } ).wp;
 } );
 
 describe( '<os-user-profile>', () => {
@@ -177,5 +183,24 @@ describe( '<os-user-profile>', () => {
 			'GET desktop-mode/v1/users/3/insights?fresh=1',
 		] );
 		expect( first.calls.filter( ( c ) => c.includes( '/insights' ) ).length ).toBe( 1 );
+	} );
+
+	test( 'the aside offers the activity footprint only when the facts allow it, and hands the person to WP Explorer', async () => {
+		const openWindow = vi.fn( () => true );
+		( window as unknown as { wp?: unknown } ).wp = { os: { createSharedStore, openWindow } };
+
+		const gated = fakeFetch();
+		const a = mountProfile( 2, { fetch: gated.fetch, config: { ...config, canViewFootprint: false } } );
+		const allowed = fakeFetch( { 3: 'Jane Doe' } );
+		const b = mountProfile( 3, { fetch: allowed.fetch, config: { ...config, canViewFootprint: true } } );
+		await wait( 10 );
+
+		expect( a.querySelector( '[data-os-user-profile-footprint]' ) ).toBeNull();
+		const door = b.querySelector< HTMLElement >( '[data-os-user-profile-footprint]' );
+		expect( door?.textContent ).toContain( 'View activity footprint' );
+
+		door?.click();
+		expect( openWindow ).toHaveBeenCalledWith( 'my-wordpress', expect.objectContaining( { source: expect.any( String ) } ) );
+		expect( readFootprintTarget() ).toMatchObject( { userId: 3, userName: 'Jane Doe' } );
 	} );
 } );

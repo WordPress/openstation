@@ -86,8 +86,12 @@ describe( 'footprint-target — openUserFootprintWindow', () => {
 		expect( got.userId ).toBe( 12 );
 		expect( got.userName ).toBe( 'Carol' );
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		// The person rides as open-time params too, so a cold open
+		// mounts straight onto the footprint (no folder-grid flash)
+		// and a live window retargets through `reopen`.
 		expect( openWindow ).toHaveBeenCalledWith( WINDOW_ID, {
 			source: 'my-wordpress/open-user-footprint',
+			params: { footprint: 12, fpName: 'Carol' },
 		} );
 	} );
 
@@ -149,6 +153,7 @@ describe( 'iframe-bridge — os-open-user-footprint', () => {
 		);
 		expect( openWindow ).toHaveBeenCalledWith( WINDOW_ID, {
 			source: 'my-wordpress/open-user-footprint',
+			params: { footprint: 42, fpName: 'Jane Doe' },
 		} );
 		expect( readFootprintTarget().userId ).toBe( 42 );
 		// The defining property: a row-action peek must NOT close the

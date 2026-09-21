@@ -336,17 +336,24 @@ export function wire( ctx: Ctx ): () => void {
 	teardowns.push( () => root.removeEventListener( 'keydown', onKey ) );
 
 	// --- the footprint target — the cross-bundle "open this person" ----
-	// `openUserFootprintWindow()` (the users.php row action riding the
-	// chromeless bridge, agent cards, any plugin) stashes the person in
-	// the shared store and opens THIS window. Consume the pending
-	// target on mount (cold open) and subscribe for re-targets (warm,
-	// already-open window) — the same contract the original honoured.
+	// `openUserFootprintWindow()` (the profile sidebar, the users.php
+	// row action riding the chromeless bridge, agent cards, any plugin)
+	// opens THIS window with the person as open-time params — `mount`
+	// and `reopen` land on the footprint server-side — and stashes the
+	// same person in the shared store, the contract that predates
+	// params. Consume the pending target on mount (cold open) and
+	// subscribe for re-targets (warm, already-open window); when the
+	// params already put that person on screen there is nothing left
+	// to ask for, so the consumer only clears.
 	const consumeFootprintTarget = ( target: { userId: number | null; userName: string } ): void => {
 		const userId = Number( target.userId );
 		if ( ! Number.isFinite( userId ) || userId <= 0 ) {
 			return;
 		}
 		clearFootprintTarget();
+		if ( Number( ctx.state.footprint ) === userId ) {
+			return;
+		}
 		void ctx.dispatch( 'footprint', { user: userId, name: target.userName } );
 	};
 	consumeFootprintTarget( readFootprintTarget() );
