@@ -28,7 +28,9 @@
  * deliberately NOT Core's `settings`, because the System tile beside
  * it already means settings, and a keyboard is in neither set), so
  * converting the rest would leave one family drawn two ways inside a
- * single rail. If the tiles move to the set they move together, and
+ * single rail. A tile that wants a glyph the set already has borrows
+ * its SHAPE and redraws it here at this weight, as Overview does with
+ * `widgets`. If the tiles move to the set they move together, and
  * `osIconDataUri()` exists for exactly that.
  */
 
@@ -48,21 +50,24 @@ export const SYSTEM_TILE_ORDER = {
 } as const;
 
 /**
- * Overview: four panes pulling apart from a centre.
+ * Overview: the brand's asymmetric bento — one large pane, three
+ * smaller ones around it.
  *
- * Drawn rather than borrowed because the two Dashicons that come
- * closest already mean something else on this rail —
- * `dashicons-grid-view` is the admin-bar Arrange menu this replaces,
- * and `dashicons-screenoptions` is Screen Options in every window's
- * overflow menu. Four rounded rects with a gap through the middle is
- * the one shape that reads as "every window at once" at 20px.
+ * The shape is `widgets` from `src/ui/icons`, transposed onto this
+ * family's 64 grid and drawn at its stroke weight rather than taken
+ * through `osIconDataUri()`, so the rail keeps one weight across all
+ * four tiles. Panes of unequal size are what separates it from the
+ * three grids of equal squares it used to be confused with:
+ * `dashicons-grid-view` on the admin bar's Arrange menu,
+ * `dashicons-screenoptions` in every window's overflow menu, and the
+ * set's own `apps`.
  */
 export const OS_OVERVIEW_SVG =
-	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor">' +
-	'<rect x="6" y="6" width="23" height="23" rx="4"/>' +
-	'<rect x="35" y="6" width="23" height="23" rx="4"/>' +
-	'<rect x="6" y="35" width="23" height="23" rx="4"/>' +
-	'<rect x="35" y="35" width="23" height="23" rx="4"/>' +
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round">' +
+	'<rect x="6" y="6" width="27" height="27" rx="5"/>' +
+	'<rect x="43" y="6" width="15" height="15" rx="5"/>' +
+	'<rect x="43" y="31" width="15" height="27" rx="5"/>' +
+	'<rect x="6" y="43" width="27" height="15" rx="5"/>' +
 	'</svg>';
 
 export const OS_OVERVIEW_ICON = `data:image/svg+xml;base64,${ btoa(
