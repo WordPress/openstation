@@ -3627,21 +3627,13 @@ function init(): void {
 			: manager.open( bugReportConfig ) );
 	}
 
-	// Admin-bar "Report a bug" button. Inline JS in
-	// `assets/js/admin-bar.js` dispatches the event; the shell
-	// answers here, decoupled from the early-running admin-bar IIFE.
-	document.addEventListener( 'os-open-bug-report', () => {
-		openBugReport();
-	} );
-
 	if ( layoutDispatcher ) {
-		// Bug Report has no tile of its own anymore — it is a row in
-		// the System menu. `openBugReport` is still the one opener,
-		// reached from there and from the `os-open-bug-report` event.
+		// Bug Report has no tile of its own — it is a row in the
+		// System menu, and `openBugReport` is its one opener.
 
-		// Exit OpenStation tile — last on the core rail so users have
-		// a discoverable in-shell way out, complementing the admin-bar
-		// "Switch to Classic Admin" toggle. Reuses the existing
+		// Exit OpenStation tile — last on the core rail, and the only
+		// way out of the shell: the admin bar carries no OpenStation
+		// nodes while the desktop is up. Reuses the existing
 		// save-openstation AJAX endpoint via the
 		// `window.openStationAdminBar` global; no new PHP surface.
 		layoutDispatcher.appendSystemTile( getExitOpenStationTileDef() );

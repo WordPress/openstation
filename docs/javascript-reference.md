@@ -800,7 +800,7 @@ Fires after `wp.os.setDefaultWindow( url | null )` **successfully** persists the
 
 ### `os-open-ai` — Experimental
 
-**Direction inverted:** plugins dispatch this one; the shell listens. Dispatching it on `document` opens the AI Assistant spotlight overlay — equivalent to `wp.os.ai.open()` for code that runs without a `wp.os` reference in scope (the admin-bar "Ask AI ⌘K" button is the in-tree dispatcher). No detail payload. The shell routes the open through the palette cycle, so any other open palette is dismissed first (single-palette-at-a-time invariant).
+**Direction inverted:** plugins dispatch this one; the shell listens. Dispatching it on `document` opens the AI Assistant spotlight overlay — equivalent to `wp.os.ai.open()` for code that runs without a `wp.os` reference in scope. No detail payload. The shell routes the open through the palette cycle, so any other open palette is dismissed first (single-palette-at-a-time invariant).
 
 The **first** open of a session has three things in flight at once — the implementation bundle, its deferred stylesheet, and the Core command-palette runtime the manifest replays — so the shell paints a "Starting the command palette…" placeholder in the panel's own position until they land, then swaps it for the real panel. It is inline-styled rather than class-based on purpose: `ai-assistant.css` is itself deferred and is still loading during exactly the window the placeholder covers.
 
@@ -4973,7 +4973,7 @@ Window contexts can supply `responseActions({messageId, summary, operations})` f
 
 #### Arrange & Overview
 
-Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks come in pairs (enter/exit, hover/unhover) so plugins can maintain accurate state counts.
+Fired by the shell's layout algorithms. Overview has the dock's Overview tile as its front door; `cascade()`, `tile()` and `setSnapEnabled()` ship as [`windowManager`](#windowmanager--stable) methods with no UI of their own, so a plugin that wants them on a surface builds one. The overview hooks come in pairs (enter/exit, hover/unhover) so plugins can maintain accurate state counts.
 
 The pairing holds even when a user re-enters overview inside the ~280 ms exit animation (a double-tap of the trigger): the outgoing session is settled first, so `exited` arrives ahead of the next `entering` rather than landing partway into the new session. A listener can rely on the sequence never interleaving.
 
@@ -4991,9 +4991,8 @@ The pairing holds even when a user re-enters overview inside the ~280 ms exit an
 | `os.arrange.tile.starting` | action | Stable | `{ windowCount, cols, rows }` — before tile lays out the grid |
 | `os.arrange.tile.applied` | action | Stable | `{ windowCount, cols, rows }` |
 | `os.arrange.tile.dimensions` | filter | Stable | filters `{ cols, rows }`; context `{ windowCount, areaWidth, areaHeight }`. Override the auto-chosen grid (e.g., force a 3-column newsroom layout). Returns must be positive integers and `cols * rows >= windowCount`, otherwise the filter is ignored. |
-| `os.arrange.snap.changed` | action | Stable | `{ enabled }` — fires when the user toggles "Snap to grid" |
+| `os.arrange.snap.changed` | action | Stable | `{ enabled }` — fires on `windowManager.setSnapEnabled()` |
 | `os.arrange.snap.cell-size` | filter | Stable | filters `{ cellWidth, cellHeight }`; context `{ areaWidth, areaHeight }`. Override the auto-computed snap cell size (e.g., enforce a fixed 100×100 grid). Non-positive returns are ignored. |
-| `os.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `openstation_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
 
 #### Grid snap — Option / Alt while dragging
 

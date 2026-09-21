@@ -7,8 +7,8 @@
  *
  * Reuses the existing `save-openstation` AJAX endpoint
  * (`includes/ajax.php`) via the `window.openStationAdminBar` global
- * already published by `includes/admin-bar.php` for the admin-bar
- * toggle. Same nonce, same redirect contract — no new PHP surface.
+ * published by `includes/admin-bar.php`. Same nonce, same redirect
+ * contract — no new PHP surface.
  */
 
 import type { SystemDockItem } from './dock';
@@ -52,9 +52,9 @@ export function getExitOpenStationTileDef(): SystemDockItem {
 		id: EXIT_OPENSTATION_TILE_ID,
 		title: __( 'Exit OpenStation' ),
 		navKind: 'control',
-		// The one tile that cannot be moved or hidden: it is the way
-		// out of the shell, and a user who hid it would have to know
-		// about the admin bar's toggle to get back.
+		// The one tile that cannot be moved or hidden: it is the only
+		// way out of the shell, so a user who hid it would be stuck
+		// with the portal URL.
 		locked: true,
 		// After the shell cluster, before Trash. Without an explicit
 		// key it defaults to 0 and interleaves with plugin launchers,
@@ -73,9 +73,8 @@ export function getExitOpenStationTileDef(): SystemDockItem {
 /**
  * Disable the user's openstation preference, then navigate the top
  * window to the redirect URL the server returns (or `classicUrl` if
- * the response is missing one). Mirrors the admin-bar toggle's flow in
- * `assets/js/admin-bar.js`; if the global is absent for any reason,
- * falls back to navigating straight to `wp-admin`.
+ * the response is missing one). If the global is absent for any
+ * reason, falls back to navigating straight to `wp-admin`.
  */
 export async function exitOpenStation(): Promise< void > {
 	const cfg = window.openStationAdminBar;

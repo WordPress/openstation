@@ -986,7 +986,7 @@ add_action( 'openstation_chromeless_after', function ( $hook_suffix ) {
 
 ### `openstation_user_enabled` — Experimental
 
-Fires when a user turns OpenStation on, from either path that does so (the admin-bar toggle's AJAX handler and the portal's auto-enable), after the first-run stamps are written: the user's own `openstation_enabled_at` meta and, on the first enable anywhere on the site, the `openstation_first_enabled_at` option. Fires on every enable, not only the first for that user; `$first_on_site` is `true` only when nobody on the site had enabled before.
+Fires when a user turns OpenStation on, from either path that does so (the admin bar's "Switch to OpenStation" AJAX handler and the portal's auto-enable), after the first-run stamps are written: the user's own `openstation_enabled_at` meta and, on the first enable anywhere on the site, the `openstation_first_enabled_at` option. Fires on every enable, not only the first for that user; `$first_on_site` is `true` only when nobody on the site had enabled before.
 
 ```php
 do_action( 'openstation_user_enabled', int $user_id, bool $first_on_site );
@@ -1004,7 +1004,7 @@ add_action( 'openstation_user_enabled', function ( $user_id, $first_on_site ) {
 
 ### `openstation_user_disabled` — Experimental
 
-Fires when a user switches back to the classic admin from the admin-bar toggle. No stamp is written (the enable stamps are "first time" facts and survive a switch back), so this is the other half of the lifecycle and nothing more.
+Fires when a user switches back to the classic admin from the "Exit OpenStation" dock tile. No stamp is written (the enable stamps are "first time" facts and survive a switch back), so this is the other half of the lifecycle and nothing more.
 
 ```php
 do_action( 'openstation_user_disabled', int $user_id );
@@ -1552,58 +1552,6 @@ add_filter( 'openstation_workspace_presets', function ( $presets ) {
 Every entry is sanitized, shipped ones included: an entry with no `id` is dropped, an unknown `layout` falls back to `'free'`, and one with no `label` is named after its id. A malformed template costs that template, never the wizard.
 
 See [`docs/workspaces.md`](workspaces.md) and [`docs/examples/workspace-preset.md`](examples/workspace-preset.md).
-
----
-
-### `openstation_arrange_menu_items` — Stable
-
-The list of plugin-contributed items appended to the admin bar's **Arrange** submenu — the dropdown that sits next to the "Switch to…" toggle when OpenStation is active. Built-ins (Cascade, Overview, Snap to grid, Tile all windows) are always present; this filter adds to them. Only invoked when the user is viewing the desktop shell.
-
-```php
-apply_filters( 'openstation_arrange_menu_items', array $items );
-```
-
-Each item is an associative array:
-
-```php
-array(
-    'id'          => string, // unique slug; letters/digits/dashes only
-    'title'       => string, // menu label (already translated)
-    'description' => string, // optional; tooltip + accessible description
-    'position'    => int,    // optional sort key (default 10); lower sorts earlier
-)
-```
-
-Items with missing `id` or `title` are silently dropped — plugins can't accidentally create an unrouteable entry. Ties on `position` preserve registration order.
-
-**Click wiring:** clicking a custom item fires the JS action `os.arrange.custom-action` with payload `{ id }`. Subscribe via `wp.hooks.addAction()`:
-
-```php
-add_filter( 'openstation_arrange_menu_items', function ( $items ) {
-    $items[] = array(
-        'id'          => 'diagonal',
-        'title'       => __( 'Diagonal cascade', 'my-ext' ),
-        'description' => __( 'Cascade windows along a 45° line.', 'my-ext' ),
-        'position'    => 15,
-    );
-    return $items;
-} );
-```
-
-```js
-// In your shell-side script (enqueued with `wp-hooks` as a dependency):
-wp.hooks.addAction(
-    'os.arrange.custom-action',
-    'my-ext/diagonal',
-    function ( payload ) {
-        if ( payload.id !== 'diagonal' ) {
-            return;
-        }
-        const windows = wp.os.windowManager.getAll();
-        windows.forEach( ( w, i ) => w.move( i * 40, i * 40 ) );
-    }
-);
-```
 
 ---
 

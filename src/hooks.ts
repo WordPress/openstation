@@ -1118,9 +1118,9 @@ export const HOOKS = {
 	// ------------------------------------------------------------------
 	// Overview / Arrange lifecycle actions.
 	//
-	// The "Arrange" admin-bar menu drives two layout algorithms —
-	// Cascade (instantly reposition every window in a staggered
-	// stack) and Overview (zoom-out grid view with click-to-focus).
+	// Two layout algorithms — Cascade (instantly reposition every
+	// window in a staggered stack) and Overview (zoom-out grid view
+	// with click-to-focus, reachable from the Overview dock tile).
 	// These hooks surface the state transitions so plugins can
 	// instrument analytics, apply custom transitions, override
 	// thumbnail decorations, etc. All actions; a filter for
@@ -1215,14 +1215,6 @@ export const HOOKS = {
 	 * original.
 	 */
 	ARRANGE_SNAP_CELL_SIZE: 'os.arrange.snap.cell-size',
-	/**
-	 * Action, fires when the user clicks a plugin-registered entry in
-	 * the Arrange admin-bar submenu (items added via the
-	 * `openstation_arrange_menu_items` PHP filter). Payload `{ id }`
-	 * where `id` is the item's `id` field as registered. Plugins
-	 * subscribe here to run their custom arrangement logic.
-	 */
-	ARRANGE_CUSTOM_ACTION: 'os.arrange.custom-action',
 
 	// ------------------------------------------------------------------
 	// Pointer gestures the platform does not have.
