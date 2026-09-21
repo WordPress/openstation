@@ -13,7 +13,7 @@ That answer is four things, and they travel with the desktop:
 | **What it looks like** | Wallpaper, accent, desktop theme, dock — the desk's whole appearance, painted on entry and handed back on exit. |
 | **What it opens with** | A launch list. Entering the workspace for the first time opens it. |
 | **How they are arranged** | `free`, `cascade`, `tile`, `columns` or `focus`. Applied once the launch list has opened. |
-| **How it is labelled** | An icon and a colour, worn by its overview tile. |
+| **How it is labelled** | An icon and a colour, worn by its tile in Workspaces. |
 
 Three workspaces ship, and they are three different jobs rather than three arrangements of the same one.
 
@@ -25,25 +25,25 @@ Three workspaces ship, and they are three different jobs rather than three arran
 
 **Named for the job, not for the plugin.** A desk called "Woo" is wrong on a store running something else, and wrong again the day the product is renamed — but the *work* is commerce either way. The products are still what the templates reach for: the tokens name WooCommerce and Sensei directly, so on a site that has them the Commerce desk is a WooCommerce desk in everything but its label.
 
-**And a template is only offered where its plugin is active.** Commerce needs WooCommerce, Learning needs Sensei, Publishing needs nothing and always shows. This is the one place a missing plugin is not answered by degrading: a shop floor with no shop on it is not a smaller desk, it is the wrong desk, and offering it means the user picks a storefront and gets a Dashboard. The check is `requires` on the PHP template list, because whether a plugin is active is a question only the server can answer. If every template ends up hidden, the wizard's Start step still has the Blank desktop card.
+**And a template is only offered where its plugin is active.** Commerce needs WooCommerce, Learning needs Sensei, Publishing needs nothing and always shows. This is the one place a missing plugin is not answered by degrading: a shop floor with no shop on it is not a smaller desk, it is the wrong desk, and offering it means the user picks a storefront and gets a Dashboard. The check is `requires` on the PHP template list, because whether a plugin is active is a question only the server can answer. If every template ends up hidden, the wizard's Start step still has the Blank workspace card.
 
 ---
 
 ## Using them
 
-Everything happens **in the overview top bar**, and there is **one door: the `+`**. It opens the wizard.
+Everything happens **in the Workspaces top bar**, and there is **one door: the `+`**. It opens the wizard.
 
 There used to be a dropdown beside the `+` as well. Two doors to the same room — one that created desks from templates, one that created a blank desk without asking — and a user had to know which did what. The dropdown is gone; the `+` is the obvious place to press, so it is the only one.
 
-**Overview is the only surface that carries any of this, on purpose.** It is already the Spaces surface — it names every desk, renames them, closes them, and adds new ones — and it is where a user goes with the question "which desk?" already in mind. The desk itself belongs to the user's windows; a control parked on it would be shell chrome hovering over the thing they are working in, and would need a work-area claim or an apology for covering something. Overview needs neither.
+**The Workspaces screen is the only surface that carries any of this, on purpose.** It is already the Spaces surface — it names every desk, renames them, closes them, and adds new ones — and it is where a user goes with the question "which desk?" already in mind. The desk itself belongs to the user's windows; a control parked on it would be shell chrome hovering over the thing they are working in, and would need a work-area claim or an apology for covering something. Workspaces needs neither.
 
-Overview tiles wear each workspace's glyph and accent, so a row of desks is legible at a glance rather than a row of identical grey rectangles.
+Each tile there wears its workspace's glyph and accent, so a row of desks is legible at a glance rather than a row of identical grey rectangles.
 
 ### The wizard
 
 The wizard's first step is **Start**, and it is the escape hatch:
 
-- **Blank desktop** is a card, preselected, and **Create desktop** is the focused button. `+` then Enter is a plain new desk — the same two gestures it was before the wizard existed. Nobody is walked through five steps to get an empty desk.
+- **Blank workspace** is a card, preselected, and **Create workspace** is the focused button. `+` then Enter is a plain new desk — the same two gestures it was before the wizard existed. Nobody is walked through five steps to get an empty desk.
 - The templates are cards beside it. Pick one and press **Create from template** and the desk is made from it exactly as the dropdown used to — the template is read against the navigation as it stands right now, and the `os.workspaces.profile` filter runs.
 - Activating a card that is already selected (a second click, or Enter on it) creates. Click once to choose, again to go.
 - **Customize** is the only way into the remaining steps: **Name** (name, glyph, colour) → **Apps** → **Widgets** → **Look** (wallpaper tiles with their names and live previews, accent, dock) → **Windows** (the arrangement, plus the launch list: add any app from a picker, remove one from its chip, or capture the windows open right now). On every one of them, **Create workspace** is still in the footer: the wizard can be left at any point with whatever has been set so far.
@@ -70,7 +70,7 @@ Three decisions worth naming:
 
 `wp.os.workspaces.provision( id, { force: true } )` is the programmatic equivalent for the windows half; `arrange()`, `setProfile()` and a switch cover the rest.
 
-`/workspace` in the command palette (⌘K) is the keyboard route — one command for the whole question. It lists the desks that exist, then the templates that could become one, then `New desktop…` (the wizard) and `Edit this workspace…`. An existing desk wins over a template of the same name, so `/workspace commerce` means "take me there" once a Commerce desk exists.
+`/workspace` in the command palette (⌘K) is the keyboard route — one command for the whole question. It lists the desks that exist, then the templates that could become one, then `New workspace…` (the wizard) and `Edit this workspace…`. An existing desk wins over a template of the same name, so `/workspace commerce` means "take me there" once a Commerce desk exists.
 
 ## Templates degrade, they do not break
 
@@ -92,7 +92,7 @@ The navigation already has one answer to "where does this item show?" — `navPl
 
 Two things a workspace may never hide, structurally rather than by default:
 
-- **OpenStation's own controls** — Overview, the System tile, Trash, Mio, Exit. A workspace that could hide these could strand the user on a desk with no way to change it, and the way out would be editing user meta.
+- **OpenStation's own controls** — Workspaces, the System tile, Trash, Mio, Exit. A workspace that could hide these could strand the user on a desk with no way to change it, and the way out would be editing user meta.
 - **Locked items** — Exit OpenStation already refuses every other placement write.
 
 An **open window always keeps its tile**, even on a desk that hides its app. `computeNav` mints an ephemeral tile for any window with nowhere to minimize back into, so narrowing can never strand a window you are looking at.
@@ -151,7 +151,7 @@ A **closed widget is no longer recorded as an edit** to the desk. Under an `only
 
 **`/keep-desk`** in the command palette (also a row in `/workspace`, and `wp.os.workspaces.saveDesk()`) makes the workspace open the way the desk is *now*: the open windows and **where they are**, the mounted widgets, the apps on the rails. It is the one write a workspace makes on purpose, and the cheapest way to turn a plain Space into a workspace — save it, and it is one.
 
-Where each window is comes along in a form that survives a resized browser or a different display: a grid-snapped window keeps its cells (`gridSpan`), a free one becomes fractions of the work area (`place`, each of `x`, `y`, `width`, `height` in `[0, 1]`). The arrangement becomes `free`, because the positions *are* the arrangement now and an algorithm re-laying them out would undo the thing just kept. The desk is marked provisioned — what it would open is already open — and controls (Overview, System, Trash, Exit) are never written into the app list, since the narrowing cannot hide them anyway.
+Where each window is comes along in a form that survives a resized browser or a different display: a grid-snapped window keeps its cells (`gridSpan`), a free one becomes fractions of the work area (`place`, each of `x`, `y`, `width`, `height` in `[0, 1]`). The arrangement becomes `free`, because the positions *are* the arrangement now and an algorithm re-laying them out would undo the thing just kept. The desk is marked provisioned — what it would open is already open — and controls (Workspaces, System, Trash, Exit) are never written into the app list, since the narrowing cannot hide them anyway.
 
 On a workspace desk with its own column, a widget's × takes it off *this* desk and a widget added from the picker joins *this* desk — the user's own column, geometry and docked heights are untouched either way, and the change is recorded on the profile so the desk comes back the same. That is what keeps "a workspace never writes the user's settings" true even for a write the user makes from inside one.
 

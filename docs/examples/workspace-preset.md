@@ -2,7 +2,7 @@
 
 **Status: Stable**
 
-A [workspace](../workspaces.md) is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, and how they are arranged. A **template** is how a plugin offers one — it appears as a card on the wizard's Start step, beside Blank desktop, and picking it mints a desk.
+A [workspace](../workspaces.md) is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, and how they are arranged. A **template** is how a plugin offers one — it appears as a card on the wizard's Start step, beside Blank workspace, and picking it mints a desk.
 
 ## From PHP alone — no JavaScript
 
@@ -176,7 +176,7 @@ wp.os.workspaces.create( {
 
 ## What a workspace may never do
 
-Narrowing the rails is a **view**, not a settings edit: it computes the navigation with extra `'hidden'` placements and leaves the user's stored `navPlacement` untouched. And it can never hide OpenStation's own controls — Overview, System, Trash, Exit — or an open window's tile. See [Workspaces](../workspaces.md#narrowing-never-edits-your-settings).
+Narrowing the rails is a **view**, not a settings edit: it computes the navigation with extra `'hidden'` placements and leaves the user's stored `navPlacement` untouched. And it can never hide OpenStation's own controls — Workspaces, System, Trash, Exit — or an open window's tile. See [Workspaces](../workspaces.md#narrowing-never-edits-your-settings).
 
 The widget column follows the same "writes nothing" rule by a different route: `'only'` mounts exactly what it names, whether or not the user enabled those widgets globally, and hands their own column back the moment they leave. See [Widgets are a layout, not a filter](../workspaces.md#widgets-are-a-layout-not-a-filter).
 

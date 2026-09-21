@@ -92,11 +92,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 		clearHooksStub();
 	} );
 
-	test( 'starts with a single default desktop named "Desktop 1"', async () => {
+	test( 'starts with a single default desktop named "Workspace 1"', async () => {
 		const list = manager.getDesktops();
 		expect( list ).toHaveLength( 1 );
 		expect( list[ 0 ].id ).toBe( 'desktop-1' );
-		expect( list[ 0 ].label ).toBe( 'Desktop 1' );
+		expect( list[ 0 ].label ).toBe( 'Workspace 1' );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 	} );
 
@@ -110,7 +110,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 			created.id,
 		] );
 		expect( created.id ).toBe( 'desktop-2' );
-		expect( created.label ).toBe( 'Desktop 2' );
+		expect( created.label ).toBe( 'Workspace 2' );
 
 		const evt = log.find( ( e ) => e.name === 'os.os.created' );
 		expect( evt ).toBeDefined();

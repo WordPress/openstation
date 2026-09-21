@@ -128,12 +128,12 @@ describe( 'workspace wizard', () => {
 		clearHooksStub();
 	} );
 
-	test( '+ then Create is a plain desktop, with no profile at all', () => {
+	test( '+ then Create is a plain workspace, with no profile at all', () => {
 		openWorkspaceWizard( options( { onCreate } ) );
 
 		// Blank is the preselected card and the footer says so.
 		expect( cards()[ 0 ].hasAttribute( 'selected' ) ).toBe( true );
-		button( 'Create desktop' ).click();
+		button( 'Create workspace' ).click();
 
 		expect( onCreate ).toHaveBeenCalledTimes( 1 );
 		const result: WorkspaceWizardResult = onCreate.mock.calls[ 0 ][ 0 ];

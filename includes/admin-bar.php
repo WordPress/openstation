@@ -175,51 +175,51 @@ function openstation_enqueue_toggle_assets() {
 				 * renders the Keyboard shortcuts window.
 				 *
 				 * `contextual` is a small table that distinguishes the
-				 * three modes the shortcuts operate in (Outside Overview,
-				 * Inside Overview, Show Desktop). `general` is a flat
-				 * list for shortcuts whose behaviour doesn't shift by
-				 * mode.
+				 * three modes the shortcuts operate in (Outside
+				 * Workspaces, Inside Workspaces, Show Desktop).
+				 * `general` is a flat list for shortcuts whose
+				 * behaviour doesn't shift by mode.
 				 */
 				'shortcuts'  => array(
 					'title'      => __( 'Keyboard shortcuts', 'desktop-mode' ),
 					'contextual' => array(
-						'heading' => __( 'Desktops & Overview', 'desktop-mode' ),
+						'heading' => __( 'Workspaces', 'desktop-mode' ),
 						'headers' => array(
 							'key'         => __( 'Key', 'desktop-mode' ),
-							'outside'     => __( 'Outside overview', 'desktop-mode' ),
-							'inside'      => __( 'Inside overview', 'desktop-mode' ),
+							'outside'     => __( 'Outside Workspaces', 'desktop-mode' ),
+							'inside'      => __( 'Inside Workspaces', 'desktop-mode' ),
 							'showDesktop' => __( 'In Show Desktop', 'desktop-mode' ),
 						),
 						'rows'    => array(
 							array(
 								'keys'        => array( '←' ),
-								'outside'     => __( 'Previous desktop (wraps)', 'desktop-mode' ),
-								'inside'      => __( 'Previous desktop (grid + top-bar update)', 'desktop-mode' ),
-								'showDesktop' => __( 'Previous desktop', 'desktop-mode' ),
+								'outside'     => __( 'Previous workspace (wraps)', 'desktop-mode' ),
+								'inside'      => __( 'Previous workspace (grid + top-bar update)', 'desktop-mode' ),
+								'showDesktop' => __( 'Previous workspace', 'desktop-mode' ),
 							),
 							array(
 								'keys'        => array( '→' ),
-								'outside'     => __( 'Next desktop (wraps)', 'desktop-mode' ),
-								'inside'      => __( 'Next desktop (grid + top-bar update)', 'desktop-mode' ),
-								'showDesktop' => __( 'Next desktop', 'desktop-mode' ),
+								'outside'     => __( 'Next workspace (wraps)', 'desktop-mode' ),
+								'inside'      => __( 'Next workspace (grid + top-bar update)', 'desktop-mode' ),
+								'showDesktop' => __( 'Next workspace', 'desktop-mode' ),
 							),
 							array(
 								'keys'        => array( '↑' ),
-								'outside'     => __( 'Enter Overview', 'desktop-mode' ),
-								'inside'      => __( 'Exit Overview onto active desktop', 'desktop-mode' ),
+								'outside'     => __( 'Enter Workspaces', 'desktop-mode' ),
+								'inside'      => __( 'Exit onto the active workspace', 'desktop-mode' ),
 								'showDesktop' => __( 'Restore windows (exit Show Desktop)', 'desktop-mode' ),
 							),
 							array(
 								'keys'        => array( '↓' ),
 								'outside'     => __( 'Toggle Show Desktop', 'desktop-mode' ),
-								'inside'      => __( 'Exit Overview (no minimize)', 'desktop-mode' ),
+								'inside'      => __( 'Exit Workspaces (no minimize)', 'desktop-mode' ),
 								'showDesktop' => __( 'Toggle Show Desktop', 'desktop-mode' ),
 							),
 							array(
 								'keys'        => array( 'Enter' ),
-								'note'        => __( '(in overview)', 'desktop-mode' ),
+								'note'        => __( '(in Workspaces)', 'desktop-mode' ),
 								'outside'     => '—',
-								'inside'      => __( 'Commit current desktop, exit overview', 'desktop-mode' ),
+								'inside'      => __( 'Commit current workspace, exit Workspaces', 'desktop-mode' ),
 								'showDesktop' => '—',
 							),
 						),
@@ -229,11 +229,11 @@ function openstation_enqueue_toggle_assets() {
 						'items'   => array(
 							array(
 								'keys'        => array( '`' ),
-								'description' => __( 'Cycle to the next window on the active desktop.', 'desktop-mode' ),
+								'description' => __( 'Cycle to the next window on the active workspace.', 'desktop-mode' ),
 							),
 							array(
 								'keys'        => array( 'Shift', '`' ),
-								'description' => __( 'Cycle to the previous window on the active desktop.', 'desktop-mode' ),
+								'description' => __( 'Cycle to the previous window on the active workspace.', 'desktop-mode' ),
 							),
 							array(
 								'keys'        => array( '⌘/Ctrl', 'K' ),
@@ -241,11 +241,11 @@ function openstation_enqueue_toggle_assets() {
 							),
 							array(
 								'keys'        => array( '⌥/Alt', '⌘/Ctrl', 'W' ),
-								'description' => __( 'Close every open window on the current desktop (asks first).', 'desktop-mode' ),
+								'description' => __( 'Close every open window on the current workspace (asks first).', 'desktop-mode' ),
 							),
 							array(
 								'keys'        => array( 'Esc' ),
-								'description' => __( 'Exit Overview (or Snap Overview) without changing window state.', 'desktop-mode' ),
+								'description' => __( 'Exit Workspaces (or Snap Overview) without changing window state.', 'desktop-mode' ),
 							),
 						),
 					),

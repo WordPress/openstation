@@ -112,7 +112,7 @@ export function moveWindowToDesktop(
 
 /**
  * Append a brand-new desktop and return it. The new desktop's label
- * is auto-numbered (`Desktop 2`, `Desktop 3`, …) using the monotonic
+ * is auto-numbered (`Workspace 2`, `Workspace 3`, …) using the monotonic
  * seq counter so closing + reopening doesn't reuse the same id
  * mid-session.
  */
@@ -125,8 +125,8 @@ export function createDesktop(
 		id: `desktop-${ mgr._desktopSeq }`,
 		label:
 			init?.label?.trim().slice( 0, DESKTOP_LABEL_MAX_LENGTH ) ||
-			// translators: %d is the desktop number (e.g., "Desktop 2")
-			sprintf( __( 'Desktop %d' ), mgr._desktopSeq ),
+			// translators: %d is the workspace number (e.g., "Workspace 2")
+			sprintf( __( 'Workspace %d' ), mgr._desktopSeq ),
 	};
 	mgr._desktops.push( desktop );
 	doAction( HOOKS.DESKTOP_CREATED, { desktopId: desktop.id } );

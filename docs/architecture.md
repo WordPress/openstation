@@ -131,7 +131,7 @@ A nav item has a **kind**, and the kind decides everything the user has not over
 | `core` | An admin menu WordPress registered (`openstation_is_core_menu_slug()`) | a rail |
 | `plugin` | An admin menu a plugin registered | a rail |
 | `app` | `openstation_register_icon()`, or a native window's launcher | the desktop |
-| `control` | OpenStation's own affordances: Mio, Overview, System, Trash, Exit | a rail |
+| `control` | OpenStation's own affordances: Mio, Workspaces, System, Trash, Exit | a rail |
 
 Placement is stored as a subset of two **regions**, never as a rail name: `'rail' | 'desktop' | 'both' | 'hidden'`. Which physical rail `'rail'` resolves to is one line (`railFor()` in `src/nav/defaults.ts`): the sidebar for a `core` menu while the split layout is on, the dock for everything else. That indirection is why switching layouts is a re-render rather than a data migration, and why OpenStation Preferences can offer four options rather than five while still naming the rail the user is actually looking at.
 

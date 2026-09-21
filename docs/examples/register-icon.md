@@ -24,7 +24,7 @@ openstation_register_window( 'jorvy', array(
     'script'   => 'jorvy-desktop',
     // Optional: where the dock tile sorts among system tiles,
     // ascending. Defaults to 0, which puts a plugin launcher ahead of
-    // the shell's own trailing cluster (Mio 10, Overview 20, System
+    // the shell's own trailing cluster (Mio 10, Workspaces 20, System
     // 30, Trash 40) — usually what you want. Set it only if the tile
     // has a reason to sit somewhere specific; registration order can't
     // express that, because tiles land when their script resolves.

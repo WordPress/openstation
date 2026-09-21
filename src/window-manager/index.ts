@@ -246,8 +246,8 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _desktops: Desktop[] = [
-		// translators: default desktop name — "Desktop 1"
-		{ id: 'desktop-1', label: 'Desktop 1' },
+		// translators: default desktop name — "Workspace 1"
+		{ id: 'desktop-1', label: 'Workspace 1' },
 	];
 
 	/**

@@ -36,10 +36,10 @@ describe( 'virtual desktops — overview tiles', () => {
 
 		dockEl = document.createElement( 'nav' );
 		document.body.appendChild( dockEl );
-		// Mirrors the Overview tile's registration in `desktop.ts`.
+		// Mirrors the Workspaces tile's registration in `desktop.ts`.
 		const overview: SystemDockItem = {
 			id: 'os-overview',
-			title: 'Overview',
+			title: 'Workspaces',
 			icon: 'dashicons-screenoptions',
 			navKind: 'control',
 			isOpen: () => manager._overviewActive,

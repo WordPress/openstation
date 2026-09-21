@@ -3677,12 +3677,13 @@ function init(): void {
 			},
 		} );
 
-		// Overview tile — the same surface ArrowUp toggles. A tile for
-		// it because the gesture is undiscoverable: a shortcut nobody
-		// pressed is a feature nobody has.
+		// Workspaces tile — the same surface ArrowUp toggles. A tile
+		// for it because the gesture is undiscoverable: a shortcut
+		// nobody pressed is a feature nobody has. The id stays
+		// `os-overview`: it keys visibility overrides in Preferences.
 		layoutDispatcher.appendSystemTile( {
 			id: OVERVIEW_TILE_ID,
-			title: 'Overview',
+			title: 'Workspaces',
 			icon: OS_OVERVIEW_ICON,
 			navKind: 'control',
 			placeable: true,

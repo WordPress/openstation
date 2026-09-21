@@ -130,7 +130,7 @@ of non-empty ones:
 |---|---|
 | `core` | WordPress's own admin menus. Empty on the dock while the split layout is on — they are in the sidebar. |
 | `apps` | Plugin admin menus, app launchers, and any running window with no home of its own. |
-| `controls` | OpenStation's own affordances: Mio, Overview, System, the Trash, the way out. |
+| `controls` | OpenStation's own affordances: Mio, Workspaces, System, the Trash, the way out. |
 
 Zone membership is derived from what each item IS, never stored, which
 is what makes "a tile cannot be dragged into another zone" structural

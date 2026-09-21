@@ -584,14 +584,14 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 			'os-overview-top-bar__tile--cursor',
 		);
 	}
-	addTile.setAttribute( 'aria-label', __( 'Add new desktop' ) );
+	addTile.setAttribute( 'aria-label', __( 'Add new workspace' ) );
 	// The same two rows a desk tile has: a preview band with the glyph
 	// centred in it, and a label strip below. Empty ones, but present,
 	// so the dashed box is the height of a tile BY CONSTRUCTION rather
 	// than by a number copied from the tile's rules that would drift
 	// the first time one of them changed. The label carries a
 	// non-breaking space because an empty span has no line box, and
-	// the strip has to be as tall as the one holding "Desktop 1".
+	// the strip has to be as tall as the one holding "Workspace 1".
 	addTile.innerHTML =
 		'<span class="os-overview-top-bar__tile-preview">' +
 		'<span class="os-overview-top-bar__tile-plus" aria-hidden="true">+</span>' +

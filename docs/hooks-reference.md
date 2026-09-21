@@ -1496,7 +1496,7 @@ apply_filters( 'openstation_network_request_url', string $url, string $base );
 
 ### `openstation_workspace_presets` — Stable
 
-The workspace templates offered as cards on the wizard's Start step, beside Blank desktop. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
+The workspace templates offered as cards on the wizard's Start step, beside Blank workspace. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
 
 ```php
 apply_filters( 'openstation_workspace_presets', array $presets );

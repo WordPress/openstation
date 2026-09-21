@@ -83,7 +83,7 @@ function fullSite(): NavItem[] {
 			title: 'Courses',
 			menu: menu( 'edit.php?post_type=course' ),
 		} ),
-		item( 'os-overview', 'control', { title: 'Overview' } ),
+		item( 'os-overview', 'control', { title: 'Workspaces' } ),
 		item( 'os-exit', 'control', { title: 'Exit', locked: true } ),
 	];
 }
