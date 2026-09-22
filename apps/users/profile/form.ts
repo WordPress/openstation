@@ -19,7 +19,7 @@ import { generateStrongPassword } from '../parts/password';
 import { copyQuietly, fetchUser, saveUser } from './client';
 import { roleChips } from './insights';
 import { buildAdminColorPicker, buildAppPasswordsRow, buildSessionsRow, checkboxField } from './options';
-import type { OsFormElement, OsSelectElement, ProfileHost, UserEditRecord } from './types';
+import type { OsFormElement, OsSelectElement, ProfileHost, UserEditRecord, UserEditSaveResult } from './types';
 
 const HEADING =
 	'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--os-ui-fg-muted, #50575e);';
@@ -302,9 +302,15 @@ function mountProfileForm( el: HTMLElement, user: UserEditRecord, userId: number
 			patch.meta = metaPatch;
 		}
 
-		const result = await saveUser( host, userId, patch );
-		pending = false;
-		form.setBusy( false );
+		let result: UserEditSaveResult;
+		try {
+			result = await saveUser( host, userId, patch );
+		} catch ( error ) {
+			result = { ok: false, message: error instanceof Error ? error.message : __( 'Save failed.' ) };
+		} finally {
+			pending = false;
+			form.setBusy( false );
+		}
 
 		if ( ! result.ok ) {
 			const summary = result.message ?? mapErrorCode( result.error ) ?? __( 'Save failed.' );

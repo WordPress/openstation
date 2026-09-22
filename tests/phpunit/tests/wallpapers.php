@@ -167,6 +167,62 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A tone is two words or it is nothing. A typo has to land on
+	 * empty, which reads as 'dark': a desk wrongly told it is pale
+	 * paints Void icons onto a Void sky.
+	 *
+	 * @covers ::openstation_register_wallpaper
+	 */
+	public function test_tone_accepts_only_light_or_dark_and_defaults_empty() {
+		openstation_register_wallpaper( 'test-pale', array(
+			'label'   => 'Pale',
+			'preview' => '#f6f2ff',
+			'type'    => 'css',
+			'tone'    => 'light',
+		) );
+		$this->assertSame( 'light', openstation_desktop_wallpaper_registry( 'test-pale' )['tone'] );
+
+		openstation_register_wallpaper( 'test-typo', array(
+			'label'   => 'Typo',
+			'preview' => '#f6f2ff',
+			'type'    => 'css',
+			'tone'    => 'Light',
+		) );
+		$this->assertSame( '', openstation_desktop_wallpaper_registry( 'test-typo' )['tone'] );
+
+		openstation_register_wallpaper( 'test-toneless', array(
+			'label'   => 'Toneless',
+			'preview' => '#654321',
+			'type'    => 'css',
+		) );
+		$this->assertSame( '', openstation_desktop_wallpaper_registry( 'test-toneless' )['tone'] );
+	}
+
+	/**
+	 * The meshes are the only built-ins that declare themselves light.
+	 *
+	 * @covers ::openstation_build_desktop_wallpapers_payload
+	 */
+	public function test_payload_carries_tone_and_only_the_meshes_are_light() {
+		$tones = array();
+		foreach ( openstation_build_desktop_wallpapers_payload() as $entry ) {
+			$this->assertArrayHasKey( 'tone', $entry );
+			$tones[ $entry['id'] ] = $entry['tone'];
+		}
+
+		// Named rather than diffed against the whole payload: the
+		// registry is process-wide across this class.
+		$this->assertSame( 'light', $tones['holomesh'] );
+		$this->assertSame( 'light', $tones['pulsemesh'] );
+
+		// Aurora, Sunset and Forest brighten toward their far corner but
+		// are dark where the icon grid starts. Empty is the decision.
+		foreach ( array( 'galaxy', 'space', 'dark', 'aurora', 'sunset', 'forest', 'mono', 'wp-snow' ) as $id ) {
+			$this->assertSame( '', $tones[ $id ], $id . ' declares no tone.' );
+		}
+	}
+
+	/**
 	 * @covers ::openstation_build_desktop_wallpapers_payload
 	 */
 	public function test_payload_carries_descriptions_for_builtins() {

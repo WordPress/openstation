@@ -522,13 +522,23 @@ html.wp-toolbar:has( body.os-chromeless ) {
  * Core builds these class names with CSS modules, so only the
  * `__<local-name>` suffix is stable; the hash in front of it changes
  * with every Core build. Match on the suffix, scoped to the boot
- * container so the substring cannot reach anything else. The bare
- * `boot-layout__*` names are the pre-CSS-modules spelling, kept for
- * Core builds that still ship it.
+ * container. The bare `boot-layout__*` names are the pre-CSS-modules
+ * spelling, kept for Core builds that still ship it.
+ *
+ * The container is not a tight enough scope on its own. The page a
+ * boot screen routes to mounts INSIDE the layout, and a plugin page
+ * built with CSS modules gives its own elements the same
+ * `<hash>__<name>` shape: Jetpack's Stats v2 dashboard lays its
+ * widgets out in a `…__layout` grid, and the `min-height: 100vh` meant
+ * for Core's layout element stretched that grid to the window and
+ * spread the dashboard's rows across it, with the widgets pushed
+ * out of sight. Everything a page renders lives inside admin-ui's
+ * navigable region, so exclude that subtree: these rules only ever
+ * touch Core's own frame around the page, never the page.
  */
-.os-chromeless .boot-layout-container [class*='__surfaces'],
-.os-chromeless .boot-layout-container [class*='__stage'],
-.os-chromeless .boot-layout-container [class*='__canvas'],
+.os-chromeless .boot-layout-container [class*='__surfaces']:not( .admin-ui-navigable-region * ),
+.os-chromeless .boot-layout-container [class*='__stage']:not( .admin-ui-navigable-region * ),
+.os-chromeless .boot-layout-container [class*='__canvas']:not( .admin-ui-navigable-region * ),
 .os-chromeless .boot-layout__surfaces,
 .os-chromeless .boot-layout__stage,
 .os-chromeless .boot-layout__canvas {
@@ -542,9 +552,10 @@ html.wp-toolbar:has( body.os-chromeless ) {
  * `min-height: calc( 100vh - <admin bar> )` is what it actually gets.
  * A chromeless iframe has no admin bar, so that reservation shows up
  * as a dark band along the bottom of the window. Take the full
- * viewport back.
+ * viewport back. Same navigable-region guard as above: the page's
+ * own `…__layout` elements keep their height.
  */
-.os-chromeless .boot-layout-container [class*='__layout'],
+.os-chromeless .boot-layout-container [class*='__layout']:not( .admin-ui-navigable-region * ),
 .os-chromeless .boot-layout {
 	min-height: 100vh !important;
 }

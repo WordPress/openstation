@@ -25,7 +25,7 @@
  *
  * Add `horizontal` to the container for a wizard trail: the steps sit
  * on one line with a rule between them, rather than stacked. Add
- * `interactive` to a step to make it a way back — it emits
+ * `interactive` to a step to make it a way to jump there — it emits
  * `os-step-click` and takes focus and Enter/Space like a button.
  */
 
@@ -146,7 +146,7 @@ export class OsStep extends Component {
 				name: 'interactive',
 				type: 'boolean',
 				description:
-					'Makes the step a way back: focusable, activated by click or Enter/Space, and emits os-step-click.',
+					'Makes the step a jump target: focusable, activated by click or Enter/Space, and emits os-step-click.',
 			},
 		],
 		events: [

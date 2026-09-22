@@ -180,7 +180,7 @@ ESLint enforces this — raw `fetch( … )` and `window.fetch( … )` calls fail
 
 - The `trackedFetch` wrapper itself (the boot-time fallback before `wp.os` exists).
 - The PWA service worker (`src/pwa/sw.ts` — different context, no `wp.os` global).
-- Genuinely silent background pollers where attribution would mis-render as user activity (`src/devtools/index.ts`, `src/desktop-files/recycle-bin-icon-state.ts`).
+- Genuinely silent background pollers where attribution would mis-render as user activity (`src/devtools/index.ts`). A raw `fetch()` also skips the REST nonce, so a cookie-authenticated REST route answers it with 401: a background REST call is `trackedFetch( …, { silent: true } )`, which keeps it silent and still carries the nonce (the recycle-bin count refresh shipped the 401 for months).
 
 ### Use `wp.os.confirm` (or `osConfirm`), never `window.confirm`/`alert`/`prompt`
 

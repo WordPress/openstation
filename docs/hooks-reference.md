@@ -1771,9 +1771,11 @@ add_filter( 'openstation_default_wallpaper', fn () => 'aurora' );
 
 ### `openstation_wallpapers` — Stable
 
-Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `openstation_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`, `description`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
+Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `openstation_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`, `description`, `tone`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
 
 `description` — *Experimental.* Optional plain-text copy shown in OpenStation Preferences when the wallpaper is the active selection (a styled card under the picker grid). Sanitized with `sanitize_textarea_field()` at registration; the shell renders it as text, never HTML. When the wallpaper's JS def also sets `description`, the JS value wins — the server value is an overlay for defs that don't carry one.
+
+`tone` — *Experimental.* `'light'`, `'dark'`, or empty. Whether the desk paints its icons, their captions and its file tiles in Starlight or in Void. Anything other than the two words is stored empty, and empty reads as `'dark'`. Declare `'light'` if a user would call your surface pale. See [Wallpaper tone](desktop-themes.md#wallpaper-tone).
 
 Mirrors the client-side `os.wallpapers` JS filter but runs earlier, before any wallpaper reaches the browser.
 
@@ -2349,6 +2351,8 @@ The Drafts widget offers per-draft title / excerpt / tag / category suggestions 
 | `/wp-json/desktop-mode/v1/draft-apply` | POST `{ post_id, title?, excerpt?, tags?, categories? }` | `edit_post` | Writes an accepted suggestion onto the post. Tags and categories are **appended**, never clobbered. New categories are only created for users who can `manage_categories`; unknown ones are skipped. |
 
 The capability check runs **before** the provider check, so an unauthorized caller gets the same `403` whether or not the site has AI configured. With no provider, an authorized caller gets `503 openstation_ai_unavailable` and the 💡 button never renders — the widget degrades to exactly its pre-AI behavior.
+
+When the provider itself fails, the route answers `502 openstation_ai_failed` whatever the provider's own status was: a provider `401` passed through as the REST status would read as an expired WordPress session to every client on the page. The message says what happened in plain words and the error `data` carries the detail a caller can act on: `reason` (`quota`, out of credits or rate limited; `auth`, the site's key was rejected; `unavailable`, unreachable or a 5xx; `other`), `provider_status` (the provider's HTTP status, or `null` when the request never reached it) and `detail` (the provider's message, verbatim). The widget renders `reason` and links `auth` to Settings → Connectors; the raw provider text stays in `detail`.
 
 ### `openstation_drafts_ai_instructions` — Experimental
 

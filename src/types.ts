@@ -1228,6 +1228,8 @@ export interface DesktopWallpaperServerEntry {
 	 * JS def when the def itself doesn't carry one.
 	 */
 	description?: string;
+	/** Empty when undeclared, which the shell reads as `'dark'`. */
+	tone?: '' | 'light' | 'dark';
 	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
 	scriptUrl: string;
 	/** WordPress script handle (informational). */

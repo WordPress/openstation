@@ -420,6 +420,39 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A provider failure answers 502 whatever the provider said, with the
+	 * reason and the provider's status in the error data and the provider's
+	 * text kept out of the message, a 429 used to reach the widget only as
+	 * "Too Many Requests (429) - …" inside a generic 502.
+	 *
+	 * @dataProvider data_provider_failures
+	 * @covers ::openstation_drafts_ai_failure
+	 */
+	public function test_provider_failure_is_mapped_to_a_reason( $code, $status, $detail, $reason, $provider_status ) {
+		$raw = new WP_Error( $code, $detail, null === $status ? array() : array( 'status' => $status ) );
+
+		$error = openstation_drafts_ai_failure( $raw );
+		$data  = $error->get_error_data();
+
+		$this->assertSame( 'openstation_ai_failed', $error->get_error_code() );
+		$this->assertSame( 502, $data['status'] );
+		$this->assertSame( $reason, $data['reason'] );
+		$this->assertSame( $provider_status, $data['provider_status'] );
+		$this->assertSame( $detail, $data['detail'] );
+		$this->assertStringNotContainsString( $detail, $error->get_error_message() );
+	}
+
+	public function data_provider_failures() {
+		return array(
+			'openai 429 no credits'  => array( 'prompt_client_error', 429, 'Too Many Requests (429) - You have no credits remaining.', 'quota', 429 ),
+			'rejected key'           => array( 'prompt_client_error', 401, 'Unauthorized (401) - Incorrect API key provided.', 'auth', 401 ),
+			'provider 5xx'           => array( 'prompt_upstream_server_error', 503, 'Service Unavailable (503) - overloaded', 'unavailable', 503 ),
+			'network'                => array( 'prompt_network_error', 503, 'cURL error 28: Operation timed out', 'unavailable', null ),
+			'thrown, no status'      => array( 'openstation_ai_failed', null, 'Unexpected OpenAI API response: Missing the "choices" key.', 'other', null ),
+		);
+	}
+
+	/**
 	 * The list normalizer strips markup, drops blanks and non-scalars, and
 	 * caps the list — the model's output is never trusted verbatim.
 	 *

@@ -107,6 +107,19 @@ export class WidgetLayer {
 	private unwatchPointer: ( () => void ) | null = null;
 
 	/**
+	 * Watches every mounted card's box so the add pill follows the
+	 * stack when a card changes height on its own: a notice landing
+	 * in a widget after a request, a panel folding open, a list
+	 * filling in. Nothing else sees those — the pointer watch only
+	 * re-measures on a move near the column, and someone who clicked
+	 * a widget action and is waiting on the result is not moving,
+	 * so the pill sat on top of the text that had just appeared.
+	 * `null` where `ResizeObserver` is missing (jsdom); the mount
+	 * path still re-measures once when an async mount resolves.
+	 */
+	private stackObserver: ResizeObserver | null = null;
+
+	/**
 	 * @param root         The column element (`#os-widgets`).
 	 * @param pluginUrl    Absolute plugin URL — passed to widget ctx.
 	 * @param floatingHost Parent for liberated (floating) widgets.
@@ -132,6 +145,12 @@ export class WidgetLayer {
 
 		this.addTile = this.buildAddTile();
 		this.root.appendChild( this.addTile );
+
+		if ( typeof ResizeObserver === 'function' ) {
+			this.stackObserver = new ResizeObserver( () =>
+				this.positionAddTile(),
+			);
+		}
 
 		this.paintEmptyState();
 		this.watchPointerProximity();
@@ -436,6 +455,7 @@ export class WidgetLayer {
 		}
 		this.unwatchPointer?.();
 		this.unwatchPointer = null;
+		this.stackObserver?.disconnect();
 	}
 
 	// --- Internal ---------------------------------------------------
@@ -474,6 +494,9 @@ export class WidgetLayer {
 		};
 		this.mounted.set( id, record );
 		this.placeCard( frame.card, floating );
+		// The observation is on the card, not on the column list, so a
+		// card that is liberated or re-docked stays watched either side.
+		this.stackObserver?.observe( frame.card );
 
 		const ctx = {
 			id,
@@ -497,8 +520,8 @@ export class WidgetLayer {
 			current.teardown = teardown;
 			// An async mount paints its content now, so the card can
 			// be taller than it was when the pill was last placed.
-			// On a hover device the next pointermove would fix it, but
-			// where the pill is always on (touch) nothing else would.
+			// The stack observer sees that too; this covers the hosts
+			// without one.
 			this.positionAddTile();
 			doAction( HOOKS.WIDGET_MOUNTED, { id, container: frame.body, ctx } );
 		};
@@ -564,6 +587,7 @@ export class WidgetLayer {
 		// Bumping the generation here ensures any in-flight async
 		// mount that resolves AFTER this point also tears itself down.
 		this.generation++;
+		this.stackObserver?.unobserve( record.frame.card );
 		record.frame.dispose();
 		this.mounted.delete( id );
 	}

@@ -17,6 +17,7 @@ import '../../../src/ui/components/os-checkbox-label/os-checkbox-label';
 import '../../../src/ui/components/os-button/os-button';
 import { mountProfileFormAt } from './form';
 import type { ProfileConfig, ProfileHost } from './types';
+import type { OsForm } from '../../../src/ui/components/os-form/os-form';
 
 const tick = (): Promise< void > => Promise.resolve();
 const wait = ( ms = 0 ): Promise< void > => new Promise( ( r ) => setTimeout( r, ms ) );
@@ -233,5 +234,53 @@ describe( 'the profile form — role save flow', () => {
 		await tick();
 		await wait( 0 );
 		expect( formHost.querySelector( 'os-select[name="roles[0]"]' ) ).toBeNull();
+	} );
+
+	test.each( [ 'success', 'http-error', 'network-error' ] )( 'busy profile save recovers after %s and permits another submit', async ( outcome ) => {
+		let finishSave!: ( response: Response ) => void;
+		let rejectSave!: ( reason: Error ) => void;
+		const pendingSave = new Promise< Response >( ( resolve, reject ) => {
+			finishSave = resolve;
+			rejectSave = reject;
+		} );
+		let saves = 0;
+		const fetch = vi.fn( async ( path: string, init?: RequestInit ) => {
+			if ( init?.method === 'POST' ) {
+				saves++;
+				return saves === 1 ? pendingSave : json( peter() );
+			}
+			return json( path.includes( '/application-passwords' ) ? { items: [] } : peter() );
+		} );
+		const toast = vi.fn();
+		vi.spyOn( console, 'warn' ).mockImplementation( () => undefined );
+		await mountProfileFormAt( formHost, 2, { config: FULL_CONFIG, fetch, toast } );
+		await tick();
+		const form = formHost.querySelector< OsForm >( 'os-form' )!;
+		form.setValues( { first_name: 'Edited' } );
+		form.submit();
+		form.submit();
+		form.querySelector( '[name="first_name"]' )!.dispatchEvent( new CustomEvent( 'os-submit', { bubbles: true } ) );
+		await tick();
+		expect( saves ).toBe( 1 );
+		expect( form.shadowRoot!.querySelector( '.fields' )!.hasAttribute( 'inert' ) ).toBe( true );
+
+		if ( outcome === 'network-error' ) {
+			rejectSave( new Error( 'Connection lost' ) );
+		} else if ( outcome === 'http-error' ) {
+			finishSave( new Response( JSON.stringify( { message: 'Try again' } ), { status: 500 } ) );
+		} else {
+			finishSave( json( peter() ) );
+		}
+		await wait();
+		expect( form.hasAttribute( 'busy' ) ).toBe( false );
+		expect( form.shadowRoot!.querySelector( '.fields' )!.hasAttribute( 'inert' ) ).toBe( false );
+		expect( form.getValues().first_name ).toBe( 'Edited' );
+		if ( outcome !== 'success' ) {
+			expect( form.getAttribute( 'error' ) ).toBe( outcome === 'network-error' ? 'Connection lost' : 'Try again' );
+			expect( toast ).toHaveBeenCalledWith( form.getAttribute( 'error' ), 'error' );
+		}
+		form.submit();
+		await wait();
+		expect( saves ).toBe( 2 );
 	} );
 } );

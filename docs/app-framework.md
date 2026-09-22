@@ -236,7 +236,7 @@ This is the decoupling: the framework core (`includes/framework/` minus `wordpre
 | `$os->title( $title )` | Retitles the window |
 | `$os->close()` | Closes the window |
 | `$os->open( $window_id )` | Opens or focuses another native window |
-| `$os->open_url( $url, $title, $icon )` | Opens an admin URL in an iframe window (an edit screen, a settings page). `$title` defaults to the page's own; `$icon` (a Dashicons class or image URL) to the shell's generic glyph |
+| `$os->open_url( $url, $title, $icon )` | Opens an admin URL. A URL a native window has claimed through the [remap registry](./javascript-reference.md#wposregisternativeurlremap-entry---stable) opens that window, and `$title` / `$icon` are the native window's own; anything else opens in an iframe window (an edit screen, a settings page), where `$title` defaults to the page's own and `$icon` (a Dashicons class or image URL) to the shell's generic glyph |
 | `$os->badge( $count )` | Sets (0 clears) the badge on the app's dock tile and desktop icon |
 | `$os->icon( $art )` | Swaps the art on every rail hosting the app's tile — dock, taskbar, desktop icon. State-driven icons (the Trash app's empty/full bin); `$art` is an SVG data URI or image URL. Client views can also swap imperatively via `ctx.host.setIcon( appId, art )` — the Trash app does, from `updated()`, with both drawings shipped once through `App::config()` |
 | `$os->announce( $type, $action, $ids )` | `wp.os.announceContentChange` — every window showing that content refreshes |

@@ -360,3 +360,9 @@ When a status changes (Experimental → Stable, or anything → removed), update
 | `os-grid` extensions | `min-item-width`, child `col-span` / `row-span` (1–12) | Stable |
 
 See [app layout recipes](./examples/app-layouts.md) for attributes, sizing and examples.
+
+### Form component types
+
+The `openstation` package exports `OsForm`, `OsSwitch` and `OsTagInput`, including
+their DOM methods and property types. Use `import type` when only typing elements
+already loaded by the runtime. See [named form fields](components-reference.md#named-fields-in-os-form).

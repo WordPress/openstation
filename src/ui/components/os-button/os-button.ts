@@ -24,6 +24,12 @@
  * through the hover, because that border is the only warning the user
  * gets and an iridescent one says the wrong thing.
  *
+ * An icon-only button names itself through `aria-label` on the host.
+ * The focusable element is the `<button>` inside the shadow root, and
+ * the host is a custom element with no role, so a name left on the
+ * host alone is inert; the component forwards `aria-label` onto the
+ * inner button and keeps it in sync when the host is relabelled.
+ *
  * `fill-cell` boolean attribute makes the host fill its parent
  * cell (flex / grid item), growing width AND the inner button
  * height. Intended for grid-based surfaces like a calculator
@@ -64,6 +70,22 @@ export class OsButton extends Component {
 	static props = [ 'variant', 'disabled', 'type', 'busy', 'fill-cell' ] as const;
 	static styles = [ styles ];
 
+	/**
+	 * `aria-label` is observed but deliberately NOT a prop, for the
+	 * same reason as `<os-window-button>`: focus lands on the shadow
+	 * `<button>`, so a name on the host has to be forwarded there, and
+	 * observing it is what re-renders when a caller relabels a control
+	 * mid-life. It stays out of `static props` so the base class
+	 * doesn't install a prop accessor over
+	 * `HTMLElement.prototype.ariaLabel` and break the native ARIA
+	 * reflection. `aria-labelledby` / `aria-describedby` are not
+	 * forwarded: an IDREF on a shadow-tree element resolves inside
+	 * that shadow root only, so a copy would name nothing.
+	 */
+	static get observedAttributes(): string[] {
+		return [ ...super.observedAttributes, 'aria-label' ];
+	}
+
 	static help = {
 		title: 'Button',
 		summary:
@@ -98,6 +120,12 @@ export class OsButton extends Component {
 				type: 'boolean attribute',
 				description:
 					'Grow to fill the parent flex/grid cell. Useful for tiled keypads.',
+			},
+			{
+				name: 'aria-label',
+				type: 'string',
+				description:
+					'Accessible name for an icon-only button, forwarded onto the shadow <button> that takes focus.',
 			},
 		],
 		slots: [ { name: '(default)', description: 'Button label.' } ],
@@ -135,6 +163,11 @@ export class OsButton extends Component {
 		const busy =
 			( this as unknown as { busy: string | null } ).busy !== null;
 		const type = ( this as unknown as { type: string | null } ).type || 'button';
+		// Forward the host's `aria-label` onto the shadow `<button>`, the
+		// element focus lands on. The renderer drops an attribute whose
+		// composed value is empty, so a host without one leaves the
+		// inner button without one too.
+		const ariaLabel = this.getAttribute( 'aria-label' ) || '';
 		return html`
 			<button
 				part="button"
@@ -142,6 +175,7 @@ export class OsButton extends Component {
 				type=${ type }
 				?disabled=${ disabled || busy }
 				aria-busy=${ busy ? 'true' : 'false' }
+				aria-label=${ ariaLabel }
 			>
 				${ busy
 					? html`<span class="os-button__spinner" aria-hidden="true"></span>`

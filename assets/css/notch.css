@@ -40,13 +40,18 @@
 	 * border the surface disappeared into the default wallpaper — Void
 	 * on Void, with only the shadow separating them.
 	 */
-	border: 1px solid var( --os-ui-border-strong, rgba( 255, 251, 255, 0.22 ) );
+	border: 1px solid var( --os-notch-border, rgba( 255, 251, 255, 0.22 ) );
 	border-top: 0;
 	/* Square at the top, round below — it reads as hanging from the
 	   screen edge rather than floating near it. */
 	border-radius: 0 0 15px 15px;
-	background: var( --os-ui-surface-raised, rgba( 20, 18, 24, 0.92 ) );
-	box-shadow: 0 2px 12px rgba( 0, 0, 0, 0.4 );
+	/* The bottom dock pill's glass, to the number: a pill hanging off
+	   an edge should not be a second recipe. Its inset top highlight is
+	   not copied, since this top edge is fused to the screen. */
+	background: var( --os-notch-bg, rgba( 20, 18, 24, 0.92 ) );
+	backdrop-filter: blur( 28px ) saturate( 170% );
+	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
+	box-shadow: 0 10px 32px var( --os-notch-shadow, rgba( 0, 0, 0, 0.4 ) );
 	color: var( --os-ui-fg, #fffbff );
 	font-size: 13px;
 	line-height: 1;
@@ -61,7 +66,7 @@
 
 .os-notch:hover,
 .os-notch:focus-visible {
-	background: var( --os-ui-surface-elevated, rgba( 32, 29, 38, 0.96 ) );
+	background: var( --os-notch-bg-hover, rgba( 32, 29, 38, 0.96 ) );
 	border-color: var( --os-ui-accent-dim, rgba( 242, 82, 252, 0.5 ) );
 }
 

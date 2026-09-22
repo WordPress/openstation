@@ -186,6 +186,13 @@ interface WallpaperDefBase {
 	 */
 	description?: string;
 	/**
+	 * Whether the desk paints its icons and labels in Starlight or in
+	 * Void. Declare `'light'` if a user would call your wallpaper pale;
+	 * unset means `'dark'`, which is the safe way round because a wrong
+	 * `'light'` puts Void ink on a Void desk.
+	 */
+	tone?: 'light' | 'dark';
+	/**
 	 * Optional in-panel editor, revealed in OS Settings when this
 	 * wallpaper is selected.
 	 */

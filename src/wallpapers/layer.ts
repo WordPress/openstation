@@ -16,6 +16,7 @@
 import { doAction, HOOKS } from '../hooks';
 import { loadModules } from '../modules/registry';
 import { getWallpaperSettings } from './settings-store';
+import { applyWallpaperTone, resolveWallpaperTone } from './tone';
 import type {
 	CanvasWallpaperDef,
 	CssWallpaperDef,
@@ -111,10 +112,25 @@ export class WallpaperLayer {
 
 		if ( def.type === 'css' ) {
 			this.applyCss( def );
+			this.applyTone( def, gen );
 			return;
 		}
 
 		this.applyCanvas( def, gen );
+		this.applyTone( def, gen );
+	}
+
+	/**
+	 * Runs AFTER the CSS branch has written `--os-bg`, which measuring
+	 * an uploaded image reads back. Generation-guarded so a slow
+	 * measurement cannot stamp the tone of a wallpaper already gone.
+	 */
+	private applyTone( def: WallpaperDef, gen: number ): void {
+		void resolveWallpaperTone( def ).then( ( tone ) => {
+			if ( gen === this.generation ) {
+				applyWallpaperTone( tone );
+			}
+		} );
 	}
 
 	/**

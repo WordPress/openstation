@@ -1372,6 +1372,62 @@ body.os-active {
 	--os-dock-recycle-badge-fg: rgba(255, 251, 255, 0.92);
 
 	/*
+	 * ---- Chrome that sits on the wallpaper ---------------------
+	 *
+	 * The notch, the desktop icons and the Add widget pill paint
+	 * straight onto the wallpaper, with no window behind them. Bare
+	 * Starlight only works there while the wallpaper is dark, and not
+	 * every one is: on Holomesh the three measured 1.5:1 to 2.2:1.
+	 *
+	 * **A plate and an ink are two different answers, and which one a
+	 * surface gets depends on whether it is an object.**
+	 *
+	 * The notch and the Add widget pill are, so they take a PLATE and
+	 * read on every wallpaper without anyone measuring anything. Each
+	 * derives it from the glass it sits beside rather than mixing its
+	 * own: the notch from the bottom dock pill (reaching
+	 * `--os-dock-bg` second, so a theme that tokenised only its dock
+	 * strip still moves it), the Add widget pill from the widget card
+	 * whose stack it trails.
+	 *
+	 * Icons, captions and file tiles are not objects — plating each one
+	 * turns a desk into a sheet of stickers — so they change INK, which
+	 * needs someone to know how bright the desk is. `--os-desk-fg` is
+	 * that answer, decided by `src/wallpapers/tone.ts` and carried by
+	 * the `body.os-wallpaper-light` rule below. Retint the desk by
+	 * naming the two literals it chooses between, never the chooser.
+	 *
+	 * `--os-icon-label-bg` is the belt to that pair of braces, for the
+	 * wallpaper nobody can measure: it costs nothing on a dark desk
+	 * (Void on Void), switches off where the tone is light, and holds
+	 * Starlight up where the tone is simply unknown.
+	 *
+	 * The shadows sharpen rather than rescue: a halo moves the glyph
+	 * edges, not the contrast ratio.
+	 */
+	--os-notch-bg: var(--os-dock-floating-bg, var(--os-dock-bg, rgba(12, 11, 15, 0.62)));
+	--os-notch-border: var(--os-dock-floating-border, var(--os-dock-border, rgba(255, 251, 255, 0.12)));
+	--os-notch-shadow: var(--os-dock-floating-shadow, rgba(0, 0, 0, 0.55));
+	--os-notch-bg-hover: color-mix(
+		in srgb,
+		var(--os-dock-floating-bg, var(--os-dock-bg, rgba(12, 11, 15, 0.62))) 90%,
+		#fffbff
+	);
+	--os-icon-label-bg: rgba(12, 11, 15, 0.55);
+	--os-icon-label-shadow: 0 1px 2px rgba(12, 11, 15, 0.9);
+	--os-icon-glyph-shadow: drop-shadow(0 1px 3px rgba(12, 11, 15, 0.75));
+	--os-icon-hover-bg: rgba(255, 251, 255, 0.12);
+	--os-widgets-add-bg: var(--os-ui-color-surface, rgba(20, 20, 22, 0.55));
+	--os-widgets-add-bg-hover: color-mix(
+		in srgb,
+		var(--os-ui-color-surface, rgba(20, 20, 22, 0.55)) 90%,
+		#fffbff
+	);
+	--os-widgets-add-border: rgba(255, 251, 255, 0.38);
+	--os-desk-fg: var(--os-fg, #fffbff);
+	--os-desk-ink-light: #1a1721;
+
+	/*
 	 * ---- Tooltips ---------------------------------------------
 	 *
 	 * Two tokens own every tooltip CHIP in the shell — the dock tile
@@ -1778,7 +1834,9 @@ body.os-active {
 	 * Plugin authors can override any of these in their own theme
 	 * to retint tiles globally without touching the rules below.
 	 */
-	--os-tile-fg: var(--os-fg, #fffbff);
+	/* Through the desk's ink: a file tile sits on the wallpaper as a
+	   desktop icon does. Folder windows override it in their own scope. */
+	--os-tile-fg: var(--os-desk-fg, var(--os-fg, #fffbff));
 	--os-tile-fg-muted: rgba(255, 251, 255, 0.7);
 	--os-tile-hover-bg: rgba(255, 251, 255, 0.12);
 	--os-tile-selected-bg: rgba(255, 251, 255, 0.16);
@@ -1878,6 +1936,35 @@ body.os-active {
 	 * accent should override this too.
 	 */
 	--os-window-link-glow: rgba(242, 82, 252, 0.45);
+}
+
+/*
+ * ---- A light desk -------------------------------------------------
+ *
+ * Stamped by `src/wallpapers/tone.ts` while the active wallpaper is
+ * light: either it declared `tone: 'light'` (both meshes do) or, for
+ * the two wallpapers the user supplies themselves, the shell measured
+ * it brighter than the crossover where Void ink overtakes Starlight.
+ *
+ * Only things that paint DIRECTLY on the wallpaper flip, so the halos
+ * invert with the ink and the caption lozenge switches off. Chrome that
+ * carries its own plate does not.
+ *
+ * The selector carries `.os-active` to sit a class above a theme's
+ * `body.os-desktop-theme-<slug>`. A theme retints the desk by naming
+ * `--os-fg` / `--os-desk-ink-light`; answering the chooser instead
+ * would pin one ink to every wallpaper.
+ */
+body.os-active.os-wallpaper-light {
+	--os-desk-fg: var(--os-desk-ink-light, #1a1721);
+	--os-icon-label-bg: transparent;
+	--os-icon-label-shadow: 0 1px 2px rgba(255, 251, 255, 0.55);
+	--os-icon-glyph-shadow: drop-shadow(0 1px 2px rgba(255, 251, 255, 0.5));
+	--os-icon-hover-bg: rgba(12, 11, 15, 0.12);
+	--os-tile-hover-bg: rgba(12, 11, 15, 0.1);
+	--os-tile-selected-bg: rgba(12, 11, 15, 0.14);
+	--os-tile-fg-muted: rgba(26, 23, 33, 0.72);
+	--os-tile-label-shadow: 0 1px 2px rgba(255, 251, 255, 0.55);
 }
 
 /*

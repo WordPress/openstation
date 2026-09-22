@@ -35,6 +35,7 @@ import { addAction, HOOKS } from '../hooks';
 import { subscribe } from '../broadcast';
 import { trashChanges, watchTrashChanges } from './trash-optimistic';
 import { createSharedStore } from '../shared-store';
+import { trackedFetch } from '../tracked-fetch';
 
 /* eslint-disable no-console */
 const LOG_PREFIX = '[os-bin badge]';
@@ -468,6 +469,13 @@ function wireHeartbeatProbe(): void {
  * REST `/count` fetch — the authoritative reset used by the
  * postMessage fast path when it learns there's been a change.
  *
+ * Goes through the framework fetch so the request carries the
+ * REST nonce: a cookie request without one is logged out as far
+ * as WordPress is concerned, and the route's permission check
+ * answers 401 every time. `silent` keeps it out of the activity
+ * bus and the window spinner, because the user didn't initiate
+ * it.
+ *
  * Silent-fail by design: if we can't fetch (network blip, missing
  * URL), the heartbeat path will resync within the next tick.
  */
@@ -478,11 +486,14 @@ async function refetchCount(): Promise< void > {
 	}
 	log( 'refetchCount: hitting', store.state.countUrl );
 	try {
-		// eslint-disable-next-line no-restricted-syntax -- background heartbeat-driven badge refresh; intentionally silent (no spinner) since the user didn't initiate it.
-		const response = await fetch( store.state.countUrl, {
-			credentials: 'same-origin',
-			headers: { Accept: 'application/json' },
-		} );
+		const response = await trackedFetch(
+			store.state.countUrl,
+			{
+				credentials: 'same-origin',
+				headers: { Accept: 'application/json' },
+			},
+			{ silent: true, source: 'desktop-mode/recycle-bin' },
+		);
 		if ( ! response.ok ) {
 			warn( 'refetchCount: non-OK', response.status, response.statusText );
 			return;
