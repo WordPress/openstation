@@ -31,7 +31,7 @@ export default defineApp< State, Data >( 'desktop-mode-user-edit', {
 		<os-user-profile
 			os-preserve
 			data-os-user-profile-host
-			user-id=${ state.userId > 0 ? String( state.userId ) : '' }
+			user-id=${ state.userId > 0 ? String( state.userId ) : null }
 		></os-user-profile>
 	</div>`,
 

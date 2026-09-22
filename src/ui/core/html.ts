@@ -203,6 +203,8 @@ interface AttrPart {
 	/** Template fragments between markers, so `class="a ${b} c"` → [`a `, ` c`]. */
 	template: string[];
 	last?: string;
+	/** Whether the last paint removed the attribute rather than setting it. */
+	lastOmitted?: boolean;
 }
 
 interface EventPart {
@@ -518,6 +520,42 @@ export function render(
 	mountState.set( container, { strings: result.strings, parts, nodes } );
 }
 
+/**
+ * Whether an attribute binding means "this attribute is not here" as
+ * opposed to "this attribute is the empty string".
+ *
+ * The two used to be indistinguishable, because the decision was made
+ * on the COMPOSED string and `formatText()` flattens `null`,
+ * `undefined` and `false` to `''` alongside a real empty string. So
+ * `value=${ '' }` was removed just like `disabled=${ false }`, and an
+ * `<os-option value=${ '' }>` reached its reader with no `value`
+ * attribute at all — the "All" option of every list filter built by
+ * `statusControl()` (#764). `alt=${ '' }` on a decorative image was
+ * unrenderable for the same reason, which costs accessibility with
+ * nothing on screen to show for it.
+ *
+ * So the omission test reads the VALUE, not the composed text:
+ *
+ * - `foo=${ null | undefined | false }` — the conditional-attribute
+ *   idiom the whole codebase uses to omit something. Still removed.
+ * - `foo=${ '' }` — an author writing an empty string. Now set.
+ *
+ * Only a lone binding can be an omission. `class="a ${ b }"` has
+ * literal text of its own, so it is always an attribute that exists;
+ * composing it to `''` is an empty attribute, not an absent one.
+ */
+function isOmitted( part: AttrPart, values: readonly unknown[] ): boolean {
+	if (
+		part.valueIndices.length !== 1 ||
+		part.template[ 0 ] !== '' ||
+		part.template[ 1 ] !== ''
+	) {
+		return false;
+	}
+	const v = values[ part.valueIndices[ 0 ] ];
+	return v === null || v === undefined || v === false;
+}
+
 /** Update each part to the new slot value if it actually changed. */
 function applyValues( parts: Part[], values: readonly unknown[] ): void {
 	for ( const part of parts ) {
@@ -529,9 +567,17 @@ function applyValues( parts: Part[], values: readonly unknown[] ): void {
 				composed += formatText( values[ part.valueIndices[ i ] ] );
 				composed += part.template[ i + 1 ];
 			}
-			if ( composed !== part.last ) {
+			/*
+			 * The omission state is part of what changed, not just the
+			 * text: `''` and `null` both compose to `''`, so a binding
+			 * flipping between them would be deduped away here and the
+			 * attribute would keep whichever state it had first.
+			 */
+			const omit = isOmitted( part, values );
+			if ( composed !== part.last || omit !== part.lastOmitted ) {
 				part.last = composed;
-				if ( composed === '' ) {
+				part.lastOmitted = omit;
+				if ( omit ) {
 					part.element.removeAttribute( part.name );
 				} else {
 					part.element.setAttribute( part.name, composed );
