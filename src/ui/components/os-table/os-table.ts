@@ -38,7 +38,8 @@
  *   - **Sub-tables.** `subTable( row, index )` returns a
  *     `{ columns, data }` or any `Node` / template. An expander
  *     column is auto-prepended; sub-tables nest infinitely.
- *   - **Slot cells.** A data value shaped `{ slot: 'name', text?: 'sort text' }`
+ *   - **Slot cells.** A data value shaped `{ slot: 'name', text?: 'sort text' }`,
+ *     the name unique per cell (a repeated one leaves every row but the first blank),
  *     renders `<slot name="name">` in that cell, so a server view that cannot
  *     pass a `render` function (App Framework `os-prop-*` carries JSON) can
  *     still put a control in a row: paint `<os-button slot="name" os-action>`
@@ -1465,10 +1466,11 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			const value = document.createElement( 'span' );
 			value.className = 'stack-value';
 			const raw = ( row as Record< string, unknown > )[ col.key ];
+			const rawSlot = slotName( raw );
 			if ( col.render ) {
 				this._mountCellContent( value, col.render( raw, row, rowIndex ) );
-			} else if ( slotName( raw ) !== null ) {
-				value.appendChild( this._slotFor( slotName( raw ) as string ) );
+			} else if ( rawSlot !== null ) {
+				value.appendChild( this._slotFor( rawSlot ) );
 			} else if ( raw !== null && raw !== undefined ) {
 				value.textContent = String( raw );
 			}
@@ -1552,11 +1554,12 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 
 		const value = ( row as Record< string, unknown > )[ col.key ];
+		const valueSlot = slotName( value );
 		if ( col.render ) {
 			const out = col.render( value, row, rowIndex );
 			this._mountCellContent( td, out );
-		} else if ( slotName( value ) !== null ) {
-			td.appendChild( this._slotFor( slotName( value ) as string ) );
+		} else if ( valueSlot !== null ) {
+			td.appendChild( this._slotFor( valueSlot ) );
 		} else if ( value !== null && value !== undefined ) {
 			td.textContent = String( value );
 		}
@@ -2082,11 +2085,12 @@ export function stackRole(
 }
 
 /**
- * Sort comparator. Numbers compare numerically; everything else falls
- * back to a locale-aware string compare. `null` / `undefined` sort
- * before any concrete value so unsorted data lands at the top.
+ * A cell value that names a light-DOM slot instead of carrying text.
+ * The name has to be unique across the table: two `<slot name="run">` in
+ * one shadow root means the first takes every matching child and the
+ * second gets none, so a column that reuses one name piles every control
+ * into the first row and leaves the rest blank. Key it by row.
  */
-/** A cell value that names a light-DOM slot instead of carrying text. */
 function slotName( value: unknown ): string | null {
 	if ( value && typeof value === 'object' && typeof ( value as { slot?: unknown } ).slot === 'string' ) {
 		return ( value as { slot: string } ).slot;
@@ -2111,6 +2115,11 @@ function sortKey( value: unknown ): unknown {
 	return slotName( value ) !== null ? cellText( value ) : value;
 }
 
+/**
+ * Sort comparator. Numbers compare numerically; everything else falls
+ * back to a locale-aware string compare. `null` / `undefined` sort
+ * before any concrete value so unsorted data lands at the top.
+ */
 function compareValues( a: unknown, b: unknown ): number {
 	if ( a === b ) {
 		return 0;

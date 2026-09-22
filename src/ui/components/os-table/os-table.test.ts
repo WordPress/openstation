@@ -61,6 +61,8 @@ describe( '<os-table>', () => {
 		expect( slots.map( ( s ) => s.name ) ).toEqual( [ 'run-b', 'run-a' ] );
 		expect( slots[ 0 ].assignedElements()[ 0 ]?.textContent ).toBe( 'Run Bob' );
 		expect( table.shadowRoot!.textContent ).not.toContain( '[object Object]' );
+		// A name reused across rows would leave every row but the first blank.
+		expect( new Set( slots.map( ( s ) => s.name ) ).size ).toBe( slots.length );
 		table.filters = { run: 'alice' };
 		await tick();
 		expect( table.shadowRoot!.querySelectorAll( 'tbody tr:not(.subtable):not(.empty)' ).length ).toBe( 1 );
