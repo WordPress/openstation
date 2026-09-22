@@ -16,6 +16,7 @@ import { restoreSession } from '../../src/boot/session';
 import {
 	findDockEntryForUrl,
 	findDockEntryForWindowId,
+	findDockTitleForUrl,
 } from '../../src/boot/geometry';
 import { WindowManager } from '../../src/window-manager';
 import { deriveWindowId } from '../../src/utils';
@@ -172,5 +173,51 @@ describe( 'restoreSession — dock identity fallback', () => {
 
 		const restored = manager.getById( win.id );
 		expect( restored?.config.submenu ).toEqual( PAGES_DOCK.submenu );
+	} );
+} );
+
+describe( 'restoreSession — window titles follow the current menu', () => {
+	let desktop: HTMLElement;
+	let manager: WindowManager;
+
+	beforeEach( () => {
+		installHooksStub();
+		desktop = document.createElement( 'div' );
+		desktop.id = 'os-area';
+		document.body.appendChild( desktop );
+		manager = new WindowManager( desktop );
+	} );
+
+	afterEach( () => {
+		document.body.innerHTML = '';
+		clearHooksStub();
+	} );
+
+	test( 'a saved title in another language is replaced by the menu label', async () => {
+		// Opened while the admin language was Spanish, restored after
+		// the user switched back to English: the dock says "Pages".
+		const win = mailpoetWindow( { url: PAGES_URL, title: 'Páginas' } );
+		const config = desktopConfig( [ win ] );
+
+		await restoreSession( manager, config, desktop );
+
+		expect( manager.getById( win.id )?.config.title ).toBe( 'Pages' );
+	} );
+
+	test( 'a submenu page keeps its own name rather than the parent menu', () => {
+		const config = desktopConfig( [] );
+		expect( findDockTitleForUrl( MP_EMAILS, config ) ).toBe( 'Emails' );
+		// The self-link shares the parent URL: the dock's name wins.
+		expect( findDockTitleForUrl( PAGES_URL, config ) ).toBe( 'Pages' );
+	} );
+
+	test( 'a URL the menu does not list keeps the saved title', async () => {
+		const win = mailpoetWindow( { title: 'Boletines' } );
+		const config = desktopConfig( [ win ] );
+		expect( findDockTitleForUrl( win.url, config ) ).toBeUndefined();
+
+		await restoreSession( manager, config, desktop );
+
+		expect( manager.getById( win.id )?.config.title ).toBe( 'Boletines' );
 	} );
 } );

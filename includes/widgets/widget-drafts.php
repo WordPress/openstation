@@ -335,11 +335,7 @@ function openstation_rest_draft_suggestions( WP_REST_Request $request ) {
 	}
 
 	if ( is_wp_error( $json ) ) {
-		return new WP_Error(
-			'openstation_ai_failed',
-			$json->get_error_message(),
-			array( 'status' => 502 )
-		);
+		return openstation_drafts_ai_failure( $json );
 	}
 
 	$data = json_decode( (string) $json, true );
@@ -376,6 +372,74 @@ function openstation_rest_draft_suggestions( WP_REST_Request $request ) {
 	$suggestions = (array) apply_filters( 'openstation_drafts_ai_suggestions', $suggestions, $post );
 
 	return new WP_REST_Response( $suggestions, 200 );
+}
+
+/**
+ * Turn a failed generation into the route's error.
+ *
+ * The route answers 502 for every provider failure: the failure is the
+ * upstream's, not the caller's, and a provider's own 401 or 403 passed
+ * through as the REST status would read as "your WordPress session is
+ * invalid" to every client on the page. What the caller needs in order to
+ * say something useful goes into the error data instead:
+ *
+ * - `reason`: `quota` (out of credits or rate limited), `auth` (the site's
+ *   key was rejected), `unavailable` (the provider could not be reached or
+ *   answered 5xx) or `other`.
+ * - `provider_status`: the provider's own HTTP status, or null when the
+ *   failure never reached the provider.
+ * - `detail`: the provider's message, verbatim, for the console and logs.
+ *
+ * The top-level message says what happened in plain words. The Core AI
+ * Client reports a rejected request as `prompt_client_error` /
+ * `prompt_upstream_server_error` with the provider's status in
+ * `data.status` and a message of the shape "Too Many Requests (429) -
+ * <provider text>", which is why the provider text never reached the
+ * widget as anything but that string.
+ *
+ * @param WP_Error $error Failed generation.
+ * @return WP_Error
+ */
+function openstation_drafts_ai_failure( WP_Error $error ) {
+	$code   = (string) $error->get_error_code();
+	$data   = $error->get_error_data();
+	$detail = (string) $error->get_error_message();
+
+	$provider_status = null;
+	if ( in_array( $code, array( 'prompt_client_error', 'prompt_upstream_server_error' ), true )
+		&& is_array( $data ) && isset( $data['status'] ) ) {
+		$provider_status = (int) $data['status'];
+	}
+
+	if ( 'prompt_network_error' === $code || ( null !== $provider_status && $provider_status >= 500 ) ) {
+		$reason  = 'unavailable';
+		$message = __( 'The AI provider could not be reached. Try again in a moment.', 'desktop-mode' );
+	} elseif ( in_array( $provider_status, array( 402, 429 ), true ) ) {
+		$reason  = 'quota';
+		$message = __( 'The AI provider has no credits left or is rate limiting this site. Check its plan and billing, or try again later.', 'desktop-mode' );
+	} elseif ( in_array( $provider_status, array( 401, 403 ), true ) ) {
+		$reason  = 'auth';
+		$message = __( 'The AI provider rejected this site’s API key. Check the key in Settings → Connectors.', 'desktop-mode' );
+	} elseif ( null === $provider_status && preg_match( '/quota|credits?\b|billing|rate limit/i', $detail ) ) {
+		// A provider that failed without a status (the SDK threw instead of
+		// answering) can still say it was the account, not the request.
+		$reason  = 'quota';
+		$message = __( 'The AI provider has no credits left or is rate limiting this site. Check its plan and billing, or try again later.', 'desktop-mode' );
+	} else {
+		$reason  = 'other';
+		$message = __( 'The AI provider could not produce suggestions.', 'desktop-mode' );
+	}
+
+	return new WP_Error(
+		'openstation_ai_failed',
+		$message,
+		array(
+			'status'          => 502,
+			'reason'          => $reason,
+			'provider_status' => $provider_status,
+			'detail'          => $detail,
+		)
+	);
 }
 
 /**

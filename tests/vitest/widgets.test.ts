@@ -1196,6 +1196,74 @@ describe( 'widgets/layer', () => {
 		layer.disposeAll();
 	} );
 
+	test( 'the add pill follows a docked card that grows after it was placed', async () => {
+		// A card growing on its own (a notice landing after a request)
+		// is invisible to the pointer watch while the pointer is still.
+		// The layer observes every card's box; jsdom has no
+		// ResizeObserver, so hand it one whose callbacks the test fires.
+		const callbacks: Array< () => void > = [];
+		const observed: Element[] = [];
+		class FakeResizeObserver {
+			constructor( cb: () => void ) {
+				callbacks.push( cb );
+			}
+			observe( el: Element ): void {
+				observed.push( el );
+			}
+			unobserve(): void {}
+			disconnect(): void {}
+		}
+		vi.stubGlobal( 'ResizeObserver', FakeResizeObserver );
+		try {
+			const registry = await import( '../../src/widgets/registry' );
+			const { WidgetLayer } = await import( '../../src/widgets/layer' );
+			registry.register( {
+				id: 'growing',
+				label: 'Growing',
+				description: '',
+				icon: 'dashicons-star-filled',
+				mount: () => () => undefined,
+			} );
+			window.localStorage.setItem( 'desktop-mode-widgets', '["growing"]' );
+			host.getBoundingClientRect = (): DOMRect => ( {
+				x: 704, y: 16, width: 320, height: 736,
+				top: 16, left: 704, right: 1024, bottom: 752,
+				toJSON: () => ( {} ),
+			} );
+
+			const layer = new WidgetLayer( host, '' );
+			layer.hydrate();
+
+			const list = host.querySelector< HTMLElement >(
+				'.os-widgets__list',
+			)!;
+			const card = host.querySelector< HTMLElement >(
+				'.os-widgets__card',
+			)!;
+			expect( observed ).toContain( card );
+
+			let height = 120;
+			Object.defineProperty( list, 'offsetHeight', {
+				configurable: true,
+				get: () => height,
+			} );
+			const tile = host.querySelector< HTMLElement >(
+				'.os-widgets__add',
+			)!;
+			callbacks.forEach( ( cb ) => cb() );
+			expect( tile.style.top ).toBe( '132px' );
+
+			// The card's content grew; nothing moved the pointer.
+			height = 300;
+			callbacks.forEach( ( cb ) => cb() );
+			expect( tile.style.top ).toBe( '312px' );
+
+			layer.disposeAll();
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	} );
+
 	test( 'dragging a floating widget snaps its position to the grid', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );

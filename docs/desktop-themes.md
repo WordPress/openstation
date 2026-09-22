@@ -902,6 +902,68 @@ All four are **declared by the palette**, so a theme that ignores them
 keeps the OpenStation dock; the pre-brand white literals survive only
 as the `var()` fallbacks in the consuming rules.
 
+#### Chrome that sits on the wallpaper
+
+The dock is not the only thing painting straight onto the desk, and the
+rest split two ways: **chrome gets a plate, the desk gets an ink.**
+
+The notch and the Add widget pill are objects, so they keep a plate
+whatever the wallpaper is doing and read on every desk without anyone
+knowing how bright it is. Each derives it from the glass beside it, the
+dock pill and the widget card respectively:
+
+| Token | Role |
+|---|---|
+| `--os-notch-bg` / `-border` / `-shadow` | The Site assistant pill |
+| `--os-widgets-add-bg` / `-bg-hover` / `-border` | The Add widget pill |
+
+**Retint these with your wallpaper, not with your windows.** A theme
+that ships a light desk and leaves them gets Void plates on a pale
+background: legible, heavy-handed. The matching move is a plate in your
+own dark, at an alpha clearing 4.5:1 against your lightest wallpaper.
+
+#### Wallpaper tone
+
+Desktop icons, their captions and the desk's file tiles are not objects.
+Plating each one turns a desk into a sheet of stickers, so they change
+**ink**, and that needs the shell to know how bright the desk is.
+`src/wallpapers/tone.ts` decides and stamps `body.os-wallpaper-light`.
+
+1. **The wallpaper says so:** `tone: 'light' | 'dark'` on the
+   definition, through `openstation_register_wallpaper()` or
+   `wp.os.registerWallpaper()`. Both brand meshes declare `light`,
+   nothing else does.
+2. **The shell measures it**, only for the two whose brightness is the
+   *user's* choice: an uploaded photograph, sampled on a canvas, and the
+   custom gradient, averaged from its stops.
+
+Anything that answers neither is **dark**. The asymmetry is deliberate:
+a missing tone costs nothing, a wrong `light` paints Void icons onto a
+Void sky.
+
+| Token | Role |
+|---|---|
+| `--os-fg` | The desk's ink on a dark wallpaper |
+| `--os-desk-ink-light` | Its ink on a light one |
+| `--os-icon-label-bg` | Lozenge behind a caption, off when the tone is light |
+| `--os-icon-label-shadow` | That caption's halo |
+| `--os-icon-glyph-shadow` | A `filter` on the icon artwork |
+| `--os-icon-hover-bg` | The wash behind a hovered icon |
+
+**Retint the desk by naming those two inks, not `--os-desk-fg`.** That
+one is a derivation picking between them, and answering it with a
+literal pins one ink to every wallpaper, the same trap
+[fallback semantics](#fallback-semantics) describes for the
+accent-driven tokens.
+
+The ink reaches the **artwork** as well as the caption, because
+silhouette SVGs are painted as a mask filled with `currentColor`.
+Artwork carrying its own colours keeps them.
+
+`--os-icon-glyph-shadow` is a whole `filter` value, not a colour: write
+`drop-shadow( … )` or `none`. It is spelled `-glyph-` because names
+matching `-image` are reserved for the [texture slots](#textures).
+
 ### A note on WordPress core's CSS
 
 Native windows render in the parent shell, not in an iframe, so

@@ -44,10 +44,10 @@ function agoIso( secondsAgo: number ): string {
 		.replace( /\.\d+Z$/, '' );
 }
 
-function jsonResponse( body: unknown, ok = true ): Response {
+function jsonResponse( body: unknown, ok = true, status?: number ): Response {
 	return {
 		ok,
-		status: ok ? 200 : 500,
+		status: status ?? ( ok ? 200 : 500 ),
 		json: () => Promise.resolve( body ),
 	} as unknown as Response;
 }
@@ -81,7 +81,10 @@ function installShell( opts: {
 	ai?: boolean;
 	suggestions?: unknown;
 	suggestionsOk?: boolean;
+	/** HTTP status of a failed suggestions request (default 500). */
+	suggestionsStatus?: number;
 	applyOk?: boolean;
+	connectorsUrl?: string;
 } = {} ): DesktopStub {
 	const {
 		drafts = [],
@@ -92,7 +95,9 @@ function installShell( opts: {
 		ai = false,
 		suggestions = SUGGESTIONS,
 		suggestionsOk = true,
+		suggestionsStatus,
 		applyOk = true,
+		connectorsUrl = '',
 	} = opts;
 
 	desktop = {
@@ -103,7 +108,7 @@ function installShell( opts: {
 			}
 			if ( url.includes( 'draft-suggestions' ) ) {
 				return Promise.resolve(
-					jsonResponse( suggestions, suggestionsOk ),
+					jsonResponse( suggestions, suggestionsOk, suggestionsStatus ),
 				);
 			}
 			if ( url.includes( 'draft-apply' ) ) {
@@ -119,7 +124,7 @@ function installShell( opts: {
 	}
 	( window as unknown as { wp: unknown } ).wp = { os: desktop };
 	( window as unknown as { openStationConfig: unknown } ).openStationConfig = {
-		aiAssistant: { providerConfigured: ai },
+		aiAssistant: { providerConfigured: ai, connectorsUrl },
 	};
 	return desktop;
 }
@@ -580,6 +585,64 @@ describe( 'drafts widget — AI writing assistant', () => {
 				'dm-drafts__notice',
 			),
 		).toBe( true );
+	} );
+
+	test( 'a provider failure is explained by its reason, never by the provider text', async () => {
+		installShell( {
+			drafts: oneDraft,
+			ai: true,
+			suggestionsOk: false,
+			suggestionsStatus: 502,
+			suggestions: {
+				code: 'openstation_ai_failed',
+				message: 'plain-words message from the server',
+				data: {
+					status: 502,
+					reason: 'quota',
+					provider_status: 429,
+					detail: 'Too Many Requests (429) - You have no credits remaining.',
+				},
+			},
+		} );
+		teardown = await getMount()( container, makeCtx() );
+
+		( container.querySelector( '.dm-drafts__spark' ) as HTMLElement ).click();
+		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
+
+		await vi.waitFor( () => {
+			expect( panel.querySelector( 'os-notice' ) ).not.toBeNull();
+		} );
+		expect( panel.textContent ).toContain( 'no credits left' );
+		expect( panel.textContent ).not.toContain( 'Too Many Requests' );
+		expect( panel.textContent ).not.toContain( 'Could not get suggestions.' );
+		expect( panel.querySelector( 'a' ) ).toBeNull();
+	} );
+
+	test( 'a missing provider links to the Connectors screen', async () => {
+		installShell( {
+			drafts: oneDraft,
+			ai: true,
+			suggestionsOk: false,
+			suggestionsStatus: 503,
+			suggestions: {
+				code: 'openstation_ai_unavailable',
+				message: 'No AI provider is configured.',
+				data: { status: 503 },
+			},
+			connectorsUrl: 'https://example.test/wp-admin/options-connectors.php',
+		} );
+		teardown = await getMount()( container, makeCtx() );
+
+		( container.querySelector( '.dm-drafts__spark' ) as HTMLElement ).click();
+		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
+
+		await vi.waitFor( () => {
+			expect( panel.querySelector( 'os-notice a' ) ).not.toBeNull();
+		} );
+		expect( panel.textContent ).toContain( 'No AI provider is set up.' );
+		expect( panel.querySelector( 'a' )?.getAttribute( 'href' ) ).toBe(
+			'https://example.test/wp-admin/options-connectors.php',
+		);
 	} );
 
 	test( 'clicking the button again closes the panel and collapses the disclosure', async () => {

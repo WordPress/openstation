@@ -829,7 +829,8 @@ body.os-has-fullscreen-window .os-shell {
 	background-repeat: var(--os-tile-image-repeat, no-repeat);
 	background-size: var(--os-tile-image-size, auto);
 	background-position: var(--os-tile-image-position, center);
-	color: var(--os-fg, #fff);
+	/* Also the glyph: silhouette art is masked with `currentColor`. */
+	color: var(--os-desk-fg, var(--os-fg, #fff));
 	cursor: pointer;
 	border-radius: 8px;
 	transition: background-color 0.15s ease;
@@ -893,7 +894,7 @@ body.os-has-fullscreen-window .os-shell {
 	/* background-COLOR, not the shorthand: the shorthand would reset
 	 * the ICON_TILE texture declared above, so a themed tile would
 	 * vanish on hover. */
-	background-color: rgba(255, 255, 255, 0.12);
+	background-color: var(--os-icon-hover-bg, rgba(255, 255, 255, 0.12));
 	outline: none;
 }
 
@@ -919,10 +920,18 @@ body.os-has-fullscreen-window .os-shell {
 	object-fit: contain;
 }
 
+.os-icon__image {
+	filter: var(--os-icon-glyph-shadow, none);
+}
+
 .os-icon__label {
 	font-size: 12px;
 	text-align: center;
-	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+	background: var(--os-icon-label-bg, transparent);
+	border-radius: 6px;
+	/* Inline only: a two-line caption already fills the 96px grid row. */
+	padding: 0 6px;
+	text-shadow: var(--os-icon-label-shadow, 0 1px 2px rgba(0, 0, 0, 0.45));
 	line-height: 1.2;
 	word-break: break-word;
 }
@@ -1329,10 +1338,15 @@ body.os-has-fullscreen-window .os-shell {
 	justify-content: center;
 	gap: 7px;
 	pointer-events: none;
-	background: transparent;
-	border: 1px dashed rgba( 255, 255, 255, 0.22 );
+	/* `.os-widgets__card`'s glass, to the number: the pill trails a
+	   stack of those cards. Its dashed edge is what makes it a slot. */
+	background: var( --os-widgets-add-bg, transparent );
+	backdrop-filter: blur( 18px ) saturate( 140% );
+	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
+	box-shadow: 0 8px 28px var( --os-widgets-add-shadow, rgba( 0, 0, 0, 0.35 ) );
+	border: 1px dashed var( --os-widgets-add-border, rgba( 255, 255, 255, 0.22 ) );
 	border-radius: 10px;
-	color: rgba( 255, 255, 255, 0.72 );
+	color: var( --os-ui-color-text, var( --os-fg, #fff ) );
 	font: inherit;
 	font-weight: 500;
 	cursor: pointer;
@@ -1372,8 +1386,8 @@ body.os-has-fullscreen-window .os-shell {
 
 .os-widgets__add:hover {
 	border-color: rgba( 255, 255, 255, 0.4 );
-	background: rgba( 255, 255, 255, 0.06 );
-	color: var( --os-ui-fg-on-accent, #fff );
+	background: var( --os-widgets-add-bg-hover, rgba( 255, 255, 255, 0.06 ) );
+	color: var( --os-fg, #fff );
 }
 
 .os-widgets__add:focus-visible {

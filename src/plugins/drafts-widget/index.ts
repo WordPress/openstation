@@ -87,6 +87,46 @@ function aiAvailable(): boolean {
 	return win.openStationConfig?.aiAssistant?.providerConfigured === true;
 }
 
+/**
+ * Why a suggestions request failed, in the widget's own vocabulary.
+ *
+ * `no-provider` is the route's `503 openstation_ai_unavailable` (the 💡
+ * rendered from a stale config); the rest mirror `data.reason` on its
+ * `502 openstation_ai_failed`. `other` is everything else, including a
+ * body that isn't JSON at all.
+ */
+type SuggestionsFailure = 'no-provider' | 'quota' | 'auth' | 'unavailable' | 'other';
+
+class SuggestionsError extends Error {
+	readonly reason: SuggestionsFailure;
+
+	constructor( reason: SuggestionsFailure, status: number ) {
+		super( `HTTP ${ status }` );
+		this.reason = reason;
+	}
+}
+
+/** Read the reason out of a failed `/draft-suggestions` response body. */
+async function readSuggestionsFailure( res: Response ): Promise< SuggestionsFailure > {
+	interface FailureBody {
+		code?: unknown;
+		data?: { reason?: unknown };
+	}
+	let body: FailureBody | null = null;
+	try {
+		body = ( await res.json() ) as FailureBody;
+	} catch {
+		body = null;
+	}
+	if ( body?.code === 'openstation_ai_unavailable' ) {
+		return 'no-provider';
+	}
+	const reason = body?.data?.reason;
+	return reason === 'quota' || reason === 'auth' || reason === 'unavailable'
+		? reason
+		: 'other';
+}
+
 async function fetchSuggestions( id: number ): Promise< DraftSuggestions > {
 	const res = await trackedFetch(
 		`${ restRoot() }/desktop-mode/v1/draft-suggestions`,
@@ -99,9 +139,17 @@ async function fetchSuggestions( id: number ): Promise< DraftSuggestions > {
 		{ source: 'desktop-mode/drafts' },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `HTTP ${ res.status }` );
+		throw new SuggestionsError( await readSuggestionsFailure( res ), res.status );
 	}
 	return res.json() as Promise< DraftSuggestions >;
+}
+
+/** `admin_url( 'options-connectors.php' )`, or '' when the shell hasn't published it. */
+function connectorsUrl(): string {
+	const win = window as unknown as {
+		openStationConfig?: { aiAssistant?: { connectorsUrl?: string } };
+	};
+	return win.openStationConfig?.aiAssistant?.connectorsUrl ?? '';
 }
 
 interface ApplyFields {
@@ -216,6 +264,39 @@ function notice( tone: string, message?: string, icon?: string ): HTMLElement {
 	return el;
 }
 
+/**
+ * The error notice for a failed request: what happened in plain words,
+ * never the provider's own text, plus a way to the Connectors screen
+ * when the fix lives there. The anchor is a real admin link, so the
+ * shell's interceptor opens Connectors as a window.
+ */
+function failureNotice( reason: SuggestionsFailure ): HTMLElement {
+	const messages: Record< SuggestionsFailure, string > = {
+		'no-provider': __( 'No AI provider is set up.' ),
+		quota: __(
+			'The AI provider has no credits left or is rate limiting this site. Check its plan and billing, or try again later.',
+		),
+		auth: __( 'The AI provider rejected this site’s API key.' ),
+		unavailable: __( 'The AI provider could not be reached. Try again in a moment.' ),
+		other: __( 'Could not get suggestions.' ),
+	};
+	const el = notice( 'error', messages[ reason ] );
+
+	const url = connectorsUrl();
+	if ( url && ( reason === 'no-provider' || reason === 'auth' ) ) {
+		el.append( ' ' );
+		const link = document.createElement( 'a' );
+		link.href = url;
+		link.textContent =
+			reason === 'auth'
+				? __( 'Check it in Connectors.' )
+				: __( 'Add one in Connectors.' );
+		link.dataset.osWindowTitle = __( 'Connectors' );
+		el.appendChild( link );
+	}
+	return el;
+}
+
 async function loadSuggestions(
 	id: number,
 	panel: HTMLElement,
@@ -226,10 +307,12 @@ async function loadSuggestions(
 		if ( panel.isConnected ) {
 			renderSuggestions( panel, data, id, row );
 		}
-	} catch {
+	} catch ( err ) {
 		if ( panel.isConnected ) {
 			panel.replaceChildren(
-				notice( 'error', __( 'Could not get suggestions.' ) ),
+				failureNotice(
+					err instanceof SuggestionsError ? err.reason : 'other',
+				),
 			);
 		}
 	}
