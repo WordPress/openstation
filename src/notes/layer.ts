@@ -306,9 +306,10 @@ export class NotesLayer {
 			} )
 			.catch( ( err: unknown ) => {
 				this.removeNote( tempId );
-				this.notifyError(
-					__( 'Could not pin the note. Please try again.', 'desktop-mode' ),
-				);
+				const failure = describeRestFailure( err, {
+					fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),
+				} );
+				this.notifyError( failure.message, { type: failure.type } );
 				// eslint-disable-next-line no-console
 				console.error( '[openstation] notes: create failed:', err );
 			} );

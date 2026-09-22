@@ -24,6 +24,8 @@ import {
 } from '../../native-url-remap';
 import { __, _n, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
+import { restErrorFromResponse } from '../../core/api-client';
+import { describeRestFailure } from '../../core/rest-failure';
 // Registers the `<os-ribbon>` tag this bundle stamps onto tiles. The
 // main desktop bundle defines it too, but this bundle can load into a
 // window whose shell bundle hasn't, so it owns its own import.
@@ -336,14 +338,9 @@ async function fetchJson< T >(
 				`[openstation] WooCommerce request failed: ${ response.status } ${ url }`,
 			);
 			return {
-				error: sprintf(
-					/* translators: %d: HTTP status code. */
-					__(
-						'Could not load WooCommerce details (%d).',
-						'desktop-mode',
-					),
-					response.status,
-				),
+				error: describeRestFailure( await restErrorFromResponse( response ), {
+					fallback: __( 'Could not load WooCommerce details.', 'desktop-mode' ),
+				} ).message,
 			};
 		}
 		return { data: ( await response.json() ) as T };
@@ -354,7 +351,9 @@ async function fetchJson< T >(
 			err,
 		);
 		return {
-			error: __( 'Could not load WooCommerce details.', 'desktop-mode' ),
+			error: describeRestFailure( err, {
+				fallback: __( 'Could not load WooCommerce details.', 'desktop-mode' ),
+			} ).message,
 		};
 	}
 }

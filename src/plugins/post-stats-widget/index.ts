@@ -13,6 +13,8 @@
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
+import { restErrorFromResponse } from '../../core/api-client';
+import { describeRestFailure } from '../../core/rest-failure';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { startVisibilityAwarePoller } from '../../widgets/poller';
 
@@ -61,7 +63,7 @@ async function fetchBuckets(): Promise< Bucket[] > {
 		{ source: 'desktop-mode/post-stats', silent: true },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `post-stats request failed: ${ res.status }` );
+		throw await restErrorFromResponse( res );
 	}
 	const body = await res.json() as { months?: StatsMonth[] };
 	const months = Array.isArray( body.months ) ? body.months : [];
@@ -263,13 +265,15 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 				}
 			} );
 			ro.observe( wrap );
-		} catch {
+		} catch ( err ) {
 			if ( ! destroyed ) {
 				container.innerHTML = '';
 				renderHeader( container, 0, true );
 				const errEl = document.createElement( 'div' );
 				errEl.className = 'dm-poststats__error';
-				errEl.textContent = 'Could not load post data.';
+				errEl.textContent = describeRestFailure( err, {
+					fallback: 'Could not load post data.',
+				} ).message;
 				container.appendChild( errEl );
 			}
 		}

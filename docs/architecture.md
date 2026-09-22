@@ -14,7 +14,7 @@ locations remain authoritative.
 | Layer | Location | Status |
 |---|---|---|
 | `tsconfig` path aliases (`@core/*`, `@api/*`, `@protocol/*`, `@ui/*`, `@layout/*`, `@boot/*`, `@features/*`, `@window-system/*`) | `tsconfig.json` + `vite.config.js` + `vitest.config.ts` | Stable |
-| Generic reactive registry + server-sync + REST client primitives | `src/core/{reactive-registry,server-sync,api-client}.ts` | Stable |
+| Generic reactive registry + server-sync + REST client primitives. Every feature REST client throws `RestError` from `api-client.ts` (status, `WP_Error` code, data, the server's message), and `src/core/rest-failure.ts` turns one into the sentence a toast or notice shows: the server's own message for a refusal, a line of its own for offline, an expired session or an unreadable reply, the surface's generic line plus the status for a 5xx. | `src/core/{reactive-registry,server-sync,api-client,rest-failure}.ts` | Stable |
 | PHP registry factory | `includes/core/registry-factory.php` | Stable |
 | Bridge protocol (typed messages + guards + version) | `src/protocol/{window-messages,guards,version}.ts` | Stable |
 | Public API barrel + deprecation alias helper | `src/api/{index,deprecated}.ts` | Stable |

@@ -81,6 +81,34 @@ export function isRestError( err: unknown ): err is RestError {
 	return err instanceof RestError;
 }
 
+/**
+ * A failed `Response` as a `RestError`, for callers that use
+ * `trackedFetch` directly rather than a client. Reads the body once
+ * for the WP-style fields; a non-JSON body leaves `serverMessage`
+ * empty and the status as the message.
+ */
+export async function restErrorFromResponse( response: Response ): Promise< RestError > {
+	let body: { code?: unknown; message?: unknown; data?: unknown } | null = null;
+	try {
+		body = ( await response.json() ) as { code?: unknown; message?: unknown; data?: unknown };
+	} catch {
+		body = null;
+	}
+	const serverMessage = typeof body?.message === 'string' ? body.message : '';
+	return new RestError(
+		serverMessage ||
+			( response.statusText
+				? `${ response.status } ${ response.statusText }`
+				: String( response.status ) ),
+		{
+			status: response.status,
+			code: typeof body?.code === 'string' ? body.code : undefined,
+			data: body?.data,
+			serverMessage,
+		},
+	);
+}
+
 export interface RestClient {
 	request< T = unknown >(
 		path: string,

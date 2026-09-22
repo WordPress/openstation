@@ -16,6 +16,7 @@
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
+import { describeRestFailure } from '../../core/rest-failure';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { startVisibilityAwarePoller } from '../../widgets/poller';
 
@@ -112,7 +113,7 @@ function buildSparkPath( values: number[], W: number, H: number, pad: number ): 
 	return { line: d, area, pts };
 }
 
-function renderUI( container: HTMLElement, result: ViewResult | null, error: boolean ): void {
+function renderUI( container: HTMLElement, result: ViewResult | null, error: string | null ): void {
 	container.innerHTML = '';
 
 	const header = document.createElement( 'div' );
@@ -126,7 +127,7 @@ function renderUI( container: HTMLElement, result: ViewResult | null, error: boo
 	if ( error ) {
 		const e = document.createElement( 'div' );
 		e.className = 'dm-views__error';
-		e.textContent = 'Could not load view data.';
+		e.textContent = error;
 		container.appendChild( e );
 		return;
 	}
@@ -237,11 +238,15 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 		try {
 			const result = await fetchViewData();
 			if ( ! destroyed ) {
-				renderUI( container, result, false );
+				renderUI( container, result, null );
 			}
-		} catch {
+		} catch ( err ) {
 			if ( ! destroyed ) {
-				renderUI( container, null, true );
+				renderUI(
+					container,
+					null,
+					describeRestFailure( err, { fallback: 'Could not load view data.' } ).message,
+				);
 			}
 		}
 	};

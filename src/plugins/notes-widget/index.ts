@@ -28,6 +28,7 @@
 import './styles.css';
 import '../../ui/components/os-textarea/os-textarea';
 import { __ } from '../../i18n';
+import { describeRestFailure } from '../../core/rest-failure';
 import type { DragManagerApi } from '../../drag';
 import { NOTE_COLORS, nextNoteColor, normalizeNoteColor } from '../../notes/colors';
 import { hashNoteSeed } from '../../notes/motion';
@@ -422,6 +423,7 @@ const mount = (
 						os?: {
 							showToast?: ( opts: {
 								message: string;
+								type?: string;
 								duration?: number;
 							} ) => void;
 						};
@@ -429,10 +431,9 @@ const mount = (
 				}
 			).wp?.os?.showToast;
 			toast?.( {
-				message: __(
-					'Could not pin the note. Please try again.',
-					'desktop-mode',
-				),
+				...describeRestFailure( err, {
+					fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),
+				} ),
 				duration: 5000,
 			} );
 		} finally {

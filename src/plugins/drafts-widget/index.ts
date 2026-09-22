@@ -19,7 +19,8 @@ import '../../ui/components/os-notice/os-notice';
 import '../../ui/components/os-spinner/os-spinner';
 import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
-import { RestError } from '../../core/api-client';
+import { RestError, restErrorFromResponse } from '../../core/api-client';
+import { describeRestFailure } from '../../core/rest-failure';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { startVisibilityAwarePoller } from '../../widgets/poller';
 import { adminBaseUrl as adminUrl, decodeHTML } from '../../utils';
@@ -58,13 +59,15 @@ function currentUserId(): number {
 }
 
 /** Move a draft to the Trash (reversible — not a permanent delete). */
-async function trashDraft( id: number ): Promise< boolean > {
+async function trashDraft( id: number ): Promise< void > {
 	const res = await trackedFetch(
 		`${ restRoot() }/wp/v2/posts/${ id }`,
 		{ method: 'DELETE', credentials: 'same-origin' },
 		{ source: 'desktop-mode/drafts' },
 	);
-	return res.ok;
+	if ( ! res.ok ) {
+		throw await restErrorFromResponse( res );
+	}
 }
 
 interface DraftSuggestions {
@@ -175,7 +178,7 @@ interface ApplyFields {
 async function applyDraftField(
 	id: number,
 	fields: ApplyFields,
-): Promise< boolean > {
+): Promise< void > {
 	const res = await trackedFetch(
 		`${ restRoot() }/desktop-mode/v1/draft-apply`,
 		{
@@ -186,10 +189,12 @@ async function applyDraftField(
 		},
 		{ source: 'desktop-mode/drafts' },
 	);
-	return res.ok;
+	if ( ! res.ok ) {
+		throw await restErrorFromResponse( res );
+	}
 }
 
-function toast( message: string, type?: 'error' ): void {
+function toast( message: string, type?: string ): void {
 	desktopApi()?.showToast?.( type ? { message, type } : { message } );
 }
 
@@ -361,9 +366,9 @@ function applyButton(
 			return;
 		}
 		btn.setAttribute( 'busy', '' );
-		void applyDraftField( id, fields ).then( ( ok ) => {
-			btn.removeAttribute( 'busy' );
-			if ( ok ) {
+		void applyDraftField( id, fields )
+			.then( () => {
+				btn.removeAttribute( 'busy' );
 				btn.setAttribute( 'aria-disabled', 'true' );
 				btn.classList.add( 'is-applied' );
 				const check = document.createElement( 'span' );
@@ -379,10 +384,14 @@ function applyButton(
 				applied.textContent = __( 'applied' );
 				btn.appendChild( applied );
 				onOk?.();
-			} else {
-				toast( __( 'Could not apply the suggestion.' ), 'error' );
-			}
-		} );
+			} )
+			.catch( ( err: unknown ) => {
+				btn.removeAttribute( 'busy' );
+				const failure = describeRestFailure( err, {
+					fallback: __( 'Could not apply the suggestion.' ),
+				} );
+				toast( failure.message, failure.type );
+			} );
 	} );
 	return btn;
 }
@@ -642,7 +651,7 @@ function rowAction(
 function renderList(
 	container: HTMLElement,
 	drafts: DraftRow[] | null,
-	error: boolean,
+	error: string | null,
 	onChange: () => void,
 ): void {
 	container.innerHTML = '';
@@ -665,7 +674,7 @@ function renderList(
 	if ( error ) {
 		const err = document.createElement( 'div' );
 		err.className = 'dm-drafts__empty';
-		err.textContent = __( 'Could not load drafts.' );
+		err.textContent = error;
 		container.appendChild( err );
 		return;
 	}
@@ -781,18 +790,16 @@ async function onTrash(
 	// Optimistic: dim the row while the request is in flight.
 	row.classList.add( 'is-trashing' );
 	try {
-		const done = await trashDraft( draft.id );
-		if ( ! done ) {
-			throw new Error( 'trash failed' );
-		}
+		await trashDraft( draft.id );
 		api?.showToast?.( { message: __( 'Draft moved to Trash.' ) } );
 		onChange();
-	} catch {
+	} catch ( err ) {
 		row.classList.remove( 'is-trashing' );
-		api?.showToast?.( {
-			message: __( 'Could not move the draft to Trash.' ),
-			type: 'error',
-		} );
+		api?.showToast?.(
+			describeRestFailure( err, {
+				fallback: __( 'Could not move the draft to Trash.' ),
+			} ),
+		);
 	}
 }
 
@@ -874,7 +881,7 @@ function restoreFocus( container: HTMLElement, mark: FocusMark | null ): void {
 function render(
 	container: HTMLElement,
 	drafts: DraftRow[] | null,
-	error: boolean,
+	error: string | null,
 	onChange: () => void,
 ): void {
 	const mark = markFocus( container );
@@ -900,11 +907,16 @@ const mount = async (
 		try {
 			const drafts = await fetchDrafts();
 			if ( ! destroyed ) {
-				render( container, drafts, false, refresh );
+				render( container, drafts, null, refresh );
 			}
-		} catch {
+		} catch ( err ) {
 			if ( ! destroyed ) {
-				render( container, null, true, refresh );
+				render(
+					container,
+					null,
+					describeRestFailure( err, { fallback: __( 'Could not load drafts.' ) } ).message,
+					refresh,
+				);
 			}
 		}
 	};

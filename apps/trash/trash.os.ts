@@ -24,7 +24,7 @@
  */
 
 import { __, _n, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
-import { RestError } from '../../src/core/api-client';
+import { restErrorFromResponse } from '../../src/core/api-client';
 import { describeRestFailure } from '../../src/core/rest-failure';
 import { beginTrashChange, projectTrash, trashKey, watchTrashChanges } from '../../src/desktop-files/trash-optimistic';
 import { isMobileStamped } from '../../src/mode/stamp';
@@ -150,28 +150,6 @@ function clearSelection( ctx: Ctx ): void {
 	ctx.ui( freshUi ).selected = [];
 }
 
-/** A failed `ctx.fetch` answer as the shared error, so the toast can say why. */
-async function restErrorFrom( response: Response ): Promise< RestError > {
-	interface FailureBody {
-		code?: unknown;
-		message?: unknown;
-		data?: unknown;
-	}
-	let body: FailureBody | null = null;
-	try {
-		body = ( await response.json() ) as FailureBody;
-	} catch {
-		body = null;
-	}
-	const serverMessage = typeof body?.message === 'string' ? body.message : '';
-	return new RestError( serverMessage || String( response.status ), {
-		status: response.status,
-		code: typeof body?.code === 'string' ? body.code : undefined,
-		data: body?.data,
-		serverMessage,
-	} );
-}
-
 /** What went wrong, in the shell's toast, coloured as a failure. */
 function toastFailure( ctx: Ctx, err: unknown, fallback: string ): void {
 	const failure = describeRestFailure( err, { fallback } );
@@ -291,7 +269,7 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 				body: JSON.stringify( { items: [ ref ] } ),
 			} );
 			if ( ! response.ok ) {
-				throw await restErrorFrom( response );
+				throw await restErrorFromResponse( response );
 			}
 			result = ( await response.json() ) as BulkResponse;
 		} catch ( err ) {
@@ -375,7 +353,7 @@ async function emptyAll( ctx: Ctx ): Promise< void > {
 					body: '{}',
 				} );
 				if ( ! response.ok ) {
-					throw await restErrorFrom( response );
+					throw await restErrorFromResponse( response );
 				}
 				return ( await response.json() ) as EmptyResponse;
 			},
