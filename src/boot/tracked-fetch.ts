@@ -29,6 +29,7 @@ import type { Window as DesktopWindow } from '../window';
 import { injectRestNonce } from '../inject-rest-nonce';
 import { noteAuthFailure } from '../auth-recovery';
 import { activity } from '../activity';
+import type { ActivityChannelMap } from '../activity';
 import { __, sprintf } from '../i18n';
 
 export interface TrackedFetchImplOpts {
@@ -169,16 +170,18 @@ function publishSettled(
 		silent: opts?.silent === true,
 		...( opts?.source ? { source: opts.source } : {} ),
 	};
-	const payload =
-		'res' in outcome
-			? { ...base, status: outcome.res.status, ok: outcome.res.ok }
-			: {
-					...base,
-					error:
-						outcome.err instanceof Error
-							? outcome.err.message
-							: String( outcome.err ),
-			  };
+	let payload: ActivityChannelMap[ 'os/request-settled' ];
+	if ( 'res' in outcome ) {
+		payload = { ...base, status: outcome.res.status, ok: outcome.res.ok };
+	} else {
+		payload = {
+			...base,
+			error:
+				outcome.err instanceof Error
+					? outcome.err.message
+					: String( outcome.err ),
+		};
+	}
 	try {
 		activity.publish( 'os/request-settled', payload );
 	} catch {
