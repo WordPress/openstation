@@ -2745,6 +2745,7 @@ Show a top-of-shell toast. Returns a dismiss callback the caller can invoke earl
 ```typescript
 wp.os.showToast( {
     message: string;
+    type?: string;                                         // toast-type id: 'success' | 'warning' | 'error' | 'shell-error' | a registered id
     duration?: number;                                     // ms; default 4000. Ignored when persistent.
     action?: { label: string; onClick: () => void };       // optional CTA
     persistent?: boolean;                                  // never auto-dismiss
@@ -2759,6 +2760,16 @@ const dismiss = wp.os.showToast( {
     message: 'Saved',
     duration: 3000,
     action: { label: 'Undo', onClick: () => undo() },
+} );
+
+// A failure looks like one. `type` is an id from the toast-type
+// registry (`config.toastTypes`, filterable through the
+// `openstation_toast_types` PHP filter); the registry maps it to the
+// tone the toast wears as a coloured edge and icon. No `type`, or an
+// id nobody registered, is the plain toast.
+wp.os.showToast( {
+    message: 'Could not move the post to Trash.',
+    type: 'error',
 } );
 
 // Persistent — never auto-dismisses; stays until the user acts on it

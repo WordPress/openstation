@@ -35,6 +35,22 @@ describe( 'toast.ts', () => {
 		expect( toast?.textContent?.includes( 'hello' ) ).toBe( true );
 	} );
 
+	test( 'a type resolves to a tone through the registry, and an unknown id to none', () => {
+		showToast( { message: 'plain' } );
+		showToast( { message: 'failed', type: 'error' } );
+		showToast( { message: 'unregistered', type: 'nope' } );
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
+			toastTypes: [ { id: 'deploy', label: 'Deploy', icon: 'dashicons-cloud', tone: 'neutral' } ],
+		};
+		showToast( { message: 'deployed', type: 'deploy' } );
+		delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
+
+		const tones = Array.from( document.querySelectorAll( 'os-toast' ) ).map( ( t ) =>
+			t.getAttribute( 'tone' ),
+		);
+		expect( tones ).toEqual( [ null, 'critical', null, 'neutral' ] );
+	} );
+
 	test( 'showToast reuses an existing container for stacking', () => {
 		showToast( { message: 'one' } );
 		showToast( { message: 'two' } );

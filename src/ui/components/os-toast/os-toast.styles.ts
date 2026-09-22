@@ -28,6 +28,8 @@ export const toastStyles = css`
 	${ holoTokens }
 
 	:host {
+		position: relative;
+		overflow: hidden;
 		display: flex;
 		align-items: center;
 		gap: 12px;
@@ -87,6 +89,39 @@ export const toastStyles = css`
 	}
 	.os-toast__label {
 		flex: 1;
+	}
+	/* ─── Tones ──────────────────────────────────────────────────────
+	   The same palette as the notice banner, so a failure toast and a
+	   failure notice read as a set. Each tone declares the toast's
+	   accent from the palette's notice tokens; the edge and the icon
+	   read the accent. No tone: no edge, no icon, the plain chip. */
+	.os-toast__icon {
+		display: inline-flex;
+		flex-shrink: 0;
+		color: var( --os-ui-toast-accent, currentColor );
+	}
+	.os-toast__icon[ hidden ] {
+		display: none;
+	}
+	:host( [ tone ] )::before {
+		content: '';
+		position: absolute;
+		inset-block: 0;
+		inset-inline-start: 0;
+		width: 3px;
+		background: var( --os-ui-toast-accent, transparent );
+	}
+	:host( [ tone='positive' ] ) {
+		--os-ui-toast-accent: var( --os-ui-notice-success, var( --os-ui-success-fg, #1a7f37 ) );
+	}
+	:host( [ tone='warning' ] ) {
+		--os-ui-toast-accent: var( --os-ui-notice-warning, var( --os-ui-warning-fg, #9a6700 ) );
+	}
+	:host( [ tone='critical' ] ) {
+		--os-ui-toast-accent: var( --os-ui-notice-error, var( --os-ui-danger, #cf222e ) );
+	}
+	:host( [ tone='neutral' ] ) {
+		--os-ui-toast-accent: var( --os-ui-notice-neutral, var( --os-ui-fg-muted, #57606a ) );
 	}
 	/* Author styles beat the UA [hidden] rule, so the explicit display
 	 * on .os-toast__close would otherwise keep a ?hidden button visible. */

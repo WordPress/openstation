@@ -146,8 +146,8 @@ export interface RuntimeHost {
 		opts?: { windowId?: string; source?: string; silent?: boolean },
 	) => Promise< Response >;
 	confirm?: ( options: ConfirmSpec & { confirmLabel?: string } ) => Promise< boolean >;
-	/** A toast; `duration` in ms overrides the shell's default dwell. */
-	toast?: ( options: { message: string; duration?: number } ) => void;
+	/** A toast; `duration` in ms overrides the shell's default dwell, `type` a toast-type id (`error`, `success`, …). */
+	toast?: ( options: { message: string; duration?: number; type?: string } ) => void;
 	setTitle?: ( windowId: string, title: string ) => void;
 	closeWindow?: ( windowId: string ) => void;
 	openWindow?: ( id: string ) => void;

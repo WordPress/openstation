@@ -12,6 +12,12 @@
  * attribute (`'in'` → visible, `'out'` → fading) — the component's
  * stylesheet does the actual transition. JS just flips the attr.
  *
+ * A `tone` (`positive | warning | critical | neutral`) paints a
+ * coloured edge and a leading icon so an error reads as one before
+ * the words are read. Without it the toast is the plain dark chip it
+ * has always been; `showToast()` sets the tone from its `type` option
+ * through the server's toast-type registry.
+ *
  * A toast also reports when it is being *attended to*: pointer over
  * it, or focus somewhere inside it. It reflects that as a `held`
  * attribute and emits `os-toast-hold` on every change. The element
@@ -61,8 +67,16 @@ export class OsToastContainer extends Component {
 }
 defineComponent( 'os-toast-container', OsToastContainer );
 
+/** The glyph each tone leads with; the colour comes from the tone tokens. */
+const TONE_ICON: Record< string, 'check' | 'warning' | 'info' > = {
+	positive: 'check',
+	warning: 'warning',
+	critical: 'warning',
+	neutral: 'info',
+};
+
 export class OsToast extends Component {
-	static props = [ 'action', 'state', 'dismissible' ] as const;
+	static props = [ 'action', 'state', 'dismissible', 'tone' ] as const;
 	static styles = [ toastStyles ];
 
 	static help = {
@@ -85,6 +99,11 @@ export class OsToast extends Component {
 				name: 'dismissible',
 				type: 'boolean',
 				description: 'When set, a close (×) button renders on the right and emits os-toast-dismiss on click. Use for persistent toasts the user must be able to close.',
+			},
+			{
+				name: 'tone',
+				type: "'positive' | 'warning' | 'critical' | 'neutral'",
+				description: 'What kind of news this is. Paints a coloured edge and a leading icon from the palette’s notice tokens; absent, the toast is the plain dark chip. showToast() sets it from the type option through the server’s toast-type registry.',
 			},
 			{
 				name: 'held',
@@ -114,6 +133,7 @@ export class OsToast extends Component {
 		],
 		example: html`
 			<os-toast state="in" action="Undo">Post moved to trash.</os-toast>
+			<os-toast state="in" tone="critical">Could not move the post to trash.</os-toast>
 		`,
 	} as const;
 
@@ -226,7 +246,11 @@ export class OsToast extends Component {
 		// accessibility tree when unused. Means a single stable
 		// template across render passes (my templater doesn't swap
 		// subtrees mid-run).
+		const tone = ( this as unknown as { tone: string | null } ).tone || '';
 		return html`
+			<span class="os-toast__icon" ?hidden=${ ! tone } aria-hidden="true">
+				${ osIcon( TONE_ICON[ tone ] ?? 'info', { size: 16 } ) }
+			</span>
 			<span class="os-toast__label"><slot></slot></span>
 			<button
 				type="button"

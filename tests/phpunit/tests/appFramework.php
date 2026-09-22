@@ -100,7 +100,7 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 				'bump',
 				static function ( State $state, Os $os, array $args ) {
 					$state->set( 'count', $state->get( 'count' ) + (int) ( $args['by'] ?? 1 ) );
-					$os->toast( 'Bumped' );
+					$os->toast( 'Bumped', 'success' );
 				}
 			)
 			->action(
@@ -314,8 +314,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				array(
-					'type'    => 'toast',
-					'message' => 'Bumped',
+					'type'      => 'toast',
+					'message'   => 'Bumped',
+					'toastType' => 'success',
 				),
 			),
 			$response['effects']

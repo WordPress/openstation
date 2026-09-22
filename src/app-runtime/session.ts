@@ -549,9 +549,15 @@ export function createSession( deps: SessionDeps ): Session {
 
 	const performEffect = ( effect: Effect ): void => {
 		switch ( effect.type ) {
-			case 'toast':
-				host.toast?.( { message: String( ( effect as { message: string } ).message ) } );
+			case 'toast': {
+				const { message, toastType } = effect as { message: string; toastType?: unknown };
+				host.toast?.(
+					typeof toastType === 'string' && toastType
+						? { message: String( message ), type: toastType }
+						: { message: String( message ) },
+				);
 				return;
+			}
 			case 'title':
 				host.setTitle?.( windowId, String( ( effect as { title: string } ).title ) );
 				return;

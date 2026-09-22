@@ -220,7 +220,7 @@ Every callback receives an `OpenStation\App\Os`. It is the app's entire view of 
 | `$os->app_id`, `$os->view` | Which app and which view (`main` or a tab slug) is being dispatched |
 | `$os->can()`, `$os->preference()`, `$os->filter()`, `$os->action()`, `$os->remember( $key, $ttl, $compute )` | Sugar over the contracts. `can()` takes a meta-capability's object too — `$os->can( 'delete_post', $id )` forwards to `current_user_can()`; the standalone adapter answers from the capability name alone. |
 | `$os->stored( $key, $fallback, $scope = 'user' )`, `$os->store( $key, $value, $scope )`, `$os->forget( $key, $scope )` | Durable storage, keys namespaced by app id |
-| `$os->toast()`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title, $icon )`, `->badge( $count )`, `->icon( $art )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )`, `->refresh_menu()` | **Effects** — things the shell does after the morph (below) |
+| `$os->toast( $message, $type )`, `->title()`, `->close()`, `->open( $window_id )`, `->open_url( $url, $title, $icon )`, `->badge( $count )`, `->icon( $art )`, `->announce( $type, $action, $ids )`, `->menu( $items )`, `->send( $channel, $payload )`, `->refresh_menu()` | **Effects** — things the shell does after the morph (below) |
 | `Os::page( $items, $total, $page, $per_page )` | The paged-list envelope (`items` / `total` / `pages` / `page` / `perPage`) — the one shape the client runtime's page accumulation understands. Build every list-shaped `data()` key with it. |
 | `Os::facts( $rows )` | Keep only the `array( label, value, tag? )` rows whose value is non-empty, reindexed — the detail-pane facts idiom. |
 
@@ -232,7 +232,7 @@ This is the decoupling: the framework core (`includes/framework/` minus `wordpre
 
 | Call | What the shell does |
 |---|---|
-| `$os->toast( $message )` | `wp.os.showToast`. There is no tone — the shell renders every toast the same way, so say what happened in the message and use `<os-notice tone="…">` in the body when a state needs a colour. |
+| `$os->toast( $message, $type = '' )` | `wp.os.showToast`. `$type` is a toast-type id (`error`, `warning`, `success`, `shell-error`, or one registered through `openstation_toast_types`); the shell paints the tone. Empty or unknown is the plain toast, so say what happened in the message either way. |
 | `$os->title( $title )` | Retitles the window |
 | `$os->close()` | Closes the window |
 | `$os->open( $window_id )` | Opens or focuses another native window |
@@ -327,7 +327,7 @@ The context carries the framework's client-side services, so an app never re-imp
 - **`ctx.ui( factory )`** — client-only state that must never travel to the server (an open menu, a fetch cache, an `IntersectionObserver`). One bag per mounted view, created on first call; two windows of the same app never share it. Declared state stays the schema for everything the server should echo back — `ctx.ui` is for what it must not.
 - **`ctx.repaint()`** — re-render the view from the current `state` + `data`. No action, no request. The pair for `ctx.ui`: mutate the bag, repaint.
 - **`ctx.fetch( path, init, options? )`** — REST the framework way: a relative path resolves against the site's REST root, the nonce and a JSON `Accept` header ride along unless the caller set their own, and the request is attributed to the window so its loading spinner shows. Pass `{ silent: true }` as the third argument for unprompted background enrichment (such as viewport-loaded card metrics); this suppresses the spinner and activity-bus entry while retaining REST authentication.
-- **`ctx.host`** — the shell surface the runtime itself runs on (`toast` — with an optional `duration` — `confirm`, `menu`, `openWindow`, `openUrl`, `announce`, `setBadge`, `setIcon`, …), already typed. Reach the shell through it, never through `window.wp.os` from an app: `host.announce` tags the broadcast with this window, which is how the window's own `watch()` skips its own echo — the dispatch that announced already returned the fresh `data()`, so the second round trip never happens.
+- **`ctx.host`** — the shell surface the runtime itself runs on (`toast` — with an optional `duration` and a toast-type `type` — `confirm`, `menu`, `openWindow`, `openUrl`, `announce`, `setBadge`, `setIcon`, …), already typed. Reach the shell through it, never through `window.wp.os` from an app: `host.announce` tags the broadcast with this window, which is how the window's own `watch()` skips its own echo — the dispatch that announced already returned the fresh `data()`, so the second round trip never happens.
 - **`ctx.windowId`** — the window the view is mounted in (the app id for a singleton, an instance id for a duplicate): what `wp.os.relations`, `wp.os.onWindow()` and `updateOsSettings( …, { windowId } )` key on.
 - **`ctx.extra`** — what the app declared with `App::config()`: static values shipped once with the window config instead of riding `data` on every response (asset URLs, feature flags, the Trash app's empty/full icon pair).
 - **`ctx.loading`** — `true` while `data` is the app's own `placeholder` (below), before the first server answer; `false` from the first response on, and always false for data that came prefetched. What a view reads to paint a skeleton instead of "nothing found".

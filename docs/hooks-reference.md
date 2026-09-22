@@ -1731,7 +1731,7 @@ add_filter( 'openstation_dock_behavior', function ( $behavior ) {
 
 ### `openstation_toast_types` — Stable
 
-Extends the toast-notification type map the shell consumes when a plugin calls `wp.os.toast( id, … )`. Each entry is `{ id, label, icon, tone }` where `tone` is one of `positive | warning | critical | neutral`. Entries with an unknown tone are dropped.
+Extends the toast-type registry the shell consults when a toast names a `type` — `wp.os.showToast( { message, type: 'error' } )`, `$os->toast( $message, 'error' )` from an app, or the `os.shell.toast` action. Each entry is `{ id, label, icon, tone }` where `tone` is one of `positive | warning | critical | neutral`; the shell paints the toast's edge and icon from the tone. Entries with an unknown tone are dropped, and a `type` that matches no entry renders the plain toast. Four ids ship by default: `success`, `warning`, `error` and `shell-error`.
 
 ```php
 apply_filters( 'openstation_toast_types', array $types );
