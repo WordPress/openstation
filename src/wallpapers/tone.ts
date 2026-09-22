@@ -1,25 +1,12 @@
 /**
- * Wallpaper tone — how bright the desk is, and therefore what colour
- * the things sitting directly on it are drawn in.
+ * Wallpaper tone — how bright the desk is, and so what colour the
+ * things sitting directly on it are drawn in. The answer is one class
+ * on `<body>`; `variables.css` does the rest.
  *
- * Desktop icons, their captions and the file tiles have no surface of
- * their own; they paint onto the wallpaper. Starlight is only legible
- * there while the wallpaper is dark, which every wallpaper was before
- * the meshes. This module answers "is it still?" and the answer is one
- * class on `<body>`; `variables.css` does the rest.
- *
- * Two ways to know, in order:
- *
- *   1. The wallpaper says so — `tone` on the definition, which the
- *      registration API carries from PHP. Exact, free, and the right
- *      answer for anything an author ships.
- *   2. The shell measures it. Reserved for the two wallpapers whose
- *      brightness is the USER's choice rather than an author's: an
- *      uploaded photograph and the gradient they mixed. Neither can
- *      declare a tone, because neither is the same surface twice.
- *
- * Anything that answers neither is dark, which is what the desk always
- * assumed. That default matters: a wrong `light` paints Void on Void.
+ * Authored wallpapers declare `tone`. The two whose brightness is the
+ * USER's choice are measured instead, since neither is the same
+ * surface twice. Anything that answers neither is dark, which is what
+ * the desk always assumed: a wrong `light` paints Void on Void.
  */
 
 import { CUSTOM_GRADIENT_ID, CUSTOM_IMAGE_ID } from '../settings/constants';
@@ -32,14 +19,9 @@ export type WallpaperTone = 'light' | 'dark';
 export const LIGHT_TONE_CLASS = 'os-wallpaper-light';
 
 /**
- * The luminance at which Void ink overtakes Starlight ink.
- *
- * Both framings land in the same place, which is why this is one
- * number and not a judgement call. Starlight (#fffbff, L 0.9944) on a
- * backdrop stops clearing 4.5:1 once the backdrop passes L 0.182; and
- * the two inks are exactly equally legible — Starlight on the
- * backdrop versus Void (#0c0b0f, L 0.0043) on it — at L 0.188.
- * Anything brighter than that reads better in Void, by both measures.
+ * Where Void ink overtakes Starlight. Not a judgement call: Starlight
+ * (L 0.9944) stops clearing 4.5:1 on a backdrop past L 0.182, and the
+ * two inks are equally legible at L 0.188.
  */
 const LIGHT_LUMINANCE = 0.185;
 
@@ -50,19 +32,10 @@ const SAMPLE_EDGE = 32;
 const LOAD_TIMEOUT_MS = 3000;
 
 /**
- * The only wallpapers the shell measures, and the list is closed.
- *
- * These two have no author to ask: their surface is whatever the user
- * dropped in or mixed, and it is different on every install. Every
- * other wallpaper is authored, so it either declares a tone or takes
- * the dark default.
- *
- * Measuring the rest as well sounds harmless and is not. Averaging the
- * stops of a two-colour gradient describes neither end of it, and the
- * built-in presets that run dark-to-bright — Aurora, Sunset, Forest —
- * average out above the threshold while the corner the icon grid
- * actually starts in stays dark. They came back "light", and the desk
- * painted Void icons onto a midnight blue.
+ * The only wallpapers measured, and the list is closed. Averaging a
+ * gradient's stops describes neither end of it: Aurora, Sunset and
+ * Forest all average above the threshold while the corner the icon
+ * grid starts in stays dark.
  */
 const MEASURED_IDS: ReadonlySet< string > = new Set( [
 	CUSTOM_IMAGE_ID,
@@ -89,13 +62,9 @@ export function toneForLuminance( luminance: number ): WallpaperTone {
 }
 
 /**
- * Parse the sRGB triplets out of a CSS value.
- *
- * Deliberately narrow: `#rgb`, `#rrggbb` and `rgb()` / `rgba()`, which
- * is everything the gradient editor can produce. A colour it does not
- * recognise is skipped rather than guessed at, and a value with no
- * recognisable colour returns an empty list so the caller can fall
- * through to the default rather than average nothing.
+ * sRGB triplets in a CSS value. Narrow on purpose: `#rgb`, `#rrggbb`
+ * and `rgb()` / `rgba()` is everything the gradient editor produces.
+ * Anything else is skipped rather than guessed at.
  */
 export function parseCssColors( value: string ): Array< [ number, number, number ] > {
 	const out: Array< [ number, number, number ] > = [];
@@ -139,13 +108,7 @@ export function firstCssUrl( value: string ): string | null {
 	return match ? match[ 2 ].trim() : null;
 }
 
-/**
- * Tone of a CSS background value, by averaging its colour stops.
- *
- * Null when the value names no colour this can read — a bare `url()`,
- * or a notation outside {@link parseCssColors}. The caller measures
- * the image or falls back; it never averages an empty set.
- */
+/** Averaged from the value's colour stops. Null when it names none. */
 export function toneFromCssColors( value: string ): WallpaperTone | null {
 	const colors = parseCssColors( value );
 	if ( colors.length === 0 ) {
@@ -159,18 +122,10 @@ export function toneFromCssColors( value: string ): WallpaperTone | null {
 }
 
 /**
- * Tone of an image, by mean luminance of a small raster of it.
- *
- * The mean is the whole picture rather than the corner the icon grid
- * starts in. A photograph is rarely one brightness, and the desk paints
- * tiles, captions and file icons across all of it, so the average is
- * the honest single answer — the alternative is a per-region ink, which
- * is a different feature.
- *
- * Resolves null rather than throwing on every failure path: a load
- * error, a canvas the browser refuses, a cross-origin image that taints
- * it. The caller then keeps the dark default and the desk looks the way
- * it always did.
+ * Mean luminance of a small raster of the image, over the whole
+ * picture: the desk paints tiles and captions across all of it.
+ * Resolves null on every failure path, so the caller keeps the dark
+ * default.
  */
 export async function toneFromImage( url: string ): Promise< WallpaperTone | null > {
 	const cached = measured.get( url );
@@ -179,17 +134,11 @@ export async function toneFromImage( url: string ): Promise< WallpaperTone | nul
 	}
 	try {
 		const image = new Image();
-		// Same-origin uploads need nothing; this only helps a
-		// correctly-configured remote and is harmless otherwise.
+		// Only helps a correctly-configured remote; harmless otherwise.
 		image.crossOrigin = 'anonymous';
 		const loaded = await new Promise< boolean >( ( resolve ) => {
-			/*
-			 * Bounded, because neither event is guaranteed. A stalled
-			 * request fires nothing at all, and an unbounded wait here
-			 * would leave one pending promise per wallpaper apply and a
-			 * desk that never learns its tone. Giving up reads as "not
-			 * knowing", which is already the dark default.
-			 */
+			// Bounded: a stalled request fires neither event, and an
+			// unbounded wait would leave a pending promise per apply.
 			const timer = setTimeout( () => resolve( false ), LOAD_TIMEOUT_MS );
 			const settle = ( ok: boolean ) => () => {
 				clearTimeout( timer );
@@ -216,8 +165,7 @@ export async function toneFromImage( url: string ): Promise< WallpaperTone | nul
 		let total = 0;
 		let counted = 0;
 		for ( let i = 0; i < data.length; i += 4 ) {
-			// A transparent pixel shows the layer under the image, not
-			// the image, so it says nothing about how bright the desk is.
+			// A transparent pixel shows the layer under the image.
 			if ( data[ i + 3 ] === 0 ) {
 				continue;
 			}
@@ -236,10 +184,7 @@ export async function toneFromImage( url: string ): Promise< WallpaperTone | nul
 	}
 }
 
-/**
- * The tone of a wallpaper: declared if it says, measured if it is the
- * user's own, dark otherwise.
- */
+/** Declared if it says, measured if it is the user's own, else dark. */
 export async function resolveWallpaperTone(
 	def: WallpaperDef,
 ): Promise< WallpaperTone > {
@@ -257,8 +202,7 @@ export async function resolveWallpaperTone(
 		value = '';
 	}
 	// `resolveValue` needs a mount context this module has no business
-	// building, so read the value the layer wrote instead — it is the
-	// one the user is actually looking at.
+	// building, so read back what the layer wrote.
 	if ( value === '' ) {
 		value = readAppliedBackground();
 	}
@@ -266,9 +210,8 @@ export async function resolveWallpaperTone(
 		return 'dark';
 	}
 
-	// An image wins over any colour beside it: the custom-image value
-	// carries a solid behind the photograph, and averaging that solid
-	// in would describe the backstop rather than the desk.
+	// An image wins over a colour beside it: that solid is the backstop
+	// behind the photograph, not the desk.
 	const url = firstCssUrl( value );
 	if ( url !== null ) {
 		return ( await toneFromImage( url ) ) ?? 'dark';

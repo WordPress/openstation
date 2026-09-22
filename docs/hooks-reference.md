@@ -1775,7 +1775,7 @@ Last-chance filter over the full wallpaper registry before it ships to the shell
 
 `description` — *Experimental.* Optional plain-text copy shown in OpenStation Preferences when the wallpaper is the active selection (a styled card under the picker grid). Sanitized with `sanitize_textarea_field()` at registration; the shell renders it as text, never HTML. When the wallpaper's JS def also sets `description`, the JS value wins — the server value is an overlay for defs that don't carry one.
 
-`tone` — *Experimental.* `'light'`, `'dark'`, or empty. How bright the finished surface is, which decides whether the desk paints its icons, their captions and its file tiles in Starlight or in Void. Anything other than the two words is stored empty, and empty reads as `'dark'` — the assumption every wallpaper met before the meshes. Declare `'light'` if a user would call your surface pale. See [Wallpaper tone](desktop-themes.md#wallpaper-tone) for why a wrong `'light'` is the costly direction.
+`tone` — *Experimental.* `'light'`, `'dark'`, or empty. Whether the desk paints its icons, their captions and its file tiles in Starlight or in Void. Anything other than the two words is stored empty, and empty reads as `'dark'`. Declare `'light'` if a user would call your surface pale. See [Wallpaper tone](desktop-themes.md#wallpaper-tone).
 
 Mirrors the client-side `os.wallpapers` JS filter but runs earlier, before any wallpaper reaches the browser.
 

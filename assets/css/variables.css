@@ -1376,49 +1376,34 @@ body.os-active {
 	 *
 	 * The notch, the desktop icons and the Add widget pill paint
 	 * straight onto the wallpaper, with no window behind them. Bare
-	 * Starlight is only legible there while the wallpaper is dark,
-	 * and not every one is: Holomesh's darkest stop sits above 60%
-	 * luminance, where Starlight measures 1.5:1 to 2.2:1 — under AA
-	 * for text, under the 3:1 a border needs, and under the point
-	 * where a glyph still reads as a shape.
+	 * Starlight only works there while the wallpaper is dark, and not
+	 * every one is: on Holomesh the three measured 1.5:1 to 2.2:1.
 	 *
 	 * **A plate and an ink are two different answers, and which one a
-	 * surface gets depends on whether it is chrome.**
+	 * surface gets depends on whether it is an object.**
 	 *
-	 * The notch and the Add widget pill are objects, so they get a
-	 * PLATE and read on every wallpaper without anyone measuring
-	 * anything. Both derive theirs from the glass they sit beside
-	 * rather than naming a colour: the desk already had two recipes
-	 * for glass, the dock pill and the widget card, and a third and
-	 * fourth mixed by hand is how a surface ends up almost matching
-	 * its neighbours. The notch is a pill hanging off an edge, which
-	 * is what the bottom dock is, so it takes the dock's tint, border
-	 * and shadow; its chain reaches `--os-dock-bg` second, so a theme
-	 * that tokenised only its dock strip still moves the notch. The
-	 * Add widget pill is the empty slot at the bottom of a stack of
-	 * widget cards, so it takes the card's surface.
+	 * The notch and the Add widget pill are, so they take a PLATE and
+	 * read on every wallpaper without anyone measuring anything. Each
+	 * derives it from the glass it sits beside rather than mixing its
+	 * own: the notch from the bottom dock pill (reaching
+	 * `--os-dock-bg` second, so a theme that tokenised only its dock
+	 * strip still moves it), the Add widget pill from the widget card
+	 * whose stack it trails.
 	 *
-	 * Icons, captions and file tiles are not objects. Plating each one
-	 * turns a desk into a sheet of stickers, so they change INK
-	 * instead, and that needs someone to know how bright the desk is.
-	 * `--os-desk-fg` is that answer; `src/wallpapers/tone.ts` decides
-	 * it and the `body.os-wallpaper-light` rule below carries it. It
-	 * is a derivation on purpose: retint the desk by naming `--os-fg`
-	 * and `--os-desk-ink-light`, the two literals it chooses between,
-	 * not the chooser.
+	 * Icons, captions and file tiles are not objects — plating each one
+	 * turns a desk into a sheet of stickers — so they change INK, which
+	 * needs someone to know how bright the desk is. `--os-desk-fg` is
+	 * that answer, decided by `src/wallpapers/tone.ts` and carried by
+	 * the `body.os-wallpaper-light` rule below. Retint the desk by
+	 * naming the two literals it chooses between, never the chooser.
 	 *
-	 * `--os-icon-label-bg` is the belt to that pair of braces. On a
-	 * dark desk it resolves to Void on Void and costs nothing, and
-	 * where the tone is light it is switched off, because a Void
-	 * caption on a Void lozenge is the one pairing worse than the bug.
-	 * What it earns is the wallpaper nobody can measure — an upload
-	 * whose canvas came back tainted, a canvas wallpaper that declared
-	 * no tone — where the ink stays Starlight and the plate is the
-	 * only thing holding it.
+	 * `--os-icon-label-bg` is the belt to that pair of braces, for the
+	 * wallpaper nobody can measure: it costs nothing on a dark desk
+	 * (Void on Void), switches off where the tone is light, and holds
+	 * Starlight up where the tone is simply unknown.
 	 *
-	 * The shadows sharpen rather than rescue: a halo does not move the
-	 * contrast RATIO, it only separates the glyph edges from what is
-	 * behind them.
+	 * The shadows sharpen rather than rescue: a halo moves the glyph
+	 * edges, not the contrast ratio.
 	 */
 	--os-notch-bg: var(--os-dock-floating-bg, var(--os-dock-bg, rgba(12, 11, 15, 0.62)));
 	--os-notch-border: var(--os-dock-floating-border, var(--os-dock-border, rgba(255, 251, 255, 0.12)));
@@ -1849,12 +1834,8 @@ body.os-active {
 	 * Plugin authors can override any of these in their own theme
 	 * to retint tiles globally without touching the rules below.
 	 */
-	/*
-	 * Through the desk's ink, not the shell's: a file tile sits on the
-	 * wallpaper exactly as a desktop icon does, so it takes the same
-	 * side of the light/dark answer. A folder window overrides this in
-	 * its own scope, as above, and is unaffected.
-	 */
+	/* Through the desk's ink: a file tile sits on the wallpaper as a
+	   desktop icon does. Folder windows override it in their own scope. */
 	--os-tile-fg: var(--os-desk-fg, var(--os-fg, #fffbff));
 	--os-tile-fg-muted: rgba(255, 251, 255, 0.7);
 	--os-tile-hover-bg: rgba(255, 251, 255, 0.12);
@@ -1965,28 +1946,21 @@ body.os-active {
  * the two wallpapers the user supplies themselves, the shell measured
  * it brighter than the crossover where Void ink overtakes Starlight.
  *
- * Only things that paint DIRECTLY on the wallpaper flip. Chrome that
- * carries its own plate — the notch, the Add widget pill, the dock —
- * deliberately does not: those stay Void glass on every desk, which is
- * both how the dock has always looked and one fewer surface depending
- * on the tone being right.
+ * Only things that paint DIRECTLY on the wallpaper flip, so the halos
+ * invert with the ink and the caption lozenge switches off. Chrome that
+ * carries its own plate does not.
  *
- * The selector carries `.os-active` to sit a class above a desktop
- * theme's `body.os-desktop-theme-<slug>`. A theme that wants the desk
- * ink names `--os-fg` / `--os-desk-ink-light` and both states follow
- * it; without the extra class the theme would answer the chooser and
- * pin the desk to one ink on every wallpaper.
+ * The selector carries `.os-active` to sit a class above a theme's
+ * `body.os-desktop-theme-<slug>`. A theme retints the desk by naming
+ * `--os-fg` / `--os-desk-ink-light`; answering the chooser instead
+ * would pin one ink to every wallpaper.
  */
 body.os-active.os-wallpaper-light {
 	--os-desk-fg: var(--os-desk-ink-light, #1a1721);
-	/* Void on a Void lozenge. Off. */
 	--os-icon-label-bg: transparent;
-	/* The halo inverts with the ink: dark art on a pale desk needs a
-	   light edge, which is the same trick the other way up. */
 	--os-icon-label-shadow: 0 1px 2px rgba(255, 251, 255, 0.55);
 	--os-icon-glyph-shadow: drop-shadow(0 1px 2px rgba(255, 251, 255, 0.5));
 	--os-icon-hover-bg: rgba(12, 11, 15, 0.12);
-	/* A file tile on the desk is a desktop icon by another name. */
 	--os-tile-hover-bg: rgba(12, 11, 15, 0.1);
 	--os-tile-selected-bg: rgba(12, 11, 15, 0.14);
 	--os-tile-fg-muted: rgba(26, 23, 33, 0.72);

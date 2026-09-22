@@ -829,14 +829,7 @@ body.os-has-fullscreen-window .os-shell {
 	background-repeat: var(--os-tile-image-repeat, no-repeat);
 	background-size: var(--os-tile-image-size, auto);
 	background-position: var(--os-tile-image-position, center);
-	/*
-	 * The desk's ink, which follows the wallpaper's tone rather than
-	 * the shell's. It reaches the GLYPH as well as the caption: a
-	 * silhouette SVG is painted as a mask filled with `currentColor`
-	 * (`applyIconMask` in src/desktop-themes/paint-tinted-icon.ts), so
-	 * this one declaration colours both. Artwork that carries its own
-	 * colours paints as a background-image and correctly ignores it.
-	 */
+	/* Also the glyph: silhouette art is masked with `currentColor`. */
 	color: var(--os-desk-fg, var(--os-fg, #fff));
 	cursor: pointer;
 	border-radius: 8px;
@@ -927,11 +920,6 @@ body.os-has-fullscreen-window .os-shell {
 	object-fit: contain;
 }
 
-/*
- * A glyph on the desk has no plate under it, so on a light wallpaper
- * white artwork loses its silhouette. The shadow is what keeps the
- * shape readable — see the wallpaper-chrome block in variables.css.
- */
 .os-icon__image {
 	filter: var(--os-icon-glyph-shadow, none);
 }
@@ -939,21 +927,9 @@ body.os-has-fullscreen-window .os-shell {
 .os-icon__label {
 	font-size: 12px;
 	text-align: center;
-	/*
-	 * The caption carries its own scrim. The shadow alone does not
-	 * move the contrast ratio, only the edges; the lozenge is what
-	 * puts the ink back over AA on a light wallpaper. Over Void it
-	 * resolves to Void and is invisible, which is why the tile does
-	 * not look plated on the dark wallpapers.
-	 */
 	background: var(--os-icon-label-bg, transparent);
 	border-radius: 6px;
-	/*
-	 * Inline padding only. A two-line caption already fills the 96px
-	 * grid row (`.os-icons`), so vertical padding here would push it
-	 * into the tile below; the 1.2 line-height leaves the lozenge
-	 * enough room to breathe without adding any.
-	 */
+	/* Inline only: a two-line caption already fills the 96px grid row. */
 	padding: 0 6px;
 	text-shadow: var(--os-icon-label-shadow, 0 1px 2px rgba(0, 0, 0, 0.45));
 	line-height: 1.2;
@@ -1362,32 +1338,14 @@ body.os-has-fullscreen-window .os-shell {
 	justify-content: center;
 	gap: 7px;
 	pointer-events: none;
-	/*
-	 * A ghost pill still needs a plate: a transparent fill under a
-	 * white dashed outline only reads as "empty slot" while the
-	 * wallpaper is dark, and on a light one the outline and the
-	 * label both go with it.
-	 */
+	/* `.os-widgets__card`'s glass, to the number: the pill trails a
+	   stack of those cards. Its dashed edge is what makes it a slot. */
 	background: var( --os-widgets-add-bg, transparent );
-	/* The widget card's glass, to the number — see `.os-widgets__card`.
-	   The pill trails a stack of those cards, so it is the same
-	   material with a dashed edge, not a new one. */
 	backdrop-filter: blur( 18px ) saturate( 140% );
 	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
-	/* The card's drop shadow, so the pill sits on the desk at the same
-	   height as the stack it trails. The card's inset ring is its edge
-	   treatment; this one's edge is the dashed outline below. */
 	box-shadow: 0 8px 28px var( --os-widgets-add-shadow, rgba( 0, 0, 0, 0.35 ) );
 	border: 1px dashed var( --os-widgets-add-border, rgba( 255, 255, 255, 0.22 ) );
 	border-radius: 10px;
-	/*
-	 * The widget contract's primary ink, because this pill is now the
-	 * card's own glass and a surface should not mix one card's fill
-	 * with another's text. Muted ink on it measures 3.9:1 over a light
-	 * wallpaper — the glass is translucent, so the mesh behind lifts
-	 * the plate far past what the 9.2:1 in the widget-contract block
-	 * assumes, and that figure is over a dark desk.
-	 */
 	color: var( --os-ui-color-text, var( --os-fg, #fff ) );
 	font: inherit;
 	font-weight: 500;
@@ -1426,12 +1384,6 @@ body.os-has-fullscreen-window .os-shell {
 	}
 }
 
-/*
- * `color` reads `--os-fg`, the desk's own ink, and deliberately not
- * `--os-ui-fg-on-accent`: that one means "text ON the accent", which
- * the palette resolves to Void — near-black, on a pill that has no
- * accent under it.
- */
 .os-widgets__add:hover {
 	border-color: rgba( 255, 255, 255, 0.4 );
 	background: var( --os-widgets-add-bg-hover, rgba( 255, 255, 255, 0.06 ) );

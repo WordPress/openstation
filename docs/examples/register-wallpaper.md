@@ -49,7 +49,7 @@ The swatch appears in OpenStation Preferences next time the panel opens. Clickin
 
 ### Say so if your wallpaper is pale
 
-Desktop icons, their captions and the desk's file tiles paint straight onto your wallpaper with nothing behind them, so the shell picks their ink from one field:
+Desktop icons, their captions and the desk's file tiles paint straight onto your wallpaper, so the shell picks their ink from one field:
 
 ```javascript
 wp.os.registerWallpaper( {
@@ -62,9 +62,9 @@ wp.os.registerWallpaper( {
 } );
 ```
 
-`tone: 'light'` switches the desk from Starlight to Void — the captions, the file tiles, and the icon artwork too, since silhouette SVGs are painted as a mask filled with `currentColor`.
+`tone: 'light'` switches the desk from Starlight to Void: the captions, the file tiles, and the icon artwork too, since silhouette SVGs are masked with `currentColor`.
 
-Leave `tone` off if you are unsure. Unset means `'dark'`, the ink every wallpaper got before this existed, and the desk still puts a scrim behind each caption to cover it. The direction that hurts is a wrong `'light'`: Void icons on a Void sky. If the brightness is the *user's* choice rather than yours — you let them pick the colours, or drop in a photograph — leave `tone` unset and the shell measures the finished surface instead.
+Leave it off if you are unsure. Unset means `'dark'`, and the direction that hurts is a wrong `'light'`: Void icons on a Void sky. If the brightness is the user's choice rather than yours (they pick the colours, or drop in a photograph) leave it unset and the shell measures the finished surface instead.
 
 ---
 

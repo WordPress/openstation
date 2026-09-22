@@ -167,13 +167,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A tone is two words or it is nothing.
-	 *
-	 * The shell reads an empty tone as 'dark' and paints the desk in
-	 * Starlight, which is what every wallpaper got before tone existed.
-	 * So a typo has to land on empty rather than on 'light' — a desk
-	 * wrongly told it is pale paints Void icons onto a Void sky, and
-	 * nothing downstream can tell that apart from a deliberate choice.
+	 * A tone is two words or it is nothing. A typo has to land on
+	 * empty, which reads as 'dark': a desk wrongly told it is pale
+	 * paints Void icons onto a Void sky.
 	 *
 	 * @covers ::openstation_register_wallpaper
 	 */
@@ -203,8 +199,7 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The meshes are the two built-ins that declare themselves light,
-	 * and the payload is how the shell finds out.
+	 * The meshes are the only built-ins that declare themselves light.
 	 *
 	 * @covers ::openstation_build_desktop_wallpapers_payload
 	 */
@@ -216,15 +211,12 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		}
 
 		// Named rather than diffed against the whole payload: the
-		// registry is process-wide, so a wallpaper another test in this
-		// class registered is still in there.
+		// registry is process-wide across this class.
 		$this->assertSame( 'light', $tones['holomesh'] );
 		$this->assertSame( 'light', $tones['pulsemesh'] );
 
-		// Aurora, Sunset and Forest brighten toward their far corner
-		// but are dark where the icon grid starts, and a tone is one
-		// value for the whole surface. Their staying empty is the
-		// decision, not an omission.
+		// Aurora, Sunset and Forest brighten toward their far corner but
+		// are dark where the icon grid starts. Empty is the decision.
 		foreach ( array( 'galaxy', 'space', 'dark', 'aurora', 'sunset', 'forest', 'mono', 'wp-snow' ) as $id ) {
 			$this->assertSame( '', $tones[ $id ], $id . ' declares no tone.' );
 		}

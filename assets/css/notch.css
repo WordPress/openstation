@@ -40,36 +40,17 @@
 	 * border the surface disappeared into the default wallpaper — Void
 	 * on Void, with only the shadow separating them.
 	 */
-	/*
-	 * The dock pill's hairline, not `--os-ui-border-strong`: that one
-	 * belongs to the `--os-ui-*` window-body vocabulary and the palette
-	 * resolves it to an OPAQUE grey, which on the desk draws a solid
-	 * outline around a piece of glass.
-	 */
 	border: 1px solid var( --os-notch-border, rgba( 255, 251, 255, 0.22 ) );
 	border-top: 0;
 	/* Square at the top, round below — it reads as hanging from the
 	   screen edge rather than floating near it. */
 	border-radius: 0 0 15px 15px;
-	/*
-	 * Void glass, the dock's own plate — and deliberately NOT
-	 * `--os-ui-surface-raised`, which is a 6% Starlight wash meant to
-	 * layer inside a window body over `--os-ui-surface`. Over the
-	 * wallpaper a wash composites onto whatever is behind it, so on a
-	 * light one there is no pill left to read the label against.
-	 */
+	/* The bottom dock pill's glass, to the number: a pill hanging off
+	   an edge should not be a second recipe. Its inset top highlight is
+	   not copied, since this top edge is fused to the screen. */
 	background: var( --os-notch-bg, rgba( 20, 18, 24, 0.92 ) );
-	/* The dock pill's glass, to the number — see the floating-placement
-	   rule in dock.css. A pill hanging off an edge should not be a
-	   third recipe. */
 	backdrop-filter: blur( 28px ) saturate( 170% );
 	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
-	/*
-	 * The dock pill's drop shadow, at its geometry. The pill's inset
-	 * top highlight is deliberately not copied: that lights the edge a
-	 * floating object catches the light on, and this one's top edge is
-	 * the one fused to the screen.
-	 */
 	box-shadow: 0 10px 32px var( --os-notch-shadow, rgba( 0, 0, 0, 0.4 ) );
 	color: var( --os-ui-fg, #fffbff );
 	font-size: 13px;
@@ -83,12 +64,6 @@
 		visibility 0s linear 160ms;
 }
 
-/*
- * Hover lifts the glass rather than replacing it. `--os-ui-surface-
- * elevated` is an opaque window-body surface, so reading it here turned
- * a pill you can see the wallpaper through into a solid slab the moment
- * the pointer arrived.
- */
 .os-notch:hover,
 .os-notch:focus-visible {
 	background: var( --os-notch-bg-hover, rgba( 32, 29, 38, 0.96 ) );

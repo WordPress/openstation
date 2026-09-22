@@ -78,16 +78,12 @@ defined( 'ABSPATH' ) || exit;
  *                                  active selection — what it is, where
  *                                  its data comes from, the story behind
  *                                  it. Optional.
- *     @type string   $tone         'light' | 'dark'. How bright the
- *                                  finished surface is, which decides
- *                                  whether the desk paints its icons
- *                                  and labels in Starlight or in Void.
- *                                  Optional; an unset tone is treated
- *                                  as 'dark', the assumption every
- *                                  wallpaper met before the meshes.
- *                                  Declare 'light' if a user would
- *                                  call your surface pale — see the
- *                                  wallpaper section of
+ *     @type string   $tone         'light' | 'dark'. Whether the desk
+ *                                  paints its icons and labels in
+ *                                  Starlight or in Void. Optional;
+ *                                  unset reads as 'dark'. Declare
+ *                                  'light' if a user would call your
+ *                                  surface pale. See
  *                                  docs/desktop-themes.md.
  *     @type string[] $capabilities Gate: ALL caps must match. Any
  *                                  missed cap returns
@@ -183,10 +179,8 @@ function openstation_register_wallpaper( $id, $args = array() ) {
 		// Plain text by contract — the shell renders it as text, never
 		// as HTML, so strip tags here rather than trusting every caller.
 		'description' => sanitize_textarea_field( (string) $args['description'] ),
-		// Anything that is not one of the two words is stored empty and
-		// read downstream as 'dark'. A typo therefore lands on the
-		// look every wallpaper had before tone existed, rather than on
-		// a desk whose icons have gone invisible.
+		// Anything else stores empty and reads as 'dark', so a typo
+		// lands on the old look rather than on invisible icons.
 		'tone'        => in_array( $args['tone'], array( 'light', 'dark' ), true ) ? (string) $args['tone'] : '',
 	);
 	openstation_desktop_wallpaper_registry( $id, $entry );

@@ -904,82 +904,65 @@ as the `var()` fallbacks in the consuming rules.
 
 #### Chrome that sits on the wallpaper
 
-The dock is not the only thing painting straight onto the desk. Several
-more surfaces do, and unlike a window they have nothing behind them.
-They split into two kinds, and the split is the thing to understand:
-**chrome gets a plate, the desk gets an ink.**
+The dock is not the only thing painting straight onto the desk, and the
+rest split two ways: **chrome gets a plate, the desk gets an ink.**
 
-The notch and the Add widget pill are objects. They keep a Void plate
-whatever the wallpaper is doing, exactly as the dock does, so they read
-on every desk without anyone knowing how bright it is:
+The notch and the Add widget pill are objects, so they keep a plate
+whatever the wallpaper is doing and read on every desk without anyone
+knowing how bright it is. Each derives it from the glass beside it, the
+dock pill and the widget card respectively:
 
 | Token | Role |
 |---|---|
-| `--os-notch-bg` | The Site assistant pill's plate |
-| `--os-widgets-add-bg` | The Add widget pill's plate |
-| `--os-widgets-add-bg-hover` | The same pill on hover |
-| `--os-widgets-add-border` | Its dashed outline |
+| `--os-notch-bg` / `-border` / `-shadow` | The Site assistant pill |
+| `--os-widgets-add-bg` / `-bg-hover` / `-border` | The Add widget pill |
 
-Each is a **scrim**: Void at partial alpha, so it disappears over a dark
-wallpaper and holds the ink over a light one.
-
-**Retint these together with your wallpaper, not with your windows.** A
-theme that ships a light desk and leaves them alone gets Void plates on
-a pale background, which is legible but heavy-handed; the matching move
-is a plate in your own dark, at an alpha that clears 4.5:1 against the
-lightest part of the wallpaper you ship.
+**Retint these with your wallpaper, not with your windows.** A theme
+that ships a light desk and leaves them gets Void plates on a pale
+background: legible, heavy-handed. The matching move is a plate in your
+own dark, at an alpha clearing 4.5:1 against your lightest wallpaper.
 
 #### Wallpaper tone
 
 Desktop icons, their captions and the desk's file tiles are not objects.
 Plating each one turns a desk into a sheet of stickers, so they change
-**ink** instead, and that needs the shell to know how bright the desk is.
+**ink**, and that needs the shell to know how bright the desk is.
+`src/wallpapers/tone.ts` decides and stamps `body.os-wallpaper-light`.
 
-`src/wallpapers/tone.ts` answers that and stamps `body.os-wallpaper-light`
-when the answer is "light". Two ways it knows, in order:
-
-1. **The wallpaper says so** — `tone: 'light' | 'dark'` on the
+1. **The wallpaper says so:** `tone: 'light' | 'dark'` on the
    definition, through `openstation_register_wallpaper()` or
-   `wp.os.registerWallpaper()`. Both brand meshes declare `light`; every
-   other built-in leaves it unset.
-2. **The shell measures it** — only for the two wallpapers whose
-   brightness is the *user's* choice: an uploaded photograph (sampled on
-   a canvas) and the custom gradient (averaged from its stops). The
-   threshold is the luminance where Void ink overtakes Starlight, which
-   is also where Starlight stops clearing 4.5:1.
+   `wp.os.registerWallpaper()`. Both brand meshes declare `light`,
+   nothing else does.
+2. **The shell measures it**, only for the two whose brightness is the
+   *user's* choice: an uploaded photograph, sampled on a canvas, and the
+   custom gradient, averaged from its stops.
 
-Anything that answers neither is **dark**, which is what the desk always
-assumed. That asymmetry is deliberate: a missing tone costs nothing,
-while a wrong `light` paints Void icons onto a Void sky.
-
-These follow the tone:
+Anything that answers neither is **dark**. The asymmetry is deliberate:
+a missing tone costs nothing, a wrong `light` paints Void icons onto a
+Void sky.
 
 | Token | Role |
 |---|---|
 | `--os-fg` | The desk's ink on a dark wallpaper |
 | `--os-desk-ink-light` | Its ink on a light one |
-| `--os-icon-label-bg` | The lozenge behind a caption — off when the tone is light |
+| `--os-icon-label-bg` | Lozenge behind a caption, off when the tone is light |
 | `--os-icon-label-shadow` | That caption's halo |
-| `--os-icon-glyph-shadow` | A `filter` on the icon artwork itself |
+| `--os-icon-glyph-shadow` | A `filter` on the icon artwork |
 | `--os-icon-hover-bg` | The wash behind a hovered icon |
 
 **Retint the desk by naming those two inks, not `--os-desk-fg`.** That
-one is a derivation that picks between them, and answering it with a
-literal pins the desk to one ink on every wallpaper — the same trap the
-[fallback semantics](#fallback-semantics) section describes for the
+one is a derivation picking between them, and answering it with a
+literal pins one ink to every wallpaper, the same trap
+[fallback semantics](#fallback-semantics) describes for the
 accent-driven tokens.
 
-The ink reaches the icon **artwork**, not just the caption: a silhouette
-SVG is painted as a mask filled with `currentColor`. Artwork carrying
-its own colours paints as a background image and keeps them, which is
-what you want for a plugin's brand mark.
+The ink reaches the **artwork** as well as the caption, because
+silhouette SVGs are painted as a mask filled with `currentColor`.
+Artwork carrying its own colours keeps them.
 
-The shadow tokens are a separate job from the ink: a halo does not move
-the contrast ratio, only the edges, so it sharpens ink the tone has
-already got right. `--os-icon-glyph-shadow` is a whole `filter` value,
-not a colour — write `drop-shadow( … )` or `none`. It is spelled
-`-glyph-` rather than `-image-` because names matching `-image` are
-reserved for the [texture slots](#textures).
+`--os-icon-glyph-shadow` is a whole `filter` value, not a colour: write
+`drop-shadow( … )` or `none`. It is spelled `-glyph-` because names
+matching `-image` are reserved for the [texture slots](#textures).
 
 ### A note on WordPress core's CSS
 

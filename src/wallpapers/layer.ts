@@ -121,12 +121,9 @@ export class WallpaperLayer {
 	}
 
 	/**
-	 * Tell the desk how bright it is now, so icons and captions pick
-	 * their ink. Runs AFTER the CSS branch has written `--os-bg`,
-	 * because measuring an uploaded image reads the value back off the
-	 * shell. Async and generation-guarded: a measurement that lands
-	 * after the user has moved on must not stamp the old wallpaper's
-	 * tone.
+	 * Runs AFTER the CSS branch has written `--os-bg`, which measuring
+	 * an uploaded image reads back. Generation-guarded so a slow
+	 * measurement cannot stamp the tone of a wallpaper already gone.
 	 */
 	private applyTone( def: WallpaperDef, gen: number ): void {
 		void resolveWallpaperTone( def ).then( ( tone ) => {
