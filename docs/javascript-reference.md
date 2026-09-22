@@ -7766,7 +7766,10 @@ interface Agent {
 ```
 
 `POST /agents/{id}/invoke` with `{ message, source?, history? }`
-returns `{ text, callToActions, toolCalls, turns }` where each tool call is
+returns `{ text, callToActions, toolCalls, turns, usage, model }` where
+`usage` is `{ prompt, completion, total }` summed across the run and
+`model` is `{ id, name }` for the last model resolved (both `null` when
+the provider reported neither), and where each tool call is
 `{ callId, name, args, output, error }`.
 
 `history` is the prior conversation (`[ { role: 'user'|'agent', text },

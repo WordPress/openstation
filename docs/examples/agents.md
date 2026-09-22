@@ -75,7 +75,12 @@ if ( $agents ) {
 		array( 'source' => 'my-plugin/cron' )
 	);
 	if ( ! is_wp_error( $result ) ) {
-		// $result = array( 'text' => ..., 'toolCalls' => [...], 'turns' => N )
+		// $result = array(
+		//     'text' => ..., 'toolCalls' => [...], 'turns' => N,
+		//     'usage' => array( 'prompt' => N, 'completion' => N, 'total' => N ),
+		//     'model' => array( 'id' => '...', 'name' => '...' ),
+		// )
+		// usage and model are null when the provider reported neither.
 	}
 }
 ```

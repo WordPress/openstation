@@ -505,6 +505,42 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 	);
 	$tool_trace = array();
 
+	/*
+	 * Token usage summed across every turn, and the last model the AI
+	 * Client resolved. Lifted from the Copilot loop's $accrue_usage
+	 * (includes/ai-copilot/search.php), which is the shape
+	 * `openstation_ai_search_completed` already reports, so the two AI
+	 * surfaces can be priced the same way.
+	 *
+	 * Both stay null until a turn actually reports them, rather than
+	 * starting at a zeroed array: a run on a provider that reports no
+	 * usage, and a run through a stubbed generator (tests, alternative
+	 * runtimes via `openstation_agent_runner_generate`), must be
+	 * distinguishable from a run that genuinely cost nothing.
+	 */
+	$total_usage  = null;
+	$last_model   = null;
+	$accrue_usage = static function ( $generated ) use ( &$total_usage, &$last_model ) {
+		if ( ! is_array( $generated ) ) {
+			return;
+		}
+		if ( isset( $generated['usage'] ) && is_array( $generated['usage'] ) ) {
+			if ( null === $total_usage ) {
+				$total_usage = array(
+					'prompt'     => 0,
+					'completion' => 0,
+					'total'      => 0,
+				);
+			}
+			$total_usage['prompt']     += (int) ( $generated['usage']['prompt'] ?? 0 );
+			$total_usage['completion'] += (int) ( $generated['usage']['completion'] ?? 0 );
+			$total_usage['total']      += (int) ( $generated['usage']['total'] ?? 0 );
+		}
+		if ( isset( $generated['model'] ) && is_array( $generated['model'] ) ) {
+			$last_model = $generated['model'];
+		}
+	};
+
 	for ( $turn = 1; $turn <= OPENSTATION_AGENT_RUNNER_MAX_TURNS; $turn++ ) {
 		$generated = openstation_agent_runner_generate( $agent_user_id, $history, $tool_defs, $instructions );
 		if ( is_wp_error( $generated ) && openstation_agent_generate_error_is_transient( $generated ) ) {
@@ -518,6 +554,7 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 		if ( is_wp_error( $generated ) ) {
 			return openstation_agent_humanize_generate_error( $generated );
 		}
+		$accrue_usage( $generated );
 
 		$function_calls = isset( $generated['function_calls'] ) && is_array( $generated['function_calls'] )
 			? $generated['function_calls']
@@ -541,6 +578,8 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 				'callToActions' => $answer['callToActions'],
 				'toolCalls'     => $tool_trace,
 				'turns'         => $turn,
+				'usage'         => $total_usage,
+				'model'         => $last_model,
 			);
 		}
 
@@ -622,6 +661,9 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 	if ( is_wp_error( $generated ) && openstation_agent_generate_error_is_transient( $generated ) ) {
 		$generated = openstation_agent_runner_generate( $agent_user_id, $history, array(), $instructions );
 	}
+	// The forced turn costs tokens like any other, so it is accrued
+	// even when it fails to produce a usable answer below.
+	$accrue_usage( is_wp_error( $generated ) ? null : $generated );
 	if ( ! is_wp_error( $generated )
 		&& empty( $generated['function_calls'] )
 		&& isset( $generated['text'] ) && is_string( $generated['text'] ) && '' !== trim( $generated['text'] ) ) {
@@ -631,6 +673,8 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 			'callToActions' => $answer['callToActions'],
 			'toolCalls'     => $tool_trace,
 			'turns'         => OPENSTATION_AGENT_RUNNER_MAX_TURNS + 1,
+			'usage'         => $total_usage,
+			'model'         => $last_model,
 		);
 	}
 
@@ -1275,6 +1319,10 @@ function openstation_agent_runner_log_invocation( $agent_user_id, $message, arra
 		'turns'          => isset( $result['turns'] ) ? (int) $result['turns'] : 0,
 		'toolCallsCount' => count( $tool_calls ),
 		'toolNames'      => array_values( array_slice( $tool_names, 0, 12 ) ),
+		// Null when the provider reported nothing, so the history can
+		// show "not reported" rather than a confident zero.
+		'usage'          => isset( $result['usage'] ) && is_array( $result['usage'] ) ? $result['usage'] : null,
+		'model'          => isset( $result['model']['id'] ) ? (string) $result['model']['id'] : '',
 	);
 	$caller = get_userdata( $entry['userId'] );
 	if ( $caller instanceof WP_User ) {
