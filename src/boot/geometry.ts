@@ -67,6 +67,54 @@ export function findDockEntryForWindowId(
 }
 
 /**
+ * The current menu's name for `url`: the top-level dock entry whose
+ * url derives the same window id, or failing that the submenu child
+ * that does. `undefined` when the menu lists nothing for it.
+ *
+ * Session restore uses this instead of the saved title. A window's
+ * title is captured in whatever admin language the user had when it
+ * was opened, and the saved session outlives a language change, so
+ * a restored Posts window kept saying "Entradas" over a dock and a
+ * tab strip that had moved on to English. The menu is rebuilt in the
+ * current language on every boot, so it is the source of truth; the
+ * saved title is only right for a URL the menu does not list (a
+ * post being edited, an off-menu onboarding screen), which is when
+ * the caller falls back to it.
+ *
+ * The top-level entry is checked before its children on purpose: a
+ * submenu's self-link ("All Posts") shares the parent's URL, and the
+ * window should carry the dock's name for the destination ("Posts"),
+ * as it does when opened from the dock. A child that is NOT the
+ * self-link ("Add Post") names its own page, which is what keeps an
+ * "Add Post" window from restoring as "Posts".
+ */
+export function findDockTitleForUrl(
+	url: string,
+	config: DesktopConfig,
+): string | undefined {
+	const windowId = deriveWindowId( url, config.adminUrl );
+	if ( ! windowId ) {
+		return undefined;
+	}
+	const items = config.dockItems || [];
+	const top = items.find(
+		( i ) => deriveWindowId( i.url, config.adminUrl ) === windowId,
+	);
+	if ( top?.title ) {
+		return top.title;
+	}
+	for ( const item of items ) {
+		const child = ( item.submenu || [] ).find(
+			( s ) => deriveWindowId( s.url, config.adminUrl ) === windowId,
+		);
+		if ( child?.title ) {
+			return child.title;
+		}
+	}
+	return undefined;
+}
+
+/**
  * Clamp a persisted window's geometry to fit inside `rect` — the
  * current WORK area (`workAreaRectOf( desktopArea )`), in
  * desktop-area-local coordinates. Handles the ultrawide-to-laptop
