@@ -20,7 +20,7 @@ export class OsSegment extends Component {
 	static help = {
 		title: 'Segment',
 		summary:
-			'Single pill inside a <os-segmented> group. Value identifies it for selection; aria-checked is mirrored by the parent.',
+			'Single pill inside a <os-segmented> group. Value identifies it for selection; aria-checked and the roving tabindex are mirrored by the parent, which is the one tab stop for the whole group.',
 		status: 'stable',
 		props: [
 			{
@@ -56,9 +56,18 @@ export class OsSegment extends Component {
 
 	protected render() {
 		this.setAttribute( 'role', 'radio' );
+		/*
+		 * `tabindex="-1"` because the GROUP is the tab stop and the
+		 * host is what it roves. A shadow `<button>` is focusable by
+		 * default, so without this the group would have two focusables
+		 * per segment: the host carrying `role="radio"` + `aria-checked`
+		 * and a bare button carrying neither, which is the pair a
+		 * screen reader announces as a plain unlabelled button.
+		 */
 		return html`
 			<button
 				type="button"
+				tabindex="-1"
 				class="os-holo-sheen"
 				@click=${ () => this._onPick() }
 			>
@@ -82,7 +91,7 @@ export class OsSegmented extends Component {
 	static help = {
 		title: 'Segmented',
 		summary:
-			'iOS-style segmented radio group. Pill-shaped bar of equal-width <os-segment> children where exactly one is active.',
+			'iOS-style segmented radio group. Pill-shaped bar of equal-width <os-segment> children where exactly one is active. One tab stop: arrow keys move the selection, Home and End jump the ends.',
 		status: 'stable',
 		props: [
 			{
@@ -123,6 +132,9 @@ export class OsSegmented extends Component {
 	/** Re-measures the thumb when the group is resized by its container. */
 	private _resizeObserver: ResizeObserver | null = null;
 
+	/** Re-stamps the roving tabindex when segments arrive or leave. */
+	private _segmentObserver: MutationObserver | null = null;
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		// Delegated pick handler — children bubble
@@ -143,12 +155,93 @@ export class OsSegmented extends Component {
 			this._resizeObserver = new ResizeObserver( () => this._placeThumb() );
 			this._resizeObserver.observe( this );
 		}
+		this.addEventListener( 'keydown', this._onKeyDown );
+		/*
+		 * Segments that arrive after the last render, the same contract
+		 * `<os-tabs>` keeps. The roving `tabindex` makes this load-
+		 * bearing rather than cosmetic: an unstamped segment has no
+		 * `tabindex` at all, and once its shadow button stopped being
+		 * focusable that leaves it with no keyboard path in. A group
+		 * whose segments are re-rendered around it (a server view
+		 * repainting a status control) would otherwise go quietly
+		 * unreachable.
+		 */
+		this._segmentObserver = new MutationObserver( () => this.requestUpdate() );
+		this._segmentObserver.observe( this, { childList: true } );
 	}
 
 	disconnectedCallback(): void {
 		this._resizeObserver?.disconnect();
 		this._resizeObserver = null;
+		this._segmentObserver?.disconnect();
+		this._segmentObserver = null;
+		this.removeEventListener( 'keydown', this._onKeyDown );
 	}
+
+	/**
+	 * Arrow-key roving, which a radiogroup owes the keyboard.
+	 *
+	 * The group is ONE tab stop (`tabindex="0"` on the checked segment,
+	 * `-1` on the rest), so without this the other segments cannot be
+	 * reached at all. A radiogroup takes both axes: Left/Right because
+	 * the control is drawn as a horizontal bar, Up/Down because that is
+	 * what the role conventionally answers and what a screen reader's
+	 * own radio navigation sends. Both wrap, and Home/End jump the ends.
+	 *
+	 * Selection follows focus, which is what a radiogroup does and what
+	 * the pointer already does here: there is no separate commit step,
+	 * and arriving on a segment without picking it would leave the thumb
+	 * behind the focus ring saying two different things.
+	 */
+	private _onKeyDown = ( e: KeyboardEvent ): void => {
+		if (
+			e.key !== 'ArrowRight' &&
+			e.key !== 'ArrowDown' &&
+			e.key !== 'ArrowLeft' &&
+			e.key !== 'ArrowUp' &&
+			e.key !== 'Home' &&
+			e.key !== 'End'
+		) {
+			return;
+		}
+		const segs = Array.from(
+			this.querySelectorAll< HTMLElement >( ':scope > os-segment' ),
+		);
+		if ( segs.length === 0 ) {
+			return;
+		}
+		const current = ( this as unknown as { value: string | null } ).value;
+		const at = segs.findIndex(
+			( seg ) => seg.getAttribute( 'value' ) === current,
+		);
+		let target = 0;
+		if ( e.key === 'End' ) {
+			target = segs.length - 1;
+		} else if ( e.key !== 'Home' ) {
+			const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
+			// `at` is -1 when `value` names no segment; stepping from
+			// there lands on the first segment either way.
+			target = ( at + step + segs.length ) % segs.length;
+		}
+		const value = segs[ target ]?.getAttribute( 'value' );
+		if ( ! value ) {
+			return;
+		}
+		// Claimed even when the value is unchanged (Home on the first
+		// segment): the group owns these keys either way, and letting
+		// Arrow through would scroll the pane behind it.
+		e.preventDefault();
+		if ( value === current ) {
+			return;
+		}
+		( this as unknown as { value: string } ).value = value;
+		this.emit( 'os-pick', { value } );
+		// After the microtask that moves the roving tabindex, or focus
+		// lands on an element the browser has just made unfocusable.
+		queueMicrotask( () => {
+			segs[ target ]?.focus();
+		} );
+	};
 
 	/**
 	 * Put the thumb under the selected segment.
@@ -276,13 +369,22 @@ export class OsSegmented extends Component {
 		// have upgraded before we read them.
 		const current = ( this as unknown as { value: string | null } ).value;
 		queueMicrotask( () => {
-			const segs = this.querySelectorAll( 'os-segment' );
-			for ( const seg of Array.from( segs ) ) {
+			const segs = Array.from( this.querySelectorAll( 'os-segment' ) );
+			// A group whose `value` names no segment would stamp -1 on
+			// every one and drop out of the tab order entirely, so the
+			// first segment holds the stop until a selection exists.
+			const roving = segs.some(
+				( seg ) => seg.getAttribute( 'value' ) === current,
+			)
+				? current
+				: segs[ 0 ]?.getAttribute( 'value' ) ?? null;
+			for ( const seg of segs ) {
 				const v = seg.getAttribute( 'value' );
 				seg.setAttribute(
 					'aria-checked',
 					v === current ? 'true' : 'false',
 				);
+				seg.setAttribute( 'tabindex', v === roving ? '0' : '-1' );
 			}
 			this._placeThumb();
 		} );
