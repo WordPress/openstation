@@ -84,6 +84,12 @@ return App::define( 'desktop-mode-posts' )
 			openstation_posts_app_trash( $os, $args, 'post' );
 		}
 	)
+	->action(
+		'restore',
+		static function ( State $state, Os $os, array $args ) {
+			openstation_posts_app_restore( $os, $args, 'post' );
+		}
+	)
 	// A post trashed, restored or edited anywhere on the desktop
 	// repaints the list — the legacy bundle's `os.post.changed`
 	// subscription.

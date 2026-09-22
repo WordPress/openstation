@@ -245,9 +245,9 @@ export interface PostsWindowContext {
 
 /**
  * A bulk action that appears in the toolbar when one or more rows
- * are selected. The shipped default is "Move to trash"; plugins
- * append/replace via the `openstation.postsWindow.bulkActions`
- * filter.
+ * are selected. The shipped defaults are "Move to trash" and "Restore"
+ * (swapped dynamically depending on view status); plugins append/replace
+ * via the `openstation.postsWindow.bulkActions` filter.
  */
 export interface BulkAction {
 	/** Stable id — used as a key, also the `data-os-posts-bulk-action` on the button. */

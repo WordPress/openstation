@@ -409,6 +409,21 @@ describe( 'the bulk bar', () => {
 		await runBulkAction( ctx, optingOut, postsCtx );
 		expect( refresh ).toHaveBeenCalledTimes( 2 );
 	} );
+
+	it( 'shows restore instead of trash when in trash status and dispatches restore without confirmation', async () => {
+		const { ctx, root, dispatch, table } = mount( { status: 'trash' }, data( [ row( 1, { status: 'trash' } ), row( 2, { status: 'trash' } ) ] ) );
+		app.mounted( ctx );
+		table().selection = [ 2 ];
+		table().dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
+		expect( root.querySelector( '[data-os-posts-bulk-action="trash"]' ) ).toBeNull();
+		const restoreBtn = root.querySelector( '[data-os-posts-bulk-action="restore"]' ) as HTMLElement;
+		expect( restoreBtn ).not.toBeNull();
+		restoreBtn.click();
+		await flush();
+		expect( ctx.host.confirm ).not.toHaveBeenCalled();
+		expect( dispatch ).toHaveBeenCalledWith( 'restore', { ids: [ 2 ] } );
+		expect( Array.from( table().selection ?? [] ) ).toEqual( [] );
+	} );
 } );
 
 describe( 'the registries', () => {
@@ -435,6 +450,21 @@ describe( 'the registries', () => {
 		expect( clearSelection ).toHaveBeenCalled();
 		expect( result ).toBe( false );
 		expect( resolveBulkActions( [ action ] ) ).toEqual( [ action ] );
+	} );
+
+	it( 'the restore bulk action skips non-trashed rows and opts out of auto-refresh without confirm', async () => {
+		const trash = vi.fn( async () => true );
+		const restore = vi.fn( async () => true );
+		const [ , action ] = defaultBulkActions( 'posts', trash, restore );
+		expect( action.id ).toBe( 'restore' );
+		expect( action.confirm ).toBeUndefined();
+		const clearSelection = vi.fn();
+		const result = await action.run( [ 1, 2 ], {
+			table: { data: [ row( 1, { status: 'publish' } ), row( 2, { status: 'trash' } ) ], clearSelection } as never,
+		} as never );
+		expect( restore ).toHaveBeenCalledWith( [ 2 ] );
+		expect( clearSelection ).toHaveBeenCalled();
+		expect( result ).toBe( false );
 	} );
 
 	it( 'hides user-hidden columns but never the title, narrows to the phone set, and lists the togglable ones', () => {

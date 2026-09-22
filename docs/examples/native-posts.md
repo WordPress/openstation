@@ -137,7 +137,7 @@ That's it. The column appears in every Posts window load and never makes a secon
 
 ## Add a bulk action
 
-The default bulk action is "Move to trash". Plugins extend the registry via the `openstation.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
+The shipped bulk actions are "Move to trash" (`id: 'trash'`, destructive, requires confirmation) and "Restore" (`id: 'restore'`, neutral, instant execution). The bulk bar dynamically displays "Restore" when viewing the Trash status and "Move to trash" in all other views. Plugins extend the registry via the `openstation.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
 
 ```js
 wp.hooks.addFilter(
@@ -181,13 +181,13 @@ wp.hooks.addFilter(
 
 Returning `false` from `run()` opts out of the auto-refresh — useful when the action navigates away or shows its own modal.
 
-To remove the default trash action (read-only views, audit-style mirrors), filter it out by id:
+To remove default actions (e.g. for read-only views or custom workflows), filter them out by id:
 
 ```js
 wp.hooks.addFilter(
     'openstation.postsWindow.bulkActions',
     'myplugin/no-trash',
-    ( actions ) => actions.filter( ( a ) => a.id !== 'trash' ),
+    ( actions ) => actions.filter( ( a ) => a.id !== 'trash' && a.id !== 'restore' ),
 );
 ```
 

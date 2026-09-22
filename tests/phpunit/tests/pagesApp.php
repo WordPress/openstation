@@ -63,7 +63,7 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertSame( 720, $manifest['height'] );
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertSame( array( 'page' ), $manifest['watch'] );
-		$this->assertSame( array( 'filter', 'page', 'sort', 'trash' ), $manifest['actions'] );
+		$this->assertSame( array( 'filter', 'page', 'sort', 'trash', 'restore' ), $manifest['actions'] );
 		// Pages are usually shallow + ordered by menu_order.
 		$this->assertSame( 'menu_order', $manifest['state']['orderby'] );
 		$this->assertSame( 'asc', $manifest['state']['order'] );

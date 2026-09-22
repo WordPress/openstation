@@ -84,7 +84,7 @@ class Tests_OpenStation_PostsApp extends WP_UnitTestCase {
 		// remap routes it here.
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertSame( array( 'post' ), $manifest['watch'] );
-		$this->assertSame( array( 'filter', 'page', 'sort', 'trash' ), $manifest['actions'] );
+		$this->assertSame( array( 'filter', 'page', 'sort', 'trash', 'restore' ), $manifest['actions'] );
 		$this->assertSame( array(), $manifest['tabs'], 'The Categories / Tags tabs are in-body canvases, not framework tabs.' );
 		$state = $manifest['state'];
 		$this->assertSame( 1, $state['page'] );
@@ -428,6 +428,63 @@ class Tests_OpenStation_PostsApp extends WP_UnitTestCase {
 		$other = self::factory()->post->create( array( 'post_author' => $this->admin_id ) );
 		$both  = $this->dispatch( 'trash', array(), array( 'ids' => array( $post, $other ) ) );
 		$this->assertSame( '2 items could not be moved to the trash.', $both['effects'][0]['message'] );
+	}
+
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
+	public function test_restore_restores_announces_and_skips_non_trashed_rows() {
+		$a       = self::factory()->post->create( array( 'post_status' => 'trash' ) );
+		$b       = self::factory()->post->create( array( 'post_status' => 'trash' ) );
+		$already = self::factory()->post->create( array( 'post_status' => 'publish' ) );
+
+		update_post_meta( $a, '_desktop_mode_trash_user_id', $this->admin_id );
+		update_post_meta( $a, '_desktop_mode_trash_time_gmt', current_time( 'mysql', true ) );
+
+		$response = $this->dispatch( 'restore', array(), array( 'ids' => array( $a, $b, $already, 999999 ) ) );
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( 'draft', get_post_status( $a ) );
+		$this->assertSame( 'draft', get_post_status( $b ) );
+		$this->assertSame( 'publish', get_post_status( $already ), 'A row not in the trash is skipped.' );
+		$this->assertEmpty( get_post_meta( $a, '_desktop_mode_trash_user_id', true ) );
+		$this->assertEmpty( get_post_meta( $a, '_desktop_mode_trash_time_gmt', true ) );
+
+		$announce = null;
+		foreach ( $response['effects'] as $effect ) {
+			if ( 'announce' === $effect['type'] ) {
+				$announce = $effect;
+			}
+		}
+		$this->assertNotNull( $announce );
+		$this->assertSame( 'post', $announce['contentType'] );
+		$this->assertSame( 'untrashed', $announce['action'] );
+		$this->assertSame( array( $a, $b ), $announce['ids'] );
+	}
+
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
+	public function test_restore_refuses_what_the_user_cannot_restore_with_a_toast() {
+		$post = self::factory()->post->create(
+			array(
+				'post_author' => $this->admin_id,
+				'post_status' => 'trash',
+			)
+		);
+		$contributor = self::factory()->user->create( array( 'role' => 'contributor' ) );
+		wp_set_current_user( $contributor );
+		$response = $this->dispatch( 'restore', array(), array( 'ids' => array( $post ) ) );
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( 'trash', get_post_status( $post ) );
+		$this->assertNotContains( 'announce', wp_list_pluck( $response['effects'], 'type' ) );
+		$toast = null;
+		foreach ( $response['effects'] as $effect ) {
+			if ( 'toast' === $effect['type'] ) {
+				$toast = $effect;
+			}
+		}
+		$this->assertNotNull( $toast );
+		$this->assertSame( '1 item could not be restored.', $toast['message'] );
 	}
 
 	// ------------------------------------------------------- terms REST
