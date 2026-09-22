@@ -186,6 +186,20 @@ interface WallpaperDefBase {
 	 */
 	description?: string;
 	/**
+	 * How bright the finished surface is, which decides whether the
+	 * desk paints its icons and labels in Starlight or in Void.
+	 *
+	 * Declare `'light'` if a user would call your wallpaper pale.
+	 * Leaving it unset means `'dark'` — the assumption every wallpaper
+	 * met before the meshes, and the safe one, because a wrong
+	 * `'light'` puts Void ink on a Void desk.
+	 *
+	 * For a wallpaper whose brightness the user chooses (an uploaded
+	 * photograph, a gradient they mixed) leave this unset and let the
+	 * shell measure it instead — see `resolveWallpaperTone()`.
+	 */
+	tone?: 'light' | 'dark';
+	/**
 	 * Optional in-panel editor, revealed in OS Settings when this
 	 * wallpaper is selected.
 	 */

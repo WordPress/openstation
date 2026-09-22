@@ -126,7 +126,23 @@ function openstation_sanitize_desktop_theme_tokens( $raw ) {
 	$out   = array();
 	$count = 0;
 	foreach ( $raw as $key => $value ) {
-		if ( $count >= 512 ) {
+		/*
+		 * A size guard on an uploaded manifest, not a design budget,
+		 * and the headroom is the point. Legacy answers every literal
+		 * the palette declares, so the built-in snapshot grows every
+		 * time the palette does; a ceiling sitting beside that count
+		 * rather than well clear of it is one release from trimming
+		 * the snapshot's own tail. Crossing the line is silent — the
+		 * shell keeps the built-in value for a dropped entry, so the
+		 * theme comes back partly repainted in the brand.
+		 * `Tests_OpenStation_DesktopThemesLegacy::
+		 * test_no_token_is_dropped_by_the_sanitizer` is the guard.
+		 *
+		 * What keeps a manifest safe is the namespace filter and the
+		 * value grammar below, both per entry. This only bounds how
+		 * many entries are parsed.
+		 */
+		if ( $count >= 2048 ) {
 			break;
 		}
 		if ( ! is_string( $key ) ) {

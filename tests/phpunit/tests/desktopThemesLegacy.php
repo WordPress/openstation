@@ -195,10 +195,24 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		// amount; edge and on edge; on fill; count pill fill and numerals,
 		// off and on), the tab wash opacity, the six segmented tokens
 		// (track edge; selected accent amount, base and shadow; hover
-		// shade and film) and the three Site assistant tokens (accent
-		// amount, row fill, tile fill) minted after the snapshot, each at
-		// the value its consuming rule falls back to.
-		$this->assertCount( 511, $tokens, $why );
+		// shade and film), the three Site assistant tokens (accent
+		// amount, row fill, tile fill) and the seven wallpaper-chrome
+		// tokens (desktop icon glyph shadow, label plate and label
+		// shadow; the Add widget border) and the two desk-ink tokens
+		// (the ink a light wallpaper switches to, and the desktop icon
+		// hover wash) minted after the snapshot, each at the value its
+		// consuming rule falls back to.
+		//
+		// The notch plate and the Add widget's two plates are NOT
+		// among them, deliberately. Both surfaces were built after
+		// this snapshot was collected, so there is no pre-brand value
+		// of theirs to protect; and the palette now derives them from
+		// the dock pill and the widget card they sit beside, so an
+		// entry here would sever that chain and strand them on
+		// whatever colour a Legacy-derived theme was moving away from.
+		// That is the exclusion `test_accent_driven_tokens_are_left_
+		// to_derive` makes for the accent, for the same reason.
+		$this->assertCount( 517, $tokens, $why );
 		foreach ( array(
 			'--os-bg'             => 'linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% )',
 			'--os-titlebar-bg'    => '#f0f0f1',

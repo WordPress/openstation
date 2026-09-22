@@ -9,6 +9,16 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { WallpaperDef } from '../../src/wallpapers/types';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
+import {
+	applyWallpaperTone,
+	firstCssUrl,
+	LIGHT_TONE_CLASS,
+	relativeLuminance,
+	resolveWallpaperTone,
+	toneForLuminance,
+	toneFromCssColors,
+} from '../../src/wallpapers/tone';
+import { CUSTOM_GRADIENT_ID } from '../../src/settings/constants';
 
 type Registry = typeof import( '../../src/wallpapers/registry' );
 
@@ -129,5 +139,124 @@ describe( 'wallpapers/registry.ts', () => {
 		register( makeCssDef( { id: 'lookup' } ) );
 		expect( get( 'lookup' )?.id ).toBe( 'lookup' );
 		expect( get( 'ghost' ) ).toBeUndefined();
+	} );
+} );
+
+/**
+ * `src/wallpapers/tone.ts` — which ink the desk paints in.
+ *
+ * Every case here is one a wrong answer would make unreadable: dark
+ * ink on a dark desk is the failure the `'dark'` default exists to
+ * prevent, and the threshold is the whole feature.
+ */
+describe( 'wallpapers/tone.ts', () => {
+	test( 'a declared tone is taken at its word, measuring nothing', async () => {
+		// A Void gradient that SAYS it is light still gets light: an
+		// author describing their own surface outranks the fallback.
+		await expect(
+			resolveWallpaperTone( {
+				id: 'declared',
+				label: 'Declared',
+				type: 'css',
+				preview: '',
+				value: 'linear-gradient(180deg, #0c0b0f, #000000)',
+				tone: 'light',
+			} ),
+		).resolves.toBe( 'light' );
+	} );
+
+	test( 'an undeclared wallpaper is dark, whatever it is made of', async () => {
+		// The canvas branch: nothing to read, so the desk keeps the ink
+		// it had before tone existed rather than guessing.
+		await expect(
+			resolveWallpaperTone( {
+				id: 'canvas',
+				label: 'Canvas',
+				type: 'canvas',
+				preview: '',
+				mount: () => () => {},
+			} ),
+		).resolves.toBe( 'dark' );
+	} );
+
+	test( "the user's own gradient is measured from its stops", async () => {
+		const light = await resolveWallpaperTone( {
+			id: CUSTOM_GRADIENT_ID,
+			label: 'Custom gradient',
+			type: 'css',
+			preview: '',
+			value: 'linear-gradient(135deg, #f6f2ff, #ffe9f6)',
+		} );
+		const dark = await resolveWallpaperTone( {
+			id: CUSTOM_GRADIENT_ID,
+			label: 'Custom gradient',
+			type: 'css',
+			preview: '',
+			value: 'linear-gradient(135deg, #1d2327, #2c3338)',
+		} );
+		expect( [ light, dark ] ).toEqual( [ 'light', 'dark' ] );
+	} );
+
+	test( 'an authored gradient is never measured, however bright it averages', async () => {
+		// Aurora, Sunset and Forest all run dark-to-bright and average
+		// ABOVE the light threshold, while the top-left corner the icon
+		// grid starts in stays dark. Measuring them turned their icons
+		// Void on a midnight blue. Authored wallpapers declare a tone or
+		// take the default; only the user's own two are measured.
+		const tones = await Promise.all(
+			[
+				'linear-gradient(135deg, #1a2980 0%, #26d0ce 100%)', // Aurora
+				'linear-gradient(135deg, #ff512f 0%, #dd2476 100%)', // Sunset
+				'linear-gradient(135deg, #134e5e 0%, #71b280 100%)', // Forest
+			].map( ( value, i ) =>
+				resolveWallpaperTone( {
+					id: `preset-${ i }`,
+					label: 'Preset',
+					type: 'css',
+					preview: '',
+					value,
+				} ),
+			),
+		);
+		expect( tones ).toEqual( [ 'dark', 'dark', 'dark' ] );
+
+		// The same three averaged as light, which is why they have to be
+		// excluded by id rather than by a kinder threshold.
+		expect(
+			toneFromCssColors( 'linear-gradient(135deg, #1a2980 0%, #26d0ce 100%)' ),
+		).toBe( 'light' );
+	} );
+
+	test( 'the threshold is where Void ink overtakes Starlight', () => {
+		// #808080 sits at L 0.2159, above the crossover; #6b6b6b at
+		// L 0.1441, below it. A threshold that drifted past either
+		// would flip a whole band of mid-tone wallpapers to the ink
+		// that reads worse on them.
+		expect( toneForLuminance( relativeLuminance( 128, 128, 128 ) ) ).toBe(
+			'light',
+		);
+		expect( toneForLuminance( relativeLuminance( 107, 107, 107 ) ) ).toBe(
+			'dark',
+		);
+	} );
+
+	test( 'an image outranks a colour sitting beside it', async () => {
+		// The custom-image value is `url(…) center/cover no-repeat,
+		// #1d2327` — that solid is the backstop BEHIND the photograph,
+		// never what the user sees, so averaging it in would describe
+		// the wrong surface. jsdom cannot raster the image, so the
+		// measurement returns null and the default stands; what this
+		// pins is that the dark solid did not answer instead.
+		expect(
+			firstCssUrl( 'url("/uploads/desk.jpg") center/cover no-repeat, #1d2327' ),
+		).toBe( '/uploads/desk.jpg' );
+		expect( toneFromCssColors( 'url("/uploads/desk.jpg")' ) ).toBeNull();
+	} );
+
+	test( 'the light class is stamped on body and lifts again', () => {
+		applyWallpaperTone( 'light' );
+		expect( document.body.classList.contains( LIGHT_TONE_CLASS ) ).toBe( true );
+		applyWallpaperTone( 'dark' );
+		expect( document.body.classList.contains( LIGHT_TONE_CLASS ) ).toBe( false );
 	} );
 } );

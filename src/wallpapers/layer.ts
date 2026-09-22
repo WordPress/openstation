@@ -16,6 +16,7 @@
 import { doAction, HOOKS } from '../hooks';
 import { loadModules } from '../modules/registry';
 import { getWallpaperSettings } from './settings-store';
+import { applyWallpaperTone, resolveWallpaperTone } from './tone';
 import type {
 	CanvasWallpaperDef,
 	CssWallpaperDef,
@@ -111,10 +112,28 @@ export class WallpaperLayer {
 
 		if ( def.type === 'css' ) {
 			this.applyCss( def );
+			this.applyTone( def, gen );
 			return;
 		}
 
 		this.applyCanvas( def, gen );
+		this.applyTone( def, gen );
+	}
+
+	/**
+	 * Tell the desk how bright it is now, so icons and captions pick
+	 * their ink. Runs AFTER the CSS branch has written `--os-bg`,
+	 * because measuring an uploaded image reads the value back off the
+	 * shell. Async and generation-guarded: a measurement that lands
+	 * after the user has moved on must not stamp the old wallpaper's
+	 * tone.
+	 */
+	private applyTone( def: WallpaperDef, gen: number ): void {
+		void resolveWallpaperTone( def ).then( ( tone ) => {
+			if ( gen === this.generation ) {
+				applyWallpaperTone( tone );
+			}
+		} );
 	}
 
 	/**

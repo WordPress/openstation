@@ -5456,6 +5456,7 @@ type WallpaperDef =
           label: string;
           preview: string;            // CSS `background` value for the swatch
           description?: string;       // Plain text, shown in OpenStation Preferences when selected
+          tone?: 'light' | 'dark';    // How bright the surface is; decides the desk's ink
           value?: string;             // Applied to --os-bg
           resolveValue?: ( ctx: WallpaperContext ) => string;  // Dynamic alternative
           renderEditor?: WallpaperEditor;
@@ -5469,6 +5470,7 @@ type WallpaperDef =
           label: string;
           preview: string;            // CSS `background` for the swatch (pre-mount)
           description?: string;       // Plain text, shown in OpenStation Preferences when selected
+          tone?: 'light' | 'dark';    // How bright the surface is; decides the desk's ink
           mount: ( container: HTMLElement, ctx: WallpaperContext ) =>
                   ( () => void ) | Promise<() => void>;
           renderEditor?: WallpaperEditor;
@@ -5505,6 +5507,12 @@ type WallpaperConfig = ( container: HTMLElement, ctx: WallpaperConfigContext ) =
 ```
 
 **`description`** — *Experimental.* A sentence or two shown in a styled card under the OpenStation Preferences picker grid whenever the wallpaper is the active selection: what it is, where its data comes from, the story behind it. Plain text only — it renders as text, never as HTML. Server-registered wallpapers can pass `description` to `openstation_register_wallpaper()` instead; the shell overlays the server value onto the JS def when the def doesn't set one (handy for translatable descriptions).
+
+**`tone`** — *Experimental.* How bright your finished surface is. Desktop icons, their captions and the desk's file tiles have no plate of their own — they paint straight onto your wallpaper — so the shell picks their ink from this: `'dark'` (or unset) gives Starlight, `'light'` gives Void. It reaches the icon *artwork* too, because silhouette SVGs are painted as a mask filled with `currentColor`.
+
+Declare `'light'` if a user would call your wallpaper pale. Leave it unset if you are unsure: unset means `'dark'`, which is what every wallpaper got before this existed, and the desk still carries a scrim behind each caption for that case. The costly direction is a wrong `'light'`, which paints Void icons onto a Void sky.
+
+A wallpaper whose brightness is the *user's* choice rather than yours — a photograph they upload, a gradient they mix — should leave `tone` unset and let the shell measure the surface instead. It does that for its own two (`custom-image`, `custom-gradient`) by sampling the image or averaging the gradient's stops against the luminance where Void ink overtakes Starlight. Server-registered wallpapers can pass `tone` to `openstation_register_wallpaper()` instead.
 
 ### Minimal CSS wallpaper
 
