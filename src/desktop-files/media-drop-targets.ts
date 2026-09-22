@@ -19,6 +19,7 @@
  */
 
 import { showToast } from '../toast';
+import { restFailureText } from '../core/rest-failure';
 import { dragPlacements, type DesktopFileDragData } from './drag-payloads';
 import { openUrlWindow } from './open';
 import { attachUploadsToPost, listPlacements, type RestPlacementShape } from './rest';
@@ -71,11 +72,6 @@ function mediaFileIds( data: Record< string, unknown > ): number[] {
 	return ids;
 }
 
-function errorMessage( err: unknown ): string {
-	const raw = err instanceof Error ? err.message : String( err );
-	return raw.replace( /^\[openstation\] files REST \d+: \S+ /, '' );
-}
-
 async function attachToPost(
 	target: RestPlacementShape,
 	fileIds: number[],
@@ -105,7 +101,7 @@ async function attachToPost(
 			}
 		}
 	} catch ( err ) {
-		showToast( { message: `Could not add to the post: ${ errorMessage( err ) }` } );
+		showToast( { message: `Could not add to the post: ${ restFailureText( err ) }` } );
 	}
 }
 

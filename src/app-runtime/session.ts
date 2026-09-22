@@ -13,6 +13,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { RestError } from '../core/api-client';
 import {
 	CAPTURED_EVENTS,
 	LISTENED_EVENTS,
@@ -255,16 +256,31 @@ export function createSession( deps: SessionDeps ): Session {
 				{ windowId, source: `openstation/app/${ config.id }` },
 			);
 			if ( ! response.ok ) {
-				let message = String( response.status );
+				let serverMessage = '';
+				let code: string | undefined;
+				let errorData: unknown;
 				try {
-					const body = ( await response.json() ) as { message?: string };
-					if ( body && body.message ) {
-						message = body.message;
+					const body = ( await response.json() ) as {
+						code?: string;
+						message?: string;
+						data?: unknown;
+					};
+					if ( body && typeof body.message === 'string' ) {
+						serverMessage = body.message;
 					}
+					if ( body && typeof body.code === 'string' ) {
+						code = body.code;
+					}
+					errorData = body?.data;
 				} catch {
 					// A non-JSON error body: the status code will do.
 				}
-				throw new Error( message );
+				throw new RestError( serverMessage || String( response.status ), {
+					status: response.status,
+					code,
+					data: errorData,
+					serverMessage,
+				} );
 			}
 			const payload = ( await response.json() ) as DispatchResponse;
 			if ( disposed || ! payload || payload.ok !== true ) {

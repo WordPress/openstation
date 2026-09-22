@@ -46,22 +46,39 @@ export interface RequestOptions extends TrackedFetchOpts {
 	recover?: ( errorBody: unknown, response: Response ) => unknown;
 }
 
-/** A normalized REST error with the WP-style fields preserved when present. */
+/**
+ * A failed request, with the WP-style fields preserved when present.
+ *
+ * Every feature client throws this (or a subclass) so one helper,
+ * `describeRestFailure()` in `./rest-failure`, can say WHY in the UI.
+ * `message` is whatever the thrower wants the console to show; the
+ * human part the server sent lives in `serverMessage`, so a caller
+ * never has to parse the console line to recover it. A 2xx whose body
+ * was not the JSON the route promised is thrown with that 2xx status
+ * and an empty `serverMessage`: the status alone says "unreadable".
+ */
 export class RestError extends Error {
 	public readonly status: number;
 	public readonly code?: string;
 	public readonly data?: unknown;
+	/** The `WP_Error` message from the body, verbatim, or `''`. */
+	public readonly serverMessage: string;
 
 	constructor(
 		message: string,
-		opts: { status: number; code?: string; data?: unknown },
+		opts: { status: number; code?: string; data?: unknown; serverMessage?: string },
 	) {
 		super( message );
 		this.name = 'RestError';
 		this.status = opts.status;
 		this.code = opts.code;
 		this.data = opts.data;
+		this.serverMessage = opts.serverMessage ?? '';
 	}
+}
+
+export function isRestError( err: unknown ): err is RestError {
+	return err instanceof RestError;
 }
 
 export interface RestClient {
@@ -146,14 +163,14 @@ export function createRestClient( opts: RestClientOptions ): RestClient {
 				typeof parsed === 'object' && parsed !== null
 					? ( parsed as { message?: unknown; code?: unknown; data?: unknown } )
 					: undefined;
+			const serverMessage = typeof wpErr?.message === 'string' ? wpErr.message : '';
 			throw new RestError(
-				typeof wpErr?.message === 'string'
-					? wpErr.message
-					: `${ response.status } ${ response.statusText }`,
+				serverMessage || `${ response.status } ${ response.statusText }`,
 				{
 					status: response.status,
 					code: typeof wpErr?.code === 'string' ? wpErr.code : undefined,
 					data: wpErr?.data,
+					serverMessage,
 				},
 			);
 		}

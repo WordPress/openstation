@@ -7,6 +7,7 @@
  */
 
 import { trackedFetch } from '../tracked-fetch';
+import { RestError } from '../core/api-client';
 import { joinRestUrl } from '../rest-url';
 
 export interface RestPlacementShape {
@@ -189,8 +190,15 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 			}
 		}
 		const err = body as { code?: string; message?: string } | null;
-		throw new Error(
-			`[openstation] files REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
+		const serverMessage = typeof err?.message === 'string' ? err.message : '';
+		throw new RestError(
+			`[openstation] files REST ${ res.status }: ${ err?.code ?? '' } ${ serverMessage }`.trim(),
+			{
+				status: res.status,
+				code: typeof err?.code === 'string' ? err.code : undefined,
+				data: ( err as { data?: unknown } | null )?.data,
+				serverMessage,
+			},
 		);
 	}
 	// A 2xx with an empty or unparseable body is something the
@@ -213,15 +221,19 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 	// notice or the login-form HTML that crept in), otherwise
 	// fall back to the plain "empty body" message.
 	if ( null === body ) {
+		// Thrown as a RestError with the 2xx status and no server
+		// message: the status alone tells the UI helper "unreadable".
 		if ( parseError && text ) {
 			const head = text.slice( 0, 120 ).replace( /\s+/g, ' ' );
-			throw new Error(
+			throw new RestError(
 				`[openstation] files REST ${ res.status } returned non-JSON body — ` +
 					`${ parseError.message }. First 120 chars: ${ head }`,
+				{ status: res.status, code: 'openstation_bad_response' },
 			);
 		}
-		throw new Error(
+		throw new RestError(
 			`[openstation] files REST ${ res.status }: empty or unparseable body.`,
+			{ status: res.status, code: 'openstation_bad_response' },
 		);
 	}
 	return body as T;

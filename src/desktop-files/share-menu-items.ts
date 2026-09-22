@@ -21,6 +21,7 @@ import { openShareSettingsModal } from './overlays-loader';
 import { getFilesState, removePlacement, setFolderPlacements } from './store';
 import { leaveShare, listPlacements } from './rest';
 import { showToast } from '../toast';
+import { restFailureText } from '../core/rest-failure';
 // `../os-confirm`, not the component module: this file ships in
 // `desktop.min.js`, and the wrapper there awaits the lazy
 // shell-overlays bundle instead of dragging the dialog class (and
@@ -204,7 +205,7 @@ export function installShareMenuItems(): void {
 							showToast( { message: 'You left the shared folder.' } );
 						} catch ( err ) {
 							showToast( {
-								message: `Could not leave: ${ ( err as Error ).message }`,
+								message: `Could not leave: ${ restFailureText( err ) }`,
 							} );
 						}
 					},

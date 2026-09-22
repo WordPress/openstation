@@ -19,6 +19,7 @@ import '../../ui/components/os-notice/os-notice';
 import '../../ui/components/os-spinner/os-spinner';
 import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
+import { RestError } from '../../core/api-client';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { startVisibilityAwarePoller } from '../../widgets/poller';
 import { adminBaseUrl as adminUrl, decodeHTML } from '../../utils';
@@ -97,27 +98,37 @@ function aiAvailable(): boolean {
  */
 type SuggestionsFailure = 'no-provider' | 'quota' | 'auth' | 'unavailable' | 'other';
 
-class SuggestionsError extends Error {
+class SuggestionsError extends RestError {
 	readonly reason: SuggestionsFailure;
 
-	constructor( reason: SuggestionsFailure, status: number ) {
-		super( `HTTP ${ status }` );
+	constructor( reason: SuggestionsFailure, status: number, body: FailureBody | null ) {
+		super( `HTTP ${ status }`, {
+			status,
+			code: typeof body?.code === 'string' ? body.code : undefined,
+			data: body?.data,
+			serverMessage: typeof body?.message === 'string' ? body.message : '',
+		} );
 		this.reason = reason;
 	}
 }
 
-/** Read the reason out of a failed `/draft-suggestions` response body. */
-async function readSuggestionsFailure( res: Response ): Promise< SuggestionsFailure > {
-	interface FailureBody {
-		code?: unknown;
-		data?: { reason?: unknown };
-	}
-	let body: FailureBody | null = null;
+interface FailureBody {
+	code?: unknown;
+	message?: unknown;
+	data?: { reason?: unknown };
+}
+
+/** The failed `/draft-suggestions` response body, or null when it was not JSON. */
+async function readFailureBody( res: Response ): Promise< FailureBody | null > {
 	try {
-		body = ( await res.json() ) as FailureBody;
+		return ( await res.json() ) as FailureBody;
 	} catch {
-		body = null;
+		return null;
 	}
+}
+
+/** Read the reason out of a failed `/draft-suggestions` response body. */
+function suggestionsFailure( body: FailureBody | null ): SuggestionsFailure {
 	if ( body?.code === 'openstation_ai_unavailable' ) {
 		return 'no-provider';
 	}
@@ -139,7 +150,8 @@ async function fetchSuggestions( id: number ): Promise< DraftSuggestions > {
 		{ source: 'desktop-mode/drafts' },
 	);
 	if ( ! res.ok ) {
-		throw new SuggestionsError( await readSuggestionsFailure( res ), res.status );
+		const body = await readFailureBody( res );
+		throw new SuggestionsError( suggestionsFailure( body ), res.status, body );
 	}
 	return res.json() as Promise< DraftSuggestions >;
 }
@@ -564,7 +576,13 @@ async function fetchDrafts(): Promise< DraftRow[] > {
 		{ source: 'desktop-mode/drafts', silent: true },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `HTTP ${ res.status }` );
+		const body = await readFailureBody( res );
+		throw new RestError( `HTTP ${ res.status }`, {
+			status: res.status,
+			code: typeof body?.code === 'string' ? body.code : undefined,
+			data: body?.data,
+			serverMessage: typeof body?.message === 'string' ? body.message : '',
+		} );
 	}
 	return res.json() as Promise< DraftRow[] >;
 }

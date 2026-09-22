@@ -18,6 +18,7 @@
  * Extracted from `layer.ts` (drag-and-drop rework).
  */
 
+import { restFailureText } from '../core/rest-failure';
 import { beginTrashChange, placementTrashItem } from './trash-optimistic';
 import { announceContentChange } from '../broadcast';
 import { rest, store as filesStoreApi } from './layer-deps';
@@ -62,16 +63,9 @@ function showTrashErrorToast( err: unknown ): void {
 	if ( ! api?.showToast ) {
 		return;
 	}
-	const raw = err instanceof Error ? err.message : String( err );
-	// `call()` formats REST failures as
-	// "[openstation] files REST 403: openstation_files_forbidden …".
-	// Strip the prefix + error code so the user-facing toast keeps
-	// just the human-readable reason.
-	const friendly = raw
-		.replace( /^\[openstation\][^:]*:\s*/, '' )
-		.replace( /^openstation_files_[a-z_]+\s*/, '' );
 	api.showToast( {
-		message: friendly || 'Could not move this item to the recycle bin.',
+		message:
+			restFailureText( err ) || 'Could not move this item to the recycle bin.',
 		duration: 5000,
 	} );
 }

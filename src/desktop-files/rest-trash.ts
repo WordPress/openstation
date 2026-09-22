@@ -7,13 +7,15 @@
  * /posts`, `wp/v2/pages`, a CPT's collection, the bridge route for a
  * non-REST type), so trashing needs no app window, no config blob and
  * no cross-bundle API — one DELETE against the canonical collection,
- * the same call the explorer's own "Move to Trash" ends at.
+ * the same call the explorer's own "Move to Trash" ends at. A refusal
+ * is a `RestError`, so the caller's toast can carry the server's reason.
  *
  * @public
  */
 
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
+import { RestError } from '../core/api-client';
 
 interface ShellRestConfig {
 	restUrl?: string;
@@ -55,15 +57,22 @@ export async function trashByRestPath( restPath: string, id: number ): Promise< 
 		{ source: 'my-wordpress/trash' },
 	);
 	if ( ! response.ok ) {
-		let message = `Failed to move to trash (${ response.status })`;
+		let serverMessage = '';
+		let code: string | undefined;
 		try {
-			const body = ( await response.json() ) as { message?: string };
+			const body = ( await response.json() ) as { code?: string; message?: string };
 			if ( body?.message ) {
-				message = body.message;
+				serverMessage = body.message;
+			}
+			if ( typeof body?.code === 'string' ) {
+				code = body.code;
 			}
 		} catch {
 			// A non-JSON error body — the status code will do.
 		}
-		throw new Error( message );
+		throw new RestError(
+			serverMessage || `Failed to move to trash (${ response.status })`,
+			{ status: response.status, code, serverMessage },
+		);
 	}
 }

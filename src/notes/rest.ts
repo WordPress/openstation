@@ -4,11 +4,12 @@
  * Thin `trackedFetch` wrapper against `includes/notes/rest.php`.
  * Same conventions as the files client (`src/desktop-files/rest.ts`):
  * nonce header, JSON body, typed 409 conflict error carrying the
- * server's current copy.
+ * server's current copy, every other failure a `RestError`.
  */
 
 import { trackedFetch } from '../tracked-fetch';
 import { joinRestUrl } from '../rest-url';
+import { RestError } from '../core/api-client';
 import type { Note } from './types';
 
 export interface NotesRestDeps {
@@ -71,29 +72,18 @@ export function isNotesConflict( err: unknown ): err is NotesConflictError {
 
 /**
  * Any other non-2xx answer, or a 2xx whose body is not the JSON the
- * route promised. Carries the WP-style fields so a caller can say
- * WHY in the UI (`serverMessage` is the localized `WP_Error` text,
- * `code` its slug) instead of one generic line for every failure.
- * The `message` keeps the `[openstation] notes REST <status>: …`
- * shape the console has always logged.
+ * route promised, is a `RestError` (`src/core/api-client.ts`): the
+ * WP-style fields ride along so a caller can say WHY in the UI
+ * (`serverMessage` is the localized `WP_Error` text, `code` its slug)
+ * instead of one generic line for every failure. The `message` keeps
+ * the `[openstation] notes REST <status>: …` shape the console has
+ * always logged.
  */
-export class NotesRestError extends Error {
-	readonly status: number;
-	readonly code: string;
-	readonly serverMessage: string;
-	constructor( status: number, code: string, serverMessage: string ) {
-		super(
-			`[openstation] notes REST ${ status }: ${ code } ${ serverMessage }`.trim(),
-		);
-		this.name = 'NotesRestError';
-		this.status = status;
-		this.code = code;
-		this.serverMessage = serverMessage;
-	}
-}
-
-export function isNotesRestError( err: unknown ): err is NotesRestError {
-	return err instanceof NotesRestError;
+function notesRestError( status: number, code: string, serverMessage: string ): RestError {
+	return new RestError(
+		`[openstation] notes REST ${ status }: ${ code } ${ serverMessage }`.trim(),
+		{ status, code, serverMessage },
+	);
 }
 
 async function call< T >( path: string, init: RequestInit ): Promise< T > {
@@ -129,17 +119,18 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 			throw new NotesConflictError( current ?? null );
 		}
 		const err = body as { code?: string; message?: string } | null;
-		throw new NotesRestError(
+		throw notesRestError(
 			res.status,
 			typeof err?.code === 'string' ? err.code : '',
 			typeof err?.message === 'string' ? err.message : '',
 		);
 	}
 	if ( null === body ) {
-		throw new NotesRestError(
-			res.status,
-			'openstation_notes_bad_response',
-			'empty or unparseable body.',
+		// The console line keeps the diagnostic; `serverMessage` stays
+		// empty because nothing the server sent is fit to show.
+		throw new RestError(
+			`[openstation] notes REST ${ res.status }: openstation_notes_bad_response empty or unparseable body.`,
+			{ status: res.status, code: 'openstation_notes_bad_response' },
 		);
 	}
 	return body as T;

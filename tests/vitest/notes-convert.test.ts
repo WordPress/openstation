@@ -18,7 +18,7 @@ vi.mock( '../../src/notes/rest', async ( importOriginal ) => ( {
 // Imported after the mock is registered.
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { convertNoteToPost } from '../../src/notes/convert';
-import { NotesRestError } from '../../src/notes/rest';
+import { RestError } from '../../src/core/api-client';
 
 const NOTE: Note = {
 	id: 7,
@@ -122,11 +122,11 @@ describe( 'convertNoteToPost', () => {
 
 	test( 'a refused convert tells the user what the server said', async () => {
 		convertNoteMock.mockRejectedValueOnce(
-			new NotesRestError(
-				403,
-				'openstation_notes_cannot_create_posts',
-				'You are not allowed to create posts.',
-			),
+			new RestError( '[openstation] notes REST 403: openstation_notes_cannot_create_posts', {
+				status: 403,
+				code: 'openstation_notes_cannot_create_posts',
+				serverMessage: 'You are not allowed to create posts.',
+			} ),
 		);
 		const errorSpy = vi.spyOn( console, 'error' ).mockImplementation( () => {} );
 
