@@ -409,10 +409,11 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			if ( i === stepIndex ) {
 				step.setAttribute( 'current', '' );
 			}
-			// A way back, never a way forward: skipping ahead past
-			// Start would bypass the one decision the later steps
-			// depend on.
-			if ( i < stepIndex ) {
+			// Any step, any order. Skipping ahead past Start does not
+			// bypass the pick the later steps read: `go` takes the
+			// template into the draft on the way out of Start, whatever
+			// step it lands on.
+			if ( i !== stepIndex ) {
 				step.setAttribute( 'interactive', '' );
 				step.addEventListener( 'os-step-click', () => go( i ) );
 			}
