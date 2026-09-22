@@ -2350,6 +2350,8 @@ The Drafts widget offers per-draft title / excerpt / tag / category suggestions 
 
 The capability check runs **before** the provider check, so an unauthorized caller gets the same `403` whether or not the site has AI configured. With no provider, an authorized caller gets `503 openstation_ai_unavailable` and the 💡 button never renders — the widget degrades to exactly its pre-AI behavior.
 
+When the provider itself fails, the route answers `502 openstation_ai_failed` whatever the provider's own status was: a provider `401` passed through as the REST status would read as an expired WordPress session to every client on the page. The message says what happened in plain words and the error `data` carries the detail a caller can act on: `reason` (`quota`, out of credits or rate limited; `auth`, the site's key was rejected; `unavailable`, unreachable or a 5xx; `other`), `provider_status` (the provider's HTTP status, or `null` when the request never reached it) and `detail` (the provider's message, verbatim). The widget renders `reason` and links `auth` to Settings → Connectors; the raw provider text stays in `detail`.
+
 ### `openstation_drafts_ai_instructions` — Experimental
 
 The system instruction sent with a draft-suggestions request. Retune the assistant's voice, add house style rules, or tighten the readiness rubric without forking the route.

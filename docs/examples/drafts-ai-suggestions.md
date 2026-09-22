@@ -135,6 +135,10 @@ Nothing here bypasses the route's gates, and neither should your code:
 - With no provider, an authorized caller gets `503
   openstation_ai_unavailable` and the 💡 button never renders —
   the widget degrades to exactly its pre-AI behavior.
+- When the provider fails, the route answers `502 openstation_ai_failed`
+  with `data.reason` (`quota`, `auth`, `unavailable` or `other`),
+  `data.provider_status` and `data.detail`; read `reason`, not the message,
+  when you branch on it.
 - `/draft-apply` requires `edit_post` and nothing else; accepting a
   suggestion is a plain edit that keeps working if AI is switched off
   mid-session. Tags and categories are **appended**, never clobbered, and
