@@ -315,7 +315,13 @@ describe( 'view', () => {
 		expect( open.querySelector( '.os-mywp__tiles' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__detail-pane' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__split--solo' ) ).toBeNull();
-		expect( open.textContent ).toContain( 'Status' );
+		// A fact's label is an attribute on <os-fact> rendered into its
+		// shadow root, like <os-stat>'s, so it is not in light-DOM text.
+		expect(
+			Array.from( open.querySelectorAll( 'os-fact' ) ).map( ( f ) =>
+				f.getAttribute( 'label' ),
+			),
+		).toContain( 'Status' );
 		expect( Array.from( open.querySelectorAll( 'os-button' ) ).some( ( button ) => button.textContent?.trim() === 'Trash' ) ).toBe( true );
 		// The pane carries WP Explorer's full verb row: the door into
 		// the detail folder sits beside the editor button.
@@ -405,7 +411,11 @@ describe( 'view', () => {
 		expect( statText ).toContain( '5 published' );
 		expect( statText ).toContain( 'Authors' );
 		expect( root.textContent ).toContain( 'Activity (last 12 months)' );
-		expect( root.textContent ).toContain( 'First post' );
+		expect(
+			Array.from( root.querySelectorAll( 'os-fact' ) ).map( ( f ) =>
+				f.getAttribute( 'label' ),
+			),
+		).toContain( 'First post' );
 		expect( root.textContent ).toContain( 'August 2026' );
 		expect( root.textContent ).toContain( 'Field recording: the 4am train' );
 		expect( root.querySelectorAll( '.os-mywp__activity-col' ) ).toHaveLength( 12 );

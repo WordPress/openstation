@@ -235,7 +235,7 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 			<p class="os-posts-desk__byline">${ authorOf( row ).name }</p>
 			${ row.openstation_lock ? html`<os-notice tone="warning">${ sprintf( /* translators: %s: person editing. */ __( '%s is currently editing' ), row.openstation_lock.userName ) }</os-notice>` : '' }
 			<p class="os-posts-desk__preview">${ excerptOf( row ) || __( 'No excerpt yet.' ) }</p>
-			<dl class="os-posts-desk__dates"><div><dt>${ row.status === 'future' ? __( 'Scheduled for' ) : __( 'Date' ) }</dt><dd><os-relative-time datetime=${ row.date_gmt || row.date }></os-relative-time></dd></div><div><dt>${ __( 'Last edited' ) }</dt><dd><os-relative-time datetime=${ row.modified_gmt || row.modified }></os-relative-time></dd></div></dl>
+			<os-facts layout="between" class="os-posts-desk__dates"><os-fact label=${ row.status === 'future' ? __( 'Scheduled for' ) : __( 'Date' ) }><os-relative-time datetime=${ row.date_gmt || row.date }></os-relative-time></os-fact><os-fact label=${ __( 'Last edited' ) }><os-relative-time datetime=${ row.modified_gmt || row.modified }></os-relative-time></os-fact></os-facts>
 			<div class="os-posts-desk__fields">${ ui.fields.map( ( field ) => html`<section data-detail-field=${ field.key }><h3>${ field.label }</h3>${ field.node }</section>` ) }</div>
 		</div>
 		<footer class="os-posts-desk__inspector-actions"><os-button variant="primary" @click=${ () => edit( ctx, row ) }>${ __( 'Open editor' ) }<span aria-hidden="true"> ↗</span></os-button>
