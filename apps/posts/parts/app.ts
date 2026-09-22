@@ -25,6 +25,7 @@ import {
 } from '@openstation/app';
 import type { ListTableLike } from '@openstation/app';
 import { isMobileStamped } from '../../../src/mode/stamp';
+import { describeRestFailure } from '../../../src/core/rest-failure';
 import type { OsTable } from '../../../src/ui/components/os-table/os-table';
 import { buildSubRow } from './cells/basic';
 import { broadcastFreshCategoryTreeToPickers, clearCategoryTreeCache } from './cells/categories';
@@ -155,14 +156,18 @@ function hiddenOf( ui: UiState, settingKey: HiddenColumnsSettingKey ): Set< stri
 	return ui.hidden;
 }
 
+/**
+ * A failed request as the shell's toast. `title` is either a lead
+ * ("Couldn’t save:") the reason follows, or a whole sentence that
+ * stands when the reason is the caller's own generic line.
+ */
 function toast( ctx: Ctx, title: string, err: unknown ): void {
-	let reason = '';
-	if ( err instanceof Error ) {
-		reason = err.message;
-	} else if ( err !== null && err !== undefined ) {
-		reason = String( err );
-	}
-	ctx.host.toast?.( { message: `${ title } ${ reason }`.trim(), duration: 6000 } );
+	const lead = title.replace( /:\s*$/, '' );
+	const failure = describeRestFailure(
+		err,
+		lead === title ? { fallback: title } : { lead, fallback: `${ lead }.` },
+	);
+	ctx.host.toast?.( { message: failure.message, type: failure.type, duration: 6000 } );
 }
 
 function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {

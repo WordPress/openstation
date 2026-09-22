@@ -21,10 +21,6 @@
  * 3. **Otherwise the caller's own generic line, plus the status**, so a
  *    500 with a stack-trace fragment for a body still ends as words.
  *
- * A structured hint from the server becomes an action rather than
- * prose: `data.settings_tab` (the shape the AI Copilot route already
- * sends) turns into an "Open Preferences" button on the toast.
- *
  * Two things this module does NOT do. It does not decide whether to
  * show anything: a background poller keeps its silence by not calling
  * it. And it does not replace the shell-wide reactions to a failure —
@@ -37,6 +33,7 @@
 
 import { __, sprintf } from '../i18n';
 import { isRestError, type RestError } from './api-client';
+import type { ToastOptions } from '../toast';
 
 /** Which class of failure a request ended in. */
 export type RestFailureKind =
@@ -58,12 +55,17 @@ export type RestFailureKind =
 export interface RestFailureDescription {
 	/** The sentence to show. */
 	message: string;
+	/**
+	 * The cause on its own, without the caller's line: the server's
+	 * message, the offline / session / unreadable line, or the status
+	 * sentence. `''` when nothing is known. For callers that compose
+	 * their own summary around it.
+	 */
+	reason: string;
 	/** Which class of failure produced it. */
 	kind: RestFailureKind;
 	/** Toast type: an unreadable reply or a dropped connection is a warning, a refusal an error. */
 	type: 'error' | 'warning';
-	/** A way to the fix, when the server named one as data. */
-	action?: { label: string; onClick: () => void };
 }
 
 export interface DescribeRestFailureOptions {
@@ -74,20 +76,21 @@ export interface DescribeRestFailureOptions {
 	 * refusal is built on.
 	 */
 	fallback: string;
+	/**
+	 * A verb to put in front of the reason, for a surface with several
+	 * actions where the reason alone would not say which one failed:
+	 * `lead: 'Could not revoke'` reads "Could not revoke: Sorry, you are
+	 * not allowed to do that." With no reason known, `fallback` shows
+	 * instead, so the colon never dangles.
+	 */
+	lead?: string;
 }
 
 /** The matching `RestError` code WordPress sends for a dead nonce. */
 const INVALID_NONCE_CODE = 'rest_cookie_invalid_nonce';
 
-/**
- * The console-line prefix the feature clients have always written:
- * `[openstation] files REST 403: openstation_files_forbidden …`. A
- * `RestError` carries the human part as `serverMessage`; a plain
- * `Error` shaped like this (older code, test doubles) gets the prefix
- * and the code slug stripped instead.
- */
-const CONSOLE_PREFIX = /^\[openstation\] [\w-]+ REST \d+:\s*/;
-const ERROR_CODE_SLUG = /^[a-z0-9]+(?:_[a-z0-9]+)+\s+/;
+const offlineMessage = (): string =>
+	__( 'Could not reach the site. Check your connection and try again.', 'desktop-mode' );
 
 /**
  * `fetch()` rejects with a `TypeError` when the request never got an
@@ -129,43 +132,21 @@ export function restFailureKind( err: unknown ): RestFailureKind {
 
 /**
  * The human part of a failure, with no sentence of our own around it:
- * the server's `WP_Error` message when there is one, else `''`.
+ * the server's `WP_Error` message when there is one, the offline line
+ * when the request never arrived, else `''`.
  *
- * Callers that prefix their own verb ("Could not invite: %s") use
- * this; callers that want a whole sentence use
- * {@link describeRestFailure}.
+ * For a caller that composes a summary of its own (a count of items
+ * moved, then the first reason). A caller that wants a whole sentence
+ * uses {@link describeRestFailure}.
  */
 export function restFailureText( err: unknown ): string {
 	if ( isRestError( err ) ) {
 		return err.serverMessage;
 	}
-	if ( err instanceof Error && CONSOLE_PREFIX.test( err.message ) ) {
-		return err.message
-			.replace( CONSOLE_PREFIX, '' )
-			.replace( ERROR_CODE_SLUG, '' )
-			.trim();
-	}
 	if ( isOffline( err ) ) {
-		return __( 'Could not reach the site. Check your connection and try again.', 'desktop-mode' );
+		return offlineMessage();
 	}
 	return err instanceof Error ? err.message : '';
-}
-
-/**
- * The Preferences opener the shell publishes, if this bundle runs
- * inside the shell. A settings hint with no opener is not an action.
- */
-function settingsOpener(): ( ( opts: { tabId: string } ) => void ) | null {
-	const os = ( window as { wp?: { os?: { openOsSettings?: unknown } } } ).wp?.os;
-	return typeof os?.openOsSettings === 'function'
-		? ( os.openOsSettings as ( opts: { tabId: string } ) => void )
-		: null;
-}
-
-/** `data.settings_tab` from the error body, when it is a non-empty string. */
-function settingsTabOf( err: RestError ): string {
-	const data = err.data as { settings_tab?: unknown } | undefined;
-	return typeof data?.settings_tab === 'string' ? data.settings_tab : '';
 }
 
 /**
@@ -181,86 +162,86 @@ export function describeRestFailure(
 	err: unknown,
 	options: DescribeRestFailureOptions,
 ): RestFailureDescription {
-	const { fallback } = options;
+	const { fallback, lead } = options;
 	const kind = restFailureKind( err );
+	const type: RestFailureDescription[ 'type' ] =
+		kind === 'offline' || kind === 'unreadable' ? 'warning' : 'error';
 
+	// The cause on its own, and whether it stands as the whole message
+	// or wants the caller's line in front of it.
+	let reason = '';
+	let standsAlone = true;
 	switch ( kind ) {
 		case 'offline':
-			return {
-				kind,
-				type: 'warning',
-				message: __(
-					'Could not reach the site. Check your connection and try again.',
-					'desktop-mode',
-				),
-			};
+			reason = offlineMessage();
+			break;
 		case 'session':
-			return {
-				kind,
-				type: 'error',
-				message: __(
-					'Your session has expired. Reload the page and try again.',
-					'desktop-mode',
-				),
-			};
+			reason = __( 'Your session has expired. Reload the page and try again.', 'desktop-mode' );
+			break;
 		case 'unreadable':
-			return {
-				kind,
-				type: 'warning',
-				message: __(
-					'The site sent an unreadable reply. Reload the page to check whether the change went through.',
-					'desktop-mode',
-				),
-			};
+			reason = __(
+				'The site sent an unreadable reply. Reload the page to check whether the change went through.',
+				'desktop-mode',
+			);
+			break;
 		case 'gone':
 		case 'refused':
-		case 'server':
+		case 'server': {
+			const error = err as RestError;
+			if ( error.serverMessage ) {
+				reason = error.serverMessage;
+			} else if ( kind === 'gone' ) {
+				reason = __( 'It no longer exists. Reload the page to catch up.', 'desktop-mode' );
+				standsAlone = false;
+			} else if ( kind === 'server' ) {
+				reason = sprintf(
+					/* translators: %d: HTTP status code. */
+					__( 'The server answered with error %d.', 'desktop-mode' ),
+					error.status,
+				);
+				standsAlone = false;
+			} else {
+				reason = sprintf(
+					/* translators: %d: HTTP status code. */
+					__( 'The server refused the request (HTTP %d).', 'desktop-mode' ),
+					error.status,
+				);
+				standsAlone = false;
+			}
 			break;
-		case 'unknown':
-		default: {
-			const text = restFailureText( err );
-			return { kind, type: 'error', message: text || fallback };
 		}
+		case 'unknown':
+		default:
+			reason = restFailureText( err );
+			break;
 	}
 
-	// A RestError with a status. The server's own words first.
-	const error = err as RestError;
-	const description: RestFailureDescription = {
-		kind,
-		type: 'error',
-		message: '',
-	};
-	if ( error.serverMessage ) {
-		description.message = error.serverMessage;
-	} else if ( kind === 'gone' ) {
-		description.message = sprintf(
-			/* translators: %s: the surface's own line, e.g. "Could not restore the note." */
-			__( '%s It no longer exists. Reload the page to catch up.', 'desktop-mode' ),
-			fallback,
-		);
-	} else if ( kind === 'server' ) {
-		description.message = sprintf(
-			/* translators: 1: the surface's own line, e.g. "Could not restore the note." 2: HTTP status code. */
-			__( '%1$s The server answered with error %2$d.', 'desktop-mode' ),
-			fallback,
-			error.status,
-		);
+	let message: string;
+	if ( lead ) {
+		message = reason ? `${ lead }: ${ reason }` : fallback;
+	} else if ( ! reason ) {
+		message = fallback;
+	} else if ( standsAlone ) {
+		message = reason;
 	} else {
-		description.message = sprintf(
-			/* translators: 1: the surface's own line, e.g. "Could not restore the note." 2: HTTP status code. */
-			__( '%1$s The server refused the request (HTTP %2$d).', 'desktop-mode' ),
-			fallback,
-			error.status,
-		);
+		message = `${ fallback } ${ reason }`;
 	}
+	return { message, reason, kind, type };
+}
 
-	const tabId = settingsTabOf( error );
-	const open = tabId ? settingsOpener() : null;
-	if ( tabId && open ) {
-		description.action = {
-			label: __( 'Open Preferences', 'desktop-mode' ),
-			onClick: () => open( { tabId } ),
-		};
+/**
+ * Show a failed request as a toast through whatever `showToast` the
+ * caller has — the app runtime's `ctx.host.toast`, the shell's own —
+ * and do nothing when it has none.
+ */
+export function toastRestFailure(
+	toast: ( ( toastOptions: ToastOptions ) => unknown ) | undefined,
+	err: unknown,
+	options: DescribeRestFailureOptions,
+): void {
+	if ( ! toast ) {
+		return;
 	}
-	return description;
+	const failure = describeRestFailure( err, options );
+	toast( { message: failure.message, type: failure.type } );
 }

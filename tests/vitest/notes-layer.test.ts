@@ -358,9 +358,12 @@ describe( 'NotesLayer', () => {
 
 		// Two refused saves, one toast: the server's words, coloured as a failure.
 		expect( onError ).toHaveBeenCalledTimes( 1 );
-		expect( onError ).toHaveBeenCalledWith( 'Only the note owner can change it.', {
-			type: 'error',
-		} );
+		expect( onError ).toHaveBeenCalledWith(
+			expect.objectContaining( {
+				message: 'Only the note owner can change it.',
+				type: 'error',
+			} ),
+		);
 
 		// A save that lands re-arms the toast for the next failure.
 		status = 200;

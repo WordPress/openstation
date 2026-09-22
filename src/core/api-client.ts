@@ -51,11 +51,12 @@ export interface RequestOptions extends TrackedFetchOpts {
  *
  * Every feature client throws this (or a subclass) so one helper,
  * `describeRestFailure()` in `./rest-failure`, can say WHY in the UI.
- * `message` is whatever the thrower wants the console to show; the
- * human part the server sent lives in `serverMessage`, so a caller
- * never has to parse the console line to recover it. A 2xx whose body
- * was not the JSON the route promised is thrown with that 2xx status
- * and an empty `serverMessage`: the status alone says "unreadable".
+ * `message` is whatever the thrower wants the console to show, or `''`
+ * for the server's words else the status; the human part the server
+ * sent lives in `serverMessage`, so a caller never has to parse the
+ * console line to recover it. A 2xx whose body was not the JSON the
+ * route promised is thrown through `unreadableReplyError()`: that 2xx
+ * status with an empty `serverMessage` is what says "unreadable".
  */
 export class RestError extends Error {
 	public readonly status: number;
@@ -68,7 +69,8 @@ export class RestError extends Error {
 		message: string,
 		opts: { status: number; code?: string; data?: unknown; serverMessage?: string },
 	) {
-		super( message );
+		// An empty message means "the server's words, else the status".
+		super( message || opts.serverMessage || String( opts.status ) );
 		this.name = 'RestError';
 		this.status = opts.status;
 		this.code = opts.code;
@@ -94,19 +96,22 @@ export async function restErrorFromResponse( response: Response ): Promise< Rest
 	} catch {
 		body = null;
 	}
-	const serverMessage = typeof body?.message === 'string' ? body.message : '';
-	return new RestError(
-		serverMessage ||
-			( response.statusText
-				? `${ response.status } ${ response.statusText }`
-				: String( response.status ) ),
-		{
-			status: response.status,
-			code: typeof body?.code === 'string' ? body.code : undefined,
-			data: body?.data,
-			serverMessage,
-		},
-	);
+	return new RestError( '', {
+		status: response.status,
+		code: typeof body?.code === 'string' ? body.code : undefined,
+		data: body?.data,
+		serverMessage: typeof body?.message === 'string' ? body.message : '',
+	} );
+}
+
+/**
+ * A 2xx whose body was not the JSON the route promised. The 2xx status
+ * with an empty `serverMessage` is what tells the UI helper
+ * "unreadable"; `message` is the client's own console line, with as
+ * much diagnostic as it has.
+ */
+export function unreadableReplyError( status: number, message: string ): RestError {
+	return new RestError( message, { status, code: 'openstation_bad_response' } );
 }
 
 export interface RestClient {
@@ -191,16 +196,12 @@ export function createRestClient( opts: RestClientOptions ): RestClient {
 				typeof parsed === 'object' && parsed !== null
 					? ( parsed as { message?: unknown; code?: unknown; data?: unknown } )
 					: undefined;
-			const serverMessage = typeof wpErr?.message === 'string' ? wpErr.message : '';
-			throw new RestError(
-				serverMessage || `${ response.status } ${ response.statusText }`,
-				{
-					status: response.status,
-					code: typeof wpErr?.code === 'string' ? wpErr.code : undefined,
-					data: wpErr?.data,
-					serverMessage,
-				},
-			);
+			throw new RestError( '', {
+				status: response.status,
+				code: typeof wpErr?.code === 'string' ? wpErr.code : undefined,
+				data: wpErr?.data,
+				serverMessage: typeof wpErr?.message === 'string' ? wpErr.message : '',
+			} );
 		}
 
 		return parsed as T;

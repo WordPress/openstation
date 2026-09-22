@@ -18,7 +18,8 @@
  * Extracted from `layer.ts` (drag-and-drop rework).
  */
 
-import { restFailureText } from '../core/rest-failure';
+import { describeRestFailure } from '../core/rest-failure';
+import { shellToast } from '../core/shell-toast';
 import { beginTrashChange, placementTrashItem } from './trash-optimistic';
 import { announceContentChange } from '../broadcast';
 import { rest, store as filesStoreApi } from './layer-deps';
@@ -55,31 +56,16 @@ function broadcastFilesChange(
  * tile that didn't move with only a `console.error` for explanation.
  */
 function showTrashErrorToast( err: unknown ): void {
-	const api = (
-		window as {
-			wp?: { os?: { showToast?: ( opts: unknown ) => void } };
-		}
-	).wp?.os;
-	if ( ! api?.showToast ) {
-		return;
-	}
-	api.showToast( {
-		message:
-			restFailureText( err ) || 'Could not move this item to the recycle bin.',
+	shellToast( {
+		...describeRestFailure( err, {
+			fallback: 'Could not move this item to the recycle bin.',
+		} ),
 		duration: 5000,
 	} );
 }
 
 function showTrashedToast( message: string, onUndo: () => void ): void {
-	const api = (
-		window as {
-			wp?: { os?: { showToast?: ( opts: unknown ) => void } };
-		}
-	).wp?.os;
-	if ( ! api?.showToast ) {
-		return;
-	}
-	api.showToast( {
+	shellToast( {
 		message,
 		duration: 6000,
 		action: {

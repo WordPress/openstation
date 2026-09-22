@@ -18,6 +18,7 @@
 
 import { __, sprintf } from './i18n';
 import { describeRestFailure } from './core/rest-failure';
+import { shellToast } from './core/shell-toast';
 import { renderMarkdown } from './markdown';
 import './ui/components/os-avatar/os-avatar';
 import './ui/components/os-button/os-button';
@@ -96,16 +97,6 @@ const globals = window as unknown as RunWindowGlobals;
 
 /** Per-render sequence so multi-instance windows get unique target ids. */
 let chatDropSeq = 0;
-
-/**
- * The shell's toast, when this bundle runs inside the shell. This
- * window ships as its own bundle, so it reaches `showToast` through
- * the public API rather than importing the shell's module.
- */
-function shellToast( opts: { message: string; type?: string } ): void {
-	const os = ( window as { wp?: { os?: { showToast?: ( o: unknown ) => void } } } ).wp?.os;
-	os?.showToast?.( opts );
-}
 
 function getRunConfig(): RunWindowConfig | null {
 	const cfg = globals.openStationWindowConfig?.[ WINDOW_ID ] as

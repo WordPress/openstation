@@ -5010,8 +5010,8 @@ function init(): void {
 		hasNotes: Boolean( config.hasNotes ),
 		host: desktopArea,
 		config,
-		onError: ( message, opts ) => {
-			showToast( opts?.type ? { message, type: opts.type } : { message } );
+		onError: ( toast ) => {
+			showToast( toast );
 		},
 	} );
 

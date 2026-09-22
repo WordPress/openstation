@@ -17,7 +17,8 @@
  */
 
 import { Alarm } from './alarm';
-import { shakeWindow, toast } from './desktop';
+import { shakeWindow } from './desktop';
+import { shellToast } from '../../core/shell-toast';
 import { __ } from '../../i18n';
 
 export type Phase = 'idle' | 'running' | 'paused' | 'finished';
@@ -104,12 +105,12 @@ class FocusTimer {
 		if ( wasActive ) {
 			// reset() persists (with the now-cleared link) and notifies.
 			this.reset();
-			toast(
-				__(
+			shellToast( {
+				message: __(
 					'Focus timer cancelled — the linked window was closed.',
 					'desktop-mode',
 				),
-			);
+			} );
 		} else {
 			this.persist();
 			this.notify();

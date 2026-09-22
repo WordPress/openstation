@@ -359,7 +359,7 @@ describe( 'mounted and updated', () => {
 		env.leaveFullscreen();
 		expect( toggleFullscreen ).toHaveBeenCalled();
 		env.toast( 'Couldn’t load tags:', new Error( 'boom' ) );
-		expect( ctx.host.toast ).toHaveBeenCalledWith( { message: 'Couldn’t load tags: boom', duration: 6000 } );
+		expect( ctx.host.toast ).toHaveBeenCalledWith( { message: 'Couldn’t load tags: boom', type: 'error', duration: 6000 } );
 		expect( env.extra.mode ).toBe( 'posts' );
 	} );
 } );

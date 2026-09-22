@@ -28,6 +28,8 @@ defined( 'ABSPATH' ) || exit;
  * @return array<int, array{id: string, label: string, icon: string, tone: string}>
  */
 function openstation_get_toast_types() {
+	// The shell paints a toast from `tone` alone; `label` and `icon` ride
+	// along for plugins that list or render the types themselves.
 	$defaults = array(
 		array(
 			'id'    => 'success',

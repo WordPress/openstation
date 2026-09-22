@@ -19,7 +19,7 @@
  */
 
 import { showToast } from '../toast';
-import { restFailureText } from '../core/rest-failure';
+import { describeRestFailure } from '../core/rest-failure';
 import { dragPlacements, type DesktopFileDragData } from './drag-payloads';
 import { openUrlWindow } from './open';
 import { attachUploadsToPost, listPlacements, type RestPlacementShape } from './rest';
@@ -101,7 +101,9 @@ async function attachToPost(
 			}
 		}
 	} catch ( err ) {
-		showToast( { message: `Could not add to the post: ${ restFailureText( err ) }` } );
+		showToast(
+			describeRestFailure( err, { lead: `Could not add to the post`, fallback: `Could not add to the post.` } ),
+		);
 	}
 }
 

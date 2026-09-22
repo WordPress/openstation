@@ -64,7 +64,3 @@ export function shakeWindow( id: string ): boolean {
 	return true;
 }
 
-/** Show a transient toast via the shell (no-op if unavailable). */
-export function toast( message: string ): void {
-	desktopApi()?.showToast?.( { message } );
-}

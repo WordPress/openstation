@@ -25,7 +25,7 @@
 
 import { __, _n, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
 import { restErrorFromResponse } from '../../src/core/api-client';
-import { describeRestFailure } from '../../src/core/rest-failure';
+import { toastRestFailure } from '../../src/core/rest-failure';
 import { beginTrashChange, projectTrash, trashKey, watchTrashChanges } from '../../src/desktop-files/trash-optimistic';
 import { isMobileStamped } from '../../src/mode/stamp';
 import { stackOnPhone } from '../../src/ui/components/os-table/stack-on-phone';
@@ -150,12 +150,6 @@ function clearSelection( ctx: Ctx ): void {
 	ctx.ui( freshUi ).selected = [];
 }
 
-/** What went wrong, in the shell's toast, coloured as a failure. */
-function toastFailure( ctx: Ctx, err: unknown, fallback: string ): void {
-	const failure = describeRestFailure( err, { fallback } );
-	ctx.host.toast?.( { message: failure.message, type: failure.type } );
-}
-
 /** Remove rows immediately; the dispatch response restores any failed refs. */
 async function removeRefs( ctx: Ctx, refs: RecycleBinItemRef[], action: 'restore' | 'purge' ): Promise< void > {
 	const operations = refs.flatMap( ( ref ) => {
@@ -204,13 +198,12 @@ async function removeRefs( ctx: Ctx, refs: RecycleBinItemRef[], action: 'restore
 		for ( const { operation } of operations ) {
 			void operation.finish( false );
 		}
-		toastFailure(
-			ctx,
-			err,
-			action === 'restore'
-				? __( 'Could not restore the selected items.' )
-				: __( 'Could not delete the selected items.' ),
-		);
+		toastRestFailure( ctx.host.toast, err, {
+			fallback:
+				action === 'restore'
+					? __( 'Could not restore the selected items.' )
+					: __( 'Could not delete the selected items.' ),
+		} );
 	}
 }
 
@@ -302,15 +295,13 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 	}
 	emitChanged( 'restore', restored );
 	if ( failedRestores > 0 ) {
-		toastFailure(
-			ctx,
-			firstFailure,
-			sprintf(
+		toastRestFailure( ctx.host.toast, firstFailure, {
+			fallback: sprintf(
 				/* translators: %d: number of items. */
 				_n( '%d item could not be restored.', '%d items could not be restored.', failedRestores ),
 				failedRestores,
 			),
-		);
+		} );
 	}
 	try {
 		await ctx.dispatch( 'refresh' );
@@ -375,7 +366,7 @@ async function emptyAll( ctx: Ctx ): Promise< void > {
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
 		console.error( '[trash] empty failed', err );
-		toastFailure( ctx, err, __( 'Could not empty the Recycle Bin.' ) );
+		toastRestFailure( ctx.host.toast, err, { fallback: __( 'Could not empty the Recycle Bin.' ) } );
 	} finally {
 		ui.empty = { mode: 'idle', purged: 0, total: 0 };
 		clearSelection( ctx );

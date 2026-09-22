@@ -28,6 +28,7 @@
  * @public
  */
 
+import { shellToast } from '../../../src/core/shell-toast';
 import { joinRestUrl } from '../../../src/rest-url';
 import { trackedFetch } from '../../../src/tracked-fetch';
 import { fetchInsights } from './client';
@@ -48,10 +49,6 @@ function shellFetch( path: string, init: RequestInit = {} ): Promise< Response >
 		headers.set( 'X-WP-Nonce', cfg.restNonce );
 	}
 	return trackedFetch( joinRestUrl( String( cfg.restRoot ?? '' ), path ), { credentials: 'same-origin', ...init, headers }, { source: 'user-profile' } );
-}
-
-function shellToast( message: string ): void {
-	window.wp?.os?.showToast?.( { message } );
 }
 
 export class OsUserProfile extends HTMLElement {
@@ -121,7 +118,9 @@ export class OsUserProfile extends HTMLElement {
 		return {
 			config: this._config,
 			fetch: this._fetch ?? shellFetch,
-			toast: this._toast ?? shellToast,
+			toast: this._toast ?? ( ( message: string ) => {
+				shellToast( { message } );
+			} ),
 		};
 	}
 

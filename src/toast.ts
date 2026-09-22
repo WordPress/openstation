@@ -27,6 +27,7 @@
  */
 
 import { activity } from './activity';
+import type { DesktopConfig, ToastTypeDef } from './types';
 import { openWithShellOverlays } from './shell-overlays/loader';
 
 /** Default how-long-it-stays duration in ms. */
@@ -164,12 +165,7 @@ export function showToast( options: ToastOptions ): () => void {
 	};
 }
 
-type ToastTone = 'positive' | 'warning' | 'critical' | 'neutral';
-
-interface ToastTypeEntry {
-	id?: unknown;
-	tone?: unknown;
-}
+type ToastTone = ToastTypeDef[ 'tone' ];
 
 /**
  * The tones of the four types PHP registers by default
@@ -183,28 +179,22 @@ const BUILT_IN_TONES: Record< string, ToastTone > = {
 	'shell-error': 'critical',
 };
 
-const TONES: ReadonlySet< string > = new Set( [ 'positive', 'warning', 'critical', 'neutral' ] );
-
 /**
  * The tone a toast `type` resolves to: the registry the server shipped
- * first, the built-in four next, nothing for an unknown id — a plugin
- * that names a type it never registered gets the plain toast, not a
- * broken one.
+ * first (PHP already dropped entries with a tone it does not know),
+ * the built-in four next, nothing for an unknown id — a plugin that
+ * names a type it never registered gets the plain toast, not a broken
+ * one.
  */
 function toastTone( type: string | undefined ): ToastTone | null {
 	if ( ! type ) {
 		return null;
 	}
 	const registry = (
-		window as unknown as { openStationConfig?: { toastTypes?: unknown } }
+		window as unknown as { openStationConfig?: DesktopConfig }
 	).openStationConfig?.toastTypes;
-	if ( Array.isArray( registry ) ) {
-		const entry = ( registry as ToastTypeEntry[] ).find( ( t ) => t?.id === type );
-		if ( entry && typeof entry.tone === 'string' && TONES.has( entry.tone ) ) {
-			return entry.tone as ToastTone;
-		}
-	}
-	return BUILT_IN_TONES[ type ] ?? null;
+	const entry = registry?.find( ( t ) => t.id === type );
+	return entry?.tone ?? BUILT_IN_TONES[ type ] ?? null;
 }
 
 /**

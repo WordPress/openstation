@@ -20,18 +20,12 @@
 
 import { __ } from '../i18n';
 import { broadcastNotesChange } from './broadcast';
-import { isRestError } from '../core/api-client';
-import { describeRestFailure } from '../core/rest-failure';
+import { describeRestFailure, restFailureKind } from '../core/rest-failure';
+import { shellToast } from '../core/shell-toast';
 import { convertNote, restoreNote, type ConvertNoteResult } from './rest';
 import type { Note } from './types';
 
 interface DesktopApi {
-	showToast?: ( opts: {
-		message: string;
-		type?: string;
-		duration?: number;
-		action?: { label: string; onClick: () => void };
-	} ) => void;
 	deriveWindowId?: ( url: string, adminUrl?: string ) => string;
 	/** The boot config (`wp.os.config`), carrying `adminUrl`. */
 	config?: { adminUrl?: string };
@@ -159,7 +153,7 @@ function openDraftEditor( result: ConvertNoteResult ): string | null {
  * the generic one.
  */
 export function convertFailureMessage( err: unknown ): string {
-	if ( isRestError( err ) && err.status >= 200 && err.status < 300 ) {
+	if ( restFailureKind( err ) === 'unreadable' ) {
 		return __(
 			'The site sent an unreadable reply while converting the note. Check Posts → Drafts before trying again.',
 			'desktop-mode',
@@ -195,7 +189,7 @@ export async function convertNoteToPost(
 		// eslint-disable-next-line no-console
 		console.error( '[openstation] notes: convert failed:', err );
 		callbacks.onRestore( note );
-		getDesktopApi()?.showToast?.( {
+		shellToast( {
 			message: convertFailureMessage( err ),
 			type: 'error',
 			duration: 5000,
@@ -211,7 +205,7 @@ export async function convertNoteToPost(
 	const converted = editorWindowId
 		? __( 'Note converted to a draft post', 'desktop-mode' )
 		: __( 'Note converted to a draft post. Find it under Posts → Drafts.', 'desktop-mode' );
-	getDesktopApi()?.showToast?.( {
+	shellToast( {
 		message: converted,
 		duration: 6000,
 		action: {
@@ -236,7 +230,7 @@ export async function convertNoteToPost(
 							'[openstation] notes: convert undo failed:',
 							err,
 						);
-						getDesktopApi()?.showToast?.( {
+						shellToast( {
 							...describeRestFailure( err, {
 								fallback: __( 'Could not restore the note.', 'desktop-mode' ),
 							} ),

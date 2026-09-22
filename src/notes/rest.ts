@@ -9,7 +9,7 @@
 
 import { trackedFetch } from '../tracked-fetch';
 import { joinRestUrl } from '../rest-url';
-import { RestError } from '../core/api-client';
+import { RestError, unreadableReplyError } from '../core/api-client';
 import type { Note } from './types';
 
 export interface NotesRestDeps {
@@ -126,11 +126,9 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 		);
 	}
 	if ( null === body ) {
-		// The console line keeps the diagnostic; `serverMessage` stays
-		// empty because nothing the server sent is fit to show.
-		throw new RestError(
-			`[openstation] notes REST ${ res.status }: openstation_notes_bad_response empty or unparseable body.`,
-			{ status: res.status, code: 'openstation_notes_bad_response' },
+		throw unreadableReplyError(
+			res.status,
+			`[openstation] notes REST ${ res.status }: openstation_bad_response empty or unparseable body.`,
 		);
 	}
 	return body as T;

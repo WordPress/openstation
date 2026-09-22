@@ -15,7 +15,7 @@
 
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
-import { RestError } from '../core/api-client';
+import { restErrorFromResponse } from '../core/api-client';
 
 interface ShellRestConfig {
 	restUrl?: string;
@@ -57,22 +57,6 @@ export async function trashByRestPath( restPath: string, id: number ): Promise< 
 		{ source: 'my-wordpress/trash' },
 	);
 	if ( ! response.ok ) {
-		let serverMessage = '';
-		let code: string | undefined;
-		try {
-			const body = ( await response.json() ) as { code?: string; message?: string };
-			if ( body?.message ) {
-				serverMessage = body.message;
-			}
-			if ( typeof body?.code === 'string' ) {
-				code = body.code;
-			}
-		} catch {
-			// A non-JSON error body — the status code will do.
-		}
-		throw new RestError(
-			serverMessage || `Failed to move to trash (${ response.status })`,
-			{ status: response.status, code, serverMessage },
-		);
+		throw await restErrorFromResponse( response );
 	}
 }

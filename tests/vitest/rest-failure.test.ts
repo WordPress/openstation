@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { RestError } from '../../src/core/api-client';
 import {
 	describeRestFailure,
 	restFailureKind,
 	restFailureText,
+	toastRestFailure,
 } from '../../src/core/rest-failure';
 
 const FALLBACK = 'Could not restore the note.';
@@ -18,11 +19,6 @@ function restError(
 	} );
 }
 
-afterEach( () => {
-	delete ( window as unknown as { wp?: unknown } ).wp;
-	vi.restoreAllMocks();
-} );
-
 describe( 'describeRestFailure', () => {
 	test( 'a refusal shows the server’s own message', () => {
 		const out = describeRestFailure(
@@ -35,7 +31,7 @@ describe( 'describeRestFailure', () => {
 		expect( out.kind ).toBe( 'refused' );
 		expect( out.type ).toBe( 'error' );
 		expect( out.message ).toBe( 'Only the note owner can change it.' );
-		expect( out.action ).toBeUndefined();
+		expect( out.reason ).toBe( out.message );
 	} );
 
 	test( 'an expired nonce is a session line, whatever the status', () => {
@@ -94,45 +90,33 @@ describe( 'describeRestFailure', () => {
 		);
 	} );
 
-	test( 'a settings_tab hint becomes an Open Preferences action when the shell can open one', () => {
-		const openOsSettings = vi.fn();
-		( window as unknown as { wp?: unknown } ).wp = { os: { openOsSettings } };
-		const out = describeRestFailure(
-			restError( 403, {
-				code: 'openstation_ai_disabled',
-				serverMessage: 'The AI assistant is turned off.',
-				data: { status: 403, settings_tab: 'features' },
-			} ),
-			{ fallback: FALLBACK },
+	test( 'a lead puts the verb in front of the reason, and never dangles', () => {
+		const refused = describeRestFailure(
+			restError( 403, { serverMessage: 'You are not allowed to edit this post.' } ),
+			{ lead: 'Could not add to the post', fallback: 'Could not add to the post.' },
 		);
-		expect( out.action?.label ).toBe( 'Open Preferences' );
-		out.action?.onClick();
-		expect( openOsSettings ).toHaveBeenCalledWith( { tabId: 'features' } );
-
-		// No opener published (a bundle outside the shell): a hint is not an action.
-		delete ( window as unknown as { wp?: unknown } ).wp;
+		expect( refused.message ).toBe(
+			'Could not add to the post: You are not allowed to edit this post.',
+		);
+		// A 2xx with no body has no reason of its own beyond the
+		// unreadable line; a plain error with no message has none at all.
 		expect(
-			describeRestFailure(
-				restError( 403, { data: { settings_tab: 'features' } } ),
-				{ fallback: FALLBACK },
-			).action,
-		).toBeUndefined();
+			describeRestFailure( new Error( '' ), {
+				lead: 'Could not add to the post',
+				fallback: 'Could not add to the post.',
+			} ).message,
+		).toBe( 'Could not add to the post.' );
 	} );
 } );
 
 describe( 'restFailureText', () => {
-	test( 'reads the server message off a RestError and the prefix off a plain Error', () => {
+	test( 'is the server message, the offline line, or the error’s own message', () => {
 		expect(
 			restFailureText( restError( 403, { serverMessage: 'You cannot.' } ) ),
 		).toBe( 'You cannot.' );
-		// The console-line shape older callers and test doubles throw.
-		expect(
-			restFailureText(
-				new Error(
-					'[openstation] files REST 403: openstation_files_forbidden You are not allowed to edit this post.',
-				),
-			),
-		).toBe( 'You are not allowed to edit this post.' );
+		expect( restFailureText( new TypeError( 'Failed to fetch' ) ) ).toMatch(
+			/Check your connection/,
+		);
 		// An unreadable body has no human part: the caller’s fallback takes over.
 		expect( restFailureText( restError( 200 ) ) ).toBe( '' );
 	} );
@@ -145,5 +129,17 @@ describe( 'restFailureKind', () => {
 		expect( restFailureKind( restError( 409 ) ) ).toBe( 'refused' );
 		expect( restFailureKind( restError( 500 ) ) ).toBe( 'server' );
 		expect( restFailureKind( 'nope' ) ).toBe( 'unknown' );
+	} );
+} );
+
+describe( 'toastRestFailure', () => {
+	test( 'hands the message and type to the toast it was given, or nothing to none', () => {
+		const toast = vi.fn();
+		toastRestFailure( toast, restError( 500 ), { fallback: FALLBACK } );
+		expect( toast ).toHaveBeenCalledWith( {
+			message: 'Could not restore the note. The server answered with error 500.',
+			type: 'error',
+		} );
+		expect( () => toastRestFailure( undefined, restError( 500 ), { fallback: FALLBACK } ) ).not.toThrow();
 	} );
 } );

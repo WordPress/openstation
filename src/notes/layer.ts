@@ -13,6 +13,7 @@
  */
 
 import { describeRestFailure } from '../core/rest-failure';
+import type { ToastOptions } from '../toast';
 import { __, sprintf } from '../i18n';
 import '../ui/components/os-avatar/os-avatar';
 import '../ui/components/os-save-status/os-save-status';
@@ -103,14 +104,14 @@ export interface NotesLayerOptions {
 	 * affordance on owned notes (inline button + Posts dock drop target).
 	 */
 	canCreatePosts?: boolean;
-	onError?: ( message: string, opts?: { type?: string } ) => void;
+	onError?: ( toast: ToastOptions ) => void;
 }
 
 export class NotesLayer {
 	readonly host: HTMLElement;
 	readonly pluginUrl: string;
 	readonly canCreatePosts: boolean;
-	private onError?: ( message: string, opts?: { type?: string } ) => void;
+	private onError?: ( toast: ToastOptions ) => void;
 	private root: HTMLElement | null = null;
 	private liveRegion: HTMLElement | null = null;
 	private controllers = new Map< number, NoteController >();
@@ -309,7 +310,7 @@ export class NotesLayer {
 				const failure = describeRestFailure( err, {
 					fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),
 				} );
-				this.notifyError( failure.message, { type: failure.type } );
+				this.notifyError( failure );
 				// eslint-disable-next-line no-console
 				console.error( '[openstation] notes: create failed:', err );
 			} );
@@ -324,8 +325,8 @@ export class NotesLayer {
 		}
 	}
 
-	notifyError( message: string, opts?: { type?: string } ): void {
-		this.onError?.( message, opts );
+	notifyError( toast: ToastOptions ): void {
+		this.onError?.( toast );
 	}
 
 	trashNote( note: Note ): void {
@@ -985,9 +986,9 @@ export class NoteController {
 					this.pendingText = null;
 					this.replace( err.current );
 					this.setPhase( 'idle' );
-					this.layer.notifyError(
-						__( 'This note was changed in another session — showing the latest version.', 'desktop-mode' ),
-					);
+					this.layer.notifyError( {
+						message: __( 'This note was changed in another session — showing the latest version.', 'desktop-mode' ),
+					} );
 					return;
 				}
 				this.setPhase( 'failed' );
@@ -998,7 +999,7 @@ export class NoteController {
 					const failure = describeRestFailure( err, {
 						fallback: __( 'Could not save the note.', 'desktop-mode' ),
 					} );
-					this.layer.notifyError( failure.message, { type: failure.type } );
+					this.layer.notifyError( failure );
 				}
 			}
 		} );

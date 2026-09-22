@@ -17,7 +17,7 @@
 
 import { addFilter } from '../hooks';
 import { showToast } from '../toast';
-import { restFailureText } from '../core/rest-failure';
+import { describeRestFailure } from '../core/rest-failure';
 import { navigateToDownload } from './download-nav';
 import { openFileShareModal } from './overlays-loader';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
@@ -164,9 +164,9 @@ export function installUploadMenuItems(): void {
 							}
 							showToast( { message: 'You left the shared file.' } );
 						} catch ( err ) {
-							showToast( {
-								message: `Could not leave: ${ restFailureText( err ) }`,
-							} );
+							showToast(
+								describeRestFailure( err, { lead: `Could not leave`, fallback: `Could not leave.` } ),
+							);
 						}
 					},
 				} );

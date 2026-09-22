@@ -5,6 +5,7 @@
  * `desktopStorage` capability flags; and the click paths that call
  * the REST client and open the resulting edit screen.
  */
+import { RestError } from '../../src/core/api-client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -221,7 +222,7 @@ describe( 'media menu items', () => {
 	test( 'a failed Add surfaces the server message', async () => {
 		setConfig( { currentUserId: 5, desktopStorage: allFlags } );
 		restMock.addUploadToMediaLibrary.mockRejectedValue(
-			new Error( '[openstation] files REST 415: openstation_stored_file_not_media This file type cannot be added to the Media Library.' ),
+			new RestError( '', { status: 415, code: 'openstation_stored_file_not_media', serverMessage: 'This file type cannot be added to the Media Library.' } ),
 		);
 		const { applyMenu } = await loadAndInstall();
 		const add = applyMenu( imagePlacement() ).find(
@@ -282,7 +283,7 @@ describe( 'media menu items', () => {
 	test( 'a failed Start toasts and opens nothing', async () => {
 		setConfig( { currentUserId: 5, desktopStorage: allFlags } );
 		restMock.startPostFromUpload.mockRejectedValue(
-			new Error( '[openstation] files REST 403: openstation_stored_file_cannot_create_posts You are not allowed to create this kind of content.' ),
+			new RestError( '', { status: 403, code: 'openstation_stored_file_cannot_create_posts', serverMessage: 'You are not allowed to create this kind of content.' } ),
 		);
 		const { applyMenu } = await loadAndInstall();
 		const start = applyMenu( imagePlacement() ).find(

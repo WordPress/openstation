@@ -21,6 +21,7 @@ import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import { RestError, restErrorFromResponse } from '../../core/api-client';
 import { describeRestFailure } from '../../core/rest-failure';
+import { shellToast } from '../../core/shell-toast';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { startVisibilityAwarePoller } from '../../widgets/poller';
 import { adminBaseUrl as adminUrl, decodeHTML } from '../../utils';
@@ -104,38 +105,24 @@ type SuggestionsFailure = 'no-provider' | 'quota' | 'auth' | 'unavailable' | 'ot
 class SuggestionsError extends RestError {
 	readonly reason: SuggestionsFailure;
 
-	constructor( reason: SuggestionsFailure, status: number, body: FailureBody | null ) {
-		super( `HTTP ${ status }`, {
-			status,
-			code: typeof body?.code === 'string' ? body.code : undefined,
-			data: body?.data,
-			serverMessage: typeof body?.message === 'string' ? body.message : '',
+	constructor( base: RestError ) {
+		super( base.message, {
+			status: base.status,
+			code: base.code,
+			data: base.data,
+			serverMessage: base.serverMessage,
 		} );
-		this.reason = reason;
+		this.name = 'SuggestionsError';
+		this.reason = suggestionsFailure( base );
 	}
 }
 
-interface FailureBody {
-	code?: unknown;
-	message?: unknown;
-	data?: { reason?: unknown };
-}
-
-/** The failed `/draft-suggestions` response body, or null when it was not JSON. */
-async function readFailureBody( res: Response ): Promise< FailureBody | null > {
-	try {
-		return ( await res.json() ) as FailureBody;
-	} catch {
-		return null;
-	}
-}
-
-/** Read the reason out of a failed `/draft-suggestions` response body. */
-function suggestionsFailure( body: FailureBody | null ): SuggestionsFailure {
-	if ( body?.code === 'openstation_ai_unavailable' ) {
+/** Read the reason out of a failed `/draft-suggestions` answer. */
+function suggestionsFailure( err: RestError ): SuggestionsFailure {
+	if ( err.code === 'openstation_ai_unavailable' ) {
 		return 'no-provider';
 	}
-	const reason = body?.data?.reason;
+	const reason = ( err.data as { reason?: unknown } | undefined )?.reason;
 	return reason === 'quota' || reason === 'auth' || reason === 'unavailable'
 		? reason
 		: 'other';
@@ -153,8 +140,7 @@ async function fetchSuggestions( id: number ): Promise< DraftSuggestions > {
 		{ source: 'desktop-mode/drafts' },
 	);
 	if ( ! res.ok ) {
-		const body = await readFailureBody( res );
-		throw new SuggestionsError( suggestionsFailure( body ), res.status, body );
+		throw new SuggestionsError( await restErrorFromResponse( res ) );
 	}
 	return res.json() as Promise< DraftSuggestions >;
 }
@@ -192,10 +178,6 @@ async function applyDraftField(
 	if ( ! res.ok ) {
 		throw await restErrorFromResponse( res );
 	}
-}
-
-function toast( message: string, type?: string ): void {
-	desktopApi()?.showToast?.( type ? { message, type } : { message } );
 }
 
 /**
@@ -390,7 +372,7 @@ function applyButton(
 				const failure = describeRestFailure( err, {
 					fallback: __( 'Could not apply the suggestion.' ),
 				} );
-				toast( failure.message, failure.type );
+				shellToast( { message: failure.message, type: failure.type } );
 			} );
 	} );
 	return btn;
@@ -467,7 +449,7 @@ function renderSuggestions(
 					if ( name ) {
 						name.textContent = t;
 					}
-					toast( __( 'Title updated.' ) );
+					shellToast( { message: __( 'Title updated.' ) } );
 				} ),
 			);
 		}
@@ -480,7 +462,7 @@ function renderSuggestions(
 				data.excerpt,
 				'dm-drafts__suggest-item',
 				{ excerpt: data.excerpt },
-				() => toast( __( 'Excerpt updated.' ) ),
+				() => shellToast( { message: __( 'Excerpt updated.' ) } ),
 			),
 		);
 	}
@@ -495,7 +477,7 @@ function renderSuggestions(
 					tag,
 					'dm-drafts__suggest-tag',
 					{ tags: [ tag ] },
-					() => toast( __( 'Tag added.' ) ),
+					() => shellToast( { message: __( 'Tag added.' ) } ),
 				),
 			);
 		}
@@ -512,7 +494,7 @@ function renderSuggestions(
 					cat,
 					'dm-drafts__suggest-tag',
 					{ categories: [ cat ] },
-					() => toast( __( 'Category added.' ) ),
+					() => shellToast( { message: __( 'Category added.' ) } ),
 				),
 			);
 		}
@@ -585,13 +567,7 @@ async function fetchDrafts(): Promise< DraftRow[] > {
 		{ source: 'desktop-mode/drafts', silent: true },
 	);
 	if ( ! res.ok ) {
-		const body = await readFailureBody( res );
-		throw new RestError( `HTTP ${ res.status }`, {
-			status: res.status,
-			code: typeof body?.code === 'string' ? body.code : undefined,
-			data: body?.data,
-			serverMessage: typeof body?.message === 'string' ? body.message : '',
-		} );
+		throw await restErrorFromResponse( res );
 	}
 	return res.json() as Promise< DraftRow[] >;
 }
@@ -791,11 +767,11 @@ async function onTrash(
 	row.classList.add( 'is-trashing' );
 	try {
 		await trashDraft( draft.id );
-		api?.showToast?.( { message: __( 'Draft moved to Trash.' ) } );
+		shellToast( { message: __( 'Draft moved to Trash.' ) } );
 		onChange();
 	} catch ( err ) {
 		row.classList.remove( 'is-trashing' );
-		api?.showToast?.(
+		shellToast(
 			describeRestFailure( err, {
 				fallback: __( 'Could not move the draft to Trash.' ),
 			} ),

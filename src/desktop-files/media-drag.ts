@@ -26,7 +26,7 @@ import {
 	type UploadDragPayload,
 } from '../drag-bridge';
 import { showToast } from '../toast';
-import { restFailureText } from '../core/rest-failure';
+import { describeRestFailure } from '../core/rest-failure';
 import { addUploadToMediaLibrary } from './rest';
 import type { DesktopFileShape } from './types';
 
@@ -91,9 +91,9 @@ export async function resolveUploadPayload(
 			thumbnailUrl: payload.thumbnailUrl,
 		};
 	} catch ( err ) {
-		showToast( {
-			message: `Could not add to the Media Library: ${ restFailureText( err ) }`,
-		} );
+		showToast(
+			describeRestFailure( err, { lead: `Could not add to the Media Library`, fallback: `Could not add to the Media Library.` } ),
+		);
 		return null;
 	}
 }

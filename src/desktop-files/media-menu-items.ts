@@ -25,7 +25,7 @@
 
 import { addFilter } from '../hooks';
 import { showToast } from '../toast';
-import { restFailureText } from '../core/rest-failure';
+import { describeRestFailure } from '../core/rest-failure';
 import { openUrlWindow } from './open';
 import {
 	addUploadToMediaLibrary,
@@ -92,7 +92,9 @@ async function addOne( fileId: number ): Promise< void > {
 	try {
 		toastAdded( await addUploadToMediaLibrary( fileId ) );
 	} catch ( err ) {
-		showToast( { message: `Could not add to the Media Library: ${ restFailureText( err ) }` } );
+		showToast(
+			describeRestFailure( err, { lead: `Could not add to the Media Library`, fallback: `Could not add to the Media Library.` } ),
+		);
 	}
 }
 
@@ -148,9 +150,9 @@ async function startPost( fileId: number, postType: 'post' | 'page' ): Promise< 
 			window.location.href = res.editUrl;
 		}
 	} catch ( err ) {
-		showToast( {
-			message: `Could not start a ${ postType }: ${ restFailureText( err ) }`,
-		} );
+		showToast(
+			describeRestFailure( err, { lead: `Could not start a ${ postType }`, fallback: `Could not start a ${ postType }.` } ),
+		);
 	}
 }
 

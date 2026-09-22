@@ -11,6 +11,7 @@
 
 import { trackedFetch } from './tracked-fetch';
 import { joinRestUrl } from './rest-url';
+import { RestError } from './core/api-client';
 import {
 	agentsChatStore,
 	type AgentChatAgent,
@@ -62,14 +63,17 @@ async function request< T >(
 		{ source: 'desktop-mode/agents', silent: true },
 	);
 	const body = ( await res.json().catch( () => null ) ) as
-		| ( T & { message?: string } )
+		| ( T & { code?: unknown; message?: unknown; data?: unknown } )
 		| null;
 	if ( ! res.ok ) {
-		const detail =
-			body && typeof body === 'object' && typeof body.message === 'string'
-				? body.message
-				: `HTTP ${ res.status }`;
-		throw new Error( detail );
+		// The body is already read, so build the error from it rather
+		// than re-reading the response.
+		throw new RestError( '', {
+			status: res.status,
+			code: typeof body?.code === 'string' ? body.code : undefined,
+			data: body?.data,
+			serverMessage: typeof body?.message === 'string' ? body.message : '',
+		} );
 	}
 	return body as T;
 }

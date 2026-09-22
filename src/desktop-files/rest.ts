@@ -7,7 +7,7 @@
  */
 
 import { trackedFetch } from '../tracked-fetch';
-import { RestError } from '../core/api-client';
+import { RestError, restErrorFromResponse, unreadableReplyError } from '../core/api-client';
 import { joinRestUrl } from '../rest-url';
 
 export interface RestPlacementShape {
@@ -221,19 +221,17 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 	// notice or the login-form HTML that crept in), otherwise
 	// fall back to the plain "empty body" message.
 	if ( null === body ) {
-		// Thrown as a RestError with the 2xx status and no server
-		// message: the status alone tells the UI helper "unreadable".
 		if ( parseError && text ) {
 			const head = text.slice( 0, 120 ).replace( /\s+/g, ' ' );
-			throw new RestError(
+			throw unreadableReplyError(
+				res.status,
 				`[openstation] files REST ${ res.status } returned non-JSON body — ` +
 					`${ parseError.message }. First 120 chars: ${ head }`,
-				{ status: res.status, code: 'openstation_bad_response' },
 			);
 		}
-		throw new RestError(
+		throw unreadableReplyError(
+			res.status,
 			`[openstation] files REST ${ res.status }: empty or unparseable body.`,
-			{ status: res.status, code: 'openstation_bad_response' },
 		);
 	}
 	return body as T;
@@ -313,7 +311,7 @@ export async function restoreTrashedItem(
 		{ source: 'desktop-mode/files' },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `[openstation] restore ${ res.status }` );
+		throw await restErrorFromResponse( res );
 	}
 	return ( await res.json() ) as { ok: number[]; errors: unknown[] };
 }
