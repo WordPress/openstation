@@ -520,14 +520,12 @@ function rowAction(
 	// The name is slotted, not an `aria-label` on the host.
 	//
 	// `<os-button>` renders its real `<button>` inside a shadow root and
-	// forwards the host's `aria-label` onto it but not its `title`. This
-	// helper predates that forward, when a name on the role-less host
-	// went nowhere and these two icon-only controls announced as unnamed
-	// buttons. Slotted text lands inside the `<button>`, where
-	// name-from-content picks it up.
+	// forwards the host's `aria-label` onto it, but not its `title`, so
+	// either route names this control. Slotted text lands inside the
+	// `<button>`, where name-from-content picks it up.
 	//
-	// The icon is hidden from the name for the same reason: a Dashicon
-	// is a private-use glyph, and it would otherwise be read out.
+	// The icon is hidden from the name because a Dashicon is a
+	// private-use glyph, and it would otherwise be read out.
 	const icon = document.createElement( 'span' );
 	icon.className = `dashicons ${ dashicon }`;
 	icon.setAttribute( 'aria-hidden', 'true' );
