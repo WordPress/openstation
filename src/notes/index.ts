@@ -23,7 +23,7 @@ export type { Note } from './types';
 export interface BootNotesOptions {
 	host: HTMLElement;
 	config: DesktopConfig;
-	onError?: ( message: string ) => void;
+	onError?: ( message: string, opts?: { type?: string } ) => void;
 }
 
 export function bootNotes( options: BootNotesOptions ): NotesLayer | null {

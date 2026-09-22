@@ -28,6 +28,7 @@ import type { Note } from './types';
 interface DesktopApi {
 	showToast?: ( opts: {
 		message: string;
+		type?: string;
 		duration?: number;
 		action?: { label: string; onClick: () => void };
 	} ) => void;
@@ -196,6 +197,7 @@ export async function convertNoteToPost(
 		callbacks.onRestore( note );
 		getDesktopApi()?.showToast?.( {
 			message: convertFailureMessage( err ),
+			type: 'error',
 			duration: 5000,
 		} );
 		return;
@@ -234,6 +236,12 @@ export async function convertNoteToPost(
 							'[openstation] notes: convert undo failed:',
 							err,
 						);
+						getDesktopApi()?.showToast?.( {
+							...describeRestFailure( err, {
+								fallback: __( 'Could not restore the note.', 'desktop-mode' ),
+							} ),
+							duration: 5000,
+						} );
 					} );
 			},
 		},

@@ -12,6 +12,7 @@
  * visible author chip.
  */
 
+import { describeRestFailure } from '../core/rest-failure';
 import { __, sprintf } from '../i18n';
 import '../ui/components/os-avatar/os-avatar';
 import '../ui/components/os-save-status/os-save-status';
@@ -102,14 +103,14 @@ export interface NotesLayerOptions {
 	 * affordance on owned notes (inline button + Posts dock drop target).
 	 */
 	canCreatePosts?: boolean;
-	onError?: ( message: string ) => void;
+	onError?: ( message: string, opts?: { type?: string } ) => void;
 }
 
 export class NotesLayer {
 	readonly host: HTMLElement;
 	readonly pluginUrl: string;
 	readonly canCreatePosts: boolean;
-	private onError?: ( message: string ) => void;
+	private onError?: ( message: string, opts?: { type?: string } ) => void;
 	private root: HTMLElement | null = null;
 	private liveRegion: HTMLElement | null = null;
 	private controllers = new Map< number, NoteController >();
@@ -322,8 +323,8 @@ export class NotesLayer {
 		}
 	}
 
-	notifyError( message: string ): void {
-		this.onError?.( message );
+	notifyError( message: string, opts?: { type?: string } ): void {
+		this.onError?.( message, opts );
 	}
 
 	trashNote( note: Note ): void {
@@ -461,6 +462,14 @@ export class NoteController {
 	private patchChain: Promise< void > = Promise.resolve();
 	private pendingText: string | null = null;
 	private disposed = false;
+
+	/**
+	 * Whether the current run of failed saves has been announced. A
+	 * PATCH fails once per keystroke while the reason lasts, and one
+	 * toast says it; the status dot keeps saying it after that. Reset
+	 * by the next save that lands.
+	 */
+	private saveFailureShown = false;
 	private moveMode = false;
 	private moveOrigin: { x: number; y: number } | null = null;
 	// Session-scoped drag listeners (pendulum, bin-hover doom).
@@ -966,6 +975,7 @@ export class NoteController {
 					this.refreshVisibility();
 				}
 				this.setPhase( 'saved' );
+				this.saveFailureShown = false;
 			} catch ( err ) {
 				if ( this.disposed ) {
 					return;
@@ -982,6 +992,13 @@ export class NoteController {
 				this.setPhase( 'failed' );
 				// eslint-disable-next-line no-console
 				console.error( '[openstation] notes: save failed:', err );
+				if ( ! this.saveFailureShown ) {
+					this.saveFailureShown = true;
+					const failure = describeRestFailure( err, {
+						fallback: __( 'Could not save the note.', 'desktop-mode' ),
+					} );
+					this.layer.notifyError( failure.message, { type: failure.type } );
+				}
 			}
 		} );
 	}

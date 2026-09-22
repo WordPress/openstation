@@ -17,6 +17,7 @@
  */
 
 import { __, sprintf } from './i18n';
+import { describeRestFailure } from './core/rest-failure';
 import { renderMarkdown } from './markdown';
 import './ui/components/os-avatar/os-avatar';
 import './ui/components/os-button/os-button';
@@ -95,6 +96,16 @@ const globals = window as unknown as RunWindowGlobals;
 
 /** Per-render sequence so multi-instance windows get unique target ids. */
 let chatDropSeq = 0;
+
+/**
+ * The shell's toast, when this bundle runs inside the shell. This
+ * window ships as its own bundle, so it reaches `showToast` through
+ * the public API rather than importing the shell's module.
+ */
+function shellToast( opts: { message: string; type?: string } ): void {
+	const os = ( window as { wp?: { os?: { showToast?: ( o: unknown ) => void } } } ).wp?.os;
+	os?.showToast?.( opts );
+}
 
 function getRunConfig(): RunWindowConfig | null {
 	const cfg = globals.openStationWindowConfig?.[ WINDOW_ID ] as
@@ -260,6 +271,8 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	// moves (a save/delete happened) — never polled.
 	let conversations: AgentConversationSummary[] = [];
 	let conversationsLoaded = false;
+	/** The last list load failed: the sidebar says so instead of "no conversations". */
+	let conversationsFailed = false;
 	let seenRev = -1;
 
 	const refreshConversations = (): void => {
@@ -274,9 +287,13 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		} )
 			.then( ( rows ) => {
 				conversations = rows;
+				conversationsFailed = false;
 			} )
-			.catch( () => {
+			.catch( ( err: unknown ) => {
 				conversations = [];
+				conversationsFailed = true;
+				// eslint-disable-next-line no-console
+				console.error( '[openstation] agents: conversations failed to load:', err );
 			} )
 			.finally( () => {
 				conversationsLoaded = true;
@@ -317,7 +334,14 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
 				row.id,
 			);
-		} catch {
+		} catch ( err ) {
+			// eslint-disable-next-line no-console
+			console.error( '[openstation] agents: conversation delete failed:', err );
+			shellToast(
+				describeRestFailure( err, {
+					fallback: __( 'Could not delete the conversation.', 'desktop-mode' ),
+				} ),
+			);
 			return;
 		}
 		const state = agentsChatStore.state;
@@ -367,7 +391,10 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		if ( conversationsLoaded && visible.length === 0 ) {
 			const none = document.createElement( 'div' );
 			none.className = 'dm-agent-chat__convs-empty';
-			none.textContent = __( 'No conversations yet.', 'desktop-mode' );
+			// A failed load is not an empty history; say which it was.
+			none.textContent = conversationsFailed
+				? __( 'Could not load conversations.', 'desktop-mode' )
+				: __( 'No conversations yet.', 'desktop-mode' );
 			list.appendChild( none );
 		}
 		for ( const row of visible ) {

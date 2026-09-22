@@ -283,7 +283,28 @@ export function createSession( deps: SessionDeps ): Session {
 				} );
 			}
 			const payload = ( await response.json() ) as DispatchResponse;
-			if ( disposed || ! payload || payload.ok !== true ) {
+			if ( disposed ) {
+				return false;
+			}
+			if ( ! payload || payload.ok !== true ) {
+				// A 200 whose body says no: the runtime's own failure
+				// shape (`{ ok: false, error, message, status }`), or
+				// something that is not a dispatch response at all.
+				const failed = ( payload ?? {} ) as { message?: unknown; error?: unknown };
+				let reason = __( 'the site sent an unreadable reply' );
+				if ( typeof failed.message === 'string' && failed.message ) {
+					reason = failed.message;
+				} else if ( typeof failed.error === 'string' && failed.error ) {
+					reason = failed.error;
+				}
+				host.toast?.( {
+					message: sprintf(
+						/* translators: %s: error message. */
+						__( 'The window could not update: %s' ),
+						reason,
+					),
+					type: 'error',
+				} );
 				return false;
 			}
 			apply( payload, sentState );
@@ -320,6 +341,7 @@ export function createSession( deps: SessionDeps ): Session {
 					__( 'The window could not update: %s' ),
 					err instanceof Error ? err.message : String( err ),
 				),
+				type: 'error',
 			} );
 			return false;
 		} finally {

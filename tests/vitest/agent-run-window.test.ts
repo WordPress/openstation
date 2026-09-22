@@ -679,6 +679,33 @@ describe( 'agent chat window', () => {
 		}
 	} );
 
+	test( 'a failed conversations load says so instead of "no conversations"', async () => {
+		const fetchMock: FetchMock = vi.fn( async ( input: unknown ) => {
+			const url = String( input );
+			if ( url.endsWith( '/agents/conversations' ) ) {
+				return {
+					ok: false,
+					status: 500,
+					json: async () => ( { code: 'internal', message: 'Boom' } ),
+				} as unknown as Response;
+			}
+			return { ok: true, status: 200, json: async () => ( {} ) } as unknown as Response;
+		} );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+		const errorSpy = vi.spyOn( console, 'error' ).mockImplementation( () => {} );
+
+		const body = makeBody();
+		const cleanup = getRender()( body );
+		await flush();
+
+		expect( body.querySelector( '.dm-agent-chat__conv' ) ).toBeNull();
+		expect(
+			body.querySelector( '.dm-agent-chat__convs-empty' )?.textContent,
+		).toBe( 'Could not load conversations.' );
+		errorSpy.mockRestore();
+		cleanup();
+	} );
+
 	test( 'the sidebar shows only the active agent\'s conversations', async () => {
 		const mine = {
 			id: 71,
