@@ -69,6 +69,33 @@ export function isNotesConflict( err: unknown ): err is NotesConflictError {
 	return err instanceof NotesConflictError;
 }
 
+/**
+ * Any other non-2xx answer, or a 2xx whose body is not the JSON the
+ * route promised. Carries the WP-style fields so a caller can say
+ * WHY in the UI (`serverMessage` is the localized `WP_Error` text,
+ * `code` its slug) instead of one generic line for every failure.
+ * The `message` keeps the `[openstation] notes REST <status>: …`
+ * shape the console has always logged.
+ */
+export class NotesRestError extends Error {
+	readonly status: number;
+	readonly code: string;
+	readonly serverMessage: string;
+	constructor( status: number, code: string, serverMessage: string ) {
+		super(
+			`[openstation] notes REST ${ status }: ${ code } ${ serverMessage }`.trim(),
+		);
+		this.name = 'NotesRestError';
+		this.status = status;
+		this.code = code;
+		this.serverMessage = serverMessage;
+	}
+}
+
+export function isNotesRestError( err: unknown ): err is NotesRestError {
+	return err instanceof NotesRestError;
+}
+
 async function call< T >( path: string, init: RequestInit ): Promise< T > {
 	const { baseUrl, nonce } = ensureDeps();
 	// `baseUrl` is a full `rest_url( 'desktop-mode/v1/notes' )` — for
@@ -102,13 +129,17 @@ async function call< T >( path: string, init: RequestInit ): Promise< T > {
 			throw new NotesConflictError( current ?? null );
 		}
 		const err = body as { code?: string; message?: string } | null;
-		throw new Error(
-			`[openstation] notes REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
+		throw new NotesRestError(
+			res.status,
+			typeof err?.code === 'string' ? err.code : '',
+			typeof err?.message === 'string' ? err.message : '',
 		);
 	}
 	if ( null === body ) {
-		throw new Error(
-			`[openstation] notes REST ${ res.status }: empty or unparseable body.`,
+		throw new NotesRestError(
+			res.status,
+			'openstation_notes_bad_response',
+			'empty or unparseable body.',
 		);
 	}
 	return body as T;

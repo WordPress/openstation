@@ -9,7 +9,8 @@ import type { Note } from '../../src/notes/types';
 const convertNoteMock = vi.fn();
 const restoreNoteMock = vi.fn();
 
-vi.mock( '../../src/notes/rest', () => ( {
+vi.mock( '../../src/notes/rest', async ( importOriginal ) => ( {
+	...( await importOriginal< typeof import( '../../src/notes/rest' ) >() ),
 	convertNote: ( ...args: unknown[] ) => convertNoteMock( ...args ),
 	restoreNote: ( ...args: unknown[] ) => restoreNoteMock( ...args ),
 } ) );
@@ -17,6 +18,7 @@ vi.mock( '../../src/notes/rest', () => ( {
 // Imported after the mock is registered.
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { convertNoteToPost } from '../../src/notes/convert';
+import { NotesRestError } from '../../src/notes/rest';
 
 const NOTE: Note = {
 	id: 7,
@@ -56,6 +58,7 @@ describe( 'convertNoteToPost', () => {
 			os: {
 				showToast,
 				deriveWindowId: ( url: string ) => `win:${ url }`,
+				config: { adminUrl: 'https://x.test/wp-admin/' },
 				windowManager: { open: openWindow, getById },
 			},
 		};
@@ -115,5 +118,61 @@ describe( 'convertNoteToPost', () => {
 		expect( openWindow ).not.toHaveBeenCalled();
 		expect( showToast ).toHaveBeenCalledTimes( 1 );
 		errorSpy.mockRestore();
+	} );
+
+	test( 'a refused convert tells the user what the server said', async () => {
+		convertNoteMock.mockRejectedValueOnce(
+			new NotesRestError(
+				403,
+				'openstation_notes_cannot_create_posts',
+				'You are not allowed to create posts.',
+			),
+		);
+		const errorSpy = vi.spyOn( console, 'error' ).mockImplementation( () => {} );
+
+		await convertNoteToPost( NOTE, { onEvict: vi.fn(), onRestore: vi.fn() } );
+
+		expect( showToast.mock.calls[ 0 ][ 0 ].message ).toBe(
+			'You are not allowed to create posts.',
+		);
+		errorSpy.mockRestore();
+	} );
+
+	test( 'an editor that fails to open after a 200 keeps the conversion', async () => {
+		convertNoteMock.mockResolvedValueOnce( {
+			noteId: 7,
+			postId: 99,
+			editUrl: 'https://x.test/wp-admin/post.php?post=99&action=edit',
+		} );
+		openWindow.mockImplementationOnce( () => {
+			throw new Error( 'no window system' );
+		} );
+		const onRestore = vi.fn();
+		const errorSpy = vi.spyOn( console, 'error' ).mockImplementation( () => {} );
+
+		await convertNoteToPost( NOTE, { onEvict: vi.fn(), onRestore } );
+
+		// The server converted: the note stays off the wall and the toast
+		// says where the draft went instead of reporting a failure.
+		expect( onRestore ).not.toHaveBeenCalled();
+		expect( showToast ).toHaveBeenCalledTimes( 1 );
+		expect( showToast.mock.calls[ 0 ][ 0 ].message ).toMatch( /Drafts/ );
+		expect( showToast.mock.calls[ 0 ][ 0 ].action.label ).toBeTruthy();
+		expect( errorSpy.mock.calls[ 0 ][ 0 ] ).toMatch( /draft editor failed to open/ );
+		errorSpy.mockRestore();
+	} );
+
+	test( 'an off-site edit URL is rebuilt against this site’s admin', async () => {
+		convertNoteMock.mockResolvedValueOnce( {
+			noteId: 7,
+			postId: 99,
+			editUrl: 'https://wordpress.com/post/x.test/99',
+		} );
+
+		await convertNoteToPost( NOTE, { onEvict: vi.fn(), onRestore: vi.fn() } );
+
+		expect( openWindow.mock.calls[ 0 ][ 0 ].url ).toBe(
+			'https://x.test/wp-admin/post.php?post=99&action=edit',
+		);
 	} );
 } );

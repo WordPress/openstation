@@ -377,6 +377,33 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The client opens `editUrl` inside a window that can only show this
+	 * site's wp-admin, so a host filter that points edit links off-site
+	 * (WordPress.com routes them to wordpress.com) or blanks them must
+	 * not reach the response.
+	 *
+	 * @covers ::openstation_notes_rest_convert
+	 * @covers ::openstation_notes_draft_edit_url
+	 */
+	public function test_convert_edit_url_stays_on_site_when_edit_links_are_filtered() {
+		$note = $this->create_note( array( 'text' => 'something new' ) );
+		$off_site = static function () {
+			return 'https://wordpress.com/post/example.wordpress.com/1';
+		};
+		add_filter( 'get_edit_post_link', $off_site );
+
+		$resp = openstation_notes_rest_convert( $this->convert_request( $note['id'] ) );
+		remove_filter( 'get_edit_post_link', $off_site );
+
+		$this->assertNotWPError( $resp );
+		$data = $resp->get_data();
+		$this->assertSame(
+			admin_url( 'post.php?post=' . $data['postId'] . '&action=edit' ),
+			$data['editUrl']
+		);
+	}
+
+	/**
 	 * @covers ::openstation_notes_rest_convert
 	 */
 	public function test_convert_requires_edit_posts_capability() {
