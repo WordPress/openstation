@@ -267,7 +267,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 
 | Tag | Class | Source | Purpose |
 | --- | --- | --- | --- |
-| `<os-table>` | `OsTable` | `os-table/os-table.ts` | Sortable, filterable data table with sub-tables. `stacked` lays every row out as a card — the first column its title, the labelled ones captioned lines, a label-less one the actions row (`column.stack` overrides the role) — for a phone or any width the columns cannot fit; `stack-on-phone.ts` makes that decision from the shell's mode stamp for every list window. |
+| `<os-table>` | `OsTable` | `os-table/os-table.ts` | Sortable, filterable data table with sub-tables. A cell value shaped `{ slot, text? }` renders a named slot a light-DOM child fills, so a server view can put a control in a row without a `render` function. `stacked` lays every row out as a card — the first column its title, the labelled ones captioned lines, a label-less one the actions row (`column.stack` overrides the role) — for a phone or any width the columns cannot fit; `stack-on-phone.ts` makes that decision from the shell's mode stamp for every list window. |
 | `<os-log>` | `OsLog` | `os-log/os-log.ts` | Virtualized streaming log container. |
 | `<os-tile>` | `OsTile` | `os-tile/os-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and WP Explorer). `selectable` switches it from `listitem` to `option` so it can carry `aria-selected` — the selection controller sets it. |
 

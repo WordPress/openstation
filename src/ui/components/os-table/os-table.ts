@@ -38,6 +38,13 @@
  *   - **Sub-tables.** `subTable( row, index )` returns a
  *     `{ columns, data }` or any `Node` / template. An expander
  *     column is auto-prepended; sub-tables nest infinitely.
+ *   - **Slot cells.** A data value shaped `{ slot: 'name', text?: 'sort text' }`,
+ *     the name unique per cell (a repeated one leaves every row but the first blank),
+ *     renders `<slot name="name">` in that cell, so a server view that cannot
+ *     pass a `render` function (App Framework `os-prop-*` carries JSON) can
+ *     still put a control in a row: paint `<os-button slot="name" os-action>`
+ *     as a light-DOM child of the table. Light DOM, so the runtime's trigger
+ *     walk reaches it. `text` is what sort and filter read for the cell.
  *   - **Custom cells.** `column.render( value, row, index )` returns
  *     a string, `Node`, or `html\`\`` template.
  *   - **Loading state.** `loading` paints shimmering skeleton rows.
@@ -1459,8 +1466,11 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			const value = document.createElement( 'span' );
 			value.className = 'stack-value';
 			const raw = ( row as Record< string, unknown > )[ col.key ];
+			const rawSlot = slotName( raw );
 			if ( col.render ) {
 				this._mountCellContent( value, col.render( raw, row, rowIndex ) );
+			} else if ( rawSlot !== null ) {
+				value.appendChild( this._slotFor( rawSlot ) );
 			} else if ( raw !== null && raw !== undefined ) {
 				value.textContent = String( raw );
 			}
@@ -1544,13 +1554,23 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 
 		const value = ( row as Record< string, unknown > )[ col.key ];
+		const valueSlot = slotName( value );
 		if ( col.render ) {
 			const out = col.render( value, row, rowIndex );
 			this._mountCellContent( td, out );
+		} else if ( valueSlot !== null ) {
+			td.appendChild( this._slotFor( valueSlot ) );
 		} else if ( value !== null && value !== undefined ) {
 			td.textContent = String( value );
 		}
 		return td;
+	}
+
+	/** `<slot name>` for a slot cell; the consumer's light-DOM child fills it. */
+	private _slotFor( name: string ): HTMLSlotElement {
+		const slot = document.createElement( 'slot' );
+		slot.name = name;
+		return slot;
 	}
 
 	private _buildSubTableRow(
@@ -1699,7 +1719,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 				}
 				const filter = this._filters[ key ] ?? '';
 				const cell = ( row as Record< string, unknown > )[ key ];
-				const cellStr = cell === null || cell === undefined ? '' : String( cell );
+				const cellStr = cellText( cell );
 				if ( col?.filter === 'select' ) {
 					if ( cellStr !== filter ) {
 						pass = false;
@@ -1730,12 +1750,10 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		const dir = this._sort.direction === 'desc' ? -1 : 1;
 		const out = rows.slice();
 		out.sort( ( a, b ) => {
-			const av = col.sortValue
-				? col.sortValue( a.row, ( a.row as Record< string, unknown > )[ col.key ] )
-				: ( a.row as Record< string, unknown > )[ col.key ];
-			const bv = col.sortValue
-				? col.sortValue( b.row, ( b.row as Record< string, unknown > )[ col.key ] )
-				: ( b.row as Record< string, unknown > )[ col.key ];
+			const ar = ( a.row as Record< string, unknown > )[ col.key ];
+			const br = ( b.row as Record< string, unknown > )[ col.key ];
+			const av = col.sortValue ? col.sortValue( a.row, ar ) : sortKey( ar );
+			const bv = col.sortValue ? col.sortValue( b.row, br ) : sortKey( br );
 			return compareValues( av, bv ) * dir;
 		} );
 		return out;
@@ -1748,7 +1766,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			if ( v === null || v === undefined ) {
 				continue;
 			}
-			seen.add( String( v ) );
+			seen.add( cellText( v ) );
 		}
 		return Array.from( seen ).sort();
 	}
@@ -2064,6 +2082,37 @@ export function stackRole(
 		return 'title';
 	}
 	return col.label ? 'meta' : 'actions';
+}
+
+/**
+ * A cell value that names a light-DOM slot instead of carrying text.
+ * The name has to be unique across the table: two `<slot name="run">` in
+ * one shadow root means the first takes every matching child and the
+ * second gets none, so a column that reuses one name piles every control
+ * into the first row and leaves the rest blank. Key it by row.
+ */
+function slotName( value: unknown ): string | null {
+	if ( value && typeof value === 'object' && typeof ( value as { slot?: unknown } ).slot === 'string' ) {
+		return ( value as { slot: string } ).slot;
+	}
+	return null;
+}
+
+/** The text sort, filter and the select facet read for a cell. */
+function cellText( value: unknown ): string {
+	if ( value === null || value === undefined ) {
+		return '';
+	}
+	if ( slotName( value ) !== null ) {
+		const t = ( value as { text?: unknown } ).text;
+		return t === null || t === undefined ? '' : String( t );
+	}
+	return String( value );
+}
+
+/** The default sort key: a slot cell sorts by its text, anything else by itself. */
+function sortKey( value: unknown ): unknown {
+	return slotName( value ) !== null ? cellText( value ) : value;
 }
 
 /**

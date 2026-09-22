@@ -360,6 +360,10 @@ html.wp-toolbar:has(body.os-admin-bar-hidden) {
  * is now set on :root (see settings.ts → apply()) so it reaches
  * siblings of #os-shell like the admin bar.
  */
+body.os-active #wpadminbar #wp-admin-bar-menu-toggle {
+	display: none;
+}
+
 body.os-active #wpadminbar #wp-admin-bar-wp-logo {
 	width: var( --os-dock-width, 56px );
 }
