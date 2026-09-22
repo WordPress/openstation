@@ -848,7 +848,16 @@ export interface OpenStationPublicApi {
 	fetch: (
 		input: RequestInfo | URL,
 		requestInit?: RequestInit,
-		opts?: { windowId?: string; window?: DesktopWindow; silent?: boolean },
+		opts?: {
+			windowId?: string;
+			window?: DesktopWindow;
+			silent?: boolean;
+			/**
+			 * Free-form attribution tag published on the activity bus
+			 * as `os/request-settled` (e.g. `'my-plugin/foo'`).
+			 */
+			source?: string;
+		},
 	) => Promise< Response >;
 	/**
 	 * Clone a `<template>` element's contents into a fresh

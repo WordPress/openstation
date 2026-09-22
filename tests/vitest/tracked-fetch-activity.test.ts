@@ -9,10 +9,13 @@
  * indicator has to settle on the *response*, while the promise handed
  * back to the caller keeps native fetch semantics.
  */
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { trackedFetch } from '../../src/boot/tracked-fetch';
 import type { WindowManager } from '../../src/window-manager';
 import type { Window as DesktopWindow } from '../../src/window';
+import { activity } from '../../src/activity';
+import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
+
 
 interface Settlement {
 	ok: boolean;
@@ -154,5 +157,147 @@ describe( 'trackedFetch — activity outcome', () => {
 		await flush();
 
 		expect( settled ).toHaveLength( 0 );
+	} );
+} );
+
+/**
+ * The activity-bus half of what `wp.os.fetch` documents. Before
+ * `os/request-settled` existed, `opts.source` was declared on the
+ * options type, described in four places in the JavaScript
+ * reference, and passed by a dozen in-tree callers — and read by
+ * nothing. These pin the publish, not the argument.
+ */
+describe( 'os/request-settled', () => {
+	beforeEach( () => {
+		vi.restoreAllMocks();
+		installHooksStub();
+	} );
+	afterEach( () => clearHooksStub() );
+
+	test( 'a tagged request reaches the activity bus', async () => {
+		const { manager } = makeTarget();
+		vi.spyOn( window, 'fetch' ).mockResolvedValue( response( 200, 'OK' ) );
+		const seen: unknown[] = [];
+		const off = activity.subscribe( 'os/request-settled', ( p ) =>
+			seen.push( p ),
+		);
+		await trackedFetch( manager, '/wp-json/x/v1/y', undefined, {
+			source: 'probe/x',
+		} );
+		await flush();
+		off();
+		expect( seen ).toHaveLength( 1 );
+		expect( seen[ 0 ] ).toMatchObject( {
+			source: 'probe/x',
+			ok: true,
+			status: 200,
+			method: 'GET',
+			url: '/wp-json/x/v1/y',
+			silent: false,
+		} );
+	} );
+
+	test( 'an untagged request publishes with no source key at all', async () => {
+		const { manager } = makeTarget();
+		vi.spyOn( window, 'fetch' ).mockResolvedValue( response( 200, 'OK' ) );
+		const seen: Record< string, unknown >[] = [];
+		const off = activity.subscribe( 'os/request-settled', ( p ) =>
+			seen.push( p as Record< string, unknown > ),
+		);
+		await trackedFetch( manager, '/wp-json/x/v1/y' );
+		await flush();
+		off();
+		// Absent rather than undefined: a subscriber grouping by tag
+		// should see "untagged", not a key whose value is nothing.
+		expect( seen[ 0 ] ).not.toHaveProperty( 'source' );
+	} );
+
+	test( 'a refused response publishes ok:false with its status', async () => {
+		const { manager } = makeTarget();
+		vi.spyOn( window, 'fetch' ).mockResolvedValue(
+			response( 500, 'Internal Server Error' ),
+		);
+		const seen: unknown[] = [];
+		const off = activity.subscribe( 'os/request-settled', ( p ) =>
+			seen.push( p ),
+		);
+		await trackedFetch( manager, '/wp-json/x/v1/y', { method: 'post' } );
+		await flush();
+		off();
+		// The method is normalised, so a subscriber can group on it
+		// without case-folding every row itself.
+		expect( seen[ 0 ] ).toMatchObject( {
+			ok: false,
+			status: 500,
+			method: 'POST',
+		} );
+	} );
+
+	test( 'a network rejection publishes the reason and no status', async () => {
+		const { manager } = makeTarget();
+		vi.spyOn( window, 'fetch' ).mockRejectedValue( new Error( 'offline' ) );
+		const seen: Record< string, unknown >[] = [];
+		const off = activity.subscribe( 'os/request-settled', ( p ) =>
+			seen.push( p as Record< string, unknown > ),
+		);
+		await expect(
+			trackedFetch( manager, '/wp-json/x/v1/y', undefined, {
+				source: 'probe/x',
+			} ),
+		).rejects.toThrow( 'offline' );
+		await flush();
+		off();
+		expect( seen[ 0 ] ).toMatchObject( { error: 'offline', source: 'probe/x' } );
+		// There was no response, so `status` and `ok` are left off
+		// rather than faked as 0 / false, which a subscriber could not
+		// tell apart from a server that really answered.
+		expect( seen[ 0 ] ).not.toHaveProperty( 'status' );
+		expect( seen[ 0 ] ).not.toHaveProperty( 'ok' );
+	} );
+
+	test( 'a silent request still reaches the bus, flagged silent', async () => {
+		const { manager, settled } = makeTarget();
+		vi.spyOn( window, 'fetch' ).mockResolvedValue( response( 200, 'OK' ) );
+		const seen: unknown[] = [];
+		const off = activity.subscribe( 'os/request-settled', ( p ) =>
+			seen.push( p ),
+		);
+		await trackedFetch( manager, '/wp-json/x/v1/y', undefined, {
+			silent: true,
+			source: 'probe/x',
+		} );
+		await flush();
+		off();
+		// `silent` suppresses the title-bar ring, which is a question
+		// about the window's chrome, not about whether the request
+		// happened. The indicator stays quiet; the bus does not.
+		expect( settled ).toHaveLength( 0 );
+		expect( seen ).toHaveLength( 1 );
+		expect( seen[ 0 ] ).toMatchObject( { silent: true, source: 'probe/x' } );
+	} );
+	test( 'a subscriber that throws does not break the request', async () => {
+		const { manager, settled } = makeTarget();
+		vi.spyOn( window, 'fetch' ).mockResolvedValue( response( 200, 'OK' ) );
+		const off = activity.subscribe( 'os/request-settled', () => {
+			throw new Error( 'bad subscriber' );
+		} );
+		// `publish` calls subscribers synchronously and goes through
+		// `wp.hooks`, and this runs on every request the shell makes —
+		// so an unguarded publish would hang an unhandled rejection off
+		// the caller's fetch. The observability channel must not be
+		// able to break the thing it observes.
+		const rejections: unknown[] = [];
+		const onRejection = ( err: unknown ) => rejections.push( err );
+		process.on( 'unhandledRejection', onRejection );
+		const res = await trackedFetch( manager, '/wp-json/x/v1/y' );
+		await flush();
+		// A rejection is reported on the next macrotask, not the next
+		// microtask, so the flush above is not enough to see one.
+		await new Promise( ( r ) => setTimeout( r, 0 ) );
+		process.off( 'unhandledRejection', onRejection );
+		off();
+		expect( rejections ).toEqual( [] );
+		expect( res.status ).toBe( 200 );
+		expect( settled ).toEqual( [ { ok: true } ] );
 	} );
 } );

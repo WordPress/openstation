@@ -28,6 +28,7 @@ import type { WindowManager } from '../window-manager';
 import type { Window as DesktopWindow } from '../window';
 import { injectRestNonce } from '../inject-rest-nonce';
 import { noteAuthFailure } from '../auth-recovery';
+import { activity } from '../activity';
 import { __, sprintf } from '../i18n';
 
 export interface TrackedFetchImplOpts {
@@ -74,15 +75,28 @@ export function trackedFetch(
 			/* rejection handled by the caller's own chain */
 		},
 	);
-	if ( opts?.silent ) {
-		return promise;
-	}
 	let target: DesktopWindow | null | undefined = opts?.window;
 	if ( ! target && opts?.windowId ) {
 		target = manager.getById( opts.windowId ) ?? null;
 	}
 	if ( ! target ) {
 		target = manager.getFocused();
+	}
+	// The activity-bus half of what this wrapper promises. The
+	// window's activity PHASE is the ring in the title bar; this is
+	// the broadcast a debug or audit widget subscribes to, and the
+	// only place `opts.source` has ever had anywhere to go.
+	//
+	// Published for silent requests too: `silent` asks the chrome to
+	// stay still, which is a different question from whether the
+	// request happened. The flag rides along so a subscriber that
+	// only wants foreground traffic can filter on it.
+	void promise.then(
+		( res ) => publishSettled( input, finalInit, opts, target, { res } ),
+		( err: unknown ) => publishSettled( input, finalInit, opts, target, { err } ),
+	);
+	if ( opts?.silent ) {
+		return promise;
 	}
 	if ( target && typeof target.trackActivity === 'function' ) {
 		// Track but don't replace the original promise — callers
@@ -111,6 +125,65 @@ export function trackedFetch(
 			} );
 	}
 	return promise;
+}
+
+/**
+ * The `os/request-settled` broadcast, off the hot path of the
+ * caller's own chain.
+ *
+ * A network-level rejection carries no status and no `ok` — there
+ * was no response — so those keys are left off rather than faked
+ * as `0` / `false`, which a subscriber could not tell apart from a
+ * server that really answered.
+ *
+ * The publish is wrapped because this runs on EVERY request the
+ * shell makes. `publish` goes through `wp.hooks`, so it throws if
+ * the global is missing, and it calls subscribers synchronously, so
+ * a plugin's bad callback throws here too. Either would surface as
+ * an unhandled rejection hanging off the caller's fetch — an
+ * observability channel breaking the thing it observes. A failed
+ * broadcast loses one bus event and nothing else.
+ */
+function publishSettled(
+	input: RequestInfo | URL,
+	init: RequestInit | undefined,
+	opts: TrackedFetchImplOpts | undefined,
+	target: DesktopWindow | null | undefined,
+	outcome: { res: Response } | { err: unknown },
+): void {
+	let url: string;
+	if ( typeof input === 'string' ) {
+		url = input;
+	} else if ( input instanceof URL ) {
+		url = input.href;
+	} else {
+		url = input.url;
+	}
+	const method =
+		init?.method ??
+		( typeof input === 'object' && 'method' in input ? input.method : 'GET' );
+	const base = {
+		url,
+		method: String( method || 'GET' ).toUpperCase(),
+		windowId: target?.id ?? null,
+		silent: opts?.silent === true,
+		...( opts?.source ? { source: opts.source } : {} ),
+	};
+	const payload =
+		'res' in outcome
+			? { ...base, status: outcome.res.status, ok: outcome.res.ok }
+			: {
+					...base,
+					error:
+						outcome.err instanceof Error
+							? outcome.err.message
+							: String( outcome.err ),
+			  };
+	try {
+		activity.publish( 'os/request-settled', payload );
+	} catch {
+		/* a broken subscriber does not get to fail the request */
+	}
 }
 
 /**

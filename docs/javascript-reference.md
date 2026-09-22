@@ -1640,7 +1640,7 @@ Rules:
 |---|---|---|
 | `input` | `RequestInfo \| URL` | Same as native `fetch`. |
 | `init` | `RequestInit?` | Same as native `fetch`. |
-| `opts` | `{ windowId?: string; window?: Window; source?: string; silent?: boolean }?` | Attribution + opt-out. `source` is a free-form tag for the activity bus (`'my-plugin/foo'`). |
+| `opts` | `{ windowId?: string; window?: Window; source?: string; silent?: boolean }?` | Attribution + opt-out. `source` is a free-form tag published on the activity bus as `os/request-settled` (`'my-plugin/foo'`); see [Activity channels](#activity-channels). |
 
 `opts` is the only addition. Resolution order for "which window's activity phase moves":
 
@@ -2409,6 +2409,7 @@ interface ActivityApi {
 | `os/presence-changed` | Per-transition mirror of the `os-presence-changed` CustomEvent. | `{ userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }` | No. |
 | `os/presence-snapshot-applied` | Batch-level — fires after every presence snapshot OR `applyPresenceBatch()`. | `{ applied: number, transitions: number }` | No. |
 | `os/game-score-recorded` | Fire-and-forget. Fires after a game's `submitScore()` write resolves, on both the free-play and challenge-completion paths. | `{ game, score, meta, windowId, challengeId? }` | No. |
+| `os/request-settled` | Fire-and-forget. Fires when a request made through `wp.os.fetch` settles, including silent ones — `silent` suppresses the title-bar ring, not the broadcast. `source` is the caller's own tag and is absent when none was passed; `status` and `ok` are absent for a network-level rejection, where `error` carries the reason instead. | `{ url, method, status?, ok?, error?, windowId, source?, silent }` | No. |
 | `os/upload-hud-complete` | Fire-and-forget. Fires when a file dropped on the shell finishes uploading. Published by the progress HUD rather than the uploader — the upload runs on XHR (the only transport reporting determinate progress) and never routes through `wp.os.fetch`. | `{ filename, attachmentId }` | No. |
 
 **Plugin channels** — pick a `<plugin>/<event>` slug and publish. Augment `ActivityChannelMap` for compile-time payload checking:
