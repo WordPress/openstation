@@ -328,6 +328,7 @@ import {
 import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
 import { openUrlDialog } from './desktop-files/overlays-loader';
 import { installFileDropSentinel } from './os-file-drop/sentinel';
+import { hydrateScriptDeps } from './script-dep-payloads';
 import type {
 	DesktopConfig,
 	DesktopWallpaperServerEntry,
@@ -2208,6 +2209,9 @@ function init(): void {
 	if ( ! config ) {
 		return;
 	}
+	// Entries carry dependency handles; put the payloads back before
+	// any loader reads them (GH#892).
+	hydrateScriptDeps( config );
 
 	const desktopArea = document.getElementById( 'os-area' );
 	if ( ! desktopArea ) {

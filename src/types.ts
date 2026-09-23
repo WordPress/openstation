@@ -2069,6 +2069,14 @@ export interface DesktopConfig {
 	 */
 	nativeWindowScriptData?: NativeWindowScriptData;
 	/**
+	 * Each script dependency's payload once, keyed by handle. On the
+	 * wire every `scriptDeps` list is a list of these handles; the
+	 * shell resolves them back to {@link LazyScriptDependency} objects
+	 * at boot and on every menu refresh, so readers of `scriptDeps`
+	 * see full payloads. See `src/script-dep-payloads.ts` (GH#892).
+	 */
+	scriptDepPayloads?: Record< string, LazyScriptDependency >;
+	/**
 	 * Server-declared widgets (from `openstation_register_widget()`).
 	 * Same lifecycle story as native windows — shell syncs the
 	 * widget registry + dynamically loads plugin scripts on mid-

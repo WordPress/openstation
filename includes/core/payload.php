@@ -1722,6 +1722,11 @@ function openstation_build_menu_payload() {
 	// openstation_menu_signature().
 	$payload['menuSig'] = openstation_menu_signature();
 
+	// Each script dependency's payload once, entries carry handles.
+	$script_dep_payloads          = array();
+	$payload                      = openstation_compact_script_deps( $payload, $script_dep_payloads );
+	$payload['scriptDepPayloads'] = (object) $script_dep_payloads;
+
 	return $payload;
 }
 
@@ -1940,6 +1945,56 @@ function openstation_resolve_script_dependencies( $handle ) {
 		$out[]             = $payload;
 	}
 	return $out;
+}
+
+/**
+ * Move every `scriptDeps` payload in a shell payload into one map.
+ *
+ * {@see openstation_resolve_script_dependencies()} returns the full
+ * payload of each dependency (URL, l10n, before/after), and ~20 entry
+ * builders call it. A dependency shared by N entries was therefore
+ * serialized N times — one plugin's 5.5 KB localized object became
+ * ~400 KB of a 489 KB `openStationConfig` (GH#892). This walks the
+ * payload, replaces each `scriptDeps` list with its handles, and puts
+ * each handle's payload in `$map` once. The shell resolves the
+ * handles back before any consumer reads them — see
+ * `src/script-dep-payloads.ts`.
+ *
+ * Runs on the finished payload so every builder, and every filter on
+ * a builder's output, still sees the full shape.
+ *
+ * @param mixed $value Payload (or any sub-array of it).
+ * @param array $map   Handle => dependency payload, filled in place.
+ * @return mixed The payload with `scriptDeps` reduced to handle lists.
+ */
+function openstation_compact_script_deps( $value, array &$map ) {
+	if ( ! is_array( $value ) ) {
+		return $value;
+	}
+	foreach ( $value as $key => $item ) {
+		if ( 'scriptDeps' === $key && is_array( $item ) ) {
+			$handles = array();
+			foreach ( $item as $dep ) {
+				if ( is_array( $dep ) && isset( $dep['handle'] ) && '' !== (string) $dep['handle'] ) {
+					$handle = (string) $dep['handle'];
+					if ( ! isset( $map[ $handle ] ) ) {
+						$map[ $handle ] = $dep;
+					}
+					$handles[] = $handle;
+				} else {
+					// Already a handle, or a handle-less dependency with
+					// nothing to key it by: pass through untouched.
+					$handles[] = $dep;
+				}
+			}
+			$value[ $key ] = $handles;
+			continue;
+		}
+		if ( is_array( $item ) ) {
+			$value[ $key ] = openstation_compact_script_deps( $item, $map );
+		}
+	}
+	return $value;
 }
 
 /**

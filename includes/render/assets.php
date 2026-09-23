@@ -347,6 +347,14 @@ function openstation_enqueue_assets() {
 	$server_file_openers         = function_exists( 'openstation_build_file_openers_payload' )
 		? openstation_build_file_openers_payload()
 		: array();
+	// Entries above carry dependency handles; their payloads ride
+	// once in `scriptDepPayloads` (GH#892). The file lists are built
+	// outside the menu payload, so they join the same map here.
+	$script_dep_payloads         = isset( $menu_payload['scriptDepPayloads'] )
+		? (array) $menu_payload['scriptDepPayloads']
+		: array();
+	$server_file_types           = openstation_compact_script_deps( $server_file_types, $script_dep_payloads );
+	$server_file_openers         = openstation_compact_script_deps( $server_file_openers, $script_dep_payloads );
 	$user_file_associations      = function_exists( 'openstation_get_user_file_associations' )
 		? openstation_get_user_file_associations( get_current_user_id() )
 		: array();
@@ -562,6 +570,9 @@ function openstation_enqueue_assets() {
 			'desktopIcons'                  => $desktop_icons,
 			'serverFileTypes'               => $server_file_types,
 			'serverFileOpeners'             => $server_file_openers,
+			// Handle => dependency payload for every `scriptDeps` list in
+			// this config; see `openstation_compact_script_deps()`.
+			'scriptDepPayloads'             => (object) $script_dep_payloads,
 			'userFileAssociations'          => $user_file_associations,
 			'filesUrl'                      => esc_url_raw( rest_url( 'desktop-mode/v1/files' ) ),
 			// Pinned-notes REST base (`includes/notes/rest.php`). The
