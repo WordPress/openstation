@@ -70,7 +70,7 @@ export class RestError extends Error {
 		opts: { status: number; code?: string; data?: unknown; serverMessage?: string },
 	) {
 		// An empty message means "the server's words, else the status".
-		super( message || opts.serverMessage || String( opts.status ) );
+		super( message || opts.serverMessage || `HTTP ${ opts.status }` );
 		this.name = 'RestError';
 		this.status = opts.status;
 		this.code = opts.code;

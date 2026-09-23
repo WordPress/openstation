@@ -9,6 +9,7 @@
 
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
+import { restErrorFromBody } from '../core/api-client';
 import type {
 	GameChallengeRow,
 	GameScoreRow,
@@ -46,12 +47,7 @@ async function call< T >(
 	);
 	const body: unknown = await res.json().catch( () => null );
 	if ( ! res.ok ) {
-		const message =
-			( body as { message?: string } | null )?.message ||
-			`Games request failed (${ res.status })`;
-		const error = new Error( message ) as Error & { status?: number };
-		error.status = res.status;
-		throw error;
+		throw restErrorFromBody( res.status, body );
 	}
 	return body as T;
 }
