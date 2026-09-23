@@ -92,7 +92,15 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		// The declared sort travels with the config.
 		$this->assertSame( 'menu_order', $config['defaultOrderby'] );
 		$this->assertSame( 'asc', $config['defaultOrder'] );
+		// Minus `menuTabs`, which the framework adds from the window's
+		// own `App::menu()` declaration rather than from the facts.
+		unset( $config['menuTabs'] );
 		$this->assertSame( $config, openstation_pages_app_config(), 'The manifest reads the Pages layer, which wraps the shared facts.' );
+		$this->assertSame(
+			array( 'posts', 'new', 'atlas' ),
+			wp_list_pluck( $this->app()->menu_tabs(), 'id' ),
+			'The tabs the dock builds the Pages submenu from.'
+		);
 	}
 
 	/**

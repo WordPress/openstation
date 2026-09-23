@@ -95,6 +95,38 @@ function openstation_app( $id ) {
 }
 
 /**
+ * The tabs of the window in charge of an admin menu, if any.
+ *
+ * A window that declares `App::menu( $slug, … )` answers for that
+ * menu whenever its gate says so — the per-user opt-in that decides
+ * between the native window and the classic screen. The dock builds
+ * that menu's submenu from this list, so the rows the user sees and
+ * the tabs the window shows are one list by construction.
+ *
+ * Returns an empty array when no window declares the menu, when the
+ * gate is off, or when this user may not use the window at all.
+ *
+ * @param string $menu_slug Admin menu slug, e.g. `users.php`.
+ * @return array<int,array<string,string>> Ordered `id` + `label` pairs.
+ */
+function openstation_app_menu_tabs( $menu_slug ) {
+	$menu_slug = (string) $menu_slug;
+	if ( '' === $menu_slug ) {
+		return array();
+	}
+	foreach ( openstation_apps_registry()->all() as $app ) {
+		if ( $app->menu_slug() !== $menu_slug ) {
+			continue;
+		}
+		if ( ! $app->menu_owns_dock() || ! $app->allows( openstation_apps_os() ) ) {
+			return array();
+		}
+		return $app->menu_tabs();
+	}
+	return array();
+}
+
+/**
  * The whole window as a value: manifest, state after `mount`, body
  * HTML and effects — what a host calls to render an app somewhere
  * other than the desktop (a REST consumer, a CLI, a test).

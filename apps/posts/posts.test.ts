@@ -55,8 +55,15 @@ function row( id: number, over: Partial< PostListItem > = {} ): PostListItem {
 	};
 }
 
+const POSTS_TABS = [
+	{ id: 'posts', label: 'All posts' },
+	{ id: 'new', label: 'Add Post' },
+	{ id: 'categories', label: 'Categories' },
+	{ id: 'tags', label: 'Tags' },
+];
+
 function state( over: Partial< ListState > = {} ): ListState {
-	return { page: 1, perPage: 20, search: '', status: '', orderby: 'date', order: 'desc', author: [], tag: [], ...over };
+	return { tab: 'posts', page: 1, perPage: 20, search: '', status: '', orderby: 'date', order: 'desc', author: [], tag: [], ...over };
 }
 
 function data( items: PostListItem[], over: Partial< ListData[ 'list' ] > = {} ): ListData {
@@ -90,7 +97,9 @@ function mount( s: Partial< ListState > = {}, d: ListData = data( [ row( 1 ), ro
 		data: d,
 		loading,
 		root,
-		extra: { mode: 'posts', editPostUrlBase: 'http://x.test/wp-admin/post.php', newPostUrl: 'http://x.test/wp-admin/post-new.php', defaultOrderby: 'date', defaultOrder: 'desc', ...extra },
+		// `menuTabs` is what `App::menu()` ships in the config extra, and
+		// what the strip renders from — see `apps/posts/posts.os.php`.
+		extra: { mode: 'posts', editPostUrlBase: 'http://x.test/wp-admin/post.php', newPostUrl: 'http://x.test/wp-admin/post-new.php', defaultOrderby: 'date', defaultOrder: 'desc', menuTabs: POSTS_TABS, ...extra },
 		dispatch,
 		fetch,
 		host: { fetch, openUrl: vi.fn(), confirm: vi.fn( async () => true ), toast: vi.fn(), announce: vi.fn() },
@@ -150,6 +159,30 @@ afterEach( () => {
 	vi.restoreAllMocks();
 } );
 
+/**
+ * Stand in for the shell's `wp.os.embedAdminPage()`, which is what
+ * puts the editor in the Add Post panel. Returns what it was asked to
+ * embed, a count of teardowns, and the undo.
+ */
+function stubEmbed() {
+	const embedded: Array< [ HTMLElement, string ] > = [];
+	let teardowns = 0;
+	const os = ( window as unknown as { wp?: { os?: Record< string, unknown > } } ).wp?.os;
+	os!.embedAdminPage = ( host: HTMLElement, url: string ) => {
+		embedded.push( [ host, url ] );
+		return () => {
+			teardowns++;
+		};
+	};
+	return {
+		embedded,
+		torn: () => teardowns,
+		restore: () => {
+			delete os!.embedAdminPage;
+		},
+	};
+}
+
 describe( 'the frame', () => {
 	it( 'declares a placeholder: the frame paints before mount, on the declared page size, with no "No posts" for the beat', () => {
 		const placeholder = app.placeholder!( state( { page: 2, perPage: 50 } ) ) as ListData;
@@ -168,7 +201,9 @@ describe( 'the frame', () => {
 	it( 'paints the tabs, the toolbar bound to filter, the table and the pager', () => {
 		const { root } = mount();
 		expect( root.querySelector( '[data-os-posts-root]' )!.classList.contains( 'desktop-mode-posts' ) ).toBe( true );
-		expect( Array.from( root.querySelectorAll( 'os-tab' ) ).map( ( t ) => t.getAttribute( 'value' ) ) ).toEqual( [ 'posts', 'categories', 'tags' ] );
+		// The same list, in the same order, the Posts menu shows in the
+		// dock: All posts, Add New Post, Categories, Tags.
+		expect( Array.from( root.querySelectorAll( 'os-tab' ) ).map( ( t ) => t.getAttribute( 'value' ) ) ).toEqual( [ 'posts', 'new', 'categories', 'tags' ] );
 		const status = root.querySelector( 'os-segmented' )!;
 		expect( status.getAttribute( 'os-bind' ) ).toBe( 'status' );
 		expect( status.getAttribute( 'os-action' ) ).toBe( 'filter' );
@@ -191,10 +226,55 @@ describe( 'the frame', () => {
 		expect( root.querySelector( '.os-app-list__pager' ) ).toBeNull();
 	} );
 
-	it( 'Add New opens the editor URL in a window with the post copy', () => {
-		const { root, ctx } = mount();
-		( root.querySelector( '[data-os-posts-new]' ) as HTMLElement ).click();
-		expect( ctx.host.openUrl ).toHaveBeenCalledWith( 'http://x.test/wp-admin/post-new.php', 'Add New Post', 'dashicons-admin-post' );
+	it( 'the hero button takes the user to the Add Post tab, not to a window', () => {
+		const embed = stubEmbed();
+		try {
+			const { root, ctx } = mount();
+			( root.querySelector( '[data-os-posts-new]' ) as HTMLElement ).click();
+			expect( ( root.querySelector( 'os-tabs' ) as HTMLElement & { value: string } ).value ).toBe( 'new' );
+			expect( embed.embedded ).toHaveLength( 1 );
+			expect( ctx.host.openUrl ).not.toHaveBeenCalled();
+		} finally {
+			embed.restore();
+		}
+	} );
+
+	it( 'opens on the tab the server named — the dock row that asked for it', () => {
+		const embed = stubEmbed();
+		try {
+			// `{ tab: 'new' }` is what the Add Post row's remap passes.
+			const { root } = mount( { tab: 'new' } );
+			expect( ( root.querySelector( 'os-tabs' ) as HTMLElement & { value: string } ).value ).toBe( 'new' );
+			expect( embed.embedded ).toHaveLength( 1 );
+		} finally {
+			embed.restore();
+		}
+	} );
+
+	it( 'the Add Post tab embeds the editor in the window instead of opening one', () => {
+		const { embedded, torn, restore } = stubEmbed();
+		try {
+			const { root, ctx } = mount();
+			root.querySelector( 'os-tabs' )!.dispatchEvent(
+				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
+			);
+			expect( embedded ).toHaveLength( 1 );
+			expect( embedded[ 0 ][ 0 ] ).toBe( root.querySelector( '[data-os-posts-editor]' ) );
+			expect( embedded[ 0 ][ 1 ] ).toBe( 'http://x.test/wp-admin/post-new.php' );
+			expect( ctx.host.openUrl ).not.toHaveBeenCalled();
+			// Every visit opens a blank editor, the way post-new.php
+			// does in a classic window: the old embed is torn down.
+			root.querySelector( 'os-tabs' )!.dispatchEvent(
+				new CustomEvent( 'os-tab-change', { detail: { value: 'posts' } } ),
+			);
+			root.querySelector( 'os-tabs' )!.dispatchEvent(
+				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
+			);
+			expect( embedded ).toHaveLength( 2 );
+			expect( torn() ).toBe( 1 );
+		} finally {
+			restore();
+		}
 	} );
 
 	it( 'anchors the bulk bar below the workspace on desktop and phone', () => {

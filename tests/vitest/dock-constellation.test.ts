@@ -63,6 +63,8 @@ const settings: DockItem = {
 };
 
 const opened: Array< Record< string, unknown > > = [];
+/** Which manager door each open took, in the same order. */
+const doors: string[] = [];
 
 function makeManagerStub(): WindowManager {
 	return {
@@ -77,9 +79,11 @@ function makeManagerStub(): WindowManager {
 		focus: () => {},
 		open: ( cfg: Record< string, unknown > ) => {
 			opened.push( cfg );
+			doors.push( 'open' );
 		},
 		openNew: ( cfg: Record< string, unknown > ) => {
 			opened.push( cfg );
+			doors.push( 'openNew' );
 			return Promise.resolve( null );
 		},
 	} as unknown as WindowManager;
@@ -184,6 +188,7 @@ describe( 'dock constellation', () => {
 
 	beforeEach( () => {
 		opened.length = 0;
+		doors.length = 0;
 		installHooksStub();
 		vi.useFakeTimers();
 		// jsdom has no rAF by default under fake timers; route it
@@ -368,6 +373,9 @@ describe( 'dock constellation', () => {
 
 		rows( '.os-constellation__head' )[ 0 ].click();
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/themes.php' );
+		// The menu's own page goes through `open()`, so a second click
+		// on it comes back to the window the first one gave you.
+		expect( doors.at( -1 ) ).toBe( 'open' );
 		expect( panel() ).toBeNull();
 
 		flushExit();
@@ -377,6 +385,9 @@ describe( 'dock constellation', () => {
 		// otherwise the window's tab strip has no way back to Themes.
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/site-editor.php' );
 		expect( opened.at( -1 )?.parentUrl ).toBe( '/wp-admin/themes.php' );
+		// A child page always gets a window of its own — Add New Post
+		// twice has to be two editors.
+		expect( doors.at( -1 ) ).toBe( 'openNew' );
 	} );
 
 	/*

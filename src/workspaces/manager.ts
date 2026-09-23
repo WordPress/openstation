@@ -18,6 +18,10 @@ import type { Window } from '../window';
 import type { WindowManager } from '../window-manager';
 import { reflowGridSpan } from '../window-manager/grid-snap';
 import { workAreaRectOf } from '../work-area';
+import {
+	resolveNativeUrlRemap,
+	tryNativeUrlRemap,
+} from '../native-url-remap';
 import { resolveLaunches } from './match';
 import { findWorkspacePreset, workspaceProfileFromPreset } from './presets';
 import {
@@ -248,6 +252,83 @@ export function applyWorkspaceLayout(
 }
 
 /**
+ * The window a launch entry stands for, when one is already open and
+ * no earlier entry in this pass has claimed it.
+ *
+ * A desk's list declares N windows, so each entry gets its own: two
+ * entries resolving to the same window — the native Posts window on
+ * its Add Post tab beside the same window on its list, which is the
+ * Publishing template — are two windows, and a desk that has them
+ * keeps them instead of growing a pair on every Restore.
+ */
+function claimOpenWindow(
+	deps: WorkspaceDeps,
+	url: string,
+	desktopId: string,
+	claimed: Set< string >,
+): Window | null {
+	const baseId = resolveNativeUrlRemap( url ) ?? deps.deriveWindowId( url );
+	const match = deps.manager
+		.getAllByBaseId( baseId )
+		.find(
+			( win ) =>
+				! claimed.has( win.id ) &&
+				( ! win.config.desktopId || win.config.desktopId === desktopId ),
+		);
+	if ( match ) {
+		claimed.add( match.id );
+	}
+	return match ?? null;
+}
+
+/**
+ * Open one launch entry's URL, the way a menu pick opens it: the
+ * native-window remap first, so a page the viewer opted a window into
+ * gets that window, and otherwise the iframe window built from the
+ * menu's own metadata, so it comes up with its tab strip. Opening the
+ * raw URL through `manager.open()` — what this did — was the one door
+ * in the shell that skipped both.
+ *
+ * Always a fresh instance: the entry is here only because
+ * {@link claimOpenWindow} found nothing to reuse.
+ */
+function openLaunchUrl(
+	deps: WorkspaceDeps,
+	url: string,
+	launch: { title?: string; item: NavItem },
+	desktopId: string,
+): Promise< Window | null > {
+	const nativeId = resolveNativeUrlRemap( url );
+	if ( nativeId ) {
+		// An extra instance lands on a suffixed id, so wait for
+		// whatever the open produced rather than one we can name.
+		const before = new Set(
+			deps.manager.getAllByBaseId( nativeId ).map( ( w ) => w.id ),
+		);
+		if ( tryNativeUrlRemap( url, { newInstance: true } ) ) {
+			return whenWindowOpens( deps.manager, nativeId, ( win ) =>
+				! before.has( win.id ),
+			);
+		}
+	}
+	const menu = launch.item.menu;
+	return deps.manager.openNew( {
+		id: deps.deriveWindowId( url ),
+		baseId: deps.deriveWindowId( menu?.url ?? url ),
+		url,
+		// The menu's landing page, so the tab strip offers the way
+		// back the dock's own windows have.
+		parentUrl: menu?.url ?? url,
+		title: launch.title ?? launch.item.title,
+		icon: launch.item.icon,
+		submenu: menu?.submenu,
+		selfLabel: menu?.selfLabel,
+		multi: !! menu?.multi,
+		desktopId,
+	} );
+}
+
+/**
  * Open a workspace's launch list and arrange the result.
  *
  * Runs once per workspace, guarded by `profile.provisioned`. That flag
@@ -278,25 +359,32 @@ export function provisionWorkspace(
 	setWorkspaceProfile( deps, desktopId, { ...profile, provisioned: true } );
 
 	const launches = resolveLaunches( deps.getNavItems(), profile.windows );
+	// One window per entry, and an entry takes a window this desk
+	// already has before it opens another — otherwise Restore on an
+	// intact desk would double everything on it.
+	const claimed = new Set< string >();
 	let opened = 0;
 	for ( const launch of launches ) {
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
 			opened++;
+			const existing = claimOpenWindow( deps, url, desktopId, claimed );
+			if ( existing ) {
+				placeLaunchedWindow( deps.manager, existing, launch );
+				continue;
+			}
 			// Not awaited: an iframe window resolves when its document
 			// loads, and a workspace with three windows would otherwise
 			// open them one page-load apart. A rejection is a window that
 			// did not open, which is exactly what a missing plugin looks
 			// like — the rest of the desk still comes up.
-			void deps.manager
-				.open( {
-					id: deps.deriveWindowId( url ),
-					url,
-					title: launch.title,
-					icon: launch.item.icon,
-					desktopId,
+			void openLaunchUrl( deps, url, launch, desktopId )
+				.then( ( win ) => {
+					if ( win ) {
+						claimed.add( win.id );
+						placeLaunchedWindow( deps.manager, win, launch );
+					}
 				} )
-				.then( ( win ) => placeLaunchedWindow( deps.manager, win, launch ) )
 				.catch( () => {
 					/* One window short is not a failed workspace. */
 				} );
@@ -365,24 +453,25 @@ export function reopenWorkspaceWindows(
 	}
 
 	const launches = resolveLaunches( deps.getNavItems(), profile.windows );
+	const claimed = new Set< string >();
 	for ( const launch of launches ) {
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
-			const id = deps.deriveWindowId( url );
 			// Already on screen — session restore reopened it, or it
-			// never closed. Leave it exactly where it is.
-			if ( deps.manager.getById( id ) ) {
+			// never closed. Leave it exactly where it is, and let no
+			// other entry claim it: a desk whose list names two tabs of
+			// one window is two windows, and this pass fills whichever
+			// of them the restore did not bring back.
+			if ( claimOpenWindow( deps, url, desktopId, claimed ) ) {
 				continue;
 			}
-			void deps.manager
-				.open( {
-					id,
-					url,
-					title: launch.title,
-					icon: launch.item.icon,
-					desktopId,
+			void openLaunchUrl( deps, url, launch, desktopId )
+				.then( ( win ) => {
+					if ( win ) {
+						claimed.add( win.id );
+						placeLaunchedWindow( deps.manager, win, launch );
+					}
 				} )
-				.then( ( win ) => placeLaunchedWindow( deps.manager, win, launch ) )
 				.catch( () => {
 					/* One window short is not a failed workspace. */
 				} );
@@ -525,13 +614,22 @@ function placeLaunchedWindow(
  * fetch the window's script; there is no promise to await, only the
  * `os-window-opened` event when it lands. Bounded, because a plugin
  * that was deactivated between save and restore never lands at all.
+ *
+ * `id` is the window's own id, or the base id of a family when
+ * `accept` decides which instance this caller is waiting for — an
+ * extra instance lands on a suffixed id nobody can name in advance.
  */
 function whenWindowOpens(
 	mgr: WindowManager,
 	id: string,
+	accept?: ( win: Window ) => boolean,
 	timeoutMs = 8000,
 ): Promise< Window | null > {
-	const now = mgr.getById( id );
+	const found = (): Window | null =>
+		accept
+			? mgr.getAllByBaseId( id ).find( accept ) ?? null
+			: mgr.getById( id ) ?? null;
+	const now = found();
 	if ( now ) {
 		return Promise.resolve( now );
 	}
@@ -543,8 +641,11 @@ function whenWindowOpens(
 		};
 		const onOpened = ( e: Event ): void => {
 			const detail = ( e as CustomEvent< { windowId?: string } > ).detail;
-			if ( detail?.windowId === id ) {
-				done( mgr.getById( id ) ?? null );
+			if ( accept || detail?.windowId === id ) {
+				const win = found();
+				if ( win ) {
+					done( win );
+				}
 			}
 		};
 		const timer = window.setTimeout( () => done( null ), timeoutMs );

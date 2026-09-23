@@ -21,6 +21,7 @@ import {
 	statusControl,
 	type ListTableSync,
 	type MenuCheckboxes,
+	type MenuTab,
 	type TemplateResult,
 } from '@openstation/app';
 import type { ListTableLike } from '@openstation/app';
@@ -100,6 +101,10 @@ interface UiState {
 	extras: HTMLElement[] | null;
 	postsCtx: PostsWindowContext | null;
 	tab: string;
+	/** The last `state.tab` seen, so a repaint does not re-adopt it. */
+	serverTab: string;
+	/** Teardown for the editor embedded in the "Add Post" tab. */
+	editor: ( () => void ) | null;
 	canvases: { categories: ( () => void ) | null; tags: ( () => void ) | null };
 	canvasPending: Set< string >;
 	menu: MenuCheckboxes | null;
@@ -124,6 +129,8 @@ const freshUi = (): UiState => ( {
 	extras: null,
 	postsCtx: null,
 	tab: 'posts',
+	serverTab: 'posts',
+	editor: null,
 	canvases: { categories: null, tags: null },
 	canvasPending: new Set(),
 	menu: null,
@@ -344,20 +351,110 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 		`;
 	};
 
+	/**
+	 * Show the editor in the "Add Post" panel, re-mounted on every
+	 * visit so the tab opens on a blank post the way `post-new.php`
+	 * does in a classic window. Nothing typed is lost — a draft with a
+	 * title is already an auto-draft, in the list rather than on
+	 * screen.
+	 */
+	const mountEditor = ( ctx: Ctx, ui: UiState ): void => {
+		ui.editor?.();
+		ui.editor = null;
+		const host = ctx.root.querySelector< HTMLElement >(
+			'[data-os-posts-editor]',
+		);
+		const url = ( ctx.extra as ListExtra ).newPostUrl ?? '';
+		if ( host && url ) {
+			ui.editor = window.wp?.os?.embedAdminPage?.( host, url ) ?? null;
+		}
+	};
+
+	/**
+	 * The hero button goes where the tab goes, so the window has one
+	 * answer for "write a new one". A window with no strip (no
+	 * taxonomies, no atlas) has nowhere to put the editor, so there it
+	 * stays a window of its own.
+	 */
+	const showEditorTab = ( ctx: Ctx, ui: UiState, mode: PostsMode ): void => {
+		const strip = ctx.root.querySelector< HTMLElement & { value: string } >(
+			'os-tabs',
+		);
+		if ( ! strip ) {
+			const isPages = mode === 'pages';
+			ctx.host.openUrl?.(
+				( ctx.extra as ListExtra ).newPostUrl ?? '',
+				isPages ? __( 'Add Page' ) : __( 'Add Post' ),
+				isPages ? 'dashicons-admin-page' : 'dashicons-admin-post',
+			);
+			return;
+		}
+		strip.value = 'new';
+		activateTab( ctx, ui, 'new' );
+	};
+
+	/**
+	 * The window's tabs, as `App::menu()` declared them — the same
+	 * list the dock builds this menu's submenu from, which is why the
+	 * two cannot drift.
+	 */
+	const menuTabs = ( ctx: Ctx ): MenuTab[] =>
+		( ( ctx.extra as { menuTabs?: MenuTab[] } ).menuTabs ?? [] );
+
+	/**
+	 * Go to a tab and bring up whatever it holds. Shared by the strip
+	 * itself, the hero button and the tab the SERVER names when the
+	 * window is opened on one of the menu's other pages.
+	 */
+	const activateTab = ( ctx: Ctx, ui: UiState, value: string ): void => {
+		ui.tab = value;
+		if ( value === 'new' ) {
+			mountEditor( ctx, ui );
+			return;
+		}
+		if ( value === 'atlas' && ! ui.atlas && options.atlas ) {
+			const host = ctx.root.querySelector< HTMLElement >( '[data-os-pages-atlas]' );
+			if ( host ) {
+				ui.atlas = options.atlas( host, ctx );
+			}
+			return;
+		}
+		if ( value === 'categories' || value === 'tags' ) {
+			mountCanvas( ctx, ui, value );
+		}
+	};
+
+	/**
+	 * Follow the tab the server named. `state.tab` carries the open-time
+	 * param — the dock's "Add Post" / "Categories" / "Tags" rows all
+	 * arrive as one — and from then on the live value is the client's.
+	 */
+	const adoptServerTab = ( ctx: Ctx, ui: UiState ): void => {
+		const wanted = String( ( ctx.state as { tab?: unknown } ).tab ?? '' ) || 'posts';
+		if ( wanted === ui.serverTab ) {
+			return;
+		}
+		ui.serverTab = wanted;
+		if ( wanted === ui.tab ) {
+			return;
+		}
+		const strip = ctx.root.querySelector< HTMLElement & { value: string } >(
+			'os-tabs',
+		);
+		if ( strip ) {
+			strip.value = wanted;
+		}
+		activateTab( ctx, ui, wanted );
+	};
+
 	const listPanel = ( ctx: Ctx, ui: UiState, mode: PostsMode, phone: boolean ): TemplateResult => {
 		const displayCtx = ui.feed.reconcile( ctx );
 		const { state, data } = displayCtx;
 		const list = data?.list;
 		const isPages = mode === 'pages';
-		const extra = ctx.extra as ListExtra;
 		const env = cellEnv( ctx, ui, cells );
 		refreshParentTitleRoster( env, list?.items ?? [] );
-		const addNew = (): void =>
-			ctx.host.openUrl?.(
-				extra.newPostUrl ?? '',
-				isPages ? __( 'Add New Page' ) : __( 'Add New Post' ),
-				isPages ? 'dashicons-admin-page' : 'dashicons-admin-post',
-			);
+		const addNew = (): void => showEditorTab( ctx, ui, mode );
 		// Plugin-injected toolbar nodes, resolved once with the live context.
 		if ( ! ui.extras ) {
 			ui.extras = resolveToolbarTrailing( postsContext( ctx, ui ) );
@@ -440,26 +537,23 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					<div class="os-app-list__panel">${ panel }</div>
 				</div>`;
 			}
+			// The editor is a wp-admin screen, so its tab shows it
+			// embedded rather than opening a window: a tab swaps the
+			// body, whatever the page behind it is made of.
 			const onTab = ( e: Event ): void => {
 				const value = ( e as CustomEvent< { value: string } > ).detail?.value ?? 'posts';
-				ui.tab = value;
-				if ( value === 'atlas' && ! ui.atlas && options.atlas ) {
-					const host = ctx.root.querySelector< HTMLElement >( '[data-os-pages-atlas]' );
-					if ( host ) {
-						ui.atlas = options.atlas( host, ctx );
-					}
-				}
-				if ( value === 'categories' || value === 'tags' ) {
-					mountCanvas( ctx, ui, value );
-				}
+				activateTab( ctx, ui, value );
 			};
 			return html`<div class=${ rootClass } data-os-posts-root data-desk-options=${ String( ui.desk.filters ) }><style>${ deskStyles.cssText }${ paperStyles.cssText }</style>
 				<os-tabs value=${ ui.tab } class="os-app-list__tabs" @os-tab-change=${ onTab }>
-					<os-tab value="posts">${ mode === 'pages' ? __( 'All pages' ) : __( 'All posts' ) }</os-tab>
-					${ options.atlas ? html`<os-tab value="atlas">${ __( 'Page atlas' ) }</os-tab>` : '' }
-					${ terms ? html`<os-tab value="categories">${ __( 'Categories' ) }</os-tab><os-tab value="tags">${ __( 'Tags' ) }</os-tab>` : '' }
+					${ menuTabs( ctx ).map(
+						( tab ) => html`<os-tab value=${ tab.id }>${ tab.label }</os-tab>`,
+					) }
 				</os-tabs>
 				<os-tabpanel for="posts" class="os-app-list__panel">${ panel }</os-tabpanel>
+				<os-tabpanel for="new" class="os-app-list__panel">
+					<div data-os-posts-editor class="os-posts__embed-host" os-preserve></div>
+				</os-tabpanel>
 				${ options.atlas ? html`<os-tabpanel for="atlas" class="os-app-list__panel"><div data-os-pages-atlas class="os-pages-atlas-host" os-preserve></div></os-tabpanel>` : '' }
 				${ terms ? html`<os-tabpanel for="categories" class="os-app-list__panel">
 					<div data-os-posts-cats-host class="os-posts__terms-host" os-preserve></div>
@@ -570,6 +664,8 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				}
 				ui.feed.dispose();
 				ui.atlas?.();
+				ui.editor?.();
+				ui.editor = null;
 				ui.canvases.categories?.();
 				ui.canvases.tags?.();
 				ui.canvases = { categories: null, tags: null };
@@ -579,6 +675,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 
 		updated: ( ctx ) => {
 			syncDeskControls( ctx.root );
+			adoptServerTab( ctx, ctx.ui( freshUi ) );
 			const table = tableOf( ctx );
 			if ( ! table ) {
 				return;

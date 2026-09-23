@@ -303,6 +303,22 @@ return App::define( 'desktop-mode-plugins' )
 			);
 		}
 	)
+	// The Plugins menu, while this window answers for it. The file
+	// editor is deliberately not a row: it is a tab the window opens
+	// on a file you picked, not a page you can ask for cold.
+	->menu(
+		'plugins.php',
+		static function () {
+			$caps = openstation_plugins_window_caps();
+			$tabs = array( 'installed' => __( 'Installed', 'desktop-mode' ) );
+			if ( ! empty( $caps['install'] ) ) {
+				$tabs['browse']   = __( 'Add Plugin', 'desktop-mode' );
+				$tabs['featured'] = __( 'OpenStation plugins', 'desktop-mode' );
+			}
+			return $tabs;
+		},
+		'openstation_plugins_window_user_can_use'
+	)
 	->state(
 		array(
 			'tab'           => 'installed',

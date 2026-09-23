@@ -119,6 +119,27 @@ return App::define( 'desktop-mode-users' )
 	)
 	// Resolved when the window registers, for the viewer registering it.
 	->config( 'openstation_users_profile_facts' )
+	// The Users menu, while this window is the one answering for it:
+	// the dock's submenu becomes these tabs, same labels, same order,
+	// and picking one opens the window on it. The window's own strip
+	// renders from the same list (`menuTabs` in the config extra), so
+	// the two cannot drift.
+	->menu(
+		'users.php',
+		static function () {
+			$tabs = array(
+				'all'      => __( 'People', 'desktop-mode' ),
+				'roles'    => __( 'Roles', 'desktop-mode' ),
+				'activity' => __( 'Activity', 'desktop-mode' ),
+			);
+			if ( current_user_can( 'create_users' ) ) {
+				$tabs['add-new'] = __( 'Add new', 'desktop-mode' );
+			}
+			$tabs['edit'] = __( 'Profile', 'desktop-mode' );
+			return $tabs;
+		},
+		'openstation_users_window_user_can_use'
+	)
 	->state(
 		array(
 			'page'        => 1,

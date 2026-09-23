@@ -28,6 +28,7 @@ import { HOOKS, addAction, doAction, removeAction } from './hooks';
 import { isMobileStamped } from './mode/stamp';
 import { injectInlineScript, loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
+import { isShellDocumentUrl } from './shell-url';
 import { setPanelTabs } from './window/tab-strip';
 import {
 	loadNativeWindowGeometry,
@@ -552,6 +553,94 @@ function buildIframeContentRender(
 		} );
 
 		return readyPromise;
+	};
+}
+
+/**
+ * Mount a chromeless admin page inside an element of a native
+ * window's body, and return the teardown.
+ *
+ * An app's window is its own surface, not an iframe, so a tab whose
+ * page is one of wp-admin's own had only `open_url()`, which spawns a
+ * second window — a different gesture from every other tab beside it.
+ * Same machinery as a native window registered with `iframeContent`,
+ * pointed at a host element instead of the whole body: the iframe
+ * becomes the window's synthetic iframe, so `wp.os.connect()`,
+ * `os-bridge-*` traffic and window-channel publishes all reach it.
+ *
+ * It is NOT an iframe window: title adoption, the preview and
+ * revisions buttons, the submenu strip and the close-time
+ * unsaved-changes query all key off `Window.iframe`. A host that
+ * embeds an editor owns those questions itself. A cross-origin URL,
+ * or the shell screen, mounts nothing and returns a no-op.
+ *
+ * @param host          Element to mount into. Its contents are replaced.
+ * @param url           Admin URL. The chromeless flag is added here.
+ * @param opts          Mount options.
+ * @param opts.windowId Fallback for a host that is not inside a window
+ *                      root yet; normally resolved from the DOM.
+ * @return Teardown: removes the listeners, the synthetic-iframe
+ *         registration and the iframe itself.
+ * @public
+ */
+export function embedAdminPage(
+	host: HTMLElement,
+	url: string,
+	opts: { windowId?: string } = {},
+): () => void {
+	let chromeless: string;
+	try {
+		const parsed = new URL( url, window.location.origin );
+		if ( parsed.origin !== window.location.origin ) {
+			return () => {};
+		}
+		if ( isShellDocumentUrl( parsed ) ) {
+			return () => {};
+		}
+		parsed.searchParams.set( 'openstation_chromeless', '1' );
+		chromeless = parsed.toString();
+	} catch {
+		return () => {};
+	}
+
+	host.replaceChildren();
+	const cleanups: ( () => void )[] = [];
+	const windowId = resolveMountedWindowId( host, opts.windowId ?? '' );
+	const ready = buildIframeContentRender( { url: chromeless }, cleanups, windowId )(
+		host,
+	);
+
+	// Styled inline, the way the iframe above is: a class of ours in
+	// someone else's body is a selector they never agreed to. The
+	// centring lives on a div rather than on the spinner, which is
+	// `display: inline-block` and would stretch with the mark left in
+	// a corner. While the page loads the busy mark is the HOST's, not
+	// the window's: the window overlay would black out the tab strip
+	// the user got here from.
+	if ( getComputedStyle( host ).position === 'static' ) {
+		host.style.position = 'relative';
+	}
+	const overlay = document.createElement( 'div' );
+	overlay.style.position = 'absolute';
+	overlay.style.inset = '0';
+	overlay.style.display = 'flex';
+	overlay.style.alignItems = 'center';
+	overlay.style.justifyContent = 'center';
+	const spinner = document.createElement( 'os-spinner' );
+	spinner.setAttribute( 'preset', 'comet' );
+	overlay.appendChild( spinner );
+	host.appendChild( overlay );
+	void ready.then( () => overlay.remove() );
+
+	return () => {
+		for ( const fn of cleanups ) {
+			try {
+				fn();
+			} catch {
+				/* A failing cleanup must not strand the others. */
+			}
+		}
+		host.replaceChildren();
 	};
 }
 
@@ -1641,6 +1730,12 @@ export function createNativeWindowSync(
 	 * `manager.openNew()` so the next-instance-id logic kicks in. The
 	 * render callback is built fresh per call — every duplicate gets
 	 * its own template clone and its own teardown.
+	 *
+	 * Floating-vs-remembered is the manager's call, not ours: it
+	 * opens a duplicate at a cascade slot (a maximized twin would
+	 * hide the primary) and a first instance — which is what a menu
+	 * pick on a window nobody opened yet is — on the geometry the
+	 * user left it at, exactly as {@link openFromEntry} would.
 	 */
 	const openNewFromEntry = (
 		entry: NativeWindowServerEntry,
@@ -1648,12 +1743,6 @@ export function createNativeWindowSync(
 	): void => {
 		const finalRender = buildRender( entry );
 
-		// Duplicate instances always open floating — the remembered
-		// maximize preference applies to the primary window only.
-		// Passing an explicit `initialState: 'normal'` suppresses the
-		// `WindowManager.createWindow` saved-state replay (which
-		// would otherwise spawn the duplicate in the maximized state
-		// the user set on the primary).
 		const size = resolveSizeForEntry( entry );
 
 		void manager.openNew( {
@@ -1667,7 +1756,6 @@ export function createNativeWindowSync(
 			height: size.height,
 			minWidth: entry.minWidth,
 			minHeight: entry.minHeight,
-			initialState: 'normal',
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,

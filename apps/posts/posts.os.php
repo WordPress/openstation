@@ -60,6 +60,22 @@ return App::define( 'desktop-mode-posts' )
 		}
 	)
 	->state( openstation_posts_app_state( 'date', 'desc' ) )
+	// The Posts menu, while this window answers for it: the dock's
+	// submenu becomes these tabs and a row opens the window on its
+	// own one. The runtime lands the window on it; the client view
+	// renders the strip from the same list.
+	->menu(
+		'edit.php',
+		static function () {
+			return array(
+				'posts'      => __( 'All posts', 'desktop-mode' ),
+				'new'        => __( 'Add Post', 'desktop-mode' ),
+				'categories' => __( 'Categories', 'desktop-mode' ),
+				'tags'       => __( 'Tags', 'desktop-mode' ),
+			);
+		},
+		'openstation_posts_window_user_can_use'
+	)
 	->action(
 		'filter',
 		static function ( State $state ) {

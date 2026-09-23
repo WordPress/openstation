@@ -2487,6 +2487,10 @@ export class Dock {
 
 		const baseId = this.deriveWindowId( item.url );
 
+		// `open`, not `openNew`: the tile is how the user gets BACK to
+		// a menu's window, so it focuses the open one and only opens
+		// when there is none. Asking for a second window of the same
+		// menu is what the submenu rows are for.
 		this.windowManager.open( {
 			id: baseId,
 			baseId,

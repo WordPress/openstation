@@ -148,7 +148,14 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 		$this->assertSame( get_option( 'default_role' ), $config['defaultRole'] );
 		$this->assertNotEmpty( $config['colorSchemes'] );
 		$this->assertSame( wp_get_user_contact_methods(), $config['contactMethods'] );
-		// Both windows read the same memoised facts.
+		// Both windows read the same memoised facts — minus the tabs
+		// the framework adds for the window that declared a menu, which
+		// the Users window has and the profile editor does not.
+		$this->assertSame(
+			array( 'all', 'roles', 'activity', 'add-new', 'edit' ),
+			wp_list_pluck( $config['menuTabs'], 'id' )
+		);
+		unset( $config['menuTabs'] );
 		$this->assertSame( $config, openstation_apps_registry()->get( 'desktop-mode-user-edit' )->manifest()['config'] );
 
 		wp_set_current_user( self::$editor_id );

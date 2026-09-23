@@ -12,7 +12,15 @@ import {
 	syncActiveTab,
 	updateTabOverflow,
 } from './tabs';
+import {
+	_resetNativeUrlRemap,
+	bindNativeUrlRemap,
+	registerNativeUrlRemap,
+} from '../native-url-remap';
 import type { Window } from './index';
+
+/** Native windows the remap registry was asked to open, per test. */
+const opened: string[] = [];
 
 const ADMIN = window.location.origin + '/wp-admin/';
 
@@ -47,6 +55,11 @@ function activeLabels( win: Window ): string[] {
 }
 
 describe( 'syncActiveTab', () => {
+	afterEach( () => {
+		opened.length = 0;
+		_resetNativeUrlRemap();
+	} );
+
 	test( 'exact URL match lights that tab', () => {
 		const win = mockTabbedWindow( [
 			[ 'Appearance', ADMIN + 'themes.php' ],
@@ -285,6 +298,47 @@ describe( 'syncActiveTab', () => {
 		} as unknown as Event );
 
 		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
+	} );
+
+	test( 'a tab a native window has claimed opens that window instead', () => {
+		const win = mockTabbedWindow( [
+			[ 'All Posts', ADMIN + 'edit.php' ],
+			[ 'Add New Post', ADMIN + 'post-new.php' ],
+		] );
+		const iframe = document.createElement( 'iframe' );
+		iframe.src = ADMIN + 'post-new.php';
+		Object.assign( win as unknown as Record< string, unknown >, {
+			iframe,
+			_externalTabs: new Map(),
+			markContentLoading: () => {},
+		} );
+		syncActiveTab( win, ADMIN + 'post-new.php' );
+
+		bindNativeUrlRemap( {
+			getSnapshot: () => ( {} ) as never,
+			openById: () => {
+				opened.push( 'desktop-mode-posts' );
+				return true;
+			},
+			adminUrl: ADMIN,
+		} );
+		registerNativeUrlRemap( {
+			id: 'desktop-mode-posts',
+			nativeWindowId: 'desktop-mode-posts',
+			matches: ( _url, parsed ) => parsed.pathname.endsWith( '/edit.php' ),
+		} );
+
+		const allPosts = win.element.querySelectorAll( '.os-window__tab' )[ 0 ];
+		handleTabStripClick( win, {
+			target: allPosts,
+			stopPropagation: () => {},
+		} as unknown as Event );
+
+		expect( opened ).toEqual( [ 'desktop-mode-posts' ] );
+		// The draft this window is holding stays put, and so does the
+		// highlight on the page it is still showing.
+		expect( iframe.src ).toBe( ADMIN + 'post-new.php' );
+		expect( activeLabels( win ) ).toEqual( [ 'Add New Post' ] );
 	} );
 
 	test( 'a page holding unsaved changes keeps its highlight and its spinner off', async () => {

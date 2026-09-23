@@ -892,7 +892,7 @@ manager.open( config ): Promise< Window >;
 manager.openNew( config ): Promise< Window >;
 
 // Speculative prewarming — Experimental
-manager.prewarm( config ): Promise< boolean >;                           // build the window HIDDEN (single slot, outside the stack, no events); a later open() with the same id + URL adopts and reveals it, firing os-window-opened at that moment. Returns false when skipped (native target, already open, slot busy). Unclaimed prewarms self-destruct after ~45s.
+manager.prewarm( config ): Promise< boolean >;                           // build the window HIDDEN (single slot, outside the stack, no events); a later open() / openNew() with the same id + URL adopts and reveals it, firing os-window-opened at that moment. Returns false when skipped (native target, already open, slot busy). Unclaimed prewarms self-destruct after ~45s.
 manager.discardPrewarmed(): void;                                        // drop the current speculative window, announcing nothing
 manager.focus( winOrId: Window | string ): void;                         // id or instance; unknown ids are a no-op
 manager.raise( windowId: string ): void;                                 // restack to just below the top WITHOUT focusing; no focus/blur events
@@ -1076,7 +1076,9 @@ document.addEventListener( 'os-init', () => {
 
 Calling `open()` with an id (or `baseId`) that's already on screen focuses the existing window and restores it if minimized.
 
-**URL-aware reuse**: focusing is the whole story only when the requested URL is one the window is already showing — its live iframe URL, the URL it was opened with, or its home / dock landing URL (`parentUrl`); the comparison ignores the chromeless / portal flags, `_wp_http_referer`, and param order. Any *other* URL is treated as a real navigation request: the existing iframe navigates to it in place (via `location.assign()`, so in-frame Back still works) instead of the URL being silently dropped. This is what makes action links routed through `open()` — e.g. the post-install **Activate** link `plugins.php?action=activate&plugin=…&_wpnonce=…` while a Plugins window is already open — actually execute. Dock clicks keep their old behavior: clicking a tile whose window has sub-navigated only focuses it (the tile's URL is the window's home URL), never yanks it back to the landing page. The `os-window-reopened` detail reports the outcome via `navigated`.
+**URL-aware reuse**: focusing is the whole story only when the requested URL is one the window is already showing — its live iframe URL, the URL it was opened with, or its home / dock landing URL (`parentUrl`); the comparison ignores the chromeless / portal flags, `_wp_http_referer`, and param order. Any *other* URL is treated as a real navigation request: the existing iframe navigates to it in place (via `location.assign()`, so in-frame Back still works) instead of the URL being silently dropped. This is what makes action links routed through `open()` — e.g. the post-install **Activate** link `plugins.php?action=activate&plugin=…&_wpnonce=…` while a Plugins window is already open — actually execute. The `os-window-reopened` detail reports the outcome via `navigated`.
+
+**Submenu picks don't take this door.** A dock tile click is an `open()` and behaves as described above: it focuses the menu's open window, and opens one when there is none. Picking a *child* page — a flyout row, a custom rail renderer's `openSubmenuPick` — calls `openNew()` instead, so *Posts → Add New Post* opens a second Posts window beside the draft already open rather than pulling that one onto the new-post page. The tile is the way back to a window you have; the submenu is how you ask for another.
 
 **Title-bar actions menu.** Every window — iframe *and* native — renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
 
@@ -1102,6 +1104,8 @@ A reload requested while the window's content is still loading is ignored (for n
 **A page holding unsaved changes gets asked first.** A reload is a navigation, so the browser can raise its native "Leave site?" prompt over one — and a prompt the user cancels leaves nothing behind to clear the overlay the reload had already armed. Reload on the primary frame, `Window.navigateTo()`, and every submenu-tab click therefore query the page inside before painting anything, and withhold the overlay (and the tab highlight) when something is holding on. Nothing is painted until the frame reports a real unload, so cancelling the prompt leaves the window exactly as the user left it. `navigateTo()` still returns `true` for a navigation it *issued* — the page inside gets the last word on whether it happens. Full protocol in [`bridge-protocol.md`](./bridge-protocol.md#pre-navigation-unsaved-changes-guard--os-iframe-unloading).
 
 **Multi-instance windows.** When `multi: true` is passed, the window gets the "Open another" item described above. `openNew()` always creates a fresh window — even when one with the same `baseId` is already open — assigning a suffixed id (`${baseId}-2`, `${baseId}-3`, …) so every instance can be tracked independently while the dock still groups them under the same icon.
+
+`openNew()` is also the door every submenu pick takes, and most of those find nothing of that page open, so a call that is not a duplicate behaves like `open()` on a closed page: it adopts a matching prewarm and lands on the size, state and position the user last left that `baseId` at. Only a *duplicate* — a call made while an instance is open on the active desktop — opens floating at a fresh cascade slot, so a twin never hides the window it was spawned from. Either default gives way to an explicit `initialState` / `x` / `y`.
 
 One exception to the suffixing: if you pass an `id` that differs from `baseId` and isn't currently taken, `openNew()` honours it verbatim instead of allocating the next free slot. This is how a caller re-materialises a *specific* instance — session restore replays saved ids (`edit-php-2`) so that anything keyed by window id (the saved focused-window pointer, per-window plugin state, `wp.os.onWindow( id )` subscriptions) still lines up after the reload. Pass `id === baseId` (or omit `baseId`) for the ordinary "just give me another one" case and you get slot allocation as described above.
 
@@ -1441,6 +1445,40 @@ Powers the dock-peek "+" button for native windows so they behave like iframe wi
 
 ---
 
+### `wp.os.embedAdminPage( host, url, opts? )` — Stable
+
+Mount a chromeless admin page **inside an element of a native window's body**, and get the teardown back.
+
+```typescript
+wp.os.embedAdminPage(
+    host:  HTMLElement,
+    url:   string,
+    opts?: { windowId?: string },
+): () => void;
+```
+
+An app's window is its own surface, not an iframe, so an app offering one of wp-admin's own screens had only `open_url()` — which spawns a second window. This is for the case where that reads wrong: the Posts app's tabs are the Posts menu's pages, and its **Add Post** tab swaps the body for the editor the way every tab beside it swaps the body.
+
+The page is registered as that window's **synthetic iframe**, so [`wp.os.connect( windowId )`](#wposconnect-windowid-opts---stable) and `Window.send()` reach it, and `os-bridge-*` traffic and `os-window-publish` route as they do for any window. The chromeless flag is added for you.
+
+While the page loads, the busy mark is the **host's**, not the window's: an embed occupies one panel of a body the user is still looking at, and the window overlay would black out the tab strip that put them there — including the tab they would use to leave. The helper centres an `<os-spinner>` over the host and removes it on load, styling it inline so no selector of the shell's lands in your body.
+
+It is **not** an iframe window, and the difference is the point: title adoption, the preview and revisions title-bar buttons, the submenu tab strip and the close-time unsaved-changes query all key off `Window.iframe`, which an embedded page does not set. A host that embeds an editor owns those questions itself.
+
+`host` is emptied first, so re-mounting is safe. `windowId` is a fallback for a host not yet inside a window root; normally the id is read off the host's own ancestry. A cross-origin URL, or the shell screen itself, mounts nothing and returns a no-op teardown — the same two refusals every other chromeless path makes.
+
+```javascript
+// In an app's client view, on every visit to the tab — the teardown
+// before the mount is what makes the editor open blank each time,
+// the way post-new.php does in a classic window.
+this.teardown?.();
+this.teardown = wp.os.embedAdminPage( host, extra.newPostUrl );
+// …and in the app's dispose:
+this.teardown?.();
+```
+
+---
+
 ### `wp.os.loadWindowScript( id )` — Stable
 
 Load a registered native window's bundle **without opening the window**.
@@ -1550,6 +1588,8 @@ wp.os.registerNativeUrlRemap( entry: NativeUrlRemap ): () => void;
 
 When anything in the shell would open that URL — a dock tile, an in-window link, a desktop shortcut, a Related-menu item, a portal deep link — the remap registry is consulted first, and a match opens the native window instead of an iframe of the classic page. This is how Posts, Pages, Users and Media claim `edit.php`, `users.php` and `upload.php`; a plugin shipping its own native replacement joins the same registry.
 
+**A window whose tabs are a menu claims that whole menu.** The Posts window's tabs are the Posts submenu, so its entry also claims `post-new.php` and the two taxonomy screens and passes the tab each one stands for through `params` — one entry, one window, every row of the menu landing where it belongs.
+
 ```javascript
 const unregister = wp.os.registerNativeUrlRemap( {
     id: 'my-plugin/entries',
@@ -1576,6 +1616,8 @@ const unregister = wp.os.registerNativeUrlRemap( {
 | `onMatch( url, parsed )` | Optional pre-open hook. Prefer `params`; a shared store doesn't survive a reload. |
 
 Returns an unregister function.
+
+**A submenu pick spawns an instance.** A remapped URL reached from a flyout row or a custom rail renderer's `openSubmenuPick` opens a *new* instance of the native window, the same as the iframe window it stands in for. Every other door — a dock tile click, a deep link, an in-window admin link, the Related menu — keeps focusing the open instance and retargeting it with this entry's `params`.
 
 **Without this**, a plugin whose native window duplicated one of its own admin pages had to render a pointer page, open the native window from inside the iframe, and then close the window it was itself inside — a visible flash of a window that exists only to dismiss itself, plus a retry loop, because the shell wires a window's iframe to its `Window` object after the iframe's own scripts run.
 

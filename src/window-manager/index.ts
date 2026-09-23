@@ -903,15 +903,21 @@ export class WindowManager {
 
 	/**
 	 * Open a brand-new window even if one is already open for this
-	 * page. Only makes sense for pages flagged `multi`.
+	 * page. This is the path every menu click takes, so most calls
+	 * land here with nothing of that page open at all.
 	 *
-	 * Duplicates always open in the floating ('normal') state and at
-	 * a fresh cascade slot — the per-baseId saved size / state /
-	 * position preferences apply to the primary instance only.
-	 * Spawning a maximized twin alongside the maximized primary
+	 * Duplicates — a call made while an instance of the same baseId
+	 * is open on the active desktop — open in the floating ('normal')
+	 * state and at a fresh cascade slot; the per-baseId saved size /
+	 * state / position preferences apply to the primary instance
+	 * only. Spawning a maximized twin alongside the maximized primary
 	 * would hide the primary; landing a twin on top of the primary's
 	 * remembered position would hide it too. Callers can override
 	 * either default by passing `initialState` / `x` / `y` explicitly.
+	 *
+	 * With no instance open, this behaves like {@link open} on a
+	 * closed page: it adopts a matching prewarm and lands on the
+	 * geometry the user left that page at.
 	 *
 	 * A caller-supplied `id` that differs from `baseId` and isn't
 	 * taken yet is honoured VERBATIM rather than being reassigned to
@@ -934,12 +940,21 @@ export class WindowManager {
 			! this._openingWindowIds.has( config.id )
 				? config.id
 				: this.nextInstanceId( baseId );
+		const duplicate = !! this.getByBaseIdOnActiveDesktop( baseId );
+		if ( ! duplicate ) {
+			// Nothing of this page is open, so the hover prewarm the
+			// dock started is still the window this call wants.
+			const adopted = this.adoptPrewarmed( baseId, config );
+			if ( adopted ) {
+				return adopted;
+			}
+		}
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
-			initialState: 'normal',
-			x: cascadeX,
-			y: cascadeY,
+			...( duplicate
+				? { initialState: 'normal', x: cascadeX, y: cascadeY }
+				: {} ),
 			...config,
 			id: nextId,
 			baseId,

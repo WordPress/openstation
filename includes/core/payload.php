@@ -400,6 +400,24 @@ function openstation_build_dock_items() {
 			continue;
 		}
 
+		// A native window in charge of this menu owns its rows too:
+		// whatever it offers as a tab, the dock offers as a row, same
+		// labels and same order, each one tagged with the tab it
+		// opens. The first tab IS the menu's own page, so it becomes
+		// the self-label rather than a second row for the tile's own
+		// destination. See `App::menu()`.
+		$window_tabs = openstation_app_menu_tabs( $identity_slug );
+		if ( $window_tabs ) {
+			$self_label = $window_tabs[0]['label'];
+			$sub_items  = array();
+			foreach ( array_slice( $window_tabs, 1 ) as $tab ) {
+				$sub_items[] = array(
+					'title' => $tab['label'],
+					'url'   => add_query_arg( 'os_tab', $tab['id'], $url ),
+				);
+			}
+		}
+
 		$dock_item = array(
 			'id'         => sanitize_key( $item[5] ?? $item[2] ),
 			'title'      => $title,
@@ -731,10 +749,11 @@ function openstation_dock_item_is_multi( $menu_slug ) {
 	/**
 	 * Filters whether a dock item supports multiple open windows.
 	 *
-	 * Return true to let the user open more than one window of this page.
-	 * A "+" affordance appears on the dock icon and a "Open another" action
-	 * becomes available in the window's title-bar menu. Singletons (false)
-	 * always focus the existing window when re-opened.
+	 * Return true to advertise this page as multi-capable: an instance
+	 * rail appears under the dock icon and an "Open another" action
+	 * becomes available in the window's title-bar menu. It does not gate
+	 * the submenu, which opens a window of its own on every pick either
+	 * way; a tile click focuses the menu's open window.
 	 *
 	 * @param bool   $multi     Whether this page is multi-capable.
 	 * @param string $menu_slug The menu slug (e.g. `edit.php?post_type=page`).
