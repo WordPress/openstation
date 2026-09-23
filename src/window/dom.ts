@@ -9,6 +9,7 @@
 import type { WindowConfig } from '../types';
 import { urlMatchKey } from '../utils';
 import { isShellDocumentUrl } from '../shell-url';
+import { OS_TAB_PARAM } from '../native-url-remap';
 import { paintThemedControlIcon } from '../window-chrome/controls/paint-themed-icon';
 import { __, sprintf } from '../i18n';
 // Side-effect import — registers `<os-spinner>` so the loading
@@ -178,6 +179,19 @@ const INITIAL_ORIGIN = window.location.origin;
  * passes through here, which makes it the one gate that keeps the
  * desktop from booting a second desktop inside a window.
  */
+/**
+ * Whether a submenu row is a native window's tab rather than a page
+ * of its own — the `os_tab` tag the dock's rows carry for a menu a
+ * window is in charge of. See `App::menu()`.
+ */
+function namesAnotherWindowsTab( url: string ): boolean {
+	try {
+		return new URL( url, INITIAL_ORIGIN ).searchParams.has( OS_TAB_PARAM );
+	} catch {
+		return false;
+	}
+}
+
 export function withChromelessParam( url: string ): string | null {
 	const parsed = new URL( url, INITIAL_ORIGIN );
 	if ( parsed.origin !== INITIAL_ORIGIN ) {
@@ -858,8 +872,17 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// this window's iframe, and the remote origin refuses the
 		// frame. They stay in the constellation flyout, which can hand
 		// a link to the browser.
+		//
+		// Neither do a native window's own tabs. When a window is in
+		// charge of a menu (`App::menu()`), the dock's rows for that
+		// menu ARE its tabs, tagged `os_tab`, and they mean nothing
+		// inside an iframe of a classic page: the URL renders the
+		// menu's landing page whatever the tag says, and the click
+		// would reach into the OTHER window to switch its tab. A strip
+		// navigates the window it belongs to; a row only another
+		// window can satisfy is not this window's tab.
 		const tabSubmenu = ( config.submenu ?? [] ).filter(
-			( s ) => ! s.offSite,
+			( s ) => ! s.offSite && ! namesAnotherWindowsTab( s.url ),
 		);
 
 		if ( tabSubmenu.length > 0 && config.url ) {

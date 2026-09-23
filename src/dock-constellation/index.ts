@@ -95,6 +95,7 @@ import { CONSTELLATION_FLAG } from './active';
 // bundle and importing the string from it drags the whole menu into
 // `desktop.min.js`.
 import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu-events';
+import { resolveNativeUrlRemap } from '../native-url-remap';
 import {
 	openMenuItem,
 	openSubmenuItem,
@@ -827,7 +828,15 @@ function resolveBaseId(
 	if ( item.windowId ) {
 		return item.windowId;
 	}
-	return deriveWindowId( item.url, deps.adminUrl );
+	// The same chain the tile's own indicator and hover-peek walk: a
+	// URL a native window has claimed is open under THAT window's id,
+	// never under the slug derived from the URL. Without this the
+	// flyout of a menu whose window is on screen reported no open
+	// windows, which is the one thing the group exists to say.
+	return (
+		resolveNativeUrlRemap( item.url ) ??
+		deriveWindowId( item.url, deps.adminUrl )
+	);
 }
 
 /* -------------------------------------------------------------------

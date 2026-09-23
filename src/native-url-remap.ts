@@ -28,6 +28,24 @@ import type { OsSettingsSnapshot } from './settings/registry';
 import { createSharedStore } from './shared-store';
 
 /**
+ * Query flag naming the tab a URL means.
+ *
+ * Every row the dock builds for a window that declares a menu
+ * (`App::menu()` — the submenu IS the window's tab strip) is the
+ * menu's own URL plus this flag. {@link tryNativeUrlRemap} turns it
+ * into the window's `tab` open-time param whatever remap claims the
+ * URL, so a window gets tab routing by declaring its menu and
+ * nothing else.
+ *
+ * The VALUE keeps its `os_` spelling on purpose, like
+ * {@link OS_PERSON_VIEW_PARAM}: it is written into URLs server-side
+ * and read client-side, so both ends must agree on the literal.
+ *
+ * @public
+ */
+export const OS_TAB_PARAM = 'os_tab';
+
+/**
  * Query flag marking a person-URL as a request for a *particular*
  * view of that person rather than for the profile editor.
  *
@@ -126,6 +144,19 @@ export interface NativeUrlRemap {
 interface RemapDeps {
 	getSnapshot(): OsSettingsSnapshot;
 	openById(
+		id: string,
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
+	): boolean;
+	/**
+	 * Spawn a fresh instance instead of focusing the open one — what
+	 * {@link tryNativeUrlRemap}'s `newInstance` option needs. A
+	 * binding that omits it can only focus, so a caller asking for a
+	 * new instance gets the same window back.
+	 */
+	openNewById?(
 		id: string,
 		opts?: {
 			source?: string;
@@ -256,15 +287,29 @@ export function resolveNativeUrlRemap( url: string ): string | null {
  * Walk the registry and try to redirect a click. Returns `true` when a
  * remap claimed the URL and the native window opened successfully.
  *
+ * Pass `newInstance` for a click that means "a window on this page",
+ * not "the window on this page" — a submenu pick does, so *Posts →
+ * Add New Post* with the native Posts window on opens a second one
+ * beside the first rather than focusing it. A dock tile click, a deep
+ * link, an in-iframe admin link and a Related-entities pick leave it
+ * off: each names a destination, and the window already showing it is
+ * the right answer (with `params`, the open retargets it).
+ *
  * Caller must skip its default open path (iframe creation) when this
  * returns `true`. Returns `false` when no entry matched, when the
  * matching entry's gate said no, or when `openById()` reported the
  * native window is not registered for the current user.
  *
- * @param url Raw admin URL the caller would have loaded.
+ * @param url              Raw admin URL the caller would have loaded.
+ * @param opts             Open options.
+ * @param opts.newInstance Spawn a duplicate rather than focusing an
+ *                         open instance.
  * @return Whether the URL was remapped to a native window.
  */
-export function tryNativeUrlRemap( url: string ): boolean {
+export function tryNativeUrlRemap(
+	url: string,
+	opts: { newInstance?: boolean } = {},
+): boolean {
 	const { deps, remaps } = remapStore.state;
 	if ( ! deps || ! url ) {
 		return false;
@@ -298,6 +343,12 @@ export function tryNativeUrlRemap( url: string ): boolean {
 		let params:
 			| Record< string, string | number | boolean >
 			| undefined;
+		// A URL tagged with the tab it means — every row the dock
+		// builds for a window that declares a menu (`App::menu()`) —
+		// says so in one place, for every remap, rather than each
+		// entry re-reading the flag. It wins over the entry's own
+		// `params`: the tag is the more specific statement of the two.
+		const tagged = parsed.searchParams.get( OS_TAB_PARAM );
 		if ( entry.params ) {
 			try {
 				params = entry.params( url, parsed ) ?? undefined;
@@ -312,14 +363,21 @@ export function tryNativeUrlRemap( url: string ): boolean {
 				);
 			}
 		}
+		if ( tagged && /^[a-z0-9_-]+$/.test( tagged ) ) {
+			params = { ...( params ?? {} ), tab: tagged };
+		}
 		// Called with ONE argument when there are no params, rather
 		// than with an explicit `undefined`. The opener's signature is
 		// older than this hook and most remaps will never use it;
 		// passing a trailing `undefined` would change what every
 		// existing caller observes for no benefit.
+		const open =
+			opts.newInstance && deps.openNewById
+				? deps.openNewById
+				: deps.openById;
 		const opened = params
-			? deps.openById( entry.nativeWindowId, { params } )
-			: deps.openById( entry.nativeWindowId );
+			? open( entry.nativeWindowId, { params } )
+			: open( entry.nativeWindowId );
 		if ( opened ) {
 			return true;
 		}

@@ -30,6 +30,7 @@
 
 import { joinRestUrl } from './rest-url';
 import { trackedFetch } from './tracked-fetch';
+import { restErrorFromBody } from './core/api-client';
 
 export interface StartOAuthOptions {
 	/**
@@ -93,7 +94,15 @@ export function startOAuth(
 		.then( async ( res ) => {
 			if ( ! res.ok ) {
 				const text = await res.text().catch( () => '' );
-				throw new Error(
+				let body: unknown = null;
+				try {
+					body = JSON.parse( text );
+				} catch {
+					body = null;
+				}
+				throw restErrorFromBody(
+					res.status,
+					body,
 					`[openstation] OAuth start failed (${ res.status }): ${ text }`,
 				);
 			}
