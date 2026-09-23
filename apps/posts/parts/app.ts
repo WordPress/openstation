@@ -27,7 +27,7 @@ import {
 import type { ListTableLike } from '@openstation/app';
 import { isMobileStamped } from '../../../src/mode/stamp';
 import { queryUnsavedGuard } from '../../../src/window/unsaved-guard';
-import { describeRestFailure } from '../../../src/core/rest-failure';
+import { toastRestFailure } from '../../../src/core/rest-failure';
 import type { OsTable } from '../../../src/ui/components/os-table/os-table';
 import { buildSubRow } from './cells/basic';
 import { broadcastFreshCategoryTreeToPickers, clearCategoryTreeCache } from './cells/categories';
@@ -171,11 +171,13 @@ function hiddenOf( ui: UiState, settingKey: HiddenColumnsSettingKey ): Set< stri
  */
 function toast( ctx: Ctx, title: string, err: unknown ): void {
 	const lead = title.replace( /:\s*$/, '' );
-	const failure = describeRestFailure(
+	toastRestFailure(
+		ctx.host.toast,
 		err,
-		lead === title ? { fallback: title } : { lead, fallback: `${ lead }.` },
+		lead === title
+			? { fallback: title, duration: 6000 }
+			: { lead, fallback: `${ lead }.`, duration: 6000 },
 	);
-	ctx.host.toast?.( { message: failure.message, type: failure.type, duration: 6000 } );
 }
 
 function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {

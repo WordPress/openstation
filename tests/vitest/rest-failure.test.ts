@@ -141,5 +141,8 @@ describe( 'toastRestFailure', () => {
 			type: 'error',
 		} );
 		expect( () => toastRestFailure( undefined, restError( 500 ), { fallback: FALLBACK } ) ).not.toThrow();
+		// A dwell the caller asks for rides along; the describe options do not.
+		toastRestFailure( toast, restError( 403, { serverMessage: 'No.' } ), { fallback: FALLBACK, duration: 6000 } );
+		expect( toast ).toHaveBeenLastCalledWith( { message: 'No.', type: 'error', duration: 6000 } );
 	} );
 } );
