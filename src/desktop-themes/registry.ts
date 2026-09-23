@@ -10,6 +10,7 @@
 
 import { createSharedStore } from '../shared-store';
 import { trackedFetch } from '../tracked-fetch';
+import { restErrorFromResponse } from '../core/api-client';
 import { sanitizeRecommendedOsSettings } from './recommended';
 import type { DesktopThemeEntry, DesktopThemeState } from './types';
 
@@ -268,9 +269,9 @@ export function ensureFullDesktopThemes(): Promise< void > {
 		{ method: 'GET', credentials: 'same-origin' },
 		{ source: 'desktop-mode/desktop-themes' },
 	)
-		.then( ( response ) => {
+		.then( async ( response ) => {
 			if ( ! response.ok ) {
-				throw new Error( `HTTP ${ response.status }` );
+				throw await restErrorFromResponse( response );
 			}
 			return response.json();
 		} )

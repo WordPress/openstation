@@ -8,7 +8,7 @@
  */
 
 import { showToast } from '../toast';
-import { describeRestFailure } from '../core/rest-failure';
+import { toastRestFailure } from '../core/rest-failure';
 import {
 	acceptFileShare,
 	acceptShare,
@@ -311,9 +311,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 					// `refresh()` swallows its own errors via toast.
 				}
 				if ( firstError ) {
-					showToast(
-						describeRestFailure( firstError, { lead: `Could not send invites`, fallback: `Could not send invites.` } ),
-					);
+					toastRestFailure( showToast, firstError, { lead: `Could not send invites`, fallback: `Could not send invites.` } );
 				} else {
 					showToast( {
 						message:
@@ -407,9 +405,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 			shares = res.shares;
 			setSharesForFolder( opts.folderId, shares );
 		} catch ( err ) {
-			showToast(
-				describeRestFailure( err, { lead: `Could not load shares`, fallback: `Could not load shares.` } ),
-			);
+			toastRestFailure( showToast, err, { lead: `Could not load shares`, fallback: `Could not load shares.` } );
 		}
 		renderBody();
 	};
@@ -421,9 +417,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 			await refresh();
 			showToast( { message: 'Access revoked.' } );
 		} catch ( err ) {
-			showToast(
-				describeRestFailure( err, { lead: `Could not revoke`, fallback: `Could not revoke.` } ),
-			);
+			toastRestFailure( showToast, err, { lead: `Could not revoke`, fallback: `Could not revoke.` } );
 		}
 	};
 
@@ -433,9 +427,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 			upsertShare( next );
 			await refresh();
 		} catch ( err ) {
-			showToast(
-				describeRestFailure( err, { lead: `Could not update capability`, fallback: `Could not update capability.` } ),
-			);
+			toastRestFailure( showToast, err, { lead: `Could not update capability`, fallback: `Could not update capability.` } );
 		}
 	};
 
@@ -469,9 +461,7 @@ export async function openFileShareModal( opts: {
 			const res = await listFileShares( opts.fileId );
 			shares = res.shares;
 		} catch ( err ) {
-			showToast(
-				describeRestFailure( err, { lead: `Could not load shares`, fallback: `Could not load shares.` } ),
-			);
+			toastRestFailure( showToast, err, { lead: `Could not load shares`, fallback: `Could not load shares.` } );
 		}
 		renderBody();
 	};
@@ -504,9 +494,7 @@ export async function openFileShareModal( opts: {
 					await inviteFileShare( opts.fileId, detail.user.id );
 					showToast( { message: `Invite sent to ${ detail.user.name }.` } );
 				} catch ( err ) {
-					showToast(
-						describeRestFailure( err, { lead: `Could not invite`, fallback: `Could not invite.` } ),
-					);
+					toastRestFailure( showToast, err, { lead: `Could not invite`, fallback: `Could not invite.` } );
 				}
 				await refresh();
 			} )();
@@ -558,9 +546,7 @@ export async function openFileShareModal( opts: {
 								await revokeFileShare( opts.fileId, s.id );
 								showToast( { message: 'Access revoked.' } );
 							} catch ( err ) {
-								showToast(
-									describeRestFailure( err, { lead: `Could not revoke`, fallback: `Could not revoke.` } ),
-								);
+								toastRestFailure( showToast, err, { lead: `Could not revoke`, fallback: `Could not revoke.` } );
 							}
 							await refresh();
 						} )();
@@ -644,9 +630,7 @@ export function openPendingFileInviteModal( invite: {
 				modal.remove();
 				resolve( 'denied' );
 			} catch ( err ) {
-				showToast(
-					describeRestFailure( err, { lead: `Could not deny`, fallback: `Could not deny.` } ),
-				);
+				toastRestFailure( showToast, err, { lead: `Could not deny`, fallback: `Could not deny.` } );
 				denyBtn.removeAttribute( 'busy' );
 				denyBtn.removeAttribute( 'disabled' );
 			}
@@ -671,9 +655,7 @@ export function openPendingFileInviteModal( invite: {
 				modal.remove();
 				resolve( 'accepted' );
 			} catch ( err ) {
-				showToast(
-					describeRestFailure( err, { lead: `Could not accept`, fallback: `Could not accept.` } ),
-				);
+				toastRestFailure( showToast, err, { lead: `Could not accept`, fallback: `Could not accept.` } );
 				acceptBtn.removeAttribute( 'busy' );
 				acceptBtn.removeAttribute( 'disabled' );
 			}
@@ -751,9 +733,7 @@ export function openPendingInviteModal( invite: {
 				modal.remove();
 				resolve( 'denied' );
 			} catch ( err ) {
-				showToast(
-					describeRestFailure( err, { lead: `Could not deny`, fallback: `Could not deny.` } ),
-				);
+				toastRestFailure( showToast, err, { lead: `Could not deny`, fallback: `Could not deny.` } );
 				denyBtn.removeAttribute( 'busy' );
 				denyBtn.removeAttribute( 'disabled' );
 			}
@@ -781,9 +761,7 @@ export function openPendingInviteModal( invite: {
 				modal.remove();
 				resolve( 'accepted' );
 			} catch ( err ) {
-				showToast(
-					describeRestFailure( err, { lead: `Could not accept`, fallback: `Could not accept.` } ),
-				);
+				toastRestFailure( showToast, err, { lead: `Could not accept`, fallback: `Could not accept.` } );
 				acceptBtn.removeAttribute( 'busy' );
 				acceptBtn.removeAttribute( 'disabled' );
 			}

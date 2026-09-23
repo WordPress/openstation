@@ -160,6 +160,7 @@ import {
 } from './bug-report';
 import { ensureDeferredStyle } from './deferred-styles';
 import { showToast, type ToastOptions } from './toast';
+import { restErrorFromResponse } from './core/api-client';
 import { __, sprintf } from './i18n';
 import {
 	bootstrapPwa,
@@ -3996,7 +3997,7 @@ function init(): void {
 				{ source: 'desktop-mode/default-window' },
 			);
 			if ( ! response.ok ) {
-				throw new Error( `HTTP ${ response.status }` );
+				throw await restErrorFromResponse( response );
 			}
 			const data = ( await response.json() ) as {
 				enabled: boolean;
