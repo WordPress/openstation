@@ -35,6 +35,11 @@ import { mountDockConstellation } from '../../src/dock-constellation';
 import { ITEM_MENU_OPENING_EVENT } from '../../src/item-visibility-menu';
 import type { DockItem, SystemDockItem } from '../../src/dock';
 import type { WindowManager } from '../../src/window-manager';
+import {
+	_resetNativeUrlRemap,
+	bindNativeUrlRemap,
+	registerNativeUrlRemap,
+} from '../../src/native-url-remap';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
 const appearance: DockItem = {
@@ -201,6 +206,7 @@ describe( 'dock constellation', () => {
 
 	afterEach( () => {
 		teardown?.();
+		_resetNativeUrlRemap();
 		vi.useRealTimers();
 		vi.unstubAllGlobals();
 		clearHooksStub();
@@ -1007,6 +1013,59 @@ describe( 'dock constellation', () => {
 			'.os-constellation__row--live .os-constellation__row-label',
 		).map( ( el ) => el.textContent );
 		expect( live ).toEqual( [ 'OpenStation Preferences' ] );
+	} );
+
+	/*
+	 * A menu whose page a native window has claimed keeps its own URL
+	 * on the tile, but its window is open under the WINDOW's id. The
+	 * flyout has to walk the same chain the tile's indicator does, or
+	 * the group meant to say "here is what you have open" says nothing
+	 * while the window is on screen.
+	 */
+	test( 'a menu whose window is native lists it as open', () => {
+		const tile = setupShell( 'unified' );
+		// The tile the stub paints is `themes.php`; what matters here
+		// is that its URL is one a native window has claimed.
+		const claimed = {
+			...appearance,
+			url: '/wp-admin/edit.php',
+			submenu: [ { title: 'Add Post', url: '/wp-admin/post-new.php' } ],
+		};
+		const live = {
+			id: 'desktop-mode-posts',
+			state: 'normal',
+			config: { title: 'Posts' },
+		} as unknown as ReturnType< typeof Object >;
+		bindNativeUrlRemap( {
+			getSnapshot: () => ( {} ) as never,
+			openById: () => true,
+			// Absolute: the registry resolves every URL against this.
+			adminUrl: `${ window.location.origin }/wp-admin/`,
+		} );
+		registerNativeUrlRemap( {
+			id: 'desktop-mode-posts',
+			nativeWindowId: 'desktop-mode-posts',
+			matches: ( _url, parsed ) => parsed.pathname.endsWith( '/edit.php' ),
+		} );
+
+		teardown?.();
+		teardown = mountDockConstellation( {
+			windowManager: {
+				...makeManagerStub(),
+				getAllByBaseIdOnActiveDesktop: ( id: string ) =>
+					id === 'desktop-mode-posts' ? [ live ] : [],
+			} as unknown as WindowManager,
+			adminUrl: '/wp-admin/',
+			getMenuItems: () => [ claimed ],
+			getSystemItem: () => undefined,
+		} );
+
+		hover( tile );
+		expect(
+			rows( '.os-constellation__row--live .os-constellation__row-label' ).map(
+				( el ) => el.textContent,
+			),
+		).toEqual( [ 'Posts' ] );
 	} );
 
 	test( 'an action menu with nothing open lists no windows', () => {
