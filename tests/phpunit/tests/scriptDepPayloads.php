@@ -38,11 +38,26 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		wp_scripts()->add_data( 'openstation', 'data', '' );
 	}
 
+	/**
+	 * Script handles a test registered behind a native window. The
+	 * native-window registry is a static store with no remove (see
+	 * openstation_native_window_registry()), so the window outlives the
+	 * test; deregistering its scripts is what stops it carrying this
+	 * test's shared config into the next one's payload.
+	 *
+	 * @var string[]
+	 */
+	private $window_script_handles = array();
+
 	public function tear_down() {
 		// The command-script registry is process-global too: without this,
 		// the next test counts this one's commands (and their config
 		// handle) alongside its own.
 		openstation_flush_desktop_command_script_registry();
+		foreach ( $this->window_script_handles as $handle ) {
+			wp_deregister_script( $handle );
+		}
+		$this->window_script_handles = array();
 		parent::tear_down();
 	}
 
@@ -102,7 +117,8 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		list( $config ) = $this->register_shared_dependency();
 		$window_handle  = 'sdp-window-' . uniqid();
 		wp_register_script( $window_handle, 'https://example.test/' . $window_handle . '.js', array( $config ), '1.0.0', true );
-		$window_id = 'sdp-window-' . uniqid();
+		$this->window_script_handles = array( $window_handle, $config );
+		$window_id                   = 'sdp-window-' . uniqid();
 		$this->assertTrue(
 			openstation_register_window(
 				$window_id,
