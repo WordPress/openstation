@@ -12,17 +12,17 @@ import { css } from '../../core';
  *
  * The list is a real `<dl>` in the shadow root and the rows are
  * light-DOM children slotted into it, so in the flattened tree an
- * `<os-fact>` sits between the `<dl>` and its `<dt>`/`<dd>` — which
- * is exactly the relationship a description list is. `display:
- * contents` takes the row out of the box tree AND the accessibility
- * tree, so the pairs reattach to the list. It is also what puts the
- * label and the value in the parent grid's two columns rather than
- * in one cell each.
+ * `<os-fact>` sits between the `<dl>` and its `<dt>`/`<dd>`. In the
+ * default column layout, `display: contents` takes the row out of
+ * the box tree AND the accessibility tree, so the pairs reattach to
+ * the list and land in the parent grid's two columns rather than in
+ * one cell each. `between` and `stacked` give the row a box again
+ * (flex, block), which is the `dl > div > dt + dd` grouping HTML
+ * allows.
  */
 
 export const factsStyles = css`
 	:host {
-		--_label-color: var( --os-ui-facts-label-color, var( --os-ui-fg-muted, #646970 ) );
 		--_gap-row: var( --os-ui-facts-row-gap, 6px );
 		--_gap-column: var( --os-ui-facts-column-gap, 14px );
 		display: block;
@@ -76,6 +76,9 @@ export const factStyles = css`
 		   the list rather than a box between the list and its pairs. */
 		display: contents;
 	}
+	:host( [ hidden ] ) {
+		display: none;
+	}
 	dt {
 		color: var( --os-ui-facts-label-color, var( --os-ui-fg-muted, #646970 ) );
 	}
@@ -93,13 +96,17 @@ export const factStyles = css`
 	 * A value that is inline code loses the snippet chrome and keeps
 	 * the copy affordance. In a facts list the value IS the code —
 	 * a file path, an id — so a badge around it is a box inside a
-	 * box. Code Blue wrote this override by hand; it is the default
-	 * here.
+	 * box.
+	 *
+	 * This opts out of the theme's code chrome, not out of theming:
+	 * each value is re-pointed through a facts-owned token, so a
+	 * desktop theme that wants its snippet chrome back inside a facts
+	 * list sets those.
 	 */
 	::slotted( os-code ) {
-		--os-ui-code-bg: transparent;
-		--os-ui-code-border: none;
-		--os-ui-code-padding: 0;
-		--os-ui-code-font-size: 1em;
+		--os-ui-code-bg: var( --os-ui-facts-code-bg, transparent );
+		--os-ui-code-border: var( --os-ui-facts-code-border, none );
+		--os-ui-code-padding: var( --os-ui-facts-code-padding, 0 );
+		--os-ui-code-font-size: var( --os-ui-facts-code-font-size, 1em );
 	}
 `;

@@ -1,12 +1,8 @@
 /**
  * `<os-facts>` + `<os-fact>` — the label/value list every detail
- * pane ends with.
- *
- * Before this component three apps drew the same `<dl>` three times
- * with three stylesheets: the My WordPress dossier, the Posts desk
- * pane's dates block and the Code Blue issue detail. All three agreed
- * on the shape (muted label, zero-margin value, label column sized to
- * its content) and disagreed only on the gaps.
+ * pane ends with: a muted label in a column sized to its content,
+ * beside a zero-margin value. Apps tune the gaps and font size
+ * through tokens rather than restyling the list.
  *
  * Usage:
  *
@@ -49,6 +45,12 @@ export class OsFact extends Component {
 		slots: [
 			{ name: '(default)', description: 'The value.' },
 			{ name: 'label', description: 'The label, when it needs markup.' },
+		],
+		cssProps: [
+			{ name: '--os-ui-facts-code-bg', default: 'transparent' },
+			{ name: '--os-ui-facts-code-border', default: 'none' },
+			{ name: '--os-ui-facts-code-padding', default: '0' },
+			{ name: '--os-ui-facts-code-font-size', default: '1em' },
 		],
 		/*
 		 * A row on its own is half of a pair with no list around it
@@ -113,9 +115,9 @@ export class OsFacts extends Component {
 	} as const;
 
 	protected render() {
-		// `role` is left to the native <dl>: the rows are
-		// `display: contents`, so the <dt>/<dd> pairs reattach to
-		// this list in the accessibility tree.
+		// `role` is left to the native <dl>: in the column layout the
+		// rows are `display: contents`, so the <dt>/<dd> pairs
+		// reattach to this list in the accessibility tree.
 		return html`<dl part="list"><slot></slot></dl>`;
 	}
 }
