@@ -374,6 +374,10 @@ function openstation_register_window( $id, $args = array() ) {
 		// `wp_localize_script` `extra['data']` — see the `config` doc
 		// in this function's `$args` block and `openstation_resolve_script_payload()`
 		// for how it lands on the wire.
+		// Admin pages this window answers for, `array( id, page )` per
+		// entry — dropped here once, which is why the shell saw an
+		// empty list and claimed none of them.
+		'menu_pages'       => is_array( $args['menu_pages'] ) ? array_values( $args['menu_pages'] ) : array(),
 		'config'           => is_array( $args['config'] ) ? $args['config'] : array(),
 	);
 	openstation_native_window_registry( $id, $entry );

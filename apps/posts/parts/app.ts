@@ -383,6 +383,70 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 	};
 
 	/**
+	 * Ask before closing a window whose embedded editor is holding
+	 * unsaved changes.
+	 *
+	 * An iframe WINDOW gets this from the shell, which queries the
+	 * page inside before it destroys the frame. An embedded page is
+	 * not the window's iframe, so the shell has nothing to ask and the
+	 * draft went without a word. The native close filter is the seam
+	 * for exactly this: hold the close, ask the page, then ask the
+	 * user, and close for real only if they say so.
+	 *
+	 * Returns the unsubscribe.
+	 */
+	const guardEmbeddedEditor = ( ctx: Ctx, ui: UiState ): ( () => void ) => {
+		// The shell's own filter name; an app reaching the hook bus
+		// directly is the documented way to veto a native close.
+		const HOOK_BEFORE_CLOSE = 'os.native-window.before-close';
+		const hooks = window.wp?.hooks;
+		if ( ! hooks?.addFilter || ! hooks.removeFilter ) {
+			return () => {};
+		}
+		const namespace = `desktop-mode/posts/close-guard/${ ctx.windowId }`;
+		let asking = false;
+		hooks.addFilter(
+			HOOK_BEFORE_CLOSE,
+			namespace,
+			( ...args: unknown[] ) => {
+				const proceed = args[ 0 ];
+				const context = args[ 1 ] as { windowId?: string } | undefined;
+				if ( context?.windowId !== ctx.windowId || ! ui.editor || asking ) {
+					return proceed;
+				}
+				asking = true;
+				void ( async () => {
+					const frame = ctx.root.querySelector< HTMLIFrameElement >(
+						'[data-os-posts-editor] iframe',
+					);
+					const holding = await queryUnsavedGuard( frame );
+					const leave =
+						! holding ||
+						( await ctx.host.confirm?.( {
+							title: __( 'Leave without saving?' ),
+							message: __(
+								'This post has changes that have not been saved. Closing the window discards them.',
+							),
+							confirmLabel: __( 'Discard and close' ),
+							danger: true,
+						} ) ) === true;
+					asking = false;
+					if ( ! leave ) {
+						return;
+					}
+					// Let go of the editor first: the filter reads
+					// `ui.editor` and this close has to get through.
+					ui.editor?.();
+					ui.editor = null;
+					window.wp?.os?.windowManager?.getById( ctx.windowId )?.close();
+				} )();
+				return false;
+			},
+		);
+		return () => hooks.removeFilter?.( HOOK_BEFORE_CLOSE, namespace );
+	};
+
+	/**
 	 * Show the editor in the "Add Post" panel. Mounts only when the
 	 * panel is empty: a draft the user typed into and left is still in
 	 * there (see {@link releaseEditorIfClean}), and taking them back
@@ -680,6 +744,8 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			const onModeChange = (): void => ctx.repaint();
 			document.addEventListener( 'os-mode-changed', onModeChange );
 			teardowns.push( () => document.removeEventListener( 'os-mode-changed', onModeChange ) );
+
+			teardowns.push( guardEmbeddedEditor( ctx, ui ) );
 
 			// The lifecycle action AFTER the first paint, so subscribers
 			// read live data and can call `ctx.refresh()` on a populated

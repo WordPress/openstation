@@ -284,6 +284,77 @@ describe( 'the frame', () => {
 		}
 	} );
 
+	it( 'asks before closing on an editor holding unsaved changes', async () => {
+		const embed = stubEmbed();
+		const closed = vi.fn();
+		// A filter bus for this case: the harness's stub returns the
+		// value unchanged and registers nothing.
+		const registered: Array< ( ...a: unknown[] ) => unknown > = [];
+		const previousHooks = window.wp!.hooks;
+		window.wp!.hooks = {
+			...previousHooks,
+			addFilter: ( _n: string, _ns: string, cb: ( ...a: unknown[] ) => unknown ) => {
+				registered.push( cb );
+			},
+			removeFilter: () => {
+				const count = registered.length;
+				registered.length = 0;
+				return count;
+			},
+			applyFilters: ( _n: string, value: unknown, ...args: unknown[] ) =>
+				registered.reduce( ( acc, cb ) => cb( acc, ...args ), value ),
+		} as typeof previousHooks;
+		const hooks = window.wp!.hooks as unknown as {
+			applyFilters: ( name: string, value: unknown, ...args: unknown[] ) => unknown;
+		};
+		const os = ( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os;
+		os.windowManager = { getById: () => ( { close: closed } ) };
+		const frame = document.createElement( 'iframe' );
+		Object.defineProperty( frame, 'contentWindow', {
+			value: {
+				postMessage: ( message: { requestId?: string } ) => {
+					window.dispatchEvent(
+						new MessageEvent( 'message', {
+							origin: window.location.origin,
+							source: frame.contentWindow as unknown as Window,
+							data: {
+								type: 'os-bridge-beforeunload-response',
+								requestId: message.requestId,
+								prevent: true,
+							},
+						} ),
+					);
+				},
+			},
+		} );
+		try {
+			const { root, ctx } = mount();
+			app.mounted?.( ctx );
+			root.querySelector( 'os-tabs' )!.dispatchEvent(
+				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
+			);
+			root.querySelector( '[data-os-posts-editor]' )!.appendChild( frame );
+
+			// The shell asks the filter whether this window may close.
+			const proceed = hooks.applyFilters(
+				'os.native-window.before-close',
+				true,
+				{ windowId: ctx.windowId },
+			);
+			expect( proceed ).toBe( false );
+			await flush();
+			expect( ctx.host.confirm ).toHaveBeenCalled();
+			// The stub confirms, so the close goes through on the
+			// second pass rather than being swallowed.
+			await flush();
+			expect( closed ).toHaveBeenCalled();
+		} finally {
+			embed.restore();
+			window.wp!.hooks = previousHooks;
+			delete ( os as Record< string, unknown > ).windowManager;
+		}
+	} );
+
 	it( 'opens on the tab the server named — the dock row that asked for it', () => {
 		const embed = stubEmbed();
 		try {
