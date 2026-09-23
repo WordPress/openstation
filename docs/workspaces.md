@@ -67,7 +67,7 @@ Restore is the counterpart to the wizard's "Use the … I have now" captures. On
 
 Three decisions worth naming:
 
-- **It force-provisions.** The once-per-workspace guard exists to stop the *shell* reopening windows on its own, not to stop the user asking. A desk they have since tidied is exactly the case this button is for. Windows still open reuse their instance rather than doubling, so restoring an intact desk just brings it to order.
+- **It force-provisions.** The once-per-workspace guard exists to stop the *shell* reopening windows on its own, not to stop the user asking. A desk they have since tidied is exactly the case this button is for, and it re-tiles as well as reopens.
 - **It only appears where it has work to do.** A plain Space has nothing stored, and neither does a workspace whose profile says nothing beyond its name and colour. A button that visibly does nothing is worse than no button, so its absence is information.
 - **The word is short, the accessible name is not.** "Restore" alone could be read as the session restore the shell does at boot, so the `aria-label` and tooltip carry the whole sentence: *"Restore Commerce — reopen its windows, widgets and look"*.
 
@@ -141,6 +141,8 @@ The launch list is **arranged once per workspace**, guarded by `profile.provisio
 A **reload is different**. A workspace's launch-list windows and its widget column are part of what the desk *is*, not a one-time suggestion, so a reload restores that definition: any launch window you had closed reopens, and any widget you had closed remounts. On boot, `reopenWorkspaceWindows()` runs after session restore and opens only the launch entries whose window the restore did not already bring back — it never touches a window that is open, never re-runs the layout (a hand-moved window would jump), and never re-stamps `provisioned`. The widget column is re-asserted in the same beat by `applyWorkspaceView()`.
 
 So the rule a launch window and a column widget both follow: **closing one hides it for the rest of this visit; arriving at the desk again restores it.** To take a window or widget off a desk for good, drop it in the wizard's **Edit** step, which writes the profile directly — the same way you added it. This mirrors apps: you do not remove an app from a desk by closing its window.
+
+**A launch entry opens the way a menu pick opens.** Its URL goes through the native-window remap first, so a page the viewer opted a native window into gets that window rather than a classic iframe of the URL, and an entry nothing claims is built with the menu's own metadata — `submenu`, `parentUrl`, `selfLabel` — so it comes up with its tab strip. Each entry gets a window **of its own**: a desk's list declares N windows, and two entries that resolve to the same one (the native Posts window on its Add Post tab beside the same window on its list, the Publishing template exactly) are two windows rather than one focused twice. No two entries take the same window, on a desk that already has them or on one being built. An entry takes a window the desk already has before it opens another, and no two entries take the same one, so pressing Restore on an intact desk re-tiles what is there instead of doubling it. The reload pass follows the same rule and stops there: it fills the gaps a restore left and never touches a window that is open.
 
 The `provisioned` flag is claimed *before* the windows open: opening a window is asynchronous, and a second switch landing mid-pass would otherwise run the whole list again and leave the desk with two of everything.
 

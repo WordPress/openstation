@@ -20,7 +20,7 @@ import '../../ui/components/os-spinner/os-spinner';
 import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import { RestError, restErrorFromResponse } from '../../core/api-client';
-import { describeRestFailure } from '../../core/rest-failure';
+import { describeRestFailure, toastRestFailure } from '../../core/rest-failure';
 import { shellToast } from '../../core/shell-toast';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { startVisibilityAwarePoller } from '../../widgets/poller';
@@ -33,7 +33,6 @@ interface DesktopApi {
 		confirmLabel?: string;
 		danger?: boolean;
 	} ): Promise< boolean >;
-	showToast?( opts: { message: string; type?: string } ): unknown;
 }
 
 function desktopApi(): DesktopApi | undefined {
@@ -369,10 +368,9 @@ function applyButton(
 			} )
 			.catch( ( err: unknown ) => {
 				btn.removeAttribute( 'busy' );
-				const failure = describeRestFailure( err, {
+				toastRestFailure( shellToast, err, {
 					fallback: __( 'Could not apply the suggestion.' ),
 				} );
-				shellToast( { message: failure.message, type: failure.type } );
 			} );
 	} );
 	return btn;
@@ -771,11 +769,9 @@ async function onTrash(
 		onChange();
 	} catch ( err ) {
 		row.classList.remove( 'is-trashing' );
-		shellToast(
-			describeRestFailure( err, {
-				fallback: __( 'Could not move the draft to Trash.' ),
-			} ),
-		);
+		toastRestFailure( shellToast, err, {
+			fallback: __( 'Could not move the draft to Trash.' ),
+		} );
 	}
 }
 

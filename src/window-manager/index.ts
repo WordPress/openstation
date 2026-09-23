@@ -218,6 +218,15 @@ export class WindowManager {
 	private _openingWindowIds = new Set< string >();
 
 	/**
+	 * Base ids with a window still being built. A window is in the
+	 * stack only once its bundles resolve, so without this two opens
+	 * in the same tick both read "nothing of this page is open" and
+	 * both replayed the remembered geometry, landing exactly on top
+	 * of each other.
+	 */
+	private _openingBaseIds = new Set< string >();
+
+	/**
 	 * The one prewarmed (hidden, speculative) window, if any — built by
 	 * {@link prewarm} ahead of an anticipated open so the iframe's
 	 * document TTFB and parse are already paid when the user clicks.
@@ -903,15 +912,21 @@ export class WindowManager {
 
 	/**
 	 * Open a brand-new window even if one is already open for this
-	 * page. Only makes sense for pages flagged `multi`.
+	 * page. This is the path every menu click takes, so most calls
+	 * land here with nothing of that page open at all.
 	 *
-	 * Duplicates always open in the floating ('normal') state and at
-	 * a fresh cascade slot — the per-baseId saved size / state /
-	 * position preferences apply to the primary instance only.
-	 * Spawning a maximized twin alongside the maximized primary
+	 * Duplicates — a call made while an instance of the same baseId
+	 * is open on the active desktop — open in the floating ('normal')
+	 * state and at a fresh cascade slot; the per-baseId saved size /
+	 * state / position preferences apply to the primary instance
+	 * only. Spawning a maximized twin alongside the maximized primary
 	 * would hide the primary; landing a twin on top of the primary's
 	 * remembered position would hide it too. Callers can override
 	 * either default by passing `initialState` / `x` / `y` explicitly.
+	 *
+	 * With no instance open, this behaves like {@link open} on a
+	 * closed page: it adopts a matching prewarm and lands on the
+	 * geometry the user left that page at.
 	 *
 	 * A caller-supplied `id` that differs from `baseId` and isn't
 	 * taken yet is honoured VERBATIM rather than being reassigned to
@@ -934,12 +949,23 @@ export class WindowManager {
 			! this._openingWindowIds.has( config.id )
 				? config.id
 				: this.nextInstanceId( baseId );
+		const duplicate =
+			!! this.getByBaseIdOnActiveDesktop( baseId ) ||
+			this._openingBaseIds.has( baseId );
+		if ( ! duplicate ) {
+			// Nothing of this page is open, so the hover prewarm the
+			// dock started is still the window this call wants.
+			const adopted = this.adoptPrewarmed( baseId, config );
+			if ( adopted ) {
+				return adopted;
+			}
+		}
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
-			initialState: 'normal',
-			x: cascadeX,
-			y: cascadeY,
+			...( duplicate
+				? { initialState: 'normal', x: cascadeX, y: cascadeY }
+				: {} ),
 			...config,
 			id: nextId,
 			baseId,
@@ -1214,6 +1240,7 @@ export class WindowManager {
 		// restore at boot, or a plugin opening a window
 		// programmatically right after init.
 		this._openingWindowIds.add( config.id );
+		this._openingBaseIds.add( resolvedBaseId );
 		const bundles = Promise.all( [
 			ensureWindowSystemLoaded( windowSystemBundleUrl() ),
 			ensureShellOverlaysLoaded( shellOverlaysBundleUrl() ),
@@ -1223,9 +1250,11 @@ export class WindowManager {
 			loaded = await bundles;
 		} catch ( err ) {
 			this._openingWindowIds.delete( config.id );
+			this._openingBaseIds.delete( resolvedBaseId );
 			throw err;
 		}
 		this._openingWindowIds.delete( config.id );
+		this._openingBaseIds.delete( resolvedBaseId );
 		const [ system ] = loaded;
 		const win = system.createWindow( fullConfig );
 		// The restored placement stays with the window so the next

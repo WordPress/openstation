@@ -55,8 +55,15 @@ function row( id: number, over: Partial< PostListItem > = {} ): PostListItem {
 	};
 }
 
+const POSTS_TABS = [
+	{ id: 'posts', label: 'All posts' },
+	{ id: 'new', label: 'Add Post' },
+	{ id: 'categories', label: 'Categories' },
+	{ id: 'tags', label: 'Tags' },
+];
+
 function state( over: Partial< ListState > = {} ): ListState {
-	return { page: 1, perPage: 20, search: '', status: '', orderby: 'date', order: 'desc', author: [], tag: [], ...over };
+	return { tab: 'posts', page: 1, perPage: 20, search: '', status: '', orderby: 'date', order: 'desc', author: [], tag: [], ...over };
 }
 
 function data( items: PostListItem[], over: Partial< ListData[ 'list' ] > = {} ): ListData {
@@ -90,7 +97,9 @@ function mount( s: Partial< ListState > = {}, d: ListData = data( [ row( 1 ), ro
 		data: d,
 		loading,
 		root,
-		extra: { mode: 'posts', editPostUrlBase: 'http://x.test/wp-admin/post.php', newPostUrl: 'http://x.test/wp-admin/post-new.php', defaultOrderby: 'date', defaultOrder: 'desc', ...extra },
+		// `menuTabs` is what `App::menu()` ships in the config extra, and
+		// what the strip renders from — see `apps/posts/posts.os.php`.
+		extra: { mode: 'posts', editPostUrlBase: 'http://x.test/wp-admin/post.php', newPostUrl: 'http://x.test/wp-admin/post-new.php', defaultOrderby: 'date', defaultOrder: 'desc', menuTabs: POSTS_TABS, ...extra },
 		dispatch,
 		fetch,
 		host: { fetch, openUrl: vi.fn(), confirm: vi.fn( async () => true ), toast: vi.fn(), announce: vi.fn() },
@@ -150,6 +159,84 @@ afterEach( () => {
 	vi.restoreAllMocks();
 } );
 
+/** Pick a tab the way the strip's own change event does. */
+function tab( root: HTMLElement, value: string ): void {
+	root.querySelector( 'os-tabs' )!.dispatchEvent(
+		new CustomEvent( 'os-tab-change', { detail: { value } } ),
+	);
+}
+
+/** An embedded page that answers the bridge query "yes, I am holding". */
+function holdingFrame(): HTMLIFrameElement {
+	const frame = document.createElement( 'iframe' );
+	Object.defineProperty( frame, 'contentWindow', {
+		value: {
+			postMessage: ( message: { requestId?: string } ) => {
+				window.dispatchEvent(
+					new MessageEvent( 'message', {
+						origin: window.location.origin,
+						source: frame.contentWindow as unknown as Window,
+						data: {
+							type: 'os-bridge-beforeunload-response',
+							requestId: message.requestId,
+							prevent: true,
+						},
+					} ),
+				);
+			},
+		},
+	} );
+	return frame;
+}
+
+/** A filter bus: the harness's stub returns the value unchanged. */
+function stubFilters() {
+	const registered: Array< ( ...a: unknown[] ) => unknown > = [];
+	const previous = window.wp!.hooks;
+	window.wp!.hooks = {
+		...previous,
+		addFilter: ( _n: string, _ns: string, cb: ( ...a: unknown[] ) => unknown ) => {
+			registered.push( cb );
+		},
+		removeFilter: () => registered.splice( 0 ).length,
+		applyFilters: ( _n: string, value: unknown, ...args: unknown[] ) =>
+			registered.reduce( ( acc, cb ) => cb( acc, ...args ), value ),
+	} as typeof previous;
+	return {
+		applyFilters: ( name: string, value: unknown, ...args: unknown[] ) =>
+			( window.wp!.hooks as unknown as {
+				applyFilters: ( n: string, v: unknown, ...a: unknown[] ) => unknown;
+			} ).applyFilters( name, value, ...args ),
+		restore: () => {
+			window.wp!.hooks = previous;
+		},
+	};
+}
+
+/**
+ * Stand in for the shell's `wp.os.embedAdminPage()`, which is what
+ * puts the editor in the Add Post panel. Returns what it was asked to
+ * embed, a count of teardowns, and the undo.
+ */
+function stubEmbed() {
+	const embedded: Array< [ HTMLElement, string ] > = [];
+	let teardowns = 0;
+	const os = ( window as unknown as { wp?: { os?: Record< string, unknown > } } ).wp?.os;
+	os!.embedAdminPage = ( host: HTMLElement, url: string ) => {
+		embedded.push( [ host, url ] );
+		return () => {
+			teardowns++;
+		};
+	};
+	return {
+		embedded,
+		torn: () => teardowns,
+		restore: () => {
+			delete os!.embedAdminPage;
+		},
+	};
+}
+
 describe( 'the frame', () => {
 	it( 'declares a placeholder: the frame paints before mount, on the declared page size, with no "No posts" for the beat', () => {
 		const placeholder = app.placeholder!( state( { page: 2, perPage: 50 } ) ) as ListData;
@@ -168,7 +255,9 @@ describe( 'the frame', () => {
 	it( 'paints the tabs, the toolbar bound to filter, the table and the pager', () => {
 		const { root } = mount();
 		expect( root.querySelector( '[data-os-posts-root]' )!.classList.contains( 'desktop-mode-posts' ) ).toBe( true );
-		expect( Array.from( root.querySelectorAll( 'os-tab' ) ).map( ( t ) => t.getAttribute( 'value' ) ) ).toEqual( [ 'posts', 'categories', 'tags' ] );
+		// The same list, in the same order, the Posts menu shows in the
+		// dock: All posts, Add New Post, Categories, Tags.
+		expect( Array.from( root.querySelectorAll( 'os-tab' ) ).map( ( t ) => t.getAttribute( 'value' ) ) ).toEqual( [ 'posts', 'new', 'categories', 'tags' ] );
 		const status = root.querySelector( 'os-segmented' )!;
 		expect( status.getAttribute( 'os-bind' ) ).toBe( 'status' );
 		expect( status.getAttribute( 'os-action' ) ).toBe( 'filter' );
@@ -191,10 +280,79 @@ describe( 'the frame', () => {
 		expect( root.querySelector( '.os-app-list__pager' ) ).toBeNull();
 	} );
 
-	it( 'Add New opens the editor URL in a window with the post copy', () => {
-		const { root, ctx } = mount();
-		( root.querySelector( '[data-os-posts-new]' ) as HTMLElement ).click();
-		expect( ctx.host.openUrl ).toHaveBeenCalledWith( 'http://x.test/wp-admin/post-new.php', 'Add New Post', 'dashicons-admin-post' );
+	it( 'the hero button and the Add Post tab both embed the editor', async () => {
+		const embed = stubEmbed();
+		try {
+			const { root, ctx } = mount();
+			const strip = root.querySelector( 'os-tabs' ) as HTMLElement & { value: string };
+			( root.querySelector( '[data-os-posts-new]' ) as HTMLElement ).click();
+			expect( strip.value ).toBe( 'new' );
+			expect( embed.embedded ).toHaveLength( 1 );
+			expect( embed.embedded[ 0 ][ 0 ] ).toBe( root.querySelector( '[data-os-posts-editor]' ) );
+			expect( embed.embedded[ 0 ][ 1 ] ).toBe( 'http://x.test/wp-admin/post-new.php' );
+			expect( ctx.host.openUrl ).not.toHaveBeenCalled();
+
+			// Leaving asks the page whether it is holding anything.
+			// Nothing here is, so the embed goes and the next visit
+			// mounts a blank editor, the way post-new.php does in a
+			// classic window.
+			tab( root, 'posts' );
+			await flush();
+			expect( embed.torn() ).toBe( 1 );
+			tab( root, 'new' );
+			expect( embed.embedded ).toHaveLength( 2 );
+		} finally {
+			embed.restore();
+		}
+	} );
+
+	it( 'a draft in progress is kept, and closing the window asks first', async () => {
+		const embed = stubEmbed();
+		const bus = stubFilters();
+		const closed = vi.fn();
+		const os = ( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os;
+		os.windowManager = { getById: () => ( { close: closed } ) };
+		try {
+			const { root, ctx } = mount();
+			app.mounted?.( ctx );
+			tab( root, 'new' );
+			root.querySelector( '[data-os-posts-editor]' )!.appendChild( holdingFrame() );
+
+			// A page with unsaved changes is handed back, not dropped.
+			tab( root, 'posts' );
+			await flush();
+			expect( embed.torn() ).toBe( 0 );
+			tab( root, 'new' );
+			expect( embed.embedded ).toHaveLength( 1 );
+
+			// And the window cannot close without asking: the shell's
+			// own query is for a window's iframe, which an embed is not.
+			expect(
+				bus.applyFilters( 'os.native-window.before-close', true, {
+					windowId: ctx.windowId,
+				} ),
+			).toBe( false );
+			await flush();
+			expect( ctx.host.confirm ).toHaveBeenCalled();
+			await flush();
+			expect( closed ).toHaveBeenCalled();
+		} finally {
+			embed.restore();
+			bus.restore();
+			delete ( os as Record< string, unknown > ).windowManager;
+		}
+	} );
+
+	it( 'opens on the tab the server named — the dock row that asked for it', () => {
+		const embed = stubEmbed();
+		try {
+			// `{ tab: 'new' }` is what the Add Post row's remap passes.
+			const { root } = mount( { tab: 'new' } );
+			expect( ( root.querySelector( 'os-tabs' ) as HTMLElement & { value: string } ).value ).toBe( 'new' );
+			expect( embed.embedded ).toHaveLength( 1 );
+		} finally {
+			embed.restore();
+		}
 	} );
 
 	it( 'anchors the bulk bar below the workspace on desktop and phone', () => {

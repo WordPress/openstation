@@ -32,6 +32,8 @@ export interface AppData {
 
 /** What `App::config()` ships once with the window (`ctx.extra`). */
 export interface PluginsExtra {
+	/** The window's tabs, as `App::menu()` declared them. */
+	menuTabs?: Array< { id: string; label: string } >;
 	ajaxUrl: string;
 	ajaxNonce: string;
 	updatesNonce: string;

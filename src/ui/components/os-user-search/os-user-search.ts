@@ -20,6 +20,7 @@
 
 import { Component, defineComponent, html } from '../../core';
 import { trackedFetch } from '../../../tracked-fetch';
+import { restErrorFromResponse } from '../../../core/api-client';
 import { userSearchStyles } from './os-user-search.styles';
 
 interface SearchUser {
@@ -154,7 +155,7 @@ export class OsUserSearch extends Component {
 				silent: true,
 			} );
 			if ( ! res.ok ) {
-				throw new Error( `HTTP ${ res.status }` );
+				throw await restErrorFromResponse( res );
 			}
 			const json = await res.json();
 			this._results = ( json && Array.isArray( json.users ) ? json.users : [] ) as SearchUser[];

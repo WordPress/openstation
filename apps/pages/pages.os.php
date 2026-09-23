@@ -50,6 +50,28 @@ return App::define( 'desktop-mode-pages' )
 		}
 	)
 	->state( openstation_posts_app_state( 'menu_order', 'asc' ) )
+	// Same as Posts. Page atlas is the case the declaration exists
+	// for: a tab wp-admin has no screen for, which the dock now
+	// offers as a row because this list says so.
+	->menu(
+		'edit.php?post_type=page',
+		static function () {
+			return array(
+				'posts' => array(
+					'label' => __( 'All pages', 'desktop-mode' ),
+					'page'  => 'edit.php?post_type=page',
+				),
+				'new'   => array(
+					'label' => __( 'Add Page', 'desktop-mode' ),
+					'page'  => 'post-new.php?post_type=page',
+				),
+				// No wp-admin page behind this one; the dock offers it
+				// because this list says so.
+				'atlas' => __( 'Page atlas', 'desktop-mode' ),
+			);
+		},
+		'openstation_pages_window_user_can_use'
+	)
 	->action(
 		'filter',
 		static function ( State $state ) {

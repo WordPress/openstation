@@ -160,6 +160,7 @@ import {
 } from './bug-report';
 import { ensureDeferredStyle } from './deferred-styles';
 import { showToast, type ToastOptions } from './toast';
+import { restErrorFromResponse } from './core/api-client';
 import { __, sprintf } from './i18n';
 import {
 	bootstrapPwa,
@@ -756,6 +757,19 @@ export interface OpenStationPublicApi {
 	 * behave like iframe windows do: every "+" yields a duplicate.
 	 */
 	openNewWindow: ( id: string, opts?: { source?: string } ) => boolean;
+	/**
+	 * Mount a chromeless admin page inside an element of a native
+	 * window's body, and return the teardown — a tab whose page is one
+	 * of wp-admin's own, shown in place rather than as a second window.
+	 * Not an iframe window: title adoption, the preview and revisions
+	 * buttons and the close-time unsaved-changes query all key off
+	 * `Window.iframe`, and an embedded page has none of them.
+	 */
+	embedAdminPage: (
+		host: HTMLElement,
+		url: string,
+		opts?: { windowId?: string },
+	) => () => void;
 	/**
 	 * Load a registered native window's bundle without opening the
 	 * window.
@@ -2932,6 +2946,7 @@ function init(): void {
 	bindNativeUrlRemap( {
 		getSnapshot: () => osSettings.getOsSettingsSnapshot(),
 		openById: ( id, opts ) => nativeWindows.openById( id, opts ),
+		openNewById: ( id, opts ) => nativeWindows.openNewById( id, opts ),
 		adminUrl: config.adminUrl,
 	} );
 
@@ -4005,7 +4020,7 @@ function init(): void {
 				{ source: 'desktop-mode/default-window' },
 			);
 			if ( ! response.ok ) {
-				throw new Error( `HTTP ${ response.status }` );
+				throw await restErrorFromResponse( response );
 			}
 			const data = ( await response.json() ) as {
 				enabled: boolean;

@@ -63,7 +63,9 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertSame( 720, $manifest['height'] );
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertSame( array( 'page' ), $manifest['watch'] );
-		$this->assertSame( array( 'filter', 'page', 'sort', 'trash' ), $manifest['actions'] );
+		// `reopen` is the framework's, declared for every window that
+		// declares a menu so the client dispatches it.
+		$this->assertSame( array( 'filter', 'page', 'sort', 'trash', 'reopen' ), $manifest['actions'] );
 		// Pages are usually shallow + ordered by menu_order.
 		$this->assertSame( 'menu_order', $manifest['state']['orderby'] );
 		$this->assertSame( 'asc', $manifest['state']['order'] );
@@ -92,7 +94,15 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		// The declared sort travels with the config.
 		$this->assertSame( 'menu_order', $config['defaultOrderby'] );
 		$this->assertSame( 'asc', $config['defaultOrder'] );
+		// Minus `menuTabs`, which the framework adds from the window's
+		// own `App::menu()` declaration rather than from the facts.
+		unset( $config['menuTabs'] );
 		$this->assertSame( $config, openstation_pages_app_config(), 'The manifest reads the Pages layer, which wraps the shared facts.' );
+		$this->assertSame(
+			array( 'posts', 'new', 'atlas' ),
+			wp_list_pluck( $this->app()->menu_tabs(), 'id' ),
+			'The tabs the dock builds the Pages submenu from.'
+		);
 	}
 
 	/**

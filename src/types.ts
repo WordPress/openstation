@@ -1117,6 +1117,14 @@ export interface NativeWindowServerEntry {
 	 * a window's tab list without re-parsing the template.
 	 */
 	tabs?: NativeWindowTabEntry[];
+	/**
+	 * Admin pages this window answers for while it is the one in
+	 * charge of its menu (`App::menu()`), each with the tab it opens.
+	 * The shell claims those URLs for the window wherever they are
+	 * clicked. Empty when the window declares no menu, or when the
+	 * opt-in that chooses it over the classic screen is off.
+	 */
+	menuPages?: Array< { id: string; page: string } >;
 }
 
 /**

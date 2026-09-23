@@ -349,6 +349,9 @@ function openstation_build_dock_items() {
 			$sub_entry = array(
 				'title' => $sub_title,
 				'url'   => $sub_url,
+				// The registered slug, kept for the window-tab merge
+				// below and stripped again before the payload ships.
+				'slug'  => (string) $row['slug'],
 			);
 			if ( $row['external'] ) {
 				// Consumers that route a URL into a window skip these;
@@ -398,6 +401,45 @@ function openstation_build_dock_items() {
 		// worse tile than no tile.
 		if ( $parent_is_container && $url === $parent_url ) {
 			continue;
+		}
+
+		// A native window in charge of this menu owns its rows too:
+		// whatever it offers as a tab, the dock offers as a row, same
+		// labels and same order, each one tagged with the tab it
+		// opens. The first tab IS the menu's own page, so it becomes
+		// the self-label rather than a second row for the tile's own
+		// destination. See `App::menu()`.
+		$window_tabs = openstation_app_menu_tabs( $identity_slug );
+		if ( $window_tabs ) {
+			$self_label = $window_tabs[0]['label'];
+			$claimed    = array();
+			foreach ( $window_tabs as $tab ) {
+				if ( '' !== $tab['page'] ) {
+					$claimed[] = $tab['page'];
+				}
+			}
+			// A page this window has no tab for is still a page: a
+			// plugin's screen registered under this menu, a taxonomy
+			// someone added. Dropping those would make them
+			// unreachable from the dock, so they follow the window's
+			// own rows rather than being replaced by them.
+			$kept = array();
+			foreach ( $sub_items as $sub_entry ) {
+				if ( ! in_array( $sub_entry['slug'], $claimed, true ) ) {
+					$kept[] = $sub_entry;
+				}
+			}
+			$sub_items = array();
+			foreach ( array_slice( $window_tabs, 1 ) as $tab ) {
+				$sub_items[] = array(
+					'title' => $tab['label'],
+					'url'   => add_query_arg( 'os_tab', $tab['id'], $url ),
+				);
+			}
+			$sub_items = array_merge( $sub_items, $kept );
+		}
+		foreach ( $sub_items as $i => $sub_entry ) {
+			unset( $sub_items[ $i ]['slug'] );
 		}
 
 		$dock_item = array(
@@ -731,10 +773,11 @@ function openstation_dock_item_is_multi( $menu_slug ) {
 	/**
 	 * Filters whether a dock item supports multiple open windows.
 	 *
-	 * Return true to let the user open more than one window of this page.
-	 * A "+" affordance appears on the dock icon and a "Open another" action
-	 * becomes available in the window's title-bar menu. Singletons (false)
-	 * always focus the existing window when re-opened.
+	 * Return true to advertise this page as multi-capable: an instance
+	 * rail appears under the dock icon and an "Open another" action
+	 * becomes available in the window's title-bar menu. It does not gate
+	 * the submenu, which opens a window of its own on every pick either
+	 * way; a tile click focuses the menu's open window.
 	 *
 	 * @param bool   $multi     Whether this page is multi-capable.
 	 * @param string $menu_slug The menu slug (e.g. `edit.php?post_type=page`).
@@ -2634,6 +2677,7 @@ function openstation_collect_native_windows_payload() {
 			'styleInline'      => $style_payload['inline'],
 			'companionStyles'  => $companion_styles,
 			'tabs'             => $tab_descriptors,
+			'menuPages'        => isset( $entry['menu_pages'] ) ? array_values( (array) $entry['menu_pages'] ) : array(),
 		);
 	}
 

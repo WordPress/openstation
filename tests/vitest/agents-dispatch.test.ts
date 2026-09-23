@@ -264,5 +264,68 @@ describe( 'dispatchAgentDrop', () => {
 		expect( transcript[ 1 ].text ).toBe( 'Rate limited.' );
 	} );
 
+	test( 'a run with no answer text lands as an error row and is never replayed', async () => {
+		installOpenWindowStub();
+		const fetchMock: FetchMock = vi.fn( async () => ( {
+			ok: true,
+			status: 200,
+			json: async () => ( { text: '', toolCalls: [], turns: 1 } ),
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+		const rest = { restRoot: 'https://example.test/wp-json/', restNonce: 'n' };
+
+		await invokeAgentIntoTranscript( AGENT, 'Propose a revision', rest, 'chat' );
+
+		const transcript = agentsChatStore.state.transcripts[ 9 ];
+		expect( transcript[ 1 ].role ).toBe( 'error' );
+		expect( transcript[ 1 ].text ).toBe(
+			'The agent finished without a text answer.',
+		);
+
+		await invokeAgentIntoTranscript( AGENT, 'Try again', rest, 'chat' );
+
+		// The fire-and-forget conversation save shares the fetch mock, so
+		// pick the second run out by its URL.
+		const invokes = fetchMock.mock.calls.filter( ( [ url ] ) =>
+			String( url ).endsWith( '/invoke' ),
+		) as Array< [ string, RequestInit ] >;
+		expect( invokes ).toHaveLength( 2 );
+		const init = invokes[ 1 ][ 1 ];
+		expect(
+			( JSON.parse( String( init.body ) ) as { history: unknown[] } ).history,
+		).toEqual( [ { role: 'user', text: 'Propose a revision' } ] );
+	} );
+
+	test( 'a saved placeholder agent row from an older conversation is not replayed', async () => {
+		installOpenWindowStub();
+		const fetchMock: FetchMock = vi.fn( async () => ( {
+			ok: true,
+			status: 200,
+			json: async () => ( { text: 'done', toolCalls: [], turns: 1 } ),
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		agentsChatStore.state.transcripts[ 9 ] = [
+			{ role: 'user', text: 'Propose a revision', at: 1 },
+			{
+				role: 'agent',
+				text: 'The agent finished without a text answer.',
+				at: 2,
+			},
+		];
+
+		await invokeAgentIntoTranscript(
+			AGENT,
+			'Try again',
+			{ restRoot: 'https://example.test/wp-json/', restNonce: 'n' },
+			'chat',
+		);
+
+		const [ , init ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
+		expect(
+			( JSON.parse( String( init.body ) ) as { history: unknown[] } ).history,
+		).toEqual( [ { role: 'user', text: 'Propose a revision' } ] );
+	} );
+
 
 } );
