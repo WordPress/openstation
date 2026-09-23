@@ -38,6 +38,14 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		wp_scripts()->add_data( 'openstation', 'data', '' );
 	}
 
+	public function tear_down() {
+		// The command-script registry is process-global too: without this,
+		// the next test counts this one's commands (and their config
+		// handle) alongside its own.
+		openstation_flush_desktop_command_script_registry();
+		parent::tear_down();
+	}
+
 	/**
 	 * Registers a src-less config handle carrying a localized object,
 	 * and ENTRIES command scripts that depend on it.
