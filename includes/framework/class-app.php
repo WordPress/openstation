@@ -521,24 +521,19 @@ final class App {
 	 * opens the window on that tab. One declaration drives all three
 	 * halves of that:
 	 *
-	 *   - the dock's submenu for `$slug` becomes these tabs (the
-	 *     first one is the menu's own page, so it becomes the tile's
-	 *     label rather than a duplicate row);
-	 *   - each row's URL is the menu's own, tagged `os_tab=<id>`,
-	 *     which the shell's remap reads back as the tab to open on;
-	 *   - `tab` becomes declared state, and the runtime sets it from
-	 *     that param on mount and on reopen — no per-app wiring.
-	 *
-	 * The window's own strip should render from the same list
-	 * (`menuTabs` in the config extra) so the two cannot drift.
+	 *   - the dock's submenu for `$slug` becomes these tabs (the first
+	 *     is the menu's own page, so it becomes the tile's label);
+	 *   - each row's URL is the menu's own tagged `os_tab=<id>`, which
+	 *     the shell's remap reads back as the tab to open on;
+	 *   - `tab` becomes declared state, written on mount and reopen;
+	 *   - the tabs reach the client view as `menuTabs`, which its strip
+	 *     renders from, so the two lists cannot drift.
 	 *
 	 * A tab's value is its label, or `array( 'label' => …, 'page' => … )`
-	 * when wp-admin has a page for it: the submenu slug it replaces
-	 * (`user-new.php`, `edit-tags.php?taxonomy=category`). That page is
-	 * how the dock knows which of wp-admin's own rows this window
-	 * already answers for — the rest are kept, so a plugin's page under
-	 * this menu stays reachable — and how the shell knows to route that
-	 * URL here when it is reached from somewhere other than the dock.
+	 * naming the submenu slug it replaces (`user-new.php`). That page
+	 * is which of wp-admin's own rows this window answers for — the
+	 * rest are kept, so a plugin's page under this menu stays
+	 * reachable — and what the shell routes here from anywhere else.
 	 *
 	 * @param string                       $slug    Admin menu slug, e.g. `users.php`.
 	 * @param array<string,mixed>|callable $tabs    Ordered `id => label|array`, or a

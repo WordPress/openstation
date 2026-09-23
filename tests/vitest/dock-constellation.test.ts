@@ -1017,20 +1017,13 @@ describe( 'dock constellation', () => {
 
 	/*
 	 * A menu whose page a native window has claimed keeps its own URL
-	 * on the tile, but its window is open under the WINDOW's id. The
-	 * flyout has to walk the same chain the tile's indicator does, or
-	 * the group meant to say "here is what you have open" says nothing
-	 * while the window is on screen.
+	 * on the tile, but its window is open under the WINDOW's id. Walk
+	 * the same chain the tile's indicator does, or the group meant to
+	 * say "here is what you have open" says nothing while the window
+	 * is on screen.
 	 */
 	test( 'a menu whose window is native lists it as open', () => {
 		const tile = setupShell( 'unified' );
-		// The tile the stub paints is `themes.php`; what matters here
-		// is that its URL is one a native window has claimed.
-		const claimed = {
-			...appearance,
-			url: '/wp-admin/edit.php',
-			submenu: [ { title: 'Add Post', url: '/wp-admin/post-new.php' } ],
-		};
 		const live = {
 			id: 'desktop-mode-posts',
 			state: 'normal',
@@ -1056,7 +1049,9 @@ describe( 'dock constellation', () => {
 					id === 'desktop-mode-posts' ? [ live ] : [],
 			} as unknown as WindowManager,
 			adminUrl: '/wp-admin/',
-			getMenuItems: () => [ claimed ],
+			// The stub's tile is `themes.php`; what matters is that its
+			// URL is one a native window has claimed.
+			getMenuItems: () => [ { ...appearance, url: '/wp-admin/edit.php' } ],
 			getSystemItem: () => undefined,
 		} );
 

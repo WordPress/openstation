@@ -260,16 +260,14 @@ describe( 'workspace operations', () => {
 			.spyOn( manager, 'openNew' )
 			.mockResolvedValue( {} as never );
 		const native: string[] = [];
+		const claim = ( id: string ) => {
+			native.push( id );
+			return true;
+		};
 		bindNativeUrlRemap( {
 			getSnapshot: () => ( {} ) as never,
-			openById: ( id ) => {
-				native.push( id );
-				return true;
-			},
-			openNewById: ( id ) => {
-				native.push( id );
-				return true;
-			},
+			openById: claim,
+			openNewById: claim,
 			adminUrl: ADMIN_URL,
 		} );
 		registerNativeUrlRemap( {

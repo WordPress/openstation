@@ -102,10 +102,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 				)
 		);
 
-		$items = openstation_build_dock_items();
-		$demo  = null;
-		foreach ( $items as $item ) {
-			if ( 'demo.php' === $item['url'] || false !== strpos( (string) $item['url'], 'demo.php' ) ) {
+		$demo = null;
+		foreach ( openstation_build_dock_items() as $item ) {
+			if ( false !== strpos( (string) $item['url'], 'demo.php' ) ) {
 				$demo = $item;
 				break;
 			}

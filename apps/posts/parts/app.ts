@@ -353,27 +353,30 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 	};
 
 	/**
-	 * Let go of the embedded editor when it is holding nothing, so the
-	 * next visit to the tab mounts a blank post the way `post-new.php`
-	 * does in a classic window.
+	 * Whether the embedded editor is holding unsaved changes.
 	 *
-	 * Asked rather than assumed. Tearing it down on every visit is
-	 * what the tab should look like, but it threw away whatever had
-	 * been typed and not saved, and an embedded page gets none of the
-	 * per-window unsaved-changes machinery (that keys off
-	 * `Window.iframe`, which an embed does not set). So the page
-	 * itself answers, through the same bridge query a window asks
-	 * before navigating: nothing to lose, let it go; a draft in
-	 * progress, keep it and hand it back.
+	 * An embedded page gets none of the per-window unsaved-changes
+	 * machinery — that keys off `Window.iframe`, which an embed does
+	 * not set — so it is asked directly, through the same bridge query
+	 * a window makes before navigating.
+	 */
+	const editorIsHolding = ( ctx: Ctx ): Promise< boolean > =>
+		queryUnsavedGuard(
+			ctx.root.querySelector< HTMLIFrameElement >(
+				'[data-os-posts-editor] iframe',
+			),
+		);
+
+	/**
+	 * Let go of the editor when it is holding nothing, so the next
+	 * visit to the tab mounts a blank post. A draft in progress is
+	 * kept and handed back instead.
 	 */
 	const releaseEditorIfClean = ( ctx: Ctx, ui: UiState ): void => {
 		if ( ! ui.editor ) {
 			return;
 		}
-		const frame = ctx.root.querySelector< HTMLIFrameElement >(
-			'[data-os-posts-editor] iframe',
-		);
-		void queryUnsavedGuard( frame ).then( ( holding ) => {
+		void editorIsHolding( ctx ).then( ( holding ) => {
 			if ( holding || ui.disposed || ! ui.editor ) {
 				return;
 			}
@@ -384,16 +387,9 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 
 	/**
 	 * Ask before closing a window whose embedded editor is holding
-	 * unsaved changes.
-	 *
-	 * An iframe WINDOW gets this from the shell, which queries the
-	 * page inside before it destroys the frame. An embedded page is
-	 * not the window's iframe, so the shell has nothing to ask and the
-	 * draft went without a word. The native close filter is the seam
-	 * for exactly this: hold the close, ask the page, then ask the
-	 * user, and close for real only if they say so.
-	 *
-	 * Returns the unsubscribe.
+	 * unsaved changes: hold the close, ask the page, then ask the
+	 * user. The shell cannot do it — its own query is for a window's
+	 * iframe, which an embed is not. Returns the unsubscribe.
 	 */
 	const guardEmbeddedEditor = ( ctx: Ctx, ui: UiState ): ( () => void ) => {
 		// The shell's own filter name; an app reaching the hook bus
@@ -416,10 +412,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				}
 				asking = true;
 				void ( async () => {
-					const frame = ctx.root.querySelector< HTMLIFrameElement >(
-						'[data-os-posts-editor] iframe',
-					);
-					const holding = await queryUnsavedGuard( frame );
+					const holding = await editorIsHolding( ctx );
 					const leave =
 						! holding ||
 						( await ctx.host.confirm?.( {

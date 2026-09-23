@@ -253,10 +253,10 @@ export function applyWorkspaceLayout(
 
 /**
  * The base id a launch entry's window lives under: the native window
- * when one claims the URL, else the id {@link openLaunchUrl} opens it
- * with, which is the MENU's id rather than the child page's. Reading
- * it off the page instead is how a `post-new.php` entry failed to
- * recognise its own window and opened another on every Restore.
+ * when one claims the URL, else the MENU's id, which is what
+ * {@link openLaunchUrl} opens it with. Reading it off the child page
+ * instead is how a `post-new.php` entry failed to recognise its own
+ * window and opened another on every Restore.
  */
 function launchBaseId(
 	deps: WorkspaceDeps,
@@ -273,14 +273,13 @@ function launchBaseId(
 }
 
 /**
- * The window a launch entry stands for, when one is already open and
- * no earlier entry in this pass has claimed it.
+ * The window a launch entry stands for, when one is open and no
+ * earlier entry in this pass has claimed it.
  *
  * A desk's list declares N windows, so each entry gets its own: two
- * entries resolving to the same window — the native Posts window on
- * its Add Post tab beside the same window on its list, which is the
- * Publishing template — are two windows, and a desk that has them
- * keeps them instead of growing a pair on every Restore.
+ * entries resolving to one window (the Publishing template's two) are
+ * two windows, and a desk that has them keeps them instead of growing
+ * a pair on every Restore.
  */
 function claimOpenWindow(
 	deps: WorkspaceDeps,
@@ -303,14 +302,10 @@ function claimOpenWindow(
 }
 
 /**
- * Open one launch entry's URL, the way a menu pick opens it: the
- * native-window remap first, so a page the viewer opted a window into
- * gets that window, and otherwise the iframe window built from the
- * menu's own metadata, so it comes up with its tab strip. Opening the
- * raw URL through `manager.open()` — what this did — was the one door
- * in the shell that skipped both.
- *
- * Always a fresh instance: the entry is here only because
+ * Open one launch entry's URL the way a menu pick opens it: the
+ * native-window remap first, else the iframe window built from the
+ * menu's own metadata, so it comes up with its tab strip. Always a
+ * fresh instance — the entry is here only because
  * {@link claimOpenWindow} found nothing to reuse.
  */
 function openLaunchUrl(

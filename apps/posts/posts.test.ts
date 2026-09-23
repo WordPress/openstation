@@ -159,6 +159,60 @@ afterEach( () => {
 	vi.restoreAllMocks();
 } );
 
+/** Pick a tab the way the strip's own change event does. */
+function tab( root: HTMLElement, value: string ): void {
+	root.querySelector( 'os-tabs' )!.dispatchEvent(
+		new CustomEvent( 'os-tab-change', { detail: { value } } ),
+	);
+}
+
+/** An embedded page that answers the bridge query "yes, I am holding". */
+function holdingFrame(): HTMLIFrameElement {
+	const frame = document.createElement( 'iframe' );
+	Object.defineProperty( frame, 'contentWindow', {
+		value: {
+			postMessage: ( message: { requestId?: string } ) => {
+				window.dispatchEvent(
+					new MessageEvent( 'message', {
+						origin: window.location.origin,
+						source: frame.contentWindow as unknown as Window,
+						data: {
+							type: 'os-bridge-beforeunload-response',
+							requestId: message.requestId,
+							prevent: true,
+						},
+					} ),
+				);
+			},
+		},
+	} );
+	return frame;
+}
+
+/** A filter bus: the harness's stub returns the value unchanged. */
+function stubFilters() {
+	const registered: Array< ( ...a: unknown[] ) => unknown > = [];
+	const previous = window.wp!.hooks;
+	window.wp!.hooks = {
+		...previous,
+		addFilter: ( _n: string, _ns: string, cb: ( ...a: unknown[] ) => unknown ) => {
+			registered.push( cb );
+		},
+		removeFilter: () => registered.splice( 0 ).length,
+		applyFilters: ( _n: string, value: unknown, ...args: unknown[] ) =>
+			registered.reduce( ( acc, cb ) => cb( acc, ...args ), value ),
+	} as typeof previous;
+	return {
+		applyFilters: ( name: string, value: unknown, ...args: unknown[] ) =>
+			( window.wp!.hooks as unknown as {
+				applyFilters: ( n: string, v: unknown, ...a: unknown[] ) => unknown;
+			} ).applyFilters( name, value, ...args ),
+		restore: () => {
+			window.wp!.hooks = previous;
+		},
+	};
+}
+
 /**
  * Stand in for the shell's `wp.os.embedAdminPage()`, which is what
  * puts the editor in the Add Post panel. Returns what it was asked to
@@ -226,131 +280,65 @@ describe( 'the frame', () => {
 		expect( root.querySelector( '.os-app-list__pager' ) ).toBeNull();
 	} );
 
-	it( 'the hero button takes the user to the Add Post tab, not to a window', () => {
+	it( 'the hero button and the Add Post tab both embed the editor', async () => {
 		const embed = stubEmbed();
 		try {
 			const { root, ctx } = mount();
+			const strip = root.querySelector( 'os-tabs' ) as HTMLElement & { value: string };
 			( root.querySelector( '[data-os-posts-new]' ) as HTMLElement ).click();
-			expect( ( root.querySelector( 'os-tabs' ) as HTMLElement & { value: string } ).value ).toBe( 'new' );
+			expect( strip.value ).toBe( 'new' );
 			expect( embed.embedded ).toHaveLength( 1 );
+			expect( embed.embedded[ 0 ][ 0 ] ).toBe( root.querySelector( '[data-os-posts-editor]' ) );
+			expect( embed.embedded[ 0 ][ 1 ] ).toBe( 'http://x.test/wp-admin/post-new.php' );
 			expect( ctx.host.openUrl ).not.toHaveBeenCalled();
-		} finally {
-			embed.restore();
-		}
-	} );
 
-	it( 'a draft in progress survives a trip to another tab', async () => {
-		const embed = stubEmbed();
-		const frame = document.createElement( 'iframe' );
-		// The page answers the bridge's pre-navigation query the way a
-		// Gutenberg session with unsaved changes does.
-		Object.defineProperty( frame, 'contentWindow', {
-			value: {
-				postMessage: ( message: { requestId?: string } ) => {
-					window.dispatchEvent(
-						new MessageEvent( 'message', {
-							origin: window.location.origin,
-							source: frame.contentWindow as unknown as Window,
-							data: {
-								type: 'os-bridge-beforeunload-response',
-								requestId: message.requestId,
-								prevent: true,
-							},
-						} ),
-					);
-				},
-			},
-		} );
-		try {
-			const { root } = mount();
-			const strip = root.querySelector( 'os-tabs' )!;
-			strip.dispatchEvent(
-				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
-			);
-			root.querySelector( '[data-os-posts-editor]' )!.appendChild( frame );
-
-			strip.dispatchEvent(
-				new CustomEvent( 'os-tab-change', { detail: { value: 'posts' } } ),
-			);
+			// Leaving asks the page whether it is holding anything.
+			// Nothing here is, so the embed goes and the next visit
+			// mounts a blank editor, the way post-new.php does in a
+			// classic window.
+			tab( root, 'posts' );
 			await flush();
-			expect( embed.torn() ).toBe( 0 );
-
-			strip.dispatchEvent(
-				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
-			);
-			expect( embed.embedded ).toHaveLength( 1 );
+			expect( embed.torn() ).toBe( 1 );
+			tab( root, 'new' );
+			expect( embed.embedded ).toHaveLength( 2 );
 		} finally {
 			embed.restore();
 		}
 	} );
 
-	it( 'asks before closing on an editor holding unsaved changes', async () => {
+	it( 'a draft in progress is kept, and closing the window asks first', async () => {
 		const embed = stubEmbed();
+		const bus = stubFilters();
 		const closed = vi.fn();
-		// A filter bus for this case: the harness's stub returns the
-		// value unchanged and registers nothing.
-		const registered: Array< ( ...a: unknown[] ) => unknown > = [];
-		const previousHooks = window.wp!.hooks;
-		window.wp!.hooks = {
-			...previousHooks,
-			addFilter: ( _n: string, _ns: string, cb: ( ...a: unknown[] ) => unknown ) => {
-				registered.push( cb );
-			},
-			removeFilter: () => {
-				const count = registered.length;
-				registered.length = 0;
-				return count;
-			},
-			applyFilters: ( _n: string, value: unknown, ...args: unknown[] ) =>
-				registered.reduce( ( acc, cb ) => cb( acc, ...args ), value ),
-		} as typeof previousHooks;
-		const hooks = window.wp!.hooks as unknown as {
-			applyFilters: ( name: string, value: unknown, ...args: unknown[] ) => unknown;
-		};
 		const os = ( window as unknown as { wp: { os: Record< string, unknown > } } ).wp.os;
 		os.windowManager = { getById: () => ( { close: closed } ) };
-		const frame = document.createElement( 'iframe' );
-		Object.defineProperty( frame, 'contentWindow', {
-			value: {
-				postMessage: ( message: { requestId?: string } ) => {
-					window.dispatchEvent(
-						new MessageEvent( 'message', {
-							origin: window.location.origin,
-							source: frame.contentWindow as unknown as Window,
-							data: {
-								type: 'os-bridge-beforeunload-response',
-								requestId: message.requestId,
-								prevent: true,
-							},
-						} ),
-					);
-				},
-			},
-		} );
 		try {
 			const { root, ctx } = mount();
 			app.mounted?.( ctx );
-			root.querySelector( 'os-tabs' )!.dispatchEvent(
-				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
-			);
-			root.querySelector( '[data-os-posts-editor]' )!.appendChild( frame );
+			tab( root, 'new' );
+			root.querySelector( '[data-os-posts-editor]' )!.appendChild( holdingFrame() );
 
-			// The shell asks the filter whether this window may close.
-			const proceed = hooks.applyFilters(
-				'os.native-window.before-close',
-				true,
-				{ windowId: ctx.windowId },
-			);
-			expect( proceed ).toBe( false );
+			// A page with unsaved changes is handed back, not dropped.
+			tab( root, 'posts' );
+			await flush();
+			expect( embed.torn() ).toBe( 0 );
+			tab( root, 'new' );
+			expect( embed.embedded ).toHaveLength( 1 );
+
+			// And the window cannot close without asking: the shell's
+			// own query is for a window's iframe, which an embed is not.
+			expect(
+				bus.applyFilters( 'os.native-window.before-close', true, {
+					windowId: ctx.windowId,
+				} ),
+			).toBe( false );
 			await flush();
 			expect( ctx.host.confirm ).toHaveBeenCalled();
-			// The stub confirms, so the close goes through on the
-			// second pass rather than being swallowed.
 			await flush();
 			expect( closed ).toHaveBeenCalled();
 		} finally {
 			embed.restore();
-			window.wp!.hooks = previousHooks;
+			bus.restore();
 			delete ( os as Record< string, unknown > ).windowManager;
 		}
 	} );
@@ -364,35 +352,6 @@ describe( 'the frame', () => {
 			expect( embed.embedded ).toHaveLength( 1 );
 		} finally {
 			embed.restore();
-		}
-	} );
-
-	it( 'the Add Post tab embeds the editor in the window instead of opening one', async () => {
-		const { embedded, torn, restore } = stubEmbed();
-		try {
-			const { root, ctx } = mount();
-			root.querySelector( 'os-tabs' )!.dispatchEvent(
-				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
-			);
-			expect( embedded ).toHaveLength( 1 );
-			expect( embedded[ 0 ][ 0 ] ).toBe( root.querySelector( '[data-os-posts-editor]' ) );
-			expect( embedded[ 0 ][ 1 ] ).toBe( 'http://x.test/wp-admin/post-new.php' );
-			expect( ctx.host.openUrl ).not.toHaveBeenCalled();
-			// Leaving asks the page whether it is holding anything.
-			// Nothing here is, so the embed goes and the next visit
-			// mounts a blank editor, the way post-new.php does in a
-			// classic window.
-			root.querySelector( 'os-tabs' )!.dispatchEvent(
-				new CustomEvent( 'os-tab-change', { detail: { value: 'posts' } } ),
-			);
-			await flush();
-			expect( torn() ).toBe( 1 );
-			root.querySelector( 'os-tabs' )!.dispatchEvent(
-				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
-			);
-			expect( embedded ).toHaveLength( 2 );
-		} finally {
-			restore();
 		}
 	} );
 
