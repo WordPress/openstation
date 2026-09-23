@@ -207,11 +207,13 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			expect.objectContaining( { id: 'calc', scriptUrl: '' } ),
 		] );
 		// The handle-keyed map must persist onto config alongside the
-		// entries it decodes: `wp.os.debug.window()` reads
-		// `config.nativeWindowScriptData` directly, so a stale
-		// boot-time copy would report an empty URL for any window
-		// whose plugin activated after boot.
-		expect( config.nativeWindowScriptData ).toEqual( scriptData );
+		// entries it decodes: `wp.os.debug.window()` resolves a window's
+		// URL through it, so a stale boot-time copy would report an empty
+		// URL for any window whose plugin activated after boot. This
+		// payload is an older server's (`nativeWindowScriptData`, no
+		// shared map); it folds into the one map config keeps (GH#898).
+		expect( config.scriptDepPayloads ).toEqual( expect.objectContaining( scriptData ) );
+		expect( config.nativeWindowScriptData ).toBeUndefined();
 		expect( syncs.widgets ).toHaveBeenCalledWith( widgets );
 		expect( syncs.wallpapers ).toHaveBeenCalledWith( wallpapers );
 		expect( syncs.commands ).toHaveBeenCalledWith( cmdScripts, cmds );

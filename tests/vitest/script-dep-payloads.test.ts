@@ -7,6 +7,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { createApplyPayload } from '../../src/menu-refresh-apply';
 import type { MenuRefreshDeps } from '../../src/menu-refresh-apply';
 import { hydrateScriptDeps } from '../../src/script-dep-payloads';
+import { hydrateServerEntries, windowScriptData } from '../../src/native-windows';
 import type { DesktopConfig } from '../../src/types';
 
 const shared = {
@@ -145,5 +146,54 @@ describe( 'menu refresh', () => {
 		} );
 
 		expect( config.scriptDepPayloads ).toEqual( { 'wp-hooks': hooks, 'acme-config': shared } );
+	} );
+} );
+
+describe( 'one map for native windows and every other list (GH#898)', () => {
+	test( 'a native window resolves its bundle and deps through the shared map', () => {
+		// A package a window and a command both depend on ships once.
+		const config = {
+			scriptDepPayloads: {
+				'acme-config': shared,
+				'acme-window': {
+					handle: 'acme-window',
+					url: 'https://example.test/window.js',
+					before: [],
+					after: [],
+					l10n: [],
+					translations: '',
+					deps: [ 'acme-config' ],
+				},
+			},
+			nativeWindows: [ { id: 'acme', scriptHandle: 'acme-window' } ],
+			serverCommandScripts: [ { handle: 'c', scriptDeps: [ 'acme-config' ] } ],
+		};
+		hydrateScriptDeps( config );
+		const [ win ] = hydrateServerEntries(
+			config.nativeWindows as never,
+			windowScriptData( config ),
+		) as Array< { scriptUrl?: string; scriptDeps?: unknown } >;
+		expect( win.scriptUrl ).toBe( 'https://example.test/window.js' );
+		expect( JSON.stringify( win ) ).toContain( 'acme-config' );
+		expect( config.serverCommandScripts[ 0 ].scriptDeps ).toEqual( [ shared ] );
+	} );
+
+	test( 'as somebody\'s dependency, a window bundle does not bring its closure along', () => {
+		const bundle = { handle: 'acme-window', url: 'https://example.test/window.js', deps: [ 'acme-config' ] };
+		const config = {
+			scriptDepPayloads: { 'acme-window': bundle },
+			serverWidgets: [ { id: 'w', scriptDeps: [ 'acme-window' ] } ],
+		};
+		hydrateScriptDeps( config );
+		expect( config.serverWidgets[ 0 ].scriptDeps ).toEqual( [
+			{ handle: 'acme-window', url: 'https://example.test/window.js' },
+		] );
+	} );
+
+	test( 'an older server\'s nativeWindowScriptData is still read', () => {
+		const legacy = { 'acme-window': { url: 'https://example.test/old.js' } };
+		expect( windowScriptData( { nativeWindowScriptData: legacy } ) ).toBe( legacy );
+		expect( windowScriptData( { scriptDepPayloads: {}, nativeWindowScriptData: legacy } ) ).toEqual( {} );
+		expect( windowScriptData( {} ) ).toBeUndefined();
 	} );
 } );
