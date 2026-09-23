@@ -274,6 +274,17 @@ export function createApplyPayload(
 	return function applyPayload( payload: MenuRefreshPayload ): void {
 		// Entries carry dependency handles; put the payloads back first.
 		hydrateScriptDeps( payload );
+		// Keep the map beside the entries it decodes, the same reason
+		// `nativeWindowScriptData` is persisted below: after a plugin
+		// activates, `config.server*` holds its handles and anything that
+		// re-runs `hydrateScriptDeps( config )`, or reads the map, must
+		// find them. Merged, not replaced; the newer payload wins a handle.
+		if ( payload.scriptDepPayloads && typeof payload.scriptDepPayloads === 'object' ) {
+			config.scriptDepPayloads = {
+				...config.scriptDepPayloads,
+				...( payload.scriptDepPayloads as DesktopConfig[ 'scriptDepPayloads' ] ),
+			};
+		}
 		const dockItems = payload.dockItems;
 		const nativeWindows = payload.nativeWindows;
 		const serverWidgets = payload.serverWidgets;

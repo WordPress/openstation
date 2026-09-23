@@ -42,13 +42,48 @@ describe( 'hydrateScriptDeps', () => {
 		expect( config.serverGames[ 0 ].scriptDeps ).toEqual( [] );
 	} );
 
-	test( 'passes full payloads through and skips unknown handles', () => {
+	test( 'passes full payloads through; an unknown handle is dropped and logged', () => {
+		// The server resolves every handle it emits into the map
+		// (`openstation_compact_script_dep_list()`), so a handle without
+		// an entry came from somewhere else. There is nothing to load,
+		// but losing a dependency must not be silent.
+		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 		const config = {
 			scriptDepPayloads: { 'wp-hooks': hooks },
 			serverWallpapers: [ { id: 'w', scriptDeps: [ shared, 'gone', 'wp-hooks' ] } ],
 		};
 		hydrateScriptDeps( config );
 		expect( config.serverWallpapers[ 0 ].scriptDeps ).toEqual( [ shared, hooks ] );
+		expect( warn ).toHaveBeenCalledTimes( 1 );
+		expect( String( warn.mock.calls[ 0 ][ 0 ] ) ).toContain( '"gone"' );
+		expect( String( warn.mock.calls[ 0 ][ 0 ] ) ).toContain( 'serverWallpapers' );
+		warn.mockRestore();
+	} );
+
+	test( 'touches scriptDeps at entry depth only, never a plugin\'s own metadata', () => {
+		// A plugin's settings can carry a key that happens to be called
+		// `scriptDeps`. Walking into it would resolve its strings away
+		// (they are not in the map) and rewrite data that is not ours.
+		const foreign = [ 'a', 'b' ];
+		const config = {
+			scriptDepPayloads: { 'wp-hooks': hooks },
+			serverWidgets: [
+				{ id: 'x', scriptDeps: [ 'wp-hooks' ], settings: { scriptDeps: foreign } },
+			],
+		};
+		hydrateScriptDeps( config );
+		expect( config.serverWidgets[ 0 ].scriptDeps ).toEqual( [ hooks ] );
+		expect( config.serverWidgets[ 0 ].settings.scriptDeps ).toBe( foreign );
+		expect( foreign ).toEqual( [ 'a', 'b' ] );
+	} );
+
+	test( 'an entry list keyed by id is covered the same as a plain list', () => {
+		const config = {
+			scriptDepPayloads: { 'wp-hooks': hooks },
+			serverSettingsTabs: { general: { id: 'general', scriptDeps: [ 'wp-hooks' ] } },
+		};
+		hydrateScriptDeps( config );
+		expect( config.serverSettingsTabs.general.scriptDeps ).toEqual( [ hooks ] );
 	} );
 
 	test( 'leaves a payload without the map untouched', () => {
@@ -82,5 +117,33 @@ describe( 'menu refresh', () => {
 		expect( commands ).toHaveBeenCalled();
 		const scripts = commands.mock.calls[ 0 ][ 0 ] as Array< { scriptDeps: unknown } >;
 		expect( scripts[ 0 ].scriptDeps ).toEqual( [ shared ] );
+	} );
+
+	test( 'the refresh map is merged into config.scriptDepPayloads', () => {
+		// After a plugin activates, config.server* holds its handles.
+		// Anything that re-hydrates config, or reads the map, must find
+		// them there, and handles known at boot must not be lost.
+		const noop = vi.fn().mockResolvedValue( undefined );
+		const config = {
+			dockItems: [],
+			scriptDepPayloads: { 'wp-hooks': hooks },
+		} as unknown as DesktopConfig;
+		const deps = new Proxy(
+			{
+				applyDockItems: vi.fn(),
+				desktopArea: document.createElement( 'div' ),
+				config,
+			},
+			{ get: ( t, k ) => ( k in t ? t[ k as keyof typeof t ] : noop ) },
+		) as unknown as MenuRefreshDeps;
+
+		createApplyPayload( deps )( {
+			dockItems: [ { id: 'menu-dashboard', title: 'Dashboard', url: 'index.php' } ],
+			scriptDepPayloads: { 'acme-config': shared },
+			serverCommandScripts: [ { handle: 'a', scriptUrl: 'a.js', scriptDeps: [ 'acme-config' ] } ],
+			serverCommands: [],
+		} );
+
+		expect( config.scriptDepPayloads ).toEqual( { 'wp-hooks': hooks, 'acme-config': shared } );
 	} );
 } );

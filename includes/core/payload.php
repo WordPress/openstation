@@ -1948,53 +1948,97 @@ function openstation_resolve_script_dependencies( $handle ) {
 }
 
 /**
- * Move every `scriptDeps` payload in a shell payload into one map.
+ * Move every entry's `scriptDeps` payloads into one map.
  *
  * {@see openstation_resolve_script_dependencies()} returns the full
  * payload of each dependency (URL, l10n, before/after), and ~20 entry
  * builders call it. A dependency shared by N entries was therefore
- * serialized N times — one plugin's 5.5 KB localized object became
- * ~400 KB of a 489 KB `openStationConfig` (GH#892). This walks the
- * payload, replaces each `scriptDeps` list with its handles, and puts
- * each handle's payload in `$map` once. The shell resolves the
- * handles back before any consumer reads them — see
- * `src/script-dep-payloads.ts`.
+ * serialized N times: one plugin's 5.5 KB localized object became
+ * ~400 KB of a 489 KB `openStationConfig` (GH#892). This replaces each
+ * entry's `scriptDeps` list with its handles and puts each handle's
+ * payload in `$map` once. The shell resolves the handles back before
+ * any consumer reads them; see `src/script-dep-payloads.ts`.
  *
- * Runs on the finished payload so every builder, and every filter on
+ * ENTRY DEPTH ONLY. `$payload` is a payload whose top-level values are
+ * entry lists (`serverWidgets`, `serverCommandScripts`, ...), and only
+ * a `scriptDeps` sitting directly on one of those entries is touched.
+ * The key is the shell's there. Deeper down it is a plugin's metadata
+ * (`settings => [ 'scriptDeps' => ... ]`), and rewriting it would hoist
+ * foreign data into the map first-wins and hydrate every real
+ * dependency of that handle to it. Scoping by depth rather than by a
+ * list of keys means a new builder is covered without an edit here.
+ * It also leaves every other branch of the payload unassigned, so
+ * PHP's copy-on-write never has to copy them.
+ *
+ * Every string left in a compacted list has an entry in `$map`: a bare
+ * handle a builder (or a filter on one) emitted is resolved here, by
+ * the same rule as {@see openstation_resolve_script_dependencies()}.
+ * A handle with nothing to fetch and nothing to run is dropped, as it
+ * is there. The client can then treat a string with no map entry as a
+ * payload from somewhere else, not a dependency this side dropped.
+ *
+ * Runs on the finished payload, so every builder, and every filter on
  * a builder's output, still sees the full shape.
  *
- * @param mixed $value Payload (or any sub-array of it).
- * @param array $map   Handle => dependency payload, filled in place.
- * @return mixed The payload with `scriptDeps` reduced to handle lists.
+ * @param array $payload Payload whose top-level values are entry lists.
+ * @param array $map     Handle => dependency payload, filled in place.
+ * @return array The payload with each entry's `scriptDeps` reduced to handles.
  */
-function openstation_compact_script_deps( $value, array &$map ) {
-	if ( ! is_array( $value ) ) {
-		return $value;
+function openstation_compact_script_deps( $payload, array &$map ) {
+	if ( ! is_array( $payload ) ) {
+		return $payload;
 	}
-	foreach ( $value as $key => $item ) {
-		if ( 'scriptDeps' === $key && is_array( $item ) ) {
-			$handles = array();
-			foreach ( $item as $dep ) {
-				if ( is_array( $dep ) && isset( $dep['handle'] ) && '' !== (string) $dep['handle'] ) {
-					$handle = (string) $dep['handle'];
-					if ( ! isset( $map[ $handle ] ) ) {
-						$map[ $handle ] = $dep;
-					}
-					$handles[] = $handle;
-				} else {
-					// Already a handle, or a handle-less dependency with
-					// nothing to key it by: pass through untouched.
-					$handles[] = $dep;
-				}
-			}
-			$value[ $key ] = $handles;
+	foreach ( $payload as $list_key => $entries ) {
+		if ( ! is_array( $entries ) ) {
 			continue;
 		}
-		if ( is_array( $item ) ) {
-			$value[ $key ] = openstation_compact_script_deps( $item, $map );
+		foreach ( $entries as $entry_key => $entry ) {
+			if ( ! is_array( $entry ) || ! isset( $entry['scriptDeps'] ) || ! is_array( $entry['scriptDeps'] ) ) {
+				continue;
+			}
+			$payload[ $list_key ][ $entry_key ]['scriptDeps'] = openstation_compact_script_dep_list( $entry['scriptDeps'], $map );
 		}
 	}
-	return $value;
+	return $payload;
+}
+
+/**
+ * One entry's `scriptDeps` list, reduced to handles.
+ *
+ * @param array $deps Dependency payloads and/or bare handles.
+ * @param array $map  Handle => dependency payload, filled in place.
+ * @return array Handles, in order; anything unkeyable passes through.
+ */
+function openstation_compact_script_dep_list( array $deps, array &$map ) {
+	$handles = array();
+	foreach ( $deps as $dep ) {
+		if ( is_string( $dep ) && '' !== $dep ) {
+			if ( ! isset( $map[ $dep ] ) ) {
+				$payload = openstation_resolve_script_payload( $dep );
+				if ( '' === $payload['url']
+					&& empty( $payload['before'] )
+					&& empty( $payload['after'] )
+					&& empty( $payload['l10n'] ) ) {
+					continue;
+				}
+				$payload['handle'] = $dep;
+				$map[ $dep ]       = $payload;
+			}
+			$handles[] = $dep;
+			continue;
+		}
+		if ( is_array( $dep ) && isset( $dep['handle'] ) && '' !== (string) $dep['handle'] ) {
+			$handle = (string) $dep['handle'];
+			if ( ! isset( $map[ $handle ] ) ) {
+				$map[ $handle ] = $dep;
+			}
+			$handles[] = $handle;
+			continue;
+		}
+		// A handle-less payload has nothing to key it by.
+		$handles[] = $dep;
+	}
+	return $handles;
 }
 
 /**

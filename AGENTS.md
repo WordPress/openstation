@@ -296,8 +296,11 @@ Payload shape (`openstation_build_menu_payload()` in `includes/core/payload.php`
   serverWindowSlotScripts, serverWindowSlots,
   serverWindowChromeScripts, serverWindowChromes,
   serverWindowNotices, serverGames, serverDesktopThemes,
-  desktopIcons, updateCounts, multisite }
+  desktopIcons, updateCounts, multisite,
+  scriptDepPayloads }
 ```
+
+On the wire every entry's `scriptDeps` is a list of **handles**, and each handle's payload (URL, l10n, before/after) rides once in `scriptDepPayloads` (GH#892). `openstation_compact_script_deps()` builds it on the server, at entry depth only; `hydrateScriptDeps()` in `src/script-dep-payloads.ts` puts the payloads back before any sync module reads them, and the applier merges the refresh's map into `config.scriptDepPayloads`. A new `server*` list gets this for free; a new sync module must run after hydration, never read `scriptDeps` straight off the wire.
 
 - **PHP-declared** things are in the payload: dock, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
 - For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.openStationWallpapers[id]` / `window.openStationWidgets[id]`). The sync reads the def and registers it.

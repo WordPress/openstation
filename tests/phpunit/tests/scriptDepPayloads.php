@@ -111,19 +111,115 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 	 *
 	 * @covers ::openstation_compact_script_deps
 	 */
-	public function test_compaction_keeps_order_and_passes_handles_through() {
+	public function test_compaction_keeps_order_and_keys_by_handle() {
 		$a   = array( 'handle' => 'a', 'url' => 'https://example.test/a.js' );
 		$b   = array( 'handle' => 'b', 'url' => '', 'l10n' => array( 'var b=1;' ) );
 		$map = array();
 		$out = openstation_compact_script_deps(
 			array(
-				array( 'scriptDeps' => array( $a, $b ) ),
-				array( 'nested' => array( 'scriptDeps' => array( $b, 'c' ) ) ),
+				'serverCommandScripts' => array(
+					array( 'handle' => 'x', 'scriptDeps' => array( $a, $b ) ),
+					array( 'handle' => 'y', 'scriptDeps' => array( $b ) ),
+				),
+				// A list keyed by id is covered the same as a plain one.
+				'serverSettingsTabs'   => array( 'general' => array( 'scriptDeps' => array( $a ) ) ),
 			),
 			$map
 		);
-		$this->assertSame( array( 'a', 'b' ), $out[0]['scriptDeps'] );
-		$this->assertSame( array( 'b', 'c' ), $out[1]['nested']['scriptDeps'] );
+		$this->assertSame( array( 'a', 'b' ), $out['serverCommandScripts'][0]['scriptDeps'] );
+		$this->assertSame( array( 'b' ), $out['serverCommandScripts'][1]['scriptDeps'] );
+		$this->assertSame( array( 'a' ), $out['serverSettingsTabs']['general']['scriptDeps'] );
 		$this->assertSame( array( 'a' => $a, 'b' => $b ), $map );
+	}
+
+	/**
+	 * Only a `scriptDeps` directly on an entry is the shell's. Deeper, it
+	 * is a plugin's metadata: hoisting it would put foreign data in the
+	 * map first-wins, and every real dependency on that handle would
+	 * then hydrate to it with no URL.
+	 *
+	 * @covers ::openstation_compact_script_deps
+	 */
+	public function test_nested_scriptDeps_is_plugin_data_and_is_left_alone() {
+		$foreign = array( array( 'handle' => 'wp-hooks', 'foo' => 1 ) );
+		$real    = array( 'handle' => 'wp-hooks', 'url' => 'https://example.test/hooks.js' );
+		$map     = array();
+		$out     = openstation_compact_script_deps(
+			array(
+				'serverWidgets' => array(
+					array(
+						'id'         => 'w',
+						'settings'   => array( 'scriptDeps' => $foreign ),
+						'scriptDeps' => array( $real ),
+					),
+				),
+			),
+			$map
+		);
+		$this->assertSame( $foreign, $out['serverWidgets'][0]['settings']['scriptDeps'] );
+		$this->assertSame( array( 'wp-hooks' => $real ), $map, 'The map holds the real payload, not the plugin\'s.' );
+	}
+
+	/**
+	 * A bare handle a builder (or a filter on one) emits is resolved into
+	 * the map, so every string the client receives has an entry there.
+	 * The client drops (and logs) a handle with none; the two sides agree.
+	 *
+	 * @covers ::openstation_compact_script_dep_list
+	 */
+	public function test_bare_handle_is_resolved_into_the_map() {
+		wp_register_script( 'sdp-bare', 'https://example.test/bare.js', array(), '1', true );
+		wp_register_script( 'sdp-empty-alias', false, array(), '1', true );
+		$map = array();
+		$out = openstation_compact_script_deps(
+			array(
+				'serverCommandScripts' => array(
+					array( 'scriptDeps' => array( 'sdp-bare', 'sdp-empty-alias', 'sdp-unregistered' ) ),
+				),
+			),
+			$map
+		);
+		// Nothing to fetch and nothing to run is dropped, as it is in
+		// openstation_resolve_script_dependencies().
+		$this->assertSame( array( 'sdp-bare' ), $out['serverCommandScripts'][0]['scriptDeps'] );
+		$this->assertArrayHasKey( 'sdp-bare', $map );
+		$this->assertStringContainsString( 'bare.js', $map['sdp-bare']['url'] );
+		$this->assertSame( 'sdp-bare', $map['sdp-bare']['handle'] );
+		wp_deregister_script( 'sdp-bare' );
+		wp_deregister_script( 'sdp-empty-alias' );
+	}
+
+	/**
+	 * Scoping by depth is only safe while every builder puts
+	 * `scriptDeps` on the entry itself. Derived from the real payload
+	 * rather than asserted per builder, so a new one that nests the
+	 * key deeper fails here instead of silently shipping full payloads.
+	 *
+	 * @covers ::openstation_build_menu_payload
+	 */
+	public function test_no_scriptDeps_list_is_left_uncompacted_in_a_real_payload() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$payload = openstation_build_menu_payload();
+		unset( $payload['scriptDepPayloads'] );
+		$left = array();
+		$walk = static function ( $node, $path ) use ( &$walk, &$left ) {
+			if ( ! is_array( $node ) ) {
+				return;
+			}
+			foreach ( $node as $key => $value ) {
+				if ( 'scriptDeps' === $key && is_array( $value ) ) {
+					foreach ( $value as $dep ) {
+						if ( is_array( $dep ) ) {
+							$left[] = $path . '.' . $key;
+							break;
+						}
+					}
+					continue;
+				}
+				$walk( $value, $path . '.' . $key );
+			}
+		};
+		$walk( $payload, 'payload' );
+		$this->assertSame( array(), $left, 'A builder nests scriptDeps below entry depth.' );
 	}
 }
