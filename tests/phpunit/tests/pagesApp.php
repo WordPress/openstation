@@ -63,7 +63,9 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertSame( 720, $manifest['height'] );
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertSame( array( 'page' ), $manifest['watch'] );
-		$this->assertSame( array( 'filter', 'page', 'sort', 'trash' ), $manifest['actions'] );
+		// `reopen` is the framework's, declared for every window that
+		// declares a menu so the client dispatches it.
+		$this->assertSame( array( 'filter', 'page', 'sort', 'trash', 'reopen' ), $manifest['actions'] );
 		// Pages are usually shallow + ordered by menu_order.
 		$this->assertSame( 'menu_order', $manifest['state']['orderby'] );
 		$this->assertSame( 'asc', $manifest['state']['order'] );

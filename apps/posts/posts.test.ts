@@ -239,6 +239,51 @@ describe( 'the frame', () => {
 		}
 	} );
 
+	it( 'a draft in progress survives a trip to another tab', async () => {
+		const embed = stubEmbed();
+		const frame = document.createElement( 'iframe' );
+		// The page answers the bridge's pre-navigation query the way a
+		// Gutenberg session with unsaved changes does.
+		Object.defineProperty( frame, 'contentWindow', {
+			value: {
+				postMessage: ( message: { requestId?: string } ) => {
+					window.dispatchEvent(
+						new MessageEvent( 'message', {
+							origin: window.location.origin,
+							source: frame.contentWindow as unknown as Window,
+							data: {
+								type: 'os-bridge-beforeunload-response',
+								requestId: message.requestId,
+								prevent: true,
+							},
+						} ),
+					);
+				},
+			},
+		} );
+		try {
+			const { root } = mount();
+			const strip = root.querySelector( 'os-tabs' )!;
+			strip.dispatchEvent(
+				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
+			);
+			root.querySelector( '[data-os-posts-editor]' )!.appendChild( frame );
+
+			strip.dispatchEvent(
+				new CustomEvent( 'os-tab-change', { detail: { value: 'posts' } } ),
+			);
+			await flush();
+			expect( embed.torn() ).toBe( 0 );
+
+			strip.dispatchEvent(
+				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
+			);
+			expect( embed.embedded ).toHaveLength( 1 );
+		} finally {
+			embed.restore();
+		}
+	} );
+
 	it( 'opens on the tab the server named — the dock row that asked for it', () => {
 		const embed = stubEmbed();
 		try {
@@ -251,7 +296,7 @@ describe( 'the frame', () => {
 		}
 	} );
 
-	it( 'the Add Post tab embeds the editor in the window instead of opening one', () => {
+	it( 'the Add Post tab embeds the editor in the window instead of opening one', async () => {
 		const { embedded, torn, restore } = stubEmbed();
 		try {
 			const { root, ctx } = mount();
@@ -262,16 +307,19 @@ describe( 'the frame', () => {
 			expect( embedded[ 0 ][ 0 ] ).toBe( root.querySelector( '[data-os-posts-editor]' ) );
 			expect( embedded[ 0 ][ 1 ] ).toBe( 'http://x.test/wp-admin/post-new.php' );
 			expect( ctx.host.openUrl ).not.toHaveBeenCalled();
-			// Every visit opens a blank editor, the way post-new.php
-			// does in a classic window: the old embed is torn down.
+			// Leaving asks the page whether it is holding anything.
+			// Nothing here is, so the embed goes and the next visit
+			// mounts a blank editor, the way post-new.php does in a
+			// classic window.
 			root.querySelector( 'os-tabs' )!.dispatchEvent(
 				new CustomEvent( 'os-tab-change', { detail: { value: 'posts' } } ),
 			);
+			await flush();
+			expect( torn() ).toBe( 1 );
 			root.querySelector( 'os-tabs' )!.dispatchEvent(
 				new CustomEvent( 'os-tab-change', { detail: { value: 'new' } } ),
 			);
 			expect( embedded ).toHaveLength( 2 );
-			expect( torn() ).toBe( 1 );
 		} finally {
 			restore();
 		}

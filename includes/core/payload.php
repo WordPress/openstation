@@ -349,6 +349,9 @@ function openstation_build_dock_items() {
 			$sub_entry = array(
 				'title' => $sub_title,
 				'url'   => $sub_url,
+				// The registered slug, kept for the window-tab merge
+				// below and stripped again before the payload ships.
+				'slug'  => (string) $row['slug'],
 			);
 			if ( $row['external'] ) {
 				// Consumers that route a URL into a window skip these;
@@ -409,13 +412,34 @@ function openstation_build_dock_items() {
 		$window_tabs = openstation_app_menu_tabs( $identity_slug );
 		if ( $window_tabs ) {
 			$self_label = $window_tabs[0]['label'];
-			$sub_items  = array();
+			$claimed    = array();
+			foreach ( $window_tabs as $tab ) {
+				if ( '' !== $tab['page'] ) {
+					$claimed[] = $tab['page'];
+				}
+			}
+			// A page this window has no tab for is still a page: a
+			// plugin's screen registered under this menu, a taxonomy
+			// someone added. Dropping those would make them
+			// unreachable from the dock, so they follow the window's
+			// own rows rather than being replaced by them.
+			$kept = array();
+			foreach ( $sub_items as $sub_entry ) {
+				if ( ! in_array( $sub_entry['slug'], $claimed, true ) ) {
+					$kept[] = $sub_entry;
+				}
+			}
+			$sub_items = array();
 			foreach ( array_slice( $window_tabs, 1 ) as $tab ) {
 				$sub_items[] = array(
 					'title' => $tab['label'],
 					'url'   => add_query_arg( 'os_tab', $tab['id'], $url ),
 				);
 			}
+			$sub_items = array_merge( $sub_items, $kept );
+		}
+		foreach ( $sub_items as $i => $sub_entry ) {
+			unset( $sub_items[ $i ]['slug'] );
 		}
 
 		$dock_item = array(
@@ -2653,6 +2677,7 @@ function openstation_collect_native_windows_payload() {
 			'styleInline'      => $style_payload['inline'],
 			'companionStyles'  => $companion_styles,
 			'tabs'             => $tab_descriptors,
+			'menuPages'        => isset( $entry['menu_pages'] ) ? array_values( (array) $entry['menu_pages'] ) : array(),
 		);
 	}
 

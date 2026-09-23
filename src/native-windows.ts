@@ -29,6 +29,10 @@ import { isMobileStamped } from './mode/stamp';
 import { injectInlineScript, loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
 import { isShellDocumentUrl } from './shell-url';
+import {
+	registerNativeUrlRemap,
+	unregisterNativeUrlRemap,
+} from './native-url-remap';
 import { setPanelTabs } from './window/tab-strip';
 import {
 	loadNativeWindowGeometry,
@@ -1849,10 +1853,80 @@ export function createNativeWindowSync(
 		entriesById.delete( id );
 	};
 
+	/**
+	 * The admin page a URL names: its file, plus the params that make
+	 * one file two pages. `edit.php?post_type=page&paged=2` and
+	 * `edit.php?post_type=page` are the same page; `edit.php` is not.
+	 */
+	const adminPageKey = ( url: string ): string => {
+		try {
+			const parsed = new URL( url, window.location.origin );
+			const parts = [ parsed.pathname.split( '/' ).pop() ?? '' ];
+			for ( const key of [ 'post_type', 'taxonomy', 'page' ] ) {
+				const value = parsed.searchParams.get( key );
+				if ( value ) {
+					parts.push( `${ key }=${ value }` );
+				}
+			}
+			return parts.join( '&' );
+		} catch {
+			return url;
+		}
+	};
+
+	/** One remap per window, replaced whenever its pages change. */
+	const menuPagesRemapId = ( windowId: string ): string =>
+		`desktop-mode/menu-pages/${ windowId }`;
+
+	/**
+	 * Claim the admin pages a window answers for (`App::menu()`).
+	 *
+	 * The dock's own rows for that menu already carry `os_tab`, so
+	 * this is about every other way those pages are reached: a link
+	 * inside another window, the admin bar's "+ New", a workspace's
+	 * launch list, the tab strip of a classic window still open from
+	 * before the opt-in. Each page opens the window on the tab it
+	 * stands for.
+	 *
+	 * The server sends the list only while the window is the one in
+	 * charge, so an opt-in turned off arrives as an empty list and
+	 * unregisters the claim on the same menu refresh.
+	 */
+	const syncMenuPages = ( entry: NativeWindowServerEntry ): void => {
+		const id = menuPagesRemapId( entry.id );
+		const pages = entry.menuPages ?? [];
+		if ( pages.length === 0 ) {
+			unregisterNativeUrlRemap( id );
+			return;
+		}
+		// Matched on the admin file plus the params that make it a
+		// different page, so a URL carrying extra args still matches
+		// the page it is, `edit.php` never matches
+		// `edit.php?post_type=page`, and a declared slug needs no
+		// admin URL to resolve against.
+		const claims = pages.map( ( page ) => ( {
+			tab: page.id,
+			key: adminPageKey( page.page ),
+		} ) );
+		const tabFor = ( parsed: URL ): string | null =>
+			claims.find( ( claim ) => claim.key === adminPageKey( parsed.href ) )
+				?.tab ?? null;
+		registerNativeUrlRemap( {
+			id,
+			nativeWindowId: entry.id,
+			matches: ( _url, parsed ) => tabFor( parsed ) !== null,
+			params: ( _url, parsed ) => {
+				const tab = tabFor( parsed );
+				return tab ? { tab } : undefined;
+			},
+		} );
+	};
+
 	const sync = async ( list: NativeWindowServerEntry[] ) => {
 		const incoming = new Set< string >();
 		for ( const entry of list ) {
 			incoming.add( entry.id );
+			syncMenuPages( entry );
 			// Refresh the index every sync so `openById` always
 			// reflects the latest payload (a plugin update can
 			// change a window's title / dimensions / template
@@ -1866,6 +1940,7 @@ export function createNativeWindowSync(
 		for ( const id of Array.from( registered ) ) {
 			if ( ! incoming.has( id ) ) {
 				unregisterTile( id );
+				unregisterNativeUrlRemap( menuPagesRemapId( id ) );
 			}
 		}
 

@@ -263,6 +263,9 @@ function openstation_register_window( $id, $args = array() ) {
 		'autofocus'        => false,
 		'main_tab_label'   => '',
 		'main_tab_padding' => '',
+		// Admin pages this window answers for, `array( id, page )` per
+		// entry. See `App::menu()` and `openstation_apps_menu_pages()`.
+		'menu_pages'       => array(),
 		'config'           => array(),
 	);
 	$args     = wp_parse_args( $args, $defaults );

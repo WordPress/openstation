@@ -26,6 +26,7 @@ import {
 } from '@openstation/app';
 import type { ListTableLike } from '@openstation/app';
 import { isMobileStamped } from '../../../src/mode/stamp';
+import { queryUnsavedGuard } from '../../../src/window/unsaved-guard';
 import { describeRestFailure } from '../../../src/core/rest-failure';
 import type { OsTable } from '../../../src/ui/components/os-table/os-table';
 import { buildSubRow } from './cells/basic';
@@ -352,15 +353,45 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 	};
 
 	/**
-	 * Show the editor in the "Add Post" panel, re-mounted on every
-	 * visit so the tab opens on a blank post the way `post-new.php`
-	 * does in a classic window. Nothing typed is lost — a draft with a
-	 * title is already an auto-draft, in the list rather than on
-	 * screen.
+	 * Let go of the embedded editor when it is holding nothing, so the
+	 * next visit to the tab mounts a blank post the way `post-new.php`
+	 * does in a classic window.
+	 *
+	 * Asked rather than assumed. Tearing it down on every visit is
+	 * what the tab should look like, but it threw away whatever had
+	 * been typed and not saved, and an embedded page gets none of the
+	 * per-window unsaved-changes machinery (that keys off
+	 * `Window.iframe`, which an embed does not set). So the page
+	 * itself answers, through the same bridge query a window asks
+	 * before navigating: nothing to lose, let it go; a draft in
+	 * progress, keep it and hand it back.
+	 */
+	const releaseEditorIfClean = ( ctx: Ctx, ui: UiState ): void => {
+		if ( ! ui.editor ) {
+			return;
+		}
+		const frame = ctx.root.querySelector< HTMLIFrameElement >(
+			'[data-os-posts-editor] iframe',
+		);
+		void queryUnsavedGuard( frame ).then( ( holding ) => {
+			if ( holding || ui.disposed || ! ui.editor ) {
+				return;
+			}
+			ui.editor();
+			ui.editor = null;
+		} );
+	};
+
+	/**
+	 * Show the editor in the "Add Post" panel. Mounts only when the
+	 * panel is empty: a draft the user typed into and left is still in
+	 * there (see {@link releaseEditorIfClean}), and taking them back
+	 * to it beats a blank page that silently dropped it.
 	 */
 	const mountEditor = ( ctx: Ctx, ui: UiState ): void => {
-		ui.editor?.();
-		ui.editor = null;
+		if ( ui.editor ) {
+			return;
+		}
 		const host = ctx.root.querySelector< HTMLElement >(
 			'[data-os-posts-editor]',
 		);
@@ -407,6 +438,9 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 	 * window is opened on one of the menu's other pages.
 	 */
 	const activateTab = ( ctx: Ctx, ui: UiState, value: string ): void => {
+		if ( ui.tab === 'new' && value !== 'new' ) {
+			releaseEditorIfClean( ctx, ui );
+		}
 		ui.tab = value;
 		if ( value === 'new' ) {
 			mountEditor( ctx, ui );

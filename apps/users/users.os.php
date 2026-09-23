@@ -128,14 +128,23 @@ return App::define( 'desktop-mode-users' )
 		'users.php',
 		static function () {
 			$tabs = array(
-				'all'      => __( 'People', 'desktop-mode' ),
+				'all'      => array(
+					'label' => __( 'People', 'desktop-mode' ),
+					'page'  => 'users.php',
+				),
 				'roles'    => __( 'Roles', 'desktop-mode' ),
 				'activity' => __( 'Activity', 'desktop-mode' ),
 			);
 			if ( current_user_can( 'create_users' ) ) {
-				$tabs['add-new'] = __( 'Add new', 'desktop-mode' );
+				$tabs['add-new'] = array(
+					'label' => __( 'Add new', 'desktop-mode' ),
+					'page'  => 'user-new.php',
+				);
 			}
-			$tabs['edit'] = __( 'Profile', 'desktop-mode' );
+			$tabs['edit'] = array(
+				'label' => __( 'Profile', 'desktop-mode' ),
+				'page'  => 'profile.php',
+			);
 			return $tabs;
 		},
 		'openstation_users_window_user_can_use'

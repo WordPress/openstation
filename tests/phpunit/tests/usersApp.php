@@ -104,8 +104,10 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 		$this->assertSame( 'none', $manifest['placement'] );
 		// A profile saved elsewhere repaints the list.
 		$this->assertSame( array( 'user' ), $manifest['watch'] );
+		// `reopen` is the framework's, declared for every window that
+		// declares a menu so the client dispatches it.
 		$this->assertSame(
-			array( 'filter', 'page', 'sort', 'bulk-role', 'bulk-delete', 'send-reset', 'resend-welcome', 'create' ),
+			array( 'filter', 'page', 'sort', 'bulk-role', 'bulk-delete', 'send-reset', 'resend-welcome', 'create', 'reopen' ),
 			$manifest['actions']
 		);
 		$this->assertSame( 1, $manifest['state']['page'] );

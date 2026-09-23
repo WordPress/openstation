@@ -67,12 +67,29 @@ return App::define( 'desktop-mode-posts' )
 	->menu(
 		'edit.php',
 		static function () {
-			return array(
-				'posts'      => __( 'All posts', 'desktop-mode' ),
-				'new'        => __( 'Add Post', 'desktop-mode' ),
-				'categories' => __( 'Categories', 'desktop-mode' ),
-				'tags'       => __( 'Tags', 'desktop-mode' ),
+			$tabs = array(
+				'posts' => array(
+					'label' => __( 'All posts', 'desktop-mode' ),
+					'page'  => 'edit.php',
+				),
+				'new'   => array(
+					'label' => __( 'Add Post', 'desktop-mode' ),
+					'page'  => 'post-new.php',
+				),
 			);
+			// The taxonomy tabs are the taxonomy screens, so they
+			// answer to the same capability those screens do.
+			if ( current_user_can( 'manage_categories' ) ) {
+				$tabs['categories'] = array(
+					'label' => __( 'Categories', 'desktop-mode' ),
+					'page'  => 'edit-tags.php?taxonomy=category',
+				);
+				$tabs['tags']       = array(
+					'label' => __( 'Tags', 'desktop-mode' ),
+					'page'  => 'edit-tags.php?taxonomy=post_tag',
+				);
+			}
+			return $tabs;
 		},
 		'openstation_posts_window_user_can_use'
 	)

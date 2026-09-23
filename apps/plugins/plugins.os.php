@@ -310,9 +310,17 @@ return App::define( 'desktop-mode-plugins' )
 		'plugins.php',
 		static function () {
 			$caps = openstation_plugins_window_caps();
-			$tabs = array( 'installed' => __( 'Installed', 'desktop-mode' ) );
+			$tabs = array(
+				'installed' => array(
+					'label' => __( 'Installed', 'desktop-mode' ),
+					'page'  => 'plugins.php',
+				),
+			);
 			if ( ! empty( $caps['install'] ) ) {
-				$tabs['browse']   = __( 'Add Plugin', 'desktop-mode' );
+				$tabs['browse']   = array(
+					'label' => __( 'Add Plugin', 'desktop-mode' ),
+					'page'  => 'plugin-install.php',
+				);
 				$tabs['featured'] = __( 'OpenStation plugins', 'desktop-mode' );
 			}
 			return $tabs;

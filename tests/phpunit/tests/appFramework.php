@@ -286,14 +286,27 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$app = $this->demo_app()->menu(
 			'demo.php',
 			array(
-				'list'  => 'The list',
-				'add'   => 'Add one',
+				'list'  => array(
+					'label' => 'The list',
+					'page'  => 'demo.php',
+				),
+				'add'   => array(
+					'label' => 'Add one',
+					'page'  => 'demo-new.php',
+				),
 				'extra' => 'Something wp-admin has no page for',
 			)
 		);
 
 		$this->assertSame( 'demo.php', $app->menu_slug() );
 		$this->assertSame( array( 'list', 'add', 'extra' ), wp_list_pluck( $app->menu_tabs(), 'id' ) );
+		// The wp-admin page each tab stands in for, '' for one it has
+		// no page for. The dock keeps its own rows for every page NOT
+		// named here, and the shell claims the ones that are.
+		$this->assertSame( array( 'demo.php', 'demo-new.php', '' ), wp_list_pluck( $app->menu_tabs(), 'page' ) );
+		// A lifecycle action the client only dispatches when the app
+		// declares one, which `menu()` does on its behalf.
+		$this->assertContains( 'reopen', $app->manifest()['lifecycle'] );
 		// The tab is state, and reaches the client view, without every
 		// app that declares a menu having to say so.
 		$this->assertSame( 'list', $app->defaults()['tab'] );

@@ -532,12 +532,21 @@ final class App {
 	 * The window's own strip should render from the same list
 	 * (`menuTabs` in the config extra) so the two cannot drift.
 	 *
-	 * @param string                        $slug    Admin menu slug, e.g. `users.php`.
-	 * @param array<string,string>|callable $tabs    Ordered `id => label`, or a callable
-	 *                                               returning one (for per-user tabs).
-	 * @param callable|null                 $enabled Optional gate — the opt-in that
-	 *                                               decides whether this window answers
-	 *                                               for the menu at all. Default: always.
+	 * A tab's value is its label, or `array( 'label' => …, 'page' => … )`
+	 * when wp-admin has a page for it: the submenu slug it replaces
+	 * (`user-new.php`, `edit-tags.php?taxonomy=category`). That page is
+	 * how the dock knows which of wp-admin's own rows this window
+	 * already answers for — the rest are kept, so a plugin's page under
+	 * this menu stays reachable — and how the shell knows to route that
+	 * URL here when it is reached from somewhere other than the dock.
+	 *
+	 * @param string                       $slug    Admin menu slug, e.g. `users.php`.
+	 * @param array<string,mixed>|callable $tabs    Ordered `id => label|array`, or a
+	 *                                              callable returning one (for tabs
+	 *                                              that depend on capabilities).
+	 * @param callable|null                $enabled Optional gate — the opt-in that
+	 *                                              decides whether this window answers
+	 *                                              for the menu at all. Default: always.
 	 * @return self
 	 */
 	public function menu( $slug, $tabs, $enabled = null ) {
@@ -568,14 +577,18 @@ final class App {
 			? (array) call_user_func( $this->menu['tabs'] )
 			: (array) $this->menu['tabs'];
 		$out  = array();
-		foreach ( $tabs as $id => $label ) {
-			$id = strtolower( (string) preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $id ) );
-			if ( '' === $id || '' === (string) $label ) {
+		foreach ( $tabs as $id => $tab ) {
+			$id    = strtolower( (string) preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $id ) );
+			$label = is_array( $tab ) ? (string) ( $tab['label'] ?? '' ) : (string) $tab;
+			if ( '' === $id || '' === $label ) {
 				continue;
 			}
 			$out[] = array(
 				'id'    => $id,
-				'label' => (string) $label,
+				'label' => $label,
+				// The wp-admin submenu slug this tab stands in for,
+				// '' for a tab wp-admin has no page for.
+				'page'  => is_array( $tab ) ? (string) ( $tab['page'] ?? '' ) : '',
 			);
 		}
 		return $out;
@@ -931,6 +944,7 @@ final class App {
 	 * @return bool
 	 */
 	public function has_action( $name ) {
+		$this->ensure_menu_reopen();
 		return isset( $this->actions[ (string) $name ] );
 	}
 
@@ -940,7 +954,27 @@ final class App {
 	 * @return string[]
 	 */
 	public function action_names() {
+		$this->ensure_menu_reopen();
 		return array_keys( $this->actions );
+	}
+
+	/**
+	 * A window that declares a menu answers `reopen`, whether or not
+	 * it wrote a handler for one.
+	 *
+	 * The client dispatches a lifecycle action only when the manifest
+	 * says the app declared it, so without this the runtime's own
+	 * "land on the tab the opener named" never runs on a window that
+	 * is already open — the case a dock row for another tab IS.
+	 * Registered here rather than in {@see App::menu()} so an app's
+	 * own actions keep the order they were declared in.
+	 *
+	 * @return void
+	 */
+	private function ensure_menu_reopen() {
+		if ( $this->menu && ! isset( $this->actions['reopen'] ) ) {
+			$this->actions['reopen'] = static function () {};
+		}
 	}
 
 	/**

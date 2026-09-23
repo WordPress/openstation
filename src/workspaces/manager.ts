@@ -252,6 +252,27 @@ export function applyWorkspaceLayout(
 }
 
 /**
+ * The base id a launch entry's window lives under: the native window
+ * when one claims the URL, else the id {@link openLaunchUrl} opens it
+ * with, which is the MENU's id rather than the child page's. Reading
+ * it off the page instead is how a `post-new.php` entry failed to
+ * recognise its own window and opened another on every Restore.
+ */
+function launchBaseId(
+	deps: WorkspaceDeps,
+	url: string,
+	launch: { item: NavItem },
+): string {
+	const menuUrl = launch.item.menu?.url;
+	return (
+		resolveNativeUrlRemap( url ) ??
+		deps.deriveWindowId(
+			menuUrl ? absoluteAdminUrl( menuUrl, deps.adminUrl ) : url,
+		)
+	);
+}
+
+/**
  * The window a launch entry stands for, when one is already open and
  * no earlier entry in this pass has claimed it.
  *
@@ -264,12 +285,12 @@ export function applyWorkspaceLayout(
 function claimOpenWindow(
 	deps: WorkspaceDeps,
 	url: string,
+	launch: { item: NavItem },
 	desktopId: string,
 	claimed: Set< string >,
 ): Window | null {
-	const baseId = resolveNativeUrlRemap( url ) ?? deps.deriveWindowId( url );
 	const match = deps.manager
-		.getAllByBaseId( baseId )
+		.getAllByBaseId( launchBaseId( deps, url, launch ) )
 		.find(
 			( win ) =>
 				! claimed.has( win.id ) &&
@@ -297,24 +318,35 @@ function openLaunchUrl(
 	url: string,
 	launch: { title?: string; item: NavItem },
 	desktopId: string,
+	claimed: Set< string >,
 ): Promise< Window | null > {
 	const nativeId = resolveNativeUrlRemap( url );
 	if ( nativeId ) {
 		// An extra instance lands on a suffixed id, so wait for
 		// whatever the open produced rather than one we can name.
+		// `claimed` is read at resolve time, not captured here: two
+		// entries opening the same window in one pass would otherwise
+		// both settle on whichever instance appeared first, and the
+		// second entry's placement would land on the first's window.
 		const before = new Set(
 			deps.manager.getAllByBaseId( nativeId ).map( ( w ) => w.id ),
 		);
 		if ( tryNativeUrlRemap( url, { newInstance: true } ) ) {
-			return whenWindowOpens( deps.manager, nativeId, ( win ) =>
-				! before.has( win.id ),
+			return whenWindowOpens(
+				deps.manager,
+				nativeId,
+				( win ) => ! before.has( win.id ) && ! claimed.has( win.id ),
 			);
 		}
 	}
 	const menu = launch.item.menu;
 	return deps.manager.openNew( {
 		id: deps.deriveWindowId( url ),
-		baseId: deps.deriveWindowId( menu?.url ?? url ),
+		// The MENU's window, not the child page's, and resolved the
+		// same way the id is: a relative menu URL and an absolute one
+		// have to name one window, or the entry cannot recognise the
+		// window it opened last time.
+		baseId: launchBaseId( deps, url, launch ),
 		url,
 		// The menu's landing page, so the tab strip offers the way
 		// back the dock's own windows have.
@@ -368,7 +400,7 @@ export function provisionWorkspace(
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
 			opened++;
-			const existing = claimOpenWindow( deps, url, desktopId, claimed );
+			const existing = claimOpenWindow( deps, url, launch, desktopId, claimed );
 			if ( existing ) {
 				placeLaunchedWindow( deps.manager, existing, launch );
 				continue;
@@ -378,7 +410,7 @@ export function provisionWorkspace(
 			// open them one page-load apart. A rejection is a window that
 			// did not open, which is exactly what a missing plugin looks
 			// like — the rest of the desk still comes up.
-			void openLaunchUrl( deps, url, launch, desktopId )
+			void openLaunchUrl( deps, url, launch, desktopId, claimed )
 				.then( ( win ) => {
 					if ( win ) {
 						claimed.add( win.id );
@@ -462,10 +494,10 @@ export function reopenWorkspaceWindows(
 			// other entry claim it: a desk whose list names two tabs of
 			// one window is two windows, and this pass fills whichever
 			// of them the restore did not bring back.
-			if ( claimOpenWindow( deps, url, desktopId, claimed ) ) {
+			if ( claimOpenWindow( deps, url, launch, desktopId, claimed ) ) {
 				continue;
 			}
-			void openLaunchUrl( deps, url, launch, desktopId )
+			void openLaunchUrl( deps, url, launch, desktopId, claimed )
 				.then( ( win ) => {
 					if ( win ) {
 						claimed.add( win.id );

@@ -57,8 +57,16 @@ return App::define( 'desktop-mode-pages' )
 		'edit.php?post_type=page',
 		static function () {
 			return array(
-				'posts' => __( 'All pages', 'desktop-mode' ),
-				'new'   => __( 'Add Page', 'desktop-mode' ),
+				'posts' => array(
+					'label' => __( 'All pages', 'desktop-mode' ),
+					'page'  => 'edit.php?post_type=page',
+				),
+				'new'   => array(
+					'label' => __( 'Add Page', 'desktop-mode' ),
+					'page'  => 'post-new.php?post_type=page',
+				),
+				// No wp-admin page behind this one; the dock offers it
+				// because this list says so.
 				'atlas' => __( 'Page atlas', 'desktop-mode' ),
 			);
 		},

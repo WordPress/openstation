@@ -218,6 +218,15 @@ export class WindowManager {
 	private _openingWindowIds = new Set< string >();
 
 	/**
+	 * Base ids with a window still being built. A window is in the
+	 * stack only once its bundles resolve, so without this two opens
+	 * in the same tick both read "nothing of this page is open" and
+	 * both replayed the remembered geometry, landing exactly on top
+	 * of each other.
+	 */
+	private _openingBaseIds = new Set< string >();
+
+	/**
 	 * The one prewarmed (hidden, speculative) window, if any — built by
 	 * {@link prewarm} ahead of an anticipated open so the iframe's
 	 * document TTFB and parse are already paid when the user clicks.
@@ -940,7 +949,9 @@ export class WindowManager {
 			! this._openingWindowIds.has( config.id )
 				? config.id
 				: this.nextInstanceId( baseId );
-		const duplicate = !! this.getByBaseIdOnActiveDesktop( baseId );
+		const duplicate =
+			!! this.getByBaseIdOnActiveDesktop( baseId ) ||
+			this._openingBaseIds.has( baseId );
 		if ( ! duplicate ) {
 			// Nothing of this page is open, so the hover prewarm the
 			// dock started is still the window this call wants.
@@ -1229,6 +1240,7 @@ export class WindowManager {
 		// restore at boot, or a plugin opening a window
 		// programmatically right after init.
 		this._openingWindowIds.add( config.id );
+		this._openingBaseIds.add( resolvedBaseId );
 		const bundles = Promise.all( [
 			ensureWindowSystemLoaded( windowSystemBundleUrl() ),
 			ensureShellOverlaysLoaded( shellOverlaysBundleUrl() ),
@@ -1238,9 +1250,11 @@ export class WindowManager {
 			loaded = await bundles;
 		} catch ( err ) {
 			this._openingWindowIds.delete( config.id );
+			this._openingBaseIds.delete( resolvedBaseId );
 			throw err;
 		}
 		this._openingWindowIds.delete( config.id );
+		this._openingBaseIds.delete( resolvedBaseId );
 		const [ system ] = loaded;
 		const win = system.createWindow( fullConfig );
 		// The restored placement stays with the window so the next
