@@ -30,6 +30,11 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		// `wp_scripts()` is process-global, and suites that run earlier
+		// empty its registry (resolveScriptDependencies,
+		// nativeWindowLazyScript). Localizing onto an unregistered
+		// `openstation` handle is dropped silently, so register it here.
+		openstation_register_assets();
 		wp_scripts()->add_data( 'openstation', 'data', '' );
 	}
 
@@ -84,6 +89,7 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 	public function test_boot_config_serializes_a_shared_dependency_once() {
 		$this->register_shared_dependency();
 
+		$this->assertTrue( wp_script_is( 'openstation', 'registered' ), 'The shell handle must be registered, or the config is dropped.' );
 		openstation_enqueue_assets();
 		$blob = (string) wp_scripts()->get_data( 'openstation', 'data' );
 
