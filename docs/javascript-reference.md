@@ -1690,7 +1690,7 @@ Rules:
 2. **`opts.windowId`** — id looked up via `wp.os.windowManager.getById(id)`. Use when you have the id but not the instance (it's the most common case for native-window bundles — they know their own id from `openstation_register_window( '…' )`).
 3. **focused window** — `manager.getFocused()`. Default. So inside a click handler, the click already focused the window and the fetch attributes to it without any extra wiring.
 
-`opts.silent: true` skips the phase entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't read as user-initiated activity every tick. The fetch is otherwise identical.
+`opts.silent: true` skips the phase entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't read as user-initiated activity every tick. The fetch is otherwise identical, and it still publishes `os/request-settled`, flagged `silent: true`.
 
 #### Why it works
 
@@ -2451,7 +2451,7 @@ interface ActivityApi {
 | `os/presence-changed` | Per-transition mirror of the `os-presence-changed` CustomEvent. | `{ userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }` | No. |
 | `os/presence-snapshot-applied` | Batch-level — fires after every presence snapshot OR `applyPresenceBatch()`. | `{ applied: number, transitions: number }` | No. |
 | `os/game-score-recorded` | Fire-and-forget. Fires after a game's `submitScore()` write resolves, on both the free-play and challenge-completion paths. | `{ game, score, meta, windowId, challengeId? }` | No. |
-| `os/request-settled` | Fire-and-forget. Fires when a request made through `wp.os.fetch` settles, including silent ones — `silent` suppresses the title-bar ring, not the broadcast. `source` is the caller's own tag and is absent when none was passed; `status` and `ok` are absent for a network-level rejection, where `error` carries the reason instead. | `{ url, method, status?, ok?, error?, windowId, source?, silent }` | No. |
+| `os/request-settled` | Fire-and-forget. Fires when a request made through `wp.os.fetch` settles, including silent ones — `silent` suppresses the title-bar ring, not the broadcast. `source` is the caller's own tag and is absent when none was passed; `status` and `ok` are absent for a network-level rejection, where `error` carries the reason instead and `aborted: true` marks one the caller cancelled. `windowId` is the window the caller named, or for an unnamed foreground request the focused window whose ring it moves; `null` for a silent request that named none. A subscriber that answers with a `wp.os.fetch` of its own must ignore its own traffic, or it republishes forever. | `{ url, method, status?, ok?, error?, aborted?, windowId, source?, silent }` | No. |
 | `os/upload-hud-complete` | Fire-and-forget. Fires when a file dropped on the shell finishes uploading. Published by the progress HUD rather than the uploader — the upload runs on XHR (the only transport reporting determinate progress) and never routes through `wp.os.fetch`. | `{ filename, attachmentId }` | No. |
 
 **Plugin channels** — pick a `<plugin>/<event>` slug and publish. Augment `ActivityChannelMap` for compile-time payload checking:

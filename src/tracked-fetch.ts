@@ -23,9 +23,10 @@ export interface TrackedFetchOpts {
 	windowId?: string;
 	source?: string;
 	/**
-	 * Track but suppress the activity-bus pulse. Use for genuinely
+	 * Keep the window's title-bar ring still. Use for genuinely
 	 * background pings the user did not initiate (session save,
-	 * badge polls). The runtime accepts this field on
+	 * badge polls). The request still reaches the activity bus as
+	 * `os/request-settled`, flagged `silent`. The runtime accepts this field on
 	 * `wp.os.fetch`; declared here so the typed wrapper can
 	 * forward it without needing per-feature widening.
 	 */

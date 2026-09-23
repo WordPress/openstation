@@ -238,7 +238,17 @@ export interface ActivityChannelMap {
 	 *
 	 * `ok` and `status` are absent when the request never got a
 	 * response at all (a network-level rejection); `error` carries
-	 * the reason in that case.
+	 * the reason in that case, and `aborted` is `true` when the
+	 * caller cancelled it rather than the network failing.
+	 *
+	 * `windowId` is the window the request is attributed to: the one
+	 * the caller named, or, for a request with no named window, the
+	 * focused window whose title-bar ring it moves. A silent request
+	 * that named no window has no ring to move, so it is `null`.
+	 *
+	 * A subscriber must not answer this with a `wp.os.fetch` of its
+	 * own (shipping an audit log, say) without guarding against its
+	 * own traffic: that request settles too, and publishes again.
 	 */
 	'os/request-settled': {
 		url: string;
@@ -246,6 +256,7 @@ export interface ActivityChannelMap {
 		status?: number;
 		ok?: boolean;
 		error?: string;
+		aborted?: true;
 		windowId: string | null;
 		source?: string;
 		silent: boolean;

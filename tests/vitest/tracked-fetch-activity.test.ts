@@ -30,6 +30,7 @@ interface Settlement {
 function makeTarget() {
 	const settled: Settlement[] = [];
 	const target = {
+		id: 'focused',
 		trackActivity< T >( promise: Promise< T > ): Promise< T > {
 			return promise.then(
 				( value ) => {
@@ -275,6 +276,57 @@ describe( 'os/request-settled', () => {
 		expect( seen ).toHaveLength( 1 );
 		expect( seen[ 0 ] ).toMatchObject( { silent: true, source: 'probe/x' } );
 	} );
+
+	test( 'windowId names the window the request is attributed to', async () => {
+		const { manager } = makeTarget();
+		vi.spyOn( window, 'fetch' ).mockResolvedValue( response( 200, 'OK' ) );
+		const seen: { windowId: string | null }[] = [];
+		const off = activity.subscribe( 'os/request-settled', ( p ) =>
+			seen.push( p ),
+		);
+		const named = { id: 'notes' } as unknown as DesktopWindow;
+		// Foreground and unnamed: the focused window, whose ring moves.
+		await trackedFetch( manager, '/a' );
+		// Silent and unnamed: no ring, so no window. Otherwise every
+		// background poll lands on whatever the user clicked last.
+		await trackedFetch( manager, '/b', undefined, { silent: true } );
+		// Silent but named: the caller's own attribution stands.
+		await trackedFetch( manager, '/c', undefined, { silent: true, window: named } );
+		// Named but closed, silent: not re-pinned on the focused window.
+		await trackedFetch( manager, '/d', undefined, { silent: true, windowId: 'gone' } );
+		await flush();
+		off();
+		expect( seen.map( ( p ) => p.windowId ) ).toEqual( [
+			'focused',
+			null,
+			'notes',
+			null,
+		] );
+	} );
+
+	test( 'a cancelled request is flagged aborted, a failed one is not', async () => {
+		const { manager } = makeTarget();
+		const seen: Record< string, unknown >[] = [];
+		const off = activity.subscribe( 'os/request-settled', ( p ) =>
+			seen.push( p as Record< string, unknown > ),
+		);
+		// `abort( reason )` rejects with the reason, not an AbortError,
+		// so only the signal can tell.
+		const controller = new AbortController();
+		controller.abort( 'superseded' );
+		vi.spyOn( window, 'fetch' ).mockRejectedValueOnce( 'superseded' );
+		await expect(
+			trackedFetch( manager, '/a', { signal: controller.signal } ),
+		).rejects.toBe( 'superseded' );
+		vi.spyOn( window, 'fetch' ).mockRejectedValueOnce( new Error( 'offline' ) );
+		await expect( trackedFetch( manager, '/b' ) ).rejects.toThrow( 'offline' );
+		await flush();
+		off();
+		expect( seen[ 0 ] ).toMatchObject( { error: 'superseded', aborted: true } );
+		expect( seen[ 1 ] ).toMatchObject( { error: 'offline' } );
+		expect( seen[ 1 ] ).not.toHaveProperty( 'aborted' );
+	} );
+
 	test( 'a subscriber that throws does not break the request', async () => {
 		const { manager, settled } = makeTarget();
 		vi.spyOn( window, 'fetch' ).mockResolvedValue( response( 200, 'OK' ) );
@@ -290,6 +342,12 @@ describe( 'os/request-settled', () => {
 		const onRejection = ( err: unknown ) => rejections.push( err );
 		process.on( 'unhandledRejection', onRejection );
 		const res = await trackedFetch( manager, '/wp-json/x/v1/y' );
+		// Building the payload is inside the same guard: a rejection
+		// value with no string form must not escape either.
+		vi.spyOn( window, 'fetch' ).mockRejectedValueOnce( Object.create( null ) );
+		await trackedFetch( manager, '/wp-json/x/v1/z', undefined, {
+			silent: true,
+		} ).catch( () => {} );
 		await flush();
 		// A rejection is reported on the next macrotask, not the next
 		// microtask, so the flush above is not enough to see one.
