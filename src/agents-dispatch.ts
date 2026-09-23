@@ -277,8 +277,8 @@ export async function invokeAgentIntoTranscript(
 	// A run that produced no answer text is stored as an `error` row,
 	// never as something the agent said; replaying it as "You: …"
 	// would tell the model it once answered with a UI placeholder.
-	// Conversations saved before that change still hold the
-	// placeholder as an `agent` row, so those are skipped by text.
+	// An `agent` row whose text is exactly the placeholder is legacy
+	// data from the same situation, so it is skipped by text.
 	const noTextAnswer = __(
 		'The agent finished without a text answer.',
 		'desktop-mode',
@@ -320,7 +320,7 @@ export async function invokeAgentIntoTranscript(
 				agentsChatStore.notify();
 			},
 		);
-		if ( result.text ) {
+		if ( result.text?.trim() ) {
 			pending.text = result.text;
 		} else {
 			pending.role = 'error';
