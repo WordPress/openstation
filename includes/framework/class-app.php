@@ -532,12 +532,12 @@ final class App {
 	 * The window's own strip should render from the same list
 	 * (`menuTabs` in the config extra) so the two cannot drift.
 	 *
-	 * @param string                     $slug    Admin menu slug, e.g. `users.php`.
-	 * @param array<string,string>|callable $tabs  Ordered `id => label`, or a callable
-	 *                                             returning one (for per-user tabs).
-	 * @param callable|null              $enabled Optional gate — the opt-in that decides
-	 *                                            whether this window answers for the menu
-	 *                                            at all. Default: always.
+	 * @param string                        $slug    Admin menu slug, e.g. `users.php`.
+	 * @param array<string,string>|callable $tabs    Ordered `id => label`, or a callable
+	 *                                               returning one (for per-user tabs).
+	 * @param callable|null                 $enabled Optional gate — the opt-in that
+	 *                                               decides whether this window answers
+	 *                                               for the menu at all. Default: always.
 	 * @return self
 	 */
 	public function menu( $slug, $tabs, $enabled = null ) {
