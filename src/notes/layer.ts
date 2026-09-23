@@ -12,7 +12,7 @@
  * visible author chip.
  */
 
-import { describeRestFailure } from '../core/rest-failure';
+import { toastRestFailure } from '../core/rest-failure';
 import type { ToastOptions } from '../toast';
 import { __, sprintf } from '../i18n';
 import '../ui/components/os-avatar/os-avatar';
@@ -307,10 +307,9 @@ export class NotesLayer {
 			} )
 			.catch( ( err: unknown ) => {
 				this.removeNote( tempId );
-				const failure = describeRestFailure( err, {
+				toastRestFailure( ( toast ) => this.notifyError( toast ), err, {
 					fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),
 				} );
-				this.notifyError( failure );
 				// eslint-disable-next-line no-console
 				console.error( '[openstation] notes: create failed:', err );
 			} );
@@ -996,10 +995,9 @@ export class NoteController {
 				console.error( '[openstation] notes: save failed:', err );
 				if ( ! this.saveFailureShown ) {
 					this.saveFailureShown = true;
-					const failure = describeRestFailure( err, {
+					toastRestFailure( ( toast ) => this.layer.notifyError( toast ), err, {
 						fallback: __( 'Could not save the note.', 'desktop-mode' ),
 					} );
-					this.layer.notifyError( failure );
 				}
 			}
 		} );

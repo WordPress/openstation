@@ -28,6 +28,7 @@ import {
 	syncTabRoving,
 } from './tab-strip';
 import { navigateWithUnsavedGuard } from './unsaved-guard';
+import { tryNativeUrlRemap } from '../native-url-remap';
 import type { Window } from './index';
 
 /*
@@ -595,6 +596,18 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 	// forward. The load listener below syncs the active-tab highlight.
 	if ( tab.dataset.url ) {
 		const destination = tab.dataset.url;
+		// Unless a native window has claimed that page. The strip is
+		// one more surface that turns a URL into a window, so it owes
+		// the remap registry the same consult the dock and the link
+		// interceptor make: with the native Posts window on, "All
+		// Posts" must not load the classic list into this iframe.
+		// The source window stays where it is — a link click can
+		// close the window it navigated, a tab click has an unsaved
+		// draft behind it — and its highlight stays on the page it is
+		// still showing.
+		if ( tryNativeUrlRemap( destination ) ) {
+			return;
+		}
 		const next = withChromelessParam( destination );
 		// Foreground the primary surface first — the submenu strip
 		// describes that frame, so the click belongs to it whatever

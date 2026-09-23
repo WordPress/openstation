@@ -28,6 +28,7 @@
 
 import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
 import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
+import { restErrorFromResponse } from '../../../src/core/api-client';
 import { uiOf, type Ctx, type UserFootprint } from './types';
 
 /** Per-window fetch cache — lives in the UI bag, keyed by user. */
@@ -48,7 +49,7 @@ function ensureFootprint( ctx: Ctx, userId: number ): FootprintCache {
 	void ctx.fetch( `desktop-mode/v1/user-footprint/${ userId }` )
 		.then( async ( response ) => {
 			if ( ! response.ok ) {
-				throw new Error( String( response.status ) );
+				throw await restErrorFromResponse( response );
 			}
 			return ( await response.json() ) as UserFootprint;
 		} )

@@ -1380,11 +1380,13 @@ add_filter( 'openstation_dock_item', function ( $item, $slug ) {
 }, 10, 2 );
 ```
 
+**A window that replaces a menu does not use this filter.** Its submenu comes from the window's own declaration, [`App::menu()`](./app-framework.md): while the opt-in says the window is in charge, the rows ARE its tabs — same labels, same order, each tagged `os_tab=<id>` — so the dock and the tab strip cannot disagree. Posts, Pages, Users and Plugins all work that way. Reach for this filter for the other case: decorating a menu whose window is the classic iframe, the way `includes/themes-tabs.php` adds Appearance's "Add Theme" (a page classic admin only offers as an in-page button). Make yours idempotent — a second pass must not double the row.
+
 ---
 
 ### `openstation_dock_item_multi` — Stable
 
-Controls whether a dock item supports multiple simultaneous windows. Multi-capable pages expose a hover-peek popover on the dock icon (one card per open instance + a Ghost Card that spawns a new instance) and an "Open another" action in the window's title-bar menu; singletons always focus the existing window when re-opened.
+Controls whether a dock item advertises multiple simultaneous windows: a multi-capable page gets the instance rail under its dock tile and an "Open another" action in the window's title-bar menu. It does not gate the submenu, which opens a window of its own on every pick, singleton or not; a tile click focuses the menu's open window either way.
 
 Built-in defaults: `edit.php`, `edit-tags.php`, `upload.php`, `users.php`, and `edit-comments.php` are multi; everything else is singleton. The base filename is matched against the list, so every CPT (`edit.php?post_type=page`) and every taxonomy inherits the same rule as its parent admin file.
 
@@ -3256,6 +3258,8 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 Native writing desk that replaces the chromeless `edit.php` iframe. Ruled note cards show titles, excerpts, publishing states, word counts, approved comment totals, tag counts and nearby Edit / Details actions; a companion inspector exposes the taxonomy pickers and extension fields. The Content view control opens the optional Details table. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. An [App Framework](./app-framework.md) app — `apps/posts/` — whose list is a `data()` over `openstation_app_rest_page( 'wp/v2/posts', … )` (so every REST field and the query-args filter below reach the rows exactly as they reached the old bundle), whose server paging / filtering / sorting are its state, and whose "Move to trash" is a server action; the Categories mind map and the Tags cloud are its two canvases. The registration (title, size, config extra) is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-posts'`. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes and [`migration-list-apps.md`](./migration-list-apps.md) for what the port removed.
 
+**Its tabs are the Posts menu, in both directions.** All posts, Add Post, Categories and Tags are the same rows the dock's Posts submenu lists, in the same order, because both come from the window's own [`App::menu()`](./app-framework.md) declaration. Each tab names the wp-admin page it replaces, so the shell claims `post-new.php` and the two taxonomy screens for the window **wherever** they are clicked — a link in another window, the admin bar's "+ New", a workspace's launch list — and opens it on the matching tab. A page the window has no tab for keeps its own row, so a plugin's screen registered under Posts stays reachable. Add Post shows the editor embedded in the panel through [`wp.os.embedAdminPage()`](./javascript-reference.md#wposembedadminpage-host-url-opts---stable); it mounts blank unless the page inside says it is holding unsaved changes, in which case the draft is handed back. An embedded editor is not an iframe window, so it has no close-time unsaved-changes prompt. Pages works the same minus the taxonomies, and adds the reverse case: **Page atlas** is a tab wp-admin has no screen for, and the dock offers it as a row anyway. All of it is gated on the opt-in, which is why flipping a Beta toggle spends a menu refresh.
+
 Cards use continuous scrolling: the next server batch appends as the bottom approaches, with a retryable Load more control for keyboard access or request failures. Search and sort start a fresh collection. Selection spans the loaded cards; the optional Details table shares those rows and offers the same continuation control. A refresh after scrolling restarts at the first batch so earlier cards cannot retain stale edits. The `data-loaded` event still describes each server batch, while `ctx.table` and the selected-row methods expose the loaded collection. On phones, compact cards keep the actions visible and the additional filters live behind Options.
 
 Word counts read the complete rendered content through Core REST, and comment counts read the approved total from the comment collection header. Metrics load for cards near the viewport, with two cards in flight at most. A denied/unavailable metric stays unknown (`—`); no view counts are inferred without an analytics source.
@@ -3355,6 +3359,8 @@ wp.os.registerNativeUrlRemap( {           // planned public API; internal today 
 ```
 
 Returning `false` from `enabled` (or `matches`) lets the click fall through. An `openById( nativeWindowId )` call that reports the window isn't registered for the current user (cap-gated, opt-in-gated) also falls through — the registry walks on to the next entry, then to the iframe path.
+
+The submenu surfaces — a constellation flyout row, a custom rail renderer's `openSubmenuPick` — pass `tryNativeUrlRemap( url, { newInstance: true } )`, which routes to `openNewById()` so a remapped child page spawns a window instead of focusing the open one, exactly as the iframe it replaces now does. Every other path (dock tile click, deep link, in-window link, Related menu, session restore) leaves the flag off and focuses.
 
 ---
 

@@ -300,6 +300,8 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 				serverGames?: unknown;
 				serverDesktopThemes?: unknown;
 				desktopIcons?: unknown;
+				/** Handle => dependency payload; the entries above carry handles until `hydrateScriptDeps()` runs. */
+				scriptDepPayloads?: unknown;
 				menuSig?: unknown;
 			};
 		} | null;

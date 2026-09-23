@@ -20,7 +20,7 @@
 
 import { __ } from '../i18n';
 import { broadcastNotesChange } from './broadcast';
-import { describeRestFailure, restFailureKind } from '../core/rest-failure';
+import { describeRestFailure, restFailureKind, toastRestFailure } from '../core/rest-failure';
 import { shellToast } from '../core/shell-toast';
 import { convertNote, restoreNote, type ConvertNoteResult } from './rest';
 import type { Note } from './types';
@@ -230,10 +230,8 @@ export async function convertNoteToPost(
 							'[openstation] notes: convert undo failed:',
 							err,
 						);
-						shellToast( {
-							...describeRestFailure( err, {
-								fallback: __( 'Could not restore the note.', 'desktop-mode' ),
-							} ),
+						toastRestFailure( shellToast, err, {
+							fallback: __( 'Could not restore the note.', 'desktop-mode' ),
 							duration: 5000,
 						} );
 					} );

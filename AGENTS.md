@@ -296,8 +296,11 @@ Payload shape (`openstation_build_menu_payload()` in `includes/core/payload.php`
   serverWindowSlotScripts, serverWindowSlots,
   serverWindowChromeScripts, serverWindowChromes,
   serverWindowNotices, serverGames, serverDesktopThemes,
-  desktopIcons, updateCounts, multisite }
+  desktopIcons, updateCounts, multisite,
+  scriptDepPayloads }
 ```
+
+On the wire every entry's `scriptDeps` is a list of **handles**, and each handle's payload (URL, l10n, before/after) rides once in `scriptDepPayloads` (GH#892). `openstation_compact_script_deps()` builds it on the server, at entry depth only; `hydrateScriptDeps()` in `src/script-dep-payloads.ts` puts the payloads back before any sync module reads them, and the applier merges the refresh's map into `config.scriptDepPayloads`. A new `server*` list gets this for free; a new sync module must run after hydration, never read `scriptDeps` straight off the wire.
 
 - **PHP-declared** things are in the payload: dock, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
 - For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.openStationWallpapers[id]` / `window.openStationWidgets[id]`). The sync reads the def and registers it.
@@ -373,6 +376,23 @@ The primitive is also exposed on the public API as `wp.os.createSharedStore`. Se
 **When you ARE writing module-level state in a feature with multiple bundles, route it through `createSharedStore`.** This is non-negotiable.
 
 **Before importing from one bundle's entry into another bundle's tree**, double-check that you aren't dragging in heavy code as a side-effect. Pulling a single symbol from a bundle entry that side-effect-imports the whole feature (poller, SSE, leader, heartbeat, …) inflates the consumer bundle. Pull the symbol from the leaf module that defines it instead.
+
+### A window's tabs and its menu's submenu are ONE list
+
+**Whatever a menu offers, its window offers as a tab; whatever the window has as a tab, the menu offers as a row.** A user who learns one learns the other, and the two lists drifting is what makes a native window feel like a different product from the dock that opened it.
+
+**One declaration does it**, and a window that replaces a menu owes it: `App::menu( $slug, $tabs, $gate )`. `$tabs` is an ordered `id => label` map (a callable when caps decide the list), `$gate` the per-user opt-in that chooses between this window and the classic screen. From that one block:
+
+- the dock's submenu for `$slug` becomes these tabs — same labels, same order — with the first one as the tile's own label rather than a duplicate row;
+- each row's URL is the menu's own tagged `os_tab=<id>`, which `tryNativeUrlRemap()` turns into the window's `tab` open-time param for **every** remap, no per-window wiring;
+- `tab` becomes declared state and the runtime writes it on `mount` and on `reopen`;
+- the tabs reach the client view as `menuTabs` in the config extra, and **the view renders its strip from that list** — the only way the strip and the submenu cannot drift.
+
+The gate is the only thing it does NOT decide: with the opt-in off the dock keeps wp-admin's own submenu, which is right, because the classic screen is what those rows open. A gate that changes a server-side registration **must spend a menu refresh when it saves** (see the settings note above) — that is why the Beta toggles do.
+
+**Name the wp-admin page each tab replaces** (`'new' => array( 'label' => …, 'page' => 'post-new.php' )`). That is what lets the shell claim those URLs for the window wherever they are reached — a link in another window, the admin bar's "+ New", a workspace's launch list — and what tells the dock which of wp-admin's own rows it may drop. Every row NOT named is kept and follows the window's tabs, so a plugin's page under that menu stays reachable; dropping the whole submenu is how a first version of this made a plugin's screens vanish. A tab that is not a page you can ask for cold (the Plugins file editor, opened on a file you picked) names no page and gets no row.
+
+The same applies to a window whose page is an admin screen rather than one of the app's own views: it becomes a tab through `wp.os.embedAdminPage()`, not a second window — a tab swaps the body, whatever the page behind it is made of.
 
 ### The work area — never size against `#os-area` directly
 

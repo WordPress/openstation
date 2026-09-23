@@ -2,7 +2,7 @@
 import { __ } from './i18n';
 import { trackedFetch } from './tracked-fetch';
 import { joinRestUrl } from './rest-url';
-import { RestError } from './core/api-client';
+import { RestError, restErrorFromBody } from './core/api-client';
 import type { AgentInvokeResult } from './agents-types';
 import type { RestAuth } from './agents-conversations';
 
@@ -31,13 +31,17 @@ export function agentRequestId(): string {
 
 /** A failed job request, plus whether the poller should try again. */
 class JobRequestError extends RestError {
-	constructor(
-		message: string,
-		readonly retryable: boolean,
-		opts: { status: number; code?: string; data?: unknown; serverMessage?: string } = { status: 0 },
-	) {
-		super( message, opts );
+	readonly retryable: boolean;
+
+	constructor( message: string, retryable: boolean, base: RestError = new RestError( '', { status: 0 } ) ) {
+		super( message, {
+			status: base.status,
+			code: base.code,
+			data: base.data,
+			serverMessage: base.serverMessage,
+		} );
 		this.name = 'JobRequestError';
+		this.retryable = retryable;
 	}
 }
 
@@ -68,18 +72,15 @@ async function request(
 			throw new JobRequestError(
 				body?.message || `HTTP ${ response.status }`,
 				( response.status >= 500 && ! body?.code ) || response.status === 408,
-				{
-					status: response.status,
-					code: body?.code,
-					data: body?.data,
-					serverMessage: body?.message ?? '',
-				},
+				restErrorFromBody( response.status, body ),
 			);
 		}
 		if ( ! body || ( ! body.jobId && typeof body.text !== 'string' ) ) {
-			throw new JobRequestError( __( 'The job status could not be read.', 'desktop-mode' ), true, {
-				status: response.status,
-			} );
+			throw new JobRequestError(
+				__( 'The job status could not be read.', 'desktop-mode' ),
+				true,
+				restErrorFromBody( response.status, null ),
+			);
 		}
 		return body;
 	} finally {
