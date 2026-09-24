@@ -80,4 +80,4 @@ add_filter(
 );
 ```
 
-`source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `widgets/drafts-suggestions`. The rest of `$context`: `user_id`, `request_id` (the `/ai/search` correlation UUID, `''` where the path mints none), `has_tools`, `has_schema`.
+`source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `agents/draft`, `widgets/drafts-suggestions`, `mio/window`. The rest of `$context`: `user_id`, `request_id` (the `/ai/search` correlation UUID, `''` where the path mints none), `has_tools`, `has_schema`.

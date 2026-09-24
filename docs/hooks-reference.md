@@ -2271,7 +2271,7 @@ The on/off state is not part of this filter — it is the per-user OS setting `m
 
 ## AI Copilot hooks — Stable
 
-The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses entities on save, and exposes a search REST endpoint. Every decision point is hookable so plugins can adjust model selection, customise prompts, limit which entities get analysed, or react to analysis completion.
+The AI assistant (Cmd+K palette) runs an agentic loop server-side and exposes a search REST endpoint. Nothing is analysed automatically: a comment is analysed only when someone asks for it, through the `desktop-mode/analyze-comment` ability. Every decision point is hookable so plugins can adjust model selection, customise prompts, or react to analysis completion.
 
 Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
 
@@ -2325,7 +2325,7 @@ apply_filters( 'openstation_ai_error_log_candidates', string[] $candidates );
 
 ### `openstation_ai_model_config` — Experimental
 
-Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, the Agents runner, and the Drafts widget's writing assistant.
+Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, the Agents runner, the agent wizard's "Draft it for me", the Drafts widget's writing assistant, and the MIO window assistant.
 
 ```php
 apply_filters( 'openstation_ai_model_config', array $config, array $context );
@@ -2333,7 +2333,7 @@ apply_filters( 'openstation_ai_model_config', array $config, array $context );
 // $context = { user_id, request_id, source, has_tools, has_schema }
 ```
 
-`model` takes a model id or an SDK `ModelInterface`; anything else is ignored. `custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `widgets/drafts-suggestions`, `mio/window`. The MIO source passes model configuration context only; it does not emit AI search transcript logging hooks.
+`model` takes a model id or an SDK `ModelInterface`; anything else is ignored. `custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `agents/draft`, `widgets/drafts-suggestions`, `mio/window`. The MIO source passes model configuration context only; it does not emit AI search transcript logging hooks.
 
 `custom_options` also feeds model discovery, not just the request body: the AI Client turns each key into a required option when it picks a model, so on a multi-provider connector an option only one model supports narrows the selection to it (or fails to match any).
 
@@ -5370,7 +5370,9 @@ Public URL of the same directory. Must resolve to the same bytes as
 Absolute path of the agent-face storage directory (no trailing slash).
 Default `uploads/desktop-mode-agent-faces`. Each agent's portrait is
 written here as an SVG named `<agentId>-<hash>.svg`, and served as its
-avatar wherever `get_avatar()` runs.
+avatar wherever `get_avatar()` runs. The file is removed when the agent
+is deleted, whether through `openstation_agent_delete()` or through
+Core's own user deletion (wp-admin → Users, `wp user delete`).
 
 Whatever this points at **must be web-servable**. The directory is
 hardened exec-off rather than deny-all for exactly that reason: a

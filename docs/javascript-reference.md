@@ -7874,15 +7874,23 @@ seed the cross-bundle store and open the window:
 ```ts
 // Both bundles share one live object via createSharedStore.
 const store = wp.os.createSharedStore( 'desktop-mode/agents-chat', () => ( {
-	activeAgent: null, // { id, name, description, avatarUrl } | null
-	transcripts: {},   // Record<agentId, Array<{ role, text, toolCalls?, at, pending? }>>
+	activeAgent: null,    // { id, name, description, avatarUrl } | null
+	transcripts: {},      // Record<agentId, Array<{ role, text, attachment?, toolCalls?, callToActions?, ctaUsed?, at, pending? }>>
+	conversationIds: {},  // Record<agentId, number | null>: the saved conversation behind each transcript
+	conversationsRev: 0,  // bumped after every conversation save or delete
 } ) );
 store.state.activeAgent = { id, name, description, avatarUrl };
 store.notify();
 wp.os.openWindow( 'desktop-mode-agent-run', { source: 'my-plugin' } );
 ```
 
-Transcripts are session-only; nothing persists client-side.
+The store keeps nothing across a reload, but conversations are not
+session-only: after every completed exchange the chat saves the
+transcript on the server (`POST /agents/conversations` the first time,
+`PUT /agents/conversations/{id}` afterwards), as a `desktop_mode_chat`
+post owned by the human. `conversationIds` records which saved
+conversation each live transcript belongs to; `conversationsRev` is how
+the sidebar knows to refetch its list without polling.
 
 ### Drag & drop intake
 

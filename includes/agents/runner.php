@@ -1244,8 +1244,11 @@ function openstation_agent_runner_dispatch_tool( $slug, array $args ) {
 }
 
 /**
- * Append one invocation to the agent's persistent log. Most-recent
- * entries surface in the chat window's history strip.
+ * Append one invocation to the agent's persistent log: an audit trail
+ * of who ran the agent and what came back, capped at
+ * OPENSTATION_AGENT_RUNNER_LOG_CAP entries and readable from PHP with
+ * {@see openstation_agent_runner_get_log()}. No UI shows it; the chat
+ * window's history is the human's saved conversations, not this log.
  *
  * @param int    $agent_user_id Agent user id.
  * @param string $message       Submitted message.
