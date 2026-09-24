@@ -232,12 +232,16 @@ Registering an ability agents can call:
       covers the password and the post type in one call.
 - [ ] If it returns an **attachment**, does it gate the attachment's
       parent? An attached file's title, caption and parent id describe
-      the post it hangs off. `WP_REST_Attachments_Controller` defers an
-      `inherit` attachment to its parent's readability, and
-      `desktop-mode/get-media` does the same on top of `upload_files`:
-      `read_post` on the parent, `edit_post` when the parent's type is
-      not viewable. An unattached file, or one whose parent row is gone,
-      is judged on `upload_files` alone, as Core treats it as published.
+      the post it hangs off. Core's attachment reads inherit
+      `WP_REST_Posts_Controller::check_read_permission()`, which defers
+      an `inherit` attachment to its parent's readability, and
+      `desktop-mode/get-media` follows that shape on top of
+      `upload_files`, more strictly than Core: `read_post` on the
+      parent, `edit_post` when the parent's type is not viewable (Core
+      admits any `publish` parent). The parent's password is not asked,
+      as in Core: the attachment's own fields are not the parent's
+      body. An unattached file, or one whose parent row is gone, is
+      judged on `upload_files` alone, as Core treats it as published.
 - [ ] Do the **counts** cover the same set as the items? `found_posts`,
       `total` and a per-status breakdown answer "does the hidden thing
       match?" — an oracle for exactly what the item list withheld.
