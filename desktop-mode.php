@@ -6,8 +6,8 @@
  * Version:           1.1.11
  * Requires at least: 6.0
  * Requires PHP:      7.4
- * Author:            Daniel López Sánchez
- * Author URI:        https://github.com/allterraindeveloper
+ * Author:            WordPress.org
+ * Author URI:        https://wordpress.org/
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       desktop-mode
