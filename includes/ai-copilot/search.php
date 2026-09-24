@@ -267,7 +267,7 @@ function openstation_ai_search_answer_schema() {
 			'answer_type' => array(
 				'type'        => 'string',
 				'enum'        => array( 'entity', 'navigation', 'chat' ),
-				'description' => 'Classification of the answer: "entity" when you identified a specific post/page/comment the user was asking about. "navigation" when the user asked where to find something in wp-admin and you are returning admin_links. "chat" for conversational responses that don\'t involve finding content or navigation (e.g. greetings, clarifications, "I couldn\'t find anything").',
+				'description' => 'Classification of the answer: "entity" when you identified a specific post/page/comment the user was asking about. "navigation" when you are returning admin_links: wp-admin destinations or plugin install links. "chat" for everything else, including summaries of tool results (error logs, site info), greetings, clarifications and "I couldn\'t find anything".',
 			),
 			'message'     => array(
 				'type'        => 'string',
@@ -1085,16 +1085,15 @@ You are a friendly, conversational assistant embedded in a WordPress site. You h
 2. **Navigate wp-admin** when they ask where to find something (\"where are the categories?\", \"how do I manage users?\").
 3. **Recommend plugins** from the official WordPress.org directory when they need extra functionality.
 4. **Check the site's error log** when they're troubleshooting something.
-5. **Answer anything else your tools can** — you may have more tools than the ones described below (WordPress and other plugins register their own, e.g. site / user / environment / version info). Your actual tool list is authoritative: whenever a tool can answer the request, call it and summarise the result, even if it isn't in the list below.
+5. **Answer anything else your tools can** — you may have more tools than the ones named here (WordPress and other plugins register their own, e.g. site / user / environment / version info). Your actual tool list is authoritative: whenever a tool can answer the request, call it and summarise the result, even if it isn't named here.
 6. **Chat** — only when no tool fits, answer conversationally.
 
 Tone: warm, concise, helpful. First person (\"I found this post…\", \"Here's where you'll find that…\"). Not a search engine tone — no \"Match found\" or robot phrasing.
 
-Tools (your actual tool list may include more than these — use any that fit the request):
-- search_posts / search_pages / search_comments / search_comments_by_post(post_id, query, offset): keyword content-lookup tools backed by WordPress's native search. Distil the user's description into the essential search keywords and pass them as `query` (e.g. \"that long post about making paella\" → query \"paella\"). Inspect the returned title + excerpt and stop once you find a good match. If has_more is true and nothing matched, call the same tool with next_offset (reuse the same query), or try different keywords. When the query mentions BOTH a post and a comment on that post, call search_posts first to identify the post, THEN search_comments_by_post with the ID. If keyword search returns nothing, broaden or simplify the keywords before giving up.
-- list_admin_pages: returns the full catalog of wp-admin destinations. Call once per navigation query, then select the 1-3 most relevant entries.
-- search_wporg_plugins(query): searches the official WordPress.org plugin directory. Use when the user asks for a plugin recommendation (\"a plugin for X\", \"is there a plugin that does Y?\"). Returns up to 10 plugins with ratings, install counts, and admin install URLs. Present the best 3-5 as admin_links with titles like \"Plugin Name · 5M+ installs · 4.8★\" (rating is 0-100, divide by 20 to get stars).
-- get_php_error_log(lines): reads the tail of the site's PHP error log. Admin-only (the tool itself checks). Use when the user asks \"any errors?\", \"check the logs\", \"what's broken?\", troubleshooting. Each entry has { timestamp, level, message }. Summarise the most important errors (Fatal > Warning > Notice) in your message; don't copy-paste everything.
+How to work the tools (your actual tool list is authoritative; use any tool that fits the request):
+- Content lookups: stop once a returned title and excerpt clearly match. If nothing matched, page on with the next offset or try broader, simpler keywords before telling the user you found nothing.
+- Plugin recommendations: present the best 3-5 as admin_links titled like \"Plugin Name · 5M+ installs · 4.8★\".
+- Error logs: summarise the most important errors first (fatal, then warnings, then notices) instead of copying entries.
 
 Choosing which track:
 - \"I remember a post/page/comment about X\" → the corresponding search_* tool.
@@ -1807,13 +1806,13 @@ function openstation_ai_run_followup( $query, array $tool, array $outcome, array
 	$instructions = '
 You are the same friendly WordPress assistant that just dispatched a command on behalf of the user. You now have the result of that command.
 
-Write a SHORT reply (one or two sentences, first person, warm and conversational) describing what happened. Match the voice the site owner set in their system prompt — do not restart small talk, just confirm what you did.
+Write a short reply (one or two sentences, first person, warm and conversational) describing what happened. Match the voice the site owner set in their system prompt — do not restart small talk, just confirm what you did.
 
 Rules:
 - If the outcome looks successful, confirm plainly. Example: "Done — your office light is on now."
 - If the outcome looks like an error (has an `error` field, a failure message, or obviously negative content), apologise briefly and paraphrase what went wrong. Do not invent details the outcome did not include.
-- Do NOT recommend the user try something else unless the outcome explicitly suggests it.
-- Do NOT describe the tool mechanism ("I called command_turn_light") — the user only cares about the real-world effect.
+- Suggest a next step only when the outcome itself suggests one.
+- Describe the real-world effect, not the tool mechanism ("I called command_turn_light").
 ';
 
 	$system_prompt_text = isset( $extra['system_prompt_text'] ) && is_string( $extra['system_prompt_text'] ) ? $extra['system_prompt_text'] : '';
@@ -2305,6 +2304,7 @@ function openstation_ai_fetch_wporg_plugins( $query ) {
 			'version'           => (string) ( $p['version'] ?? '' ),
 			'author'            => wp_strip_all_tags( $p['author'] ?? '' ),
 			'rating'            => (int) ( $p['rating'] ?? 0 ),         // 0-100
+			'stars'             => round( ( (int) ( $p['rating'] ?? 0 ) ) / 20, 1 ), // 0-5, as wordpress.org shows it
 			'num_ratings'       => (int) ( $p['num_ratings'] ?? 0 ),
 			'active_installs'   => (int) ( $p['active_installs'] ?? 0 ),
 			'last_updated'      => (string) ( $p['last_updated'] ?? '' ),

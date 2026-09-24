@@ -10,18 +10,17 @@ apply_filters( 'openstation_ai_model_config', array $config, array $context );
 |---|---|---|
 | `model` | `string\|ModelInterface` | Model id, or an SDK model instance. Anything else is ignored. |
 | `max_tokens` | `int` | Output-token ceiling. Must be > 0. |
-| `temperature` | `float` | Sampling randomness. `0.0` is valid. |
+| `temperature` | `float` | Sampling randomness. `0.0` is valid. Anthropic's Claude Opus 4.7 and later and Claude Sonnet 5 reject any non-default value with a 400, so leave it unset for those models. |
 | `custom_options` | `array<string, mixed>` | Provider-native parameters, forwarded verbatim. Also feeds model discovery. |
 
-## Model, ceiling and temperature
+## Model and ceiling
 
 ```php
 add_filter(
 	'openstation_ai_model_config',
 	function ( $config, $context ) {
-		$config['model']       = 'claude-sonnet-5';
-		$config['max_tokens']  = 6144;
-		$config['temperature'] = 0.2;
+		$config['model']      = 'claude-sonnet-5';
+		$config['max_tokens'] = 16000;
 
 		return $config;
 	},
@@ -36,7 +35,7 @@ add_filter(
 add_filter(
 	'openstation_ai_model_config',
 	function ( $config, $context ) {
-		$config['max_tokens']     = 6144;
+		$config['max_tokens']     = 16000;
 		$config['custom_options'] = array(
 			'thinking'      => array( 'type' => 'adaptive' ),
 			'output_config' => array( 'effort' => 'low' ),
@@ -51,6 +50,8 @@ add_filter(
 
 That pair is the Anthropic Claude 5 shape; older Anthropic models reject it and want `thinking: { type: 'enabled', budget_tokens: N }` instead. Check your provider's reference before copying — this is why OpenStation ships no default.
 
+Thinking tokens count toward `max_tokens`. A ceiling sized for a reply without thinking can end the turn inside its reasoning, with no answer text, so leave headroom.
+
 ## Spend effort only where it pays
 
 `$context['source']` names the calling path, so a long agent run and the background comment scorer need not share a setting:
@@ -59,19 +60,17 @@ That pair is the Anthropic Claude 5 shape; older Anthropic models reject it and 
 add_filter(
 	'openstation_ai_model_config',
 	function ( $config, $context ) {
-		// Short, schema-constrained classification. Nothing to think about.
-		if ( 'ai-copilot/comment-analysis' === $context['source'] ) {
-			$config['temperature'] = 0.0;
-
-			return $config;
+		// Short, schema-constrained classification gets the least effort;
+		// a long agent run gets the most.
+		$effort = 'low';
+		if ( 'agents/runner' === $context['source'] ) {
+			$effort = 'medium';
 		}
 
-		$deep = 'agents/runner' === $context['source'];
-
-		$config['max_tokens']     = $deep ? 8192 : 6144;
+		$config['max_tokens']     = 16000;
 		$config['custom_options'] = array(
 			'thinking'      => array( 'type' => 'adaptive' ),
-			'output_config' => array( 'effort' => $deep ? 'medium' : 'low' ),
+			'output_config' => array( 'effort' => $effort ),
 		);
 
 		return $config;
