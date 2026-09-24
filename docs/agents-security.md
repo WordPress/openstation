@@ -227,7 +227,17 @@ Registering an ability agents can call:
       published row of a plugin's internal CPT (an order, a submission
       log, a queue entry) reads like a public post until
       `is_post_type_viewable()` is asked separately. Fall back to
-      `edit_post` for a non-viewable type.
+      `edit_post` for a non-viewable type. `desktop-mode/get-post`
+      asks `read_post` and then `openstation_ai_can_read_post()`, which
+      covers the password and the post type in one call.
+- [ ] If it returns an **attachment**, does it gate the attachment's
+      parent? An attached file's title, caption and parent id describe
+      the post it hangs off. `WP_REST_Attachments_Controller` defers an
+      `inherit` attachment to its parent's readability, and
+      `desktop-mode/get-media` does the same on top of `upload_files`:
+      `read_post` on the parent, `edit_post` when the parent's type is
+      not viewable. An unattached file, or one whose parent row is gone,
+      is judged on `upload_files` alone, as Core treats it as published.
 - [ ] Do the **counts** cover the same set as the items? `found_posts`,
       `total` and a per-status breakdown answer "does the hidden thing
       match?" — an oracle for exactly what the item list withheld.
@@ -287,7 +297,14 @@ Four additions specific to a route:
 Adding a trigger intake:
 
 - [ ] Call `openstation_agent_user_can_invoke_agent()` before
-      `openstation_agent_invoke()`.
+      `openstation_agent_invoke()`. It requires every capability
+      declared on **any** of the agent's triggers, not only the one
+      matching the intake's source: the invoke route takes `source` as
+      a request parameter, so a source names how a request says it
+      arrived, never what it may reach. Do not add a gate that selects
+      capabilities by source; if an intake needs a narrower rule, it
+      belongs in the intake's own permission check, in addition to this
+      one.
 - [ ] Pass `$context['invoker']` when a human is behind the run.
 - [ ] If it runs without a human, confirm the agent's full role is an
       acceptable ceiling for a message you do not control.
@@ -307,7 +324,8 @@ document, that suite should change with it.
 The read-path checklist above has its own guards, each pinning a
 Subscriber against a restricted object rather than pinning a return
 shape: `aiNativeSearch.php` (search tools and entity hydration),
-`agentsAbilities.php` (the get-post password gate),
+`agentsAbilities.php` (get-post's password and post-type gates,
+get-media's parent gate),
 `myWordpressCommentStats.php` (route gate, parent-post readability,
 thread scoping, zero ids) and `myWordpressTermStats.php` (readable
 statuses, count oracle, hidden taxonomies). A new read path gets a test

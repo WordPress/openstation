@@ -5662,21 +5662,27 @@ no-op — there is no cap set to intersect with.
 
 ### `openstation_agent_user_can_invoke_agent` — Experimental *(filter)*
 
-Whether the current user may invoke a **specific** agent through a
-specific source. `openstation_agents_user_can_invoke` is the site-wide
-half ("may this user invoke agents at all"); this is the per-agent
-half.
+Whether the current user may invoke a **specific** agent.
+`openstation_agents_user_can_invoke` is the site-wide half ("may this
+user invoke agents at all"); this is the per-agent half.
 
-Default: honours the `capability` declared in the matching trigger's
-config. An agent with no trigger for that source, or one declaring no
-capability, falls back to the route-level check — requiring a
-configured trigger would lock out every agent created before triggers
-were set up.
+Default: the caller must hold **every** `capability` declared in the
+config of **any** of the agent's triggers, whichever source the request
+names. The source is a request parameter on the invoke route, so it
+describes how the request says it arrived rather than what it may
+reach; a capability configured on an agent is a property of the agent,
+not of one trigger kind. An agent whose triggers declare no capability
+(including one with no triggers) falls back to the route-level check —
+requiring a configured trigger would lock out every agent created
+before triggers were set up.
 
-- **Param** `bool $can`
+- **Param** `bool $can` — whether the caller holds every trigger capability.
 - **Param** `int $agent_user_id`
-- **Param** `string $source` — `chat`, `drag`, or `send-to`.
-- **Param** `array|null $trigger` — the matching trigger row, if any.
+- **Param** `string $source` — the source the request names: `chat`,
+  `drag`, or `send-to`. Client-supplied on the invoke route; context for
+  the filter, not proof of how the request arrived.
+- **Param** `array|null $trigger` — the trigger row whose kind matches
+  `$source`, if any. Context only: it is not what decided `$can`.
 
 ### `openstation_agent_default_rate_limit` — Experimental *(filter)*
 
@@ -5741,8 +5747,8 @@ the always-listed WP Explorer section appears at all.
 - `openstation_agent_get_agents( $args )` — list every agent.
 - `openstation_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.
 - `openstation_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, invoker cap ceiling, tool loop, turn cap 8, rate limits). `$context['source']` names the trigger; `$context['invoker']` is the user whose capabilities ceiling the run (defaults to `get_current_user_id()`; pass `0` deliberately for a system-context run); `$context['history']` replays prior conversation turns (`[ { role: 'user'|'agent', text }, … ]`, oldest first, capped at the 50 most recent × 4000 chars each). **Pass the history for any follow-up message**: without it the run is contextless, so "yes, do it" resolves against nothing and the agent may act on a different entity than the one just discussed.
-- `openstation_agent_user_can_invoke_agent( $agent_user_id, $source )` — the per-agent invocation gate. Call it before `openstation_agent_invoke()` from any new trigger intake.
-- `openstation_agent_trigger_for_source( $agent_user_id, $source )` — the agent's trigger row for an invocation source, or null.
+- `openstation_agent_user_can_invoke_agent( $agent_user_id, $source )` — the per-agent invocation gate: every capability declared on any of the agent's triggers, whatever `$source` says. Call it before `openstation_agent_invoke()` from any new trigger intake.
+- `openstation_agent_trigger_for_source( $agent_user_id, $source )` — the agent's trigger row for an invocation source, or null. Context only; the invocation gate does not select capabilities by source.
 - `openstation_agent_runner_get_log( $agent_user_id )` — recent invocations (capped at 50).
 - `openstation_agents_abilities_catalogue()` — the picker catalogue.
 
