@@ -380,12 +380,15 @@ function openstation_agents_ability_get_media( $args ) {
  * parent. That follows the shape of Core's rule for `inherit`-status
  * attachments, `WP_REST_Posts_Controller::check_read_permission()`
  * (the attachments controller inherits it): an attachment defers to
- * its parent whenever one exists. Core admits any `publish` parent from
- * there; this callback is stricter. The parent is judged by `read_post`,
+ * its parent whenever one exists. The parent is judged by `read_post`,
  * plus the post-type rule `desktop-mode/get-post` applies (a type with
- * no readable front end needs `edit_post`). The parent's password is
- * not asked: the attachment's own fields are not the parent's body, and
- * Core's attachment read does not ask it either.
+ * no readable front end needs `edit_post`), which is stricter than Core
+ * on a non-viewable parent: Core admits any `publish` parent of a
+ * REST-enabled type. Core's other requirement, that the parent's type
+ * be `show_in_rest`, is not copied: it would refuse media attached to a
+ * non-REST type for every caller, administrators included. The
+ * parent's password is not asked: the attachment's own fields are not
+ * the parent's body, and Core's attachment read does not ask it either.
  *
  * An unattached file, or one whose parent row no longer exists, is
  * judged on `upload_files` alone, as Core treats a parentless

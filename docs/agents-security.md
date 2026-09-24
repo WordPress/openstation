@@ -236,9 +236,12 @@ Registering an ability agents can call:
       `WP_REST_Posts_Controller::check_read_permission()`, which defers
       an `inherit` attachment to its parent's readability, and
       `desktop-mode/get-media` follows that shape on top of
-      `upload_files`, more strictly than Core: `read_post` on the
-      parent, `edit_post` when the parent's type is not viewable (Core
-      admits any `publish` parent). The parent's password is not asked,
+      `upload_files`: `read_post` on the parent, `edit_post` when the
+      parent's type is not viewable. That is stricter than Core on a
+      non-viewable parent (Core admits any `publish` parent of a
+      REST-enabled type). Core's `show_in_rest` requirement on the
+      parent's type is not copied, because it would refuse media on a
+      non-REST type for every caller. The parent's password is not asked,
       as in Core: the attachment's own fields are not the parent's
       body. An unattached file, or one whose parent row is gone, is
       judged on `upload_files` alone, as Core treats it as published.
