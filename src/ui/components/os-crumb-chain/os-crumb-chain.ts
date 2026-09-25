@@ -168,9 +168,12 @@ export class OsCrumbChain extends Component {
 					 * `--os-ui-fg` and always did.
 					 */
 					const own = seg.color;
+					// `null`, not `''`: an uncoloured segment writes no
+					// inline paint at all, rather than an empty style
+					// attribute.
 					const styleStr = own
 						? `--os-ui-crumb-bg: ${ own }; --os-ui-crumb-fg: ${ pickForegroundColor( own ) };`
-						: '';
+						: null;
 					return html`
 						<span
 							class=${ `os-crumb os-crumb--${ variant }` }

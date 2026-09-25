@@ -131,7 +131,7 @@ export class OsTextarea extends Component {
 				minlength=${ minLength ?? '' }
 				name=${ name }
 				aria-invalid=${ invalid ? 'true' : 'false' }
-				aria-label=${ ariaLabel || '' }
+				aria-label=${ ariaLabel || null }
 				@input=${ ( e: Event ) => this._onInput( e ) }
 				@change=${ ( e: Event ) => this._onChange( e ) }
 				@keydown=${ ( e: KeyboardEvent ) => this._onKeyDown( e ) }

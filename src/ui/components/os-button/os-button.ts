@@ -167,7 +167,7 @@ export class OsButton extends Component {
 		// element focus lands on. The renderer drops an attribute whose
 		// composed value is empty, so a host without one leaves the
 		// inner button without one too.
-		const ariaLabel = this.getAttribute( 'aria-label' ) || '';
+		const ariaLabel = this.getAttribute( 'aria-label' ) || null;
 		return html`
 			<button
 				part="button"

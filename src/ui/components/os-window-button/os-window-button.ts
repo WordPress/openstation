@@ -243,14 +243,14 @@ export class OsWindowButton extends Component {
 		// — that is the element focus lands on, and its only content is
 		// an `aria-hidden` glyph. An empty value removes the attribute
 		// rather than writing `aria-label=""`.
-		const label = this.getAttribute( 'aria-label' ) || '';
+		const label = this.getAttribute( 'aria-label' ) || null;
 		if ( iconSrc ) {
 			// CSS `mask` + `background-color: currentColor` rather than
 			// an `<img>`: an image would paint its own colours and go
 			// deaf to `--os-ui-btn-color`, so a themed close button would
 			// stop turning white on a focused title bar.
 			return html`
-				<button type="button" aria-label="${ label }" aria-pressed="${ this.getAttribute( 'aria-pressed' ) || '' }" ?disabled="${ this.hasAttribute( 'disabled' ) }">
+				<button type="button" aria-label="${ label }" aria-pressed="${ this.getAttribute( 'aria-pressed' ) || null }" ?disabled="${ this.hasAttribute( 'disabled' ) }">
 					<span
 						class="themed-icon"
 						aria-hidden="true"
@@ -261,7 +261,7 @@ export class OsWindowButton extends Component {
 			`;
 		}
 		return html`
-			<button type="button" aria-label="${ label }" aria-pressed="${ this.getAttribute( 'aria-pressed' ) || '' }" ?disabled="${ this.hasAttribute( 'disabled' ) }">
+			<button type="button" aria-label="${ label }" aria-pressed="${ this.getAttribute( 'aria-pressed' ) || null }" ?disabled="${ this.hasAttribute( 'disabled' ) }">
 				<svg
 					width="14"
 					height="14"
