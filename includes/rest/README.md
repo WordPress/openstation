@@ -50,8 +50,9 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/media-usage/{id}` | GET | `includes/my-wordpress/media-usage.php` | `read_post` on the attachment |
 | `/recycle-bin/*` | various | `includes/recycle-bin/rest.php` | `delete_posts` (per-route gate) |
 | `/files/*` | various | `includes/desktop-files/rest.php` | logged-in + OpenStation enabled (share routes add a sharing gate) |
-| `/ai/search` | POST | `includes/ai-copilot/search.php` | logged-in + AI feature flag |
-| `/ai/platform-settings` | GET / POST | `includes/ai-copilot/platform-settings.php` | `manage_options` |
+| `/ai/search` | POST | `includes/ai-copilot/search.php` | `read` + `openstation_ai_is_available()` (`503` without it) + the caller's own AI assistant toggle in Preferences → Features (`403` when off). Every tool the server runs is a read-only ability dispatched through `WP_Ability::execute()`, so each one's own `permission_callback` still applies (see [`docs/agents-security.md`](../../docs/agents-security.md)); a picked client command comes back as a `tool_call` for the browser to run |
+| `/ai/status` | GET | `includes/ai-copilot/settings.php` | `read`. Answers only the caller's own assistant config (availability, provider configured, their own toggle, the Connectors URL); no site content |
+| `/mio/turn` | POST | `includes/ai-copilot/mio.php` | The caller's own MIO API preference (`403` when off), then the `/ai/search` gate, then a configured assistant provider (`503` without one). Stateless: stores nothing and runs no server-side tool; the window's tools call the existing write endpoints, which keep their own permissions |
 | `/games/{game}/scores` | GET / POST | `includes/games/rest.php` | logged-in + OpenStation enabled + `read` (filterable via `openstation_games_rest_permission`) |
 | `/games/{game}/playtime` | POST | `includes/games/rest.php` | same games gate |
 | `/games/playtime` | GET | `includes/games/rest.php` | same games gate |
@@ -62,8 +63,10 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/games/users/search` | GET | `includes/games/rest.php` | same games gate |
 | `/agents` | GET / POST | `includes/agents/rest.php` | GET `edit_posts`, POST `edit_users` (both filterable; whole module behind the `agents` extended option) |
 | `/agents/{id}` | GET / POST / DELETE | `includes/agents/rest.php` | GET `edit_posts`, POST/DELETE `edit_users` (filterable) |
-| `/agents/{id}/invoke` | POST | `includes/agents/rest.php` | `edit_posts` (filterable via `openstation_agents_user_can_invoke`), then the per-agent gate `openstation_agent_user_can_invoke_agent()` (honours the trigger's `capability`) + per-invoker and per-agent rate limits. The run itself is ceilinged at the caller's own capabilities — see [`docs/agents-security.md`](../../docs/agents-security.md) |
+| `/agents/{id}/invoke` | POST | `includes/agents/rest.php` | `edit_posts` (filterable via `openstation_agents_user_can_invoke`), then the per-agent gate `openstation_agent_user_can_invoke_agent()` (the caller must hold every `capability` declared on any of the agent's triggers; the client-supplied `source` does not select which apply) + per-invoker and per-agent rate limits. The run itself is ceilinged at the caller's own capabilities — see [`docs/agents-security.md`](../../docs/agents-security.md) |
 | `/agents/{id}/jobs/{jobId}` | GET | `includes/agents/jobs.php` | Authenticated invoker + exact job owner and agent match. Constant-cost status read, no worker dispatch. |
+| `/agents/conversations` | GET / POST | `includes/agents/conversations.php` | `edit_posts` (filterable via `openstation_agents_user_can_invoke`). GET lists only the caller's own conversations; POST creates one owned by the caller and answers `404` unless `agentId` is an agent |
+| `/agents/conversations/{id}` | GET / PUT / DELETE | `includes/agents/conversations.php` | same gate + the caller is the conversation's author; anyone else's, like a missing one, answers the same `404` |
 | `/agents/abilities` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
 | `/agents/draft` | POST | `includes/agents/rest.php` | `edit_users` (filterable). One AI generate call with a strict answer schema; creates nothing. `503` without the AI Client, `502` when the provider fails or answers unreadably |
 | `/agents/trigger-kinds` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |

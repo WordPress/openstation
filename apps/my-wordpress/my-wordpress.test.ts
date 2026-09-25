@@ -688,6 +688,57 @@ describe( 'view', () => {
 		}
 	} );
 
+	it( 'dragging a media tile carries what an editor window needs to insert the image', () => {
+		const start = vi.fn();
+		( window as { wp?: unknown } ).wp = { os: { dragManager: { start } } };
+		const root = document.createElement( 'div' );
+		document.body.appendChild( root );
+		try {
+			const media = section( { id: 'media', label: 'Media', kind: 'media', post_type: 'attachment' } );
+			const ctx = mockViewContext( {
+				state: state( { section: 'media' } ),
+				data: data( {
+					sections: [ media ],
+					list: page( [
+						item( {
+							id: 26,
+							title: 'Peach tree',
+							status: '',
+							thumb: 'https://example.test/peach-tree-300x225.jpg',
+							link: 'https://example.test/peach-tree.jpg',
+							mime: 'image/jpeg',
+							alt: 'A peach tree heavy with fruit',
+						} ),
+					] ),
+				} ),
+				root,
+			} );
+			( globalThis as { IntersectionObserver?: unknown } ).IntersectionObserver ??= class {
+				observe(): void {}
+				disconnect(): void {}
+			};
+			app.render( ctx );
+			const teardown = app.mounted( ctx ) as () => void;
+			root.querySelector( '[data-mywp-drag][data-item-id="26"]' )?.dispatchEvent(
+				new MouseEvent( 'pointerdown', { bubbles: true, button: 0 } ),
+			);
+			expect( start ).toHaveBeenCalledTimes( 1 );
+			expect( start.mock.calls[ 0 ][ 0 ].payload.data.bridgePayload ).toEqual( {
+				kind: 'attachment',
+				id: 26,
+				url: 'https://example.test/peach-tree.jpg',
+				title: 'Peach tree',
+				alt: 'A peach tree heavy with fruit',
+				mime: 'image/jpeg',
+				thumbnailUrl: 'https://example.test/peach-tree-300x225.jpg',
+			} );
+			teardown();
+		} finally {
+			root.remove();
+			delete ( window as { wp?: unknown } ).wp;
+		}
+	} );
+
 	it( 'the Edit… modal carries the original controls: notice, category picker, tag tokens', () => {
 		const root = document.createElement( 'div' );
 		document.body.appendChild( root );

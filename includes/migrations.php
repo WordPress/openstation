@@ -56,8 +56,12 @@ defined( 'ABSPATH' ) || exit;
  * - 6: the Trash stopped registering a desktop icon. Removes the
  *   placement the shell had auto-placed for it and closes the hole that
  *   leaves in the icon column.
+ * - 7: seeds a face for every agent that has none.
+ * - 8: retires automatic AI comment scoring.
+ * - 9: repairs the Comment Concierge's misspelled ability slug in every
+ *   agent's stored allowlist.
  */
-const OPENSTATION_MIGRATION_VERSION = 8;
+const OPENSTATION_MIGRATION_VERSION = 9;
 
 /**
  * Option storing the highest migration version that has run. autoload=no.
@@ -164,6 +168,71 @@ function openstation_run_pending_migrations( $from ) {
 
 	if ( $from < 8 ) {
 		openstation_migrate_remove_comments_ai();
+	}
+
+	if ( $from < 9 ) {
+		openstation_migrate_agent_ability_slugs();
+	}
+}
+
+/**
+ * Migration 9 — repair a misspelled ability slug in stored agent
+ * allowlists.
+ *
+ * The shipped Comment Concierge listed `desktop-mode/search-comments-on-post`,
+ * an ability that was never registered: the real one is
+ * `desktop-mode/search-comments-by-post`. The runner drops an unknown
+ * slug without a word, so every seeded Concierge ran without the one
+ * tool that reads a post's thread. Fixing the definition only reaches
+ * sites that seed from now on; this rewrites the slug in place on every
+ * agent that already stored it, whoever created the agent.
+ *
+ * Reads the meta directly rather than through the agents store, because
+ * that module only loads while the Agents feature is on and an agent
+ * row outlives the flag being turned off. The key is the frozen
+ * `_desktop_mode_agent_abilities`; nothing is renamed.
+ *
+ * @return void
+ */
+function openstation_migrate_agent_ability_slugs() {
+	$meta_key = '_desktop_mode_agent_abilities';
+	$renames  = array(
+		'desktop-mode/search-comments-on-post' => 'desktop-mode/search-comments-by-post',
+	);
+
+	$user_ids = get_users(
+		array(
+			'fields'       => 'ID',
+			'meta_key'     => $meta_key, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
+			'meta_compare' => 'EXISTS',
+		)
+	);
+
+	foreach ( $user_ids as $user_id ) {
+		$raw   = get_user_meta( (int) $user_id, $meta_key, true );
+		$slugs = is_string( $raw ) ? json_decode( $raw, true ) : $raw;
+		if ( ! is_array( $slugs ) ) {
+			continue;
+		}
+
+		$changed = false;
+		foreach ( $slugs as $i => $slug ) {
+			if ( is_string( $slug ) && isset( $renames[ $slug ] ) ) {
+				$slugs[ $i ] = $renames[ $slug ];
+				$changed     = true;
+			}
+		}
+		if ( ! $changed ) {
+			continue;
+		}
+
+		// Stored as a JSON string, the shape the agents store writes.
+		// Slashed because update_user_meta() unslashes its value.
+		update_user_meta(
+			(int) $user_id,
+			$meta_key,
+			wp_slash( (string) wp_json_encode( array_values( array_unique( $slugs ) ) ) )
+		);
 	}
 }
 

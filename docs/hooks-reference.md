@@ -2271,7 +2271,7 @@ The on/off state is not part of this filter — it is the per-user OS setting `m
 
 ## AI Copilot hooks — Stable
 
-The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses entities on save, and exposes a search REST endpoint. Every decision point is hookable so plugins can adjust model selection, customise prompts, limit which entities get analysed, or react to analysis completion.
+The AI assistant (Cmd+K palette) runs an agentic loop server-side and exposes a search REST endpoint. Nothing is analysed automatically: a comment is analysed only when someone asks for it, through the `desktop-mode/analyze-comment` ability. Every decision point is hookable so plugins can adjust model selection, customise prompts, or react to analysis completion.
 
 Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
 
@@ -2325,7 +2325,7 @@ apply_filters( 'openstation_ai_error_log_candidates', string[] $candidates );
 
 ### `openstation_ai_model_config` — Experimental
 
-Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, the Agents runner, and the Drafts widget's writing assistant.
+Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, the Agents runner, the agent wizard's "Draft it for me", the Drafts widget's writing assistant, and the MIO window assistant.
 
 ```php
 apply_filters( 'openstation_ai_model_config', array $config, array $context );
@@ -2333,7 +2333,7 @@ apply_filters( 'openstation_ai_model_config', array $config, array $context );
 // $context = { user_id, request_id, source, has_tools, has_schema }
 ```
 
-`model` takes a model id or an SDK `ModelInterface`; anything else is ignored. `custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `widgets/drafts-suggestions`, `mio/window`. The MIO source passes model configuration context only; it does not emit AI search transcript logging hooks.
+`model` takes a model id or an SDK `ModelInterface`; anything else is ignored. `custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `agents/draft`, `widgets/drafts-suggestions`, `mio/window`. The MIO source passes model configuration context only; it does not emit AI search transcript logging hooks.
 
 `custom_options` also feeds model discovery, not just the request body: the AI Client turns each key into a required option when it picks a model, so on a multi-provider connector an option only one model supports narrows the selection to it (or fails to match any).
 
@@ -5370,7 +5370,9 @@ Public URL of the same directory. Must resolve to the same bytes as
 Absolute path of the agent-face storage directory (no trailing slash).
 Default `uploads/desktop-mode-agent-faces`. Each agent's portrait is
 written here as an SVG named `<agentId>-<hash>.svg`, and served as its
-avatar wherever `get_avatar()` runs.
+avatar wherever `get_avatar()` runs. The file is removed when the agent
+is deleted, whether through `openstation_agent_delete()` or through
+Core's own user deletion (wp-admin → Users, `wp user delete`).
 
 Whatever this points at **must be web-servable**. The directory is
 hardened exec-off rather than deny-all for exactly that reason: a
@@ -5660,21 +5662,27 @@ no-op — there is no cap set to intersect with.
 
 ### `openstation_agent_user_can_invoke_agent` — Experimental *(filter)*
 
-Whether the current user may invoke a **specific** agent through a
-specific source. `openstation_agents_user_can_invoke` is the site-wide
-half ("may this user invoke agents at all"); this is the per-agent
-half.
+Whether the current user may invoke a **specific** agent.
+`openstation_agents_user_can_invoke` is the site-wide half ("may this
+user invoke agents at all"); this is the per-agent half.
 
-Default: honours the `capability` declared in the matching trigger's
-config. An agent with no trigger for that source, or one declaring no
-capability, falls back to the route-level check — requiring a
-configured trigger would lock out every agent created before triggers
-were set up.
+Default: the caller must hold **every** `capability` declared in the
+config of **any** of the agent's triggers, whichever source the request
+names. The source is a request parameter on the invoke route, so it
+describes how the request says it arrived rather than what it may
+reach; a capability configured on an agent is a property of the agent,
+not of one trigger kind. An agent whose triggers declare no capability
+(including one with no triggers) falls back to the route-level check —
+requiring a configured trigger would lock out every agent created
+before triggers were set up.
 
-- **Param** `bool $can`
+- **Param** `bool $can` — whether the caller holds every trigger capability.
 - **Param** `int $agent_user_id`
-- **Param** `string $source` — `chat`, `drag`, or `send-to`.
-- **Param** `array|null $trigger` — the matching trigger row, if any.
+- **Param** `string $source` — the source the request names: `chat`,
+  `drag`, or `send-to`. Client-supplied on the invoke route; context for
+  the filter, not proof of how the request arrived.
+- **Param** `array|null $trigger` — the trigger row whose kind matches
+  `$source`, if any. Context only: it is not what decided `$can`.
 
 ### `openstation_agent_default_rate_limit` — Experimental *(filter)*
 
@@ -5739,8 +5747,8 @@ the always-listed WP Explorer section appears at all.
 - `openstation_agent_get_agents( $args )` — list every agent.
 - `openstation_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.
 - `openstation_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, invoker cap ceiling, tool loop, turn cap 8, rate limits). `$context['source']` names the trigger; `$context['invoker']` is the user whose capabilities ceiling the run (defaults to `get_current_user_id()`; pass `0` deliberately for a system-context run); `$context['history']` replays prior conversation turns (`[ { role: 'user'|'agent', text }, … ]`, oldest first, capped at the 50 most recent × 4000 chars each). **Pass the history for any follow-up message**: without it the run is contextless, so "yes, do it" resolves against nothing and the agent may act on a different entity than the one just discussed.
-- `openstation_agent_user_can_invoke_agent( $agent_user_id, $source )` — the per-agent invocation gate. Call it before `openstation_agent_invoke()` from any new trigger intake.
-- `openstation_agent_trigger_for_source( $agent_user_id, $source )` — the agent's trigger row for an invocation source, or null.
+- `openstation_agent_user_can_invoke_agent( $agent_user_id, $source )` — the per-agent invocation gate: every capability declared on any of the agent's triggers, whatever `$source` says. Call it before `openstation_agent_invoke()` from any new trigger intake.
+- `openstation_agent_trigger_for_source( $agent_user_id, $source )` — the agent's trigger row for an invocation source, or null. Context only; the invocation gate does not select capabilities by source.
 - `openstation_agent_runner_get_log( $agent_user_id )` — recent invocations (capped at 50).
 - `openstation_agents_abilities_catalogue()` — the picker catalogue.
 

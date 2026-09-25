@@ -480,8 +480,9 @@ function openstation_agents_rest_invoke( WP_REST_Request $request ) {
 	$source = (string) $request['source'];
 
 	// Per-agent gate. The route's `permission_callback` cannot run this
-	// one: it has no access to the resolved agent, and the capability an
-	// agent requires is a property of that agent's trigger config.
+	// one: it has no access to the resolved agent, and the capabilities an
+	// agent requires are a property of that agent's trigger config. The
+	// gate applies all of them whatever `source` the request names.
 	if ( ! openstation_agent_user_can_invoke_agent( (int) $user->ID, $source ) ) {
 		return new WP_Error(
 			'openstation_agents_forbidden',

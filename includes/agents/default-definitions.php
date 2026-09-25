@@ -236,7 +236,7 @@ DM_AGENT_TLDR_INSTRUCTIONS
 			'abilities'    => array(
 				'desktop-mode/search-posts',
 				'desktop-mode/get-post',
-				'desktop-mode/search-comments-on-post',
+				'desktop-mode/search-comments-by-post',
 				'desktop-mode/search-comments',
 				'desktop-mode/analyze-comment',
 				'ai/suggest-reply',

@@ -45,6 +45,7 @@
  */
 
 import { addAction, HOOKS } from '../hooks';
+import { __ } from '../i18n';
 import {
 	DRAG_EVENTS,
 	type DragManagerApi,
@@ -61,6 +62,7 @@ import {
 	type DragBridgePayload,
 } from '../drag-bridge';
 import { findWindowRootAtPoint } from './window-at-point';
+import { getWindowContent } from '../window-links/engine';
 
 const TARGET_ID_PREFIX = 'desktop-mode-iframe-drop-';
 const IFRAME_SELECTOR = 'iframe.os-window__iframe';
@@ -320,6 +322,29 @@ function postIntoIframe(
 	}
 }
 
+/**
+ * The hint over an editor window. Without it the chip keeps the
+ * payload's desktop wording ("Drop here to create shortcut"), which
+ * is not what a drop into a post does. Read from the window's URL and
+ * content identity, not the iframe's DOM: the block editor document
+ * is isolated from the shell, so `contentDocument` is null.
+ */
+function editorAcceptLabel( iframe: HTMLIFrameElement, windowId: string ): string | undefined {
+	let url: URL;
+	try {
+		url = new URL( iframe.src );
+	} catch {
+		return undefined;
+	}
+	if ( ! /\/post(-new)?\.php$/.test( url.pathname ) ) {
+		return undefined;
+	}
+	const type = getWindowContent( windowId )?.type ?? url.searchParams.get( 'post_type' );
+	return type === 'page'
+		? __( 'Add to page', 'desktop-mode' )
+		: __( 'Add to post', 'desktop-mode' );
+}
+
 function registerDropTargetFor(
 	dragManager: DragManagerApi,
 	iframe: HTMLIFrameElement,
@@ -330,6 +355,7 @@ function registerDropTargetFor(
 		id: `${ TARGET_ID_PREFIX }${ windowId }`,
 		element: target,
 		accept: ( payload ) => !! extractBridgePayload( payload ),
+		acceptLabel: editorAcceptLabel( iframe, windowId ),
 		onEnter: ( session: DragSession ) => {
 			const bridge = extractBridgePayload( session.payload );
 			if ( ! bridge ) {
