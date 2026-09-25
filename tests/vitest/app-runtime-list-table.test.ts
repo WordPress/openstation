@@ -52,7 +52,7 @@ describe( 'createListTableSync', () => {
 		expect( columns ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	test( 'a query change clears the selection; a data change prunes it to the visible rows', () => {
+	test( 'a query change and data change preserve the selection', () => {
 		const table = fakeTable();
 		const sync = createListTableSync< Row >();
 		const onSelection = vi.fn();
@@ -61,19 +61,20 @@ describe( 'createListTableSync', () => {
 		sync.sync( { ...base, rows: page1, listKey: 'p1', fingerprint: fp( page1 ) } );
 		table.selection = [ '2', '3' ];
 
-		// Same query, a row left (deleted elsewhere): prune.
+		// Same query, row data changes: selection is preserved.
 		const fewer = rows( 1, 2 );
-		const pruned = sync.sync( { ...base, rows: fewer, listKey: 'p1', fingerprint: fp( fewer ) } );
-		expect( pruned.selectionChanged ).toBe( true );
-		expect( Array.from( table.selection ?? [] ) ).toEqual( [ '2' ] );
-		expect( onSelection ).toHaveBeenLastCalledWith( [ '2' ] );
+		const sameQuery = sync.sync( { ...base, rows: fewer, listKey: 'p1', fingerprint: fp( fewer ) } );
+		expect( sameQuery.selectionChanged ).toBe( false );
+		expect( Array.from( table.selection ?? [] ) ).toEqual( [ '2', '3' ] );
+		expect( onSelection ).toHaveBeenLastCalledWith( [ '2', '3' ] );
 
-		// New query: cleared through the table's own method.
+		// New query (e.g. search / page change): selection is preserved.
 		const page2 = rows( 7, 8 );
 		const next = sync.sync( { ...base, rows: page2, listKey: 'p2', fingerprint: fp( page2 ) } );
-		expect( next.selectionChanged ).toBe( true );
-		expect( table.cleared ).toBe( 1 );
-		expect( onSelection ).toHaveBeenLastCalledWith( [] );
+		expect( next.selectionChanged ).toBe( false );
+		expect( table.cleared ).toBe( 0 );
+		expect( Array.from( table.selection ?? [] ) ).toEqual( [ '2', '3' ] );
+		expect( onSelection ).toHaveBeenLastCalledWith( [ '2', '3' ] );
 	} );
 
 	test( 'a phone gets the card list and the phone columns; the desk gets them back', () => {
