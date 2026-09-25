@@ -68,6 +68,18 @@ defined( 'ABSPATH' ) || exit;
 const OPENSTATION_AGENT_RUNNER_MAX_TURNS = 8;
 
 /**
+ * Consecutive turns in which every tool call failed with the same
+ * errors before the loop gives up on tools and asks for a final answer.
+ *
+ * A model reads a tool error and usually fixes its next call. One that
+ * sends the same failing call a third time is not going to fix it on
+ * the eighth: the Localizer once spent seven turns re-sending a
+ * `create_post` call the ability rejected identically every time. Three
+ * is one honest correction attempt plus proof it did not help.
+ */
+const OPENSTATION_AGENT_RUNNER_STUCK_TURNS = 3;
+
+/**
  * Seconds to allow one provider generation request, replacing the
  * WordPress HTTP default of 5.
  *
@@ -505,8 +517,13 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 	);
 	$tool_trace = array();
 
+	$turns_used        = 0;
+	$last_failure      = '';
+	$repeated_failures = 0;
+
 	for ( $turn = 1; $turn <= OPENSTATION_AGENT_RUNNER_MAX_TURNS; $turn++ ) {
-		$generated = openstation_agent_runner_generate( $agent_user_id, $history, $tool_defs, $instructions );
+		$turns_used = $turn;
+		$generated  = openstation_agent_runner_generate( $agent_user_id, $history, $tool_defs, $instructions );
 		if ( is_wp_error( $generated ) && openstation_agent_generate_error_is_transient( $generated ) ) {
 			// One bounded retry for provider-side hiccups (a failed
 			// models-list fetch, a gateway timeout, a borderline
@@ -610,13 +627,25 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 			'type'    => 'tool_results',
 			'results' => $results,
 		);
+
+		$failure = openstation_agent_runner_failure_signature( $results );
+		if ( '' !== $failure && $failure === $last_failure ) {
+			++$repeated_failures;
+		} else {
+			$repeated_failures = '' === $failure ? 0 : 1;
+		}
+		$last_failure = $failure;
+		if ( $repeated_failures >= OPENSTATION_AGENT_RUNNER_STUCK_TURNS ) {
+			break;
+		}
 	}
 
-	// Cap reached with the model still asking for tools. Force one
-	// last TOOL-LESS generate over the transcript so far: with nothing
-	// to call, the model can only produce a final answer from what it
-	// already gathered. A best-effort summary beats discarding the
-	// whole run (observed on Anthropic: a model happily spends the cap
+	// Cap reached (or the model stuck re-sending the same failing
+	// call) with it still asking for tools. Force one last TOOL-LESS
+	// generate over the transcript so far: with nothing to call, the
+	// model can only produce a final answer from what it already
+	// gathered. A best-effort summary beats discarding the whole run
+	// (observed on Anthropic: a model happily spends the cap
 	// re-searching before it answers).
 	$generated = openstation_agent_runner_generate( $agent_user_id, $history, array(), $instructions );
 	if ( is_wp_error( $generated ) && openstation_agent_generate_error_is_transient( $generated ) ) {
@@ -630,18 +659,47 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 			'text'          => $answer['text'],
 			'callToActions' => $answer['callToActions'],
 			'toolCalls'     => $tool_trace,
-			'turns'         => OPENSTATION_AGENT_RUNNER_MAX_TURNS + 1,
+			'turns'         => $turns_used + 1,
 		);
 	}
 
 	return new WP_Error(
 		'openstation_agent_runner_max_turns',
 		sprintf(
-			/* translators: %d is the max-turn cap. */
+			/* translators: %d is the number of turns the run made. */
 			__( 'Agent stopped after %d turns without a final answer.', 'desktop-mode' ),
-			OPENSTATION_AGENT_RUNNER_MAX_TURNS
+			$turns_used
 		)
 	);
+}
+
+/**
+ * Fingerprint of a turn in which every tool call failed: the sorted
+ * tool names with their error messages. Empty when any call succeeded,
+ * so a turn that got something done never counts as stuck.
+ *
+ * Arguments are deliberately left out. The failure that motivated this
+ * had the model vary a title between attempts while the ability
+ * rejected each one for the same missing field, and that IS the same
+ * failure.
+ *
+ * @param array $results Tool results of one turn (`{ name, response }` rows).
+ * @return string
+ */
+function openstation_agent_runner_failure_signature( array $results ) {
+	if ( empty( $results ) ) {
+		return '';
+	}
+	$failures = array();
+	foreach ( $results as $row ) {
+		$response = isset( $row['response'] ) ? $row['response'] : null;
+		if ( ! is_array( $response ) || ! isset( $response['error'] ) ) {
+			return '';
+		}
+		$failures[] = ( isset( $row['name'] ) ? (string) $row['name'] : '' ) . "\0" . (string) $response['error'];
+	}
+	sort( $failures );
+	return implode( "\n", $failures );
 }
 
 /**
@@ -894,6 +952,17 @@ function openstation_agent_humanize_generate_error( WP_Error $error ) {
 			array(
 				'status' => 502,
 				'detail' => $error->get_error_message(),
+			)
+		);
+	}
+	if ( 'openstation_ai_output_truncated' === $error->get_error_code() ) {
+		$data = $error->get_error_data();
+		return new WP_Error(
+			'openstation_agent_output_truncated',
+			__( 'The reply ran past the output-token limit before it finished, so it was discarded rather than acted on incomplete. Ask for something shorter, or raise max_tokens with the openstation_ai_model_config filter.', 'desktop-mode' ),
+			array(
+				'status' => 502,
+				'detail' => is_array( $data ) && isset( $data['detail'] ) ? (string) $data['detail'] : '',
 			)
 		);
 	}
