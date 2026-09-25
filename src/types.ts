@@ -922,6 +922,15 @@ export interface NativeWindowCompanionScript {
  * the entries by `hydrateServerEntries()` before the sync consumes
  * them. Field names mirror `openstation_resolve_script_payload()`.
  */
+/**
+ * The one handle-keyed script map (GH#898): every entry list's
+ * `scriptDeps` and every native window's bundles resolve through it.
+ * A value is a {@link LazyScriptDependency}; a handle the server
+ * resolved as a window's own bundle also names its dependency closure
+ * in `deps`, the same field {@link NativeWindowScriptData} carries.
+ */
+export type ScriptPayloads = Record< string, LazyScriptDependency & { deps?: string[] } >;
+
 export type NativeWindowScriptData = Record<
 	string,
 	{
@@ -2075,7 +2084,7 @@ export interface DesktopConfig {
 	 * at boot and on every menu refresh, so readers of `scriptDeps`
 	 * see full payloads. See `src/script-dep-payloads.ts` (GH#892).
 	 */
-	scriptDepPayloads?: Record< string, LazyScriptDependency >;
+	scriptDepPayloads?: ScriptPayloads;
 	/**
 	 * Server-declared widgets (from `openstation_register_widget()`).
 	 * Same lifecycle story as native windows — shell syncs the

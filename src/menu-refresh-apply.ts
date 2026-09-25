@@ -32,12 +32,11 @@ import type {
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
 	DesktopThemeServerEntry,
-	NativeWindowScriptData,
 	NativeWindowServerEntry,
 	NativeWindowWireEntry,
 	MultisiteConfig,
 } from './types';
-import { hydrateServerEntries } from './native-windows';
+import { hydrateServerEntries, windowScriptData } from './native-windows';
 import { applyServerWindowNotices } from './window-notices-server-sync';
 import { applyAdminBarUpdates } from './admin-bar-updates';
 
@@ -274,15 +273,19 @@ export function createApplyPayload(
 	return function applyPayload( payload: MenuRefreshPayload ): void {
 		// Entries carry dependency handles; put the payloads back first.
 		hydrateScriptDeps( payload );
-		// Keep the map beside the entries it decodes, the same reason
-		// `nativeWindowScriptData` is persisted below: after a plugin
-		// activates, `config.server*` holds its handles and anything that
-		// re-runs `hydrateScriptDeps( config )`, or reads the map, must
-		// find them. Merged, not replaced; the newer payload wins a handle.
-		if ( payload.scriptDepPayloads && typeof payload.scriptDepPayloads === 'object' ) {
+		// Keep the map beside the entries it decodes: after a plugin
+		// activates, `config.server*` and `config.nativeWindows` hold its
+		// handles, and anything that re-runs `hydrateScriptDeps( config )`
+		// or reads the map (`wp.os.debug.window()` resolves a window's URL
+		// through it) must find them. Merged, not replaced; the newer
+		// payload wins a handle. `windowScriptData()` also accepts an
+		// older server's `nativeWindowScriptData`, so config only ever
+		// holds the one map (GH#898).
+		const incomingMap = windowScriptData( payload );
+		if ( incomingMap ) {
 			config.scriptDepPayloads = {
 				...config.scriptDepPayloads,
-				...( payload.scriptDepPayloads as DesktopConfig[ 'scriptDepPayloads' ] ),
+				...( incomingMap as DesktopConfig[ 'scriptDepPayloads' ] ),
 			};
 		}
 		const dockItems = payload.dockItems;
@@ -342,24 +345,11 @@ export function createApplyPayload(
 			void syncNativeWindows(
 				hydrateServerEntries(
 					nativeWindows as NativeWindowWireEntry[],
-					payload.nativeWindowScriptData as
-						| NativeWindowScriptData
-						| undefined,
+					incomingMap,
 				),
 			);
 			config.nativeWindows =
 				nativeWindows as DesktopConfig[ 'nativeWindows' ];
-			// Persist the map beside the entries it decodes —
-			// `wp.os.debug.window()` resolves URLs through
-			// `config.nativeWindowScriptData` directly, so leaving the
-			// boot-time copy in place would report an empty URL for
-			// any window whose plugin activated (or whose bundle
-			// changed) after boot. An old-format payload carries no
-			// map; keep the previous one rather than wiping it.
-			if ( payload.nativeWindowScriptData ) {
-				config.nativeWindowScriptData =
-					payload.nativeWindowScriptData as DesktopConfig[ 'nativeWindowScriptData' ];
-			}
 			emitRegistryChanged(
 				'native-windows',
 				prevNativeWindows as ReadonlyArray< { id?: unknown } > | undefined,

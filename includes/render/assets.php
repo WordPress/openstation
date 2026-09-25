@@ -243,9 +243,6 @@ function openstation_enqueue_assets() {
 		}
 	}
 	unset( $native_window_row );
-	$native_window_script_data         = isset( $menu_payload['nativeWindowScriptData'] )
-		? $menu_payload['nativeWindowScriptData']
-		: array();
 	$server_widgets                    = isset( $menu_payload['serverWidgets'] )
 		? $menu_payload['serverWidgets']
 		: array();
@@ -542,7 +539,6 @@ function openstation_enqueue_assets() {
 			// Handle-keyed script data the entries above reference —
 			// one copy per bundle, not one per window. See
 			// `openstation_collect_native_windows_payload()`.
-			'nativeWindowScriptData'        => $native_window_script_data,
 			'serverWidgets'                 => $server_widgets,
 			'serverWallpapers'              => $server_wallpapers,
 			'serverCommandScripts'          => $server_command_scripts,

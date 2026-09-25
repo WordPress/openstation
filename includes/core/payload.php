@@ -1644,10 +1644,11 @@ function openstation_build_menu_payload() {
 	// the handle-keyed script data the shell joins them with.
 	$native_windows = openstation_collect_native_windows_payload();
 
+	// The windows' script data is not a payload key of its own: it
+	// seeds the one handle-keyed map below (GH#898).
 	$payload = array(
-		'dockItems'              => $dock,
-		'nativeWindows'          => $native_windows['windows'],
-		'nativeWindowScriptData' => $native_windows['scriptData'],
+		'dockItems'     => $dock,
+		'nativeWindows' => $native_windows['windows'],
 	);
 
 	// Optional per-surface payload builders — each module ships a
@@ -1722,8 +1723,21 @@ function openstation_build_menu_payload() {
 	// openstation_menu_signature().
 	$payload['menuSig'] = openstation_menu_signature();
 
-	// Each script dependency's payload once, entries carry handles.
-	$script_dep_payloads          = array();
+	// Each script's payload once, keyed by handle; entries carry
+	// handles. ONE map for native windows and every other entry list
+	// (GH#898): a package that a window and a command both depend on
+	// used to ship once in each of two maps. The windows' data goes in
+	// first, so a handle that is a window's own bundle keeps its
+	// synthesized `openStationWindowConfig` assignments and `deps`
+	// closure even when another entry names it as a dependency: the
+	// docblock on openstation_collect_native_windows_payload() explains
+	// why whichever entry loads a bundle must deliver its whole config.
+	// Every value carries its `handle`, on both sides of the join.
+	$script_dep_payloads = array();
+	foreach ( $native_windows['scriptData'] as $handle => $data ) {
+		$data['handle']                 = (string) $handle;
+		$script_dep_payloads[ $handle ] = $data;
+	}
 	$payload                      = openstation_compact_script_deps( $payload, $script_dep_payloads );
 	$payload['scriptDepPayloads'] = (object) $script_dep_payloads;
 
