@@ -325,35 +325,17 @@ html[data-os-mode="mobile"] .os-cb__list {
 	--os-ui-code-block-max-block-size: 220px;
 }
 
-.os-cb-issue__facts {
-	display: grid;
-	grid-template-columns: auto 1fr;
-	gap: 2px 14px;
-	margin: 0;
-	font-size: 12px;
-	align-items: baseline;
-}
-
 /*
- * The file path is a copy target too (it is what gets pasted into an
- * editor), but it sits in a definition list, not a snippet box — so
- * the badge chrome comes off and only the copy affordance stays.
+ * Tighter than the kit default, and the values are monospace: these
+ * facts are file paths and timestamps read against each other.
  */
-.os-cb-issue__facts os-code {
-	--os-ui-code-bg: transparent;
-	--os-ui-code-border: none;
-	--os-ui-code-padding: 0;
-	--os-ui-code-font-size: 1em;
+.os-cb-issue__facts {
+	--os-ui-facts-font-size: 12px;
+	--os-ui-facts-row-gap: 2px;
 }
 
-.os-cb-issue__facts dt {
-	color: var( --os-ui-fg-muted, #646970 );
-}
-
-.os-cb-issue__facts dd {
-	margin: 0;
+.os-cb-issue__facts os-fact::part( value ) {
 	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
-	overflow-wrap: anywhere;
 }
 
 /*

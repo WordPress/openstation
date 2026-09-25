@@ -237,11 +237,16 @@ export function describeRestFailure(
 export function toastRestFailure(
 	toast: ( ( toastOptions: ToastOptions ) => unknown ) | undefined,
 	err: unknown,
-	options: DescribeRestFailureOptions,
+	options: DescribeRestFailureOptions & { duration?: number },
 ): void {
 	if ( ! toast ) {
 		return;
 	}
-	const failure = describeRestFailure( err, options );
-	toast( { message: failure.message, type: failure.type } );
+	const { duration, ...describe } = options;
+	const failure = describeRestFailure( err, describe );
+	const toastOptions: ToastOptions = { message: failure.message, type: failure.type };
+	if ( duration ) {
+		toastOptions.duration = duration;
+	}
+	toast( toastOptions );
 }

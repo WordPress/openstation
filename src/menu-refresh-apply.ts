@@ -14,6 +14,7 @@
  * plugin authors who watch live-refresh behaviour.
  */
 import type { DockItem } from './dock';
+import { hydrateScriptDeps } from './script-dep-payloads';
 import type {
 	DesktopCommandScriptServerEntry,
 	DesktopCommandServerEntry,
@@ -60,6 +61,8 @@ export interface MenuRefreshPayload {
 	serverGames?: unknown;
 	serverDesktopThemes?: unknown;
 	desktopIcons?: unknown;
+	/** Handle => payload for every `scriptDeps` list; see `src/script-dep-payloads.ts`. */
+	scriptDepPayloads?: unknown;
 	updateCounts?: unknown;
 	/** The site switcher's rows on a network, null elsewhere; absent in an older payload. */
 	multisite?: unknown;
@@ -269,6 +272,19 @@ export function createApplyPayload(
 			.join( '\n' );
 
 	return function applyPayload( payload: MenuRefreshPayload ): void {
+		// Entries carry dependency handles; put the payloads back first.
+		hydrateScriptDeps( payload );
+		// Keep the map beside the entries it decodes, the same reason
+		// `nativeWindowScriptData` is persisted below: after a plugin
+		// activates, `config.server*` holds its handles and anything that
+		// re-runs `hydrateScriptDeps( config )`, or reads the map, must
+		// find them. Merged, not replaced; the newer payload wins a handle.
+		if ( payload.scriptDepPayloads && typeof payload.scriptDepPayloads === 'object' ) {
+			config.scriptDepPayloads = {
+				...config.scriptDepPayloads,
+				...( payload.scriptDepPayloads as DesktopConfig[ 'scriptDepPayloads' ] ),
+			};
+		}
 		const dockItems = payload.dockItems;
 		const nativeWindows = payload.nativeWindows;
 		const serverWidgets = payload.serverWidgets;

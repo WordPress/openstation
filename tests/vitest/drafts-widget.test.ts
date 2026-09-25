@@ -173,7 +173,7 @@ describe( 'drafts widget — REST query', () => {
 		expect( listRequestUrl() ).not.toContain( 'author=' );
 	} );
 
-	test( 'polls without pulsing the activity bus', async () => {
+	test( 'polls silently, tagged with its source', async () => {
 		installShell();
 		teardown = await getMount()( container, makeCtx() );
 

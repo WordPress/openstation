@@ -95,6 +95,38 @@ function openstation_app( $id ) {
 }
 
 /**
+ * The tabs of the window in charge of an admin menu, if any.
+ *
+ * A window that declares `App::menu( $slug, … )` answers for that
+ * menu whenever its gate says so — the per-user opt-in that decides
+ * between the native window and the classic screen. The dock builds
+ * that menu's submenu from this list, so the rows the user sees and
+ * the tabs the window shows are one list by construction.
+ *
+ * Returns an empty array when no window declares the menu, when the
+ * gate is off, or when this user may not use the window at all.
+ *
+ * @param string $menu_slug Admin menu slug, e.g. `users.php`.
+ * @return array<int,array<string,string>> Ordered `id` + `label` pairs.
+ */
+function openstation_app_menu_tabs( $menu_slug ) {
+	$menu_slug = (string) $menu_slug;
+	if ( '' === $menu_slug ) {
+		return array();
+	}
+	foreach ( openstation_apps_registry()->all() as $app ) {
+		if ( $app->menu_slug() !== $menu_slug ) {
+			continue;
+		}
+		if ( ! $app->menu_owns_dock() || ! $app->allows( openstation_apps_os() ) ) {
+			return array();
+		}
+		return $app->menu_tabs();
+	}
+	return array();
+}
+
+/**
  * The whole window as a value: manifest, state after `mount`, body
  * HTML and effects — what a host calls to render an app somewhere
  * other than the desktop (a REST consumer, a CLI, a test).
@@ -345,6 +377,35 @@ function openstation_apps_client_config( array $manifest, $bundle = '', $app = n
 }
 
 /**
+ * The wp-admin pages a window answers for while it is the one in
+ * charge of its menu, as `array( 'id' => <tab>, 'page' => <slug> )`.
+ *
+ * The shell routes those URLs to the window wherever they are
+ * clicked, not only from the dock: a link inside another window, the
+ * admin bar's "+ New", a workspace's launch list. Empty when no menu
+ * is declared or the opt-in is off, and re-sent on the menu refresh
+ * that flipping the opt-in spends.
+ *
+ * @param App $app The app.
+ * @return array<int,array<string,string>>
+ */
+function openstation_apps_menu_pages( App $app ) {
+	if ( ! $app->menu_owns_dock() ) {
+		return array();
+	}
+	$pages = array();
+	foreach ( $app->menu_tabs() as $tab ) {
+		if ( '' !== $tab['page'] ) {
+			$pages[] = array(
+				'id'   => $tab['id'],
+				'page' => $tab['page'],
+			);
+		}
+	}
+	return $pages;
+}
+
+/**
  * The static template the shell clones on open: a root the runtime
  * mounts into, showing a spinner until the first render lands. One
  * per view — the main body and each tab panel get their own.
@@ -432,6 +493,7 @@ function openstation_apps_register_windows() {
 			'placeable'  => $manifest['placeable'],
 			'autofocus'  => $manifest['autofocus'],
 			'admin'      => isset( $manifest['admin'] ) ? $manifest['admin'] : 'site',
+			'menu_pages' => openstation_apps_menu_pages( $app ),
 			'config'     => openstation_apps_client_config( $manifest, $bundle, $app ),
 		);
 

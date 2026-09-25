@@ -7,7 +7,10 @@
  * bundles compile their own copy of this module; `createSharedStore`
  * guarantees they share one live state object.
  *
- * Transcripts are session-only — nothing here persists.
+ * The store itself keeps nothing across a reload. Each completed
+ * exchange is saved on the server as a `desktop_mode_chat` conversation
+ * (`persistAgentTranscript()` in `agents-conversations.ts`), and
+ * `conversationIds` maps each live transcript to the row it saves to.
  *
  * @public
  */

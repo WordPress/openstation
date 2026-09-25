@@ -4,7 +4,7 @@ import type { ListData, ListState, PostListItem } from './types';
 import { ContentFeed } from './content-feed';
 const batch = ( page: number, ids: number[] ): ListData => ( { list: { page, items: ids.map( ( id ) => ( { id } as PostListItem ) ), total: 6, pages: 3, perPage: 2, error: '', code: '' } } );
 function setup() {
-	const ctx = mockViewContext< ListState, ListData >( { root: document.createElement( 'div' ), state: { page: 1, perPage: 2, search: '', status: '', orderby: 'date', order: 'desc', author: [], tag: [] }, data: batch( 1, [ 1, 2 ] ) } );
+	const ctx = mockViewContext< ListState, ListData >( { root: document.createElement( 'div' ), state: { tab: 'posts', page: 1, perPage: 2, search: '', status: '', orderby: 'date', order: 'desc', author: [], tag: [] }, data: batch( 1, [ 1, 2 ] ) } );
 	const feed = new ContentFeed(); feed.reconcile( ctx );
 	return { ctx, feed };
 }

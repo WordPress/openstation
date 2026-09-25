@@ -261,6 +261,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | `<os-save-status>` | `OsSaveStatus` | `os-save-status/os-save-status.ts` | Save indicator (idle / saving / saved / failed). `variant="ring"` is the window title bar's status ring: outline for every phase but success, which fills. |
 | `<os-relative-time>` | `OsRelativeTime` | `os-relative-time/os-relative-time.ts` | Auto-updating "2 min ago". |
 | `<os-histogram>` | `OsHistogram` | `os-histogram/os-histogram.ts` | Stacked time histogram (inline SVG) with a toggle legend; `series` + `columns` JSON in, `os-series-toggle` out. Colours ride the status tokens. |
+| `<os-facts>` / `<os-fact>` | `OsFacts`, `OsFact` | `os-facts/os-facts.ts` | Label/value list — a real `<dl>` whose rows are `<os-fact label="…">` children carrying the value in their default slot (an `<os-code>`, an `<os-relative-time>`, a link, a badge). `layout="between"` spreads each pair across its own line; `stacked` puts the label above the value. An `<os-code>` value loses its snippet chrome and keeps the copy affordance; a theme can restore it through `--os-ui-facts-code-{bg,border,padding,font-size}`. |
 | `<os-stat>` | `OsStat` | `os-stat/os-stat.ts` | One stat tile: big value, small uppercase label, optional caption; `swatch` adds a severity chip coloured by the app tone contract (`data-tone` on the host). |
 | `<os-empty-state>` | `OsEmptyState` | `os-empty-state/os-empty-state.ts` | Empty-list / no-results placeholder. |
 | `<os-rating-summary>` | `OsRatingSummary` | `os-rating-summary/os-rating-summary.ts` | Star average + per-star bucket bars. |
@@ -279,7 +280,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | --- | --- | --- | --- |
 | `<os-tabs>` / `<os-tab>` / `<os-tabpanel>` | `OsTabs`, `OsTab`, `OsTabPanel` | `os-tabs/os-tabs.ts` | Tab strip with associated panels, for a tab group **inside** content. A window's own top-level tabs belong in the window chrome instead — see `Window.setTabs()` in [`javascript-reference.md`](javascript-reference.md). |
 | `<os-tab-chip>` | `OsTabChip` | `os-tab-chip/os-tab-chip.ts` | Single chip tab (e.g. window tabs). |
-| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Numbered steps, stacked or as a horizontal trail. `current` marks where the reader is, `interactive` makes a step a jump target. |
+| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Numbered steps, stacked or as a horizontal trail. `current` marks where the reader is, `interactive` makes a step a jump target with a hover state. |
 | `<os-crumb-chain>` | `OsCrumbChain` | `os-crumb-chain/os-crumb-chain.ts` | Breadcrumb trail with chevron separators. |
 
 ## Color & theming

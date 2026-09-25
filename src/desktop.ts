@@ -160,6 +160,7 @@ import {
 } from './bug-report';
 import { ensureDeferredStyle } from './deferred-styles';
 import { showToast, type ToastOptions } from './toast';
+import { restErrorFromResponse } from './core/api-client';
 import { __, sprintf } from './i18n';
 import {
 	bootstrapPwa,
@@ -327,6 +328,7 @@ import {
 import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
 import { openUrlDialog } from './desktop-files/overlays-loader';
 import { installFileDropSentinel } from './os-file-drop/sentinel';
+import { hydrateScriptDeps } from './script-dep-payloads';
 import type {
 	DesktopConfig,
 	DesktopWallpaperServerEntry,
@@ -757,6 +759,19 @@ export interface OpenStationPublicApi {
 	 */
 	openNewWindow: ( id: string, opts?: { source?: string } ) => boolean;
 	/**
+	 * Mount a chromeless admin page inside an element of a native
+	 * window's body, and return the teardown — a tab whose page is one
+	 * of wp-admin's own, shown in place rather than as a second window.
+	 * Not an iframe window: title adoption, the preview and revisions
+	 * buttons and the close-time unsaved-changes query all key off
+	 * `Window.iframe`, and an embedded page has none of them.
+	 */
+	embedAdminPage: (
+		host: HTMLElement,
+		url: string,
+		opts?: { windowId?: string },
+	) => () => void;
+	/**
 	 * Load a registered native window's bundle without opening the
 	 * window.
 	 *
@@ -848,7 +863,16 @@ export interface OpenStationPublicApi {
 	fetch: (
 		input: RequestInfo | URL,
 		requestInit?: RequestInit,
-		opts?: { windowId?: string; window?: DesktopWindow; silent?: boolean },
+		opts?: {
+			windowId?: string;
+			window?: DesktopWindow;
+			silent?: boolean;
+			/**
+			 * Free-form attribution tag published on the activity bus
+			 * as `os/request-settled` (e.g. `'my-plugin/foo'`).
+			 */
+			source?: string;
+		},
 	) => Promise< Response >;
 	/**
 	 * Clone a `<template>` element's contents into a fresh
@@ -2194,6 +2218,9 @@ function init(): void {
 	if ( ! config ) {
 		return;
 	}
+	// Entries carry dependency handles; put the payloads back before
+	// any loader reads them (GH#892).
+	hydrateScriptDeps( config );
 
 	const desktopArea = document.getElementById( 'os-area' );
 	if ( ! desktopArea ) {
@@ -2923,6 +2950,7 @@ function init(): void {
 	bindNativeUrlRemap( {
 		getSnapshot: () => osSettings.getOsSettingsSnapshot(),
 		openById: ( id, opts ) => nativeWindows.openById( id, opts ),
+		openNewById: ( id, opts ) => nativeWindows.openNewById( id, opts ),
 		adminUrl: config.adminUrl,
 	} );
 
@@ -3996,7 +4024,7 @@ function init(): void {
 				{ source: 'desktop-mode/default-window' },
 			);
 			if ( ! response.ok ) {
-				throw new Error( `HTTP ${ response.status }` );
+				throw await restErrorFromResponse( response );
 			}
 			const data = ( await response.json() ) as {
 				enabled: boolean;

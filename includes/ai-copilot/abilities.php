@@ -257,7 +257,7 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/search-comments-by-post',
 		array(
 			'label'               => __( 'Search comments on a post', 'desktop-mode' ),
-			'description'         => 'Keyword-searches approved comments on a SPECIFIC post by its WordPress ID (the post must be readable by the requesting user; an unreadable or nonexistent post returns an empty result). Use this when you have already identified a post (via search-posts) and the user\'s query also mentions something a reader said on that post — e.g. "I remember a comment on my Málaga post asking about the Alcazaba at night." Call search-posts first to find the post ID, then call this tool with that ID and the distinctive words as `query`. Much more precise than search-comments when the parent post is known. If has_more is true, call again with the next offset.',
+			'description'         => 'Keyword-searches approved comments on a SPECIFIC post by its WordPress ID (the post must be readable by the requesting user; an unreadable or nonexistent post returns an empty result). Use this when the user describes both a post and something a reader said on it: identify the post with search-posts, then pass its ID and the distinctive words of the comment as `query`. More precise than search-comments whenever the parent post is known. If has_more is true, call again with the next offset.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -325,7 +325,7 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/search-wporg-plugins',
 		array(
 			'label'               => __( 'Search WordPress.org plugins', 'desktop-mode' ),
-			'description'         => 'Searches the official WordPress.org plugin directory. Use this when the user asks for a plugin recommendation — e.g. "is there a plugin for SEO?", "find me a backup plugin", "a caching plugin", "form builder". Returns up to 10 plugins with name, description, rating, active install count, and an admin URL that opens the plugin-info / install screen directly.',
+			'description'         => 'Searches the official WordPress.org plugin directory. Use this when the user asks for a plugin recommendation — e.g. "is there a plugin for SEO?", "find me a backup plugin", "a caching plugin", "form builder". Returns up to 10 plugins with name, description, rating (0-100) and stars (0-5), active install count, and an admin URL that opens the plugin-info / install screen directly.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -342,7 +342,7 @@ function openstation_ai_register_abilities() {
 				array(
 					'results' => array(
 						'type'        => 'array',
-						'description' => 'Matching plugins with name, description, rating, installs, and admin URL.',
+						'description' => 'Matching plugins with name, description, rating (0-100), stars (0-5), installs, and admin URL.',
 					),
 					'count'   => array( 'type' => 'integer' ),
 				)

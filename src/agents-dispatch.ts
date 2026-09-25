@@ -274,8 +274,22 @@ export async function invokeAgentIntoTranscript(
 	// replaying it the run is contextless: a follow-up like "yes, do
 	// it" would resolve against nothing and the agent could act on a
 	// completely different entity than the one just discussed.
+	// A run that produced no answer text is stored as an `error` row,
+	// never as something the agent said; replaying it as "You: …"
+	// would tell the model it once answered with a UI placeholder.
+	// An `agent` row whose text is exactly the placeholder is legacy
+	// data from the same situation, so it is skipped by text.
+	const noTextAnswer = __(
+		'The agent finished without a text answer.',
+		'desktop-mode',
+	);
 	const history = transcript
-		.filter( ( row ) => ! row.pending && row.role !== 'error' )
+		.filter(
+			( row ) =>
+				! row.pending &&
+				row.role !== 'error' &&
+				! ( row.role === 'agent' && row.text === noTextAnswer ),
+		)
 		.map( ( row ) => ( { role: row.role, text: row.text } ) );
 	// The attachment rides ALONGSIDE the composed sentence, never
 	// instead of it: the model keeps reading the same prose it always
@@ -306,9 +320,12 @@ export async function invokeAgentIntoTranscript(
 				agentsChatStore.notify();
 			},
 		);
-		pending.text =
-			result.text ||
-			__( 'The agent finished without a text answer.', 'desktop-mode' );
+		if ( result.text?.trim() ) {
+			pending.text = result.text;
+		} else {
+			pending.role = 'error';
+			pending.text = noTextAnswer;
+		}
 		pending.toolCalls = result.toolCalls;
 		if (
 			Array.isArray( result.callToActions ) &&

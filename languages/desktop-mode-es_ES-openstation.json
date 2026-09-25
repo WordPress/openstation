@@ -115,6 +115,9 @@
             "%s sub-pages": [
                 "Subpáginas de %s"
             ],
+            "%s — double-click to rename": [
+                ""
+            ],
             "%s — open windows": [
                 ""
             ],
@@ -202,8 +205,11 @@
             "Add a window": [
                 ""
             ],
-            "Add new desktop": [
-                "Añadir nuevo escritorio"
+            "Add new workspace": [
+                ""
+            ],
+            "Add one in Connectors.": [
+                ""
             ],
             "Add widget": [
                 "Añadir widget"
@@ -295,7 +301,7 @@
             "Big": [
                 ""
             ],
-            "Blank desktop": [
+            "Blank workspace": [
                 ""
             ],
             "Blank, or set up for a job — the wizard asks.": [
@@ -403,6 +409,9 @@
             "Chat with MIO": [
                 ""
             ],
+            "Check it in Connectors.": [
+                ""
+            ],
             "Choose an app…": [
                 ""
             ],
@@ -490,6 +499,9 @@
             "Commerce": [
                 ""
             ],
+            "Connectors": [
+                ""
+            ],
             "Contributor": [
                 ""
             ],
@@ -526,16 +538,25 @@
             "Could not convert the note to a post.": [
                 ""
             ],
+            "Could not deactivate %s": [
+                ""
+            ],
             "Could not deactivate %s.": [
                 ""
             ],
             "Could not decline the challenge.": [
                 ""
             ],
+            "Could not delete the conversation.": [
+                ""
+            ],
             "Could not get suggestions.": [
                 ""
             ],
             "Could not initialise the graph renderer.": [
+                ""
+            ],
+            "Could not load conversations.": [
                 ""
             ],
             "Could not load drafts.": [
@@ -556,13 +577,19 @@
             "Could not pin the note. Please try again.": [
                 ""
             ],
+            "Could not reach the site. Check your connection and try again.": [
+                ""
+            ],
+            "Could not restore the note.": [
+                ""
+            ],
+            "Could not save the note.": [
+                ""
+            ],
             "Could not send the challenge.": [
                 ""
             ],
             "Couldn't save your latest changes — the preview shows the last saved version.": [
-                ""
-            ],
-            "Create desktop": [
                 ""
             ],
             "Create from template": [
@@ -626,9 +653,6 @@
                 ""
             ],
             "Desktop": [
-                "Escritorio %d"
-            ],
-            "Desktop %d": [
                 "Escritorio %d"
             ],
             "Desktop Mode is now OpenStation": [
@@ -985,13 +1009,16 @@
             "It changed WordPress too much": [
                 ""
             ],
+            "It no longer exists. Reload the page to catch up.": [
+                ""
+            ],
             "It’s too buggy or unstable": [
                 ""
             ],
             "I’m missing features I need": [
                 ""
             ],
-            "Just a new, empty desk. Turn it into a workspace later if you like.": [
+            "Just a new, empty desk. You can customize it later if you want.": [
                 ""
             ],
             "Keep in %s": [
@@ -1159,12 +1186,6 @@
             "New %s": [
                 ""
             ],
-            "New desktop": [
-                ""
-            ],
-            "New desktop…": [
-                ""
-            ],
             "New draft": [
                 ""
             ],
@@ -1174,6 +1195,12 @@
             "New note": [
                 ""
             ],
+            "New workspace": [
+                ""
+            ],
+            "New workspace…": [
+                ""
+            ],
             "Newest first": [
                 ""
             ],
@@ -1181,6 +1208,9 @@
                 ""
             ],
             "Next paper color": [
+                ""
+            ],
+            "No AI provider is set up.": [
                 ""
             ],
             "No agent selected": [
@@ -1256,6 +1286,9 @@
                 ""
             ],
             "Note converted to a draft post": [
+                ""
+            ],
+            "Note converted to a draft post. Find it under Posts → Drafts.": [
                 ""
             ],
             "Note is now private.": [
@@ -1384,7 +1417,7 @@
             "OpenStation is not active on this site. Opens its admin in a new tab.": [
                 ""
             ],
-            "OpenStation’s own controls — Overview, System, Trash, Exit — always stay, so a desk can never be one you cannot leave.": [
+            "OpenStation’s own controls — Workspaces, System, Trash, Exit — always stay, so a desk can never be one you cannot leave.": [
                 ""
             ],
             "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
@@ -1852,6 +1885,15 @@
             "That drop could not be processed — please try again.": [
                 ""
             ],
+            "The AI provider could not be reached. Try again in a moment.": [
+                ""
+            ],
+            "The AI provider has no credits left or is rate limiting this site. Check its plan and billing, or try again later.": [
+                ""
+            ],
+            "The AI provider rejected this site’s API key.": [
+                ""
+            ],
             "The agent finished without a text answer.": [
                 ""
             ],
@@ -1870,7 +1912,7 @@
             "The job status could not be read.": [
                 ""
             ],
-            "The name goes on its overview tile. The glyph and colour are how you tell it apart from the others at a glance.": [
+            "The name goes on its tile in Workspaces. The glyph and colour are how you tell it apart from the others at a glance.": [
                 ""
             ],
             "The page arrives as a grid of tiles, each opening out from its own centre.": [
@@ -1891,10 +1933,22 @@
             "The preview opens once the post has been saved.": [
                 ""
             ],
+            "The server answered with error %d.": [
+                ""
+            ],
+            "The server refused the request (HTTP %d).": [
+                ""
+            ],
             "The server returned a different job.": [
                 ""
             ],
             "The server returned an invalid job state.": [
+                ""
+            ],
+            "The site sent an unreadable reply while converting the note. Check Posts → Drafts before trying again.": [
+                ""
+            ],
+            "The site sent an unreadable reply. Reload the page to check whether the change went through.": [
                 ""
             ],
             "The underlying entity is no longer available.": [
@@ -1906,7 +1960,10 @@
             "The user sent you the %1$s \"%2$s\" (id %3$s) from the \"Send to\" menu. Handle it according to your instructions, using your tools as needed.": [
                 ""
             ],
-            "The window could not update: %s": [
+            "The window could not update": [
+                ""
+            ],
+            "The window could not update.": [
                 ""
             ],
             "The windows this desk opens the first time you enter it, and how they are arranged.": [
@@ -2077,7 +2134,7 @@
             "What happened? What did you expect?": [
                 ""
             ],
-            "What is this desktop for?": [
+            "What is this workspace for?": [
                 ""
             ],
             "What we send: your answer, the plugin, WordPress and PHP versions, your site language, and a few anonymous site facts listed in the plugin readme. Nothing that identifies you or your site.": [
@@ -2152,6 +2209,9 @@
             "Workspace": [
                 ""
             ],
+            "Workspace %d": [
+                ""
+            ],
             "Write a note…": [
                 ""
             ],
@@ -2192,6 +2252,9 @@
                 ""
             ],
             "Your score could not be saved.": [
+                ""
+            ],
+            "Your session has expired. Reload the page and try again.": [
                 ""
             ],
             "applied": [

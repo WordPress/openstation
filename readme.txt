@@ -4,7 +4,7 @@ Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.10
+Stable tag: 1.1.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -178,6 +178,40 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.11 =
+* Overview: Replace the dock tile icon with the brand widgets glyph
+* Workspaces: Only offer a template when its plugin is active
+* Admin bar: Remove the OpenStation actions, keep only the way in
+* Workspaces: Rename Overview to Workspaces
+* Agents: Keep the chat on the latest message across status repaints
+* Workspaces: Land on the new blank desk before the wizard opens
+* Workspaces: Rename a desk by double-clicking its name
+* Chromeless: Fit the boot SPA screens edge to edge again
+* WP Explorer: Show revision titles as text, not an avatar tag
+* Fix: Let Jetpack route its own Stats and Blaze links
+* User Edit: Add a View activity footprint button to the profile sidebar
+* Fix: Jetpack Stats v2 not loading properly
+* Drafts widget: Say why suggestions failed instead of "Could not get suggestions."
+* Desktop: Make the desk readable on light wallpapers
+* Session: Restore window titles in the current admin language
+* Fix mixed-field forms for OpenStation Studio apps
+* Recycle Bin: Fix 404 error on requests
+* Prevent bottom dock scroll item clipping
+* Os-button: forward a host aria-label onto the inner button so an icon-only button has a name
+* Make corner close button visible on touch devices.
+* Workspaces: Let the wizard's step trail jump to any step
+* App runtime: open_url honours native-window URL remaps before opening an iframe
+* Os-table: a slot-shaped cell value renders a named slot the light DOM fills
+* Resolve toggle visibility and spacing on tablet screens.
+* Notes: Say why converting a note to a post failed and keep the draft reachable
+* Say why a request failed, everywhere: shared REST error, failure mapper, toast tone
+* Workspaces: Repaint the desk you land on after deleting a workspace
+* Menus: Open a window per pick, and make a window's tabs its menu
+* Agents: store an answerless run as an error row so it is never replayed as the agent's turn
+* Performance: Serialize each script dependency's payload once, not once per entry
+* Developers: Let plugins track the desktop's network requests
+* Kit: <os-facts> + <os-fact>, and the three apps that hand-rolled it
 
 = 1.1.10 =
 * Fix: drop a plugin zip into Core's upload box, not the Media Library dialog

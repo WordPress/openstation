@@ -1,6 +1,6 @@
 # Tune the AI model config
 
-Every AI turn OpenStation generates (Copilot search, the command follow-up, the comment scorer, the Agents runner, the Drafts writing assistant) passes its model config through [`openstation_ai_model_config`](../hooks-reference.md#openstation_ai_model_config--experimental) first. It defaults to empty: OpenStation pins neither provider nor model.
+Every AI turn OpenStation generates (Copilot search, the command follow-up, the comment scorer, the Agents runner, the Drafts writing assistant) passes its model config through [`openstation_ai_model_config`](../hooks-reference.md#openstation_ai_model_config--experimental) first. It defaults to empty apart from `max_tokens`: OpenStation pins neither provider nor model, and fills in only the output ceiling (`OPENSTATION_AI_DEFAULT_MAX_TOKENS`, 16384) when the filter leaves it unset, because the Anthropic provider otherwise falls back to 4096 and truncates any tool call carrying a whole post.
 
 ```php
 apply_filters( 'openstation_ai_model_config', array $config, array $context );
@@ -9,19 +9,18 @@ apply_filters( 'openstation_ai_model_config', array $config, array $context );
 | Key | Type | Notes |
 |---|---|---|
 | `model` | `string\|ModelInterface` | Model id, or an SDK model instance. Anything else is ignored. |
-| `max_tokens` | `int` | Output-token ceiling. Must be > 0. |
-| `temperature` | `float` | Sampling randomness. `0.0` is valid. |
+| `max_tokens` | `int` | Output-token ceiling. Must be > 0. Defaults to 16384 when unset; a reply that hits the ceiling fails the turn as `openstation_ai_output_truncated` instead of arriving cut short. |
+| `temperature` | `float` | Sampling randomness. `0.0` is valid. Anthropic's Claude Opus 4.7 and later and Claude Sonnet 5 reject any non-default value with a 400, so leave it unset for those models. |
 | `custom_options` | `array<string, mixed>` | Provider-native parameters, forwarded verbatim. Also feeds model discovery. |
 
-## Model, ceiling and temperature
+## Model and ceiling
 
 ```php
 add_filter(
 	'openstation_ai_model_config',
 	function ( $config, $context ) {
-		$config['model']       = 'claude-sonnet-5';
-		$config['max_tokens']  = 6144;
-		$config['temperature'] = 0.2;
+		$config['model']      = 'claude-sonnet-5';
+		$config['max_tokens'] = 16000;
 
 		return $config;
 	},
@@ -36,7 +35,7 @@ add_filter(
 add_filter(
 	'openstation_ai_model_config',
 	function ( $config, $context ) {
-		$config['max_tokens']     = 6144;
+		$config['max_tokens']     = 16000;
 		$config['custom_options'] = array(
 			'thinking'      => array( 'type' => 'adaptive' ),
 			'output_config' => array( 'effort' => 'low' ),
@@ -51,6 +50,8 @@ add_filter(
 
 That pair is the Anthropic Claude 5 shape; older Anthropic models reject it and want `thinking: { type: 'enabled', budget_tokens: N }` instead. Check your provider's reference before copying — this is why OpenStation ships no default.
 
+Thinking tokens count toward `max_tokens`. A ceiling sized for a reply without thinking can end the turn inside its reasoning, with no answer text, so leave headroom.
+
 ## Spend effort only where it pays
 
 `$context['source']` names the calling path, so a long agent run and the background comment scorer need not share a setting:
@@ -59,19 +60,17 @@ That pair is the Anthropic Claude 5 shape; older Anthropic models reject it and 
 add_filter(
 	'openstation_ai_model_config',
 	function ( $config, $context ) {
-		// Short, schema-constrained classification. Nothing to think about.
-		if ( 'ai-copilot/comment-analysis' === $context['source'] ) {
-			$config['temperature'] = 0.0;
-
-			return $config;
+		// Short, schema-constrained classification gets the least effort;
+		// a long agent run gets the most.
+		$effort = 'low';
+		if ( 'agents/runner' === $context['source'] ) {
+			$effort = 'medium';
 		}
 
-		$deep = 'agents/runner' === $context['source'];
-
-		$config['max_tokens']     = $deep ? 8192 : 6144;
+		$config['max_tokens']     = 16000;
 		$config['custom_options'] = array(
 			'thinking'      => array( 'type' => 'adaptive' ),
-			'output_config' => array( 'effort' => $deep ? 'medium' : 'low' ),
+			'output_config' => array( 'effort' => $effort ),
 		);
 
 		return $config;
@@ -81,4 +80,4 @@ add_filter(
 );
 ```
 
-`source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `widgets/drafts-suggestions`. The rest of `$context`: `user_id`, `request_id` (the `/ai/search` correlation UUID, `''` where the path mints none), `has_tools`, `has_schema`.
+`source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `agents/draft`, `widgets/drafts-suggestions`, `mio/window`. The rest of `$context`: `user_id`, `request_id` (the `/ai/search` correlation UUID, `''` where the path mints none), `has_tools`, `has_schema`.

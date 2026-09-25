@@ -1117,6 +1117,14 @@ export interface NativeWindowServerEntry {
 	 * a window's tab list without re-parsing the template.
 	 */
 	tabs?: NativeWindowTabEntry[];
+	/**
+	 * Admin pages this window answers for while it is the one in
+	 * charge of its menu (`App::menu()`), each with the tab it opens.
+	 * The shell claims those URLs for the window wherever they are
+	 * clicked. Empty when the window declares no menu, or when the
+	 * opt-in that chooses it over the classic screen is off.
+	 */
+	menuPages?: Array< { id: string; page: string } >;
 }
 
 /**
@@ -2060,6 +2068,14 @@ export interface DesktopConfig {
 	 * one resolved copy per bundle, however many windows share it.
 	 */
 	nativeWindowScriptData?: NativeWindowScriptData;
+	/**
+	 * Each script dependency's payload once, keyed by handle. On the
+	 * wire every `scriptDeps` list is a list of these handles; the
+	 * shell resolves them back to {@link LazyScriptDependency} objects
+	 * at boot and on every menu refresh, so readers of `scriptDeps`
+	 * see full payloads. See `src/script-dep-payloads.ts` (GH#892).
+	 */
+	scriptDepPayloads?: Record< string, LazyScriptDependency >;
 	/**
 	 * Server-declared widgets (from `openstation_register_widget()`).
 	 * Same lifecycle story as native windows — shell syncs the

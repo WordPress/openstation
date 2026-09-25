@@ -84,7 +84,9 @@ class Tests_OpenStation_PostsApp extends WP_UnitTestCase {
 		// remap routes it here.
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertSame( array( 'post' ), $manifest['watch'] );
-		$this->assertSame( array( 'filter', 'page', 'sort', 'trash' ), $manifest['actions'] );
+		// `reopen` is the framework's, declared for every window that
+		// declares a menu so the client dispatches it.
+		$this->assertSame( array( 'filter', 'page', 'sort', 'trash', 'reopen' ), $manifest['actions'] );
 		$this->assertSame( array(), $manifest['tabs'], 'The Categories / Tags tabs are in-body canvases, not framework tabs.' );
 		$state = $manifest['state'];
 		$this->assertSame( 1, $state['page'] );

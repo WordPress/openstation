@@ -656,11 +656,14 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->stub_generate(
 			static function () use ( &$calls ) {
 				++$calls;
+				// A different (unknown) tool every turn: a runaway that
+				// keeps trying new things, not one stuck on the same
+				// failure (that one has its own test below).
 				return array(
 					'text'           => null,
 					'function_calls' => array(
 						array(
-							'name'      => 'never_registered',
+							'name'      => 'never_registered_' . $calls,
 							'call_id'   => 'call-' . $calls,
 							'arguments' => '{}',
 						),
@@ -696,7 +699,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 						'text'           => null,
 						'function_calls' => array(
 							array(
-								'name'      => 'never_registered',
+								'name'      => 'never_registered_' . $calls,
 								'call_id'   => 'call-' . $calls,
 								'arguments' => '{}',
 							),
@@ -718,6 +721,97 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'Best effort from what I gathered.', $result['text'] );
 		$this->assertSame( OPENSTATION_AGENT_RUNNER_MAX_TURNS + 1, $result['turns'] );
 		$this->assertSame( array(), $forced_tools, 'The forced final turn must advertise no tools.' );
+	}
+
+	/**
+	 * A model re-sending the same failing call is not going to fix it
+	 * on the eighth turn. Three identical failing turns end the tool
+	 * loop and go straight to the forced tool-less answer, so the run
+	 * costs three provider round-trips instead of nine.
+	 *
+	 * @covers ::openstation_agent_runner_loop
+	 * @covers ::openstation_agent_runner_failure_signature
+	 */
+	public function test_repeated_identical_tool_failures_stop_the_loop_early() {
+		$agent = $this->create_agent();
+		$calls = 0;
+		$this->stub_generate(
+			static function () use ( &$calls ) {
+				++$calls;
+				if ( $calls <= OPENSTATION_AGENT_RUNNER_STUCK_TURNS ) {
+					// Same unknown tool, same error, every turn; only the
+					// arguments vary, as a model retrying a rejected call does.
+					return array(
+						'text'           => null,
+						'function_calls' => array(
+							array(
+								'name'      => 'never_registered',
+								'call_id'   => 'call-' . $calls,
+								'arguments' => wp_json_encode( array( 'attempt' => $calls ) ),
+							),
+						),
+						'message'        => null,
+					);
+				}
+				return array(
+					'text'           => 'I could not complete this: the tool kept rejecting the call.',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$result = openstation_agent_invoke( $agent->ID, 'loop' );
+		$this->assertNotWPError( $result );
+		$this->assertSame( OPENSTATION_AGENT_RUNNER_STUCK_TURNS + 1, $calls, 'Three stuck turns, then the forced answer.' );
+		$this->assertSame( OPENSTATION_AGENT_RUNNER_STUCK_TURNS + 1, $result['turns'] );
+		$this->assertCount( OPENSTATION_AGENT_RUNNER_STUCK_TURNS, $result['toolCalls'] );
+	}
+
+	/**
+	 * @covers ::openstation_agent_runner_failure_signature
+	 */
+	public function test_failure_signature_ignores_args_and_needs_every_call_to_fail() {
+		$failed = array(
+			'call_id'  => 'a',
+			'name'     => 'create_post',
+			'args'     => array( 'title' => 'One' ),
+			'response' => array( 'error' => 'content is a required property of input.' ),
+		);
+		$again  = array_merge( $failed, array( 'args' => array( 'title' => 'Two' ) ) );
+		$worked = array(
+			'call_id'  => 'b',
+			'name'     => 'get_post',
+			'args'     => array( 'post_id' => 1 ),
+			'response' => array( 'id' => 1 ),
+		);
+
+		$this->assertNotSame( '', openstation_agent_runner_failure_signature( array( $failed ) ) );
+		$this->assertSame(
+			openstation_agent_runner_failure_signature( array( $failed ) ),
+			openstation_agent_runner_failure_signature( array( $again ) ),
+			'Different arguments, same rejection: the same failure.'
+		);
+		$this->assertSame( '', openstation_agent_runner_failure_signature( array( $failed, $worked ) ), 'A turn that got something done is not stuck.' );
+		$this->assertSame( '', openstation_agent_runner_failure_signature( array() ) );
+	}
+
+	/**
+	 * The truncated-output error is permanent (a retry hits the same
+	 * ceiling) and reaches the user with the cause and the remedy.
+	 *
+	 * @covers ::openstation_agent_humanize_generate_error
+	 * @covers ::openstation_agent_generate_error_is_transient
+	 */
+	public function test_truncated_output_is_permanent_and_translated_for_the_user() {
+		$raw = openstation_ai_output_truncated_error( 'finish reason: length', array( 'completion' => 4096 ) );
+		$this->assertFalse( openstation_agent_generate_error_is_transient( $raw ) );
+
+		$human = openstation_agent_humanize_generate_error( $raw );
+		$this->assertSame( 'openstation_agent_output_truncated', $human->get_error_code() );
+		$this->assertNotSame( '', trim( $human->get_error_message() ) );
+		$this->assertSame( 502, $human->get_error_data()['status'] );
+		$this->assertSame( 'finish reason: length', $human->get_error_data()['detail'] );
 	}
 
 	/**

@@ -70,7 +70,7 @@ export class RestError extends Error {
 		opts: { status: number; code?: string; data?: unknown; serverMessage?: string },
 	) {
 		// An empty message means "the server's words, else the status".
-		super( message || opts.serverMessage || String( opts.status ) );
+		super( message || opts.serverMessage || `HTTP ${ opts.status }` );
 		this.name = 'RestError';
 		this.status = opts.status;
 		this.code = opts.code;
@@ -84,24 +84,45 @@ export function isRestError( err: unknown ): err is RestError {
 }
 
 /**
+ * The `WP_Error` fields a body carries, when it is one. Anything that
+ * is not a WP-shaped object yields no code, no data and an empty
+ * message, so a plain-text or HTML body degrades to "the status alone".
+ */
+function wpErrorFields( body: unknown ): { code?: string; data?: unknown; serverMessage: string } {
+	const wp =
+		typeof body === 'object' && body !== null
+			? ( body as { code?: unknown; message?: unknown; data?: unknown } )
+			: undefined;
+	return {
+		code: typeof wp?.code === 'string' ? wp.code : undefined,
+		data: wp?.data,
+		serverMessage: typeof wp?.message === 'string' ? wp.message : '',
+	};
+}
+
+/**
+ * A failed reply as a `RestError`, from a body the caller has already
+ * parsed (or `null` when it was not JSON). `message` is the console
+ * line; `''` means the server's words, else the status.
+ */
+export function restErrorFromBody( status: number, body: unknown, message = '' ): RestError {
+	return new RestError( message, { status, ...wpErrorFields( body ) } );
+}
+
+/**
  * A failed `Response` as a `RestError`, for callers that use
  * `trackedFetch` directly rather than a client. Reads the body once
  * for the WP-style fields; a non-JSON body leaves `serverMessage`
  * empty and the status as the message.
  */
-export async function restErrorFromResponse( response: Response ): Promise< RestError > {
-	let body: { code?: unknown; message?: unknown; data?: unknown } | null = null;
+export async function restErrorFromResponse( response: Response, message = '' ): Promise< RestError > {
+	let body: unknown = null;
 	try {
-		body = ( await response.json() ) as { code?: unknown; message?: unknown; data?: unknown };
+		body = await response.json();
 	} catch {
 		body = null;
 	}
-	return new RestError( '', {
-		status: response.status,
-		code: typeof body?.code === 'string' ? body.code : undefined,
-		data: body?.data,
-		serverMessage: typeof body?.message === 'string' ? body.message : '',
-	} );
+	return restErrorFromBody( response.status, body, message );
 }
 
 /**
@@ -112,6 +133,95 @@ export async function restErrorFromResponse( response: Response ): Promise< Rest
  */
 export function unreadableReplyError( status: number, message: string ): RestError {
 	return new RestError( message, { status, code: 'openstation_bad_response' } );
+}
+
+export interface FeatureClientOptions {
+	/** The console prefix for every failure line: `[openstation] files REST`. */
+	prefix: string;
+	/** Activity-bus source tag for the requests. */
+	source: string;
+	/** The URL to fetch for a path. */
+	url: ( path: string ) => string;
+	/** The nonce to send now (a live one, if the client refreshes it). */
+	nonce: () => string;
+	/**
+	 * A 409's own error, built from the parsed body, or `null` to treat
+	 * the 409 as any other refusal. Conflicts carry a payload the caller
+	 * acts on (the server's current row), not a message.
+	 */
+	conflict?: ( body: unknown ) => Error | null;
+}
+
+/** What `createFeatureClient()` returns: one typed call against a feature's routes. */
+export type FeatureCall = < T >( path: string, init?: RequestInit ) => Promise< T >;
+
+/**
+ * A feature's own REST client: nonce header, JSON body, text-then-JSON
+ * parse, a typed conflict on 409, a `RestError` with the feature's
+ * console prefix on any other failure, and `unreadableReplyError()`
+ * for a 2xx whose body is not JSON. The notes and desktop-files
+ * clients are this function with a prefix and a conflict shape each.
+ *
+ * A 2xx with an empty or unparseable body is something the consumers
+ * cannot usefully do anything with: every route these clients call
+ * returns a shaped object. Two sources in practice: OpenStation
+ * replacing itself live (routes briefly re-register, a redirect to
+ * wp-login HTML can sneak through), and a genuinely empty 200 body
+ * (usually a server misconfiguration). Returning `null` would crash
+ * the consumer with a cryptic property read far from the cause, so the
+ * console line carries the parse error and the first 120 characters
+ * of the body, usually enough to spot the PHP notice or login form
+ * that crept in.
+ */
+export function createFeatureClient( options: FeatureClientOptions ): FeatureCall {
+	const { prefix, source, conflict } = options;
+	return async < T >( path: string, init: RequestInit = {} ): Promise< T > => {
+		const headers = new Headers( init.headers ?? {} );
+		headers.set( 'X-WP-Nonce', options.nonce() );
+		if ( init.body && ! headers.has( 'Content-Type' ) ) {
+			headers.set( 'Content-Type', 'application/json' );
+		}
+		const res = await trackedFetch(
+			options.url( path ),
+			{ ...init, headers, credentials: 'same-origin' },
+			{ source },
+		);
+		const text = await res.text();
+		let body: unknown = null;
+		let parseError: Error | null = null;
+		if ( text ) {
+			try {
+				body = JSON.parse( text );
+			} catch ( e ) {
+				parseError = e as Error;
+			}
+		}
+		if ( ! res.ok ) {
+			if ( res.status === 409 && conflict ) {
+				const typed = conflict( body );
+				if ( typed ) {
+					throw typed;
+				}
+			}
+			const { code, serverMessage } = wpErrorFields( body );
+			throw restErrorFromBody(
+				res.status,
+				body,
+				`${ prefix } ${ res.status }: ${ code ?? '' } ${ serverMessage }`.trim(),
+			);
+		}
+		if ( null === body ) {
+			if ( parseError && text ) {
+				const head = text.slice( 0, 120 ).replace( /\s+/g, ' ' );
+				throw unreadableReplyError(
+					res.status,
+					`${ prefix } ${ res.status } returned non-JSON body — ${ parseError.message }. First 120 chars: ${ head }`,
+				);
+			}
+			throw unreadableReplyError( res.status, `${ prefix } ${ res.status }: empty or unparseable body.` );
+		}
+		return body as T;
+	};
 }
 
 export interface RestClient {
@@ -192,16 +302,7 @@ export function createRestClient( opts: RestClientOptions ): RestClient {
 			if ( reqOpts.recover ) {
 				return reqOpts.recover( parsed, response ) as T;
 			}
-			const wpErr =
-				typeof parsed === 'object' && parsed !== null
-					? ( parsed as { message?: unknown; code?: unknown; data?: unknown } )
-					: undefined;
-			throw new RestError( '', {
-				status: response.status,
-				code: typeof wpErr?.code === 'string' ? wpErr.code : undefined,
-				data: wpErr?.data,
-				serverMessage: typeof wpErr?.message === 'string' ? wpErr.message : '',
-			} );
+			throw restErrorFromBody( response.status, parsed );
 		}
 
 		return parsed as T;
