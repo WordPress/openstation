@@ -564,7 +564,10 @@ compensating controls are the explicit allowlist set by an
 **The runner** (`includes/agents/runner.php`) generates through the
 same Core AI Client adapter the Copilot uses
 (`openstation_ai_client_generate()` over `wp_ai_client_prompt()`),
-loops tool calls to a hard 8-turn cap, and runs the whole loop with
+loops tool calls to a hard 8-turn cap (stopping early after three
+consecutive turns in which every tool call failed identically, since a
+model that did not fix its call on the third try will not on the
+eighth), and runs the whole loop with
 `wp_set_current_user()` switched to the agent (restored in `finally`)
 so permission callbacks see the agent's role, not the human caller.
 Per-agent hourly rate limits ride a transient counter.
