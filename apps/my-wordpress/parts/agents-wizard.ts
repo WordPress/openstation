@@ -6,7 +6,9 @@
  * Describe (the starters and the AI draft), Meet (the face picker,
  * the name, the voice), Powers (role + abilities), Summon (the
  * trigger doors), Launch (the summary card and the create). Every
- * earlier step stays reachable by clicking its number in the trail.
+ * step is reachable by clicking it in the trail, in either direction;
+ * only Launch's create insists on a name, and bounces to Meet without
+ * one.
  * `renderAgents()` at the bottom is the section's view switch — the
  * one entry the app's `renderBody()` calls.
  *
@@ -65,9 +67,9 @@ function agentsWizard( ctx: Ctx, payload: AgentsPayload ): TemplateResult {
 						title=${ label }
 						?done=${ i < step }
 						?current=${ i === step }
-						?interactive=${ i < step }
+						?interactive=${ i !== step }
 						@os-step-click=${ () => {
-							if ( i < step ) {
+							if ( i !== step ) {
 								ctx.local( 'agent-step', { step: i } );
 							}
 						} }
@@ -105,12 +107,9 @@ function agentsCancelButton( ctx: Ctx, cast: CastDraft ): TemplateResult {
 
 /** Step 0 — the door, then the brief. */
 function agentsDescribeStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): TemplateResult {
-	// Their words are already a first draft of the instructions.
-	const seedFromBrief = (): void => {
-		if ( cast.instructions === '' && cast.brief.trim() !== '' ) {
-			cast.instructions = cast.brief.trim();
-		}
-	};
+	// The brief becomes the instructions on the way out: the
+	// `agent-step` local does it, so the trail's jumps carry the words
+	// along exactly as Continue does.
 	const draftWithAi = (): void => {
 		if ( cast.brief.trim() === '' ) {
 			ctx.local( 'agent-brief-error', {
@@ -199,10 +198,7 @@ function agentsDescribeStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft )
 			<os-button
 				variant=${ payload.aiReady ? 'ghost' : 'primary' }
 				?disabled=${ cast.drafting }
-				@click=${ () => {
-					seedFromBrief();
-					ctx.local( 'agent-step', { step: 1 } );
-				} }
+				@click=${ () => ctx.local( 'agent-step', { step: 1 } ) }
 			>
 				${ payload.aiReady ? __( 'I will fill it in myself' ) : __( 'Continue' ) }
 			</os-button>
@@ -473,7 +469,7 @@ function agentsLaunchStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 				${ cast.instructions === ''
 					? html`<p class="dm-agents__hint">
 							${ __(
-								'No instructions yet: the agent will improvise. You can add them any time in Define.',
+								'No instructions yet: the agent will improvise. Add them in Describe, or any time after in Define.',
 							) }
 					  </p>`
 					: html`<p class="dm-agents__summary-instr">${ cast.instructions }</p>` }
