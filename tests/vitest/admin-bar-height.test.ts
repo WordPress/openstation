@@ -194,15 +194,6 @@ describe( 'every consumer reads the measured edge with Core’s token behind it'
 		}
 	} );
 
-	test( 'the notch steps down to the measured edge in the dynamic mode', () => {
-		const notch = css( 'notch.css' );
-		expect( notch ).not.toMatch(
-			/(top|height):\s*var\(\s*--wp-admin--admin-bar--height/,
-		);
-		// The step-down `top` and the hover bridge's `height`.
-		expect( ( notch.match( new RegExp( CHAIN.source, 'g' ) ) ?? [] ).length ).toBe( 2 );
-	} );
-
 	test( 'no top-level admin-bar item may be taller than the bar', () => {
 		// A host that lays a group out as a flex row (WordPress.com's
 		// Debug Bar) stretches every item to the tallest one and paints

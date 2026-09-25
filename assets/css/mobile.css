@@ -35,7 +35,6 @@ html[data-os-mode="mobile"] .os-files-layer,
 html[data-os-mode="mobile"] .os-notes,
 html[data-os-mode="mobile"] .os-mio,
 html[data-os-mode="mobile"] #os-mio,
-html[data-os-mode="mobile"] .os-notch,
 html[data-os-mode="mobile"] .os-window__titlebar,
 html[data-os-mode="mobile"] .os-window__resize-handle {
 	display: none !important;

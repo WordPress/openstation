@@ -12,8 +12,8 @@
  *                 window on click.
  *   - chat:       a plain conversational message; just rendered as text.
  *
- * The overlay stays open until the user explicitly closes it with the ×
- * button, the Escape key, or Cmd+K again.
+ * The overlay stays open until the user closes it with the Escape key,
+ * a click outside the panel, or Cmd+K again.
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
@@ -21,7 +21,6 @@ import { __, _x, sprintf } from '../i18n';
 import { osConfirm } from '../os-confirm';
 import { trackedFetch } from '../tracked-fetch';
 import { decodeHTML } from '../utils';
-import { OS_SITE_LOGO_SVG } from '../ui/site-logo-icon';
 import { osIconSvg } from '../ui/icons';
 import {
 	filterCommands,
@@ -45,8 +44,6 @@ import {
 // rather than WordPress's.
 const ICON_SPARKLE = osIconSvg( 'copilot', { size: 16 } );
 
-const ICON_CLOSE = osIconSvg( 'close', { size: 16 } );
-
 const ICON_ARROW = osIconSvg( 'chevron-right', { size: 16 } );
 
 // Magnifier shown in Commands mode where the sparkle would read as "AI".
@@ -67,14 +64,6 @@ const ICON_SPINNER = `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidde
 	<circle cx="10" cy="10" r="7" stroke-opacity="0.25"/>
 	<path d="M10 3 A7 7 0 0 1 17 10" stroke-opacity="1"/>
 </svg>`;
-
-// `siteLogo` from @wordpress/icons — the modal's title glyph, and the
-// mark on the assistant's dock tile. Shared from `ui/site-logo-icon`
-// so the two cannot drift; sized here, where it sits in a header row.
-const ICON_SITE_LOGO = OS_SITE_LOGO_SVG.replace(
-	'<svg ',
-	'<svg width="18" height="18" aria-hidden="true" focusable="false" ',
-);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -173,7 +162,6 @@ export class AiAssistant implements AiAssistantApi {
 	private _el: HTMLElement;
 	private _input: HTMLInputElement;
 	private _submitBtn: HTMLButtonElement;
-	private _closeBtn: HTMLButtonElement;
 	private _resultsEl: HTMLElement;
 	private _isOpen = false;
 	private _isSearching = false;
@@ -194,13 +182,16 @@ export class AiAssistant implements AiAssistantApi {
 	 */
 	private _searchAbort: AbortController | null = null;
 	private _adminUrl: string;
+	/** Live: does the site have WordPress's AI APIs at all? */
+	private _isAiSupported: () => boolean;
 	/** Live: is AI mode usable (APIs present + provider configured)? */
 	private _isAiAvailable: () => boolean;
 	/** Live: is the "Override…" toggle on (default to AI mode)? */
 	private _isOverrideEnabled: () => boolean;
 	/**
 	 * Current surface. `commands` = a command palette (always available);
-	 * `ai` = natural-language questions (only when AI is available).
+	 * `ai` = natural-language questions, or a setup prompt until AI is
+	 * available and turned on.
 	 */
 	private _mode: 'commands' | 'ai' = 'commands';
 	/** Per-mode input drafts so switching modes preserves each mode's text. */
@@ -238,6 +229,7 @@ export class AiAssistant implements AiAssistantApi {
 		this._aiSearchUrl = config.aiSearchUrl;
 		this._restNonce = config.restNonce;
 		this._adminUrl = config.adminUrl;
+		this._isAiSupported = config.isAiSupported ?? ( () => false );
 		this._isAiAvailable = config.isAiAvailable ?? ( () => false );
 		this._isOverrideEnabled = config.isOverrideEnabled ?? ( () => false );
 
@@ -246,7 +238,6 @@ export class AiAssistant implements AiAssistantApi {
 
 		this._input = this._el.querySelector( '.os-ai__input' )!;
 		this._submitBtn = this._el.querySelector( '.os-ai__submit' )!;
-		this._closeBtn = this._el.querySelector( '.os-ai__close' )!;
 		this._resultsEl = this._el.querySelector( '.os-ai__results' )!;
 
 		this._bindEvents();
@@ -415,13 +406,12 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	// ------------------------------------------------------------------
-	// Modes — Commands (always) + AI (when a provider is configured)
+	// Modes — Commands and Ask AI, both always offered
 	// ------------------------------------------------------------------
 
 	/**
-	 * Is AI mode available at all? Gated on the "Override…" toggle *and* a
-	 * configured provider. When off, the assistant is a plain command
-	 * palette — no AI, no mode switch.
+	 * Can Ask AI answer questions? Gated on the "AI assistant" toggle
+	 * *and* a configured provider. When not, Ask AI shows a setup prompt.
 	 */
 	private _aiModeAllowed(): boolean {
 		return this._isAiAvailable() && this._isOverrideEnabled();
@@ -432,9 +422,13 @@ export class AiAssistant implements AiAssistantApi {
 		return this._aiModeAllowed() ? 'ai' : 'commands';
 	}
 
+	/** Ask AI is showing, but AI isn't ready to answer yet. */
+	private _aiNeedsSetup(): boolean {
+		return this._mode === 'ai' && ! this._aiModeAllowed();
+	}
+
 	/** Switch mode, repaint the toggle + list, and refocus the input. */
-	private _setMode( mode: 'commands' | 'ai' ): void {
-		const next = mode === 'ai' && ! this._aiModeAllowed() ? 'commands' : mode;
+	private _setMode( next: 'commands' | 'ai' ): void {
 		if ( next !== this._mode ) {
 			// Each mode keeps its own draft: stash the current one, restore
 			// the target's (e.g. an AI question survives a detour into
@@ -466,18 +460,23 @@ export class AiAssistant implements AiAssistantApi {
 
 	/** Reflect the active mode on the switch + input placeholder + input icon. */
 	private _updateModeUI(): void {
-		const showSwitch = this._aiModeAllowed();
-		const sw = this._el.querySelector< HTMLElement >( '.os-ai__modes' );
-		if ( sw ) {
-			sw.hidden = ! showSwitch;
-			sw.querySelectorAll< HTMLButtonElement >( '[data-mode]' ).forEach( ( b ) => {
+		this._el
+			.querySelectorAll< HTMLButtonElement >( '.os-ai__modes [data-mode]' )
+			.forEach( ( b ) => {
 				const active = b.dataset.mode === this._mode;
 				b.classList.toggle( 'is-active', active );
 				b.setAttribute( 'aria-pressed', String( active ) );
 			} );
+		// Until AI is set up there is no one to ask, so the field takes no
+		// question and Enter acts on the setup prompt instead.
+		const needsSetup = this._aiNeedsSetup();
+		this._input.readOnly = needsSetup;
+		if ( needsSetup ) {
+			this._input.placeholder = __( 'The AI assistant isn’t set up yet' );
+		} else {
+			this._input.placeholder =
+				this._mode === 'ai' ? __( 'How can I help?' ) : __( 'Search commands…' );
 		}
-		this._input.placeholder =
-			this._mode === 'ai' ? __( 'How can I help?' ) : __( 'Search commands…' );
 		// The input glyph hints the mode: sparkle for AI, magnifier for
 		// Commands (where a sparkle would read as "AI").
 		const inputIcon = this._el.querySelector< HTMLElement >(
@@ -494,6 +493,9 @@ export class AiAssistant implements AiAssistantApi {
 	 * and for empty input with contextual commands in AI mode.
 	 */
 	private _isPickMode( parsed: ReturnType< typeof parseCommandInput > ): boolean {
+		if ( this._aiNeedsSetup() ) {
+			return false; // the setup prompt owns Enter
+		}
 		if ( parsed.isCommand && parsed.hasArgsPart ) {
 			return false; // args mode
 		}
@@ -539,6 +541,10 @@ export class AiAssistant implements AiAssistantApi {
 		const parsed = parseCommandInput( this._input.value );
 		if ( parsed.isCommand || this._mode === 'commands' ) {
 			this._renderCommandMode();
+			return;
+		}
+		if ( this._aiNeedsSetup() ) {
+			this._renderAiSetup();
 			return;
 		}
 		// AI mode. Contextual commands (Gutenberg block actions, etc.) are a
@@ -610,8 +616,11 @@ export class AiAssistant implements AiAssistantApi {
 			if ( e.key !== 'Tab' ) {
 				return;
 			}
-			const focusable = [ this._closeBtn, this._input, this._submitBtn ]
-				.filter( ( el ) => ! el.disabled );
+			const focusable = [
+				this._input,
+				this._submitBtn,
+				...this._el.querySelectorAll< HTMLButtonElement >( '.os-ai__mode' ),
+			].filter( ( el ) => ! el.disabled );
 			const first = focusable[ 0 ];
 			const last = focusable[ focusable.length - 1 ];
 			const active = this._el.ownerDocument.activeElement;
@@ -630,9 +639,6 @@ export class AiAssistant implements AiAssistantApi {
 		// graph — the shell wires up the real close-others-first
 		// routing in desktop.ts via openPalette.
 		document.addEventListener( 'os-open-ai', () => this.open() );
-
-		// Close button.
-		this._closeBtn.addEventListener( 'click', () => this.close() );
 
 		// Mode switch (Commands ↔ AI) — replaces the `/` shortcut.
 		this._el
@@ -807,6 +813,12 @@ export class AiAssistant implements AiAssistantApi {
 	private async _onSubmit(): Promise<void> {
 		if ( this._isSearching ) {
 			this._warnBusy( 'submit' );
+			return;
+		}
+		if ( this._aiNeedsSetup() ) {
+			if ( this._isAiSupported() ) {
+				this._openAssistantSettings( 'features' );
+			}
 			return;
 		}
 		const parsed = parseCommandInput( this._input.value );
@@ -1164,7 +1176,7 @@ export class AiAssistant implements AiAssistantApi {
 				return {
 					slug: `post-${ item.id }`,
 					label: title,
-					description: this._entityTypeLabel( isPage ? 'page' : 'post' ),
+					description: isPage ? __( 'Edit page' ) : __( 'Edit post' ),
 					icon,
 					eager: false,
 					run: ( _args, ctx ) => {
@@ -1616,6 +1628,41 @@ export class AiAssistant implements AiAssistantApi {
 			} );
 	}
 
+	/**
+	 * Ask AI before AI is ready. Preferences → Features is where the
+	 * feature is turned on, and it points at Connectors when no provider
+	 * is configured yet, so one link covers both cases. A site without
+	 * the AI APIs has nothing to set up, so it only says so.
+	 */
+	private _renderAiSetup(): void {
+		this._resultsEl.hidden = false;
+		if ( ! this._isAiSupported() ) {
+			this._resultsEl.innerHTML = `
+				<div class="os-ai__state">
+					<span>${ this._esc( __( 'AI features aren’t available on this site. You can still use Commands.' ) ) }</span>
+				</div>
+			`;
+			return;
+		}
+		const link = `<button type="button" class="os-ai__settings-link">${ this._esc(
+			__( 'Set up the AI assistant' ),
+		) }</button>`;
+		this._resultsEl.innerHTML = `
+			<div class="os-ai__state">
+				<span>${ sprintf(
+					/* translators: %s: "Set up the AI assistant", a link to Preferences. */
+					this._esc( __( '%s to find content and ask questions about your site.' ) ),
+					link,
+				) }</span>
+			</div>
+		`;
+		this._resultsEl
+			.querySelector< HTMLButtonElement >( '.os-ai__settings-link' )
+			?.addEventListener( 'click', () =>
+				this._openAssistantSettings( 'features' ),
+			);
+	}
+
 	private _showThinking( message: string = __( 'Thinking…' ) ): void {
 		this._resultsEl.hidden = false;
 		this._resultsEl.innerHTML = `
@@ -1859,23 +1906,6 @@ export class AiAssistant implements AiAssistantApi {
 		el.innerHTML = `
 			<div class="os-ai__backdrop" aria-hidden="true"></div>
 			<div class="os-ai__panel">
-				<div class="os-ai__header">
-					<span class="os-ai__header-icon">${ ICON_SITE_LOGO }</span>
-					<span class="os-ai__header-label">${ this._esc( __( 'Site assistant' ) ) }</span>
-					<div class="os-ai__modes" role="group" aria-label="${ this._esc(
-						__( 'Assistant mode' ),
-					) }" hidden>
-						<button type="button" class="os-ai__mode" data-mode="ai" aria-pressed="false">${ this._esc(
-							__( 'Ask AI' ),
-						) }</button>
-						<button type="button" class="os-ai__mode" data-mode="commands" aria-pressed="false">${ this._esc(
-							__( 'Commands' ),
-						) }</button>
-					</div>
-					<button type="button" class="os-ai__close" aria-label="${ this._esc( __( 'Close' ) ) }">
-						${ ICON_CLOSE }
-					</button>
-				</div>
 				<div class="os-ai__input-wrap">
 					<span class="os-ai__input-icon">${ ICON_SPARKLE }</span>
 					<input
@@ -1889,6 +1919,16 @@ export class AiAssistant implements AiAssistantApi {
 					<button type="button" class="os-ai__submit" aria-label="${ this._esc( __( 'Send' ) ) }">
 						${ ICON_RETURN }
 					</button>
+					<div class="os-ai__modes" role="group" aria-label="${ this._esc(
+						__( 'Assistant mode' ),
+					) }">
+						<button type="button" class="os-ai__mode" data-mode="ai" aria-pressed="false">${ this._esc(
+							__( 'Ask AI' ),
+						) }</button>
+						<button type="button" class="os-ai__mode" data-mode="commands" aria-pressed="false">${ this._esc(
+							__( 'Commands' ),
+						) }</button>
+					</div>
 				</div>
 				<div class="os-ai__results" hidden></div>
 				<div class="os-ai__footer">

@@ -3,9 +3,9 @@
  * sit in.
  *
  * The tiles that answer for OpenStation itself rather than for the
- * site: Mio, Overview, System and Exit OpenStation, clustered at the
- * tail of the rail. Everything here is data; `desktop.ts` does the
- * registering.
+ * site: Site assistant, Mio, Overview, System and Exit OpenStation,
+ * clustered at the tail of the rail. Everything here is data;
+ * `desktop.ts` does the registering.
  *
  * The orders are the point of the module. Registration order cannot
  * express the intended rail: native-window tiles (Trash, and every
@@ -32,9 +32,15 @@
  * its SHAPE and redraws it here at this weight, as Overview does with
  * `widgets`. If the tiles move to the set they move together, and
  * `osIconDataUri()` exists for exactly that.
+ *
+ * The Site assistant tile is the exception: it wears the set's
+ * `copilot` paths as they are. The sparkle is filled, so there is no
+ * stroke weight to match, and it is the brand's mark for the
+ * assistant, so a redrawn copy could only drift from it.
  */
 
 /** Tile ids. Stable strings: they key visibility overrides in Preferences. */
+export const ASSISTANT_TILE_ID = 'os-site-assistant';
 export const OVERVIEW_TILE_ID = 'os-overview';
 export const SYSTEM_TILE_ID = 'os-system';
 
@@ -43,6 +49,7 @@ export const SYSTEM_TILE_ID = 'os-system';
  * slot between two of them without a renumbering.
  */
 export const SYSTEM_TILE_ORDER = {
+	assistant: 5,
 	mio: 10,
 	overview: 20,
 	system: 30,
@@ -90,4 +97,18 @@ export const OS_SYSTEM_SVG =
 
 export const OS_SYSTEM_ICON = `data:image/svg+xml;base64,${ btoa(
 	OS_SYSTEM_SVG,
+) }`;
+
+/**
+ * Site assistant: the brand's copilot sparkle, the same glyph the
+ * assistant's own input shows in Ask AI mode.
+ */
+export const OS_ASSISTANT_SVG =
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">' +
+	'<path d="M10 2.5Q10.9 8.5 17.5 10Q10.9 11.5 10 17.5Q9.1 11.5 2.5 10Q9.1 8.5 10 2.5Z"/>' +
+	'<path d="M17.9 14Q18.35 17.1 21.5 17.6Q18.35 18.1 17.9 21.2Q17.45 18.1 14.3 17.6Q17.45 17.1 17.9 14Z"/>' +
+	'</svg>';
+
+export const OS_ASSISTANT_ICON = `data:image/svg+xml;base64,${ btoa(
+	OS_ASSISTANT_SVG,
 ) }`;

@@ -237,7 +237,6 @@ import {
 	MIO_TILE_ID,
 	type MioApi,
 } from './mio/controller';
-import { mountNotch } from './notch';
 import { installAdminBarHeight } from './admin-bar-height';
 import { installDockBehavior } from './dock-behavior';
 import {
@@ -276,6 +275,8 @@ import { all as listWallpaperDefs } from './wallpapers/registry';
 import { getAccents } from './settings/constants';
 import type { WorkspacePreset } from './workspaces/types';
 import {
+	ASSISTANT_TILE_ID,
+	OS_ASSISTANT_ICON,
 	OS_OVERVIEW_ICON,
 	OS_SYSTEM_ICON,
 	OVERVIEW_TILE_ID,
@@ -2407,6 +2408,7 @@ function init(): void {
 			// configured; the Commands palette works regardless. Read live so
 			// connecting a provider or flipping the "AI assistant" toggle takes
 			// effect on the next open — no reload.
+			isAiSupported: () => config.aiAssistant?.available === true,
 			isAiAvailable: () =>
 				config.aiAssistant?.available === true &&
 				config.aiAssistant?.assistantProviderConfigured === true,
@@ -3318,15 +3320,6 @@ function init(): void {
 			},
 		} );
 
-		// The notch — the site assistant's front door, and the shell's
-		// place to speak from. Deliberately not a dock tile: the rail
-		// is a list of apps, and "what is going on with this site?" is
-		// not one of them. Mounted on the shell root rather than the
-		// desk area so it never enters the work-area calculation.
-		mountNotch( shellEl, () => {
-			document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
-		} );
-
 		// ---- Workspaces ------------------------------------------
 		// A desktop plus the answer to what it is FOR. The deps bag is
 		// built here because it is the first point where all four
@@ -3690,6 +3683,22 @@ function init(): void {
 				layoutDispatcher.appendSystemTile( networkTile );
 			}
 		}
+
+		// Site assistant tile — the pointer's way into the ⌘K overlay.
+		// It leads the trailing cluster. `os-open-ai` rather than
+		// `aiAssistant.open()` so another open palette is dismissed
+		// first, the same as the keyboard shortcut.
+		layoutDispatcher.appendSystemTile( {
+			id: ASSISTANT_TILE_ID,
+			title: __( 'Site assistant' ),
+			icon: OS_ASSISTANT_ICON,
+			navKind: 'control',
+			placeable: true,
+			order: SYSTEM_TILE_ORDER.assistant,
+			onOpen: () => {
+				document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
+			},
+		} );
 
 		// Mio tile — one of OpenStation's controls, so it rides the
 		// dock's trailing cluster rather than sitting among the apps.
