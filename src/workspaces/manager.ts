@@ -415,13 +415,16 @@ export function provisionWorkspace(
 	// intact desk would double everything on it.
 	const claimed = new Set< string >();
 	const onDesk = claimOpenWindows( deps, launches, desktopId, claimed );
+	// The window each entry landed on, by its place in the list.
+	const landed: string[] = [];
 	let opened = 0;
-	for ( const launch of launches ) {
+	for ( const [ index, launch ] of launches.entries() ) {
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
 			opened++;
 			const existing = onDesk.get( launch );
 			if ( existing ) {
+				landed[ index ] = existing.id;
 				placeLaunchedWindow( deps.manager, existing, launch );
 				continue;
 			}
@@ -434,6 +437,7 @@ export function provisionWorkspace(
 				.then( ( win ) => {
 					if ( win ) {
 						claimed.add( win.id );
+						landed[ index ] = win.id;
 						placeLaunchedWindow( deps.manager, win, launch );
 					}
 				} )
@@ -448,6 +452,7 @@ export function provisionWorkspace(
 			void whenWindowOpens( deps.manager, launch.item.windowId ).then(
 				( win ) => {
 					if ( win ) {
+						landed[ index ] = win.id;
 						placeLaunchedWindow( deps.manager, win, launch );
 					}
 				},
@@ -456,7 +461,7 @@ export function provisionWorkspace(
 	}
 
 	const settle = (): void => {
-		applyWorkspaceLayout( deps.manager, profile.layout );
+		arrangeDesk( deps.manager, profile.layout, landed );
 		doAction( HOOKS.WORKSPACE_PROVISIONED, {
 			desktopId,
 			opened,
@@ -464,6 +469,27 @@ export function provisionWorkspace(
 		} );
 	};
 	afterLayout( settle );
+}
+
+/**
+ * Apply a desk's layout, led by its first entry's window.
+ *
+ * `focus` leads with the focused window, and each window takes focus as
+ * it opens, so the LAST one opened would lead. The desk leads with its
+ * first entry instead: the Publishing template's blank draft, not the
+ * Posts list beside it. `landed` holds each entry's window id by its
+ * place in the list.
+ */
+function arrangeDesk(
+	mgr: WindowManager,
+	layout: WorkspaceLayoutId,
+	landed: readonly string[],
+): void {
+	const lead = landed.find( Boolean );
+	if ( 'focus' === layout && lead ) {
+		mgr.focus( lead );
+	}
+	applyWorkspaceLayout( mgr, layout );
 }
 
 /** Run `fn` once the browser has laid out the windows this tick created. */
@@ -514,8 +540,9 @@ export function reopenWorkspaceWindows(
 	const launches = resolveLaunches( deps.getNavItems(), profile.windows );
 	const claimed = new Set< string >();
 	const onDesk = claimOpenWindows( deps, launches, desktopId, claimed );
+	const landed: string[] = [];
 	const reopened: Promise< unknown >[] = [];
-	for ( const launch of launches ) {
+	for ( const [ index, launch ] of launches.entries() ) {
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
 			// Already on screen — session restore reopened it, or it
@@ -523,7 +550,9 @@ export function reopenWorkspaceWindows(
 			// other entry claim it: a desk whose list names two tabs of
 			// one window is two windows, and this pass fills whichever
 			// of them the restore did not bring back.
-			if ( onDesk.has( launch ) ) {
+			const existing = onDesk.get( launch );
+			if ( existing ) {
+				landed[ index ] = existing.id;
 				continue;
 			}
 			reopened.push(
@@ -531,6 +560,7 @@ export function reopenWorkspaceWindows(
 					.then( ( win ) => {
 						if ( win ) {
 							claimed.add( win.id );
+							landed[ index ] = win.id;
 							placeLaunchedWindow( deps.manager, win, launch );
 						}
 					} )
@@ -542,6 +572,7 @@ export function reopenWorkspaceWindows(
 		}
 		if ( launch.item.windowId ) {
 			if ( deps.manager.getById( launch.item.windowId ) ) {
+				landed[ index ] = launch.item.windowId;
 				continue;
 			}
 			deps.openNative( launch.item.windowId );
@@ -549,6 +580,7 @@ export function reopenWorkspaceWindows(
 				whenWindowOpens( deps.manager, launch.item.windowId ).then(
 					( win ) => {
 						if ( win ) {
+							landed[ index ] = win.id;
 							placeLaunchedWindow( deps.manager, win, launch );
 						}
 					},
@@ -563,7 +595,7 @@ export function reopenWorkspaceWindows(
 				// An arrangement moves the windows of the desk on screen,
 				// and the user may have left this one while they opened.
 				if ( deps.manager.getActiveDesktopId() === desktopId ) {
-					applyWorkspaceLayout( deps.manager, profile.layout );
+					arrangeDesk( deps.manager, profile.layout, landed );
 				}
 			} ),
 		);
