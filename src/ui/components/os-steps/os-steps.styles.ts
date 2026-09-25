@@ -124,8 +124,30 @@ export const stepStyles = css`
 		color: var( --os-ui-fg, #1d2327 );
 		font-weight: 600;
 	}
+	/*
+	 * A jump target says so before it is pressed. The title steps up
+	 * to full contrast, exactly as an <os-tabs> tab does on hover, and
+	 * an outlined chip (a trail that set --os-ui-step-chip-border)
+	 * takes the same ink; a filled chip has no border to recolour and
+	 * keeps its fill, so this is safe on the default blue too. Inside
+	 * the shell the pointer never shows: the cursor policy in
+	 * desktop.css sets the host back to the arrow, by design, which
+	 * is why the hover state is what says "this one can be clicked".
+	 */
 	:host( [ interactive ] ) {
 		cursor: pointer;
+	}
+	:host( [ interactive ] ) .os-step__title {
+		transition: color 120ms ease;
+	}
+	:host( [ interactive ] )::before {
+		transition: border-color 120ms ease;
+	}
+	:host( [ interactive ]:hover ) .os-step__title {
+		color: var( --os-ui-step-title-hover-color, var( --os-ui-fg, #1d2327 ) );
+	}
+	:host( [ interactive ]:hover )::before {
+		border-color: var( --os-ui-step-title-hover-color, var( --os-ui-fg, #1d2327 ) );
 	}
 	:host( [ interactive ]:focus-visible ) {
 		outline: var( --os-ui-focus-ring, 2px solid #2271b1 );
