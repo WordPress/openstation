@@ -3309,9 +3309,9 @@ Every JS hook below is also documented on `wp.hooks` so plugins can register wit
 
 | Hook | Type | Default | Args / Detail |
 |---|---|---|---|
-| `openstation.postsWindow.columns` | filter | built-in 5 columns | `OsTableColumn< PostListItem >[]` — append, replace, or remove cells. |
+| `openstation.postsWindow.columns` | filter | built-in 5 columns | `OsTableColumn< PostListItem >[]` — append, replace, or remove cells. Second arg: `{ mode: 'posts' \| 'pages' }`, the window the columns are for. |
 | `openstation.postsWindow.statusSegments` | filter | All / Published / Drafts / Pending / Scheduled / Trash | `StatusSegment[]` — `{ value, label }` pairs. `value` is sent verbatim as `?status=…`; use `''` for "All" (the bundle remaps to `?status=any`). |
-| `openstation.postsWindow.bulkActions` | filter | one entry: "Move to trash" | `BulkAction[]` — `{ id, label, icon?, variant?, confirm?, run( ids, ctx ) }`. `confirm` is `string \| ( count: number ) => string`; the function form is the one `_n()` can pluralize. Filter out by id to remove. |
+| `openstation.postsWindow.bulkActions` | filter | one entry: "Move to trash" | `BulkAction[]` — `{ id, label, icon?, variant?, confirm?, run( ids, ctx ) }`. `confirm` is `string \| ( count: number ) => string`; the function form is the one `_n()` can pluralize. Filter out by id to remove. Second arg: `{ mode: 'posts' \| 'pages' }` — return `actions` unchanged when the action does not belong in that window. |
 | `openstation.postsWindow.toolbarTrailing` | filter | `[]` | `HTMLElement[]` rendered before Refresh + Add New. Receives the live `PostsWindowContext` as the second arg. |
 | `openstation.postsWindow.opened` | action | — | `( ctx: PostsWindowContext )` — fired after the first paint with a populated table. |
 | `openstation.postsWindow.dataLoaded` | action | — | `( payload: { items, total, totalPages, page } )` — fired after every successful refresh. |

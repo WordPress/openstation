@@ -137,13 +137,13 @@ That's it. The column appears in every Posts window load and never makes a secon
 
 ## Add a bulk action
 
-The default bulk action is "Move to trash". Plugins extend the registry via the `openstation.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
+The default bulk action is "Move to trash". Plugins extend the registry via the `openstation.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The filter's second argument is `{ mode }`, `'posts'` or `'pages'`: the Posts and Pages windows share the filter, so an action that only makes sense for posts returns `actions` unchanged in pages mode. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
 
 ```js
 wp.hooks.addFilter(
     'openstation.postsWindow.bulkActions',
     'myplugin/bulk-duplicate',
-    ( actions ) => [
+    ( actions, ctx ) => ctx.mode === 'pages' ? actions : [
         ...actions,
         {
             id: 'duplicate',
@@ -326,7 +326,7 @@ PHP:
 - `openstation_posts_window_query_args( $args )` — the REST query the app's `data()` runs (`_fields`, `_embed`, `post_type`).
 
 JavaScript:
-- `openstation.postsWindow.columns` (filter) — column descriptors before `table.columns =` is set.
+- `openstation.postsWindow.columns` (filter) — column descriptors before `table.columns =` is set. Second arg: `{ mode: 'posts' | 'pages' }`.
 
 CustomEvents / broadcasts:
 - `os.post.changed` — broadcast on bulk trash; `{ source: 'posts-window', action: 'trashed', ids }`.

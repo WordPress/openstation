@@ -7,6 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
+import { createHooksStub } from '../../tests/vitest/helpers/hooks-stub';
 import app from './posts.os';
 import { createPostsApp } from './parts/app';
 import { buildTitleCell } from './parts/cells/basic';
@@ -592,7 +593,30 @@ describe( 'the registries', () => {
 		expect( trash ).toHaveBeenCalledWith( [ 1 ] );
 		expect( clearSelection ).toHaveBeenCalled();
 		expect( result ).toBe( false );
-		expect( resolveBulkActions( [ action ] ) ).toEqual( [ action ] );
+		expect( resolveBulkActions( [ action ], 'posts' ) ).toEqual( [ action ] );
+	} );
+
+	it( 'hands the bulk-actions and columns filters the window mode, and a one-arg callback still works (#854)', () => {
+		// The real bus shape: `applyFilters( name, value, ...args )`, every
+		// callback sees the extra args — what `wp.hooks` does.
+		const hooks = createHooksStub();
+		window.wp!.hooks = hooks;
+		const seen: unknown[] = [];
+		hooks.addFilter( 'openstation.postsWindow.bulkActions', 'test', ( actions, ctx ) => {
+			seen.push( ctx );
+			return ( ctx as { mode: string } ).mode === 'pages' ? [] : actions;
+		} );
+		hooks.addFilter( 'openstation.postsWindow.bulkActions', 'test', ( actions ) => actions );
+		hooks.addFilter( 'openstation.postsWindow.columns', 'test', ( cols, ctx ) => {
+			seen.push( ctx );
+			return cols;
+		} );
+		const [ action ] = defaultBulkActions( 'posts', vi.fn( async () => true ) );
+		expect( resolveBulkActions( [ action ], 'posts' ) ).toEqual( [ action ] );
+		expect( resolveBulkActions( [ action ], 'pages' ) ).toEqual( [] );
+		buildAllColumns( cellEnv(), new Map() );
+		buildAllColumns( cellEnv( { extra: { mode: 'pages' } } ), new Map() );
+		expect( seen ).toEqual( [ { mode: 'posts' }, { mode: 'pages' }, { mode: 'posts' }, { mode: 'pages' } ] );
 	} );
 
 	it( 'hides user-hidden columns but never the title, narrows to the phone set, and lists the togglable ones', () => {
