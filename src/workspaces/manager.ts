@@ -22,7 +22,7 @@ import {
 	resolveNativeUrlRemap,
 	tryNativeUrlRemap,
 } from '../native-url-remap';
-import { resolveLaunches } from './match';
+import { resolveLaunches, type ResolvedLaunch } from './match';
 import { findWorkspacePreset, workspaceProfileFromPreset } from './presets';
 import {
 	blankWorkspaceProfile,
@@ -273,32 +273,56 @@ function launchBaseId(
 }
 
 /**
- * The window a launch entry stands for, when one is open and no
- * earlier entry in this pass has claimed it.
+ * The window each launch entry already has on this desk.
  *
  * A desk's list declares N windows, so each entry gets its own: two
  * entries resolving to one window (the Publishing template's two) are
  * two windows, and a desk that has them keeps them instead of growing
  * a pair on every Restore.
+ *
+ * Closest match first: the window opened under the entry's own id,
+ * which holds across in-window navigation and session restore; then
+ * one opened on the entry's page, because a second desk's windows
+ * carry suffixed ids; then any window of the menu. Each kind of match
+ * runs over every entry before the next, so an entry falling back
+ * never takes a window a later entry matches more closely. The
+ * Publishing draft would otherwise take the Posts list, and Restore on
+ * a desk missing its draft would open a second list.
  */
-function claimOpenWindow(
+function claimOpenWindows(
 	deps: WorkspaceDeps,
-	url: string,
-	launch: { item: NavItem },
+	launches: readonly ResolvedLaunch[],
 	desktopId: string,
 	claimed: Set< string >,
-): Window | null {
-	const match = deps.manager
-		.getAllByBaseId( launchBaseId( deps, url, launch ) )
-		.find(
-			( win ) =>
-				! claimed.has( win.id ) &&
-				( ! win.config.desktopId || win.config.desktopId === desktopId ),
-		);
-	if ( match ) {
-		claimed.add( match.id );
+): Map< ResolvedLaunch, Window > {
+	const matchers: Array< ( win: Window, ownId: string ) => boolean > = [
+		( win, ownId ) => win.id === ownId,
+		( win, ownId ) => deps.deriveWindowId( win.config.url ?? '' ) === ownId,
+		() => true,
+	];
+	const found = new Map< ResolvedLaunch, Window >();
+	for ( const matches of matchers ) {
+		for ( const launch of launches ) {
+			if ( ! launch.url || found.has( launch ) ) {
+				continue;
+			}
+			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
+			const ownId = deps.deriveWindowId( url );
+			const win = deps.manager
+				.getAllByBaseId( launchBaseId( deps, url, launch ) )
+				.find(
+					( w ) =>
+						! claimed.has( w.id ) &&
+						( ! w.config.desktopId || w.config.desktopId === desktopId ) &&
+						matches( w, ownId ),
+				);
+			if ( win ) {
+				claimed.add( win.id );
+				found.set( launch, win );
+			}
+		}
 	}
-	return match ?? null;
+	return found;
 }
 
 /**
@@ -306,7 +330,7 @@ function claimOpenWindow(
  * native-window remap first, else the iframe window built from the
  * menu's own metadata, so it comes up with its tab strip. Always a
  * fresh instance — the entry is here only because
- * {@link claimOpenWindow} found nothing to reuse.
+ * {@link claimOpenWindows} found nothing to reuse.
  */
 function openLaunchUrl(
 	deps: WorkspaceDeps,
@@ -390,12 +414,13 @@ export function provisionWorkspace(
 	// already has before it opens another — otherwise Restore on an
 	// intact desk would double everything on it.
 	const claimed = new Set< string >();
+	const onDesk = claimOpenWindows( deps, launches, desktopId, claimed );
 	let opened = 0;
 	for ( const launch of launches ) {
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
 			opened++;
-			const existing = claimOpenWindow( deps, url, launch, desktopId, claimed );
+			const existing = onDesk.get( launch );
 			if ( existing ) {
 				placeLaunchedWindow( deps.manager, existing, launch );
 				continue;
@@ -438,10 +463,15 @@ export function provisionWorkspace(
 			layout: profile.layout,
 		} );
 	};
+	afterLayout( settle );
+}
+
+/** Run `fn` once the browser has laid out the windows this tick created. */
+function afterLayout( fn: () => void ): void {
 	if ( 'undefined' !== typeof requestAnimationFrame ) {
-		requestAnimationFrame( () => requestAnimationFrame( settle ) );
+		requestAnimationFrame( () => requestAnimationFrame( fn ) );
 	} else {
-		settle();
+		fn();
 	}
 }
 
@@ -459,11 +489,13 @@ export function provisionWorkspace(
  * Unlike provisioning it does three things differently, all so it can
  * run on every reload without fighting the user:
  *
- *   - It never touches a window that is already open — no focus
- *     stealing, no duplicate, no re-place of one you have moved.
- *   - It does not re-run the layout. The arrangement is applied once,
- *     when the desk is first provisioned; re-tiling on every reload
- *     would undo any window you had repositioned by hand.
+ *   - It leaves a desk that came back whole exactly as it is: no focus
+ *     stealing, no duplicate, and no re-tiling, which would undo any
+ *     window you had repositioned by hand.
+ *   - It re-runs the layout only once it has reopened something. A
+ *     window it brings back has no place of its own and would land on
+ *     top of the others, so the desk gets its arrangement back along
+ *     with its windows.
  *   - It does not re-stamp `provisioned`, which is already true.
  *
  * A no-op on a plain Space, on a never-provisioned desk (that is
@@ -481,6 +513,8 @@ export function reopenWorkspaceWindows(
 
 	const launches = resolveLaunches( deps.getNavItems(), profile.windows );
 	const claimed = new Set< string >();
+	const onDesk = claimOpenWindows( deps, launches, desktopId, claimed );
+	const reopened: Promise< unknown >[] = [];
 	for ( const launch of launches ) {
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
@@ -489,19 +523,21 @@ export function reopenWorkspaceWindows(
 			// other entry claim it: a desk whose list names two tabs of
 			// one window is two windows, and this pass fills whichever
 			// of them the restore did not bring back.
-			if ( claimOpenWindow( deps, url, launch, desktopId, claimed ) ) {
+			if ( onDesk.has( launch ) ) {
 				continue;
 			}
-			void openLaunchUrl( deps, url, launch, desktopId, claimed )
-				.then( ( win ) => {
-					if ( win ) {
-						claimed.add( win.id );
-						placeLaunchedWindow( deps.manager, win, launch );
-					}
-				} )
-				.catch( () => {
-					/* One window short is not a failed workspace. */
-				} );
+			reopened.push(
+				openLaunchUrl( deps, url, launch, desktopId, claimed )
+					.then( ( win ) => {
+						if ( win ) {
+							claimed.add( win.id );
+							placeLaunchedWindow( deps.manager, win, launch );
+						}
+					} )
+					.catch( () => {
+						/* One window short is not a failed workspace. */
+					} ),
+			);
 			continue;
 		}
 		if ( launch.item.windowId ) {
@@ -509,14 +545,28 @@ export function reopenWorkspaceWindows(
 				continue;
 			}
 			deps.openNative( launch.item.windowId );
-			void whenWindowOpens( deps.manager, launch.item.windowId ).then(
-				( win ) => {
-					if ( win ) {
-						placeLaunchedWindow( deps.manager, win, launch );
-					}
-				},
+			reopened.push(
+				whenWindowOpens( deps.manager, launch.item.windowId ).then(
+					( win ) => {
+						if ( win ) {
+							placeLaunchedWindow( deps.manager, win, launch );
+						}
+					},
+				),
 			);
 		}
+	}
+
+	if ( reopened.length > 0 ) {
+		void Promise.all( reopened ).then( () =>
+			afterLayout( () => {
+				// An arrangement moves the windows of the desk on screen,
+				// and the user may have left this one while they opened.
+				if ( deps.manager.getActiveDesktopId() === desktopId ) {
+					applyWorkspaceLayout( deps.manager, profile.layout );
+				}
+			} ),
+		);
 	}
 }
 

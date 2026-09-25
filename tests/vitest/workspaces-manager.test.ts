@@ -153,6 +153,7 @@ describe( 'workspace operations', () => {
 			win.destroy();
 		}
 		desktop.remove();
+		_resetNativeUrlRemap();
 		clearHooksStub();
 		vi.restoreAllMocks();
 	} );
@@ -333,8 +334,10 @@ describe( 'workspace operations', () => {
 				icon: 'dashicons-desktop',
 				color: '',
 				apps: { mode: 'all', ids: [] },
+				// The Publishing desk's pair, and a native window.
 				windows: [
 					{ match: 'edit.php', url: 'post-new.php' },
+					{ match: 'edit.php', url: 'edit.php' },
 					{ match: 'my-panel' },
 				],
 				layout: 'free',
@@ -343,16 +346,17 @@ describe( 'workspace operations', () => {
 			},
 		} );
 
-		// The url window is still open (session restore brought it
-		// back); the native one the user closed.
+		// Session restore brought the Posts list back, under the ids a
+		// launch opens it with, on the Categories tab the user had
+		// switched it to; the draft and the native window they closed.
 		const baseId = deps.deriveWindowId(
-			absoluteAdminUrl( 'post-new.php', ADMIN_URL ),
+			absoluteAdminUrl( 'edit.php', ADMIN_URL ),
 		);
 		await manager.openNew( {
 			id: baseId,
 			baseId,
-			url: `${ ADMIN_URL }post-new.php`,
-			title: 'New draft',
+			url: `${ ADMIN_URL }edit-tags.php?taxonomy=category`,
+			title: 'Posts',
 			desktopId: created.id,
 		} );
 		const open = vi
@@ -361,15 +365,73 @@ describe( 'workspace operations', () => {
 
 		reopenWorkspaceWindows( deps, created.id );
 
-		// The still-open window is not reopened…
-		expect( open ).not.toHaveBeenCalled();
+		// The list is left alone and the draft comes back, not a
+		// second list: the draft's entry comes first, but the window
+		// is the list's by its id, whichever page it is on.
+		expect( open ).toHaveBeenCalledTimes( 1 );
+		expect( open.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
+			url: `${ ADMIN_URL }post-new.php`,
+		} );
 		// …and the closed native one is.
 		expect( openNative ).toHaveBeenCalledWith( 'my-panel' );
 	} );
 
-	test( 'reopen does not re-stamp provisioned or re-run the layout', () => {
-		vi.spyOn( manager, 'open' ).mockResolvedValue( {} as never );
-		vi.spyOn( manager, 'getById' ).mockReturnValue( undefined );
+	test( 'on a desk with suffixed ids, an entry takes the window on its page first', async () => {
+		const created = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				windows: [
+					{ match: 'edit.php', url: 'post-new.php' },
+					{ match: 'edit.php', url: 'edit.php' },
+				],
+				layout: 'free',
+				provisioned: true,
+			},
+		} );
+		// A second Publishing desk: the first holds the ids its
+		// entries open under, so this one's windows landed on suffixed
+		// ids that name no entry.
+		const baseId = deps.deriveWindowId(
+			absoluteAdminUrl( 'edit.php', ADMIN_URL ),
+		);
+		const openOnDesk = ( id: string, page: string ) =>
+			manager.openNew( {
+				id,
+				baseId,
+				url: `${ ADMIN_URL }${ page }`,
+				title: 'Posts',
+				desktopId: created.id,
+			} );
+		await openOnDesk( `${ baseId }-3`, 'edit.php' );
+		const open = vi
+			.spyOn( manager, 'openNew' )
+			.mockResolvedValue( {} as never );
+
+		provisionWorkspace( deps, created.id, { force: true } );
+
+		// The list is on its page, so Restore brings back the draft.
+		expect( open ).toHaveBeenCalledTimes( 1 );
+		expect( open.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
+			url: `${ ADMIN_URL }post-new.php`,
+		} );
+
+		// A draft saved since is on no entry's page, but it is still
+		// the draft: with nothing closer, that entry takes what the
+		// list's entry left.
+		open.mockRestore();
+		await openOnDesk( `${ baseId }-2`, 'post.php?post=5&action=edit' );
+		const again = vi
+			.spyOn( manager, 'openNew' )
+			.mockResolvedValue( {} as never );
+		provisionWorkspace( deps, created.id, { force: true } );
+		expect( again ).not.toHaveBeenCalled();
+	} );
+
+	test( 'reopen re-runs the layout only when it brought a window back', async () => {
+		const tile = vi.spyOn( manager, 'tile' );
 		const created = createWorkspace( deps, {
 			profile: {
 				preset: '',
@@ -381,16 +443,34 @@ describe( 'workspace operations', () => {
 				provisioned: true,
 			},
 		} );
+		const baseId = deps.deriveWindowId(
+			absoluteAdminUrl( 'edit.php', ADMIN_URL ),
+		);
+		const list = await manager.openNew( {
+			id: baseId,
+			baseId,
+			url: `${ ADMIN_URL }edit.php`,
+			title: 'Posts',
+			desktopId: created.id,
+		} );
 		refreshLayout.mockClear();
 
+		// A desk that came back whole keeps any window moved by hand.
 		reopenWorkspaceWindows( deps, created.id );
-
-		// The arrangement is applied once, at first provision — never
-		// on a reload, or a hand-moved window would jump back.
-		expect( refreshLayout ).not.toHaveBeenCalled();
-		expect( getWorkspaceProfile( manager, created.id )?.provisioned ).toBe(
-			true,
+		await new Promise< void >( ( resolve ) =>
+			requestAnimationFrame( () => requestAnimationFrame( () => resolve() ) ),
 		);
+		expect( tile ).not.toHaveBeenCalled();
+
+		// A window it brings back has no place of its own, so the desk
+		// gets its arrangement back with it.
+		list.destroy();
+		await vi.waitFor( () => expect( manager.getById( baseId ) ).toBeUndefined() );
+		reopenWorkspaceWindows( deps, created.id );
+		await vi.waitFor( () => expect( tile ).toHaveBeenCalledTimes( 1 ) );
+
+		// And `provisioned` is not written again.
+		expect( refreshLayout ).not.toHaveBeenCalled();
 	} );
 
 	test( 'reopen is a no-op on a never-provisioned desk and a plain Space', () => {
