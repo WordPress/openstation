@@ -255,6 +255,39 @@ describe( 'workspace operations', () => {
 		expect( openNative ).not.toHaveBeenCalled();
 	} );
 
+	test( 'a focus desk leads with its first entry, not the window that opened last', async () => {
+		// The Publishing template: the blank draft first, the Posts list
+		// second, so the list is the window focused when the layout runs.
+		const created = createWorkspace( deps, { preset: 'publishing' } );
+
+		provisionWorkspace( deps, created.id );
+		await new Promise< void >( ( resolve ) =>
+			requestAnimationFrame( () => requestAnimationFrame( resolve ) ),
+		);
+
+		const pageOf = ( page: string ) =>
+			manager
+				.getAll()
+				.find( ( w ) => w.config.url === `${ ADMIN_URL }${ page }` )!;
+		// The work area is 1568 wide after padding; the lead takes 0.64.
+		expect( pageOf( 'post-new.php' ).element.style.left ).toBe( '16px' );
+		expect( pageOf( 'post-new.php' ).element.style.width ).toBe(
+			`${ Math.floor( 1568 * 0.64 ) }px`,
+		);
+		expect( pageOf( 'edit.php' ).element.style.left ).not.toBe( '16px' );
+
+		// Restore puts the desk back the way it was defined, whichever
+		// window the user reached for since.
+		manager.focus( pageOf( 'edit.php' ) );
+		provisionWorkspace( deps, created.id, { force: true } );
+		await new Promise< void >( ( resolve ) =>
+			requestAnimationFrame( () => requestAnimationFrame( resolve ) ),
+		);
+		expect( manager.getAll() ).toHaveLength( 2 );
+		expect( pageOf( 'post-new.php' ).element.style.left ).toBe( '16px' );
+		expect( pageOf( 'edit.php' ).element.style.left ).not.toBe( '16px' );
+	} );
+
 	test( 'a launch opens the way a menu pick does, one window per entry', async () => {
 		const openNew = vi
 			.spyOn( manager, 'openNew' )

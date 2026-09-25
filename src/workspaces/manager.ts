@@ -288,13 +288,18 @@ function claimOpenWindow(
 	desktopId: string,
 	claimed: Set< string >,
 ): Window | null {
-	const match = deps.manager
+	const candidates = deps.manager
 		.getAllByBaseId( launchBaseId( deps, url, launch ) )
-		.find(
+		.filter(
 			( win ) =>
 				! claimed.has( win.id ) &&
 				( ! win.config.desktopId || win.config.desktopId === desktopId ),
 		);
+	// The window on the entry's own page first. The Publishing
+	// template's two entries share one family, and taking it in slot
+	// order would hand the draft's entry the Posts list.
+	const match =
+		candidates.find( ( win ) => win.config.url === url ) ?? candidates[ 0 ];
 	if ( match ) {
 		claimed.add( match.id );
 	}
@@ -390,13 +395,16 @@ export function provisionWorkspace(
 	// already has before it opens another — otherwise Restore on an
 	// intact desk would double everything on it.
 	const claimed = new Set< string >();
+	// The window each entry landed on, by its place in the list.
+	const landed: string[] = [];
 	let opened = 0;
-	for ( const launch of launches ) {
+	for ( const [ index, launch ] of launches.entries() ) {
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
 			opened++;
 			const existing = claimOpenWindow( deps, url, launch, desktopId, claimed );
 			if ( existing ) {
+				landed[ index ] = existing.id;
 				placeLaunchedWindow( deps.manager, existing, launch );
 				continue;
 			}
@@ -409,6 +417,7 @@ export function provisionWorkspace(
 				.then( ( win ) => {
 					if ( win ) {
 						claimed.add( win.id );
+						landed[ index ] = win.id;
 						placeLaunchedWindow( deps.manager, win, launch );
 					}
 				} )
@@ -423,6 +432,7 @@ export function provisionWorkspace(
 			void whenWindowOpens( deps.manager, launch.item.windowId ).then(
 				( win ) => {
 					if ( win ) {
+						landed[ index ] = win.id;
 						placeLaunchedWindow( deps.manager, win, launch );
 					}
 				},
@@ -431,6 +441,15 @@ export function provisionWorkspace(
 	}
 
 	const settle = (): void => {
+		// `focus` leads with the focused window, and each window takes
+		// focus as it opens, so the LAST one opened would lead. The desk
+		// leads with its first entry instead, on Restore as on the first
+		// open: the Publishing template's blank draft, not the Posts
+		// list beside it.
+		const lead = landed.find( Boolean );
+		if ( 'focus' === profile.layout && lead ) {
+			deps.manager.focus( lead );
+		}
 		applyWorkspaceLayout( deps.manager, profile.layout );
 		doAction( HOOKS.WORKSPACE_PROVISIONED, {
 			desktopId,
