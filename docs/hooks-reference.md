@@ -5499,7 +5499,12 @@ consumes it.
 
 - **Param** `int $agent_user_id`
 - **Param** `string $message` — the submitted message.
-- **Param** `array $result` — `{ text, toolCalls, turns }`.
+- **Param** `array $result` — `{ text, toolCalls, turns, usage, model }`.
+  `usage` is `{ prompt, completion, total }` summed across every turn of
+  the run and `model` is `{ id, name }` for the last model the AI Client
+  resolved, matching what `openstation_ai_search_completed` reports for
+  Copilot. Both are `null` when the provider reported nothing, which is
+  what tells "cost nothing" apart from "did not say".
 - **Param** `array $context` — invocation context; convention: `source` names the trigger (`chat`, `send-to`, `hook`, …).
 
 ### `openstation_agent_tool_result` — Experimental *(filter)*
