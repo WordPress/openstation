@@ -1405,14 +1405,6 @@ body.os-active {
 	 * The shadows sharpen rather than rescue: a halo moves the glyph
 	 * edges, not the contrast ratio.
 	 */
-	--os-notch-bg: var(--os-dock-floating-bg, var(--os-dock-bg, rgba(12, 11, 15, 0.62)));
-	--os-notch-border: var(--os-dock-floating-border, var(--os-dock-border, rgba(255, 251, 255, 0.12)));
-	--os-notch-shadow: var(--os-dock-floating-shadow, rgba(0, 0, 0, 0.55));
-	--os-notch-bg-hover: color-mix(
-		in srgb,
-		var(--os-dock-floating-bg, var(--os-dock-bg, rgba(12, 11, 15, 0.62))) 90%,
-		#fffbff
-	);
 	--os-icon-label-bg: rgba(12, 11, 15, 0.55);
 	--os-icon-label-shadow: 0 1px 2px rgba(12, 11, 15, 0.9);
 	--os-icon-glyph-shadow: drop-shadow(0 1px 3px rgba(12, 11, 15, 0.75));
@@ -1903,15 +1895,6 @@ body.os-active {
 	 * the thing that gets perched on. Still under the dock (200).
 	 */
 	--os-z-desktop-name: 195;
-	/*
-	 * The notch — on the desk, under the windows (100 + stack index),
-	 * above the window-link wires (50) so a tie never draws across the
-	 * pill. It hangs over the strip a window's title bar occupies, and
-	 * a pill floating above someone's window is the shell talking over
-	 * the thing they are working in.
-	 */
-	--os-z-notch: 60;
-
 	/*
 	 * Window-link ties (relation splines between windows). The accent
 	 * follows the admin color scheme. Solid colors only — the resting

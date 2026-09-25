@@ -89,7 +89,6 @@ function openstation_enqueue_assets() {
 	wp_enqueue_style( 'os-window-overview' );
 	wp_enqueue_style( 'os-dock' );
 	wp_enqueue_style( 'os-dock-peek' );
-	wp_enqueue_style( 'os-notch' );
 	wp_enqueue_style( 'os-workspaces' );
 	wp_enqueue_style( 'os-shortcuts' );
 	wp_enqueue_style( 'os-openstation-layout' );

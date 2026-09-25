@@ -200,14 +200,6 @@ function openstation_register_assets() {
 		array( 'os-variables', 'dashicons', 'os-dock', 'os-windows' ),
 		$built_version( 'assets/css/mobile.css' )
 	);
-	// The notch — the shell's top-centre voice and the site
-	// assistant's front door. Scoped to `.os-notch`.
-	wp_register_style(
-		'os-notch',
-		OPENSTATION_URL . 'assets/css/notch.css',
-		array( 'os-variables' ),
-		$built_version( 'assets/css/notch.css' )
-	);
 	// The workspace wizard. Scoped to `.os-workspace-wizard`, so it is
 	// inert until the user opens it from the overview bar's `+` or a
 	// tile's Edit. Those controls are styled with the rest of the bar
