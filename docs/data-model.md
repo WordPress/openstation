@@ -331,7 +331,7 @@ in-request caching.
 | `uploads/desktop-mode-agent-faces/` | Disk | Generated agent face images. |
 | `desktop_mode_files_daily_prune` | Cron (daily) | Sweeps ZIP temp files and reconciles stored files against the disk. |
 | `desktop_mode_presence_daily_prune` | Cron (daily) | Prunes the presence option. |
-| `desktop-mode-widgets-geometry`, `desktop-mode/files`, … | `localStorage` | Widget geometry and other client state; never reaches the database. |
+| `desktop-mode-widgets-geometry`, `openstation-widgets-geometry-frame`, `desktop-mode/files`, … | `localStorage` | Widget geometry and other client state; never reaches the database. |
 
 ## Related
 

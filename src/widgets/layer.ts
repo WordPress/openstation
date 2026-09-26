@@ -41,11 +41,14 @@ import {
 	loadDockedHeights,
 	loadEnabledIds,
 	loadGeometry,
+	loadGeometryFrame,
 	readRawEnabled,
 	saveDockedHeights,
 	saveEnabledIds,
 	saveGeometry,
+	saveGeometryFrame,
 } from './state';
+import { reflowGeometry, type FrameSize } from './reflow';
 import { showInlineLoader } from '../ui/inline-loader';
 import { createWidgetStorage } from './storage';
 import type { WidgetGeometry, WidgetTeardown } from './types';
@@ -94,6 +97,8 @@ export class WidgetLayer {
 	private override: string[] | null = null;
 	private geometry: Record< string, WidgetGeometry >;
 	private dockedHeights: Record< string, number >;
+	/** Host size the stored geometry was laid out against. */
+	private frameSize: FrameSize | null;
 	private mounted: Map< string, MountedWidget > = new Map();
 
 	/**
@@ -137,6 +142,7 @@ export class WidgetLayer {
 		this.enabledIds = loadEnabledIds();
 		this.geometry = loadGeometry();
 		this.dockedHeights = loadDockedHeights();
+		this.frameSize = loadGeometryFrame();
 		this.floatingHost = floatingHost ?? root.parentElement ?? root;
 
 		this.listEl = document.createElement( 'div' );
@@ -183,6 +189,10 @@ export class WidgetLayer {
 			);
 			saveEnabledIds( this.enabledIds );
 		}
+
+		// Last session may have closed at another size; move the
+		// floats before they mount so they never paint at stale spots.
+		this.reflowToHost();
 
 		for ( const id of this.visibleIds() ) {
 			if ( this.mounted.has( id ) ) {
@@ -654,6 +664,7 @@ export class WidgetLayer {
 
 		const invalidate = (): void => {
 			rect = null;
+			this.reflowToHost();
 			this.positionAddTile();
 		};
 		// The reveal itself is a cached-rect comparison, cheap enough
@@ -827,9 +838,51 @@ export class WidgetLayer {
 		}
 	}
 
+	/**
+	 * Keep floating cards arranged the way the user left them when the
+	 * desktop area changes size (window resize, PWA window stretched,
+	 * dock moved to a side). Groups of touching cards follow the edge
+	 * they sit nearest to; see {@link reflowGeometry}. Runs on boot too,
+	 * against the size the geometry was last saved at.
+	 */
+	private reflowToHost(): void {
+		const size = {
+			width: this.floatingHost.clientWidth,
+			height: this.floatingHost.clientHeight,
+		};
+		if ( ! size.width || ! size.height ) {
+			return;
+		}
+		const from = this.frameSize;
+		if ( from && from.width === size.width && from.height === size.height ) {
+			return;
+		}
+		this.frameSize = size;
+		saveGeometryFrame( size );
+		if ( ! from || ! Object.keys( this.geometry ).length ) {
+			return;
+		}
+		this.geometry = reflowGeometry( this.geometry, from, size );
+		for ( const [ id, record ] of this.mounted ) {
+			const next = this.geometry[ id ];
+			if ( record.floating && next ) {
+				applyGeometry( record.frame.card, next );
+			}
+		}
+		saveGeometry( this.geometry );
+		this.reclampFloating();
+	}
+
 	private persistGeometry( id: string, geometry: WidgetGeometry ): void {
 		this.geometry[ id ] = geometry;
 		saveGeometry( this.geometry );
+		if ( ! this.frameSize && this.floatingHost.clientWidth ) {
+			this.frameSize = {
+				width: this.floatingHost.clientWidth,
+				height: this.floatingHost.clientHeight,
+			};
+			saveGeometryFrame( this.frameSize );
+		}
 		this.positionAddTile();
 	}
 

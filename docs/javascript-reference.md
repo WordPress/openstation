@@ -5169,6 +5169,8 @@ wp.os.registerWidget( {
 
 User-placed geometry (position + size of liberated widgets) persists per-user in `localStorage` under `desktop-mode-widgets-geometry`. Height resizes made while a resizable widget is docked in the column persist separately under `desktop-mode-widgets-docked-heights` (height only — column widgets have no free position, and a full geometry record would mark the widget as floating at boot). Removing a widget clears both records so a re-add starts docked at its natural height.
 
+Floating widgets follow the desktop when it changes size (a resized browser or PWA window, the dock moved to a side). Cards that touch (within 32 px) form one arrangement, and each arrangement keeps its distance to the edge it sits nearest to on each axis: a group beside the right-hand column follows the right edge, a group on the left stays, a roughly centred group stays centred. Cards never move relative to their own group. The area size the geometry was saved against lives under `openstation-widgets-geometry-frame`, so a session opened at a different size reflows on boot too.
+
 ##### `wp.os.widgets.redock( id )` — Stable
 
 Programmatically un-float a liberated widget back into the right-side column. Idempotent — already-docked widgets and unknown ids silently no-op. Mirrors what the user gets by clicking the re-dock affordance in the floating widget's chrome header.
