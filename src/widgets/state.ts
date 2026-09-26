@@ -20,15 +20,23 @@
  *                                      entry's mere presence marks a
  *                                      widget as floating at boot.
  *
+ *   - `openstation-widgets-geometry-frame` — the desktop area's
+ *                                      `{ width, height }` when the
+ *                                      geometry was last written, so a
+ *                                      boot at a different size can
+ *                                      reflow floats (see reflow.ts).
+ *
  * Each record writes-through independently so a quota failure in one
  * doesn't corrupt the other.
  */
 
+import type { FrameSize } from './reflow';
 import type { WidgetGeometry } from './types';
 
 const IDS_KEY = 'desktop-mode-widgets';
 const GEOMETRY_KEY = 'desktop-mode-widgets-geometry';
 const DOCKED_HEIGHTS_KEY = 'desktop-mode-widgets-docked-heights';
+const GEOMETRY_FRAME_KEY = 'openstation-widgets-geometry-frame';
 
 /**
  * Raw read so callers can distinguish "never saved" (null) from
@@ -96,6 +104,33 @@ export function saveGeometry(
 ): void {
 	try {
 		window.localStorage.setItem( GEOMETRY_KEY, JSON.stringify( geometry ) );
+	} catch {
+		/* best-effort */
+	}
+}
+
+export function loadGeometryFrame(): FrameSize | null {
+	try {
+		const raw = window.localStorage.getItem( GEOMETRY_FRAME_KEY );
+		if ( ! raw ) {
+			return null;
+		}
+		const { width, height } = JSON.parse( raw ) as Partial< FrameSize >;
+		if (
+			typeof width !== 'number' || ! Number.isFinite( width ) || width <= 0 ||
+			typeof height !== 'number' || ! Number.isFinite( height ) || height <= 0
+		) {
+			return null;
+		}
+		return { width, height };
+	} catch {
+		return null;
+	}
+}
+
+export function saveGeometryFrame( frame: FrameSize ): void {
+	try {
+		window.localStorage.setItem( GEOMETRY_FRAME_KEY, JSON.stringify( frame ) );
 	} catch {
 		/* best-effort */
 	}
