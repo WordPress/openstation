@@ -1155,7 +1155,9 @@ export class AiAssistant implements AiAssistantApi {
 			}
 
 			const res = await trackedFetch(
-				`/wp-json/wp/v2/search?search=${ encodeURIComponent( query ) }&subtype=post,page`,
+				// `_embed=self` brings each post's `targetHints`, which say
+				// whether this user may edit it.
+				`/wp-json/wp/v2/search?search=${ encodeURIComponent( query ) }&subtype=post,page&_embed=self`,
 				{
 					headers: { 'X-WP-Nonce': this._restNonce },
 				},
@@ -1171,6 +1173,13 @@ export class AiAssistant implements AiAssistantApi {
 				title: string;
 				subtype: string;
 				url: string;
+				_embedded?: {
+					self?: Array< {
+						_links?: {
+							self?: Array< { targetHints?: { allow?: string[] } } >;
+						};
+					} >;
+				};
 			}>;
 
 			if ( token !== this._remoteSearchToken ) {
@@ -1179,17 +1188,27 @@ export class AiAssistant implements AiAssistantApi {
 
 			this._currentRemoteCommands = items.map( ( item ) => {
 				const isPage = item.subtype === 'page';
+				// No hints (an older WordPress) keeps the editor, as before.
+				const allow =
+					item._embedded?.self?.[ 0 ]?._links?.self?.[ 0 ]?.targetHints?.allow;
+				const canEdit = ! allow || allow.includes( 'PUT' );
 				const editUrl = new URL( 'post.php', this._adminUrl );
 				editUrl.searchParams.set( 'post', String( item.id ) );
 				editUrl.searchParams.set( 'action', 'edit' );
-				const href = editUrl.toString();
+				const href = canEdit ? editUrl.toString() : item.url;
 				const title = decodeHTML( item.title || __( '(No title)' ) );
 				const icon = isPage ? 'dashicons-admin-page' : 'dashicons-admin-post';
+				let description: string;
+				if ( canEdit ) {
+					description = isPage ? __( 'Edit page' ) : __( 'Edit post' );
+				} else {
+					description = isPage ? __( 'View page' ) : __( 'View post' );
+				}
 
 				return {
 					slug: `post-${ item.id }`,
 					label: title,
-					description: isPage ? __( 'Edit page' ) : __( 'Edit post' ),
+					description,
 					icon,
 					eager: false,
 					run: ( _args, ctx ) => {

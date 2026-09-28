@@ -1374,21 +1374,18 @@ body.os-active {
 	/*
 	 * ---- Chrome that sits on the wallpaper ---------------------
 	 *
-	 * The notch, the desktop icons and the Add widget pill paint
-	 * straight onto the wallpaper, with no window behind them. Bare
-	 * Starlight only works there while the wallpaper is dark, and not
-	 * every one is: on Holomesh the three measured 1.5:1 to 2.2:1.
+	 * The desktop icons and the Add widget pill paint straight onto
+	 * the wallpaper, with no window behind them. Bare Starlight only
+	 * works there while the wallpaper is dark, and not every one is:
+	 * on Holomesh they measured 1.5:1 to 2.2:1.
 	 *
 	 * **A plate and an ink are two different answers, and which one a
 	 * surface gets depends on whether it is an object.**
 	 *
-	 * The notch and the Add widget pill are, so they take a PLATE and
-	 * read on every wallpaper without anyone measuring anything. Each
-	 * derives it from the glass it sits beside rather than mixing its
-	 * own: the notch from the bottom dock pill (reaching
-	 * `--os-dock-bg` second, so a theme that tokenised only its dock
-	 * strip still moves it), the Add widget pill from the widget card
-	 * whose stack it trails.
+	 * The Add widget pill is, so it takes a PLATE and reads on every
+	 * wallpaper without anyone measuring anything. It derives it from
+	 * the glass it sits beside rather than mixing its own: the widget
+	 * card whose stack it trails.
 	 *
 	 * Icons, captions and file tiles are not objects — plating each one
 	 * turns a desk into a sheet of stickers — so they change INK, which
