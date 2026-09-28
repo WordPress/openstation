@@ -2409,6 +2409,9 @@ function init(): void {
 			// connecting a provider or flipping the "AI assistant" toggle takes
 			// effect on the next open — no reload.
 			isAiSupported: () => config.aiAssistant?.available === true,
+			// Loose on purpose: `wp_localize_script` sends this top-level
+			// boolean as "1" / "".
+			canConnectProvider: () => Boolean( config.currentUserIsAdmin ),
 			isAiAvailable: () =>
 				config.aiAssistant?.available === true &&
 				config.aiAssistant?.assistantProviderConfigured === true,

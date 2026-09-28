@@ -184,6 +184,8 @@ export class AiAssistant implements AiAssistantApi {
 	private _adminUrl: string;
 	/** Live: does the site have WordPress's AI APIs at all? */
 	private _isAiSupported: () => boolean;
+	/** Live: can this user connect an AI provider? */
+	private _canConnectProvider: () => boolean;
 	/** Live: is AI mode usable (APIs present + provider configured)? */
 	private _isAiAvailable: () => boolean;
 	/** Live: is the "Override…" toggle on (default to AI mode)? */
@@ -229,7 +231,8 @@ export class AiAssistant implements AiAssistantApi {
 		this._aiSearchUrl = config.aiSearchUrl;
 		this._restNonce = config.restNonce;
 		this._adminUrl = config.adminUrl;
-		this._isAiSupported = config.isAiSupported ?? ( () => false );
+		this._isAiSupported = config.isAiSupported ?? ( () => true );
+		this._canConnectProvider = config.canConnectProvider ?? ( () => true );
 		this._isAiAvailable = config.isAiAvailable ?? ( () => false );
 		this._isOverrideEnabled = config.isOverrideEnabled ?? ( () => false );
 
@@ -471,6 +474,13 @@ export class AiAssistant implements AiAssistantApi {
 		// question and Enter acts on the setup prompt instead.
 		const needsSetup = this._aiNeedsSetup();
 		this._input.readOnly = needsSetup;
+		// The field's label names the action, so screen readers hear why
+		// it takes no input from the setup message below it.
+		if ( needsSetup ) {
+			this._input.setAttribute( 'aria-describedby', 'os-ai-setup-message' );
+		} else {
+			this._input.removeAttribute( 'aria-describedby' );
+		}
 		if ( needsSetup ) {
 			this._input.placeholder = __( 'The AI assistant isn’t set up yet' );
 		} else {
@@ -616,10 +626,13 @@ export class AiAssistant implements AiAssistantApi {
 			if ( e.key !== 'Tab' ) {
 				return;
 			}
+			// Settings links sit in the results, after the switch.
 			const focusable = [
 				this._input,
 				this._submitBtn,
-				...this._el.querySelectorAll< HTMLButtonElement >( '.os-ai__mode' ),
+				...this._el.querySelectorAll< HTMLButtonElement >(
+					'.os-ai__mode, .os-ai__settings-link',
+				),
 			].filter( ( el ) => ! el.disabled );
 			const first = focusable[ 0 ];
 			const last = focusable[ focusable.length - 1 ];
@@ -816,7 +829,7 @@ export class AiAssistant implements AiAssistantApi {
 			return;
 		}
 		if ( this._aiNeedsSetup() ) {
-			if ( this._isAiSupported() ) {
+			if ( this._aiSetupRoute() === 'preferences' ) {
 				this._openAssistantSettings( 'features' );
 			}
 			return;
@@ -1634,12 +1647,28 @@ export class AiAssistant implements AiAssistantApi {
 	 * is configured yet, so one link covers both cases. A site without
 	 * the AI APIs has nothing to set up, so it only says so.
 	 */
+	private _aiSetupRoute(): 'unavailable' | 'ask-admin' | 'preferences' {
+		if ( ! this._isAiSupported() ) {
+			return 'unavailable';
+		}
+		// No provider yet, and Settings > Connectors is out of reach.
+		if ( ! this._isAiAvailable() && ! this._canConnectProvider() ) {
+			return 'ask-admin';
+		}
+		return 'preferences';
+	}
+
 	private _renderAiSetup(): void {
 		this._resultsEl.hidden = false;
-		if ( ! this._isAiSupported() ) {
+		const route = this._aiSetupRoute();
+		if ( route !== 'preferences' ) {
+			const message =
+				route === 'unavailable'
+					? __( 'AI features aren’t available on this site. You can still use Commands.' )
+					: __( 'Ask a site administrator to connect an AI provider to use the AI assistant.' );
 			this._resultsEl.innerHTML = `
 				<div class="os-ai__state">
-					<span>${ this._esc( __( 'AI features aren’t available on this site. You can still use Commands.' ) ) }</span>
+					<span id="os-ai-setup-message">${ this._esc( message ) }</span>
 				</div>
 			`;
 			return;
@@ -1649,7 +1678,7 @@ export class AiAssistant implements AiAssistantApi {
 		) }</button>`;
 		this._resultsEl.innerHTML = `
 			<div class="os-ai__state">
-				<span>${ sprintf(
+				<span id="os-ai-setup-message">${ sprintf(
 					/* translators: %s: "Set up the AI assistant", a link to Preferences. */
 					this._esc( __( '%s to find content and ask questions about your site.' ) ),
 					link,

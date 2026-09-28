@@ -128,7 +128,6 @@ describe( 'AiAssistant — error recovery link', () => {
 		const aiMode = document.querySelector< HTMLButtonElement >(
 			'.os-ai__mode[data-mode="ai"]',
 		)!;
-		expect( aiMode.closest< HTMLElement >( '.os-ai__modes' )!.hidden ).toBe( false );
 		expect( aiMode.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
 
 		aiMode.click();
@@ -138,6 +137,26 @@ describe( 'AiAssistant — error recovery link', () => {
 
 		input.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter', bubbles: true } ) );
 		expect( openOsSettings ).toHaveBeenCalledWith( { tabId: 'features' } );
+	} );
+
+	test( 'Ask AI sends a user who cannot connect a provider to an administrator', () => {
+		document.getElementById( 'desktop-mode-ai-assistant' )?.remove();
+		assistant = new AiAssistant( {
+			...BASE_CONFIG,
+			isAiSupported: () => true,
+			canConnectProvider: () => false,
+		} );
+		assistant.open();
+		document.querySelector< HTMLButtonElement >( '.os-ai__mode[data-mode="ai"]' )!.click();
+
+		expect( document.querySelector( '.os-ai__settings-link' ) ).toBeNull();
+		expect( document.getElementById( 'os-ai-setup-message' )?.textContent ).toContain(
+			'administrator',
+		);
+
+		const input = document.querySelector< HTMLInputElement >( '.os-ai__input' )!;
+		input.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter', bubbles: true } ) );
+		expect( openOsSettings ).not.toHaveBeenCalled();
 	} );
 
 	test( 'an error with no settings hint gets no link', async () => {

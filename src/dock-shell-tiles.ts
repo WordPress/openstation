@@ -45,7 +45,7 @@ export const OVERVIEW_TILE_ID = 'os-overview';
 export const SYSTEM_TILE_ID = 'os-system';
 
 /**
- * Sort keys for the trailing cluster. Spaced by ten so a plugin can
+ * Sort keys for the trailing cluster. Spaced apart so a plugin can
  * slot between two of them without a renumbering.
  */
 export const SYSTEM_TILE_ORDER = {

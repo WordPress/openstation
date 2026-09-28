@@ -203,11 +203,11 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		// hover wash) minted after the snapshot, each at the value its
 		// consuming rule falls back to.
 		//
-		// The notch plate and the Add widget's two plates are NOT among
-		// them: both surfaces postdate this snapshot, so there is no
-		// pre-brand value to protect, and the palette now derives them
-		// from the dock pill and the widget card. An entry here would
-		// sever that chain, the way one would for the accent.
+		// The Add widget's two plates are NOT among them: the surface
+		// postdates this snapshot, so there is no pre-brand value to
+		// protect, and the palette derives them from the widget card. An
+		// entry here would sever that chain, the way one would for the
+		// accent.
 		$this->assertCount( 517, $tokens, $why );
 		foreach ( array(
 			'--os-bg'             => 'linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% )',

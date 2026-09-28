@@ -49,6 +49,13 @@ export interface AiAssistantConfig {
 	 */
 	isAiSupported?: () => boolean;
 	/**
+	 * Whether this user can connect an AI provider (Settings > Connectors
+	 * is admin-only). When no provider is configured and they can't, Ask
+	 * AI tells them to ask an administrator instead of linking to a page
+	 * they can't finish.
+	 */
+	canConnectProvider?: () => boolean;
+	/**
 	 * Whether the AI mode is usable — the AI APIs are present and a
 	 * provider is configured. Read live so the overlay reflects a
 	 * provider being (dis)connected without a reload.
