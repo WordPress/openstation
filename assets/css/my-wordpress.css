@@ -2473,6 +2473,11 @@ summary.dm-agents__category:focus-visible {
    faces next to a detail form would leave neither enough room, and the
    whole point of the grid is that the faces are big enough to tell
    apart. */
+/* The pane scrolls, and a scroll container clips ink overflow: a field
+   flush with its edge loses the focus halo the kit paints outside the
+   border (1px ring + 4px bloom), so the brief's ring read as a top and
+   bottom line with nothing at the sides. Trade 5px of the section's
+   12px padding for a gutter inside the pane; the content does not move. */
 .dm-agents__view {
 	display: flex;
 	flex-direction: column;
@@ -2480,6 +2485,8 @@ summary.dm-agents__category:focus-visible {
 	min-height: 0;
 	overflow-y: auto;
 	gap: 12px;
+	margin-inline: -5px;
+	padding-inline: 5px;
 }
 
 .dm-agents__cast-head {
