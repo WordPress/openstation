@@ -25,6 +25,8 @@ export type PostsMode = 'posts' | 'pages';
 
 /** The declared state — what `parts/query.php` declares. */
 export interface ListState extends Record< string, unknown > {
+	/** The tab the window was opened on; the client owns it after that. */
+	tab: string;
 	page: number;
 	perPage: number;
 	search: string;

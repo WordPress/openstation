@@ -1006,6 +1006,34 @@ add_action( 'openstation_chromeless_after', function ( $hook_suffix ) {
 
 ---
 
+### `openstation_user_enabled` — Experimental
+
+Fires when a user turns OpenStation on, from either path that does so (the admin bar's "Switch to OpenStation" AJAX handler and the portal's auto-enable), after the first-run stamps are written: the user's own `openstation_enabled_at` meta and, on the first enable anywhere on the site, the `openstation_first_enabled_at` option. Fires on every enable, not only the first for that user; `$first_on_site` is `true` only when nobody on the site had enabled before.
+
+```php
+do_action( 'openstation_user_enabled', int $user_id, bool $first_on_site );
+```
+
+```php
+add_action( 'openstation_user_enabled', function ( $user_id, $first_on_site ) {
+    if ( $first_on_site ) {
+        // The install just became an activated install.
+    }
+}, 10, 2 );
+```
+
+---
+
+### `openstation_user_disabled` — Experimental
+
+Fires when a user switches back to the classic admin from the "Exit OpenStation" dock tile. No stamp is written (the enable stamps are "first time" facts and survive a switch back), so this is the other half of the lifecycle and nothing more.
+
+```php
+do_action( 'openstation_user_disabled', int $user_id );
+```
+
+---
+
 ### `openstation_prepare_window` — Planned
 Will fire once per window the shell is about to construct (both on fresh open and session restore). Planned signature:
 
@@ -1232,9 +1260,45 @@ Decides whether the first-boot shell tour — three coachmarks: open a window, s
 apply_filters( 'openstation_show_shell_tour', bool $offer, int $user_id );
 ```
 
-Whether the user already took or skipped it is not this filter's question: that is the `shell-tour` slug in `desktop_mode_seen_intros`, which the shell reads from `config.seenIntros`. Existing users are marked seen by migration 9 on update, so only a genuinely new user boots into the tour; "Reset what's-new dialogs" and the **Take the tour** button in OpenStation Preferences → Features replay it regardless of this filter's boot-time answer — the filter gates the automatic first-boot start, not the explicit request.
+Whether the user already took or skipped it is not this filter's question: that is the `shell-tour` slug in `desktop_mode_seen_intros`, which the shell reads from `config.seenIntros`. Existing users are marked seen by migration 10 on update, so only a genuinely new user boots into the tour; "Reset what's-new dialogs" and the **Take the tour** button in OpenStation Preferences → Features replay it regardless of this filter's boot-time answer — the filter gates the automatic first-boot start, not the explicit request.
 
 Return `false` to switch the automatic tour off site-wide or for a role.
+
+---
+
+### `openstation_deactivation_feedback_enabled` — Experimental
+
+Whether the deactivation feedback dialog exists on this site. It gates all three surfaces at once: the bundle on `plugins.php` (classic, chromeless and network admin), the native Plugins app's config block, and the `POST /desktop-mode/v1/feedback/deactivation` route, which answers `403` when this returns `false`.
+
+```php
+apply_filters( 'openstation_deactivation_feedback_enabled', bool $enabled );
+```
+
+```php
+add_filter( 'openstation_deactivation_feedback_enabled', '__return_false' );
+```
+
+---
+
+### `openstation_deactivation_feedback_payload` — Experimental
+
+The anonymous submission, after it is built and before it is forwarded. The keys are the ones `readme.txt` discloses under "External services" (`id`, `reasons`, `details`, `plugin_version`, `wp_version`, `php_version`, `locale`, `multisite`, `install_age_days`, `ever_enabled`, `enabled_user_count`, `first_enable_delay_days`, `deactivator_enabled`, `active_plugins`, `context`). Return an empty array to suppress the send; the route still answers `200` with `sent: false`.
+
+```php
+apply_filters( 'openstation_deactivation_feedback_payload', array $payload );
+```
+
+Do not add anything that identifies the site or the person: the disclosure in `readme.txt` is the contract, and `tests/phpunit/tests/deactivationFeedback.php` pins the key list.
+
+---
+
+### `openstation_deactivation_feedback_endpoint` — Experimental
+
+The intake URL, `https://openstation.blog/wp-json/openstation-feedback/v1/deactivation` by default (the OpenStation Feedback Intake plugin on the plugin's own site). Hosts that run their own intake point this at it; it receives the payload above as a JSON `POST` with a three-second timeout and no redirects. An empty string skips the forward.
+
+```php
+apply_filters( 'openstation_deactivation_feedback_endpoint', string $url );
+```
 
 ---
 
@@ -1366,11 +1430,13 @@ add_filter( 'openstation_dock_item', function ( $item, $slug ) {
 }, 10, 2 );
 ```
 
+**A window that replaces a menu does not use this filter.** Its submenu comes from the window's own declaration, [`App::menu()`](./app-framework.md): while the opt-in says the window is in charge, the rows ARE its tabs — same labels, same order, each tagged `os_tab=<id>` — so the dock and the tab strip cannot disagree. Posts, Pages, Users and Plugins all work that way. Reach for this filter for the other case: decorating a menu whose window is the classic iframe, the way `includes/themes-tabs.php` adds Appearance's "Add Theme" (a page classic admin only offers as an in-page button). Make yours idempotent — a second pass must not double the row.
+
 ---
 
 ### `openstation_dock_item_multi` — Stable
 
-Controls whether a dock item supports multiple simultaneous windows. Multi-capable pages expose a hover-peek popover on the dock icon (one card per open instance + a Ghost Card that spawns a new instance) and an "Open another" action in the window's title-bar menu; singletons always focus the existing window when re-opened.
+Controls whether a dock item advertises multiple simultaneous windows: a multi-capable page gets the instance rail under its dock tile and an "Open another" action in the window's title-bar menu. It does not gate the submenu, which opens a window of its own on every pick, singleton or not; a tile click focuses the menu's open window either way.
 
 Built-in defaults: `edit.php`, `edit-tags.php`, `upload.php`, `users.php`, and `edit-comments.php` are multi; everything else is singleton. The base filename is matched against the list, so every CPT (`edit.php?post_type=page`) and every taxonomy inherits the same rule as its parent admin file.
 
@@ -1482,7 +1548,7 @@ apply_filters( 'openstation_network_request_url', string $url, string $base );
 
 ### `openstation_workspace_presets` — Stable
 
-The workspace templates offered as cards on the wizard's Start step, beside Blank desktop. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
+The workspace templates offered as cards on the wizard's Start step, beside Blank workspace. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
 
 ```php
 apply_filters( 'openstation_workspace_presets', array $presets );
@@ -1538,58 +1604,6 @@ add_filter( 'openstation_workspace_presets', function ( $presets ) {
 Every entry is sanitized, shipped ones included: an entry with no `id` is dropped, an unknown `layout` falls back to `'free'`, and one with no `label` is named after its id. A malformed template costs that template, never the wizard.
 
 See [`docs/workspaces.md`](workspaces.md) and [`docs/examples/workspace-preset.md`](examples/workspace-preset.md).
-
----
-
-### `openstation_arrange_menu_items` — Stable
-
-The list of plugin-contributed items appended to the admin bar's **Arrange** submenu — the dropdown that sits next to the "Switch to…" toggle when OpenStation is active. Built-ins (Cascade, Overview, Snap to grid, Tile all windows) are always present; this filter adds to them. Only invoked when the user is viewing the desktop shell.
-
-```php
-apply_filters( 'openstation_arrange_menu_items', array $items );
-```
-
-Each item is an associative array:
-
-```php
-array(
-    'id'          => string, // unique slug; letters/digits/dashes only
-    'title'       => string, // menu label (already translated)
-    'description' => string, // optional; tooltip + accessible description
-    'position'    => int,    // optional sort key (default 10); lower sorts earlier
-)
-```
-
-Items with missing `id` or `title` are silently dropped — plugins can't accidentally create an unrouteable entry. Ties on `position` preserve registration order.
-
-**Click wiring:** clicking a custom item fires the JS action `os.arrange.custom-action` with payload `{ id }`. Subscribe via `wp.hooks.addAction()`:
-
-```php
-add_filter( 'openstation_arrange_menu_items', function ( $items ) {
-    $items[] = array(
-        'id'          => 'diagonal',
-        'title'       => __( 'Diagonal cascade', 'my-ext' ),
-        'description' => __( 'Cascade windows along a 45° line.', 'my-ext' ),
-        'position'    => 15,
-    );
-    return $items;
-} );
-```
-
-```js
-// In your shell-side script (enqueued with `wp-hooks` as a dependency):
-wp.hooks.addAction(
-    'os.arrange.custom-action',
-    'my-ext/diagonal',
-    function ( payload ) {
-        if ( payload.id !== 'diagonal' ) {
-            return;
-        }
-        const windows = wp.os.windowManager.getAll();
-        windows.forEach( ( w, i ) => w.move( i * 40, i * 40 ) );
-    }
-);
-```
 
 ---
 
@@ -1769,7 +1783,7 @@ add_filter( 'openstation_dock_behavior', function ( $behavior ) {
 
 ### `openstation_toast_types` — Stable
 
-Extends the toast-notification type map the shell consumes when a plugin calls `wp.os.toast( id, … )`. Each entry is `{ id, label, icon, tone }` where `tone` is one of `positive | warning | critical | neutral`. Entries with an unknown tone are dropped.
+Extends the toast-type registry the shell consults when a toast names a `type` — `wp.os.showToast( { message, type: 'error' } )`, `$os->toast( $message, 'error' )` from an app, or the `os.shell.toast` action. Each entry is `{ id, label, icon, tone }` where `tone` is one of `positive | warning | critical | neutral`; the shell paints the toast's edge and icon from the tone alone, and carries `label` and `icon` for plugins that list or render the types themselves. Entries with an unknown tone are dropped, and a `type` that matches no entry renders the plain toast. Four ids ship by default: `success`, `warning`, `error` and `shell-error`.
 
 ```php
 apply_filters( 'openstation_toast_types', array $types );
@@ -1809,9 +1823,11 @@ add_filter( 'openstation_default_wallpaper', fn () => 'aurora' );
 
 ### `openstation_wallpapers` — Stable
 
-Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `openstation_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`, `description`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
+Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `openstation_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`, `description`, `tone`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
 
 `description` — *Experimental.* Optional plain-text copy shown in OpenStation Preferences when the wallpaper is the active selection (a styled card under the picker grid). Sanitized with `sanitize_textarea_field()` at registration; the shell renders it as text, never HTML. When the wallpaper's JS def also sets `description`, the JS value wins — the server value is an overlay for defs that don't carry one.
+
+`tone` — *Experimental.* `'light'`, `'dark'`, or empty. Whether the desk paints its icons, their captions and its file tiles in Starlight or in Void. Anything other than the two words is stored empty, and empty reads as `'dark'`. Declare `'light'` if a user would call your surface pale. See [Wallpaper tone](desktop-themes.md#wallpaper-tone).
 
 Mirrors the client-side `os.wallpapers` JS filter but runs earlier, before any wallpaper reaches the browser.
 
@@ -2305,7 +2321,7 @@ The on/off state is not part of this filter — it is the per-user OS setting `m
 
 ## AI Copilot hooks — Stable
 
-The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses entities on save, and exposes a search REST endpoint. Every decision point is hookable so plugins can adjust model selection, customise prompts, limit which entities get analysed, or react to analysis completion.
+The AI assistant (Cmd+K palette) runs an agentic loop server-side and exposes a search REST endpoint. Nothing is analysed automatically: a comment is analysed only when someone asks for it, through the `desktop-mode/analyze-comment` ability. Every decision point is hookable so plugins can adjust model selection, customise prompts, or react to analysis completion.
 
 Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
 
@@ -2359,7 +2375,7 @@ apply_filters( 'openstation_ai_error_log_candidates', string[] $candidates );
 
 ### `openstation_ai_model_config` — Experimental
 
-Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, the Agents runner, and the Drafts widget's writing assistant.
+Model config for one AI turn. Fires on every path that generates: the Copilot search loop, the command follow-up, the comment scorer, the Agents runner, the agent wizard's "Draft it for me", the Drafts widget's writing assistant, and the MIO window assistant.
 
 ```php
 apply_filters( 'openstation_ai_model_config', array $config, array $context );
@@ -2367,11 +2383,13 @@ apply_filters( 'openstation_ai_model_config', array $config, array $context );
 // $context = { user_id, request_id, source, has_tools, has_schema }
 ```
 
-`model` takes a model id or an SDK `ModelInterface`; anything else is ignored. `custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `widgets/drafts-suggestions`, `mio/window`. The MIO source passes model configuration context only; it does not emit AI search transcript logging hooks.
+`model` takes a model id or an SDK `ModelInterface`; anything else is ignored. `custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `agents/draft`, `widgets/drafts-suggestions`, `mio/window`. The MIO source passes model configuration context only; it does not emit AI search transcript logging hooks.
 
 `custom_options` also feeds model discovery, not just the request body: the AI Client turns each key into a required option when it picks a model, so on a multi-provider connector an option only one model supports narrows the selection to it (or fails to match any).
 
-**Defaults to empty.** OpenStation pins neither provider nor model, since the keys that control reasoning depth are model-family-specific.
+**Defaults to the output ceiling alone.** OpenStation pins neither provider nor model, since the keys that control reasoning depth are model-family-specific. The one value it fills in when the filter leaves it unset is `max_tokens`, at `OPENSTATION_AI_DEFAULT_MAX_TOKENS` (16384). The three default providers disagree about what "no ceiling" means: the OpenAI and Google providers send none and the model's own maximum applies, while the Anthropic provider must send one and falls back to 4096. That is not enough for a tool call carrying a whole post: the model runs out of room inside the call's JSON, the API returns only the argument pairs that were complete before the cut, and the ability rejects the call for its missing `content`. 16384 is the largest value every current-generation model of the three providers accepts. A filter value, higher or lower, always wins; a site pinning an older model with a smaller output limit must set one.
+
+A turn that still hits the ceiling fails as `openstation_ai_output_truncated` (HTTP 502, `data.detail` carries the provider's reason, `data.completion_tokens` the count reached when known) rather than handing a partial function call or a half-written JSON answer to the caller. The OpenAI provider reports the same condition as an exception, which Core surfaces as `prompt_token_limit_reached`; the client maps it to the same code. The Agents runner turns it into `openstation_agent_output_truncated` with a message that names the remedy. A budget spent entirely inside a reasoning block still surfaces as `openstation_ai_empty_answer`, since nothing was written to truncate.
 
 Recipe: [`examples/ai-model-config.md`](./examples/ai-model-config.md).
 
@@ -2387,6 +2405,8 @@ The Drafts widget offers per-draft title / excerpt / tag / category suggestions 
 | `/wp-json/desktop-mode/v1/draft-apply` | POST `{ post_id, title?, excerpt?, tags?, categories? }` | `edit_post` | Writes an accepted suggestion onto the post. Tags and categories are **appended**, never clobbered. New categories are only created for users who can `manage_categories`; unknown ones are skipped. |
 
 The capability check runs **before** the provider check, so an unauthorized caller gets the same `403` whether or not the site has AI configured. With no provider, an authorized caller gets `503 openstation_ai_unavailable` and the 💡 button never renders — the widget degrades to exactly its pre-AI behavior.
+
+When the provider itself fails, the route answers `502 openstation_ai_failed` whatever the provider's own status was: a provider `401` passed through as the REST status would read as an expired WordPress session to every client on the page. The message says what happened in plain words and the error `data` carries the detail a caller can act on: `reason` (`quota`, out of credits or rate limited; `auth`, the site's key was rejected; `unavailable`, unreachable or a 5xx; `other`), `provider_status` (the provider's HTTP status, or `null` when the request never reached it) and `detail` (the provider's message, verbatim). The widget renders `reason` and links `auth` to Settings → Connectors; the raw provider text stays in `detail`.
 
 ### `openstation_drafts_ai_instructions` — Experimental
 
@@ -3290,6 +3310,8 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 Native writing desk that replaces the chromeless `edit.php` iframe. Ruled note cards show titles, excerpts, publishing states, word counts, approved comment totals, tag counts and nearby Edit / Details actions; a companion inspector exposes the taxonomy pickers and extension fields. The Content view control opens the optional Details table. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. An [App Framework](./app-framework.md) app — `apps/posts/` — whose list is a `data()` over `openstation_app_rest_page( 'wp/v2/posts', … )` (so every REST field and the query-args filter below reach the rows exactly as they reached the old bundle), whose server paging / filtering / sorting are its state, and whose "Move to trash" is a server action; the Categories mind map and the Tags cloud are its two canvases. The registration (title, size, config extra) is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-posts'`. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes and [`migration-list-apps.md`](./migration-list-apps.md) for what the port removed.
 
+**Its tabs are the Posts menu, in both directions.** All posts, Add Post, Categories and Tags are the same rows the dock's Posts submenu lists, in the same order, because both come from the window's own [`App::menu()`](./app-framework.md) declaration. Each tab names the wp-admin page it replaces, so the shell claims `post-new.php` and the two taxonomy screens for the window **wherever** they are clicked — a link in another window, the admin bar's "+ New", a workspace's launch list — and opens it on the matching tab. A page the window has no tab for keeps its own row, so a plugin's screen registered under Posts stays reachable. Add Post shows the editor embedded in the panel through [`wp.os.embedAdminPage()`](./javascript-reference.md#wposembedadminpage-host-url-opts---stable); it mounts blank unless the page inside says it is holding unsaved changes, in which case the draft is handed back. An embedded editor is not an iframe window, so it has no close-time unsaved-changes prompt. Pages works the same minus the taxonomies, and adds the reverse case: **Page atlas** is a tab wp-admin has no screen for, and the dock offers it as a row anyway. All of it is gated on the opt-in, which is why flipping a Beta toggle spends a menu refresh.
+
 Cards use continuous scrolling: the next server batch appends as the bottom approaches, with a retryable Load more control for keyboard access or request failures. Search and sort start a fresh collection. Selection spans the loaded cards; the optional Details table shares those rows and offers the same continuation control. A refresh after scrolling restarts at the first batch so earlier cards cannot retain stale edits. The `data-loaded` event still describes each server batch, while `ctx.table` and the selected-row methods expose the loaded collection. On phones, compact cards keep the actions visible and the additional filters live behind Options.
 
 Word counts read the complete rendered content through Core REST, and comment counts read the approved total from the comment collection header. Metrics load for cards near the viewport, with two cards in flight at most. A denied/unavailable metric stays unknown (`—`); no view counts are inferred without an analytics source.
@@ -3390,6 +3412,8 @@ wp.os.registerNativeUrlRemap( {           // planned public API; internal today 
 
 Returning `false` from `enabled` (or `matches`) lets the click fall through. An `openById( nativeWindowId )` call that reports the window isn't registered for the current user (cap-gated, opt-in-gated) also falls through — the registry walks on to the next entry, then to the iframe path.
 
+The submenu surfaces — a constellation flyout row, a custom rail renderer's `openSubmenuPick` — pass `tryNativeUrlRemap( url, { newInstance: true } )`, which routes to `openNewById()` so a remapped child page spawns a window instead of focusing the open one, exactly as the iframe it replaces now does. Every other path (dock tile click, deep link, in-window link, Related menu, session restore) leaves the flag off and focuses.
+
 ---
 
 ## Native Pages window
@@ -3436,7 +3460,7 @@ The `{ slug: label }` map for the active theme's registered page templates, used
 
 ## Native Plugins window
 
-A three-tab native window (Installed, Add Plugin, OpenStation plugins) that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe.
+A three-tab native window (Installed, Add Plugin, OpenStation plugins) that replaces the chromeless `plugins.php` (Installed list) and `plugin-install.php` (Browse the .org repo) iframes. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Plugins window** (persisted as `OsSettingsState.nativePluginsEnabled`, default `false`). `plugin-editor.php` is intentionally NOT claimed; that surface stays on the existing iframe. Where Core lists the editor under Plugins (a single site, a classic theme, and `edit_plugins`, so `DISALLOW_FILE_EDIT` hides it), the window adds a **Plugin File Editor** tab that opens Core's screen as its own window; on a block theme Core lists it under Tools, and the window offers no tab.
 
 Architecture summary: an [App Framework](./app-framework.md) app (`apps/plugins/`). The installed list is the app's `data()` over Core REST (`openstation_app_rest( 'GET', 'wp/v2/plugins' )`, every REST-field decorator below included); activate / deactivate / delete / bulk are server actions running Core's controller in-process; admin-only paths (browse / info / reviews / .zip upload / featured) live on `admin-ajax.php` (`wp_ajax_openstation_plugins_*`) so we never need to `require_once ABSPATH . 'wp-admin/…'`. Install-by-slug delegates to Core's existing `wp_ajax_install_plugin` handler. Mutations perform the `$os->refresh_menu()` effect so the dock repaints live. The landing tab is the window's `tab` open-time param. The registration is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-plugins'`; see [`migration-list-apps.md`](./migration-list-apps.md).
 
@@ -5398,7 +5422,9 @@ Public URL of the same directory. Must resolve to the same bytes as
 Absolute path of the agent-face storage directory (no trailing slash).
 Default `uploads/desktop-mode-agent-faces`. Each agent's portrait is
 written here as an SVG named `<agentId>-<hash>.svg`, and served as its
-avatar wherever `get_avatar()` runs.
+avatar wherever `get_avatar()` runs. The file is removed when the agent
+is deleted, whether through `openstation_agent_delete()` or through
+Core's own user deletion (wp-admin → Users, `wp user delete`).
 
 Whatever this points at **must be web-servable**. The directory is
 hardened exec-off rather than deny-all for exactly that reason: a
@@ -5688,21 +5714,27 @@ no-op — there is no cap set to intersect with.
 
 ### `openstation_agent_user_can_invoke_agent` — Experimental *(filter)*
 
-Whether the current user may invoke a **specific** agent through a
-specific source. `openstation_agents_user_can_invoke` is the site-wide
-half ("may this user invoke agents at all"); this is the per-agent
-half.
+Whether the current user may invoke a **specific** agent.
+`openstation_agents_user_can_invoke` is the site-wide half ("may this
+user invoke agents at all"); this is the per-agent half.
 
-Default: honours the `capability` declared in the matching trigger's
-config. An agent with no trigger for that source, or one declaring no
-capability, falls back to the route-level check — requiring a
-configured trigger would lock out every agent created before triggers
-were set up.
+Default: the caller must hold **every** `capability` declared in the
+config of **any** of the agent's triggers, whichever source the request
+names. The source is a request parameter on the invoke route, so it
+describes how the request says it arrived rather than what it may
+reach; a capability configured on an agent is a property of the agent,
+not of one trigger kind. An agent whose triggers declare no capability
+(including one with no triggers) falls back to the route-level check —
+requiring a configured trigger would lock out every agent created
+before triggers were set up.
 
-- **Param** `bool $can`
+- **Param** `bool $can` — whether the caller holds every trigger capability.
 - **Param** `int $agent_user_id`
-- **Param** `string $source` — `chat`, `drag`, or `send-to`.
-- **Param** `array|null $trigger` — the matching trigger row, if any.
+- **Param** `string $source` — the source the request names: `chat`,
+  `drag`, or `send-to`. Client-supplied on the invoke route; context for
+  the filter, not proof of how the request arrived.
+- **Param** `array|null $trigger` — the trigger row whose kind matches
+  `$source`, if any. Context only: it is not what decided `$can`.
 
 ### `openstation_agent_default_rate_limit` — Experimental *(filter)*
 
@@ -5766,9 +5798,9 @@ the always-listed WP Explorer section appears at all.
 - `openstation_agent_create( $args )` / `openstation_agent_update( $user_id, $fields )` / `openstation_agent_delete( $user_id, $reassign )` — the orchestrators (the only write paths; each fires its audit action). These are **privileged internal APIs**: they enforce role assignment (see `openstation_agent_actor_can_assign_role`) but assume the caller already checked who is asking. The REST surface does that with `edit_users`; a direct caller must do the same.
 - `openstation_agent_get_agents( $args )` — list every agent.
 - `openstation_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.
-- `openstation_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, invoker cap ceiling, tool loop, turn cap 8, rate limits). `$context['source']` names the trigger; `$context['invoker']` is the user whose capabilities ceiling the run (defaults to `get_current_user_id()`; pass `0` deliberately for a system-context run); `$context['history']` replays prior conversation turns (`[ { role: 'user'|'agent', text }, … ]`, oldest first, capped at the 50 most recent × 4000 chars each). **Pass the history for any follow-up message**: without it the run is contextless, so "yes, do it" resolves against nothing and the agent may act on a different entity than the one just discussed.
-- `openstation_agent_user_can_invoke_agent( $agent_user_id, $source )` — the per-agent invocation gate. Call it before `openstation_agent_invoke()` from any new trigger intake.
-- `openstation_agent_trigger_for_source( $agent_user_id, $source )` — the agent's trigger row for an invocation source, or null.
+- `openstation_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, invoker cap ceiling, tool loop, turn cap 8 with an early stop after three consecutive turns in which every tool call failed identically, rate limits). `$context['source']` names the trigger; `$context['invoker']` is the user whose capabilities ceiling the run (defaults to `get_current_user_id()`; pass `0` deliberately for a system-context run); `$context['history']` replays prior conversation turns (`[ { role: 'user'|'agent', text }, … ]`, oldest first, capped at the 50 most recent × 4000 chars each). **Pass the history for any follow-up message**: without it the run is contextless, so "yes, do it" resolves against nothing and the agent may act on a different entity than the one just discussed.
+- `openstation_agent_user_can_invoke_agent( $agent_user_id, $source )` — the per-agent invocation gate: every capability declared on any of the agent's triggers, whatever `$source` says. Call it before `openstation_agent_invoke()` from any new trigger intake.
+- `openstation_agent_trigger_for_source( $agent_user_id, $source )` — the agent's trigger row for an invocation source, or null. Context only; the invocation gate does not select capabilities by source.
 - `openstation_agent_runner_get_log( $agent_user_id )` — recent invocations (capped at 50).
 - `openstation_agents_abilities_catalogue()` — the picker catalogue.
 

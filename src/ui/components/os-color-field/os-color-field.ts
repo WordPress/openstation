@@ -13,7 +13,7 @@ import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-color-field.styles';
 
 export class OsColorField extends Component {
-	static props = [ 'label', 'value', 'variant' ] as const;
+	static props = [ 'name', 'label', 'value', 'variant' ] as const;
 	static styles = [ styles ];
 
 	static help = {
@@ -22,6 +22,7 @@ export class OsColorField extends Component {
 			'Label + native color input. Reflects the value attribute both ways and emits os-color-change live on every edit (no debounce — callers debounce upstream).',
 		status: 'stable',
 		props: [
+			{ name: 'name', type: 'string', description: 'Key used by an enclosing os-form to collect, populate and reset this field.' },
 			{
 				name: 'label',
 				type: 'string',

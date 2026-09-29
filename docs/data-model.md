@@ -17,7 +17,7 @@ page has a bug.
 | Data | Store | Why there |
 |---|---|---|
 | Desktop tiles, folders, uploaded files, shares, game scores and challenges | Plugin-owned tables (`{$wpdb->prefix}desktop_mode_*`) | Relational, high-cardinality, queried by owner / parent / state. Serialised blobs in options or meta would not index. |
-| Agent conversations, sticky notes | Custom post types in `wp_posts` | They are content: they get trash, capabilities, revisions and REST for free. |
+| Agent conversations, sticky notes | Custom post types in `wp_posts` | They are content: authorship, capabilities and deletion with their author come from Core. Both types are private (no admin UI, no Core REST, no revisions) and are served by their own REST routes; notes go to the trash, conversations are deleted outright. |
 | AI agents | Rows in `wp_users` | Authorship and capabilities come from Core; the profile lives in user meta. |
 | Per-user preferences, session, opt-in, play time | `wp_usermeta` | Follows the user; `get_user_meta()` is cached per request. |
 | Site-wide flags, schema versions, uploaded themes | `wp_options` | One value per site; the hot ones are `autoload = no`. |
@@ -195,7 +195,7 @@ The sections below name the exact tables and keys.
 | Files | ● | ● | ● | | ● | | ● |
 | Folder sharing | ● | | | | | | |
 | Games | ● | ● | | | ● | | |
-| Agents | | ● | ● | | ● | | ● |
+| Agents | | ● | ● | | ● | ● | ● |
 | Notes | | ● | ● | | ● | | |
 | Recycle Bin | | | ● | ● | ● | | |
 | Presence | | | | | ● | | |
@@ -253,6 +253,7 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `meta_key` | Module | Content |
 |---|---|---|
 | `desktop_mode_mode` | Core | The user's opt-in: `1` turns the shell on. |
+| `openstation_enabled_at` | First run | Epoch seconds of the user's first enable; absent until then. Written by `openstation_record_user_enabled()` from the admin-bar toggle and the portal. |
 | `desktop_mode_os_settings` | Preferences | Every OpenStation Preferences value (appearance, windows, navigation, features). REST-synced through `/wp-json/desktop-mode/v1/os-settings`. |
 | `desktop_mode_session` | Session | Open windows and their geometry for restore. On multisite the key is suffixed: `_{blog_id}` on a secondary site, `_network` in the network admin. |
 | `desktop_mode_default_window` | Core | The window that opens on arrival. |
@@ -299,7 +300,7 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `_desktop_mode_recycle_bin_change_ts` | Recycle Bin | Timestamp of the last bin change, for the badge (`autoload = no`). |
 | `openstation_app_store` | App Framework | The `Store` contract with `site` scope. |
 | `openstation_installed_at` | First run | `{ at, via }`: when the plugin was activated (`autoload = no`). `via` is `activation` from the activation hook, `backfill` when reconstructed on `admin_init` for an install that predates the stamp; a backfilled age reads as unknown everywhere. |
-| `openstation_first_enabled_at` | First run | `{ at, via }`: the first time any user turned OpenStation on (`autoload = no`). Migration 9 writes `at: 0, via: backfill` for a site that already had users in the shell. Its presence is what stops the activation nudge. |
+| `openstation_first_enabled_at` | First run | `{ at, via }`: the first time any user turned OpenStation on (`autoload = no`). Written by `openstation_record_user_enabled()`. On a site that already had users in the shell, `openstation_record_installed()` and migration 10 write `at: 0, via: backfill` instead. Its presence is what stops the activation nudge. |
 
 ## Transients
 
@@ -316,6 +317,7 @@ truth; every one regenerates.
 | `desktop_mode_about_feed_v1`, `_failure_v1`, `_stale_v1` | About | The news feed and its failure / stale states. |
 | `desktop_mode_living_tree_snapshot` | Living Tree | Wallpaper snapshot. |
 | `desktop_mode_site_views_meta` | Stats | Site views metadata. |
+| `desktop_mode_agent_user_rate_{invoker}_{YmdH}`, `openstation_agent_rate_{agent}_{YmdH}` | Agents | Hourly invocation counters, one per human invoker and one per agent, bucketed by the UTC hour. They expire after an hour. |
 | `openstation_shell_build` | PWA | Hash of the shell bundles, used to detect a deploy. |
 | `dm_pwsz_map` | Plugins | On-disk size of each plugin. |
 

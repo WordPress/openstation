@@ -13,6 +13,8 @@
  *                          the tab; AJAX routes re-validate).
  *   - `delete_plugins`   → bulk-delete + per-row delete action.
  *   - `upload_plugins`   → .zip upload (file or drag-drop).
+ *   - `edit_plugins`     → the Plugin File Editor tab, where Core lists
+ *                          the editor under Plugins.
  *
  * UI-side gating is purely UX polish — the AJAX routes in `ajax.php`
  * and the app's server actions re-validate every cap before mutating.
@@ -116,6 +118,27 @@ function openstation_plugins_window_caps( $user_id = null ) {
 		// true. Server-side, `wp_ajax_update_plugin` re-checks the cap.
 		'update'   => $user_id > 0 && user_can( $user_id, 'update_plugins' ),
 	);
+}
+
+/**
+ * Core's Plugin File Editor, when Core lists it under Plugins for this
+ * viewer — the URL the window's Plugin File Editor tab opens.
+ *
+ * Mirrors the row `wp-admin/menu.php` adds: under Plugins on a single
+ * site with a classic theme, gated on `edit_plugins`, whose meta cap
+ * already answers `DISALLOW_FILE_EDIT` and `DISALLOW_FILE_MODS`. A block
+ * theme moves the row to Tools and multisite keeps the editor in the
+ * network admin, so the window offers nothing there.
+ *
+ * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
+ * @return string Absolute URL, or `''` when Core lists no editor under Plugins.
+ */
+function openstation_plugins_window_editor_url( $user_id = null ) {
+	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
+	if ( is_multisite() || wp_is_block_theme() || $user_id <= 0 || ! user_can( $user_id, 'edit_plugins' ) ) {
+		return '';
+	}
+	return esc_url_raw( admin_url( 'plugin-editor.php' ) );
 }
 
 /**

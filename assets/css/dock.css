@@ -125,19 +125,27 @@
 
 /* Stacked card hint on hover — a second card peeks from behind the
    icon when the tile has multiple open windows. Only visible on hover so
-   it never conflicts with focused tiles. */
-.os-dock__item--stacked:hover .os-dock__item-primary::before,
-.os-dock__item--stacked[data-peek-active] .os-dock__item-primary::before {
+   it never conflicts with focused tiles.
+ *
+ * Painted on the TILE, not on the button it hints at. The hover that
+ * arms this also scales the button, a transform makes a stacking
+ * context, and a `z-index: -1` child of one cannot escape it: the card
+ * landed above the button's own hover plate instead of behind the
+ * tile, reading as a second plate laid over the first. The tile is
+ * transformed by nothing, and a positioned child (the button) paints
+ * over a parent's `::before` at the same level, so the card sits where
+ * its name says without asking for a z-index at all. */
+.os-dock__item--stacked:hover::before,
+.os-dock__item--stacked[ data-peek-active ]::before {
 	content: "";
 	position: absolute;
 	top: -4px;
 	inset-inline-start: -4px;
-	width: 100%;
-	height: 100%;
-	border-radius: inherit;
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
 	background: rgba( 255, 255, 255, 0.06 );
 	border: 1px solid rgba( 255, 255, 255, 0.10 );
-	z-index: -1;
 	pointer-events: none;
 }
 
@@ -1015,15 +1023,24 @@
  * stays centred in the pill. `min-width: 0` lets the wrapper shrink below its
  * content's natural width, so the dock pill's `max-width` is what
  * decides when scroll kicks in instead of the content forcing the
- * pill wider. `justify-content: center` keeps tiles balanced inside
- * the pill when content fits; when it overflows, scroll engages and
- * items extend past the visible area.
+ * pill wider. `justify-content: safe center` keeps tiles balanced inside
+ * the pill when content fits; when it overflows, the `safe` keyword
+ * ensures alignment falls back to `start` so `scrollLeft = 0` reveals the
+ * first item and all items remain scrollable without clipping. Bare
+ * `center` put the leading tiles at a negative offset, and a scroll
+ * container clamps `scrollLeft` at 0, so Dashboard and its neighbours
+ * were clipped with no way to scroll back to them. **The plain `start`
+ * above it is the fallback, not a leftover** — a browser that cannot
+ * parse the overflow-alignment keyword drops the `safe center`
+ * declaration and keeps that one, which left-aligns the tiles rather
+ * than hiding them. Deleting it restores the bug on those browsers.
  */
 .os-dock[ data-os-dock-placement="bottom" ] .os-dock__scroll {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	justify-content: center;
+	justify-content: start;
+	justify-content: safe center;
 	gap: 6px;
 	flex: 1 1 auto;
 	min-width: 0;

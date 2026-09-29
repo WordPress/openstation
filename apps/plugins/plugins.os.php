@@ -293,8 +293,39 @@ return App::define( 'desktop-mode-plugins' )
 				// on the admin page load (it needs an admin include),
 				// which is why it rides the config rather than `data()`.
 				'autoUpdatesEnabled' => openstation_plugins_window_auto_updates_enabled(),
+				// The deactivation feedback dialog's lazy bundle and
+				// route; `null` when the feature is filtered off.
+				'deactivationFeedback' => openstation_deactivation_feedback_app_config(),
+				// Core's Plugin File Editor stays Core's screen: a tab
+				// opens it as its own window, offered only where Core
+				// lists it under Plugins (`''` everywhere else).
+				'editorUrl'          => openstation_plugins_window_editor_url(),
 			);
 		}
+	)
+	// The Plugins menu, while this window answers for it. The file
+	// editor is deliberately not a row: it is a tab the window opens
+	// on a file you picked, not a page you can ask for cold.
+	->menu(
+		'plugins.php',
+		static function () {
+			$caps = openstation_plugins_window_caps();
+			$tabs = array(
+				'installed' => array(
+					'label' => __( 'Installed', 'desktop-mode' ),
+					'page'  => 'plugins.php',
+				),
+			);
+			if ( ! empty( $caps['install'] ) ) {
+				$tabs['browse']   = array(
+					'label' => __( 'Add Plugin', 'desktop-mode' ),
+					'page'  => 'plugin-install.php',
+				);
+				$tabs['featured'] = __( 'OpenStation plugins', 'desktop-mode' );
+			}
+			return $tabs;
+		},
+		'openstation_plugins_window_user_can_use'
 	)
 	->state(
 		array(

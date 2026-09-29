@@ -77,7 +77,7 @@ describe( '/workspace', () => {
 		const command = listCommands().find( ( c ) => c.slug === 'workspace' )!;
 		const rows = await labels( command.suggest?.( '', ctx() ) );
 
-		expect( rows[ 0 ] ).toBe( 'Desktop 1' );
+		expect( rows[ 0 ] ).toBe( 'Workspace 1' );
 		expect( rows ).toContain( 'New: Commerce' );
 		expect( rows ).toContain( 'New: Learning' );
 		expect( rows ).toContain( 'New: Publishing' );

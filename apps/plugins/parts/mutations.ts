@@ -18,7 +18,15 @@
 import { __, sprintf } from '@openstation/app';
 import { decodeHTML } from '../../../src/utils';
 import { leaveForClassicAdmin } from '../../../src/exit-openstation';
+import type { DeactivationFeedbackApi } from '../../../src/deactivation-feedback';
 import { describeError, isActiveStatus, type InstalledPlugin, type PluginsHost } from './types';
+
+declare global {
+	interface Window {
+		/** Published by `deactivation-feedback[.min].js` once loaded. */
+		openStationDeactivationFeedback?: DeactivationFeedbackApi;
+	}
+}
 
 /**
  * True when the mutation just took OpenStation down: the row is our
@@ -45,6 +53,50 @@ export function leaveAfterSelfMutation( host: PluginsHost, deleted: boolean ): v
 	leaveForClassicAdmin( host.extra.adminUrl ?? '' );
 }
 
+/**
+ * Ask the deactivation question before OpenStation itself goes down.
+ *
+ * Resolves at once when none of `plugins` is us, when the feature is
+ * off, or when the bundle cannot load — the dialog is optional and
+ * never blocks a deactivation. The bundle is lazy: nobody pays for it
+ * until they deactivate OpenStation.
+ */
+export async function askBeforeSelfDeactivate( host: PluginsHost, plugins: string[] ): Promise< void > {
+	if ( ! plugins.some( ( plugin ) => host.rest.isOpenStationSelf( plugin ) ) ) {
+		return;
+	}
+	const cfg = host.extra.deactivationFeedback;
+	if ( ! cfg ) {
+		return;
+	}
+	try {
+		const os = window.wp?.os;
+		let api = os?.deactivationFeedback ?? window.openStationDeactivationFeedback;
+		if ( ! api && cfg.script.url && typeof os?.loadVendorScript === 'function' ) {
+			await os.loadVendorScript( cfg.script.url, {
+				handle: 'os-deactivation-feedback',
+				translations: cfg.script.translations,
+			} );
+			api = os.deactivationFeedback ?? window.openStationDeactivationFeedback;
+		}
+		if ( ! api ) {
+			return;
+		}
+		await api.ask( {
+			plugin: host.extra.selfPluginFile + '.php',
+			restUrl: cfg.restUrl,
+			// Empty on purpose: `wp.os.fetch` injects the live REST
+			// nonce, and a snapshot in the app config goes stale
+			// after a nonce refresh.
+			restNonce: '',
+			context: 'app',
+			styleUrl: cfg.styleUrl,
+		} );
+	} catch {
+		// Optional surface; the deactivation goes ahead.
+	}
+}
+
 /** Activate one plugin. Resolves true once the fresh list landed. */
 export async function activatePlugin( host: PluginsHost, row: InstalledPlugin ): Promise< boolean > {
 	const ok = await host.dispatch( 'activate', { plugin: row.plugin } );
@@ -56,6 +108,7 @@ export async function activatePlugin( host: PluginsHost, row: InstalledPlugin ):
 
 /** Deactivate one plugin; a self-deactivate leaves for the classic admin. */
 export async function deactivatePlugin( host: PluginsHost, row: InstalledPlugin ): Promise< boolean > {
+	await askBeforeSelfDeactivate( host, [ row.plugin ] );
 	const ok = await host.dispatch( 'deactivate', { plugin: row.plugin } );
 	if ( ! ok ) {
 		return false;

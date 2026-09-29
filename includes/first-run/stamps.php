@@ -19,7 +19,10 @@
  * later for an install that predates it. A backfilled `at` is the
  * moment we noticed, not the moment it happened, so every age
  * computation here reports "unknown" (`null`) rather than a number
- * that would be wrong by an arbitrary amount.
+ * that would be wrong by an arbitrary amount. An install with a past
+ * is recognised by the user meta the shell leaves behind — nothing
+ * removes it on deactivate or delete — so a reactivation on such a
+ * site is backfilled too, whatever hook wrote it.
  *
  * The user stamp and the site stamp are written by ONE helper,
  * {@see openstation_record_user_enabled()}, called from both paths
@@ -105,6 +108,15 @@ function openstation_get_user_enabled_at( $user_id = 0 ) {
  * Idempotent on purpose: activation fires again on every deactivate /
  * reactivate cycle, and the first activation is the one that counts.
  *
+ * A site with prior desktop use ({@see openstation_users_with_prior_desktop_use()})
+ * predates the stamps whatever `$via` says: the plugin was there
+ * before, was deactivated or deleted with the user meta left behind,
+ * and is being activated again. Its install moment is unknown, so the
+ * stamp is written as `backfill`, and so is the first-enable stamp
+ * (`at: 0`) when nothing has written it, because someone did enable
+ * before the stamps existed and the next enable must not pass for
+ * the first. One user query, only while the stamp is absent.
+ *
  * @param string $via `activation` or `backfill`.
  * @return bool True when this call wrote the stamp.
  */
@@ -113,6 +125,24 @@ function openstation_record_installed( $via = 'activation' ) {
 		return false;
 	}
 	$via = 'activation' === $via ? 'activation' : 'backfill';
+
+	$has_past = function_exists( 'openstation_users_with_prior_desktop_use' )
+		&& count( openstation_users_with_prior_desktop_use() ) > 0;
+	if ( $has_past ) {
+		$via = 'backfill';
+		if ( null === openstation_get_first_enabled_stamp() ) {
+			add_option(
+				OPENSTATION_FIRST_ENABLED_AT_OPTION,
+				array(
+					'at'  => 0,
+					'via' => 'backfill',
+				),
+				'',
+				false
+			);
+		}
+	}
+
 	return (bool) add_option(
 		OPENSTATION_INSTALLED_AT_OPTION,
 		array(
@@ -248,7 +278,7 @@ function openstation_install_age_days() {
  * Returns `true` or `false` when both stamps are real, and `null` when
  * the answer cannot be known: the install stamp is missing or
  * backfilled, or the first enable happened before the stamps existed
- * (migration 9 records that as `at: 0, via: backfill`). A site where
+ * ({@see openstation_record_installed()} records that as `at: 0, via: backfill`). A site where
  * nobody has enabled yet answers `false` once it is older than
  * `$days`, and `null` while the window is still open.
  *

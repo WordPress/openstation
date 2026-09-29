@@ -51,7 +51,6 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		remove_all_filters( 'openstation_shell_config' );
-		remove_all_filters( 'openstation_arrange_menu_items' );
 		unset( $_GET['openstation_chromeless'] );
 		parent::tear_down();
 	}
@@ -101,28 +100,46 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The node is the way INTO the shell and nothing else. Once the
+	 * user is viewing the desktop the admin bar carries no OpenStation
+	 * nodes at all — the "Exit OpenStation" dock tile is the way back.
+	 *
 	 * @covers ::openstation_admin_bar_toggle
 	 */
-	public function test_toggle_title_switches_when_openstation_is_active() {
+	public function test_toggle_is_not_added_when_openstation_is_active() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$bar  = $this->build_admin_bar();
-		$node = $bar->get_node( 'os-toggle' );
+		$bar = $this->build_admin_bar();
 
-		$this->assertStringContainsString( 'Classic Admin', $node->title );
-		$this->assertSame( 'os-active', $node->meta['class'] );
+		$this->assertNull( $bar->get_node( 'os-toggle' ) );
+	}
+
+	/**
+	 * A classic-override request (`?desktop_mode_classic=1`) is classic
+	 * admin whatever the user's meta says, so it keeps the way back in.
+	 *
+	 * @covers ::openstation_admin_bar_toggle
+	 */
+	public function test_toggle_is_added_on_a_classic_override_request() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_classic'] = '1';
+
+		$bar = $this->build_admin_bar();
+
+		unset( $_GET['desktop_mode_classic'] );
+		$this->assertNotNull( $bar->get_node( 'os-toggle' ) );
 	}
 
 	/**
 	 * @covers ::openstation_admin_bar_toggle
 	 */
-	public function test_toggle_title_advertises_openstation_when_inactive() {
+	public function test_toggle_title_advertises_openstation() {
 		wp_set_current_user( self::$admin_id );
 		$bar  = $this->build_admin_bar();
 		$node = $bar->get_node( 'os-toggle' );
 
 		$this->assertStringContainsString( 'OpenStation', $node->title );
-		$this->assertSame( '', $node->meta['class'] );
 	}
 
 	/**
@@ -157,7 +174,7 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The OpenStation items must be block-level, exactly the bar's
+	 * The OpenStation item must be block-level, exactly the bar's
 	 * height. An `inline-flex` item sits on a line box aligned on the
 	 * baseline and grows its <li> to 37px inside the 32px bar; under
 	 * Core's float layout that is invisible, but a host that lays the
@@ -176,9 +193,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
 
 		$this->assertMatchesRegularExpression(
-			'/#wp-admin-bar-desktop-help > \.ab-item \{\s*display: flex;/',
+			'/#wp-admin-bar-os-toggle > \.ab-item \{\s*display: flex;/',
 			$inline,
-			'The admin-bar items must be display: flex.'
+			'The admin-bar item must be display: flex.'
 		);
 		$this->assertStringNotContainsString(
 			"> .ab-item {\n\t\t\tdisplay: inline-flex",
@@ -226,7 +243,6 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		// JSON-shaped properties for every value we inject.
 		$this->assertMatchesRegularExpression( '/"nonce":"[a-f0-9]+"/', $data );
-		$this->assertMatchesRegularExpression( '/"active":(true|false)/', $data );
 		$this->assertStringContainsString( '"classicUrl":"', $data );
 		$this->assertStringContainsString( '"portalUrl":"', $data );
 		$this->assertStringContainsString( '"ajaxUrl":"', $data );
@@ -337,168 +353,4 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'openstation_enqueue_assets' ) );
 	}
 
-	/**
-	 * The four built-in arrange items should be present when desktop
-	 * mode is active. Only validates presence + parenting; each item's
-	 * click wiring lives in the inline JS under the toggle assets.
-	 *
-	 * @covers ::openstation_admin_bar_toggle
-	 */
-	public function test_arrange_menu_has_builtins_when_active() {
-		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$bar = $this->build_admin_bar();
-
-		$this->assertNotNull( $bar->get_node( 'desktop-layout-menu' ) );
-		foreach ( array( 'cascade', 'overview', 'snap', 'tile' ) as $slug ) {
-			$node = $bar->get_node( 'desktop-layout-' . $slug );
-			$this->assertNotNull( $node, "Expected built-in item desktop-layout-$slug" );
-			$this->assertSame( 'desktop-layout-menu', $node->parent );
-		}
-	}
-
-	/**
-	 * Plugins add entries to the Arrange submenu via the
-	 * `openstation_arrange_menu_items` filter. Each entry becomes an
-	 * admin-bar node under `desktop-layout-menu` with id prefixed by
-	 * `desktop-layout-custom-` — the inline JS routes its click to
-	 * `os.arrange.custom-action` with the original slug.
-	 *
-	 * @covers ::openstation_admin_bar_toggle
-	 */
-	public function test_arrange_menu_appends_custom_items_from_filter() {
-		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-
-		add_filter(
-			'openstation_arrange_menu_items',
-			function ( $items ) {
-				$items[] = array(
-					'id'          => 'diagonal',
-					'title'       => 'Diagonal',
-					'description' => 'A perfect 45° cascade.',
-				);
-				return $items;
-			}
-		);
-
-		$bar  = $this->build_admin_bar();
-		$node = $bar->get_node( 'desktop-layout-custom-diagonal' );
-
-		$this->assertNotNull( $node );
-		$this->assertSame( 'desktop-layout-menu', $node->parent );
-		$this->assertStringContainsString( 'os-layout-custom', $node->meta['class'] );
-		$this->assertSame( 'A perfect 45° cascade.', $node->meta['title'] );
-	}
-
-	/**
-	 * Entries missing `id` or `title` are silently dropped — plugins
-	 * can't accidentally create an unrouteable menu item.
-	 *
-	 * @covers ::openstation_admin_bar_toggle
-	 */
-	public function test_arrange_menu_drops_invalid_custom_items() {
-		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-
-		add_filter(
-			'openstation_arrange_menu_items',
-			function ( $items ) {
-				$items[] = array( 'title' => 'No ID' );
-				$items[] = array( 'id' => 'no-title' );
-				$items[] = 'not-an-array';
-				$items[] = array( 'id' => 'ok', 'title' => 'OK' );
-				return $items;
-			}
-		);
-
-		$bar = $this->build_admin_bar();
-
-		// Only the well-formed entry should have landed.
-		$this->assertNotNull( $bar->get_node( 'desktop-layout-custom-ok' ) );
-		$this->assertNull( $bar->get_node( 'desktop-layout-custom-no-title' ) );
-	}
-
-	/**
-	 * `position` sorts custom items; ties preserve registration order.
-	 *
-	 * @covers ::openstation_admin_bar_toggle
-	 */
-	public function test_arrange_menu_sorts_custom_items_by_position() {
-		wp_set_current_user( self::$admin_id );
-		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-
-		add_filter(
-			'openstation_arrange_menu_items',
-			function ( $items ) {
-				$items[] = array( 'id' => 'late',  'title' => 'Late',  'position' => 50 );
-				$items[] = array( 'id' => 'early', 'title' => 'Early', 'position' => 5 );
-				$items[] = array( 'id' => 'mid',   'title' => 'Mid',   'position' => 20 );
-				return $items;
-			}
-		);
-
-		$bar  = $this->build_admin_bar();
-		$menu = $bar->get_node( 'desktop-layout-menu' );
-		$this->assertNotNull( $menu );
-
-		// Read children in registration-plus-sort order from the bar.
-		$ids = array();
-		foreach ( $bar->get_nodes() as $n ) {
-			if ( $n->parent === 'desktop-layout-menu' && strpos( $n->id, 'desktop-layout-custom-' ) === 0 ) {
-				$ids[] = $n->id;
-			}
-		}
-
-		$this->assertSame(
-			array(
-				'desktop-layout-custom-early',
-				'desktop-layout-custom-mid',
-				'desktop-layout-custom-late',
-			),
-			$ids
-		);
-	}
-
-	/**
-	 * The filter only runs when the Arrange menu is actually built —
-	 * i.e., the user is viewing the desktop shell. On classic admin
-	 * the filter is never invoked so plugins don't waste cycles.
-	 *
-	 * @covers ::openstation_admin_bar_toggle
-	 */
-	public function test_arrange_menu_filter_not_invoked_in_classic_admin() {
-		wp_set_current_user( self::$admin_id );
-		// Default: desktop meta off → classic admin.
-		$invocations = 0;
-		add_filter(
-			'openstation_arrange_menu_items',
-			function ( $items ) use ( &$invocations ) {
-				$invocations++;
-				return $items;
-			}
-		);
-
-		$this->build_admin_bar();
-
-		$this->assertSame( 0, $invocations );
-	}
-
-	/**
-	 * The shipped click router must know how to recognise a
-	 * plugin-registered item. The router lives in
-	 * `assets/js/admin-bar.js` (extracted from inline PHP for wp.org
-	 * compliance). We assert the prefix check + custom-action dispatch
-	 * are both present in that file.
-	 */
-	public function test_toggle_assets_route_custom_arrange_items() {
-		$js_path = dirname( __DIR__, 3 ) . '/assets/js/admin-bar.js';
-		$this->assertFileExists( $js_path );
-
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- test-only file read.
-		$js = (string) file_get_contents( $js_path );
-
-		$this->assertStringContainsString( 'wp-admin-bar-desktop-layout-custom-', $js );
-		$this->assertStringContainsString( 'os.arrange.custom-action', $js );
-	}
 }

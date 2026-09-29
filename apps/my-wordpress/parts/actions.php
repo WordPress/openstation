@@ -32,8 +32,12 @@ const VIEWS = array( 'icons', 'list' );
 const COLUMNS_KEY = 'hidden-columns';
 
 /**
- * Mount: restore the remembered view mode. The client's first
- * dispatch carries the schema default; the stored preference wins.
+ * Mount: restore the remembered view mode (the client's first dispatch
+ * carries the schema default; the stored preference wins), then land
+ * on the person a `footprint` open-time param names. Deriving that
+ * here is what keeps the first paint honest: a window opened with
+ * params waits for `mount`, so the footprint is the first thing the
+ * body shows — not the folder grid for a beat and a second request.
  *
  * @param State $state State.
  * @param Os    $os    Host handle.
@@ -42,6 +46,52 @@ const COLUMNS_KEY = 'hidden-columns';
 function mount( State $state, Os $os ) {
 	$stored = (string) $os->stored( 'view', 'icons' );
 	$state->set( 'view', in_array( $stored, VIEWS, true ) ? $stored : 'icons' );
+	footprint_from_params( $state, $os );
+}
+
+/**
+ * `reopen`: the live window was asked to open from another surface
+ * (`wp.os.openWindow( 'my-wordpress', { params } )`). A named person
+ * replaces whatever the body showed; a plain reopen changes nothing.
+ *
+ * @param State $state State.
+ * @param Os    $os    Host handle.
+ * @return void
+ */
+function reopen_action( State $state, Os $os ) {
+	footprint_from_params( $state, $os );
+}
+
+/**
+ * The footprint the open-time params name — `footprint` (user id) and
+ * `fpName` (breadcrumb placeholder), as the footprint open target
+ * passes them.
+ *
+ * @param State $state State.
+ * @param Os    $os    Host handle.
+ * @return void
+ */
+function footprint_from_params( State $state, Os $os ) {
+	open_footprint( $state, (int) $os->param( 'footprint', 0 ), (string) $os->param( 'fpName', '' ) );
+}
+
+/**
+ * Put one person's footprint over the body. The id is validated (the
+ * payload route re-checks the viewer); the name is only ever a
+ * breadcrumb placeholder until the payload lands.
+ *
+ * @param State  $state State.
+ * @param int    $user  User id; 0 or unknown opens nothing.
+ * @param string $name  Display name, or ''.
+ * @return void
+ */
+function open_footprint( State $state, $user, $name ) {
+	if ( $user <= 0 || false === get_userdata( $user ) ) {
+		return;
+	}
+	$state->set( 'footprint', $user )
+		->set( 'fpName', sanitize_text_field( $name ) )
+		->set( 'item', 0 )->set( 'into', 0 )->set( 'relation', '' );
 }
 
 /**
@@ -223,9 +273,8 @@ function relation_action( State $state, Os $os, array $args ) {
 
 /**
  * `footprint`: open a user's activity footprint over the body — the
- * full-width surface WP Explorer answered "open this person" with.
- * The id is validated (the payload route re-checks the viewer), the
- * name is only ever a breadcrumb placeholder.
+ * full-width surface WP Explorer answered "open this person" with,
+ * from a dossier action or the shared footprint target.
  *
  * @param State               $state State.
  * @param Os                  $os    Host handle.
@@ -233,13 +282,7 @@ function relation_action( State $state, Os $os, array $args ) {
  * @return void
  */
 function footprint_action( State $state, Os $os, array $args ) {
-	$user = (int) ( $args['user'] ?? 0 );
-	if ( $user <= 0 || false === get_userdata( $user ) ) {
-		return;
-	}
-	$state->set( 'footprint', $user )
-		->set( 'fpName', sanitize_text_field( (string) ( $args['name'] ?? '' ) ) )
-		->set( 'item', 0 )->set( 'into', 0 )->set( 'relation', '' );
+	open_footprint( $state, (int) ( $args['user'] ?? 0 ), (string) ( $args['name'] ?? '' ) );
 }
 
 /**

@@ -289,6 +289,7 @@ function media_facts( \WP_Post $post ) {
 		'bytes'       => $bytes,
 		'size'        => $bytes > 0 ? (string) size_format( $bytes ) : '',
 		'dimensions'  => isset( $meta['width'], $meta['height'] ) ? $meta['width'] . ' × ' . $meta['height'] : '',
+		'alt'         => (string) get_post_meta( $post->ID, '_wp_attachment_image_alt', true ),
 		'author'      => (string) get_the_author_meta( 'display_name', (int) $post->post_author ),
 		'authorId'    => (int) $post->post_author,
 		'date'        => (string) get_the_date( 'c', $post ),

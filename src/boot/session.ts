@@ -19,6 +19,7 @@ import {
 	clampGeometryToViewport,
 	findDockEntryForUrl,
 	findDockEntryForWindowId,
+	findDockTitleForUrl,
 } from './geometry';
 import type { WindowManager } from '../window-manager';
 import type { NativeWindowRestoreState } from '../native-windows';
@@ -288,7 +289,11 @@ export async function restoreSession(
 			// and suppresses the parent tab — losing the only
 			// affordance to navigate back.
 			parentUrl: dockEntry?.url ?? win.url,
-			title: win.title,
+			// The menu's name for the page, in the CURRENT admin
+			// language; the saved title is in whichever language the
+			// window was opened in. Only a URL the menu does not list
+			// keeps what was saved, see `findDockTitleForUrl`.
+			title: findDockTitleForUrl( win.url, config ) ?? win.title,
 			icon: win.icon || 'dashicons-admin-generic',
 			// See the native seeds above: an `unplaced` window is
 			// placed by the manager, not by the phone's pixels.

@@ -1,14 +1,13 @@
 /**
  * OpenStation — Pinned notes REST client.
  *
- * Thin `trackedFetch` wrapper against `includes/notes/rest.php`.
- * Same conventions as the files client (`src/desktop-files/rest.ts`):
- * nonce header, JSON body, typed 409 conflict error carrying the
- * server's current copy.
+ * `createFeatureClient()` against `includes/notes/rest.php`: nonce
+ * header, JSON body, a typed 409 conflict error carrying the server's
+ * current copy, every other failure a `RestError`.
  */
 
-import { trackedFetch } from '../tracked-fetch';
 import { joinRestUrl } from '../rest-url';
+import { createFeatureClient } from '../core/api-client';
 import type { Note } from './types';
 
 export interface NotesRestDeps {
@@ -69,50 +68,28 @@ export function isNotesConflict( err: unknown ): err is NotesConflictError {
 	return err instanceof NotesConflictError;
 }
 
-async function call< T >( path: string, init: RequestInit ): Promise< T > {
-	const { baseUrl, nonce } = ensureDeps();
+/**
+ * Any other failure is a `RestError` (`src/core/api-client.ts`) whose
+ * console line keeps the `[openstation] notes REST <status>: …` shape;
+ * a 409 is a `NotesConflictError` carrying the server's copy.
+ */
+const call = createFeatureClient( {
+	prefix: '[openstation] notes REST',
+	source: 'desktop-mode/notes',
 	// `baseUrl` is a full `rest_url( 'desktop-mode/v1/notes' )` — for
 	// the collection routes (empty `path`) use it verbatim; joining an
 	// empty path would append a trailing slash the WP route regex
 	// (`^/desktop-mode/v1/notes$`) refuses to match.
-	const url = path ? joinRestUrl( baseUrl, path ) : baseUrl;
-	const headers = new Headers( init.headers ?? {} );
-	headers.set( 'X-WP-Nonce', liveNonce( nonce ) );
-	if ( init.body && ! headers.has( 'Content-Type' ) ) {
-		headers.set( 'Content-Type', 'application/json' );
-	}
-	const res = await trackedFetch(
-		url,
-		{ ...init, headers, credentials: 'same-origin' },
-		{ source: 'desktop-mode/notes' },
-	);
-	const text = await res.text();
-	let body: unknown = null;
-	if ( text ) {
-		try {
-			body = JSON.parse( text );
-		} catch {
-			body = null;
-		}
-	}
-	if ( ! res.ok ) {
-		if ( res.status === 409 ) {
-			const current = ( body as { data?: { current?: Note } } | null )
-				?.data?.current;
-			throw new NotesConflictError( current ?? null );
-		}
-		const err = body as { code?: string; message?: string } | null;
-		throw new Error(
-			`[openstation] notes REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
-		);
-	}
-	if ( null === body ) {
-		throw new Error(
-			`[openstation] notes REST ${ res.status }: empty or unparseable body.`,
-		);
-	}
-	return body as T;
-}
+	url: ( path ) => {
+		const { baseUrl } = ensureDeps();
+		return path ? joinRestUrl( baseUrl, path ) : baseUrl;
+	},
+	nonce: () => liveNonce( ensureDeps().nonce ),
+	conflict: ( body ) => {
+		const current = ( body as { data?: { current?: Note } } | null )?.data?.current;
+		return new NotesConflictError( current ?? null );
+	},
+} );
 
 export function listNotes(): Promise< { notes: Note[] } > {
 	return call< { notes: Note[] } >( '', { method: 'GET' } );

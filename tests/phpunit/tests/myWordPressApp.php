@@ -69,15 +69,17 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	 * @param string $action Action.
 	 * @param array  $state  Client state.
 	 * @param array  $args   Trigger args.
+	 * @param array  $params Open-time params.
 	 * @return array Runtime response.
 	 */
-	protected function dispatch( $action, array $state = array(), array $args = array() ) {
+	protected function dispatch( $action, array $state = array(), array $args = array(), array $params = array() ) {
 		return openstation_apps_runtime()->dispatch(
 			'my-wordpress',
 			array(
 				'action' => $action,
 				'state'  => $state,
 				'args'   => $args,
+				'params' => $params,
 			),
 			openstation_apps_os()
 		);
@@ -255,6 +257,32 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertGreaterThanOrEqual( 1, $this->data_section( $response, 'posts' )['count'] );
 		$this->assertNull( $response['data']['list'] );
 		$this->assertNull( $response['data']['detail'] );
+	}
+
+	/**
+	 * The footprint open target passes the person as open-time params,
+	 * so the FIRST paint is the footprint — a mount that ignored them
+	 * would flash the folder grid and need a second request. A live
+	 * window retargets through `reopen`; an unknown id lands nowhere.
+	 *
+	 * @covers \OpenStation\Apps\MyWordPress\mount
+	 * @covers \OpenStation\Apps\MyWordPress\reopen_action
+	 * @covers \OpenStation\Apps\MyWordPress\footprint_from_params
+	 */
+	public function test_a_footprint_param_lands_the_mount_and_the_reopen_on_that_person() {
+		$mounted = $this->dispatch( 'mount', array(), array(), array( 'footprint' => self::$author_id, 'fpName' => 'Ann <b>Author</b>' ) );
+		$this->assertTrue( $mounted['ok'] );
+		$this->assertSame( self::$author_id, $mounted['state']['footprint'] );
+		$this->assertSame( 'Ann Author', $mounted['state']['fpName'], 'The breadcrumb placeholder is sanitised.' );
+
+		$plain = $this->dispatch( 'mount' );
+		$this->assertSame( 0, $plain['state']['footprint'], 'No params, no footprint.' );
+
+		$reopened = $this->dispatch( 'reopen', array( 'section' => 'posts' ), array(), array( 'footprint' => self::$editor_id ) );
+		$this->assertSame( self::$editor_id, $reopened['state']['footprint'] );
+
+		$missing = $this->dispatch( 'mount', array(), array(), array( 'footprint' => 987654 ) );
+		$this->assertSame( 0, $missing['state']['footprint'], 'An unknown id opens nothing.' );
 	}
 
 	/**
@@ -727,6 +755,12 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 
 		$revisions = $this->dispatch( 'relation', $state, array( 'relation' => 'revisions' ) );
 		$this->assertNotEmpty( $revisions['data']['sub']['rows'] );
+		foreach ( $revisions['data']['sub']['rows'] as $row ) {
+			// The client prints the title as text: Core's expanded revision
+			// title leads with an avatar <img>, which read as markup.
+			$this->assertStringNotContainsString( '<', $row['title'], 'A revision title is plain text, never an avatar tag.' );
+			$this->assertMatchesRegularExpression( '/ ago \(/', $row['title'] );
+		}
 
 		$bogus = $this->dispatch( 'relation', $state, array( 'relation' => 'evil' ) );
 		$this->assertSame( '', $bogus['state']['relation'], 'Unknown relations fall back to the folder view.' );
@@ -1099,10 +1133,12 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		// against the ~800 it retired with the legacy bundle), and
 		// once more for the list view (the per-kind column model, the
 		// sortable table, the row action cluster, the column chooser —
-		// a surface the original never had). The like-for-like
-		// original it displaced measured ~32,000 lines; the whole
-		// replacement stays well under half of that.
-		$this->assertLessThan( 12500, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,500 — still well under half of the original it replaced.', $lines ) );
+		// a surface the original never had), and a notch for the
+		// `reopen` lifecycle that lands a footprint from open-time
+		// params. The like-for-like original it displaced measured
+		// ~32,000 lines; the whole replacement stays well under half
+		// of that.
+		$this->assertLessThan( 12600, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,600 — still well under half of the original it replaced.', $lines ) );
 
 		// The house file-length rule, pinned hard for this app: every
 		// PHP and TS source stays under 1,000 lines. The lint twins

@@ -114,6 +114,14 @@ final class App {
 	private $defaults = array();
 
 	/**
+	 * The admin menu this window answers for, and the tabs that ARE
+	 * that menu's pages. See {@see App::menu()}.
+	 *
+	 * @var array<string,mixed>|null
+	 */
+	private $menu = null;
+
+	/**
 	 * @var callable|null
 	 */
 	private $mount = null;
@@ -504,6 +512,108 @@ final class App {
 	}
 
 	/**
+	 * Declare the admin menu this window answers for, and the tabs
+	 * that ARE that menu's pages.
+	 *
+	 * A window that replaces an admin screen replaces its menu too:
+	 * whatever the window offers as a tab, the dock offers as a row,
+	 * with the same label and in the same order, and picking a row
+	 * opens the window on that tab. One declaration drives all three
+	 * halves of that:
+	 *
+	 *   - the dock's submenu for `$slug` becomes these tabs (the first
+	 *     is the menu's own page, so it becomes the tile's label);
+	 *   - each row's URL is the menu's own tagged `os_tab=<id>`, which
+	 *     the shell's remap reads back as the tab to open on;
+	 *   - `tab` becomes declared state, written on mount and reopen;
+	 *   - the tabs reach the client view as `menuTabs`, which its strip
+	 *     renders from, so the two lists cannot drift.
+	 *
+	 * A tab's value is its label, or `array( 'label' => …, 'page' => … )`
+	 * naming the submenu slug it replaces (`user-new.php`). That page
+	 * is which of wp-admin's own rows this window answers for — the
+	 * rest are kept, so a plugin's page under this menu stays
+	 * reachable — and what the shell routes here from anywhere else.
+	 *
+	 * @param string                       $slug    Admin menu slug, e.g. `users.php`.
+	 * @param array<string,mixed>|callable $tabs    Ordered `id => label|array`, or a
+	 *                                              callable returning one (for tabs
+	 *                                              that depend on capabilities).
+	 * @param callable|null                $enabled Optional gate — the opt-in that
+	 *                                              decides whether this window answers
+	 *                                              for the menu at all. Default: always.
+	 * @return self
+	 */
+	public function menu( $slug, $tabs, $enabled = null ) {
+		$this->menu = array(
+			'slug'    => (string) $slug,
+			'tabs'    => $tabs,
+			'enabled' => $enabled,
+		);
+		return $this;
+	}
+
+	/**
+	 * The declared menu's tabs for the CURRENT user, as an ordered
+	 * list of `array( 'id', 'label' )`. Empty when no menu is declared.
+	 *
+	 * Not gated: these are the window's tabs whoever opened it and
+	 * whatever the opt-in says, and the client view renders its strip
+	 * from them. The gate decides only whether the DOCK's submenu
+	 * becomes this list — see {@see App::menu_owns_dock()}.
+	 *
+	 * @return array<int,array<string,string>>
+	 */
+	public function menu_tabs() {
+		if ( ! $this->menu ) {
+			return array();
+		}
+		$tabs = is_callable( $this->menu['tabs'] )
+			? (array) call_user_func( $this->menu['tabs'] )
+			: (array) $this->menu['tabs'];
+		$out  = array();
+		foreach ( $tabs as $id => $tab ) {
+			$id    = strtolower( (string) preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $id ) );
+			$label = is_array( $tab ) ? (string) ( $tab['label'] ?? '' ) : (string) $tab;
+			if ( '' === $id || '' === $label ) {
+				continue;
+			}
+			$out[] = array(
+				'id'    => $id,
+				'label' => $label,
+				// The wp-admin submenu slug this tab stands in for,
+				// '' for a tab wp-admin has no page for.
+				'page'  => is_array( $tab ) ? (string) ( $tab['page'] ?? '' ) : '',
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * The admin menu slug this window answers for, `''` when none.
+	 *
+	 * @return string
+	 */
+	public function menu_slug() {
+		return $this->menu ? (string) $this->menu['slug'] : '';
+	}
+
+	/**
+	 * Whether this window is the one answering for its menu right
+	 * now — the per-user opt-in that chooses between it and the
+	 * classic screen. Only then does the dock's submenu become the
+	 * window's tabs.
+	 *
+	 * @return bool
+	 */
+	public function menu_owns_dock() {
+		if ( ! $this->menu ) {
+			return false;
+		}
+		return ! is_callable( $this->menu['enabled'] ) || (bool) call_user_func( $this->menu['enabled'] );
+	}
+
+	/**
 	 * Runs once, before the first render, with the fresh state.
 	 *
 	 * @param callable $mount `function ( State $state, Os $os )`.
@@ -782,6 +892,13 @@ final class App {
 		foreach ( $this->config_lazy as $callable ) {
 			$config = array_merge( $config, (array) call_user_func( $callable, $this ) );
 		}
+		// The declared menu's tabs, for a client view that renders its
+		// strip from them — the only way the strip and the dock's
+		// submenu cannot drift, since both read this list.
+		$tabs = $this->menu_tabs();
+		if ( $tabs ) {
+			$config['menuTabs'] = $tabs;
+		}
 		return $config;
 	}
 
@@ -802,7 +919,17 @@ final class App {
 	 * @return array<string,mixed>
 	 */
 	public function defaults() {
-		return $this->defaults;
+		if ( ! $this->menu || array_key_exists( 'tab', $this->defaults ) ) {
+			return $this->defaults;
+		}
+		// Declared here rather than by every app that declares a menu:
+		// the runtime writes this key from the `tab` open-time param,
+		// and a key the schema does not carry would be dropped.
+		$tabs = $this->menu_tabs();
+		return array_merge(
+			array( 'tab' => $tabs ? $tabs[0]['id'] : '' ),
+			$this->defaults
+		);
 	}
 
 	/**
@@ -812,6 +939,7 @@ final class App {
 	 * @return bool
 	 */
 	public function has_action( $name ) {
+		$this->ensure_menu_reopen();
 		return isset( $this->actions[ (string) $name ] );
 	}
 
@@ -821,7 +949,27 @@ final class App {
 	 * @return string[]
 	 */
 	public function action_names() {
+		$this->ensure_menu_reopen();
 		return array_keys( $this->actions );
+	}
+
+	/**
+	 * A window that declares a menu answers `reopen`, whether or not
+	 * it wrote a handler for one.
+	 *
+	 * The client dispatches a lifecycle action only when the manifest
+	 * says the app declared it, so without this the runtime's own
+	 * "land on the tab the opener named" never runs on a window that
+	 * is already open — the case a dock row for another tab IS.
+	 * Registered here rather than in {@see App::menu()} so an app's
+	 * own actions keep the order they were declared in.
+	 *
+	 * @return void
+	 */
+	private function ensure_menu_reopen() {
+		if ( $this->menu && ! isset( $this->actions['reopen'] ) ) {
+			$this->actions['reopen'] = static function () {};
+		}
 	}
 
 	/**
@@ -1018,6 +1166,8 @@ final class App {
 			'window_actions'    => $this->window_actions,
 			'appearance'        => $this->appearance,
 			'config'            => $this->resolved_config(),
+			'menu'              => $this->menu_slug(),
+			'menu_tabs'         => $this->menu_tabs(),
 			'tabs'              => $this->tabs(),
 			'channels'          => $this->channels,
 			'watch'             => $this->watch,

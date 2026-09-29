@@ -71,7 +71,7 @@ npm run env:start          # the hub, :8890 (a multisite; pair from its network 
 npm run env:start:member   # the member, :8892 (a single site, admin / password)
 ```
 
-Inside a container `localhost` is the container itself, so both setup scripts drop `bin/wp-env-network-dev.sh`'s mu-plugin into their instance: it rewrites `localhost:<port>` onto `host.docker.internal` through the `openstation_network_request_url` filter, and plain HTTP is allowed because wp-env sets `WP_ENVIRONMENT_TYPE` to `local`. Then, in the hub's network shell, open **Network** and add `http://localhost:8892`; in the member's shell, open **Network** and join `http://localhost:8890`. Reload either shell and open Overview: the same row on both. `npm run env:stop:member` when done.
+Inside a container `localhost` is the container itself, so both setup scripts drop `bin/wp-env-network-dev.sh`'s mu-plugin into their instance: it rewrites `localhost:<port>` onto `host.docker.internal` through the `openstation_network_request_url` filter, and plain HTTP is allowed because wp-env sets `WP_ENVIRONMENT_TYPE` to `local`. Then, in the hub's network shell, open **Network** and add `http://localhost:8892`; in the member's shell, open **Network** and join `http://localhost:8890`. Reload either shell and open Workspaces: the same row on both. `npm run env:stop:member` when done.
 
 ## Measuring boot cost
 

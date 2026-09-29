@@ -280,6 +280,15 @@ export interface OsSettingsState {
 	 */
 	nativePostsHiddenColumns: string[];
 	/**
+	 * Per-user list of column keys hidden in the native Pages window.
+	 * Stored as the column `key` strings (`'author'`, `'parent'`,
+	 * `'template'`, `'slug'`, `'comments'`, `'date'`, plus any
+	 * plugin-added column keys). The sticky `'title'` column is always
+	 * visible — toggling it is blocked at the UI layer. Default empty
+	 * (all columns visible).
+	 */
+	nativePagesHiddenColumns: string[];
+	/**
 	 * Per-user opt-in for the native Pages window. When true, clicking
 	 * the Pages dock tile (or any link to `edit.php?post_type=page`)
 	 * opens the `<os-table>`-driven native window instead of the

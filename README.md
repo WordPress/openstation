@@ -46,10 +46,10 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is a user preference in OpenStation Preferences. Core menus are ordered before plugin menus; per-item hiding via `openstation_dock_placement` (`'hidden'`). Per-item multi-window support via `openstation_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
 
 - **Virtual desktops (“Spaces”)**
-  Multiple desktops per user, each with its own window set. Overview grid (zoom-out view) surfaces the Spaces switcher, thumbnails, and create/close controls.
+  Multiple desktops per user, each with its own window set. The Workspaces grid (zoom-out view) surfaces the Spaces switcher, thumbnails, and create/close controls.
 
 - **Arrange & snap**
-  Admin-bar Arrange menu: Cascade, Tile, Overview, Snap to grid. Plugins contribute custom entries via `openstation_arrange_menu_items` and react to clicks via `os.arrange.custom-action`. Tile grid dimensions and snap cell size are both filterable.
+  Workspaces from its dock tile; `cascade()`, `tile()` and `setSnapEnabled()` on `wp.os.windowManager`. Tile grid dimensions and snap cell size are both filterable.
 
 - **Wallpaper registry**
   Server- and client-side registration (`openstation_register_wallpaper()` / `wp.os.registerWallpaper()`). CSS presets + canvas (WebGL/2D) wallpapers with collision-aware surface data (`wp.os.getWallpaperSurfaces()`) for snow/rain/physics effects. In-panel `renderEditor` callback for custom controls, shared vendor-module loader (`pixijs` pre-registered).

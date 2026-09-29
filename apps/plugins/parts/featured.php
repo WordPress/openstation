@@ -42,6 +42,7 @@ function openstation_plugins_window_featured_slugs() {
 		'odd-outlandish-desktop-decorator',
 		'allterrain-forms',
 		'allterrain-photo-editor',
+		'allterrain-maia',
 	);
 
 	/**

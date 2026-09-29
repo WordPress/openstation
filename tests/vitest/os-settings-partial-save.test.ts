@@ -123,6 +123,7 @@ describe( 'OS Settings — partial saves', () => {
 		// Re-assigned to an equal-but-distinct object: no change.
 		state.customGradient = { ...state.customGradient };
 		state.nativePostsHiddenColumns = state.nativePostsHiddenColumns.slice();
+		state.nativePagesHiddenColumns = state.nativePagesHiddenColumns.slice();
 		state.accent = 'wp-midnight';
 		state_.saveState( state );
 		await flush();

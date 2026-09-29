@@ -62,6 +62,14 @@ const OVERVIEW_INERT_ELEMENTS = [
 const OVERVIEW_FULLSCREEN_DATA_KEY = 'osHadFullscreenBeforeOverview';
 
 /**
+ * How long a click on a tile's NAME waits for a second one before it
+ * switches desks. The name is the rename target (see
+ * `buildDesktopTile`); the rest of the tile switches on the first
+ * click, undelayed.
+ */
+const TILE_LABEL_DOUBLE_CLICK_MS = 250;
+
+/**
  * Make a window usable as an overview thumbnail without changing its
  * logical state. Fullscreen styling and minimized render suppression
  * are restored when the window returns to its desktop layout.
@@ -556,10 +564,9 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	list.className = 'os-overview-top-bar__list';
 	bar.appendChild( list );
 
-	// How many action rows every tile reserves under it. Edit is on
-	// every desk, so one row is always paid for; Restore is on the
-	// desks that have something to restore, and the bar only grows to
-	// two rows once at least one of them does. Reserved for ALL tiles
+	// Whether every tile reserves a Restore row under it. Restore is on
+	// the desks that have something to restore, and the bar only grows
+	// the row once at least one of them does. Reserved for ALL tiles
 	// or none, never per tile: the rows sit below the tile, so a tile
 	// that reserved fewer would ride up out of line with its
 	// neighbours. A user with no workspaces gets the bar they had.
@@ -585,14 +592,14 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 			'os-overview-top-bar__tile--cursor',
 		);
 	}
-	addTile.setAttribute( 'aria-label', __( 'Add new desktop' ) );
+	addTile.setAttribute( 'aria-label', __( 'Add new workspace' ) );
 	// The same two rows a desk tile has: a preview band with the glyph
 	// centred in it, and a label strip below. Empty ones, but present,
 	// so the dashed box is the height of a tile BY CONSTRUCTION rather
 	// than by a number copied from the tile's rules that would drift
 	// the first time one of them changed. The label carries a
 	// non-breaking space because an empty span has no line box, and
-	// the strip has to be as tall as the one holding "Desktop 1".
+	// the strip has to be as tall as the one holding "Workspace 1".
 	addTile.innerHTML =
 		'<span class="os-overview-top-bar__tile-preview">' +
 		'<span class="os-overview-top-bar__tile-plus" aria-hidden="true">+</span>' +
@@ -631,21 +638,16 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
  */
 export function commitAddTile( mgr: WindowManager ): void {
 	mgr._overviewAddTileFocused = false;
-	// The `+` opens the wizard when a shell has wired one. Its first
-	// step is a blank desktop, preselected and one Enter away, so the
-	// fast path is as fast as it was — and the same `+` is now also
-	// the way to a desk set up for a job. Overview is left first: the
-	// wizard is a modal over the desk, and the desk it creates is
-	// switched to on Create, which is a switch overview should not be
-	// open for.
-	if ( createWorkspaceFromOverview() ) {
-		exitOverview( mgr );
-		return;
-	}
-	// No wizard installed (a shell that never wired workspaces, or a
-	// test building a bar on its own): the `+` is what it always was.
 	const created = createDesktop( mgr );
 	exitOverviewToDesktop( mgr, created.id );
+	// The wizard runs over the blank desk, not over overview: the user
+	// dresses the canvas they are standing on and can see, and the
+	// wizard's "Use the windows I have open now" acts on the active
+	// desk. Its first step is a blank desktop, preselected and one
+	// Enter away, so the fast path is as fast as it was. A shell that
+	// never wired workspaces answers `false` and the user is simply on
+	// the new desk, which is what the `+` alone has always meant.
+	createWorkspaceFromOverview( created.id );
 }
 
 /** Build a single desktop tile for the overview top bar. */
@@ -705,7 +707,54 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	const label = document.createElement( 'span' );
 	label.className = 'os-overview-top-bar__tile-label';
 	label.textContent = d.label;
+	// The name is ellipsized when it doesn't fit, so the tooltip
+	// carries it in full — and, with it, the one hint that the rename
+	// gesture exists.
+	label.title = sprintf(
+		// translators: %s is the desktop name.
+		__( '%s — double-click to rename' ),
+		d.label,
+	);
 	tile.appendChild( label );
+
+	// Renaming is the one thing people come back to, and the pencil
+	// spends a modal on it. Double-clicking the name edits it in
+	// place instead.
+	//
+	// The first click of that pair would otherwise have switched desks
+	// and torn overview down before the second one landed, so a click
+	// on the NAME waits out the double-click interval; the rest of the
+	// tile still switches on the first click.
+	let switchTimer: number | undefined;
+	label.addEventListener( 'click', ( e: MouseEvent ) => {
+		if ( label.hasAttribute( 'contenteditable' ) ) {
+			return;
+		}
+		e.preventDefault();
+		e.stopPropagation();
+		if ( switchTimer !== undefined ) {
+			return;
+		}
+		switchTimer = window.setTimeout( () => {
+			switchTimer = undefined;
+			// Overview can have been left by other means while we
+			// waited — a close X on the last tile, Escape, the dock.
+			if ( mgr._overviewActive ) {
+				exitOverviewToDesktop( mgr, d.id );
+			}
+		}, TILE_LABEL_DOUBLE_CLICK_MS );
+	} );
+	label.addEventListener( 'dblclick', ( e: MouseEvent ) => {
+		// Mid-edit, a double-click is the user selecting a word.
+		if ( label.hasAttribute( 'contenteditable' ) ) {
+			return;
+		}
+		e.preventDefault();
+		e.stopPropagation();
+		window.clearTimeout( switchTimer );
+		switchTimer = undefined;
+		beginRename( mgr, label, d );
+	} );
 
 	tile.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
@@ -722,16 +771,40 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 
 	// Wrapper, not tile: a control nested in the tile's <button> is
 	// invalid markup and unclickable.
-	const renameBtn = document.createElement( 'button' );
-	renameBtn.type = 'button';
-	renameBtn.className = 'os-overview-top-bar__tile-rename';
-	// translators: %s is the desktop label
-	renameBtn.setAttribute( 'aria-label', sprintf( __( 'Rename %s' ), d.label ) );
-	renameBtn.innerHTML = osIconSvg( 'edit', { size: 14 } );
-	renameBtn.addEventListener( 'click', ( e: MouseEvent ) => {
+	//
+	// One pencil, one meaning: it opens the wizard on this desk, which
+	// has its own Name step. A second "Edit" under the tile read as a
+	// rival to it. Offered on every desk, plain Spaces included: for
+	// one of those it is how it BECOMES a workspace. A shell that never
+	// wired the wizard gets the inline rename the pencil always did.
+	const editable = isWorkspaceOverviewInstalled();
+	const editBtn = document.createElement( 'button' );
+	editBtn.type = 'button';
+	editBtn.className = 'os-overview-top-bar__tile-edit';
+	if ( editable ) {
+		editBtn.setAttribute(
+			'aria-label',
+			// translators: %s is the desktop name.
+			sprintf( __( 'Edit %s — its apps, widgets, look and windows' ), d.label ),
+		);
+	} else {
+		// translators: %s is the desktop label
+		editBtn.setAttribute( 'aria-label', sprintf( __( 'Rename %s' ), d.label ) );
+	}
+	editBtn.title = editBtn.getAttribute( 'aria-label' ) ?? '';
+	editBtn.innerHTML = osIconSvg( 'edit', { size: 14 } );
+	editBtn.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
-		beginRename( mgr, label, d );
+		if ( ! editable ) {
+			beginRename( mgr, label, d );
+			return;
+		}
+		// Land on the desk first: the wizard's "Use the windows I have
+		// open now" acts on the active desk, and a modal is not
+		// something overview should stay open under.
+		exitOverviewToDesktop( mgr, d.id );
+		editWorkspaceFromOverview( d.id );
 	} );
 
 	// Close X — hidden via CSS when only one desktop exists, so users
@@ -754,21 +827,16 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	} );
 
 	wrapper.appendChild( tile );
-	wrapper.appendChild( renameBtn );
+	wrapper.appendChild( editBtn );
 	wrapper.appendChild( closeBtn );
 
 	// The desk's actions, in a column BELOW the tile — not over its
 	// preview, which is the tile's picture of the desk, and not in the
-	// corners, which rename and close already have. Two rows:
-	//
-	// - **Restore** — put the desk back the way its workspace defines
-	//   it. Always visible, but only on a desk with something to
-	//   restore (see `workspaceCanRestore`): a button that visibly does
-	//   nothing is worse than no button, so its absence is information.
-	// - **Edit** — open the wizard on this desk. Revealed on hover and
-	//   keyboard focus, like rename and close: it is a way to change
-	//   the desk rather than a thing about it, and a row of Edit
-	//   buttons at rest would make the bar read as a form.
+	// corners, which edit and close already have. **Restore** puts the
+	// desk back the way its workspace defines it. Always visible, but
+	// only on a desk with something to restore (see
+	// `workspaceCanRestore`): a button that visibly does nothing is
+	// worse than no button, so its absence is information.
 	//
 	// The column keeps its height whether or not Restore is present,
 	// so every tile box stays on the same line.
@@ -801,34 +869,6 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 			}
 		} );
 		actions.appendChild( restoreBtn );
-	}
-
-	// Edit is offered on every desk, plain Spaces included: for one of
-	// those it is how it BECOMES a workspace. Only painted when a shell
-	// has wired the wizard, so a bar built without one is unchanged.
-	if ( isWorkspaceOverviewInstalled() ) {
-		const editBtn = document.createElement( 'button' );
-		editBtn.type = 'button';
-		editBtn.className =
-			'os-overview-top-bar__tile-action os-overview-top-bar__tile-edit';
-		editBtn.setAttribute(
-			'aria-label',
-			// translators: %s is the desktop name.
-			sprintf( __( 'Edit %s — its apps, widgets, look and windows' ), d.label ),
-		);
-		editBtn.title = editBtn.getAttribute( 'aria-label' ) ?? '';
-		editBtn.innerHTML = `${ osIconSvg( 'settings', { size: 12 } ) }<span>${ __( 'Edit' ) }</span>`;
-		editBtn.addEventListener( 'click', ( e: MouseEvent ) => {
-			e.preventDefault();
-			e.stopPropagation();
-			// Land on the desk first: the wizard's "Arrange now" and
-			// "Use the windows I have open now" act on the active desk,
-			// and a modal is not something overview should stay open
-			// under.
-			exitOverviewToDesktop( mgr, d.id );
-			editWorkspaceFromOverview( d.id );
-		} );
-		actions.appendChild( editBtn );
 	}
 
 	if ( actions.childElementCount > 0 ) {

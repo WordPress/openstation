@@ -25,7 +25,7 @@ const NEW_PREFIX = 'New: ';
 const EDIT_LABEL = __( 'Edit this workspace…' );
 
 /** The suggestion that opens the wizard to make a desk. */
-const NEW_LABEL = __( 'New desktop…' );
+const NEW_LABEL = __( 'New workspace…' );
 
 /**
  * "Keep this desk" — save the desk as it is into its workspace.

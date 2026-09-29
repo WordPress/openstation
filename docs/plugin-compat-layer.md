@@ -84,6 +84,16 @@ When this is enough: any plugin with a self-contained layout breakage you can ta
 
 When it isn't: there is no when-it-isn't here. If a generic mechanism doesn't reach it, write a targeted override.
 
+#### Core's own reservations count too
+
+The tier exists for third-party CSS, but Core bakes in the same assumption in places, and the fix is the same shape.
+
+**The metabox one-column breakpoint.** Core collapses every `#poststuff` two-column screen — the classic post editor, any CPT editor, a WooCommerce order — to one column at `max-width: 850px` (`wp-admin/css/edit.css`). That threshold is a viewport width measured with the 160px admin menu still in it: at 851px it leaves roughly 650px of content, less than the 763px two columns need, which is why Core's own two-column layout scrolls sideways just above its breakpoint. A chromeless iframe has no admin menu, so the same 851px carries 835px of content and stacks anyway — and because the classic editor grows to fit its text, a long post then pushes Publish, Categories, Tags and Featured image thousands of pixels below the fold. Reported from the field as the right column having "vanished".
+
+The override re-applies the two-column rules between 796px and 850px — 763px of content, the 16px `#wpbody-content` gutter, and up to 17px for a classic scrollbar, which a media query does not subtract from the width it matches on. Below 796px two columns genuinely stop fitting and Core's single column is correct, so it stays. Attachments are excluded: `.post-type-attachment` has its own, wider, 1200px breakpoint in Core and needs the room.
+
+The reservation is written flow-relative (`margin-inline-end`, `float: inline-end` behind a `float: right` fallback) because Core ships the mirrored values in a separate `edit-rtl.css` and `chromeless.css` has no RTL build.
+
 ## The dock side: menu data adaptations
 
 Some plugins register WordPress admin menu entries in shapes that our dock can't naively render. These adaptations live in `includes/core/payload.php` (`openstation_build_dock_items()`, `openstation_menu_item_url()`) and have PHPUnit coverage.
@@ -201,6 +211,14 @@ Sites that want the button hidden somewhere the rule deliberately doesn't reach 
 Core binds a bubble-phase handler to `.upload-view-toggle` that preventDefaults and opens the drop zone in place, above the plugin cards, with a second click closing it. It does **not** stamp `aria-button-if-js` on that anchor, so the chromeless bridge's capture-phase interceptor won the click and navigated to `?tab=upload` — a page that renders the uploader alone, with the cards gone and the toggle turned into a "Browse Plugins" link.
 
 **Fix**: the interceptor yields clicks on `.upload-view-toggle`, except when the anchor's `.wrap` carries `plugin-install-tab-upload`. That is core's own condition ("when we're in this page, let the link behave like a link"), so on the upload page the href really is the navigation and the shell routes it normally. `theme-install.php`'s Upload Theme twin needs nothing: core renders that one as a `<button>`, which never reaches the link handler.
+
+**Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
+
+### Jetpack Stats and Blaze in-app links
+
+Jetpack mounts its Stats (`admin.php?page=stats`) and Blaze (`?page=advertising`) dashboards into `<div id="wpcom">` and writes their in-app links root-relative, the way WordPress.com does: Referrers' **View all** is `/stats/day/referrers/<site>`. A delegated jQuery handler on `#wpcom` rewrites any href starting with `/<page slug>` into a `#!` route on the current screen. The bridge's capture-phase interceptor won the click, resolved the href against the site root, and opened the front end's 404 page as an external sub-tab.
+
+**Fix**: `isJetpackAppRoute()` in `src/chromeless-bridge.js` yields exactly the links Jetpack's handler claims: inside `#wpcom`, with an href starting with `/` plus the screen's `page` arg. Any other link in those apps, such as a post permalink, still reaches the shell.
 
 **Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
 

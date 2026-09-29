@@ -72,13 +72,26 @@ if ( $agents ) {
 	$result = openstation_agent_invoke(
 		$agents[0]->ID,
 		'Summarize the last comment on the site.',
-		array( 'source' => 'my-plugin/cron' )
+		array(
+			'source'  => 'my-plugin/summary',
+			// The human behind the run: it is capped at their capabilities.
+			'invoker' => get_current_user_id(),
+		)
 	);
 	if ( ! is_wp_error( $result ) ) {
 		// $result = array( 'text' => ..., 'toolCalls' => [...], 'turns' => N )
 	}
 }
 ```
+
+`invoker` defaults to the current user, which is right inside a
+request. Pass it whenever a person asked for the run, and when the run
+happens later (a cron event, a queued job) pass the id you stored for
+them, because `get_current_user_id()` is 0 there. A run with no invoker
+(cron, a hook, WP-CLI with no `--user`) is a system run: nothing caps
+it, so the agent acts with its full role. Read
+[A run is ceilinged at the invoker's capabilities](../agents-security.md#2-a-run-is-ceilinged-at-the-invokers-capabilities)
+before you wire one up.
 
 Every successful run fires `openstation_agent_completed` with the
 same result plus your context array.

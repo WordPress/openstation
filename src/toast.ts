@@ -27,6 +27,7 @@
  */
 
 import { activity } from './activity';
+import type { DesktopConfig, ToastTypeDef } from './types';
 import { openWithShellOverlays } from './shell-overlays/loader';
 
 /** Default how-long-it-stays duration in ms. */
@@ -51,6 +52,16 @@ const MIN_RESUME_MS = 1200;
 export interface ToastOptions {
 	/** Short human-readable message. */
 	message: string;
+	/**
+	 * Which kind of news this is: an id from the toast-type registry
+	 * the server ships (`config.toastTypes`, filterable through
+	 * `openstation_toast_types`): `success`, `warning`, `error`,
+	 * `shell-error`, or one a plugin registered. The registry maps
+	 * the id to a `tone` the `<os-toast>` wears as a coloured edge
+	 * and icon. Omitted or unknown means the plain toast, so no
+	 * existing caller changes by this field existing.
+	 */
+	type?: string;
 	/**
 	 * Optional secondary action — when set, renders a clickable
 	 * button at the toast's right edge. Great for "Retry", "Open
@@ -154,6 +165,38 @@ export function showToast( options: ToastOptions ): () => void {
 	};
 }
 
+type ToastTone = ToastTypeDef[ 'tone' ];
+
+/**
+ * The tones of the four types PHP registers by default
+ * (`openstation_get_toast_types()`), for a page whose boot config
+ * has no registry (tests, a bundle loaded outside the shell).
+ */
+const BUILT_IN_TONES: Record< string, ToastTone > = {
+	success: 'positive',
+	warning: 'warning',
+	error: 'critical',
+	'shell-error': 'critical',
+};
+
+/**
+ * The tone a toast `type` resolves to: the registry the server shipped
+ * first (PHP already dropped entries with a tone it does not know),
+ * the built-in four next, nothing for an unknown id — a plugin that
+ * names a type it never registered gets the plain toast, not a broken
+ * one.
+ */
+function toastTone( type: string | undefined ): ToastTone | null {
+	if ( ! type ) {
+		return null;
+	}
+	const registry = (
+		window as unknown as { openStationConfig?: DesktopConfig }
+	).openStationConfig?.toastTypes;
+	const entry = registry?.find( ( t ) => t.id === type );
+	return entry?.tone ?? BUILT_IN_TONES[ type ] ?? null;
+}
+
 /**
  * Construct + mount the toast element. Pre-condition: the
  * `<os-toast>` / `<os-toast-container>` custom elements are
@@ -163,6 +206,11 @@ function renderToast( intent: ToastIntent ): () => void {
 	const container = ensureContainer();
 	const toast = document.createElement( 'os-toast' );
 	toast.textContent = intent.message;
+
+	const tone = toastTone( intent.type );
+	if ( tone ) {
+		toast.setAttribute( 'tone', tone );
+	}
 
 	if ( intent.action ) {
 		toast.setAttribute( 'action', intent.action.label );

@@ -599,9 +599,32 @@ function openstation_notes_rest_convert( $request ) {
 		array(
 			'noteId'  => (int) $post->ID,
 			'postId'  => (int) $new_post_id,
-			'editUrl' => (string) get_edit_post_link( $new_post_id, 'raw' ),
+			'editUrl' => openstation_notes_draft_edit_url( (int) $new_post_id ),
 		)
 	);
+}
+
+/**
+ * The admin edit URL for the draft a note became.
+ *
+ * `get_edit_post_link()` is the canonical answer, and it is filterable:
+ * a host can point it off-site (WordPress.com routes post edit links to
+ * its own editor) or a capability filter can blank it, and the client
+ * opens the URL inside a window that can only ever show THIS site's
+ * wp-admin. So this always answers with the on-site `post.php` URL the
+ * post type registers, whatever a filter made of the pretty one.
+ *
+ * @param int $post_id The draft post id.
+ * @return string Absolute admin URL, or '' when the post is gone.
+ */
+function openstation_notes_draft_edit_url( $post_id ) {
+	$draft = get_post( $post_id );
+	if ( ! $draft instanceof WP_Post ) {
+		return '';
+	}
+	$type_object = get_post_type_object( $draft->post_type );
+	$edit_link   = $type_object && ! empty( $type_object->_edit_link ) ? $type_object->_edit_link : 'post.php?post=%d';
+	return admin_url( sprintf( $edit_link, $draft->ID ) . '&action=edit' );
 }
 
 /**

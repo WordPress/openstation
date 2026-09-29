@@ -18,6 +18,8 @@
  * Extracted from `layer.ts` (drag-and-drop rework).
  */
 
+import { toastRestFailure } from '../core/rest-failure';
+import { shellToast } from '../core/shell-toast';
 import { beginTrashChange, placementTrashItem } from './trash-optimistic';
 import { announceContentChange } from '../broadcast';
 import { rest, store as filesStoreApi } from './layer-deps';
@@ -54,38 +56,14 @@ function broadcastFilesChange(
  * tile that didn't move with only a `console.error` for explanation.
  */
 function showTrashErrorToast( err: unknown ): void {
-	const api = (
-		window as {
-			wp?: { os?: { showToast?: ( opts: unknown ) => void } };
-		}
-	).wp?.os;
-	if ( ! api?.showToast ) {
-		return;
-	}
-	const raw = err instanceof Error ? err.message : String( err );
-	// `call()` formats REST failures as
-	// "[openstation] files REST 403: openstation_files_forbidden …".
-	// Strip the prefix + error code so the user-facing toast keeps
-	// just the human-readable reason.
-	const friendly = raw
-		.replace( /^\[openstation\][^:]*:\s*/, '' )
-		.replace( /^openstation_files_[a-z_]+\s*/, '' );
-	api.showToast( {
-		message: friendly || 'Could not move this item to the recycle bin.',
+	toastRestFailure( shellToast, err, {
+		fallback: 'Could not move this item to the recycle bin.',
 		duration: 5000,
 	} );
 }
 
 function showTrashedToast( message: string, onUndo: () => void ): void {
-	const api = (
-		window as {
-			wp?: { os?: { showToast?: ( opts: unknown ) => void } };
-		}
-	).wp?.os;
-	if ( ! api?.showToast ) {
-		return;
-	}
-	api.showToast( {
+	shellToast( {
 		message,
 		duration: 6000,
 		action: {

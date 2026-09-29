@@ -923,26 +923,6 @@
 	margin: 0;
 }
 
-.os-mywp__facts {
-	display: grid;
-	grid-template-columns: max-content 1fr;
-	gap: 6px 14px;
-	margin: 0;
-	font-size: 13px;
-}
-
-.os-mywp__fact {
-	display: contents;
-}
-
-.os-mywp__fact dt {
-	color: var( --os-ui-fg-muted, #646970 );
-}
-
-.os-mywp__fact dd {
-	margin: 0;
-}
-
 .os-mywp__pane-h {
 	margin: 4px 0 0;
 	font-size: 12px;

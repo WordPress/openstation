@@ -92,11 +92,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 		clearHooksStub();
 	} );
 
-	test( 'starts with a single default desktop named "Desktop 1"', async () => {
+	test( 'starts with a single default desktop named "Workspace 1"', async () => {
 		const list = manager.getDesktops();
 		expect( list ).toHaveLength( 1 );
 		expect( list[ 0 ].id ).toBe( 'desktop-1' );
-		expect( list[ 0 ].label ).toBe( 'Desktop 1' );
+		expect( list[ 0 ].label ).toBe( 'Workspace 1' );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 	} );
 
@@ -110,7 +110,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 			created.id,
 		] );
 		expect( created.id ).toBe( 'desktop-2' );
-		expect( created.label ).toBe( 'Desktop 2' );
+		expect( created.label ).toBe( 'Workspace 2' );
 
 		const evt = log.find( ( e ) => e.name === 'os.os.created' );
 		expect( evt ).toBeDefined();
@@ -228,6 +228,17 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const payload = evt!.args[ 0 ] as { desktopId: string; migratedTo: string };
 		expect( payload.desktopId ).toBe( second.id );
 		expect( payload.migratedTo ).toBe( 'desktop-1' );
+
+		// The active desk changed, so switch listeners (the workspace
+		// view among them) must hear it, after the close.
+		expect( log.map( ( e ) => e.name ) ).toEqual( [
+			'os.os.closed',
+			'os.os.switched',
+		] );
+		expect( log[ 1 ].args[ 0 ] ).toEqual( {
+			from: second.id,
+			to: 'desktop-1',
+		} );
 	} );
 
 	test( 'closing the leftmost desktop migrates to the right-neighbour', async () => {
@@ -257,9 +268,14 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const third = manager.createDesktop(); // desktop-3
 		// Active is still desktop-1.
 
+		const log = recordActions( hooks, DESKTOP_HOOKS );
+
 		manager.closeDesktop( third.id );
 
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect(
+			log.some( ( e ) => e.name === 'os.os.switched' ),
+		).toBe( false );
 		expect( manager.getDesktops().map( ( d ) => d.id ) ).toEqual( [
 			'desktop-1',
 			'desktop-2',
@@ -993,7 +1009,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 				);
 				expect( deskWrappers ).toHaveLength( 3 );
 
-				// Tile, rename pencil, close X — the latter two are
+				// Tile, edit pencil, close X — the latter two are
 				// SIBLINGS of the tile, which is itself a <button>.
 				for ( const wrapper of deskWrappers ) {
 					expect(
@@ -1002,7 +1018,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 						),
 					).toEqual( [
 						'os-overview-top-bar__tile',
-						'os-overview-top-bar__tile-rename',
+						'os-overview-top-bar__tile-edit',
 						'os-overview-top-bar__tile-close',
 					] );
 				}

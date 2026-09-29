@@ -277,6 +277,7 @@ but publish your events under your plugin's slug:
 | `os/presence-changed` | No | Every presence transition (mirror of the `os-presence-changed` CustomEvent). |
 | `os/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
 | `os/game-score-recorded` | No | After a game's `submitScore()` write resolves (free play and challenge completion both). Games play in their own window, so this is how a leaderboard in another window learns it went stale. Payload carries `challengeId` on the completion path. |
+| `os/request-settled` | No | After every request made through `wp.os.fetch` (or `trackedFetch`) settles, silent ones included: `silent` suppresses the title-bar ring, not the broadcast. Payload is `{ url, method, status?, ok?, error?, aborted?, windowId, source?, silent }`; `source` is the caller's own tag, a network-level rejection carries `error` instead of `status`/`ok` (plus `aborted: true` when the caller cancelled it), and `windowId` is `null` for a silent request that named no window. Don't answer it with a `wp.os.fetch` that isn't filtered out, or the subscriber republishes forever. |
 | `os/upload-hud-complete` | No | After a file dropped on the shell finishes uploading — `{ filename, attachmentId }`. Published by the progress HUD, not the uploader: the upload runs on XHR (the only transport that reports determinate progress) and so never routes through `wp.os.fetch`, which makes this the bus's only view of a completed drop. |
 
 **Content-change announcements.** The `os.<type>.changed` topic

@@ -145,7 +145,7 @@ Both mirror `WP_REST_Comments_Controller::check_read_post_permission()`. **When 
 
 Then five follow-ons, each of which shipped as its own leak:
 
-1. **A child is gated on its parent, and a thread never leaves that parent.** A comment record carries the parent's title, permalink and excerpt, so "approved" hands out exactly what the post's own gate withholds — and an approved comment outlives its post being switched to private or back to draft. `comment_post_ID` and `comment_parent` are independent columns, so a readable comment can name a parent, or be named by a reply, stored against a post the caller cannot read: scope the thread to the post you authorized, and re-test each thread member's own status, because a member reached by id never passed a status-filtered query.
+1. **A child is gated on its parent, and a thread never leaves that parent.** A comment record carries the parent's title, permalink and excerpt, so "approved" hands out exactly what the post's own gate withholds — and an approved comment outlives its post being switched to private or back to draft. `comment_post_ID` and `comment_parent` are independent columns, so a readable comment can name a parent, or be named by a reply, stored against a post the caller cannot read: scope the thread to the post you authorized, and re-test each thread member's own status, because a member reached by id never passed a status-filtered query. The one exception is the password on an attachment's parent: `desktop-mode/get-media` asks the parent's status, capability and type viewability but not its password, because an attachment's own fields are not the parent's body and Core's attachment read does not ask it either. A comment's parent still gets all four.
 2. **Model output is never an authorization input.** The `/ai/search` answer schema carries an `entity_id` and the user's query steers the model, so that id is attacker-controlled — a search turn can be driven by comment or post text someone else wrote. Hydration re-checks readability itself instead of trusting the id came out of a filtered tool result. Treat anything a model names as an id from the internet.
 3. **`readonly` is a blast-radius limit, not an access gate.** A `readonly` + `show_in_rest` ability is dispatched by Core over plain `GET` behind the `read` capability, so every Subscriber holds the key; three of the six leaks were read-only abilities, and a fourth rode the Copilot's own search endpoint. Gate in the `permission_callback` — every dispatch path (the REST `run` route, the agent runner, the Copilot tool loop) converges on `WP_Ability::execute()`, so that one callback covers all three.
 4. **Counters leak what the rows hide.** `found_posts`, `total`, and a per-status `counts` breakdown answer "does the hidden thing match?", an oracle for exactly the content the items list withheld. Filter the counts and the items over the same set.
@@ -180,7 +180,7 @@ ESLint enforces this — raw `fetch( … )` and `window.fetch( … )` calls fail
 
 - The `trackedFetch` wrapper itself (the boot-time fallback before `wp.os` exists).
 - The PWA service worker (`src/pwa/sw.ts` — different context, no `wp.os` global).
-- Genuinely silent background pollers where attribution would mis-render as user activity (`src/devtools/index.ts`, `src/desktop-files/recycle-bin-icon-state.ts`).
+- Genuinely silent background pollers where attribution would mis-render as user activity (`src/devtools/index.ts`). A raw `fetch()` also skips the REST nonce, so a cookie-authenticated REST route answers it with 401: a background REST call is `trackedFetch( …, { silent: true } )`, which keeps it silent and still carries the nonce (the recycle-bin count refresh shipped the 401 for months).
 
 ### Use `wp.os.confirm` (or `osConfirm`), never `window.confirm`/`alert`/`prompt`
 
@@ -296,8 +296,11 @@ Payload shape (`openstation_build_menu_payload()` in `includes/core/payload.php`
   serverWindowSlotScripts, serverWindowSlots,
   serverWindowChromeScripts, serverWindowChromes,
   serverWindowNotices, serverGames, serverDesktopThemes,
-  desktopIcons, updateCounts, multisite }
+  desktopIcons, updateCounts, multisite,
+  scriptDepPayloads }
 ```
+
+On the wire every entry's `scriptDeps` is a list of **handles**, and each handle's payload (URL, l10n, before/after) rides once in `scriptDepPayloads` (GH#892). `openstation_compact_script_deps()` builds it on the server, at entry depth only; `hydrateScriptDeps()` in `src/script-dep-payloads.ts` puts the payloads back before any sync module reads them, and the applier merges the refresh's map into `config.scriptDepPayloads`. A new `server*` list gets this for free; a new sync module must run after hydration, never read `scriptDeps` straight off the wire.
 
 - **PHP-declared** things are in the payload: dock, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
 - For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.openStationWallpapers[id]` / `window.openStationWidgets[id]`). The sync reads the def and registers it.
@@ -374,6 +377,23 @@ The primitive is also exposed on the public API as `wp.os.createSharedStore`. Se
 
 **Before importing from one bundle's entry into another bundle's tree**, double-check that you aren't dragging in heavy code as a side-effect. Pulling a single symbol from a bundle entry that side-effect-imports the whole feature (poller, SSE, leader, heartbeat, …) inflates the consumer bundle. Pull the symbol from the leaf module that defines it instead.
 
+### A window's tabs and its menu's submenu are ONE list
+
+**Whatever a menu offers, its window offers as a tab; whatever the window has as a tab, the menu offers as a row.** A user who learns one learns the other, and the two lists drifting is what makes a native window feel like a different product from the dock that opened it.
+
+**One declaration does it**, and a window that replaces a menu owes it: `App::menu( $slug, $tabs, $gate )`. `$tabs` is an ordered `id => label` map (a callable when caps decide the list), `$gate` the per-user opt-in that chooses between this window and the classic screen. From that one block:
+
+- the dock's submenu for `$slug` becomes these tabs — same labels, same order — with the first one as the tile's own label rather than a duplicate row;
+- each row's URL is the menu's own tagged `os_tab=<id>`, which `tryNativeUrlRemap()` turns into the window's `tab` open-time param for **every** remap, no per-window wiring;
+- `tab` becomes declared state and the runtime writes it on `mount` and on `reopen`;
+- the tabs reach the client view as `menuTabs` in the config extra, and **the view renders its strip from that list** — the only way the strip and the submenu cannot drift.
+
+The gate is the only thing it does NOT decide: with the opt-in off the dock keeps wp-admin's own submenu, which is right, because the classic screen is what those rows open. A gate that changes a server-side registration **must spend a menu refresh when it saves** (see the settings note above) — that is why the Beta toggles do.
+
+**Name the wp-admin page each tab replaces** (`'new' => array( 'label' => …, 'page' => 'post-new.php' )`). That is what lets the shell claim those URLs for the window wherever they are reached — a link in another window, the admin bar's "+ New", a workspace's launch list — and what tells the dock which of wp-admin's own rows it may drop. Every row NOT named is kept and follows the window's tabs, so a plugin's page under that menu stays reachable; dropping the whole submenu is how a first version of this made a plugin's screens vanish. A tab that is not a page you can ask for cold (the Plugins file editor, opened on a file you picked) names no page and gets no row.
+
+The same applies to a window whose page is an admin screen rather than one of the app's own views: it becomes a tab through `wp.os.embedAdminPage()`, not a second window — a tab swaps the body, whatever the page behind it is made of.
+
 ### The work area — never size against `#os-area` directly
 
 **Anything that places or frames content on the desktop reads the work area, not the desktop area.** The bottom dock pill floats OVER `#os-area`, so `desktopArea.clientHeight`, `parent.clientWidth / 2` and `getBoundingClientRect()` on the area all describe space the user cannot reach; every surface that guessed at the dock on its own (an 80px padding here, a 100px canvas margin there) was wrong in a different way, and the dock covered content and actions.
@@ -385,7 +405,7 @@ Three things to know:
 - **`workAreaRectOf( parent )` is the drop-in for `parent.clientWidth` / `clientHeight` wherever something is placed by DEFAULT.** It reads the element's live size and only adds the insets, so a consumer running synchronously after a layout change is still right, and a test document with no layout gets exactly the numbers it used to. Window open (a registered size is fitted to it), session restore, cascade, tile, child placement, widgets, sticky notes, embed-window restore and the icon grid all go through it; the Corkboard, the categories mind map and the tags cloud, which frame content inside their OWN box, use `workAreaInsetsOf( host )` instead. **Maximize and snap also use the work area** and reflow on `subscribeWorkArea` changes, so a Static dock never covers their bottom actions. Fullscreen and the manual drag clamp still use the whole desktop area.
 - **A dynamic rail claims nothing.** Preferences → Appearance → Desktop layout → Dock behavior (and, in Split, Sidebar behavior) is stamped per rail as `data-os-dock-behavior` — an attribute per rail, not a body class, because Split's two rails answer independently (PHP stamps `#os-dock` for the first paint; the apply pass and `src/dock-behavior.ts` re-stamp live, the latter because the Split sidebar is a fresh element on every rebuild). A parked rail is the same element folded into a thin indicator line at its edge (`dock.css`, the `os-dock-indicator-*` tokens); `src/dock-behavior.ts` alone decides parked vs. `os-dock--revealed` (edge zone, the rail's own box, its flyouts, keyboard focus — no `:hover` in CSS, because the flip runs through the View Transitions API and a CSS-flipped state would jump instead of morphing), and `measureWorkArea` skips every rail carrying `dynamic`. The apply pass calls `refreshWorkArea()` right after re-stamping. The rail is never transformed: its tooltip is `position: fixed`, and a transformed ancestor would pin it to the rail.
 - **The admin bar and the side docks need no special case**, and adding one is the mistake. `.os-shell` already starts below the admin bar when the user keeps it — below its *measured* bottom edge: `src/admin-bar-height.ts` publishes `--os-admin-bar-height` on `<html>`, and every consumer reads it with Core's `--wp-admin--admin-bar--height` as the fallback, because Core's token is a promise about Core's bar and a host (WordPress.com's staff debug chrome) can make the bar taller or push it down. Anything new that hangs below the bar reads that same chain, never the Core token alone. A left or right dock is a flex sibling of the area. Measuring the area's viewport rect is what makes the snapshot aware of both. Only chrome that floats over the area claims an inset.
-- **The notch does not claim, by contract**, and neither should a new floating affordance without a conversation: a work area is only useful while few things carve it. `assets/css/notch.css` and the notch section of `docs/javascript-reference.md` say why.
+- **A new floating affordance does not claim without a conversation**: a work area is only useful while few things carve it.
 
 `tests/vitest/work-area.test.ts` pins the rules; the `.os-area` padding, the `.os-icons` grid and the `.os-widgets` column read the same tokens in `assets/css/desktop.css`.
 

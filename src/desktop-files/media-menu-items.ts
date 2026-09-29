@@ -25,6 +25,7 @@
 
 import { addFilter } from '../hooks';
 import { showToast } from '../toast';
+import { toastRestFailure } from '../core/rest-failure';
 import { openUrlWindow } from './open';
 import {
 	addUploadToMediaLibrary,
@@ -68,13 +69,6 @@ function isImage( placement: RestPlacementShape ): boolean {
 	return ( placement.file as UploadFields ).kind === 'image';
 }
 
-function errorMessage( err: unknown ): string {
-	const raw = err instanceof Error ? err.message : String( err );
-	// The REST client prefixes its errors with the status and code;
-	// the human-readable message is what the toast should carry.
-	return raw.replace( /^\[openstation\] files REST \d+: \S+ /, '' );
-}
-
 /** The toast for one file added — with the attachment a click away. */
 function toastAdded( attachment: RestMediaAttachmentShape ): void {
 	showToast( {
@@ -98,7 +92,7 @@ async function addOne( fileId: number ): Promise< void > {
 	try {
 		toastAdded( await addUploadToMediaLibrary( fileId ) );
 	} catch ( err ) {
-		showToast( { message: `Could not add to the Media Library: ${ errorMessage( err ) }` } );
+		toastRestFailure( showToast, err, { lead: `Could not add to the Media Library`, fallback: `Could not add to the Media Library.` } );
 	}
 }
 
@@ -154,9 +148,7 @@ async function startPost( fileId: number, postType: 'post' | 'page' ): Promise< 
 			window.location.href = res.editUrl;
 		}
 	} catch ( err ) {
-		showToast( {
-			message: `Could not start a ${ postType }: ${ errorMessage( err ) }`,
-		} );
+		toastRestFailure( showToast, err, { lead: `Could not start a ${ postType }`, fallback: `Could not start a ${ postType }.` } );
 	}
 }
 

@@ -471,11 +471,11 @@ function recentPosts( ctx: Ctx, recent: StatsRecentPost[] ): TemplateResult | ''
  */
 function factList( rows: Array< [ string, string ] | [ string, string, string ] > ): TemplateResult {
 	return html`
-		<dl class="os-mywp__facts">
+		<os-facts>
 			${ rows.map( ( [ label, value ] ) => html`
-				<div class="os-mywp__fact"><dt>${ label }</dt><dd>${ value }</dd></div>
+				<os-fact label=${ label }>${ value }</os-fact>
 			` ) }
-		</dl>
+		</os-facts>
 	`;
 }
 

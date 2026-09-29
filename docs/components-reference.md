@@ -72,6 +72,33 @@ See [app layout recipes](./examples/app-layouts.md) for sizing, scrolling, spans
 | `<os-role-picker>` | `OsRolePicker` | `os-role-picker/os-role-picker.ts` | WP role select. |
 | `<os-user-search>` | `OsUserSearch` | `os-user-search/os-user-search.ts` | Live user autocomplete (`/desktop-mode/v1/files/users/search` REST). |
 
+### Named fields in `<os-form>`
+
+Give each field a `name` and use `getValues()` / `setValues(patch)` for the whole
+record. Checkboxes and switches return booleans; tag inputs retain their array
+of `{ label, id? }` objects. Scalar fields retain their existing string values;
+convert numbers explicitly at the storage boundary. Structured values are assigned
+through the component's `value` setter and are not serialized into attributes.
+`reset()` restores the initial field values, including checked switches and tags.
+Structured-cloneable data is copied at capture and on each reset, so editing a
+tag object or array cannot overwrite those defaults. Opaque, non-cloneable custom
+field values retain their existing identity semantics.
+
+`setBusy(true)` makes the fields inert and blocks button, Enter and programmatic
+submission until cleared. Set it before the first asynchronous operation and clear
+it in `finally`. Existing per-field disabled settings are preserved.
+`os-form-input` reports named text, checkbox/switch, select, range and color changes.
+Tag add/remove events are intents: the app still updates `tags.value` explicitly;
+`setValues()` does not emit user-input events.
+
+See [editing a mixed-field record](examples/form-record-editor.md) for a complete
+load/save/reset pattern.
+
+Date fields (`date`, `datetime-local`, `month`, `week`) keep the browser's native
+picker. In browsers exposing the calendar indicator styling hook, its glyph reads
+`--os-ui-fg-muted`, matching the field's other affordances across dark and light
+themes. Forced-colors mode uses the system button text color.
+
 ### A raw `<input>` in the shell is not a styling choice
 
 The desktop shell is a real `wp-admin` document, so WordPress's own
@@ -180,6 +207,15 @@ in the value, or on `beforeinput`, where it can still be refused.
 | `<os-button>` | `OsButton` | `os-button/os-button.ts` | Primary / secondary / ghost button. |
 | `<os-window-button>` | `OsWindowButton` | `os-window-button/os-window-button.ts` | Title-bar icon button (minimize / maximize / close / custom). |
 
+An icon-only `<os-button>` names itself through `aria-label` on the
+host. The focusable element is the `<button>` inside the shadow root
+and the host has no role, so a name left on the host alone is inert;
+the component forwards `aria-label` onto that inner button, keeps it
+in sync when you relabel the host, and drops it from the inner button
+when the host has none. `aria-labelledby` / `aria-describedby` are not
+forwarded: an IDREF on the shadow `<button>` resolves inside that
+shadow root only, so it could never reach an id in your markup.
+
 `<os-window-button disabled>` forwards disabled state to its native button, preventing activation and keyboard focus. Optional `aria-pressed="true|false|mixed"` is forwarded to that same focusable button; `active` controls its visual pressed state.
 
 `<os-window-button>` paints an `aria-hidden` glyph inside a shadow
@@ -201,6 +237,8 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | `<os-confirm-dialog>` | `OsConfirmDialog`, `osConfirm` | `os-confirm-dialog/os-confirm-dialog.ts` | Confirm prompt — use `await osConfirm({...})` (never `window.confirm`). |
 | `<os-toast>` / `<os-toast-container>` | `OsToast`, `OsToastContainer` | `os-toast/os-toast.ts` | Top-right (top inline-end) toast notifications. |
 | `<os-notice>` | `OsNotice` | `os-notice/os-notice.ts` | Inline informational/warning notice. |
+
+**`<os-toast>` tone.** A `tone` attribute (`positive | warning | critical | neutral`) paints a coloured edge and a leading icon from the palette's notice tokens (`--os-ui-notice-success`, `-warning`, `-error`, `-neutral`), so a failure toast and a failure `<os-notice>` read as a set. Without it the toast is the plain dark chip. `showToast()` sets it from its `type` option through the server's toast-type registry, so a caller names a type (`error`), never a tone.
 
 **`<os-toast>` hold contract.** A toast reports when the user is attending to it — pointer over it, or focus anywhere inside it, including its action and close buttons in the shadow root. While that is true it carries a reflected `held` attribute and, on every transition, emits `os-toast-hold` with `{ held: boolean }`. `showToast()` listens and pauses the auto-dismiss countdown for the duration; a released countdown resumes with the time it had left, floored at 1.2s so a nearly-expired toast doesn't vanish the instant the pointer leaves. `held` is set by the component and is not something to write by hand — a toast that should never expire on its own is `persistent`. Dismissing a toast that currently holds focus hands focus back to the last element outside the toast stack that had it, so clicking `Undo` never drops the user on `<body>`.
 
@@ -224,6 +262,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | `<os-save-status>` | `OsSaveStatus` | `os-save-status/os-save-status.ts` | Save indicator (idle / saving / saved / failed). `variant="ring"` is the window title bar's status ring: outline for every phase but success, which fills. |
 | `<os-relative-time>` | `OsRelativeTime` | `os-relative-time/os-relative-time.ts` | Auto-updating "2 min ago". |
 | `<os-histogram>` | `OsHistogram` | `os-histogram/os-histogram.ts` | Stacked time histogram (inline SVG) with a toggle legend; `series` + `columns` JSON in, `os-series-toggle` out. Colours ride the status tokens. |
+| `<os-facts>` / `<os-fact>` | `OsFacts`, `OsFact` | `os-facts/os-facts.ts` | Label/value list — a real `<dl>` whose rows are `<os-fact label="…">` children carrying the value in their default slot (an `<os-code>`, an `<os-relative-time>`, a link, a badge). `layout="between"` spreads each pair across its own line; `stacked` puts the label above the value. An `<os-code>` value loses its snippet chrome and keeps the copy affordance; a theme can restore it through `--os-ui-facts-code-{bg,border,padding,font-size}`. |
 | `<os-stat>` | `OsStat` | `os-stat/os-stat.ts` | One stat tile: big value, small uppercase label, optional caption; `swatch` adds a severity chip coloured by the app tone contract (`data-tone` on the host). |
 | `<os-empty-state>` | `OsEmptyState` | `os-empty-state/os-empty-state.ts` | Empty-list / no-results placeholder. |
 | `<os-rating-summary>` | `OsRatingSummary` | `os-rating-summary/os-rating-summary.ts` | Star average + per-star bucket bars. |
@@ -232,7 +271,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 
 | Tag | Class | Source | Purpose |
 | --- | --- | --- | --- |
-| `<os-table>` | `OsTable` | `os-table/os-table.ts` | Sortable, filterable data table with sub-tables. `stacked` lays every row out as a card — the first column its title, the labelled ones captioned lines, a label-less one the actions row (`column.stack` overrides the role) — for a phone or any width the columns cannot fit; `stack-on-phone.ts` makes that decision from the shell's mode stamp for every list window. |
+| `<os-table>` | `OsTable` | `os-table/os-table.ts` | Sortable, filterable data table with sub-tables. A cell value shaped `{ slot, text? }` renders a named slot a light-DOM child fills, so a server view can put a control in a row without a `render` function. `stacked` lays every row out as a card — the first column its title, the labelled ones captioned lines, a label-less one the actions row (`column.stack` overrides the role) — for a phone or any width the columns cannot fit; `stack-on-phone.ts` makes that decision from the shell's mode stamp for every list window. |
 | `<os-log>` | `OsLog` | `os-log/os-log.ts` | Virtualized streaming log container. |
 | `<os-tile>` | `OsTile` | `os-tile/os-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and WP Explorer). `selectable` switches it from `listitem` to `option` so it can carry `aria-selected` — the selection controller sets it. |
 
@@ -242,7 +281,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | --- | --- | --- | --- |
 | `<os-tabs>` / `<os-tab>` / `<os-tabpanel>` | `OsTabs`, `OsTab`, `OsTabPanel` | `os-tabs/os-tabs.ts` | Tab strip with associated panels, for a tab group **inside** content. A window's own top-level tabs belong in the window chrome instead — see `Window.setTabs()` in [`javascript-reference.md`](javascript-reference.md). |
 | `<os-tab-chip>` | `OsTabChip` | `os-tab-chip/os-tab-chip.ts` | Single chip tab (e.g. window tabs). |
-| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Numbered steps, stacked or as a horizontal trail. `current` marks where the reader is, `interactive` makes a step a way back. |
+| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Numbered steps, stacked or as a horizontal trail. `current` marks where the reader is, `interactive` makes a step a jump target with a hover state. |
 | `<os-crumb-chain>` | `OsCrumbChain` | `os-crumb-chain/os-crumb-chain.ts` | Breadcrumb trail with chevron separators. |
 
 ## Color & theming

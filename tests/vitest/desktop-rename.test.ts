@@ -4,7 +4,7 @@
  *
  * @group desktops
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type SystemDockItem } from '../../src/dock';
 import { WindowManager } from '../../src/window-manager';
 import {
@@ -36,10 +36,10 @@ describe( 'virtual desktops — overview tiles', () => {
 
 		dockEl = document.createElement( 'nav' );
 		document.body.appendChild( dockEl );
-		// Mirrors the Overview tile's registration in `desktop.ts`.
+		// Mirrors the Workspaces tile's registration in `desktop.ts`.
 		const overview: SystemDockItem = {
 			id: 'os-overview',
-			title: 'Overview',
+			title: 'Workspaces',
 			icon: 'dashicons-screenoptions',
 			navKind: 'control',
 			isOpen: () => manager._overviewActive,
@@ -64,7 +64,7 @@ describe( 'virtual desktops — overview tiles', () => {
 		manager._overviewTopBar!.querySelector< T >(
 			`.os-overview-top-bar__tile-${ name }`,
 		);
-	const renameButton = () => part( 'rename' )!;
+	const renameButton = () => part( 'edit' )!;
 	const labelEl = () => part( 'label' )!;
 	const editing = (): boolean => labelEl().hasAttribute( 'contenteditable' );
 	const press = ( key: string ): void => {
@@ -144,6 +144,52 @@ describe( 'virtual desktops — overview tiles', () => {
 		press( 'Escape' );
 		firstTile().click();
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+	} );
+
+	// The pencil opens the wizard on a shell that wired one, so the
+	// name itself is the shortcut for the one edit people make most.
+	test( 'double-clicking the name edits it instead of switching desks', () => {
+		const second = manager.createDesktop();
+		manager.switchDesktop( second.id );
+		manager.enterOverview();
+
+		// The first tile is the desk we are NOT on, so a stray switch
+		// would show.
+		const mouse = ( type: string ): void => {
+			labelEl().dispatchEvent( new MouseEvent( type, { bubbles: true } ) );
+		};
+		mouse( 'click' );
+		mouse( 'dblclick' );
+
+		expect( editing() ).toBe( true );
+		expect( manager._overviewActive ).toBe( true );
+		expect( manager.getActiveDesktopId() ).toBe( second.id );
+
+		labelEl().textContent = 'Writing';
+		press( 'Enter' );
+		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
+	} );
+
+	// The other half of the same handler: a click that never got a
+	// partner still does what a tile click always did.
+	test( 'a lone click on the name switches once the pair times out', () => {
+		vi.useFakeTimers();
+		try {
+			const second = manager.createDesktop();
+			manager.switchDesktop( second.id );
+			manager.enterOverview();
+
+			labelEl().dispatchEvent(
+				new MouseEvent( 'click', { bubbles: true } ),
+			);
+			expect( manager.getActiveDesktopId() ).toBe( second.id );
+
+			vi.advanceTimersByTime( 300 );
+			expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+			expect( manager._overviewActive ).toBe( false );
+		} finally {
+			vi.useRealTimers();
+		}
 	} );
 
 	test( 'the caption names the desk, but not from overview', () => {

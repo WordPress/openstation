@@ -139,11 +139,23 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 		expect( win.config.initialState ).toBe( 'maximized' );
 	} );
 
-	test( 'openNew always opens floating regardless of the saved state', async () => {
+	test( 'openNew replays the saved state for the first instance', async () => {
 		setNativeWindowSavedState( 'edit-php', 'maximized', {
 			width: 1400,
 			height: 880,
 		} );
+
+		const win = await manager.openNew( openConfig( 'edit-php' ) );
+
+		expect( win.config.initialState ).toBe( 'maximized' );
+	} );
+
+	test( 'a duplicate opens floating regardless of the saved state', async () => {
+		setNativeWindowSavedState( 'edit-php', 'maximized', {
+			width: 1400,
+			height: 880,
+		} );
+		await manager.open( openConfig( 'edit-php' ) );
 
 		const win = await manager.openNew(
 			openConfig( 'edit-php', { multi: true } ),
@@ -225,22 +237,39 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 			expect( win.config.y ).toBe( 400 );
 		} );
 
-		test( 'openNew (duplicate) cascades, not replays the primary position', async () => {
+		test( 'openNew replays the saved position for the first instance', async () => {
 			saveNativeWindowGeometry( 'edit-php', {
 				width: 800,
 				height: 600,
 			} );
 			saveNativeWindowPosition( 'edit-php', { x: 240, y: 160 } );
 
+			// Every menu click takes this door, and most of them find
+			// nothing of that page open: the first window still lands
+			// where the user left the last one.
+			const win = await manager.openNew( openConfig( 'edit-php' ) );
+
+			expect( win.config.x ).toBe( 240 );
+			expect( win.config.y ).toBe( 160 );
+		} );
+
+		test( 'openNew (duplicate) cascades, not replays the primary position', async () => {
+			saveNativeWindowGeometry( 'edit-php', {
+				width: 800,
+				height: 600,
+			} );
+			saveNativeWindowPosition( 'edit-php', { x: 240, y: 160 } );
+			await manager.open( openConfig( 'edit-php' ) );
+
 			const win = await manager.openNew(
 				openConfig( 'edit-php', { multi: true } ),
 			);
 
 			// Duplicate gets a cascade slot, not the saved primary
-			// position. The cascade index for the first window is 0,
-			// so cascade x = 40.
-			expect( win.config.x ).toBe( 40 );
-			expect( win.config.y ).toBe( 40 );
+			// position. The primary consumed cascade index 0, so the
+			// duplicate's is 1: 40 + 30.
+			expect( win.config.x ).toBe( 70 );
+			expect( win.config.y ).toBe( 70 );
 		} );
 	} );
 } );

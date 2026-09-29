@@ -65,6 +65,66 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A window in charge of a menu supplies that menu's rows, but a
+	 * page it has no tab for — a plugin's screen registered under the
+	 * same menu, a taxonomy someone added — is still a page, and
+	 * dropping it would make it unreachable from the dock.
+	 *
+	 * @covers ::openstation_build_dock_items
+	 */
+	public function test_a_windows_tabs_lead_the_submenu_and_keep_the_rows_it_has_no_tab_for() {
+		global $menu, $submenu;
+		$menu    = array(
+			array( 'Demo', 'read', 'demo.php', '', '', 'menu-demo', 'dashicons-admin-generic' ),
+		);
+		$submenu = array(
+			'demo.php' => array(
+				array( 'All demos', 'read', 'demo.php' ),
+				array( 'Add demo', 'read', 'demo-new.php' ),
+				array( 'A plugin page', 'read', 'demo-extra.php' ),
+			),
+		);
+		openstation_apps_registry()->add(
+			OpenStation\App::define( 'demo-window' )
+				->title( 'Demo' )
+				->menu(
+					'demo.php',
+					array(
+						'list' => array(
+							'label' => 'Everything',
+							'page'  => 'demo.php',
+						),
+						'add'  => array(
+							'label' => 'Write one',
+							'page'  => 'demo-new.php',
+						),
+					)
+				)
+		);
+
+		$demo = null;
+		foreach ( openstation_build_dock_items() as $item ) {
+			if ( false !== strpos( (string) $item['url'], 'demo.php' ) ) {
+				$demo = $item;
+				break;
+			}
+		}
+
+		$this->assertNotNull( $demo );
+		// The menu's own page is named the way the window names it.
+		$this->assertSame( 'Everything', $demo['selfLabel'] );
+		$this->assertSame(
+			array( 'Write one', 'A plugin page' ),
+			wp_list_pluck( $demo['submenu'], 'title' ),
+			'The window\'s tabs lead; the page it has no tab for follows.'
+		);
+		$this->assertStringContainsString( 'os_tab=add', $demo['submenu'][0]['url'] );
+		$this->assertArrayNotHasKey( 'slug', $demo['submenu'][0] );
+
+		openstation_apps_registry()->remove( 'demo-window' );
+	}
+
+	/**
 	 * @covers ::openstation_build_dock_items
 	 */
 	public function test_openstation_dock_item_filter_receives_item_and_slug() {

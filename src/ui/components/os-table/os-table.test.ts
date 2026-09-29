@@ -44,6 +44,30 @@ describe( '<os-table>', () => {
 	} );
 	afterEach( () => host.remove() );
 
+	test( 'a slot-shaped value renders a named slot the light DOM fills, and sort and filter read its text (#862)', async () => {
+		host.innerHTML = `<os-table><os-button slot="run-b">Run Bob</os-button><os-button slot="run-a">Run Alice</os-button></os-table>`;
+		await tick();
+		const table = host.querySelector( 'os-table' ) as OsTable< Record< string, unknown > >;
+		table.columns = [
+			{ key: 'name', label: 'Name', filter: 'text' },
+			{ key: 'run', label: 'Run', filter: 'text', sortable: true },
+		];
+		table.data = [
+			{ name: 'Bob', run: { slot: 'run-b', text: 'Run Bob' } },
+			{ name: 'Alice', run: { slot: 'run-a', text: 'Run Alice' } },
+		];
+		await tick();
+		const slots = Array.from( table.shadowRoot!.querySelectorAll( 'tbody slot' ) ) as HTMLSlotElement[];
+		expect( slots.map( ( s ) => s.name ) ).toEqual( [ 'run-b', 'run-a' ] );
+		expect( slots[ 0 ].assignedElements()[ 0 ]?.textContent ).toBe( 'Run Bob' );
+		expect( table.shadowRoot!.textContent ).not.toContain( '[object Object]' );
+		// A name reused across rows would leave every row but the first blank.
+		expect( new Set( slots.map( ( s ) => s.name ) ).size ).toBe( slots.length );
+		table.filters = { run: 'alice' };
+		await tick();
+		expect( table.shadowRoot!.querySelectorAll( 'tbody tr:not(.subtable):not(.empty)' ).length ).toBe( 1 );
+	} );
+
 	test( 'renders the empty placeholder when there is no data', async () => {
 		host.innerHTML = `<os-table empty="Nothing here"></os-table>`;
 		await tick();

@@ -126,7 +126,15 @@ function openstation_sanitize_desktop_theme_tokens( $raw ) {
 	$out   = array();
 	$count = 0;
 	foreach ( $raw as $key => $value ) {
-		if ( $count >= 512 ) {
+		/*
+		 * A size guard, not a design budget, and it needs headroom:
+		 * Legacy answers every literal the palette declares, so it
+		 * grows with the palette, and crossing this line is silent
+		 * (a dropped entry falls back to the built-in value). What
+		 * keeps a manifest safe is the namespace filter and the value
+		 * grammar below, both per entry.
+		 */
+		if ( $count >= 2048 ) {
 			break;
 		}
 		if ( ! is_string( $key ) ) {

@@ -56,12 +56,18 @@ function openstation_register_builtin_wallpapers() {
 			'id'          => 'holomesh',
 			'label'       => __( 'Holomesh', 'desktop-mode' ),
 			'file'        => 'holomesh.svg',
+			// The two meshes are the only built-ins that are pale
+			// everywhere. The rest are dark at the top-left corner the
+			// icon grid starts from, and a tone is one value for the
+			// whole surface.
+			'tone'        => 'light',
 			'description' => __( 'The holographic mesh: lavender, pink, cyan and mint pooling into each other like light through a prism.', 'desktop-mode' ),
 		),
 		array(
 			'id'          => 'pulsemesh',
 			'label'       => __( 'Pulsemesh', 'desktop-mode' ),
 			'file'        => 'pulsemesh.svg',
+			'tone'        => 'light',
 			'description' => __( 'The pulsar mesh: magenta and violet burning through a white core, the brightest surface the brand has.', 'desktop-mode' ),
 		),
 	);
@@ -78,6 +84,7 @@ function openstation_register_builtin_wallpapers() {
 				// meaningless corner of the composition.
 				'preview'     => 'url( ' . OPENSTATION_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat',
 				'value'       => $css,
+				'tone'        => isset( $wallpaper['tone'] ) ? $wallpaper['tone'] : '',
 				'description' => $wallpaper['description'],
 			)
 		);

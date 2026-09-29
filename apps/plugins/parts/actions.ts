@@ -14,7 +14,7 @@
  */
 
 import { __, sprintf } from '@openstation/app';
-import { activatePlugin, deactivatePlugin, deletePlugin, leaveAfterSelfMutation, selfGone } from './mutations';
+import { activatePlugin, askBeforeSelfDeactivate, deactivatePlugin, deletePlugin, leaveAfterSelfMutation, selfGone } from './mutations';
 import { enqueueUpdateJob } from './update-queue';
 import {
 	describeError,
@@ -351,6 +351,9 @@ export function bulkButtons( host: PluginsHost, selectedIds: string[], clear: ()
 /** Activate / deactivate / delete the selection in one dispatch. */
 async function runBulk( host: PluginsHost, rows: InstalledPlugin[], verb: 'activate' | 'deactivate' | 'delete' ): Promise< void > {
 	const plugins = rows.map( ( r ) => r.plugin );
+	if ( verb === 'deactivate' ) {
+		await askBeforeSelfDeactivate( host, plugins );
+	}
 	const ok = await host.dispatch(
 		'bulk',
 		{ plugins, do: verb },

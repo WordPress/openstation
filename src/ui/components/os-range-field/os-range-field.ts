@@ -69,6 +69,7 @@ function readoutWidth(
 
 export class OsRangeField extends Component {
 	static props = [
+		'name',
 		'label',
 		'value',
 		'min',
@@ -85,6 +86,7 @@ export class OsRangeField extends Component {
 			'Label + range slider + live numeric readout. Emits os-range-change with an already-parsed number.',
 		status: 'stable',
 		props: [
+			{ name: 'name', type: 'string', description: 'Key used by an enclosing os-form to collect, populate and reset this field.' },
 			{
 				name: 'label',
 				type: 'string',

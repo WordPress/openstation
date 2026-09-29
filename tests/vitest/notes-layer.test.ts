@@ -310,6 +310,72 @@ describe( 'NotesLayer', () => {
 		).toBeNull();
 	} );
 
+	test( 'a refused save says why once, then stays quiet until a save lands', async () => {
+		let status = 403;
+		const fetchSpy = vi.fn( async ( _url: string, init?: RequestInit ) => {
+			if ( init?.method === 'PATCH' ) {
+				return status === 403
+					? new Response(
+						JSON.stringify( {
+							code: 'openstation_notes_forbidden',
+							message: 'Only the note owner can change it.',
+						} ),
+						{ status: 403 },
+					)
+					: new Response(
+						JSON.stringify( makeNote( { id: 1, updatedAtMs: 9000 } ) ),
+						{ status: 200 },
+					);
+			}
+			return new Response( JSON.stringify( { notes: [] } ), { status: 200 } );
+		} );
+		vi.stubGlobal( 'fetch', fetchSpy );
+		const errorSpy = vi.spyOn( console, 'error' ).mockImplementation( () => {} );
+
+		const onError = vi.fn();
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		const layer = new NotesLayer( {
+			host,
+			pluginUrl: 'https://example.test/plugin',
+			canCreatePosts: false,
+			onError,
+		} );
+		layer.upsertNote( makeNote( { id: 1 } ) );
+		const controller = layer.get( 1 )!;
+		const editor = controller.element.querySelector( 'os-textarea' )!;
+		const type = ( value: string ) => {
+			editor.dispatchEvent(
+				new CustomEvent( 'os-input-change', { detail: { value } } ),
+			);
+			controller.flushPendingEdits();
+		};
+
+		type( 'one' );
+		await new Promise( ( r ) => setTimeout( r, 10 ) );
+		type( 'two' );
+		await new Promise( ( r ) => setTimeout( r, 10 ) );
+
+		// Two refused saves, one toast: the server's words, coloured as a failure.
+		expect( onError ).toHaveBeenCalledTimes( 1 );
+		expect( onError ).toHaveBeenCalledWith(
+			expect.objectContaining( {
+				message: 'Only the note owner can change it.',
+				type: 'error',
+			} ),
+		);
+
+		// A save that lands re-arms the toast for the next failure.
+		status = 200;
+		type( 'three' );
+		await new Promise( ( r ) => setTimeout( r, 10 ) );
+		status = 403;
+		type( 'four' );
+		await new Promise( ( r ) => setTimeout( r, 10 ) );
+		expect( onError ).toHaveBeenCalledTimes( 2 );
+		errorSpy.mockRestore();
+	} );
+
 	test( 'trashNote evicts optimistically, DELETEs, and Undo restores', async () => {
 		const restored = makeNote( { id: 1, updatedAtMs: 7000 } );
 		const fetchSpy = vi.fn( async ( url: string, init?: RequestInit ) => {

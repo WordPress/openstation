@@ -69,6 +69,8 @@ export const OS_COMPONENT_TAGS = [
 	'os-spinner',
 	'os-relative-time',
 	'os-histogram',
+	'os-fact',
+	'os-facts',
 	'os-stat',
 	'os-avatar',
 	'os-textarea',

@@ -2,7 +2,7 @@
 
 **Status: Stable**
 
-A [workspace](../workspaces.md) is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, and how they are arranged. A **template** is how a plugin offers one — it appears as a card on the wizard's Start step, beside Blank desktop, and picking it mints a desk.
+A [workspace](../workspaces.md) is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, and how they are arranged. A **template** is how a plugin offers one — it appears as a card on the wizard's Start step, beside Blank workspace, and picking it mints a desk.
 
 ## From PHP alone — no JavaScript
 
@@ -19,6 +19,9 @@ add_filter(
             'icon'        => 'dashicons-sos',
             'color'       => '#2271b1',
             'layout'      => 'columns',
+            // Plugin basenames that must be active, or this template
+            // is not offered. Leave it out and it always is.
+            'requires'    => array( 'my-helpdesk/my-helpdesk.php' ),
             // Match TOKENS, not ids. Each is tested as a substring
             // against every navigable item's id, URL, window id and
             // title — so this finds the helpdesk menu whatever slug it
@@ -58,7 +61,7 @@ That is the whole integration. The client resolves the tokens against the live n
 
 ## Drop a shipped template
 
-The same filter removes one. A blog with no store has no reason to be offered a Commerce desk:
+The same filter removes one, everywhere. (A site with no store needs no filter: Commerce declares `requires` and is already hidden there.)
 
 ```php
 add_filter(
@@ -76,7 +79,7 @@ add_filter(
 
 ## From JavaScript
 
-Same shape, registered on the client. Use this when the template depends on something only the browser knows:
+Same shape, registered on the client — minus `requires`, which is a server-side check. A template registered from JavaScript needs none: its plugin is already running, or this call would not have happened. Use this when the template depends on something only the browser knows:
 
 ```js
 wp.os.workspaces.registerPreset( {
@@ -173,7 +176,7 @@ wp.os.workspaces.create( {
 
 ## What a workspace may never do
 
-Narrowing the rails is a **view**, not a settings edit: it computes the navigation with extra `'hidden'` placements and leaves the user's stored `navPlacement` untouched. And it can never hide OpenStation's own controls — Overview, System, Trash, Exit — or an open window's tile. See [Workspaces](../workspaces.md#narrowing-never-edits-your-settings).
+Narrowing the rails is a **view**, not a settings edit: it computes the navigation with extra `'hidden'` placements and leaves the user's stored `navPlacement` untouched. And it can never hide OpenStation's own controls — Workspaces, System, Trash, Exit — or an open window's tile. See [Workspaces](../workspaces.md#narrowing-never-edits-your-settings).
 
 The widget column follows the same "writes nothing" rule by a different route: `'only'` mounts exactly what it names, whether or not the user enabled those widgets globally, and hands their own column back the moment they leave. See [Widgets are a layout, not a filter](../workspaces.md#widgets-are-a-layout-not-a-filter).
 

@@ -109,6 +109,25 @@ const stepTitles = (): string[] =>
 const currentStep = (): string =>
 	modal().querySelector( 'os-step[current]' )?.getAttribute( 'title' ) ?? '';
 
+const jumpableSteps = (): string[] =>
+	Array.from( modal().querySelectorAll( 'os-step[interactive]' ) ).map(
+		( s ) => s.getAttribute( 'title' ) ?? '',
+	);
+
+const jumpTo = ( title: string ): void => {
+	const step = Array.from(
+		modal().querySelectorAll( 'os-step[interactive]' ),
+	).find( ( s ) => s.getAttribute( 'title' ) === title );
+	if ( ! step ) {
+		throw new Error(
+			`Step "${ title }" is not a jump target — have: ${ jumpableSteps().join(
+				', ',
+			) }`,
+		);
+	}
+	step.dispatchEvent( new CustomEvent( 'os-step-click' ) );
+};
+
 describe( 'workspace wizard', () => {
 	let onCreate: ReturnType< typeof vi.fn >;
 	let onSave: ReturnType< typeof vi.fn >;
@@ -128,12 +147,12 @@ describe( 'workspace wizard', () => {
 		clearHooksStub();
 	} );
 
-	test( '+ then Create is a plain desktop, with no profile at all', () => {
+	test( '+ then Create is a plain workspace, with no profile at all', () => {
 		openWorkspaceWizard( options( { onCreate } ) );
 
 		// Blank is the preselected card and the footer says so.
 		expect( cards()[ 0 ].hasAttribute( 'selected' ) ).toBe( true );
-		button( 'Create desktop' ).click();
+		button( 'Create workspace' ).click();
 
 		expect( onCreate ).toHaveBeenCalledTimes( 1 );
 		const result: WorkspaceWizardResult = onCreate.mock.calls[ 0 ][ 0 ];
@@ -379,6 +398,43 @@ describe( 'workspace wizard', () => {
 		expect( onSave.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
 			label: 'Shop',
 			profile: { preset: 'commerce' },
+		} );
+	} );
+
+	test( 'the trail jumps to any step when editing', () => {
+		openWorkspaceWizard(
+			options( {
+				mode: 'edit',
+				desktopId: 'desktop-2',
+				label: 'Shop',
+				profile: resolvedCommerce(),
+				onSave,
+			} ),
+		);
+		// Every step but the one on screen is a jump target, so
+		// changing one thing does not mean clicking Next to it.
+		expect( jumpableSteps() ).toEqual( [ 'Apps', 'Widgets', 'Look', 'Windows' ] );
+		jumpTo( 'Look' );
+		expect( currentStep() ).toBe( 'Look' );
+		jumpTo( 'Name' );
+		expect( currentStep() ).toBe( 'Name' );
+	} );
+
+	test( 'jumping past Start still reads the template into the draft', () => {
+		openWorkspaceWizard( options( { onCreate } ) );
+		cards()[ 1 ].dispatchEvent( new CustomEvent( 'os-card-click' ) );
+		// Straight from Start to Look, skipping the steps between: the
+		// pick those steps read is taken on the way out of Start.
+		jumpTo( 'Look' );
+		expect( currentStep() ).toBe( 'Look' );
+
+		button( 'Create workspace' ).click();
+		const result: WorkspaceWizardResult = onCreate.mock.calls[ 0 ][ 0 ];
+		expect( result.preset ).toBeUndefined();
+		expect( result.label ).toBe( 'Commerce' );
+		expect( result.profile ).toMatchObject( {
+			preset: 'commerce',
+			apps: { mode: 'only', ids: [ 'woocommerce' ] },
 		} );
 	} );
 

@@ -335,10 +335,11 @@ final class Os {
 	 * Queue a toast. See {@see Effects::toast()}.
 	 *
 	 * @param string $message Text.
+	 * @param string $type    Toast-type id (`error`, `success`, …), or '' for the plain toast.
 	 * @return self
 	 */
-	public function toast( $message ) {
-		$this->effects->toast( $message );
+	public function toast( $message, $type = '' ) {
+		$this->effects->toast( $message, $type );
 		return $this;
 	}
 

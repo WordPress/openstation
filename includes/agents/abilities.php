@@ -291,14 +291,32 @@ function openstation_agents_ability_get_post( $args ) {
 /**
  * `desktop-mode/get-post` permission callback.
  *
- * `read_post` decides visibility (published / private / draft) and
- * never the post password — WordPress splits the two deliberately, so
- * a plain `read_post` check would hand a Subscriber the raw body of a
- * password-protected post. Mirror Core: a sealed post stays sealed
- * unless the caller can edit it (the same escape hatch
- * `WP_REST_Posts_Controller::check_password_required()` grants), and
- * because this ability returns RAW `post_content` there is no empty
- * rendered field to fall back to — the only safe answer is to refuse.
+ * Asks every gate a single read has, in the order Core's REST
+ * controllers ask them:
+ *
+ *  - A zero id is refused before any fetch: `get_post( 0 )` returns
+ *    the global post, which would judge the request against whatever
+ *    another plugin left there.
+ *  - `read_post` decides visibility (published / private / draft) and
+ *    stays the floor for every row.
+ *  - The post password is a separate question — WordPress splits the
+ *    two deliberately. A sealed post stays sealed unless the caller can
+ *    edit it (the same escape hatch
+ *    `WP_REST_Posts_Controller::check_password_required()` grants), and
+ *    because this ability returns RAW `post_content` there is no empty
+ *    rendered field to fall back to, so the answer is to refuse.
+ *  - A post type with no readable front end (`is_post_type_viewable()`
+ *    false: an order, a submission log, a queue entry) is read only by
+ *    a caller who can edit the row. `map_meta_cap()` resolves
+ *    `read_post` on a published row of such a type to plain `read`,
+ *    which every logged-in user holds, so `read_post` alone does not
+ *    answer the question for it.
+ *
+ * `openstation_ai_can_read_post()` (loaded unconditionally from the AI
+ * Copilot bootstrap, ahead of this module) implements the password and
+ * post-type gates; this callback keeps `read_post` in front of it so a
+ * plugin that narrows `read_post` on a public post still narrows this
+ * ability.
  *
  * @param array $args Input args.
  * @return bool
@@ -312,11 +330,7 @@ function openstation_agents_ability_get_post_can( $args ) {
 	if ( ! current_user_can( 'read_post', $post_id ) ) {
 		return false;
 	}
-	$post = get_post( $post_id );
-	if ( $post instanceof WP_Post && post_password_required( $post ) && ! current_user_can( 'edit_post', $post_id ) ) {
-		return false;
-	}
-	return true;
+	return openstation_ai_can_read_post( $post_id );
 }
 
 /**
@@ -356,11 +370,30 @@ function openstation_agents_ability_get_media( $args ) {
 /**
  * `desktop-mode/get-media` permission callback.
  *
- * Gates on `upload_files` (author+), deliberately NOT on `read_post`:
- * for `inherit`-status attachments that check defers to the parent
- * post (and effectively requires edit rights when unattached), which
- * wrongly blocks read-only access to media whose file URL is public
- * on a standard site anyway.
+ * Gates on `upload_files` (author+) — the capability the Media
+ * Library itself requires — rather than on `read_post` of the
+ * attachment.
+ *
+ * An attached file is a child of its parent post, and the result
+ * carries the attachment's title, caption and `attachedTo` (the parent
+ * id), so an attached file also requires that the caller can read the
+ * parent. That follows the shape of Core's rule for `inherit`-status
+ * attachments, `WP_REST_Posts_Controller::check_read_permission()`
+ * (the attachments controller inherits it): an attachment defers to
+ * its parent whenever one exists. The parent is judged by `read_post`,
+ * plus the post-type rule `desktop-mode/get-post` applies (a type with
+ * no readable front end needs `edit_post`), which is stricter than Core
+ * on a non-viewable parent: Core admits any `publish` parent of a
+ * REST-enabled type. Core's other requirement, that the parent's type
+ * be `show_in_rest`, is not copied: it would refuse media attached to a
+ * non-REST type for every caller, administrators included. The
+ * parent's password is not asked: the attachment's own fields are not
+ * the parent's body, and Core's attachment read does not ask it either.
+ *
+ * An unattached file, or one whose parent row no longer exists, is
+ * judged on `upload_files` alone, as Core treats a parentless
+ * `inherit` attachment as published. A zero id is refused before any
+ * fetch, because `get_post( 0 )` returns the global post.
  *
  * @param array $args Input args.
  * @return bool
@@ -371,7 +404,33 @@ function openstation_agents_ability_get_media_can( $args ) {
 	if ( $attachment_id <= 0 ) {
 		return false;
 	}
-	return current_user_can( 'upload_files' );
+	if ( ! current_user_can( 'upload_files' ) ) {
+		return false;
+	}
+
+	$attachment = get_post( $attachment_id );
+	if ( ! ( $attachment instanceof WP_Post ) || 'attachment' !== $attachment->post_type ) {
+		// The execute callback answers "not found" for these.
+		return true;
+	}
+
+	$parent_id = (int) $attachment->post_parent;
+	if ( $parent_id <= 0 || $parent_id === $attachment_id ) {
+		return true;
+	}
+	$parent = get_post( $parent_id );
+	if ( ! ( $parent instanceof WP_Post ) ) {
+		return true;
+	}
+
+	if ( ! current_user_can( 'read_post', $parent->ID ) ) {
+		return false;
+	}
+	$parent_type = get_post_type_object( $parent->post_type );
+	if ( ! $parent_type || ! is_post_type_viewable( $parent_type ) ) {
+		return current_user_can( 'edit_post', $parent->ID );
+	}
+	return true;
 }
 
 /**

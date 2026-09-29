@@ -1,18 +1,11 @@
 /**
- * The keyboard-shortcuts reference, as a shell window.
+ * The keyboard-shortcuts reference, as a shell window. The System
+ * menu's "Keyboard shortcuts" row is its front door.
  *
- * The reference itself is not new — it has always been a popover in
- * `assets/js/admin-bar.js`, anchored under the admin bar's keyboard
- * button and styled entirely under `#wpadminbar`. With the bar hidden
- * by default, both the button and the styles are off the page, so the
- * System menu's "Keyboard shortcuts" row needed a surface that lives
- * inside the shell. This is that surface.
- *
- * The DATA is still the server's, read off `openStationAdminBar
- * .shortcuts`: PHP translates every string once and ships them with
- * the admin bar's config, and the bar is still rendered (hiding it is
- * a body class, not a suppression), so the payload is on the page
- * whichever mode the user picked. Nothing here touches i18n.
+ * The DATA is the server's, read off `openStationAdminBar.shortcuts`:
+ * PHP translates every string once and ships them with the admin
+ * bar's config, which is emitted on every admin screen whether or not
+ * the bar is on the page. Nothing here touches i18n.
  */
 
 /** One row of the contextual table: a key, and what it does where. */

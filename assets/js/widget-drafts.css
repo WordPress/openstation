@@ -276,16 +276,25 @@ body.os-active .dm-drafts__link {
  * `<os-notice>`'s built-in palette is tuned for a light window surface —
  * its text defaults to `--os-ui-fg` (#1d2327) over an 8%-alpha tone wash.
  * A widget card is glass over the wallpaper and can be arbitrarily dark,
- * so that pairing collapses to unreadable. Drive the component's
- * documented color surface from `currentColor` instead: the text tracks
- * whatever the card already proved legible, and the tone survives in the
- * accent stripe + icon, each mixed toward `currentColor` so it stays
- * visible on a dark and a light card alike.
+ * so that pairing collapses to unreadable. Drive the component's text
+ * from `currentColor` instead: it tracks whatever the card already
+ * proved legible.
+ *
+ * The tone has to carry the surface, not only the stripe. A neutral
+ * currentColor wash over the panel's own currentColor wash is a grey
+ * box inside a grey box, and an error read as background — the exact
+ * complaint that landed the failure notices here. So each tone paints
+ * its wash and a full hairline border from the palette's own notice
+ * tokens (declared for a dark surface), falling back to the tone
+ * colour mixed toward transparent, which survives a light card too.
+ * The stripe colour is mixed toward currentColor so it stays visible
+ * on either.
+ *
+ * These are document-tree rules on the host, so they outrank the
+ * component's own `:host( [ tone ] )` declarations by design.
  */
 .dm-drafts__notice {
 	--os-ui-notice-color: currentColor;
-	--os-ui-notice-bg: color-mix( in srgb, currentColor 8%, transparent );
-	--os-ui-notice-border: transparent;
 	--os-ui-notice-font: inherit;
 	--os-ui-notice-success: color-mix(
 		in srgb,
@@ -306,6 +315,45 @@ body.os-active .dm-drafts__link {
 	   window-banner scale and reads as a slab inside an 8px panel. */
 	padding: 8px 10px;
 	border-radius: 6px;
+	border: 1px solid var( --os-ui-notice-border );
+	border-inline-start: 4px solid var( --os-ui-notice-accent );
+}
+
+.dm-drafts__notice[ tone='success' ] {
+	--os-ui-notice-accent: var( --os-ui-notice-success );
+	--os-ui-notice-bg: var(
+		--os-ui-notice-success-bg,
+		color-mix( in srgb, var( --os-ui-success-fg, #46b450 ) 14%, transparent )
+	);
+	--os-ui-notice-border: var(
+		--os-ui-notice-success-border,
+		color-mix( in srgb, var( --os-ui-success-fg, #46b450 ) 40%, transparent )
+	);
+}
+
+.dm-drafts__notice[ tone='warning' ] {
+	--os-ui-notice-accent: var( --os-ui-notice-warning );
+	--os-ui-notice-bg: var(
+		--os-ui-notice-warning-bg,
+		color-mix( in srgb, var( --os-ui-warning-fg, #dba617 ) 14%, transparent )
+	);
+	--os-ui-notice-border: var(
+		--os-ui-notice-warning-border,
+		color-mix( in srgb, var( --os-ui-warning-fg, #dba617 ) 40%, transparent )
+	);
+}
+
+.dm-drafts__notice[ tone='error' ],
+.dm-drafts__notice[ tone='danger' ] {
+	--os-ui-notice-accent: var( --os-ui-notice-error );
+	--os-ui-notice-bg: var(
+		--os-ui-notice-error-bg,
+		color-mix( in srgb, var( --os-ui-danger, #d63638 ) 14%, transparent )
+	);
+	--os-ui-notice-border: var(
+		--os-ui-notice-error-border,
+		color-mix( in srgb, var( --os-ui-danger, #d63638 ) 40%, transparent )
+	);
 }
 
 /* Readiness — read-only diagnosis at the top of the panel, tone-coded

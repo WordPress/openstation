@@ -325,6 +325,8 @@ Links owned by core's `wp-admin/js/updates.js` are also left alone: the card-sty
 
 The Dashboard's welcome panel is the same story with no marker class at all: `dashboard.js` binds the dismiss on the anchor and `preventDefault`s it, and `?welcome=0` is a dead no-JS fallback. The interceptor yields `.welcome-panel-close` and `.welcome-panel-dismiss a` inside `#welcome-panel`, matching core's own selector. Routing them opened a second Dashboard window titled **Dismiss** on top of the one being dismissed.
 
+Jetpack's WordPress.com-built dashboards, Stats (`admin.php?page=stats`) and Blaze (`?page=advertising`), write their in-app links root-relative (`/stats/day/referrers/<site>`) and route them with a delegated handler on `#wpcom` that turns the href into a `#!` hash on the current screen. The interceptor yields any link inside `#wpcom` whose href starts with `/` plus the screen's `page` arg, which is Jetpack's own test. Claiming them resolved the href against the site root, classified it as a front-end URL, and opened the site's 404 page as an external sub-tab. Other links in those apps, such as a post permalink, are still escalated as usual.
+
 Forms submit through a separate `submit` listener that only rewrites the action URL (to keep `openstation_chromeless=1`) and never `preventDefault`s. Same-origin form posts to a different page would currently navigate the iframe in place; if that becomes a UX problem it can join this protocol as a `os-iframe-admin-form-submit` message.
 
 ### Window titles the shell had to guess

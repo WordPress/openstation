@@ -238,7 +238,7 @@ function sub( Os $os, array $section, $id, $relation ) {
 			foreach ( wp_get_post_revisions( $id ) as $revision ) {
 				$rows[] = array(
 					'id'       => (int) $revision->ID,
-					'title'    => (string) wp_post_revision_title_expanded( $revision, false ),
+					'title'    => trim( wp_strip_all_tags( (string) wp_post_revision_title_expanded( $revision, false ) ) ), // Core leads with an avatar <img>; the client prints a title as text.
 					'subtitle' => (string) get_the_author_meta( 'display_name', (int) $revision->post_author ),
 					'icon'     => 'dashicons-backup',
 					'editUrl'  => current_user_can( 'edit_post', $id )
@@ -351,7 +351,7 @@ function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
 			}
 			return array(
 				'kind'    => 'revision',
-				'title'   => (string) wp_post_revision_title_expanded( $revision, false ),
+				'title'   => trim( wp_strip_all_tags( (string) wp_post_revision_title_expanded( $revision, false ) ) ), // Same as the row title: no avatar <img>.
 				'author'  => (string) get_the_author_meta( 'display_name', (int) $revision->post_author ),
 				'date'    => (string) get_the_date( '', $revision ) . ' ' . get_the_time( '', $revision ),
 				'content' => wp_kses_post( (string) apply_filters( 'the_content', (string) $revision->post_content ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own content pipeline.

@@ -32,6 +32,8 @@ export interface AppData {
 
 /** What `App::config()` ships once with the window (`ctx.extra`). */
 export interface PluginsExtra {
+	/** The window's tabs, as `App::menu()` declared them. */
+	menuTabs?: Array< { id: string; label: string } >;
 	ajaxUrl: string;
 	ajaxNonce: string;
 	updatesNonce: string;
@@ -47,6 +49,22 @@ export interface PluginsExtra {
 	selfPluginFile: string;
 	/** Root wp-admin URL — where a self-deactivate lands. */
 	adminUrl: string;
+	/**
+	 * The deactivation feedback dialog's lazy bundle and route, or
+	 * `null` when the feature is filtered off. Asked before a
+	 * self-deactivate; see `parts/mutations.ts`.
+	 */
+	deactivationFeedback: {
+		script: { url: string; translations?: string };
+		styleUrl: string;
+		restUrl: string;
+	} | null;
+	/**
+	 * Core's Plugin File Editor (`plugin-editor.php`), opened as its own
+	 * window from the editor tab. `''` unless Core lists it under Plugins
+	 * for this viewer (single site, classic theme, `edit_plugins`).
+	 */
+	editorUrl: string;
 }
 
 export type Ctx = ViewContext< AppState, AppData >;

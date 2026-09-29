@@ -34,7 +34,7 @@ Every default now comes from the item's **kind** rather than from the registrati
 | A WordPress admin menu | a rail |
 | A plugin admin menu | a rail |
 | An app: a registered desktop icon, a native window's launcher | the desktop |
-| An OpenStation control: Mio, Overview, System, Trash, Exit | a rail |
+| An OpenStation control: Mio, Workspaces, System, Trash, Exit | a rail |
 
 This is the fix for a class of bug rather than a preference change. An app registered twice — a native window with a dock tile *and* a desktop icon, which the two APIs explicitly allow — used to get two defaults, one per surface, and the surfaces disagreed until the user picked a value explicitly. Games shipped that way: Preferences read the default off the icon and said "On the desktop" while the dock read it off the window and painted a tile.
 

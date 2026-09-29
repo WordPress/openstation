@@ -38,6 +38,8 @@
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
+import { restErrorFromResponse } from '../../core/api-client';
+import { describeRestFailure } from '../../core/rest-failure';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { decodeHTML } from '../../utils';
 
@@ -186,8 +188,7 @@ const mount = async (
 				return;
 			}
 			if ( ! res.ok ) {
-				body.textContent = 'Could not load posts (' + res.status + ').';
-				return;
+				throw await restErrorFromResponse( res );
 			}
 			const posts = await res.json() as Array< { title: { rendered: string } } >;
 			// Check again after the second await (res.json() is also async).
@@ -197,9 +198,14 @@ const mount = async (
 			body.textContent = posts.length > 0
 				? 'Latest post: ' + decodeHTML( posts[ 0 ].title.rendered )
 				: 'No posts found.';
-		} catch {
+		} catch ( err ) {
 			if ( ! destroyed ) {
-				body.textContent = 'Could not load data.';
+				// The server's own reason when it gave one ("Sorry, you are
+				// not allowed…"), a line for offline or an unreadable reply,
+				// else this generic one.
+				body.textContent = describeRestFailure( err, {
+					fallback: 'Could not load posts.',
+				} ).message;
 			}
 		}
 	};

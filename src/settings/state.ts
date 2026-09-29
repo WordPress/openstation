@@ -28,6 +28,7 @@
  */
 
 import type { DesktopConfig } from '../types';
+import { restErrorFromResponse } from '../core/api-client';
 import {
 	ADMIN_BAR_MODES,
 	CUSTOM_ACCENT_ID,
@@ -252,6 +253,12 @@ const SANITIZERS: Sanitizers = {
 				.slice( 0, 32 )
 			: fallback.slice(),
 	nativePagesEnabled: bool,
+	nativePagesHiddenColumns: ( raw, fallback ) =>
+		Array.isArray( raw )
+			? raw
+				.filter( ( v ): v is string => typeof v === 'string' && v !== '' )
+				.slice( 0, 32 )
+			: fallback.slice(),
 	nativeUsersEnabled: bool,
 	nativePluginsEnabled: bool,
 	nativeCommentsEnabled: bool,
@@ -548,6 +555,7 @@ export function cloneState( state: OsSettingsState ): OsSettingsState {
 		},
 		appliedThemeRecommendations: state.appliedThemeRecommendations.slice(),
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
+		nativePagesHiddenColumns: state.nativePagesHiddenColumns.slice(),
 		navPlacement: { ...state.navPlacement },
 		navOrder: state.navOrder.slice(),
 		dockPromotedPositions: Object.fromEntries(
@@ -751,9 +759,9 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 		},
 		{ windowId: attributedWindowId },
 	)
-		.then( ( res ) => {
+		.then( async ( res ) => {
 			if ( ! res.ok ) {
-				throw new Error( `${ res.status } ${ res.statusText }` );
+				throw await restErrorFromResponse( res );
 			}
 			// Server accepted — promote this state to the rollback
 			// baseline. Any subsequent save that fails will revert

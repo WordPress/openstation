@@ -212,6 +212,43 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The Plugin File Editor tab follows Core's menu row: under Plugins
+	 * on a classic theme for a user holding `edit_plugins`, and absent on
+	 * a block theme (Core moves the row to Tools) and on multisite.
+	 *
+	 * @covers ::openstation_plugins_window_editor_url
+	 */
+	public function test_editor_url_follows_cores_plugins_menu_row() {
+		foreach ( array( 'twentytwentyone', 'twentytwentyfive' ) as $slug ) {
+			if ( ! wp_get_theme( $slug )->exists() ) {
+				$this->markTestSkipped( "Needs the {$slug} theme." );
+			}
+		}
+
+		$this->use_theme( 'twentytwentyone' );
+		$this->assertSame(
+			is_multisite() ? '' : admin_url( 'plugin-editor.php' ),
+			openstation_plugins_window_editor_url( $this->admin_id )
+		);
+		$this->assertSame( '', openstation_plugins_window_editor_url( $this->editor_id ) );
+
+		$this->use_theme( 'twentytwentyfive' );
+		$this->assertSame( '', openstation_plugins_window_editor_url( $this->admin_id ) );
+	}
+
+	/**
+	 * Point the active theme at `$slug` for this test; the options roll
+	 * back with the test's transaction.
+	 *
+	 * @param string $slug Theme directory name.
+	 */
+	private function use_theme( $slug ) {
+		update_option( 'stylesheet', $slug );
+		update_option( 'template', $slug );
+		wp_clean_themes_cache();
+	}
+
+	/**
 	 * The OS Settings opt-out flag must round-trip through sanitize +
 	 * load — a regression that drops the key on save would silently
 	 * unset every user who toggled the setting off.

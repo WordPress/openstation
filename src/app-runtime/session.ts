@@ -12,7 +12,9 @@
  * @public
  */
 
-import { __, sprintf } from '../i18n';
+import { __ } from '../i18n';
+import { RestError, restErrorFromResponse } from '../core/api-client';
+import { toastRestFailure } from '../core/rest-failure';
 import {
 	CAPTURED_EVENTS,
 	LISTENED_EVENTS,
@@ -255,20 +257,37 @@ export function createSession( deps: SessionDeps ): Session {
 				{ windowId, source: `openstation/app/${ config.id }` },
 			);
 			if ( ! response.ok ) {
-				let message = String( response.status );
-				try {
-					const body = ( await response.json() ) as { message?: string };
-					if ( body && body.message ) {
-						message = body.message;
-					}
-				} catch {
-					// A non-JSON error body: the status code will do.
-				}
-				throw new Error( message );
+				throw await restErrorFromResponse( response );
 			}
 			const payload = ( await response.json() ) as DispatchResponse;
-			if ( disposed || ! payload || payload.ok !== true ) {
+			if ( disposed ) {
 				return false;
+			}
+			if ( ! payload || payload.ok !== true ) {
+				// A 200 whose body says no: the runtime's own failure shape
+				// (`{ ok: false, error, message, status }`), or something
+				// that is not a dispatch response at all. Thrown as the
+				// error it is, so the one catch below says why. The shape
+				// carries the HTTP status the host should have used; a
+				// body with a message but no status is still a refusal, and
+				// a body with neither is an unreadable reply.
+				const failed = ( payload ?? {} ) as {
+					message?: unknown;
+					error?: unknown;
+					status?: unknown;
+				};
+				const serverMessage = typeof failed.message === 'string' ? failed.message : '';
+				let status = response.status;
+				if ( typeof failed.status === 'number' ) {
+					status = failed.status;
+				} else if ( serverMessage ) {
+					status = 500;
+				}
+				throw new RestError( '', {
+					status,
+					code: typeof failed.error === 'string' ? failed.error : undefined,
+					serverMessage,
+				} );
 			}
 			apply( payload, sentState );
 			if ( debugging() ) {
@@ -298,12 +317,9 @@ export function createSession( deps: SessionDeps ): Session {
 					err,
 				);
 			}
-			host.toast?.( {
-				message: sprintf(
-					/* translators: %s: error message. */
-					__( 'The window could not update: %s' ),
-					err instanceof Error ? err.message : String( err ),
-				),
+			toastRestFailure( host.toast, err, {
+				lead: __( 'The window could not update' ),
+				fallback: __( 'The window could not update.' ),
 			} );
 			return false;
 		} finally {
@@ -533,9 +549,15 @@ export function createSession( deps: SessionDeps ): Session {
 
 	const performEffect = ( effect: Effect ): void => {
 		switch ( effect.type ) {
-			case 'toast':
-				host.toast?.( { message: String( ( effect as { message: string } ).message ) } );
+			case 'toast': {
+				const { message, toastType } = effect as { message: string; toastType?: unknown };
+				host.toast?.(
+					typeof toastType === 'string' && toastType
+						? { message: String( message ), type: toastType }
+						: { message: String( message ) },
+				);
 				return;
+			}
 			case 'title':
 				host.setTitle?.( windowId, String( ( effect as { title: string } ).title ) );
 				return;

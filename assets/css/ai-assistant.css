@@ -135,73 +135,15 @@
 	transform: scale( 1 ) translateY( 0 );
 }
 
-/* ---------------------------------------------------------------------------
- * Header — accent-tinted identity strip
- * ------------------------------------------------------------------------- */
-
-.os-ai__header {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 10px 14px;
-	/* A faint accent tint fading to the surface, at --os-ai-accent's
-	   strength: flat when that is 0. */
-	background: linear-gradient(
-		to bottom,
-		color-mix(
-			in srgb,
-			var( --wp-admin-theme-color, #2271b1 ) calc( var( --os-ai-accent, 100% ) * 0.08 ),
-			var( --os-ui-surface, #fff )
-		),
-		var( --os-ui-surface, #fff )
-	);
-	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) );
-}
-
-.os-ai__header-icon {
-	display: flex;
-	align-items: center;
-	color: color-mix(
-		in srgb,
-		var( --wp-admin-theme-color, #2271b1 ) var( --os-ai-accent, 100% ),
-		var( --os-ui-fg, #1d2327 )
-	);
-	/* The glow fades out with the accent, so a neutral mark has none. */
-	filter: drop-shadow(
-		0 0 5px
-			color-mix(
-				in srgb,
-				var( --wp-admin-theme-color, #2271b1 ) calc( var( --os-ai-accent, 100% ) * 0.55 ),
-				transparent
-			)
-	);
-}
-
-/* Sentence case at body size, like a window title, rather than a
-   tracked uppercase eyebrow. */
-.os-ai__header-label {
-	flex: 1;
-	font-size: 13px;
-	font-weight: 500;
-	color: color-mix(
-		in srgb,
-		var( --wp-admin-theme-color, #2271b1 ) var( --os-ai-accent, 100% ),
-		var( --os-ui-fg, #1d2327 )
-	);
-}
-
-/* Mode switch (Commands ↔ AI) — a small segmented pill in the header.
-   Shown only when AI is available; replaces the `/` shortcut. */
+/* Mode switch (Commands ↔ AI) — a small segmented pill at the end of
+   the input row. Always shown; replaces the `/` shortcut. */
 .os-ai__modes {
+	flex-shrink: 0;
 	display: inline-flex;
 	gap: 2px;
 	padding: 2px;
 	border-radius: 999px;
 	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
-}
-
-.os-ai__modes[hidden] {
-	display: none;
 }
 
 .os-ai__mode {
@@ -222,7 +164,7 @@
 }
 
 .os-ai__mode.is-active {
-	/* Elevated first: the pill sits ON the header, which is already
+	/* Elevated first: the pill sits ON the panel, which is already
 	   `--os-ui-surface`, so a theme that distinguishes the two keeps the
 	   active segment readable. Falls through to plain surface, which is
 	   the default look. */
@@ -235,8 +177,6 @@
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 1px;
 }
-
-/* .os-ai__close styles moved to the bottom results section */
 
 /* ---------------------------------------------------------------------------
  * Input row — the main interaction surface
@@ -420,38 +360,6 @@
     on the admin-bar handle so they load even before os.js.) */
 
 /* ---------------------------------------------------------------------------
- * Close button — × icon, top-right of header
- * ------------------------------------------------------------------------- */
-
-.os-ai__close {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 28px;
-	height: 28px;
-	appearance: none;
-	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.05 ) );
-	border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.1 ) );
-	border-radius: 6px;
-	cursor: pointer;
-	color: var( --os-ui-fg-muted, #646970 );
-	padding: 0;
-	flex-shrink: 0;
-	transition: background 0.1s, color 0.1s, border-color 0.1s;
-}
-
-.os-ai__close:hover {
-	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.09 ) );
-	border-color: var( --os-ui-border-strong, rgba( 0, 0, 0, 0.2 ) );
-	color: var( --os-ui-fg, #1d2327 );
-}
-
-.os-ai__close:focus-visible {
-	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
-	outline-offset: 2px;
-}
-
-/* ---------------------------------------------------------------------------
  * Results / conversation area — three render modes:
  *   • Suggestions   (empty state, example prompts)
  *   • Thinking      (spinner + "Thinking…")
@@ -541,8 +449,10 @@
 	text-underline-offset: 2px;
 }
 
+/* Keeps the underline and nudges the colour toward the foreground, so
+   hovering reads as a response rather than the link going away. */
 .os-ai__settings-link:hover {
-	text-decoration: none;
+	color: color-mix( in srgb, currentColor 65%, var( --os-ui-fg, #1d2327 ) );
 }
 
 /* The shell forces `cursor: default !important` on every clickable

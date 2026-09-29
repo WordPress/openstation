@@ -38,6 +38,7 @@ import { trashByRestPath } from './rest-trash';
 import type { DragManagerApi, DragSession } from '../drag';
 import { trashManyWithUndo } from './trash';
 import { showToast } from '../toast';
+import { restFailureText } from '../core/rest-failure';
 import {
 	recycleBinPayloadAccepts,
 	recycleBinPayloadDrop,
@@ -300,13 +301,22 @@ function registerOn(
 					} );
 					const moved = trashing.length - failed.length;
 					if ( moved > 1 || failed.length > 0 ) {
-						showToast( {
+						// The counts, then the first reason the server gave
+						// (they are usually all the same one).
+						const reason = failed.length > 0
+							? restFailureText( ( failed[ 0 ] as PromiseRejectedResult ).reason )
+							: '';
+						const toast: { message: string; duration: number; type?: string } = {
 							message:
 								failed.length > 0
-									? `${ moved } moved to Trash · ${ failed.length } could not be moved`
+									? `${ moved } moved to Trash · ${ failed.length } could not be moved${ reason ? `: ${ reason }` : '' }`
 									: `${ moved } items moved to Trash`,
 							duration: failed.length > 0 ? 6000 : 4000,
-						} );
+						};
+						if ( failed.length > 0 ) {
+							toast.type = moved > 0 ? 'warning' : 'error';
+						}
+						showToast( toast );
 					}
 				} );
 			}
