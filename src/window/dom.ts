@@ -457,18 +457,18 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// Leading menu button — sits before the icon + title. Rendered for
 	// every window, native or iframe; per-item gating below decides
 	// which actions actually apply. Native windows skip "Open in
-	// browser tab" since they have no admin URL to hand off.
+	// classic wp-admin" since they have no admin URL to hand off.
 	//
 	// Items in order:
-	//   - Open on startup        — checkable, marks this window as
-	//                              the default-window preference.
-	//   - Open another <Page>    — only when `config.multi`.
-	//   - Open in new window     — opens the current iframe URL as a
-	//                              fresh sibling.
-	//   - Reload                 — reloads the iframe, or re-runs the
-	//                              render callback of a native window.
-	//   - Open in browser tab    — detach to a classic admin tab.
-	//                              Iframe-only — skipped for native.
+	//   - Open on startup          — checkable, marks this window as
+	//                                the default-window preference.
+	//   - Open another <Page>      — only when `config.multi`.
+	//   - Open in new window       — opens the current iframe URL as a
+	//                                fresh sibling.
+	//   - Reload                   — reloads the iframe, or re-runs the
+	//                                render callback of a native window.
+	//   - Open in classic wp-admin — detach to a classic admin tab.
+	//                                Iframe-only — skipped for native.
 	const menuBtn = document.createElement( 'os-window-button' );
 	menuBtn.setAttribute( 'icon', 'menu' );
 	// Themed override for the ⋯ glyph. Goes through the same helper
@@ -560,7 +560,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	}
 
 	if ( ! config.native ) {
-		// "Open in browser tab" — was the title bar's detach button.
+		// "Open in classic wp-admin" — was the title bar's detach button.
 		// Strips chromeless params and opens the page in a classic
 		// admin tab. Iframe-only — native windows have no URL to
 		// hand off to the browser.
@@ -570,7 +570,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		openExternal.setAttribute( 'icon', 'dashicons-external' );
 		openExternal.classList.add( 'os-window__menu-item' );
 		openExternal.classList.add( 'os-window__menu-item--open-external' );
-		openExternal.textContent = __( 'Open in browser tab' );
+		openExternal.textContent = __( 'Open in classic wp-admin' );
 		menuPanel.appendChild( openExternal );
 	}
 

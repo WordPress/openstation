@@ -1086,7 +1086,7 @@ Calling `open()` with an id (or `baseId`) that's already on screen focuses the e
 - **"Open another <Page>"** — only when the window was opened with `multi: true`. Calls `openNew()` with the window's *original* landing URL.
 - **"Open in new window"** — iframe windows only. Opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
 - **"Reload"** — both window types; see below.
-- **"Open in browser tab"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab. A native window has no URL to hand off.
+- **"Open in classic wp-admin"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab. A native window has no URL to hand off.
 
 **Reload is common to both window types.** "Put this back the way it loaded" is the same intent whether the content came from an admin page or from a plugin's render callback, so `Window.reload()` and its ⋯ row work on native windows too.
 

@@ -1263,7 +1263,7 @@ export class Window {
 					this.onOpenInNewWindow?.( this );
 				} );
 			}
-			// "Reload" + "Open in browser tab" moved here from the
+			// "Reload" + "Open in classic wp-admin" moved here from the
 			// title-bar controls cluster. Both call straight
 			// into the existing `Window` API — no new manager wiring
 			// needed. Click closes the menu first so the iframe

@@ -4,7 +4,7 @@
  * Open / close lifecycle for the ⋯ menu in every window's title bar
  * (native and iframe). Built-in items: "Open on startup" (checkable),
  * optional "Open another <page>" for multi-capable pages, and — iframe
- * windows only — "Open in new window", "Reload", "Open in browser tab".
+ * windows only — "Open in new window", "Reload", "Open in classic wp-admin".
  * Plugin-registered rows (`wp.os.registerWindowAction`) are appended
  * after those on every open by {@link paintWindowActions}, as verbs
  * or as checkboxes of their own.
