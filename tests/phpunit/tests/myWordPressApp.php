@@ -740,6 +740,17 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 				'comment_content' => 'Great strategy, would read again.',
 			)
 		);
+		$attached = self::factory()->attachment->create_object(
+			'attached.jpg',
+			self::$post_id,
+			array( 'post_mime_type' => 'image/jpeg' )
+		);
+		$featured = self::factory()->attachment->create_object(
+			'featured.jpg',
+			self::$post_id,
+			array( 'post_mime_type' => 'image/jpeg' )
+		);
+		set_post_thumbnail( self::$post_id, $featured );
 		$state = array(
 			'section' => 'posts',
 			'into'    => self::$post_id,
@@ -761,6 +772,12 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 			$this->assertStringNotContainsString( '<', $row['title'], 'A revision title is plain text, never an avatar tag.' );
 			$this->assertMatchesRegularExpression( '/ ago \(/', $row['title'] );
 		}
+
+		$media = $this->dispatch( 'relation', $state, array( 'relation' => 'media' ) );
+		$ids   = array_column( $media['data']['sub']['rows'], 'id' );
+		$this->assertEqualsCanonicalizing( array( $attached, $featured ), $ids, 'An attached image is listed even when it is not the featured one.' );
+		$counts = array_column( $media['data']['folder']['folders'], 'count', 'relation' );
+		$this->assertSame( 2, $counts['media'], 'A featured image that is also attached counts once.' );
 
 		$bogus = $this->dispatch( 'relation', $state, array( 'relation' => 'evil' ) );
 		$this->assertSame( '', $bogus['state']['relation'], 'Unknown relations fall back to the folder view.' );
