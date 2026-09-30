@@ -152,6 +152,85 @@ describe( 'workspace appearance — a view, never a write', () => {
 		expect( saved?.wallpaper ).toBe( 'galaxy' );
 	} );
 
+	test( 'update(): an overridden setting edited on the desk goes to the workspace', () => {
+		settings.state.openWindowsAs = 'default';
+		const taken: unknown[] = [];
+		settings.onWorkspaceEdit = ( patch ) => {
+			taken.push( patch );
+			return true;
+		};
+		settings.setWorkspaceAppearance( { openWindowsAs: 'default', wallpaper: 'mono' } );
+
+		settings.update( { openWindowsAs: 'maximized' } );
+
+		expect( taken ).toEqual( [ { openWindowsAs: 'maximized' } ] );
+		expect( settings.state.openWindowsAs ).toBe( 'maximized' );
+		// Not the user's own: leaving the desk hands theirs back.
+		expect( saved?.openWindowsAs ).toBe( 'default' );
+		settings.setWorkspaceAppearance( null );
+		expect( settings.state.openWindowsAs ).toBe( 'default' );
+	} );
+
+	test( 'update(): EVERY edit on a workspace desk is the workspace’s, even one it never named', () => {
+		settings.state.openWindowsAs = 'default';
+		const taken: unknown[] = [];
+		settings.onWorkspaceEdit = ( patch ) => {
+			taken.push( patch );
+			return true;
+		};
+		settings.setWorkspaceAppearance( { wallpaper: 'mono' } );
+
+		settings.update( { openWindowsAs: 'maximized' } );
+
+		expect( taken ).toEqual( [ { openWindowsAs: 'maximized' } ] );
+		expect( settings.state.openWindowsAs ).toBe( 'maximized' );
+		expect( saved?.openWindowsAs ).toBe( 'default' );
+		settings.setWorkspaceAppearance( null );
+		expect( settings.state.openWindowsAs ).toBe( 'default' );
+	} );
+
+	test( 'save(): an edit made in place on a workspace desk goes to the workspace', () => {
+		settings.state.accent = 'pulse';
+		const taken: unknown[] = [];
+		settings.onWorkspaceEdit = ( patch ) => {
+			taken.push( patch );
+			return true;
+		};
+		settings.setWorkspaceAppearance( { accent: 'rose', wallpaper: 'mono' } );
+
+		settings.state.accent = 'teal';
+		settings.save();
+
+		expect( taken ).toEqual( [ { accent: 'teal' } ] );
+		expect( saved?.accent ).toBe( 'pulse' );
+	} );
+
+	test( 'update(): on the main desk (no workspace to write), the edit is the user’s and survives a switch', () => {
+		settings.state.openWindowsAs = 'default';
+		settings.onWorkspaceEdit = () => false;
+		settings.setWorkspaceAppearance( { wallpaper: 'mono' } );
+
+		settings.update( { openWindowsAs: 'maximized' } );
+
+		expect( saved?.openWindowsAs ).toBe( 'maximized' );
+		settings.setWorkspaceAppearance( null );
+		expect( settings.state.openWindowsAs ).toBe( 'maximized' );
+		settings.setWorkspaceAppearance( { wallpaper: 'aurora' } );
+		expect( settings.state.openWindowsAs ).toBe( 'maximized' );
+	} );
+
+	test( 'update(): with nowhere to write (a pinned desk), the edit is the user’s', () => {
+		settings.state.accent = 'pulse';
+		settings.onWorkspaceEdit = () => false;
+		settings.setWorkspaceAppearance( { accent: 'rose' } );
+
+		settings.update( { accent: 'teal' } );
+
+		expect( saved?.accent ).toBe( 'teal' );
+		settings.setWorkspaceAppearance( null );
+		expect( settings.state.accent ).toBe( 'teal' );
+	} );
+
 	test( 'an edit made IN PLACE on an overridden object key is still the user’s', () => {
 		// The wallpaper settings editor merges into
 		// `wallpaperSettings[ id ]` rather than replacing the record,

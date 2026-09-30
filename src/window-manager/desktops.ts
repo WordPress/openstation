@@ -9,6 +9,8 @@
 
 import { doAction, HOOKS } from '../hooks';
 import { __, sprintf } from '../i18n';
+// Leaf import: the barrel would drag the workspace manager in here.
+import { isWorkspacePinned } from '../workspaces/pin';
 import type { Desktop } from '../types';
 import type { Window } from '../window';
 import { showDesktopNameHud } from './desktop-name-hud';
@@ -111,6 +113,32 @@ export function moveWindowToDesktop(
 }
 
 /**
+ * The main desk's name. Fixed — the main desk is the workbench every
+ * workspace is saved from, not one of them, so it is not the user's to
+ * rename, and a generic name says so.
+ */
+export function mainDeskLabel(): string {
+	return __( 'Main desk' );
+}
+
+/**
+ * Whether a desk is the main desk: the first one, for anyone who has
+ * one. A pinned user's only desk is the shared workspace, named by the
+ * admin who shared it — not a main desk.
+ */
+export function isMainDesk( mgr: WindowManager, id: string ): boolean {
+	return ! isWorkspacePinned() && mgr._desktops[ 0 ]?.id === id;
+}
+
+/** Give the main desk its fixed name, whatever a stored session said. */
+export function nameMainDesk( mgr: WindowManager ): void {
+	const main = mgr._desktops[ 0 ];
+	if ( main && ! isWorkspacePinned() ) {
+		main.label = mainDeskLabel();
+	}
+}
+
+/**
  * Append a brand-new desktop and return it. The new desktop's label
  * is auto-numbered (`Workspace 2`, `Workspace 3`, …) using the monotonic
  * seq counter so closing + reopening doesn't reuse the same id
@@ -120,6 +148,11 @@ export function createDesktop(
 	mgr: WindowManager,
 	init?: { label?: string },
 ): Desktop {
+	// A pinned user has one desk, and the server would drop a second
+	// one on the next save. Hand back the desk they have.
+	if ( isWorkspacePinned() ) {
+		return getActiveDesktop( mgr );
+	}
 	mgr._desktopSeq++;
 	const desktop: Desktop = {
 		id: `desktop-${ mgr._desktopSeq }`,
@@ -147,7 +180,9 @@ export function renameDesktop(
 	label: string,
 ): boolean {
 	const desktop = mgr._desktops.find( ( d ) => d.id === id );
-	if ( ! desktop ) {
+	// The pinned desk is named by the admin who shared it; the main
+	// desk has a fixed name.
+	if ( ! desktop || isWorkspacePinned() || isMainDesk( mgr, id ) ) {
 		return false;
 	}
 	const next = label.trim().slice( 0, DESKTOP_LABEL_MAX_LENGTH );
@@ -303,7 +338,9 @@ function animateDesktopSwitch(
  * survivor.
  */
 export function closeDesktop( mgr: WindowManager, id: string ): void {
-	if ( mgr._desktops.length <= 1 ) {
+	// The main desk stays: closing it would make the next desk — maybe
+	// a workspace — the one workspaces are saved from.
+	if ( mgr._desktops.length <= 1 || isWorkspacePinned() || isMainDesk( mgr, id ) ) {
 		return;
 	}
 	const idx = mgr._desktops.findIndex( ( d ) => d.id === id );
@@ -472,6 +509,7 @@ export function seedDesktops(
 		return;
 	}
 	mgr._desktops = desktops.map( ( d ) => ( { ...d } ) );
+	nameMainDesk( mgr );
 	mgr._activeDesktopId = desktops.some( ( d ) => d.id === activeDesktopId )
 		? activeDesktopId
 		: desktops[ 0 ].id;

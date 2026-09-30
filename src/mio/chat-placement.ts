@@ -14,7 +14,12 @@ export function followMioChat( frame: HTMLElement, panel: HTMLElement, handle: (
 		const rect = panel.getBoundingClientRect();
 		// A narrow window has no room beside the panel. Keep the original home.
 		let target = resting ? { x: currentBounds.left + resting.x, y: currentBounds.top + resting.y } : null;
-		if ( rect.left - currentBounds.left >= 140 ) {
+		if ( panel.classList.contains( 'os-mio-chat--side' ) ) {
+			// Docked beside the app: MIO sits in the panel's own header,
+			// in the room it keeps for it — never over the app, whose
+			// content now runs right up to the panel.
+			target = { x: rect.left + 72, y: rect.top + 62 };
+		} else if ( rect.left - currentBounds.left >= 140 ) {
 			target = { x: rect.left - 70, y: Math.min( rect.top + 70, currentBounds.bottom - 70 ) };
 		}
 		handle()?.setAnchor?.( target, true );

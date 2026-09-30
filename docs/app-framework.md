@@ -76,7 +76,7 @@ Everything hangs off `OpenStation\App::define( $id )`. Every method returns `$th
 | `capabilities( ...$caps )` | Capabilities the user must ALL hold. |
 | `can( callable $gate )` | `function ( Os $os ): bool`. Runs after the capability check. |
 
-Both gate the whole surface — window, icon, tabs, and dispatch endpoint. An anonymous user is always refused.
+Both gate the whole surface — window, icon, tabs, and dispatch endpoint. An anonymous user is always refused. After both, the host filter `openstation_app_allows` (through `$os->hooks`) may narrow further but never widen — see [`hooks-reference.md`](hooks-reference.md#openstation_app_allows--experimental-filter).
 
 #### The gate is the only authorization there is
 

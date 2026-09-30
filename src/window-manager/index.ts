@@ -81,6 +81,7 @@ import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 import { clampWindowPosition } from '../window/pointer';
 import { subscribeWorkArea, workAreaRectOf, type WorkAreaRect } from '../work-area';
+import { isWorkspacePinned } from '../workspaces/pin';
 
 /** Base z-index for desktop windows. */
 const BASE_Z_INDEX = 100;
@@ -255,8 +256,9 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _desktops: Desktop[] = [
-		// translators: default desktop name — "Workspace 1"
-		{ id: 'desktop-1', label: 'Workspace 1' },
+		// Renamed to the translated "Main desk" by `nameMainDesk()` at
+		// seed; the literal only ever shows before a session arrives.
+		{ id: 'desktop-1', label: 'Main desk' },
 	];
 
 	/**
@@ -963,7 +965,10 @@ export class WindowManager {
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
-			...( duplicate
+			// A floating twin, so it does not hide the primary — unless
+			// the user opens every window maximized, where it lands
+			// like any other.
+			...( duplicate && 'default' === ( config.openAs ?? this.openWindowsAs() )
 				? { initialState: 'normal', x: cascadeX, y: cascadeY }
 				: {} ),
 			...config,
@@ -1063,8 +1068,16 @@ export class WindowManager {
 			workArea.y + margin,
 			Math.min( cascadeY, workArea.y + workArea.height - resolvedHeight - margin ),
 		);
+		// "Open windows as" — only for a window nobody gave a state: a
+		// session restore stages its own, and a caller that passes
+		// `openAs` (a workspace placing its launch list) has decided.
+		const openAs =
+			! hasExplicitState && ! staged && ! createOpts.prewarm
+				? config.openAs ?? this.openWindowsAs()
+				: 'default';
 		const resolvedState =
 			config.initialState ??
+			( 'default' !== openAs ? 'maximized' : undefined ) ??
 			( saved?.state === 'maximized' ? 'maximized' : undefined );
 
 		// Clamp saved x / y to the current desktop area so a window
@@ -1466,6 +1479,20 @@ export class WindowManager {
 		win.hydrateNative();
 
 		this.focus( win );
+
+		// Focused: one task in front of you — every other window on the
+		// desk steps back to the dock.
+		if ( 'focused' === openAs ) {
+			for ( const other of this._stack ) {
+				if (
+					other !== win &&
+					other.state !== 'minimized' &&
+					( other.config.desktopId || this._activeDesktopId ) === win.config.desktopId
+				) {
+					other.minimize();
+				}
+			}
+		}
 
 		const openedDetail = {
 			windowId: win.id,
@@ -2501,6 +2528,13 @@ export class WindowManager {
 
 	// ---- Overview delegations ----
 
+	/**
+	 * How a window nobody gave a state lands — the user's "Open windows
+	 * as" setting (a workspace can override it). Bound by the shell to
+	 * the effective settings; `'default'` for a manager built without.
+	 */
+	public openWindowsAs: () => 'default' | 'maximized' | 'focused' = () => 'default';
+
 	public enterOverview(): void {
 		// A phone has no desk to zoom out of: its overview is the app
 		// switcher. Every route into Overview — the System tile, a
@@ -2508,6 +2542,11 @@ export class WindowManager {
 		// answers the event.
 		if ( isMobileStamped() ) {
 			document.dispatchEvent( new CustomEvent( 'os-mobile-open-switcher' ) );
+			return;
+		}
+		// A pinned user has one desk and no say over it: there is
+		// nothing for Overview's desk bar to offer them.
+		if ( isWorkspacePinned() ) {
 			return;
 		}
 		enterOverview( this );

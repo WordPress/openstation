@@ -382,6 +382,16 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			redock: ( id: string ) => {
 				widgetLayer?.redock( id );
 			},
+			// Every registered widget, as the picker lists them — for a
+			// surface outside the shell bundle (the Workspaces window's
+			// MIO) that cannot share the registry module.
+			list: () =>
+				widgetRegistry.all().map( ( def ) => ( {
+					id: def.id,
+					label: def.label || def.id,
+					description: def.description || '',
+					icon: def.icon || 'dashicons-screenoptions',
+				} ) ),
 		},
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),

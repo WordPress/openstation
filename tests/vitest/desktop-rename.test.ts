@@ -59,11 +59,14 @@ describe( 'virtual desktops — overview tiles', () => {
 		document.body.innerHTML = '';
 	} );
 
-	/** First tile's `<part>` in the live top bar. */
+	/**
+	 * The first RENAMABLE tile's `<part>` in the live top bar — the main
+	 * desk's name is fixed, so that is the first desk after it.
+	 */
 	const part = < T extends HTMLElement >( name: string ): T | null =>
-		manager._overviewTopBar!.querySelector< T >(
-			`.os-overview-top-bar__tile-${ name }`,
-		);
+		[ ...manager._overviewTopBar!.querySelectorAll< HTMLElement >( '.os-overview-top-bar__tile-wrapper' ) ]
+			.find( ( w ) => w.querySelector( '.os-overview-top-bar__tile-edit' ) )
+			?.querySelector< T >( `.os-overview-top-bar__tile-${ name }` ) ?? null;
 	const renameButton = () => part( 'edit' )!;
 	const labelEl = () => part( 'label' )!;
 	const editing = (): boolean => labelEl().hasAttribute( 'contenteditable' );
@@ -77,19 +80,33 @@ describe( 'virtual desktops — overview tiles', () => {
 	// looked accepted and came back shortened on reload reads as data
 	// loss. 64 mirrors `includes/session.php`.
 	test( 'renameDesktop trims, caps, and rejects blank / unknown', () => {
-		expect( renameDesktop( manager, 'desktop-1', '  Writing  ' ) ).toBe( true );
-		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
+		const second = manager.createDesktop();
+		expect( renameDesktop( manager, second.id, '  Writing  ' ) ).toBe( true );
+		expect( manager.getDesktops()[ 1 ].label ).toBe( 'Writing' );
 
-		renameDesktop( manager, 'desktop-1', 'x'.repeat( 200 ) );
-		expect( manager.getDesktops()[ 0 ].label ).toHaveLength(
+		renameDesktop( manager, second.id, 'x'.repeat( 200 ) );
+		expect( manager.getDesktops()[ 1 ].label ).toHaveLength(
 			DESKTOP_LABEL_MAX_LENGTH,
 		);
 
-		expect( renameDesktop( manager, 'desktop-1', '  ' ) ).toBe( false );
+		expect( renameDesktop( manager, second.id, '  ' ) ).toBe( false );
 		expect( renameDesktop( manager, 'nope', 'Writing' ) ).toBe( false );
 	} );
 
+	test( 'the main desk has a fixed name: no pencil, no close, no rename', () => {
+		manager.createDesktop();
+		manager.enterOverview();
+		const main = manager._overviewTopBar!.querySelector< HTMLElement >( '.os-overview-top-bar__tile-wrapper' )!;
+		expect( main.querySelector( '.os-overview-top-bar__tile-label' )!.textContent ).toBe( 'Main desk' );
+		expect( main.querySelector( '.os-overview-top-bar__tile-edit' ) ).toBeNull();
+		expect( main.querySelector( '.os-overview-top-bar__tile-close' ) ).toBeNull();
+		expect( renameDesktop( manager, 'desktop-1', 'Writing' ) ).toBe( false );
+		manager.closeDesktop( 'desktop-1' );
+		expect( manager.getDesktops()[ 0 ] ).toMatchObject( { id: 'desktop-1', label: 'Main desk' } );
+	} );
+
 	test( 'Enter commits, Escape reverts, and neither exits overview', () => {
+		manager.createDesktop();
 		manager.enterOverview();
 
 		renameButton().click();
@@ -97,7 +114,7 @@ describe( 'virtual desktops — overview tiles', () => {
 		labelEl().textContent = 'Writing';
 		press( 'Enter' );
 
-		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
+		expect( manager.getDesktops()[ 1 ].label ).toBe( 'Writing' );
 		expect( labelEl().textContent ).toBe( 'Writing' );
 		expect( editing() ).toBe( false );
 		// Overview's own document-level handler reads Enter as "commit
@@ -110,7 +127,7 @@ describe( 'virtual desktops — overview tiles', () => {
 		press( 'Escape' );
 
 		// Rebuilt from data, so an abandoned edit leaves no trace.
-		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
+		expect( manager.getDesktops()[ 1 ].label ).toBe( 'Writing' );
 		expect( labelEl().textContent ).toBe( 'Writing' );
 		expect( manager._overviewActive ).toBe( true );
 	} );
@@ -120,16 +137,14 @@ describe( 'virtual desktops — overview tiles', () => {
 	// a listener, so it survives every `stopPropagation` upstream and
 	// used to switch desktop and close overview mid-rename.
 	test( 'a click synthesised while editing does not switch desktop', () => {
+		const edited = manager.createDesktop();
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
 		manager.enterOverview();
 
-		// Edit the FIRST tile's label; the space activates the button
-		// that contains it, so the click lands on that same tile.
-		const firstTile = (): HTMLElement =>
-			manager._overviewTopBar!.querySelector< HTMLElement >(
-				'.os-overview-top-bar__tile',
-			)!;
+		// Edit a desk we are NOT on; the space activates the button
+		// that contains its label, so the click lands on that same tile.
+		const firstTile = (): HTMLElement => part< HTMLElement >( 'label' )!.closest< HTMLElement >( '.os-overview-top-bar__tile' )!;
 		renameButton().click();
 		expect( editing() ).toBe( true );
 		// The pencil itself must not reach the tile beneath it either.
@@ -143,12 +158,13 @@ describe( 'virtual desktops — overview tiles', () => {
 		// Still switches once the edit is over.
 		press( 'Escape' );
 		firstTile().click();
-		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect( manager.getActiveDesktopId() ).toBe( edited.id );
 	} );
 
 	// The pencil opens the wizard on a shell that wired one, so the
 	// name itself is the shortcut for the one edit people make most.
 	test( 'double-clicking the name edits it instead of switching desks', () => {
+		manager.createDesktop();
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
 		manager.enterOverview();
@@ -167,7 +183,7 @@ describe( 'virtual desktops — overview tiles', () => {
 
 		labelEl().textContent = 'Writing';
 		press( 'Enter' );
-		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
+		expect( manager.getDesktops()[ 1 ].label ).toBe( 'Writing' );
 	} );
 
 	// The other half of the same handler: a click that never got a
@@ -175,6 +191,7 @@ describe( 'virtual desktops — overview tiles', () => {
 	test( 'a lone click on the name switches once the pair times out', () => {
 		vi.useFakeTimers();
 		try {
+			const clicked = manager.createDesktop();
 			const second = manager.createDesktop();
 			manager.switchDesktop( second.id );
 			manager.enterOverview();
@@ -185,7 +202,7 @@ describe( 'virtual desktops — overview tiles', () => {
 			expect( manager.getActiveDesktopId() ).toBe( second.id );
 
 			vi.advanceTimersByTime( 300 );
-			expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+			expect( manager.getActiveDesktopId() ).toBe( clicked.id );
 			expect( manager._overviewActive ).toBe( false );
 		} finally {
 			vi.useRealTimers();

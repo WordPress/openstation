@@ -2,26 +2,26 @@
  * What the overview top bar can do with workspaces.
  *
  * Overview is already the Spaces surface: it names every desk, renames
- * them, closes them, and adds new ones. Everything a workspace adds to
- * that — creating one, editing one, restoring one — belongs there and
- * nowhere else. The desk itself is the user's, and a shell affordance
- * parked on it is one more thing floating over their windows.
+ * them, closes them, and adds new ones. What a workspace adds to that
+ * lives under the tiles:
  *
- * There used to be a dropdown here as well as the `+`. Two doors to
- * the same room: the dropdown created desks from templates, the `+`
- * created a blank one without asking, and a user had to know which
- * did what. Now there is the `+`: it makes a blank desk, lands the
- * user on it, and runs the wizard over that — whose first step is a
- * blank desktop, preselected, one Enter away.
+ *   - **Save as new workspace**, a tile in the row — the one way a
+ *     workspace is made: set the main desk up, save it, and a new desk
+ *     carries it.
+ *   - **Manage** under a workspace — the Workspaces app, where it is
+ *     renamed, shared and deleted and where its recipients are listed.
+ *   - **Restore** under a workspace with something to restore.
+ *
+ * The `+` makes a plain desk and nothing else. It used to open a
+ * wizard that built a workspace from a form; a workspace is now
+ * something you arrange and keep, never something you describe.
  *
  * ## The install seam
  *
  * `overview.ts` cannot construct workspace operations: it has a
  * `WindowManager` and nothing else. So the shell installs them once at
  * boot, and every export below answers `false` until it has — which is
- * what lets every existing overview test build the bar it always did,
- * and leaves the `+` at a plain new desk in a shell that never wired
- * the wizard.
+ * what lets every existing overview test build the bar it always did.
  */
 
 import type { Desktop } from '../types';
@@ -29,10 +29,16 @@ import type { WorkspaceDeps } from './manager';
 import { applyWorkspaceView, provisionWorkspace } from './manager';
 
 export interface WorkspaceOverviewDeps extends WorkspaceDeps {
-	/** Open the wizard to dress a freshly-created desk. */
-	openCreator: ( desktopId: string ) => void;
-	/** Open the wizard on an existing desk. */
-	openEditor: ( desktopId: string ) => void;
+	/**
+	 * Clone a desk into a new workspace; null when nothing was saved.
+	 * `announce: false` skips the "Saved as…" toast, for a caller that
+	 * shows the new workspace itself.
+	 */
+	saveAsWorkspace: ( sourceId: string, opts?: { announce?: boolean } ) => { id: string } | null;
+	/** Open the Workspaces app, on this desk. */
+	openManager: ( desktopId: string ) => void;
+	/** Put the main desk back the way a fresh install starts it. Asks first. */
+	restoreMain?: () => void;
 }
 
 let installed: WorkspaceOverviewDeps | null = null;
@@ -56,25 +62,42 @@ export function isWorkspaceOverviewInstalled(): boolean {
 	return null !== installed;
 }
 
+/** Clone a desk into a new workspace. `false` when nothing is installed or saved. */
+export function saveWorkspaceFromOverview( desktopId: string ): boolean {
+	return !! installed?.saveAsWorkspace( desktopId );
+}
+
 /**
- * Open the wizard over the desk the `+` just made. `false` when no
- * shell has installed it, which leaves the user on the blank desk the
- * bar created — the `+` on its own has always meant that.
+ * "Create a workspace" in Overview: save the main desk as a new
+ * workspace, then open the Workspaces app on it — so the click visibly
+ * made something, and the next step (name it, share it) is right there.
+ * If nothing could be saved, the app opens on the main desk's card,
+ * which says why. `false` when nothing is installed.
  */
-export function createWorkspaceFromOverview( desktopId: string ): boolean {
+export function createWorkspaceFromOverview( mainId: string ): boolean {
 	if ( ! installed ) {
 		return false;
 	}
-	installed.openCreator( desktopId );
+	const created = installed.saveAsWorkspace( mainId, { announce: false } );
+	installed.openManager( created?.id ?? mainId );
+	return null !== created;
+}
+
+/** Restore the main desk to its fresh-install state. `false` when nothing is installed. */
+export function restoreMainFromOverview(): boolean {
+	if ( ! installed?.restoreMain ) {
+		return false;
+	}
+	installed.restoreMain();
 	return true;
 }
 
-/** Open the wizard on a desk. `false` when nothing is installed. */
-export function editWorkspaceFromOverview( desktopId: string ): boolean {
+/** Open the Workspaces app on a desk. `false` when nothing is installed. */
+export function manageWorkspaceFromOverview( desktopId: string ): boolean {
 	if ( ! installed ) {
 		return false;
 	}
-	installed.openEditor( desktopId );
+	installed.openManager( desktopId );
 	return true;
 }
 

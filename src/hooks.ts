@@ -1354,21 +1354,6 @@ export const HOOKS = {
 	// A workspace carries which apps belong on it, which windows it
 	// opens with, and how they are arranged. See `docs/workspaces.md`.
 	// ------------------------------------------------------------------
-	/**
-	 * Filter on the list of workspace templates offered in the
-	 * switcher. Receives `WorkspacePreset[]` — the three shipped desks
-	 * plus anything `registerWorkspacePreset()` added. Return a shorter
-	 * list to drop a template the site has no use for, or a longer one
-	 * to add your own.
-	 */
-	WORKSPACE_PRESETS: 'os.workspaces.presets',
-	/**
-	 * Filter on a profile the moment it is read off a template, before
-	 * the desktop is created. Receives the `WorkspaceProfile` plus the
-	 * `WorkspacePreset` it came from. The place to add an app to a
-	 * shipped desk without redefining it.
-	 */
-	WORKSPACE_PROFILE: 'os.workspaces.profile',
 	/** Action, fires when a workspace's profile changes. Payload `{ desktopId, profile }`. */
 	WORKSPACE_UPDATED: 'os.workspaces.updated',
 	/**

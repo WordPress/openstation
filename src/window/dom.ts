@@ -31,6 +31,7 @@ import {
 	LOADING_OVERLAY_SHOW_DELAY_MS,
 	LOADING_OVERLAY_VISIBLE_CLASS,
 } from './constants';
+import { isWorkspacePinned } from '../workspaces/pin';
 
 /**
  * Body modifier while a window's content is loading.
@@ -559,7 +560,10 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		menuPanel.appendChild( reload );
 	}
 
-	if ( ! config.native ) {
+	// Not for a user pinned to a shared workspace: the classic admin is
+	// the way out of the desk they were given, and the server refuses
+	// the flag for them anyway.
+	if ( ! config.native && ! isWorkspacePinned() ) {
 		// "Open in classic wp-admin" — was the title bar's detach button.
 		// Strips chromeless params and opens the page in a classic
 		// admin tab. Iframe-only — native windows have no URL to

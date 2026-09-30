@@ -1,11 +1,8 @@
 /**
  * Workspaces — barrel.
  *
- * The wizard is deliberately NOT re-exported here: it lives in its own
- * lazy bundle and pulling it through the barrel would drag
- * `<os-modal>`, `<os-steps>`, `<os-card>` and the picker kit into
- * whatever imported "just the types". Reach for `./wizard-loader`
- * instead.
+ * Managing workspaces is an app (`apps/workspaces/`), not a module of
+ * the shell: nothing here renders a form.
  */
 
 export type {
@@ -14,7 +11,7 @@ export type {
 	WorkspaceApps,
 	WorkspaceLaunch,
 	WorkspaceLayoutId,
-	WorkspacePreset,
+	WorkspaceNote,
 	WorkspaceProfile,
 	WorkspaceWidgets,
 } from './types';
@@ -31,20 +28,16 @@ export {
 	type ResolvedLaunch,
 } from './match';
 export {
-	findWorkspacePreset,
-	listWorkspacePresets,
-	registerWorkspacePreset,
-	unregisterWorkspacePreset,
-	workspaceProfileFromPreset,
-} from './presets';
-export {
 	captureWorkspaceAppearance,
 	withWorkspaceApp,
 	withWorkspaceWidget,
 	workspaceAppearance,
 	workspaceMayHide,
 	workspacePlacements,
+	workspaceRestrictions,
+	workspaceRestrictsItem,
 	workspaceWidgetIds,
+	type WorkspaceRestrictions,
 } from './visibility';
 export {
 	absoluteAdminUrl,
@@ -53,6 +46,7 @@ export {
 	applyWorkspaceView,
 	applyWorkspaceWidgets,
 	captureWorkspaceWindows,
+	cloneDeskAsWorkspace,
 	createWorkspace,
 	getActiveWorkspaceProfile,
 	getWorkspaceProfile,
@@ -60,23 +54,33 @@ export {
 	reopenWorkspaceWindows,
 	saveDeskToWorkspace,
 	setWorkspaceProfile,
+	type CloneDeskOptions,
 	type CreateWorkspaceOptions,
 	type SaveDeskOptions,
 	type WorkspaceDeps,
 } from './manager';
 export { registerWorkspaceCommand } from './command';
 export {
-	createWorkspaceFromOverview,
-	editWorkspaceFromOverview,
 	installWorkspaceOverviewControl,
 	isWorkspaceOverviewInstalled,
+	manageWorkspaceFromOverview,
+	restoreMainFromOverview,
 	restoreWorkspace,
+	createWorkspaceFromOverview,
+	saveWorkspaceFromOverview,
 	workspaceCanRestore,
 	type WorkspaceOverviewDeps,
 } from './overview-control';
-export { createWorkspacesApi, type WorkspacesApi } from './api';
+export { isWorkspacePinned, workspacePin, type WorkspacePin } from './pin';
 export {
-	applyServerWorkspacePresets,
-	installWorkspacePresetSync,
-	type WorkspacePresetServerEntry,
-} from './server-sync';
+	createWorkspacesApi,
+	type WorkspacesApi,
+	type WorkspacesApiOps,
+} from './api';
+
+export {
+	registeredNativeWindows,
+	workspaceAppCatalog,
+	type NativeWindowRef,
+	type WorkspaceApp,
+} from './match';

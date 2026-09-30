@@ -8,94 +8,169 @@ That answer is four things, and they travel with the desktop:
 
 | | |
 |---|---|
-| **Which apps show** | The rails can be narrowed to the apps this desk is about. A Commerce desk shows the store; a writing desk shows Posts and Media and nothing else. |
+| **Which apps show** | The rails can be narrowed to the apps this desk is about. A shop desk shows the store; a writing desk shows Posts and Media and nothing else. |
 | **Which widgets are on it** | The desk can carry its own widget column — drafts and a timer on a writing desk, traffic on a shop floor. |
 | **What it looks like** | Wallpaper, accent, desktop theme, dock — the desk's whole appearance, painted on entry and handed back on exit. |
 | **What it opens with** | A launch list. Entering the workspace for the first time opens it. |
 | **How they are arranged** | `free`, `cascade`, `tile`, `columns` or `focus`. Applied once the launch list has opened. |
 | **How it is labelled** | An icon and a colour, worn by its tile in Workspaces. |
 
-Three workspaces ship, and they are three different jobs rather than three arrangements of the same one.
-
-| Template | Layout | Widgets | Look | The desk |
-|---|---|---|---|---|
-| **Commerce** | `columns` | clock, site views | dark ground, indigo | A shop floor. WooCommerce orders, products and analytics are things you *compare*, so they get full-height columns side by side, on a flat ground three tables read cleanly against. |
-| **Learning** | `tile` | clock, heartbeat, recent comments | aurora, emerald | A course studio. Sensei courses, lessons and learners are a set you move *between*, so they tile — with the room's pulse beside them: who is around, and what is being said. |
-| **Publishing** | `focus` | drafts, post stats, focus timer, notes | mono, rose, dock folds away | A writing desk. A blank page takes two thirds of the screen and the library sits in the margin. Its instruments are about the page, not the audience — no traffic chart — and the quietest ground there is. The one template whose point is what it leaves out, made in paint as well as in the app list. |
-
-**Named for the job, not for the plugin.** A desk called "Woo" is wrong on a store running something else, and wrong again the day the product is renamed — but the *work* is commerce either way. The products are still what the templates reach for: the tokens name WooCommerce and Sensei directly, so on a site that has them the Commerce desk is a WooCommerce desk in everything but its label.
-
-**And a template is only offered where its plugin is active.** Commerce needs WooCommerce, Learning needs Sensei, Publishing needs nothing and always shows. This is the one place a missing plugin is not answered by degrading: a shop floor with no shop on it is not a smaller desk, it is the wrong desk, and offering it means the user picks a storefront and gets a Dashboard. The check is `requires` on the PHP template list, because whether a plugin is active is a question only the server can answer. If every template ends up hidden, the wizard's Start step still has the Blank workspace card.
+There are no templates. **A workspace is made by saving the main desk** — see [Using them](#using-them).
 
 ---
 
 ## Using them
 
-Everything happens **in the Workspaces top bar**, and there is **one door: the `+`**. It makes a blank desk, lands the user on it, and opens the wizard over that — so the thing being configured is the canvas in front of them rather than a grid of all the other desks. Closing the wizard without creating leaves the blank desk, which is what the `+` on its own has always meant.
+**A workspace is made on the desk, never in a form.** Set the **main desk** — the first one — up the way the job needs it: the windows you want open and where, the widgets, the apps on the rails (hide the rest from the rails' right-click menu), the wallpaper and accent. Then save it. That arrangement becomes a **new desk** carrying it as its workspace; the main desk stays exactly as it was, the workbench the next one is built on.
 
-**While the wizard is up it owns the keyboard.** The arrow keys that switch desks, open the Workspaces screen and show the desktop are all suppressed for as long as any modal is open: the wizard sits over the desk it is about to dress, and an arrow that moved the desk behind it would leave the user configuring one they are no longer standing on.
+Three doors, one act:
 
-There used to be a dropdown beside the `+` as well. Two doors to the same room — one that created desks from templates, one that created a blank desk without asking — and a user had to know which did what. The dropdown is gone; the `+` is the obvious place to press, so it is the only one.
+- **Create a workspace** — the accent tile right after the `+` in Overview. It saves the main desk as a new workspace — its windows, widgets, apps and look — leaves Overview, and opens the Workspaces app on the new workspace's card, ready to name and share. (**✦ Build with MIO** in the app builds one by asking instead.)
+- **Save main desk as new workspace** — hover the Workspaces tile in the dock; its menu also has *Manage workspaces…*. The same row is on the main desk's wallpaper right-click menu.
+- **`/save-workspace`** in the command palette (⌘K).
 
-**The Workspaces screen is the only surface that carries any of this, on purpose.** It is already the Spaces surface — it names every desk, renames them, closes them, and adds new ones — and it is where a user goes with the question "which desk?" already in mind. The desk itself belongs to the user's windows; a control parked on it would be shell chrome hovering over the thing they are working in, and would need a work-area claim or an apology for covering something. Workspaces needs neither.
+The new desk is not switched to — you are still working on the one you saved — and it is not provisioned: its windows open, where they were, the first time you enter it. A toast names it and offers **Manage**.
 
-Each tile there wears its workspace's glyph and accent, so a row of desks is legible at a glance rather than a row of identical grey rectangles.
+The `+` in Workspaces makes a plain desk and nothing else. It used to open a wizard that built a workspace from a form; that wizard is gone (see [`migration-workspaces-app.md`](migration-workspaces-app.md)).
 
-### The wizard
+### Building one with MIO
 
-The wizard's first step is **Start**, and it is the escape hatch:
+With MIO and the AI assistant on (Preferences → Features) and a provider configured, a workspace can be described instead of arranged: *"A workspace for my users with the posts list on the left half, Add New Post in the top right and Orders in the bottom right."*
 
-- **Blank workspace** is a card, preselected, and **Create workspace** is the focused button. `+` then Enter is a plain new desk — the same two gestures it was before the wizard existed. Nobody is walked through five steps to get an empty desk.
-- The templates are cards beside it. Pick one and press **Create from template** and the desk is made from it exactly as the dropdown used to — the template is read against the navigation as it stands right now, and the `os.workspaces.profile` filter runs.
-- Activating a card that is already selected (a second click, or Enter on it) creates. Click once to choose, again to go.
-- **Customize** goes on to the remaining steps: **Name** (name, glyph, colour) → **Apps** → **Widgets** → **Look** (wallpaper tiles with their names and live previews, accent, dock) → **Windows** (the arrangement, plus the launch list: add any app from a picker, remove one from its chip, or capture the windows open right now). On every one of them, **Create workspace** is still in the footer: the wizard can be left at any point with whatever has been set so far. The step trail above the pane is the other way in and the way around: every step is clickable, in either direction, in both create and edit mode. Landing on one from Start reads the chosen template into the draft exactly as Customize does, so skipping ahead cannot bypass the pick the later steps stand on.
-- The pane keeps one generous height across every step, so the footer's buttons never move under the pointer between clicks.
+- **✦ Build with MIO** in the Workspaces app's header opens MIO's chat about a new workspace; **✦ Edit with MIO** on a card opens it about that one. The dock's Workspaces menu has *Build a workspace with MIO…*, which opens the app with the chat up (`wp.os.workspaces.manage()` with the `mio` param).
+**MIO builds it WITH the user, one accepted step at a time**, in a chat docked beside the list (MIO's `chatLayout: 'side'`), and a live preview in the Workspaces window shows every proposal — a miniature desk: the 6 × 6 grid, each window a skeleton on its cells with its app's icon and title, the dock along the bottom with the proposed apps' real icons, the widget column down the right.
 
-Nothing in the wizard acts on the desk behind it, blank or otherwise. "Open them now" and "Arrange now" were tried and dropped: both act on a desk hidden behind a modal, where the result is invisible until the modal closes and looks, from inside it, like a button that does nothing. **Restore** under the tile is that action, done where it can be seen.
+1. **Layout** — MIO proposes the windows and where they sit. The user accepts (**Accept layout** in the preview, or "yes" in the chat) or asks for a change, and MIO proposes again.
+2. **Dock apps** — MIO proposes the icons; the preview lists every app on the site as a toggle button, so the user can add or take one out before accepting. The apps the windows open are always kept.
+3. **Widgets** — the same, for the widget column.
+4. **Notes** — MIO proposes the read-only notes the desk carries for the people using it (see [Workspace notes](#workspace-notes)) — a regular note or an **XL note**, each with a colour and a spot (`top-left`, `center`, `bottom-right`…). The preview shows them on the desk; take one out with its ×, or accept. "No notes" is a fine answer.
+5. **Create** — only once all four are accepted: **Create workspace** in the preview, or telling MIO. **Discard** throws the draft away; a done step can be reopened from its pill.
 
-A blank start that the user never customized creates a plain Space — no profile at all, behaving exactly as a desktop did before workspaces existed.
+The steps are enforced by the actions, not by the prompt: a proposal or a create out of order is refused with the step that is waiting. Nothing touches a desk until the create — a draft is memory. MIO reads the draft at the start of every reply, so an accept pressed in the preview, or an app unticked there, is what it works from. An Accept pressed in the preview also **tells MIO** (`lease.send()` — "I accepted the layout."), so it goes straight on to the next step. A step once accepted stays accepted: MIO repeating the same layout, or accepting a step already accepted, changes nothing — only a layout that actually changed sends the draft back to step 1.
 
-The wizard takes its whole world as data (apps, widgets, wallpapers, accents, templates) and hands its whole result back through one callback, so it lives in its own lazy bundle (`workspace-wizard[.min].js`) and never reaches `desktop.min.js`.
+- MIO reads the site first (`list_apps`, `list_widgets`), so it only ever uses screens and widgets that exist here — and every argument is checked against that scan again before it runs.
+- `list_apps` is **every app on the site, native or not** — `wp.os.workspaces.apps()`: admin menus with their tabs, plugin apps, desktop icons, Trash, and OpenStation's native apps that have no menu of their own (Preferences…). A native app that only stands in for an admin screen (the native Posts app for `edit.php`) is not listed twice: the menu opens it. Any app can be a window; only apps with a dock icon can be kept on the dock.
+- **An app is what its dock icon opens.** "The Posts app on the left" is the Posts window itself, with All Posts, Add Post, Categories and Tags as its tabs — stored as the app alone (no `url`), and opened through the app's own URL and the same native remap a dock click takes. A specific screen (`post-new.php`) is stored only when one is named.
+- Windows go on the **6 × 6 grid**, by a named position (`left-half`, `top-right`, `bottom-right`, thirds, two-thirds…) or exact cells, and are stored as cells, so the desk keeps its shape on any screen.
+- **Edit with MIO** on a card reworks that workspace through the same steps; small changes that need no preview (name, glyph, colour, "Hide settings", "Open windows as", adding or removing a dock app) are one action.
+
+These are **window-scoped MIO actions** (`list_apps`, `list_widgets`, `list_workspaces`, `get_draft`, `propose_layout`, `propose_apps`, `propose_widgets`, `propose_notes`, `accept_step`, `create_workspace`, `update_workspace`, `open_workspace`), registered on the Workspaces window's MIO lease — the same mechanism Preferences uses ([`mio-window-assistant.md`](mio-window-assistant.md)). They are **not WordPress abilities**: nothing reaches the Abilities API, the AI search tools or any other window. Nothing destructive is offered — MIO cannot delete a workspace, touch a share link or release anyone. A reply after a write offers **Go to workspace**, built from the write's confirmed receipt, never from the reply's text.
+
+A window the desk places always opens floating on its cells, whatever size it was last remembered at.
+
+### Restore main desk
+
+The main desk can be put back the way a fresh install starts it: **Restore** under its tile in Workspaces, **Restore main desk** on its card in the Workspaces app, `/restore-main-desk`, or `wp.os.workspaces.restoreMain()`. It asks first, then closes the main desk's windows, resets the settings and the widget column to their defaults, and reopens the Dashboard.
+
+Only the main desk. It has no workspace of its own — its look IS the user's settings — and every workspace carries all of its own settings, so the other desks are untouched, and so are shared links and the files on the desktop. An uploaded wallpaper image survives in the picker: it is something the user made, not a preference.
+
+### The Workspaces app
+
+Everything after saving happens in **Workspaces** — an app (`apps/workspaces/`), opened from **Manage** under a workspace's tile, the Save toast, `/workspace` → *Manage workspaces…*, or `wp.os.workspaces.manage()`. One card per workspace:
+
+- **Name**, **glyph** and **colour**, edited in place.
+- **Hide settings** — see [Hide settings](#hide-settings).
+- **Edit on its desk** — switches to the workspace's desk, moves the Workspaces window out of the way (minimized), and puts a full-width bar across the top of the shell — *Editing workspace "…"* with **+ Note**, **+ XL note**, **Cancel** and **Save changes** — that pushes the desk down rather than covering it. Arrange the desk and save, and the workspace opens that way from then on (the same capture `/keep-desk` makes: every window, where it is — two windows of one app are two windows). Either button ends the edit and brings the same Workspaces window back onto the desk you are on. The desk is the editor.
+- **Go to desk**, and **Delete**.
+- For someone who may share: the **link**, **who uses it**, and the controls for both — see [Sharing a workspace](#sharing-a-workspace).
+
+The desks are the shell's, so the app reads and writes them through `wp.os.workspaces` and repaints whenever a desk changes, whoever changed it. Links and recipients are server truth, so they are the app's `data()` and actions.
+
+### Workspace notes
+
+A workspace can carry **notes** from whoever set it up — *"Orders live bottom right. Ask us before touching Plugins."* They hang on the desk's wallpaper in the sticky-note look, and for the people using the desk they are **read-only**: they can read one and **dismiss** it (the × on its corner), and nothing else. A dismissal is per person and survives reloads; it never touches the workspace, so the note stays for everyone else.
+
+The author writes them two ways:
+
+- **Edit on its desk** — the edit bar's **+ Note** and **+ XL note** add one in the middle of the desk, ready to type into. While editing, a note is editable, moves by dragging its pin, and its × deletes it. **Save changes** keeps them with the desk; **Cancel** drops what changed.
+- **MIO** — the Notes step when building or reworking a workspace.
+
+An **XL note** is twice the size of a regular one, with larger type — for a proper welcome or a short how-to. A workspace holds up to 8 notes; a regular note holds 1,000 characters, an XL note 2,000. Notes are plain text. Sharing carries them to every recipient, and republishing updates them.
 
 ### On each tile
 
-- **Rename** — double-click the desk's name. It becomes editable where it stands: Enter commits, Escape reverts, blur commits. The wizard can rename too, but renaming is the edit people make most and it should not cost a modal. A single click on the name still switches to that desk, one double-click interval later; the rest of the tile switches at once.
-- **Edit** — the pencil in the tile's corner, revealed on hover and keyboard focus like close. Opens the same wizard on that desk, without the Start step, with Save where Create was and a Delete in the corner. Renaming is the wizard's Name step. Offered on plain Spaces too: for one of those it is how it *becomes* a workspace.
-- **Restore** — below the tile, outside its preview. Always visible, but only on a desk with something to restore: put it back the way its workspace defines it — reopen the windows it names, remount its column, repaint its look, re-run its arrangement.
+- **Rename** — double-click the desk's name, or its pencil. Not the **Main desk**: the first desk is the workbench every workspace is saved from, so its name is fixed ("Main desk", translated) and it can be neither renamed nor closed — `renameDesktop()` and `closeDesktop()` refuse it. For someone a shared workspace pins, their one desk carries the workspace's name instead. It becomes editable where it stands: Enter commits, Escape reverts, blur commits.
+- **Manage** — under a workspace: the Workspaces app, on it.
+- **Restore** — under a workspace with something to restore: put it back the way its workspace defines it — reopen the windows it names, remount its column, repaint its look, re-run its arrangement. It force-provisions (the once-per-workspace guard exists to stop the *shell* reopening windows on its own, not to stop the user asking), and it only appears where it has work to do. `wp.os.workspaces.provision( id, { force: true } )` is the programmatic equivalent for the windows half.
 
-Restore is the counterpart to the wizard's "Use the … I have now" captures. One saves the desk into the workspace; Restore applies the workspace back onto the desk.
+`/workspace` in the command palette is the keyboard route: it lists the desks that exist, then *Save desk as new workspace*, *Manage workspaces…* and *Keep this desk*. `/save-workspace` and `/restore-main-desk` are the two acts as commands of their own.
 
-Three decisions worth naming:
+---
 
-- **It force-provisions.** The once-per-workspace guard exists to stop the *shell* reopening windows on its own, not to stop the user asking. A desk they have since tidied is exactly the case this button is for, and it re-tiles as well as reopens.
-- **It only appears where it has work to do.** A plain Space has nothing stored, and neither does a workspace whose profile says nothing beyond its name and colour. A button that visibly does nothing is worse than no button, so its absence is information.
-- **The word is short, the accessible name is not.** "Restore" alone could be read as the session restore the shell does at boot, so the `aria-label` and tooltip carry the whole sentence: *"Restore Commerce — reopen its windows, widgets and look"*.
+## Sharing a workspace
 
-`wp.os.workspaces.provision( id, { force: true } )` is the programmatic equivalent for the windows half; `arrange()`, `setProfile()` and a switch cover the rest.
+**For agencies handing a client a desk with fences on it.** Anyone who may share (the `manage_options` capability by default, `openstation_workspace_share_capability` to change it) gets **Create link** on each workspace in the Workspaces app. The link is `wp-admin/?os_workspace=<token>`, and it is copied as it is made.
 
-`/workspace` in the command palette (⌘K) is the keyboard route — one command for the whole question. It lists the desks that exist, then the templates that could become one, then `New workspace…` (the wizard) and `Edit this workspace…`. An existing desk wins over a template of the same name, so `/workspace commerce` means "take me there" once a Commerce desk exists.
+**Opening the link duplicates the workspace into the opener's account — no dialog, no accept.** What happens depends on who opens it:
 
-## Templates degrade, they do not break
+| Who | What the link does |
+|---|---|
+| Someone who cannot write content (a Subscriber, a store Customer — anyone without `edit_posts`, `openstation_workspace_claim_capability` to change it) | **Nothing.** They are told the link is not for their account; no pin, OpenStation is not switched on. |
+| Someone who can write but cannot share (a client's editor, author, contributor, shop manager) | **Pins** it: their own desks are stashed, the workspace becomes their **main and only desk**, and OpenStation is switched on for them. |
+| Someone who can share (an admin checking the link) | **Adds** it as an ordinary desk. An admin is never pinned — they must not be able to lock themselves out of their admin. |
+| Anyone who already opened it | **Lands** them on their copy. A link duplicates once per user, ever; it stays useful as the way back. |
+| Someone already pinned by another link | Nothing changes; they are told their desk is managed. |
+| Anyone, once the link is turned off | Nothing changes. |
 
-A template cannot name nav ids directly and stay useful. The id of the Products menu is whatever the URL derived on this install, WooCommerce may not be installed at all, and a site that renamed its post types has different ids again.
+The shell says which with one toast, and takes the status off the address bar.
 
-So a template names what it is **about** — `'post_type=product'`, `'sensei'` — and those tokens are matched as substrings against each item's id, URL, window id and title. Everything that matches lands in the workspace's visible set; a launch entry that matches nothing is **skipped**.
+### Pinned
 
-The consequence worth stating: **a desk whose plugin is half there is a smaller desk, not four "you do not have permission" pages.**
+A pinned user cannot delete, rename, re-arrange or leave the workspace, and cannot switch OpenStation off. That is enforced on the server, not by hiding buttons:
 
-Whether a template should be *offered* at all is the separate question `requires` answers, and it is not a token match — see [Templates that need a plugin](#templates-that-need-a-plugin).
+- **The session.** Every read and every save of a pinned user's session (the `openstation_session` filter) is reshaped to one desk — the workspace, as the share defines it *now* — with every window on it. A client that sends a second desk or an edited profile simply does not get it.
+- **OpenStation stays on.** Writes that switch `desktop_mode_mode` off are refused, the admin-bar AJAX endpoint answers `openstation_workspace_pinned`, and `openstation_mode_enabled` cannot switch it off.
+- **No classic admin.** `?desktop_mode_classic=1` is ignored for them, and the portal redirect cannot be opted out of.
+- **The fence.** Admin screens the workspace does not include are refused with a 403, inside a window and out — see below.
 
-Every template also keeps Dashboard, Media and Settings, whatever else it names. A desk with no way to reach them is a dead end, and the user would have to leave the workspace to do anything its author did not think of.
+The shell stops offering what would do nothing: no Overview, no Workspaces or Exit tiles, no `+`, no *Open in classic wp-admin*, no workspace commands. The body carries `os-workspace-pinned`.
+
+### The fence
+
+When the workspace narrows the apps (`apps.mode: 'only'`), a pinned user can reach exactly:
+
+- the admin menus the workspace keeps, and every page under them — read from the **recipient's own admin menu** at request time, never from anything the client sent;
+- the pages its launch list opens;
+- what those imply: a post type's list implies its editor, a taxonomy's list its term screen, the Media library uploading;
+- always: the shell, the Dashboard and their own profile (`openstation_workspace_fence_always_allowed`).
+
+Anything else is refused on `current_screen`. `openstation_workspace_fence_allows` has the last word.
+
+**This is a guardrail, not a security boundary.** It fences admin *screens*. Capabilities still decide what a user may do, and a REST or AJAX call is answered on the capability alone. To take a power away from someone, take it off their role.
+
+### Releasing, turning off, republishing
+
+All from the Workspaces app:
+
+- **Release** a person (or **Release everyone**): their stashed desks come back, the workspace stays among them as an ordinary desk they now own, and OpenStation becomes theirs to switch off again.
+- **Link is on** off: nobody new can claim it. People already using it keep their desk.
+- **New link**: for a link that got out. The old one stops working at once; people already using the workspace keep it, because a claim is recorded against the share, never its token.
+- **Publish changes**: when a shared workspace changed since it was shared, its card says so. Publishing keeps the link and bumps the share's version; every pinned recipient's desk takes the new definition — and opens its windows again — the next time it loads.
+- **Delete** the workspace: your copy only. The link and everyone using it are untouched, and the link moves to *Other shared links*, where it can still be managed.
+- **Delete link**: everyone it pinned is released first, then the link is gone.
+
+Anyone who may share can manage **every** link on the site — including another admin's. A pin must never outlive the only person able to open it, so an admin who leaves hands their links to whoever can share; a share is not deleted with its author.
+
+### Hide settings
+
+One checkbox per workspace: leave out every screen that configures the site rather than working in it — Settings, OpenStation Preferences, plugins, themes, the Customizer, the file editors, menus and widgets, tools, users, updates and site health.
+
+- **For the desk's owner** it is a view, like the rest of a workspace: those apps leave the rails.
+- **For a pinned user** it is enforced whatever the workspace otherwise includes: the fence refuses those screens, and the App Framework refuses those apps (Preferences, Plugins, Users, Network, Code Blue, Workspaces) through `openstation_app_allows`.
+
+The lists are the server's — `openstation_workspace_restricted_screens` and `openstation_workspace_restricted_apps` — and reach the shell as `config.workspaceRestricted`, so the rails hide what the server refuses.
+
+---
 
 ## Narrowing never edits your settings
 
 The navigation already has one answer to "where does this item show?" — `navPlacement`, the user's stored per-item override — and `computeNav` is a pure function of it. A workspace does not add a second mechanism: it computes the navigation with **extra `'hidden'` entries in that map**, fresh on every repaint.
 
-**Switching to a Commerce desk and back leaves `navPlacement` byte-identical.** A workspace can be deleted without unpicking anything, and an item the user hid globally stays hidden inside every workspace.
+**Switching to a shop desk and back leaves `navPlacement` byte-identical.** A workspace can be deleted without unpicking anything, and an item the user hid globally stays hidden inside every workspace.
 
 Two things a workspace may never hide, structurally rather than by default:
 
-- **OpenStation's own controls** — Workspaces, the System tile, Trash, Mio, Exit. A workspace that could hide these could strand the user on a desk with no way to change it, and the way out would be editing user meta.
+- **OpenStation's own controls** — Workspaces, the System tile, Mio, Exit. A workspace that could hide these could strand the user on a desk with no way to change it, and the way out would be editing user meta. **Trash** is different: it sits in a control's tile but opens a window of its own, so a workspace keeps or hides it like any other app.
 - **Locked items** — Exit OpenStation already refuses every other placement write.
 
 An **open window always keeps its tile**, even on a desk that hides its app. `computeNav` mints an ephemeral tile for any window with nowhere to minimize back into, so narrowing can never strand a window you are looking at.
@@ -114,25 +189,35 @@ A widget whose plugin has since been deactivated is skipped rather than reported
 
 `widgets` is **optional on the profile**, and absent means `'all'`. Every profile written before workspaces had widgets is in that shape, and a field that defaulted to an empty `'only'` list would blank a user's column on upgrade.
 
-## Appearance is a view too
+## Settings are a view too
 
-A workspace can carry a **wallpaper, an accent, a desktop theme and a dock configuration** — the same settings the Appearance tab holds — and it paints the desk with them on entry.
+**Every workspace carries ALL of the OS settings, without exception** — the wallpaper and accent, the dock and layout, how windows open ("Open windows as"), the navigation, the features — and applies them to its desk. The main desk has the user's own settings.
 
-`profile.appearance` is a **sparse patch**: only the keys present are overridden, and only while the workspace is active. `OsSettings.setWorkspaceAppearance()` keeps the user's own state aside and puts it straight back on the way out. Switch to a Commerce desk, look at its dark ground and indigo accent, switch back — the settings are byte-identical.
+- **Saving** the main desk as a new workspace captures every setting. A workspace made any other way (`wp.os.workspaces.create()`, MIO) is completed on creation: the settings it does not name are the user's, as they are then. One saved before this, carrying only a few, is painted with the rest from the user's own and written complete the first time a setting is edited on it.
+- **Editing on its desk** changes the workspace. Every change made in Preferences while a workspace's desk is on screen — through `update()`, a panel that edits in place and saves, or **Reset to defaults** — goes into that workspace (`OsSettings.onWorkspaceEdit`), not into the user's own settings, and stays with the desk across switches and reloads. On the main desk, a change is the user's own. On a pinned user's desk nothing is written to the workspace (see below).
+
+`profile.appearance` is stored as given and applied only while the workspace is active. `OsSettings.setWorkspaceAppearance()` keeps the user's own state aside and puts it straight back on the way out. Switch to a shop desk, look at its dark ground and indigo accent, switch back — the settings are byte-identical.
 
 Three things this has to get right, and each has a test:
 
 - **Desk to desk.** Switching from an overridden workspace straight to another restores the user's base *first*, so the second desk's patch lands on their settings rather than on the first desk's.
-- **Saving while standing on one.** Opening Preferences on an overridden desk and saving writes the **user's** value back for every key they did not touch. Without that, one save would quietly adopt the workspace's wallpaper as their own.
-- **Editing while standing on one.** A key they *did* change is theirs, and it is saved. The rest go back.
+- **Saving while standing on one.** Opening Preferences on a workspace's desk and saving writes the **user's** own values back untouched. Without that, one save would quietly adopt the workspace's wallpaper as their own.
+- **Editing while standing on one.** A change goes to the workspace and stays on its desk; the user's own settings, and the main desk, are untouched. Where no workspace may be written (a pinned user), the change is the user's, and survives a switch.
 
-**Only allowlisted keys are honoured** — `wallpaper`, `wallpaperSettings`, `customGradient`, `customImage`, `accent`, `customAccent`, `desktopTheme`, `desktopLayout`, `dockPlacement`, `dockSize`, `dockBehavior`, `sideDockBehavior`, `windowRadius`, `windowReveal`, `unfocusEffect`, `adminBarMode`. That is not tidiness. A profile is user meta round-tripped through an untrusted client, and an unfiltered patch spread onto the settings state at boot would be a way to write any settings key from anywhere. The server enforces the same list, and bounds the nesting of the array-valued members.
+**Every key is honoured except one**: `appliedThemeRecommendations`, the shell's own ledger of which theme already seeded its recommendations — writing it from a profile would re-arm a theme's one-time seed. Both sides derive the list from the settings defaults (`WORKSPACE_APPEARANCE_KEYS` from `DEFAULTS`, `openstation_workspace_setting_keys()` from `openstation_default_os_settings()`), so a setting added later is overridable the day it ships. A profile is user meta round-tripped through an untrusted client, so the server runs every value through the settings' own sanitizer: a workspace can carry exactly the values a user could have saved, and nothing else.
 
-Everything on the list is visual and instantly reversible, which is the test for belonging: switching desks must never leave the user somewhere they cannot get back from.
+### For the people a shared workspace pins
+
+A pinned user's settings split in two:
+
+- **Cosmetic** — wallpaper, accent, desktop theme, window corners, reveals, the unfocus effect, window-link visuals, Mio, the rail renderer, post-status ribbons (`openstation_workspace_cosmetic_settings`). The workspace is where they **start**: the values are copied into the user's own settings when they claim the link, and are theirs to change after. A republish does not overwrite them.
+- **Everything else** is **held** by the workspace while they are pinned: laid over their settings on every read, on the server (`openstation_os_settings`), so a server-side check sees it too; and a save cannot change it (`openstation_os_settings_before_save` keeps their own stored value). A release gives back exactly what they had.
 
 ### Picking a look
 
-The wizard's **Look** step is a real picker — wallpaper swatches (the same previews the Preferences grid paints), accent swatches, and the dock's behaviour — plus **"Use the look I have now"**, which captures the shell's current appearance into the profile. `wp.os.workspaces.captureAppearance()` is the same call. The desktop theme and the finer dock settings are not in the wizard; they are set in Preferences and captured from there.
+A workspace takes the settings the main desk had when it was saved. To change them later, go to its desk and change them in Preferences — they are saved into the workspace as you make them. `wp.os.workspaces.captureAppearance()` and `setProfile()` do the same from code.
+
+A share carries every setting too: `openstation_workspace_share_sanitize_snapshot()` fills in any the profile leaves out at their defaults, so a pinned recipient never keeps a value of their own that the workspace did not decide.
 
 ## Provisioning runs once; a reload restores the definition
 
@@ -140,9 +225,9 @@ The launch list is **arranged once per workspace**, guarded by `profile.provisio
 
 A **reload is different**. A workspace's launch-list windows and its widget column are part of what the desk *is*, not a one-time suggestion, so a reload restores that definition: any launch window you had closed reopens, and any widget you had closed remounts. On boot, `reopenWorkspaceWindows()` runs after session restore and opens only the launch entries whose window the restore did not already bring back — it never opens a second copy of a window that is open, and never re-stamps `provisioned`. It re-runs the layout only when it reopened something: a window it brings back has no place of its own and would land on top of the others. A desk that came back whole is left exactly as it was, so a window you moved by hand stays where you put it. The widget column is re-asserted in the same beat by `applyWorkspaceView()`.
 
-So the rule a launch window and a column widget both follow: **closing one hides it for the rest of this visit; arriving at the desk again restores it.** To take a window or widget off a desk for good, drop it in the wizard's **Edit** step, which writes the profile directly — the same way you added it. This mirrors apps: you do not remove an app from a desk by closing its window.
+So the rule a launch window and a column widget both follow: **closing one hides it for the rest of this visit; arriving at the desk again restores it.** To take a window or widget off a desk for good, close it and **Save changes** (Edit on its desk, or `/keep-desk`), which writes the profile directly. This mirrors apps: you do not remove an app from a desk by closing its window.
 
-**A launch entry opens the way a menu pick opens.** Its URL goes through the native-window remap first, so a page the viewer opted a native window into gets that window rather than a classic iframe of the URL, and an entry nothing claims is built with the menu's own metadata — `submenu`, `parentUrl`, `selfLabel` — so it comes up with its tab strip. Each entry gets a window **of its own**: a desk's list declares N windows, and two entries that resolve to the same one (the native Posts window on its Add Post tab beside the same window on its list, the Publishing template exactly) are two windows rather than one focused twice. No two entries take the same window, on a desk that already has them or on one being built. An entry takes a window the desk already has before it opens another, so pressing Restore on an intact desk re-tiles what is there instead of doubling it. It takes the closest one: the window opened under its own id, which survives in-window navigation and a reload; then one opened on its page, because a second desk's windows carry suffixed ids; then any window of its menu. Every entry gets its closer match before any entry falls back, so a Publishing desk missing its draft gets the draft back rather than a second Posts list. The reload pass follows the same rule: it fills the gaps a restore left, and re-arranges the desk only when it filled one.
+**A launch entry opens the way a menu pick opens.** Its URL goes through the native-window remap first, so a page the viewer opted a native window into gets that window rather than a classic iframe of the URL, and an entry nothing claims is built with the menu's own metadata — `submenu`, `parentUrl`, `selfLabel` — so it comes up with its tab strip. Each entry gets a window **of its own**: a desk's list declares N windows, and two entries that resolve to the same one (the native Posts window on its Add Post tab beside the same window on its list) are two windows rather than one focused twice. No two entries take the same window, on a desk that already has them or on one being built. An entry takes a window the desk already has before it opens another, so pressing Restore on an intact desk re-tiles what is there instead of doubling it. It takes the closest one: the window opened under its own id, which survives in-window navigation and a reload; then one opened on its page, because a second desk's windows carry suffixed ids; then any window of its menu. Every entry gets its closer match before any entry falls back, so a writing desk missing its draft gets the draft back rather than a second Posts list. The reload pass follows the same rule: it fills the gaps a restore left, and re-arranges the desk only when it filled one.
 
 The `provisioned` flag is claimed *before* the windows open: opening a window is asynchronous, and a second switch landing mid-pass would otherwise run the whole list again and leave the desk with two of everything.
 
@@ -150,21 +235,15 @@ The layout is applied on the next frame, not inline — every arrangement reads 
 
 `provision( id, { force: true } )` runs the whole list and the layout again. That is the user asking on purpose — Restore under a tile — which re-tiles even a desk that is whole, unlike the reload pass; so every automatic caller leaves the flag off.
 
-A **closed widget is no longer recorded as an edit** to the desk. Under an `only` column, adding a widget still records it on the profile (the desk keeps what you gave it), but closing one does not remove it — otherwise the reload promise above could not hold. Permanent removal is the wizard's job.
+A **closed widget is no longer recorded as an edit** to the desk. Under an `only` column, adding a widget still records it on the profile (the desk keeps what you gave it), but closing one does not remove it — otherwise the reload promise above could not hold. Permanent removal is a Save changes.
 
 ### Keep this desk
 
 **`/keep-desk`** in the command palette (also a row in `/workspace`, and `wp.os.workspaces.saveDesk()`) makes the workspace open the way the desk is *now*: the open windows and **where they are**, the mounted widgets, the apps on the rails. It is the one write a workspace makes on purpose, and the cheapest way to turn a plain Space into a workspace — save it, and it is one.
 
-Where each window is comes along in a form that survives a resized browser or a different display: a grid-snapped window keeps its cells (`gridSpan`), a free one becomes fractions of the work area (`place`, each of `x`, `y`, `width`, `height` in `[0, 1]`). The arrangement becomes `free`, because the positions *are* the arrangement now and an algorithm re-laying them out would undo the thing just kept. The desk is marked provisioned — what it would open is already open — and controls (Workspaces, System, Trash, Exit) are never written into the app list, since the narrowing cannot hide them anyway.
+Where each window is comes along in a form that survives a resized browser or a different display: a grid-snapped window keeps its cells (`gridSpan`), a free one becomes fractions of the work area (`place`, each of `x`, `y`, `width`, `height` in `[0, 1]`). The arrangement becomes `free`, because the positions *are* the arrangement now and an algorithm re-laying them out would undo the thing just kept. The desk is marked provisioned — what it would open is already open — and controls (Workspaces, System, Mio, Exit) are never written into the app list, since the narrowing cannot hide them anyway. Trash, an app, is kept when it is on the dock.
 
 On a workspace desk with its own column, a widget's × takes it off *this* desk and a widget added from the picker joins *this* desk — the user's own column, geometry and docked heights are untouched either way, and the change is recorded on the profile so the desk comes back the same. That is what keeps "a workspace never writes the user's settings" true even for a write the user makes from inside one.
-
-### Saving the arrangement you already have
-
-The wizard's **Use the windows I have open now** captures the desk's open windows into the launch list — the desktop-OS gesture of saving an arrangement you arrived at by working rather than by planning. `wp.os.workspaces.capture( desktopId )` is the same call.
-
-A captured entry's `match` is the window's own id, not a token: a captured list is about *this* install, so there is nothing to degrade gracefully against and an id is the exact answer. Capturing also marks the workspace provisioned — those windows are already on screen, and re-running the list on the next entry would open a second copy of everything.
 
 ## The layouts
 
@@ -177,7 +256,7 @@ wp.os.windowManager.focusLayout();  // one leading, the rest stacked in the marg
 
 **`columns`** hands off to `tile()` past four windows — a fifth column is narrower than an admin table's own minimum width, and every window would grow a horizontal scrollbar.
 
-**`focus`** leads with the **focused** window, not the first in the stack, so re-applying after clicking into the reference list does not demote the thing you just reached for. A workspace opening its launch list, Restore putting it back, or a reload reopening one of its windows leads with the list's first entry instead: the Publishing template's blank draft, with the Posts list in the margin. With one window it degrades to "maximize politely". Its split is `0.64`, filterable through `os.arrange.focus.split`; a return outside `[0.3, 0.9]` falls back rather than being clamped.
+**`focus`** leads with the **focused** window, not the first in the stack, so re-applying after clicking into the reference list does not demote the thing you just reached for. A workspace opening its launch list, Restore putting it back, or a reload reopening one of its windows leads with the list's first entry instead: a writing desk's blank draft, with the Posts list in the margin. With one window it degrades to "maximize politely". Its split is `0.64`, filterable through `os.arrange.focus.split`; a return outside `[0.3, 0.9]` falls back rather than being clamped.
 
 ---
 
@@ -194,12 +273,16 @@ wp.os.workspaces.arrange( layout ): void;
 wp.os.workspaces.provision( desktopId, { force? } ): void;
 wp.os.workspaces.capture( desktopId ): WorkspaceProfile[ 'windows' ];
 wp.os.workspaces.captureAppearance(): WorkspaceProfile[ 'appearance' ];
-wp.os.workspaces.edit( desktopId ): void;      // the wizard, on an existing desk
-wp.os.workspaces.openCreator(): void;          // a blank desk, then the wizard over it
+wp.os.workspaces.saveAs( sourceId? ): Desktop | null; // save a desk (the main one) as a NEW workspace
+wp.os.workspaces.restoreMain(): Promise<boolean>; // the main desk, back to a fresh install (asks first)
+wp.os.workspaces.edit( desktopId ): void;      // edit it on its desk, with a Save changes toast
+wp.os.workspaces.manage( desktopId? ): void;   // the Workspaces app
+wp.os.workspaces.rename( desktopId, label ): boolean;
+wp.os.workspaces.remove( desktopId ): boolean; // never the last desk, never while pinned
+wp.os.workspaces.isPinned(): boolean;          // pinned to a shared workspace
+wp.os.workspaces.apps(): WorkspaceApp[];        // every app a workspace can use — see below
+wp.os.workspaces.openCreator(): void;          // alias of saveAs(), kept for existing callers
 wp.os.workspaces.saveDesk( desktopId? ): boolean; // keep the desk as it is — /keep-desk
-wp.os.workspaces.presets(): WorkspacePreset[];
-wp.os.workspaces.registerPreset( preset ): void;
-wp.os.workspaces.unregisterPreset( id ): void;
 ```
 
 `getProfile()` returns `null` for a plain Space, and that is meaningful: a desktop with no profile behaves exactly as it did before workspaces existed. Every session saved before them is in that state, so nothing may assume the field is there.
@@ -216,7 +299,7 @@ interface Desktop {
 type WorkspaceLayoutId = 'free' | 'cascade' | 'tile' | 'columns' | 'focus';
 
 interface WorkspaceProfile {
-    preset: string;               // template it came from; '' = built by hand
+    preset: string;               // legacy provenance, '' on every new desk
     icon:   string;               // dashicon class
     color:  string;               // '#rrggbb', or '' for the shell accent
     apps: {
@@ -240,53 +323,39 @@ interface WorkspaceProfile {
     } >;
     layout: WorkspaceLayoutId;
     provisioned?: boolean;        // whether the launch list has run
+    restricted?: boolean;         // "Hide settings" — see Sharing a workspace
+    notes?: WorkspaceNote[];      // read-only notes on the desk — see Workspace notes
 }
 
-interface WorkspacePreset {
-    id: string;
-    label: string;
-    description: string;
-    icon: string;
-    color: string;
-    apps: string[];               // match tokens; empty = show everything
-    widgets?: string[];           // widget ids; empty = the user's own column
-    appearance?: WorkspaceProfile[ 'appearance' ];
-    windows: WorkspaceProfile[ 'windows' ];
-    layout: WorkspaceLayoutId;
-    defaultLabel?: string;
-    order?: number;               // ascending; ships 10 / 20 / 30
+interface WorkspaceNote {
+    id:    string;                // [a-z0-9-], stable: dismissals key on it
+    text:  string;                // plain text, ≤ 1000 chars (≤ 2000 for 'xl')
+    size:  'normal' | 'xl';       // 'xl' is twice the size
+    color: 'butter' | 'blush' | 'sky' | 'mint' | 'lilac' | 'peach';
+    x:     number;                // left edge, fraction of the desk (0–1)
+    y:     number;                // top edge, fraction of the desk (0–1)
+}
+
+```
+
+`WorkspaceApp` — one entry of `wp.os.workspaces.apps()`:
+
+```typescript
+interface WorkspaceApp {
+    id:    string;                // a launch entry's `match`; a dock app's nav id
+    title: string;
+    icon:  string;
+    pages: Array< { title: string; url: string } >; // main page first, then its tabs; [] for a window app
+    dock:  boolean;               // has a dock icon a workspace can keep or hide
 }
 ```
 
-`preset` is **provenance only**. A template is read once at creation time; editing the workspace afterwards never writes back to it, and a template that changes in a later release never reaches a desk already created from it.
-
-### Adding a template
-
-```js
-wp.os.workspaces.registerPreset( {
-    id: 'support',
-    label: 'Support',
-    description: 'Tickets, comments and the people behind them.',
-    icon: 'dashicons-sos',
-    color: '#2271b1',
-    layout: 'columns',
-    apps: [ 'edit-comments.php', 'users.php', 'my-helpdesk' ],
-    widgets: [ 'clock', 'desktop-mode/recent-comments' ],
-    windows: [
-        { match: 'my-helpdesk' },
-        { match: 'users.php', url: 'users.php' },
-    ],
-} );
-```
-
-`order` defaults to `0`, which sorts **ahead** of the three shipped desks — the right default for a site that installed a workspace on purpose.
+A launch entry whose `match` names a registered native window with no navigation item (Preferences, Station Home…) opens that window; before, it was dropped.
 
 ### JS hooks
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `os.workspaces.presets` | filter | Stable | `WorkspacePreset[]` — the wizard's template cards. Return a shorter list to drop one, a longer one to add your own. |
-| `os.workspaces.profile` | filter | Stable | `WorkspaceProfile`, context `WorkspacePreset` — fires the moment a profile is read off a template, before the desktop is created. |
 | `os.workspaces.updated` | action | Stable | `{ desktopId, profile }` — a workspace's profile changed. `profile` is `null` when it became a plain Space. |
 | `os.workspaces.provisioned` | action | Stable | `{ desktopId, opened, layout }` — the launch list has run. `opened` is smaller than the list whenever an app it names is not installed. |
 | `os.arrange.columns.starting` / `.applied` | action | Stable | `{ windowCount, cols }` |
@@ -297,89 +366,31 @@ wp.os.workspaces.registerPreset( {
 
 ## PHP
 
-```php
-openstation_workspace_presets(): array
-```
-
-The server's view of the template list, shipped to the shell as `openStationConfig.workspacePresets`. Filterable, and the filter has both powers:
-
-```php
-// Drop the Commerce desk everywhere. (A site with no store needs no
-// filter — `requires` already hides it there.)
-add_filter(
-    'openstation_workspace_presets',
-    function ( $presets ) {
-        return array_values(
-            array_filter(
-                $presets,
-                fn( $preset ) => 'commerce' !== $preset['id']
-            )
-        );
-    }
-);
-
-// Ship a complete workspace from PHP alone — no JavaScript.
-add_filter(
-    'openstation_workspace_presets',
-    function ( $presets ) {
-        $presets[] = array(
-            'id'       => 'support',
-            'label'    => __( 'Support', 'my-plugin' ),
-            'icon'     => 'dashicons-sos',
-            'color'    => '#2271b1',
-            'layout'   => 'columns',
-            'requires' => array( 'my-helpdesk/my-helpdesk.php' ),
-            'apps'     => array( 'edit-comments.php', 'users.php' ),
-            'windows'  => array( array( 'match' => 'users.php' ) ),
-            'order'    => 40,
-        );
-        return $presets;
-    }
-);
-```
-
-The three shipped entries deliberately carry **no** `apps` or `windows`: the client already has their token lists, and a second copy in PHP would be a second place to keep in step. A server entry naming a client built-in says only "this one still exists"; an entry with an id of its own is registered whole.
-
-#### Templates that need a plugin
-
-`requires` is a list of **plugin basenames** — the same strings `is_plugin_active()` takes — and every one of them has to be active or the template is left out of this list entirely. The client's switcher shows what this list names, so an entry dropped here is a card that never appears; a template naming none is always offered.
-
-It lives on this side rather than beside the match tokens because "is WooCommerce active?" is a question only the server can answer, and it is a different question from the one the tokens ask. A token that finds nothing costs a menu; a plugin that is not there costs the whole point of the desk.
-
-```php
-'requires' => array( 'woocommerce/woocommerce.php' ),
-```
-
-The gate runs **after** the filter, so a site that wants a shipped template whatever is installed can unset its `requires`:
-
-```php
-add_filter(
-    'openstation_workspace_presets',
-    function ( $presets ) {
-        return array_map(
-            function ( $preset ) {
-                if ( 'commerce' === $preset['id'] ) {
-                    unset( $preset['requires'] );
-                }
-                return $preset;
-            },
-            $presets
-        );
-    }
-);
-```
-
-A template registered from JavaScript has no equivalent, and needs none: its plugin is already running, or the `registerPreset()` call would not have happened. Gate on anything else by checking before you register.
-
-The list reaches the client in the shell config blob at boot, so activating a plugin from inside OpenStation brings its template in on the next reload rather than the next menu refresh.
-
-Every entry the filter returns is sanitized. A malformed template costs that template, not the wizard: an entry with no id is dropped, an unknown layout falls back to `free`, and one with no label is named after its id.
-
 ### Persistence
 
 A profile rides on the desktop inside the session (`desktop_mode_session` user meta) and is bounded by `openstation_sanitize_workspace_profile()`: at most 128 app ids, 32 widget ids and 12 launch entries, a `#rrggbb` colour or nothing, and a layout from the known set.
 
 App ids are filtered to `[A-Za-z0-9_-]` rather than passed through `sanitize_key()`, which **lowercases** — a native window registered as `wpdcEditor` would be stored as `wpdceditor` and then match nothing on the client. Widget ids allow the slash too, because a widget id is a namespaced registry key (`desktop-mode/post-stats`) and stripping the separator would make every shipped widget stop matching.
+
+A shared workspace lives somewhere else too — see [Shared workspaces, stored](#shared-workspaces-stored).
+
+### Shared workspaces, stored
+
+| Where | What |
+|---|---|
+| `openstation_ws_share` post type | One post per shared workspace: the frozen, sanitized snapshot as JSON in `post_content`, the name as its title, the admin who shared it as its author. `delete_with_user` is off — a share outlives its author. |
+| `_openstation_ws_token` post meta | The link token. Unguessable, never the post id. |
+| `_openstation_ws_desktop` post meta | The author's desk it was shared from. |
+| `_openstation_ws_version` post meta | Bumped on every publish; a pinned desk re-provisions when it changes. |
+| `_openstation_ws_disabled` post meta | `'1'` while the link is off. |
+| `_openstation_ws_hash` post meta | The publishing client's fingerprint of the profile, for "Changed since you shared it". Opaque to the server. |
+| `openstation_workspace_pin` user option | The share a user is pinned to, the version their desk last opened, and the stash of the session they had. Per site (`update_user_option()`), so a pin on one site never locks another. |
+| `openstation_workspace_claims` user option | Every share the user has claimed, and the desk it landed on. What makes a link claim once. |
+| `openstation_workspace_dismissed_notes` user option | The workspace notes the user has dismissed (ids, the most recent 200). |
+
+### PHP hooks
+
+Every one is in [`hooks-reference.md`](hooks-reference.md#shared-workspaces): `openstation_workspace_share_capability`, `openstation_workspace_share_snapshot`, `openstation_workspace_shared`, `openstation_workspace_share_claimed`, `openstation_workspace_share_redirect`, `openstation_workspace_pin_released`, `openstation_workspace_share_deleting`, `openstation_workspace_fence_always_allowed`, `openstation_workspace_fence_allows`, `openstation_workspace_restricted_screens`, `openstation_workspace_restricted_apps` — plus the two general ones the feature is built on, `openstation_session` and `openstation_app_allows`.
 
 ---
 
@@ -387,5 +398,4 @@ App ids are filtered to `[A-Za-z0-9_-]` rather than passed through `sanitize_key
 
 - [`docs/javascript-reference.md`](javascript-reference.md#virtual-desktops-spaces) — the underlying Spaces API
 - [`docs/hooks-reference.md`](hooks-reference.md) — the PHP filter
-- [`docs/examples/workspace-preset.md`](examples/workspace-preset.md) — a copy-paste template
 - [`docs/event-driven-framework.md`](event-driven-framework.md) — why a workspace publishes hooks rather than the framework guessing

@@ -272,4 +272,28 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 			expect( win.config.y ).toBe( 70 );
 		} );
 	} );
+
+	test( '"Open windows as" maximizes a fresh window, and Focused minimizes the rest', async () => {
+		// A window applies its initial state on the next frame.
+		const frame = () => new Promise< void >( ( r ) => requestAnimationFrame( () => r() ) );
+		const first = await manager.openNew( openConfig( 'edit' ) );
+		manager.openWindowsAs = () => 'maximized';
+		const second = await manager.openNew( openConfig( 'upload' ) );
+		await frame();
+		expect( second.state ).toBe( 'maximized' );
+		expect( first.state ).toBe( 'normal' );
+
+		manager.openWindowsAs = () => 'focused';
+		const third = await manager.openNew( openConfig( 'users' ) );
+		await frame();
+		expect( third.state ).toBe( 'maximized' );
+		expect( first.state ).toBe( 'minimized' );
+		expect( second.state ).toBe( 'minimized' );
+
+		// A caller that decided keeps its decision — a workspace
+		// placing its launch list.
+		const placed = await manager.openNew( openConfig( 'tools', { openAs: 'default' } ) );
+		await frame();
+		expect( placed.state ).toBe( 'normal' );
+	} );
 } );
