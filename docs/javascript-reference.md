@@ -1080,7 +1080,7 @@ Calling `open()` with an id (or `baseId`) that's already on screen focuses the e
 
 **Submenu picks don't take this door.** A dock tile click is an `open()` and behaves as described above: it focuses the menu's open window, and opens one when there is none. Picking a *child* page — a flyout row, a custom rail renderer's `openSubmenuPick` — calls `openNew()` instead, so *Posts → Add New Post* opens a second Posts window beside the draft already open rather than pulling that one onto the new-post page. The tile is the way back to a window you have; the submenu is how you ask for another.
 
-**Title-bar actions menu.** Every window — iframe *and* native — renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
+**Title-bar actions menu.** Every window — iframe *and* native — renders a three-dots actions menu on the leading edge of its title bar. Hovering the button (or reaching it with the keyboard) shows a tooltip naming the menu and listing the rows that window offers, plugin rows from `wp.os.registerWindowAction()` included. Built-in items:
 
 - **"Open on startup"** — checkable; toggles this window as the user's default-window preference. Both window types.
 - **"Open another <Page>"** — only when the window was opened with `multi: true`. Calls `openNew()` with the window's *original* landing URL.
