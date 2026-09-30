@@ -434,7 +434,10 @@ function openstation_window_revisions( $post ) {
  * The related-entity pass: attach the `related` navigation items to a
  * (post-identity-filter) content identity. Shared by the page-render
  * builder above and the REST recompute endpoint the editor
- * save-watcher hits (where `$screen` is `null`).
+ * save-watcher hits (where `$screen` is `null`). Also where the labels
+ * become plain text: they name windows (Preview, Revisions, Related)
+ * and are painted as text, where `get_the_title()`'s entities
+ * (`&#8217;`) read literally.
  *
  * @internal
  *
@@ -448,6 +451,9 @@ function openstation_window_revisions( $post ) {
 function openstation_window_related_attach( $identity, $post, $screen ) {
 	if ( ! is_array( $identity ) ) {
 		return $identity;
+	}
+	if ( isset( $identity['label'] ) && is_string( $identity['label'] ) ) {
+		$identity['label'] = openstation_plain_text_title( $identity['label'] );
 	}
 
 	$related = array();
@@ -814,6 +820,14 @@ function openstation_window_related_entities_sanitize( $related ) {
 	foreach ( $related as $item ) {
 		if ( ! is_array( $item ) ) {
 			continue;
+		}
+		// Plain text (see `openstation_window_related_attach()`),
+		// decoded before the checks below so a label that was only
+		// markup is dropped here rather than failing the whole ref.
+		foreach ( array( 'label', 'groupLabel' ) as $text ) {
+			if ( isset( $item[ $text ] ) && is_string( $item[ $text ] ) ) {
+				$item[ $text ] = openstation_plain_text_title( $item[ $text ] );
+			}
 		}
 		foreach ( array( 'id', 'group', 'label', 'url' ) as $required ) {
 			// Mirror the JS engine's validation exactly (`.trim() !== ''`):

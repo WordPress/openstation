@@ -211,6 +211,15 @@ export class Window {
 	public iframe: HTMLIFrameElement | null;
 	public state: WindowState = 'normal';
 
+	/**
+	 * Set when an explicit `os-title-change` message tells us what
+	 * the title should be, so the `adoptPageTitle` heuristic doesn't
+	 * overwrite it.
+	 *
+	 * @internal
+	 */
+	public _hasExplicitTitle = false;
+
 	/** @internal */
 	public _titleBar: HTMLElement;
 	/** @internal */

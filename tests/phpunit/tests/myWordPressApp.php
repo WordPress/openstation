@@ -981,17 +981,22 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 
 	/**
 	 * @covers \OpenStation\Apps\MyWordPress\edit_url
+	 * @covers \OpenStation\Apps\MyWordPress\edit_title
 	 */
 	public function test_edit_queues_an_open_url_effect() {
+		// Stored the way kses stores an `&`; the shell paints the
+		// window title as text, so an entity would show literally.
+		$post_id  = self::factory()->post->create( array( 'post_title' => 'Salt &amp; Pepper' ) );
 		$response = $this->dispatch(
 			'edit',
 			array( 'section' => 'posts' ),
-			array( 'item' => self::$post_id )
+			array( 'item' => $post_id )
 		);
 		$opens = $this->effects_of( $response, 'open_url' );
 		$this->assertCount( 1, $opens );
-		$this->assertStringContainsString( 'post=' . self::$post_id, $opens[0]['url'] );
+		$this->assertStringContainsString( 'post=' . $post_id, $opens[0]['url'] );
 		$this->assertStringContainsString( 'action=edit', $opens[0]['url'] );
+		$this->assertSame( 'Salt & Pepper', $opens[0]['title'] );
 	}
 
 	/**
