@@ -772,7 +772,7 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 		return array(
 			'id'       => $entity_id,
 			'type'     => $post->post_type,
-			'title'    => wp_strip_all_tags( $post->post_title ),
+			'title'    => openstation_plain_text_title( $post->post_title ),
 			'status'   => $post->post_status,
 			'date'     => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
 			'url'      => (string) get_permalink( $post ),
@@ -809,7 +809,7 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 			'type'       => 'comment',
 			'excerpt'    => openstation_ai_search_excerpt( $comment->comment_content ),
 			'post_id'    => (int) $comment->comment_post_ID,
-			'post_title' => wp_strip_all_tags( $parent_post->post_title ),
+			'post_title' => openstation_plain_text_title( $parent_post->post_title ),
 			'post_url'   => (string) get_permalink( $parent_post ),
 			'url'        => (string) get_comment_link( $comment ),
 			'edit_url'   => current_user_can( 'edit_comment', $entity_id )

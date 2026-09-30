@@ -125,7 +125,7 @@ function folder( Os $os, array $section, $id ) {
 
 	return array(
 		'id'      => $id,
-		'title'   => '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' ),
+		'title'   => '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' ),
 		'status'  => (string) $post->post_status,
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Applying Core's own content pipeline, not declaring a hook.
 		'content' => (string) apply_filters( 'the_content', (string) $post->post_content ),
@@ -155,7 +155,7 @@ function sub( Os $os, array $section, $id, $relation ) {
 		$user = get_userdata( (int) $user_id );
 		return array(
 			'id'       => (int) $user_id,
-			'title'    => '' !== $name ? $name : ( $user ? (string) $user->display_name : sprintf( '#%d', $user_id ) ),
+			'title'    => openstation_plain_text_title( '' !== $name ? $name : ( $user ? (string) $user->display_name : sprintf( '#%d', $user_id ) ) ),
 			'subtitle' => $user ? (string) $user->user_email : '',
 			'thumb'    => '' !== $avatar ? $avatar : (string) get_avatar_url( (int) $user_id, array( 'size' => 96 ) ),
 			'editUrl'  => current_user_can( 'edit_user', (int) $user_id )
@@ -187,8 +187,8 @@ function sub( Os $os, array $section, $id, $relation ) {
 			) as $comment ) {
 				$rows[] = array(
 					'id'       => (int) $comment->comment_ID,
-					'title'    => (string) $comment->comment_author,
-					'subtitle' => wp_trim_words( wp_strip_all_tags( (string) $comment->comment_content ), 12 ),
+					'title'    => openstation_plain_text_title( $comment->comment_author ),
+					'subtitle' => openstation_plain_text_title( wp_trim_words( wp_strip_all_tags( (string) $comment->comment_content ), 12 ) ),
 					'icon'     => 'dashicons-admin-comments',
 					'editUrl'  => current_user_can( 'edit_comment', (int) $comment->comment_ID )
 						? admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID )
@@ -204,7 +204,7 @@ function sub( Os $os, array $section, $id, $relation ) {
 			foreach ( is_array( $terms ) ? $terms : array() as $term ) {
 				$rows[] = array(
 					'id'       => (int) $term->term_id,
-					'title'    => (string) $term->name,
+					'title'    => openstation_plain_text_title( $term->name ),
 					'subtitle' => sprintf(
 						/* translators: %s: entry count. */
 						_n( '%s entry', '%s entries', (int) $term->count, 'desktop-mode' ),
@@ -226,7 +226,7 @@ function sub( Os $os, array $section, $id, $relation ) {
 				}
 				$rows[] = array(
 					'id'       => $media_id,
-					'title'    => '' !== $media->post_title ? (string) $media->post_title : sprintf( '#%d', $media_id ),
+					'title'    => '' !== $media->post_title ? openstation_plain_text_title( $media->post_title ) : sprintf( '#%d', $media_id ),
 					'subtitle' => (string) $media->post_mime_type,
 					'thumb'    => (string) wp_get_attachment_image_url( $media_id, 'medium' ),
 					'icon'     => 'dashicons-format-image',
@@ -241,8 +241,8 @@ function sub( Os $os, array $section, $id, $relation ) {
 			foreach ( wp_get_post_revisions( $id ) as $revision ) {
 				$rows[] = array(
 					'id'       => (int) $revision->ID,
-					'title'    => trim( wp_strip_all_tags( (string) wp_post_revision_title_expanded( $revision, false ) ) ), // Core leads with an avatar <img>; the client prints a title as text.
-					'subtitle' => (string) get_the_author_meta( 'display_name', (int) $revision->post_author ),
+					'title'    => openstation_plain_text_title( wp_post_revision_title_expanded( $revision, false ) ), // Core leads with an avatar <img>; the client prints a title as text.
+					'subtitle' => openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $revision->post_author ) ),
 					'icon'     => 'dashicons-backup',
 					'editUrl'  => current_user_can( 'edit_post', $id )
 						? admin_url( 'revision.php?revision=' . (int) $revision->ID )
@@ -354,8 +354,8 @@ function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
 			}
 			return array(
 				'kind'    => 'revision',
-				'title'   => trim( wp_strip_all_tags( (string) wp_post_revision_title_expanded( $revision, false ) ) ), // Same as the row title: no avatar <img>.
-				'author'  => (string) get_the_author_meta( 'display_name', (int) $revision->post_author ),
+				'title'   => openstation_plain_text_title( wp_post_revision_title_expanded( $revision, false ) ), // Same as the row title: no avatar <img>.
+				'author'  => openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $revision->post_author ) ),
 				'date'    => (string) get_the_date( '', $revision ) . ' ' . get_the_time( '', $revision ),
 				'content' => wp_kses_post( (string) apply_filters( 'the_content', (string) $revision->post_content ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own content pipeline.
 			);
@@ -383,7 +383,7 @@ function edit_choices() {
 	) as $user ) {
 		$authors[] = array(
 			'id'   => (int) $user->ID,
-			'name' => (string) $user->display_name,
+			'name' => openstation_plain_text_title( $user->display_name ),
 		);
 	}
 	$categories = array();
@@ -397,7 +397,7 @@ function edit_choices() {
 		if ( $term instanceof \WP_Term ) {
 			$categories[] = array(
 				'id'     => (int) $term->term_id,
-				'name'   => (string) $term->name,
+				'name'   => openstation_plain_text_title( $term->name ),
 				'parent' => (int) $term->parent,
 			);
 		}
@@ -413,7 +413,7 @@ function edit_choices() {
 		if ( $term instanceof \WP_Term ) {
 			$tags[] = array(
 				'id'   => (int) $term->term_id,
-				'name' => (string) $term->name,
+				'name' => openstation_plain_text_title( $term->name ),
 			);
 		}
 	}

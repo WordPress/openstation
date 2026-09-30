@@ -226,12 +226,14 @@ function openstation_site_title() {
  * `wptexturize()` encodes the characters titles are full of — `&` as
  * `&#038;`, an apostrophe as `&#8217;` — and the shell writes titles
  * into text nodes, where the entity renders as itself. Same reasoning
- * as {@see openstation_site_title()}, one layer down.
+ * as {@see openstation_site_title()}, one layer down. Stored names need
+ * it too: a display name, term name or comment author is saved with
+ * `&` as `&amp;`, and so is a title kses filtered on save.
  *
  * Decode BEFORE the tag strip, never after: `&lt;script&gt;` decodes
  * into a real tag, and stripping second is what removes it.
  *
- * @param string $rendered A title that has been through a display filter.
+ * @param string $rendered A title or name, rendered or as stored.
  * @return string Plain text, tag-free.
  */
 function openstation_plain_text_title( $rendered ) {

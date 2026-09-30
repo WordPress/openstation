@@ -402,8 +402,11 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		);
 		$long  = self::factory()->post->create(
 			array(
-				'post_title'   => 'Long read',
+				// Stored the way kses stores an `&` for an Author.
+				'post_title'   => 'Long read &amp; more',
 				'post_content' => str_repeat( 'Tom &amp; Jerry go on. ', 40 ),
+				// `wp_insert_user()` stores this name with `&amp;`.
+				'post_author'  => self::factory()->user->create( array( 'display_name' => 'Pérez & Hijos' ) ),
 				// The factory invents one otherwise; the trim path is the point.
 				'post_excerpt' => '',
 			)
@@ -418,6 +421,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 				$this->assertStringNotContainsString( '&amp;', $candidate['excerpt'] );
 				$this->assertStringContainsString( 'Tom & Jerry', $candidate['excerpt'] );
 				$this->assertStringContainsString( '[…]', $candidate['excerpt'] );
+				// So is the tile label, which a drag or "Send to" carries on.
+				$this->assertSame( 'Long read & more', $candidate['title'] );
+				$this->assertSame( 'Pérez & Hijos', $candidate['author'] );
 			}
 		}
 
@@ -736,7 +742,8 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		self::factory()->comment->create(
 			array(
 				'comment_post_ID' => self::$post_id,
-				'comment_author'  => 'Ada',
+				// Stored as `pre_comment_author_name` stores an `&`.
+				'comment_author'  => 'Ada &amp; Grace',
 				'comment_content' => 'Great strategy, would read again.',
 			)
 		);
@@ -762,7 +769,7 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 
 		$comments = $this->dispatch( 'relation', $state, array( 'relation' => 'comments' ) );
 		$titles   = array_column( $comments['data']['sub']['rows'], 'title' );
-		$this->assertContains( 'Ada', $titles );
+		$this->assertContains( 'Ada & Grace', $titles, 'Row titles are text: the tile and the window `sub-open` titles with them.' );
 
 		$revisions = $this->dispatch( 'relation', $state, array( 'relation' => 'revisions' ) );
 		$this->assertNotEmpty( $revisions['data']['sub']['rows'] );

@@ -602,7 +602,7 @@ function openstation_files_attachment_summary( $attachment_id, $created ) {
 	return array(
 		'attachmentId' => $attachment_id,
 		'created'      => (bool) $created,
-		'title'        => get_the_title( $attachment_id ),
+		'title'        => openstation_plain_text_title( get_the_title( $attachment_id ) ),
 		'url'          => (string) wp_get_attachment_url( $attachment_id ),
 		'editUrl'      => admin_url( sprintf( 'post.php?post=%d&action=edit', $attachment_id ) ),
 	);
@@ -672,7 +672,7 @@ function openstation_files_rest_attach_to_post( WP_REST_Request $req ) {
 	return rest_ensure_response(
 		array(
 			'postId'           => (int) $result['post_id'],
-			'title'            => get_the_title( $result['post_id'] ),
+			'title'            => openstation_plain_text_title( get_the_title( $result['post_id'] ) ),
 			'editUrl'          => (string) $result['edit_url'],
 			'appended'         => (bool) $result['appended'],
 			'featuredImageSet' => (bool) $result['featured_image_set'],

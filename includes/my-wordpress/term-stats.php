@@ -103,7 +103,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	// ----- Profile -----------------------------------------------------
 	$profile = array(
 		'id'            => (int) $term->term_id,
-		'name'          => $term->name,
+		'name'          => openstation_plain_text_title( $term->name ),
 		'slug'          => $term->slug,
 		'taxonomy'      => $term->taxonomy,
 		'taxonomyLabel' => isset( $tax_obj->labels->singular_name )
@@ -119,7 +119,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	if ( $term->parent > 0 ) {
 		$parent = get_term( $term->parent, $taxonomy );
 		if ( $parent && ! is_wp_error( $parent ) ) {
-			$profile['parentName'] = $parent->name;
+			$profile['parentName'] = openstation_plain_text_title( $parent->name );
 		}
 	}
 
@@ -285,13 +285,13 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		$author_arr = $author
 			? array(
 				'id'        => (int) $author->ID,
-				'name'      => $author->display_name,
+				'name'      => openstation_plain_text_title( $author->display_name ),
 				'avatarUrl' => get_avatar_url( $author->ID, array( 'size' => 48 ) ),
 			)
 			: null;
 		$recent[]   = array(
 			'id'     => $post_id,
-			'title'  => get_the_title( $post_id ),
+			'title'  => openstation_plain_text_title( get_the_title( $post_id ) ),
 			'date'   => mysql2date( 'c', (string) $row['post_date_gmt'], false ),
 			'status' => (string) $row['post_status'],
 			'type'   => (string) $row['post_type'],
@@ -328,7 +328,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		}
 		$top_authors[] = array(
 			'userId'        => (int) $u->ID,
-			'userName'      => (string) $u->display_name,
+			'userName'      => openstation_plain_text_title( $u->display_name ),
 			'userAvatarUrl' => (string) get_avatar_url( $u->ID, array( 'size' => 48 ) ),
 			'count'         => (int) $row['n'],
 		);
@@ -360,7 +360,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	foreach ( (array) $co_term_rows as $row ) {
 		$co_terms[] = array(
 			'id'    => (int) $row['term_id'],
-			'name'  => (string) $row['name'],
+			'name'  => openstation_plain_text_title( $row['name'] ),
 			'slug'  => (string) $row['slug'],
 			'count' => (int) $row['n'],
 		);
