@@ -96,7 +96,7 @@ When an administrator deactivates OpenStation, a dialog asks one optional questi
 
 **Usage feedback**
 
-After you have had OpenStation on for a week, a small prompt asks once whether you have two minutes to say how it is going. Closing it sends nothing, and it never comes back. Saying yes opens a short form with three optional questions and an optional email field. Nothing is sent unless you click **Send**; **Cancel**, Escape and the close button send nothing.
+After you have had OpenStation on for a week, a small card asks once whether you have two minutes to say how it is going. Answering **No thanks** sends nothing, and it never comes back. Saying yes opens a short form with three optional questions and an optional email field. Nothing is sent unless you click **Send**; **Cancel**, Escape and the close button send nothing.
 
 * **What is sent:** the answers you typed, the email address if you chose to type one (the field starts empty and is never filled in for you), your language, the OpenStation and WordPress versions, and how many days you have had OpenStation on. Nothing that identifies your site: no URL, no site id, no user name, and no IP address is stored. Without an email the submission is anonymous. Each submission carries a random id used only to ignore an accidental retry.
 * **When it is sent:** only when you click Send in the form. There is no background ping.

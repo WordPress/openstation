@@ -2,8 +2,9 @@
  * Usage feedback — the form.
  *
  * Three optional questions and an optional email, in an `<os-modal>`.
- * Opened only after the user said yes to the prompt (`index.ts`), and
- * compiled into the lazy `usage-feedback` bundle (`entry.ts`).
+ * Opened only after the user said yes to the prompt card
+ * (`prompt.ts`), and compiled into the lazy `usage-feedback` bundle
+ * with it (`entry.ts`).
  *
  * Nothing leaves the site until the user clicks Send, and then only
  * what they typed, to the plugin's own REST route, which forwards it

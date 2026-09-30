@@ -1,10 +1,12 @@
 /**
- * Usage feedback — the prompt (main-bundle side).
+ * Usage feedback — the gate (main-bundle side).
  *
  * Once a user has had OpenStation on for a while, ask whether they
- * have two minutes to say how it is going. The ask is a toast in the
- * corner, not a dialog: it interrupts nothing, and the form behind it
- * only opens for someone who said yes.
+ * have two minutes to say how it is going. The ask is a card in the
+ * corner of the work area (`prompt.ts`), not a dialog: it blocks
+ * nothing, and the form behind it (`form.ts`) only opens for someone
+ * who said yes. Both live in the lazy `usage-feedback` bundle; this
+ * module only decides whether to fetch it, and records the answer.
  *
  * Everything that decides WHO sees this is server-side and arrives as
  * `config.usageFeedback`: the feature is on, the user has had
@@ -14,14 +16,11 @@
  *
  * Once per user, whatever they answer:
  *
- * - Closing the toast is a no, recorded as the `usage-feedback` slug
- *   in the seen-intros registry.
- * - "Sure" opens the form (`form.ts`, a lazy bundle fetched through
- *   `loader.ts`). Leaving it without sending is recorded the same
- *   way; a successful send is recorded server-side in the same
- *   request, so a lost client write can never re-ask someone who
- *   answered.
- * - A toast that is simply ignored records nothing and returns on
+ * - "No thanks" on the card, or leaving the form without sending, is
+ *   recorded as the `usage-feedback` slug in the seen-intros registry.
+ * - A successful send is recorded server-side in the same request, so
+ *   a lost client write can never re-ask someone who answered.
+ * - A card that is simply left alone records nothing and returns on
  *   the next boot: the user has not answered yet.
  */
 
@@ -29,8 +28,8 @@ import { __ } from '../i18n';
 import { showToast } from '../toast';
 import { trackedFetch } from '../tracked-fetch';
 import type { DesktopConfig } from '../types';
-import { openUsageFeedbackForm } from './loader';
-import type { UsageFeedbackFormOptions } from './types';
+import { showUsageFeedbackPrompt } from './loader';
+import type { UsageFeedbackPromptOptions } from './types';
 
 /** Slug this prompt records in the seen-intros registry. */
 export const USAGE_FEEDBACK_INTRO_SLUG = 'usage-feedback';
@@ -47,11 +46,11 @@ export interface UsageFeedbackDeps {
 	/** The shell config, for the gate, the REST base and the nonce. */
 	config: DesktopConfig;
 	/**
-	 * Opens the form; resolves `false` when it could not be shown.
-	 * Defaults to the lazy-bundle loader. A test passes the form
+	 * Shows the prompt; resolves `false` when it could not be shown.
+	 * Defaults to the lazy-bundle loader. A test passes the prompt
 	 * directly.
 	 */
-	openForm?: ( opts: UsageFeedbackFormOptions ) => Promise< boolean > | boolean;
+	showPrompt?: ( opts: UsageFeedbackPromptOptions ) => Promise< boolean > | boolean;
 }
 
 /**
@@ -100,46 +99,26 @@ export async function maybeAskForUsageFeedback( deps: UsageFeedbackDeps ): Promi
 	if ( config.seenIntros?.includes( USAGE_FEEDBACK_INTRO_SLUG ) ) {
 		return;
 	}
-	const openForm = deps.openForm ?? openUsageFeedbackForm;
+	const showPrompt = deps.showPrompt ?? showUsageFeedbackPrompt;
 
 	await new Promise( ( resolve ) => window.setTimeout( resolve, PROMPT_DELAY_MS ) );
 
-	const remember = (): void => {
-		config.seenIntros = [ ...( config.seenIntros ?? [] ), USAGE_FEEDBACK_INTRO_SLUG ];
-	};
-
-	const accept = async (): Promise< void > => {
-		const shown = await openForm( {
-			restUrl: request.restUrl,
-			restNonce: config.restNonce ?? '',
-			onClose: ( outcome ) => {
-				remember();
-				if ( outcome === 'sent' ) {
-					// The server recorded the intro in the same request.
-					showToast( { message: __( 'Thank you! That really helps.' ) } );
-					return;
-				}
-				void markSeen( config );
-			},
-		} );
-		if ( ! shown && typeof console !== 'undefined' ) {
-			// Nothing recorded: the user said yes and never saw the
-			// form, so the prompt returns on the next boot.
-			console.warn( '[openstation] usage feedback form could not be opened.' );
-		}
-	};
-
-	showToast( {
-		message: __( 'Got two minutes to tell us how OpenStation is going?' ),
-		action: {
-			label: __( 'Sure' ),
-			onClick: () => void accept(),
-		},
-		persistent: true,
-		dismissible: true,
-		onDismiss: () => {
-			remember();
+	const shown = await showPrompt( {
+		restUrl: request.restUrl,
+		restNonce: config.restNonce ?? '',
+		onAnswered: ( outcome ) => {
+			config.seenIntros = [ ...( config.seenIntros ?? [] ), USAGE_FEEDBACK_INTRO_SLUG ];
+			if ( outcome === 'sent' ) {
+				// The server recorded the intro in the same request.
+				showToast( { message: __( 'Thank you! That really helps.' ) } );
+				return;
+			}
 			void markSeen( config );
 		},
 	} );
+	if ( ! shown && typeof console !== 'undefined' ) {
+		// Nothing recorded: the user never saw the question, so it
+		// returns on the next boot.
+		console.warn( '[openstation] usage feedback prompt could not be shown.' );
+	}
 }

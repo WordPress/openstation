@@ -16,22 +16,15 @@ vi.mock( '../tracked-fetch', () => ( {
 	trackedFetch: ( url: string, init?: RequestInit, opts?: unknown ) => trackedFetch( url, init, opts ),
 } ) );
 
-interface ToastCall {
-	message: string;
-	action?: { label: string; onClick: () => void };
-	persistent?: boolean;
-	dismissible?: boolean;
-	onDismiss?: () => void;
-}
-type ToastFn = ( o: ToastCall ) => () => void;
+type ToastFn = ( o: { message: string } ) => () => void;
 const showToast = vi.fn< ToastFn >( () => () => undefined );
 vi.mock( '../toast', () => ( {
-	showToast: ( o: ToastCall ) => showToast( o ),
+	showToast: ( o: { message: string } ) => showToast( o ),
 } ) );
 
 import type { DesktopConfig } from '../types';
-import { openUsageFeedbackForm } from './form';
 import { maybeAskForUsageFeedback, USAGE_FEEDBACK_INTRO_SLUG } from './index';
+import { showUsageFeedbackPrompt } from './prompt';
 
 const SEEN_URL = 'https://example.test/wp-json/desktop-mode/v1/intros';
 const SEND_URL = 'https://example.test/wp-json/desktop-mode/v1/feedback/usage';
@@ -50,8 +43,8 @@ function config( over: Partial< DesktopConfig > = {} ): DesktopConfig {
 async function ask( cfg: DesktopConfig ): Promise< void > {
 	const done = maybeAskForUsageFeedback( {
 		config: cfg,
-		openForm: ( opts ) => {
-			openUsageFeedbackForm( opts );
+		showPrompt: ( opts ) => {
+			showUsageFeedbackPrompt( opts );
 			return true;
 		},
 	} );
@@ -59,15 +52,20 @@ async function ask( cfg: DesktopConfig ): Promise< void > {
 	await done;
 }
 
-/** The prompt toast, as `showToast` received it. */
-function prompt(): ToastCall | undefined {
-	return showToast.mock.calls[ 0 ]?.[ 0 ];
+/** The prompt card, if it is on screen. */
+function prompt(): HTMLElement | null {
+	return document.querySelector< HTMLElement >( '.os-usage-feedback-prompt' );
+}
+
+/** One of the card's two answers. */
+function answer( which: 'accept' | 'decline' ): HTMLElement | null {
+	return document.querySelector< HTMLElement >( `[data-usage-feedback-${ which }]` );
 }
 
 /** Say yes to the prompt and let the form mount. */
 async function sayYes( cfg: DesktopConfig = config() ): Promise< void > {
 	await ask( cfg );
-	prompt()?.action?.onClick();
+	answer( 'accept' )?.click();
 	await vi.runAllTimersAsync();
 }
 
@@ -122,38 +120,39 @@ beforeEach( async () => {
 } );
 
 describe( 'usage feedback — the prompt', () => {
-	test( 'asks with a persistent, dismissible toast and sends nothing', async () => {
+	test( 'asks with a card offering both answers, and sends nothing', async () => {
 		await ask( config() );
 
-		expect( showToast ).toHaveBeenCalledTimes( 1 );
-		expect( prompt()?.persistent ).toBe( true );
-		expect( prompt()?.dismissible ).toBe( true );
-		expect( prompt()?.action?.label ).toBe( 'Sure' );
+		expect( prompt() ).not.toBeNull();
+		expect( answer( 'accept' ) ).not.toBeNull();
+		expect( answer( 'decline' ) ).not.toBeNull();
 		expect( form() ).toBeNull();
 		expect( trackedFetch ).not.toHaveBeenCalled();
 	} );
 
 	test( 'stays silent when the server sent null', async () => {
 		await ask( config( { usageFeedback: null } ) );
-		expect( showToast ).not.toHaveBeenCalled();
+		expect( prompt() ).toBeNull();
 	} );
 
 	test( 'stays silent for a user who already answered', async () => {
 		await ask( config( { seenIntros: [ USAGE_FEEDBACK_INTRO_SLUG ] } ) );
-		expect( showToast ).not.toHaveBeenCalled();
+		expect( prompt() ).toBeNull();
 	} );
 
-	test( 'closing the toast is a no, recorded so it never returns', async () => {
+	test( 'No thanks is recorded so the card never returns', async () => {
 		await ask( config() );
-		prompt()?.onDismiss?.();
+		answer( 'decline' )?.click();
 
 		expect( requests() ).toEqual( [ SEEN_WRITE ] );
+		expect( prompt() ).toBeNull();
 		expect( form() ).toBeNull();
 	} );
 
-	test( 'Sure opens the form and still sends nothing', async () => {
+	test( 'Sure swaps the card for the form and still sends nothing', async () => {
 		await sayYes();
 
+		expect( prompt() ).toBeNull();
 		expect( form() ).not.toBeNull();
 		expect( trackedFetch ).not.toHaveBeenCalled();
 	} );
@@ -179,9 +178,9 @@ describe( 'usage feedback — the form', () => {
 			[ SEND_URL, { use_case: '', likes: 'The windows.', blockers: '', email: '' } ],
 		] );
 		expect( form() ).toBeNull();
-		// The prompt, then the thank-you. No client-side seen write:
-		// the route records it in the same request.
-		expect( showToast ).toHaveBeenCalledTimes( 2 );
+		// No client-side seen write: the route records it in the same
+		// request.
+		expect( showToast ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'an email travels only when it was typed', async () => {

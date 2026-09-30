@@ -489,11 +489,11 @@ const TARGETS = {
 		fileBase: 'deactivation-feedback',
 		iifeName: 'openStationDeactivationFeedbackBundle',
 	},
-	// Usage feedback — the short optional form a user opens from the
-	// one-time "how is it going?" prompt. The prompt itself is a toast
-	// in the main bundle; this holds the modal and its field kit, and
-	// is injected by `src/usage-feedback/loader.ts` only when someone
-	// says yes. Publishes `window.openStationUsageFeedback`.
+	// Usage feedback — the one-time "how is it going?" prompt card and
+	// the short optional form it opens. The main bundle keeps only the
+	// gate; this holds the card, the modal and its field kit, and is
+	// injected by `src/usage-feedback/loader.ts` for a user the server
+	// found eligible. Publishes `window.openStationUsageFeedback`.
 	'usage-feedback': {
 		entry:    'src/usage-feedback/entry.ts',
 		fileBase: 'usage-feedback',

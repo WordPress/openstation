@@ -1,18 +1,18 @@
 /**
  * Usage-feedback lazy bundle — loader (main-bundle side).
  *
- * Mirrors `src/workspaces/wizard-loader.ts`: on the first open it
- * `<script>`-injects `assets/js/usage-feedback[.min].js` (URL from
+ * Mirrors `src/workspaces/wizard-loader.ts`: it `<script>`-injects
+ * `assets/js/usage-feedback[.min].js` (URL from
  * `openStationConfig.usageFeedbackBundleUrl`), then forwards the call
  * to the API the bundle published on `window.openStationUsageFeedback`.
  *
- * Resolves `true` when the form opened and `false` when it could not
- * (no URL, or the script failed to load), so the caller knows whether
- * the user ever got to see the question.
+ * Resolves `true` when the prompt was shown and `false` when it could
+ * not be (no URL, or the script failed to load), so the caller knows
+ * whether the user ever got to see the question.
  */
 
 import { loadVendorScript } from '../wallpapers/vendor-loader';
-import type { UsageFeedbackApi, UsageFeedbackFormOptions } from './types';
+import type { UsageFeedbackApi, UsageFeedbackPromptOptions } from './types';
 
 function loadedApi(): UsageFeedbackApi | null {
 	return (
@@ -31,8 +31,8 @@ function bundleUrl(): string {
 	);
 }
 
-/** Open the form, loading its bundle on first use. */
-export async function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): Promise< boolean > {
+/** Show the prompt, loading its bundle first. */
+export async function showUsageFeedbackPrompt( opts: UsageFeedbackPromptOptions ): Promise< boolean > {
 	let api = loadedApi();
 	if ( ! api ) {
 		const url = bundleUrl();
@@ -45,7 +45,7 @@ export async function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): P
 			await loadVendorScript( url );
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
-				console.warn( '[openstation] usage-feedback bundle failed to load; form suppressed:', err );
+				console.warn( '[openstation] usage-feedback bundle failed to load; prompt suppressed:', err );
 			}
 			return false;
 		}
@@ -54,6 +54,6 @@ export async function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): P
 	if ( ! api ) {
 		return false;
 	}
-	api.openUsageFeedbackForm( opts );
+	api.showUsageFeedbackPrompt( opts );
 	return true;
 }
