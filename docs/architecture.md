@@ -118,6 +118,12 @@ Before OpenStation is deactivated, one optional question. Three surfaces show it
 
 The browser posts to the site and the site forwards to the intake (`includes/feedback/`): a small WordPress plugin on openstation.blog, the host the About tab already reads, which stores each submission in a table read from that site's wp-admin. Not browser-direct: ad blockers drop third-party telemetry hosts, the intake then sees the server's IP rather than the person's, and the payload is assembled in PHP where a host can filter it or turn the feature off. The forward is synchronous, three seconds at most, and best-effort — the plugin is about to be deactivated, so no cron callback of ours would ever run. Nothing is stored on the site. The payload has no site id and no URL hash; `readme.txt` lists every field, and the PHPUnit suite pins that list.
 
+### Usage feedback
+
+The deactivation dialog only hears from people on their way out; usage feedback asks the people who stayed. Once a user has had OpenStation on for seven whole days by the `openstation_enabled_at` stamp (`includes/first-run/stamps.php`), the shell config carries `usageFeedback` and `src/usage-feedback/index.ts` shows a persistent toast a few seconds after boot asking whether they have two minutes to say how it is going. A toast and not a dialog on purpose: it interrupts nothing, and the form only opens for someone who said yes.
+
+Saying yes loads the lazy `usage-feedback` bundle (`src/usage-feedback/loader.ts` → `entry.ts` → `form.ts`), an `<os-modal>` with three optional questions and an optional email field that starts empty, so feedback is anonymous unless its author decides otherwise. `POST /desktop-mode/v1/feedback/usage` forwards the answers to the intake's `usage` route the same way the deactivation answer travels, and marks the `usage-feedback` slug in the seen-intros registry in the same request; closing the toast or leaving the form without sending marks it from the client. Once per user, whatever they answer. `includes/feedback/usage.php` owns the gate, the payload and the route.
+
 ## Navigation
 
 Everything the shell can put in front of you — WordPress's admin menus, plugin menus, installed apps, OpenStation's own controls — is one flat list of **nav items**, and where each one shows up is a pure function of what it IS plus the user's preference. The model lives in `src/nav/`; `computeNav()` is the whole specification, and every surface renders what it returns.

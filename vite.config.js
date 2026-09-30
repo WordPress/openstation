@@ -489,6 +489,16 @@ const TARGETS = {
 		fileBase: 'deactivation-feedback',
 		iifeName: 'openStationDeactivationFeedbackBundle',
 	},
+	// Usage feedback — the short optional form a user opens from the
+	// one-time "how is it going?" prompt. The prompt itself is a toast
+	// in the main bundle; this holds the modal and its field kit, and
+	// is injected by `src/usage-feedback/loader.ts` only when someone
+	// says yes. Publishes `window.openStationUsageFeedback`.
+	'usage-feedback': {
+		entry:    'src/usage-feedback/entry.ts',
+		fileBase: 'usage-feedback',
+		iifeName: 'openStationUsageFeedbackBundle',
+	},
 	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
 	// Components for action-triggered overlays that aren't constructed
 	// at first paint. Preloaded by main after first paint via

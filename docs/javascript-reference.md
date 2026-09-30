@@ -8044,6 +8044,8 @@ click, the switcher, a plugin calling `openWindow()` — raises the
 | Key | Type | Notes |
 |---|---|---|
 | `soloWindow` | `string` | Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); `''` otherwise. No dock, taskbar, wallpaper, desk or admin bar, and no session restore. Generic — an embed or a kiosk can use it too. |
+| `usageFeedback` | `object \| null` | The one-time usage feedback prompt (`restUrl`), or `null` when this user is not owed it. Decided server-side in `includes/feedback/usage.php`; the prompt in `src/usage-feedback/index.ts` never appears without it. Carries no user data. |
+| `usageFeedbackBundleUrl` | `string` | URL of the lazy `usage-feedback` bundle, the form the prompt opens. |
 | `multisite` | `object \| null` | Network context for the Network Admin dock tile: whether the shell is on a network-admin screen, and the network admin rows the user may see. `null` on a single-site install and for any user without `manage_network`. Every URL in it is a navigation target, never an iframe source — see [multisite.md](./multisite.md). |
 
 ### `window.openStationChromelessHost` — *Experimental*

@@ -284,6 +284,7 @@ import {
 import { toggleFullscreen } from './fullscreen';
 import { openShortcutsWith, SHORTCUTS_WINDOW_ID } from './shortcuts';
 import { maybeShowRebrandNotice } from './rebrand-notice';
+import { maybeAskForUsageFeedback } from './usage-feedback/index';
 import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { renderIcon } from './icon';
@@ -5104,6 +5105,11 @@ function init(): void {
 	// announcement. Fire-and-forget: it sleeps until the desk has
 	// settled before mounting, which boot should not block on.
 	void maybeShowRebrandNotice( { config } );
+	// Ask a user who has had OpenStation on for a while whether they
+	// have two minutes to say how it is going. A small prompt, once,
+	// whatever they answer; no-op unless the server put
+	// `usageFeedback` in the config.
+	void maybeAskForUsageFeedback( { config } );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {
 			baseUrl: config.filesUrl,
