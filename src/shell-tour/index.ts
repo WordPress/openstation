@@ -98,9 +98,10 @@ export interface ShellTourDeps {
 	 */
 	openLayoutSettings: () => { windowId: string; wasAlreadyOpen: boolean };
 	/**
-	 * The Desktop layout section, once Preferences has painted it and
-	 * its page is actually showing; `null` until then. The layout card
-	 * re-anchors onto it so the user is looking at what to click.
+	 * Where the layout settings are on screen right now: the way in to
+	 * Preferences before the card opens it, and the Desktop layout
+	 * section once it is showing. `null` when neither can be found, and
+	 * the card falls back to the menu rail.
 	 */
 	findLayoutTarget: () => Element | null;
 	/** Closes a window the tour opened. */
@@ -269,12 +270,19 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			// look at what opened before moving on.
 			primary: () => ( layoutShown ? __( 'Next' ) : __( 'Show me' ) ),
 			secondary: __( 'Skip tour' ),
-			anchor: () =>
-				( layoutShown ? deps.findLayoutTarget() : null ) ?? findDockRail(),
+			// Before "Show me" this is the tile that opens Preferences;
+			// after it, the Desktop layout section itself. Either way the
+			// ring is on the thing the card is talking about, not on the
+			// whole rail.
+			anchor: () => deps.findLayoutTarget() ?? findDockRail(),
 			doIt: () => {
 				if ( layoutShown ) {
 					return true;
 				}
+				// What the card is pointing at right now, so the follow
+				// below can tell "Preferences has painted its section"
+				// from "the tile is still the best we have".
+				const pointedAt = deps.findLayoutTarget();
 				const { windowId, wasAlreadyOpen } = deps.openLayoutSettings();
 				ignoreWindowId = windowId;
 				if ( windowId && ! wasAlreadyOpen ) {
@@ -284,7 +292,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 				// Relabel now; re-anchor onto the section once the app has
 				// painted it, which is a few frames away at best.
 				paint();
-				followLayoutTarget();
+				followLayoutTarget( pointedAt );
 				// Opening a window is not this card's completion signal —
 				// `os.window.opened` belongs to the card after it — and the
 				// card is not finished anyway: the user still has to look.
@@ -406,22 +414,32 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	};
 
 	/**
-	 * Re-anchor the layout card onto the Desktop layout section as soon
-	 * as Preferences has painted it and its page is showing. The
-	 * coachmark positions when its anchor is set and does not follow a
-	 * scroll, so this waits for the scroll to have landed rather than
-	 * pointing at where the section was.
+	 * Re-anchor the layout card once the target MOVES ON — from the tile
+	 * that opens Preferences to the Desktop layout section itself.
+	 *
+	 * Waiting for a target to merely exist would return on the first
+	 * frame, because the tile is already there; the card would then
+	 * stay pinned to the dock while the section it is talking about sat
+	 * open behind it. The coachmark positions when its anchor is set
+	 * and does not follow a scroll, so this waits for the section to be
+	 * painted, its page showing and the reveal scrolled, then points.
 	 */
-	const followLayoutTarget = ( framesLeft = 60 ): void => {
+	const followLayoutTarget = (
+		previous: Element | null,
+		framesLeft = 60,
+	): void => {
 		if ( ended || 'layout' !== steps[ index ]?.id ) {
 			return;
 		}
-		if ( deps.findLayoutTarget() ) {
+		const target = deps.findLayoutTarget();
+		if ( target && target !== previous ) {
 			paint();
 			return;
 		}
 		if ( framesLeft > 0 ) {
-			requestAnimationFrame( () => followLayoutTarget( framesLeft - 1 ) );
+			requestAnimationFrame( () =>
+				followLayoutTarget( previous, framesLeft - 1 ),
+			);
 		}
 	};
 

@@ -5202,7 +5202,16 @@ function init(): void {
 			revealSettingsSection( LAYOUT_SECTION_ID );
 			return { windowId: OS_SETTINGS_WINDOW_ID, wasAlreadyOpen };
 		},
-		findLayoutTarget: () => visibleSettingsSection( LAYOUT_SECTION_ID ),
+		// Where the layout settings are, right now: the Desktop layout
+		// section once Preferences is showing it, and before that the
+		// System tile, which is the dock's route to Preferences. Null
+		// when neither is on screen (a user may hide the tile), and the
+		// tour falls back to the rail.
+		findLayoutTarget: () =>
+			visibleSettingsSection( LAYOUT_SECTION_ID ) ??
+			document.querySelector(
+				`.os-dock__item[data-system-id="${ SYSTEM_TILE_ID }"]`,
+			),
 		closeWindow: ( id: string ) => manager.getById( id )?.close(),
 		closePalette: () => {
 			const palette = listPalettes().find(

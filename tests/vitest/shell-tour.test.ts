@@ -239,10 +239,19 @@ describe( 'shell tour', () => {
 		await settle();
 		expect( mark().getAttribute( 'heading' ) ).toBe( 'All your menu items are here' );
 		expect( mark().anchor ).toBe( dock );
+		// The menus card always points at the rail; only the layout card
+		// follows `findLayoutTarget`.
+		expect( deps.findLayoutTarget ).toBeDefined();
+
+		// Before the card opens anything, the target is the way IN to
+		// Preferences (the System tile), not the whole rail.
+		const systemTile = document.createElement( 'div' );
+		document.body.appendChild( systemTile );
+		layoutTarget = systemTile;
 
 		primary().click();
 		expect( mark().getAttribute( 'heading' ) ).toBe( 'Configure the layout as you wish' );
-		expect( mark().anchor ).toBe( dock );
+		expect( mark().anchor ).toBe( systemTile );
 		expect( mark().getAttribute( 'primary-label' ) ).toBe( 'Show me' );
 		expect( deps.openLayoutSettings ).not.toHaveBeenCalled();
 
@@ -353,6 +362,29 @@ describe( 'shell tour', () => {
 		endShellTour();
 		// `teardown` is not the user finishing, so nothing is tidied either.
 		expect( deps.closeWindow ).not.toHaveBeenCalled();
+	} );
+
+	test( 'the layout card waits for the section, not just for any target', async () => {
+		// Preferences paints a frame or more after the click, so until it
+		// does, `findLayoutTarget` keeps answering with the tile. Waiting
+		// for a target to merely EXIST returned on the first frame and
+		// left the card pinned to the dock.
+		const systemTile = document.createElement( 'div' );
+		const section = document.createElement( 'div' );
+		document.body.append( systemTile, section );
+		layoutTarget = systemTile;
+
+		startShellTour( deps );
+		await settle();
+		primary().click(); // -> layout card
+		primary().click(); // Show me: Preferences has not painted yet
+		expect( mark().anchor ).toBe( systemTile );
+
+		// Preferences paints; the card moves onto the section.
+		layoutTarget = section;
+		await new Promise( ( resolve ) => requestAnimationFrame( () => resolve( null ) ) );
+		await settle();
+		expect( mark().anchor ).toBe( section );
 	} );
 
 	test( 'the boot gate yields to other announcements and the phone layer', () => {
