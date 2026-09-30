@@ -4,7 +4,7 @@
 [`javascript-reference.md`](../javascript-reference.md#wposregisterwindowaction--experimental).*
 
 The ⋯ menu in every window's title bar is where infrequent, wordy,
-per-window verbs live — "Open in browser tab", "Open on startup",
+per-window verbs live — "Open in classic wp-admin", "Open on startup",
 "Reload". `wp.os.registerWindowAction()` lets your plugin put a row
 there too.
 

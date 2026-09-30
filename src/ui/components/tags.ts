@@ -44,6 +44,7 @@ export const OS_COMPONENT_TAGS = [
 	'os-role-picker',
 	'os-flyout',
 	'os-coachmark',
+	'os-tooltip',
 	'os-tab-chip',
 	'os-stack',
 	'os-cluster',

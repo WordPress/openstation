@@ -47,6 +47,8 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		_isDestroyed: false,
 		_closePending: false,
 		_iframeCloseTimeout: null,
+		_hasExplicitTitle: false,
+		config: { titleFromPage: false, title: '' } as Window[ 'config' ],
 		// Activity surface — the bridge brackets iframe requests onto
 		// the title-bar status ring, and resets on every new document.
 		_markActivityStart: vi.fn(),
@@ -146,6 +148,36 @@ describe( 'iframe-bridge: os-ready', () => {
 		expect( win._settleNavigationActivity ).toHaveBeenCalledWith();
 		expect( win._resetActivity ).not.toHaveBeenCalled();
 		expect( win._markActivityStart ).not.toHaveBeenCalled();
+	} );
+
+	test( 'clears the explicit-title flag so adoptPageTitle may run on the next page', () => {
+		const iframe = document.createElement( 'iframe' );
+		// Simulate a document title so adoptPageTitle has something to read.
+		Object.defineProperty( iframe, 'contentDocument', {
+			get: () => ( { title: 'My Page ‹ Site — WordPress' } ),
+		} );
+		const win = mockWindow( {
+			iframe,
+			config: { titleFromPage: true, title: 'Order #1 · John Smith' } as Window[ 'config' ],
+		} );
+
+		// The window explicitly changes its title.
+		postToWindow( win, { type: 'os-title-change', title: 'Order #1 · John Smith' } );
+		expect( win._hasExplicitTitle ).toBe( true );
+		expect( win.setTitle ).toHaveBeenCalledWith( 'Order #1 · John Smith' );
+		vi.mocked( win.setTitle ).mockClear();
+
+		// Flag is set — adoptPageTitle must be a no-op.
+		adoptPageTitle( win );
+		expect( win.setTitle ).not.toHaveBeenCalled();
+
+		// Navigation lands — flag must clear.
+		postToWindow( win, { type: 'os-iframe-navigated' } );
+		expect( win._hasExplicitTitle ).toBe( false );
+
+		// Now adoptPageTitle should adopt the page's own title.
+		adoptPageTitle( win );
+		expect( win.setTitle ).toHaveBeenCalledWith( 'My Page' );
 	} );
 } );
 

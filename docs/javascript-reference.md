@@ -1094,13 +1094,13 @@ Calling `open()` with an id (or `baseId`) that's already on screen focuses the e
 
 **Submenu picks don't take this door.** A dock tile click is an `open()` and behaves as described above: it focuses the menu's open window, and opens one when there is none. Picking a *child* page — a flyout row, a custom rail renderer's `openSubmenuPick` — calls `openNew()` instead, so *Posts → Add New Post* opens a second Posts window beside the draft already open rather than pulling that one onto the new-post page. The tile is the way back to a window you have; the submenu is how you ask for another.
 
-**Title-bar actions menu.** Every window — iframe *and* native — renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
+**Title-bar actions menu.** Every window — iframe *and* native — renders a three-dots actions menu on the leading edge of its title bar. Hovering the button (or reaching it with the keyboard) shows a tooltip naming the menu and listing the rows that window offers, plugin rows from `wp.os.registerWindowAction()` included. Built-in items:
 
 - **"Open on startup"** — checkable; toggles this window as the user's default-window preference. Both window types.
 - **"Open another <Page>"** — only when the window was opened with `multi: true`. Calls `openNew()` with the window's *original* landing URL.
 - **"Open in new window"** — iframe windows only. Opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
 - **"Reload"** — both window types; see below.
-- **"Open in browser tab"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab. A native window has no URL to hand off.
+- **"Open in classic wp-admin"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab. A native window has no URL to hand off.
 
 **Reload is common to both window types.** "Put this back the way it loaded" is the same intent whether the content came from an admin page or from a plugin's render callback, so `Window.reload()` and its ⋯ row work on native windows too.
 
@@ -4690,7 +4690,7 @@ Posted from the **head** of every chromeless document, before the body renders. 
 { type: 'os-iframe-navigated' }
 ```
 
-It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting.
+It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting, and clears the explicit-title flag so a subsequent `adoptPageTitle()` call can adopt the new page's own name.
 
 #### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).

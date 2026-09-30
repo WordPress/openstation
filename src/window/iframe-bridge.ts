@@ -160,6 +160,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	if ( data.type === 'os-title-change' && typeof data.title === 'string' ) {
+		win._hasExplicitTitle = true;
 		win.setTitle( data.title );
 	}
 
@@ -211,6 +212,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	// of `os-ready` below, which is a footer script. Only a window
 	// waiting on a submit has anything to do with it.
 	if ( data.type === 'os-iframe-navigated' ) {
+		win._hasExplicitTitle = false;
 		win._settleNavigationActivity();
 	}
 
@@ -1138,7 +1140,7 @@ export function handleFinishedScreenHandoff(
  * {@link WindowConfig.titleFromPage}.
  */
 export function adoptPageTitle( win: Window ): void {
-	if ( ! win.config.titleFromPage ) {
+	if ( ! win.config.titleFromPage || win._hasExplicitTitle ) {
 		return;
 	}
 	let documentTitle = '';

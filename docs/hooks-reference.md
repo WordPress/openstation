@@ -670,7 +670,7 @@ add_filter( 'openstation_window_content_identity', function ( $identity, $screen
 }, 10, 2 );
 ```
 
-After this filter resolves, the builder attaches a `related` key — the navigation targets behind the title bar's "Related" button — via the `openstation_window_related_entities` filter below. Identities may ship their own `related` array; it is folded into that pass and sanitized with everything else.
+After this filter resolves, the builder decodes `label` to plain text (entities decoded, tags stripped), so `get_the_title()` output can go in as is: the shell paints it as text, in tie tooltips and in the titles of the windows it opens (Preview, Revisions). It then attaches a `related` key — the navigation targets behind the title bar's "Related" button — via the `openstation_window_related_entities` filter below. Identities may ship their own `related` array; it is folded into that pass and sanitized with everything else.
 
 Post-editor identities also carry a `previewUrl` key — the front-end preview link behind the title bar's "Preview" (eye) button, built by `openstation_window_preview_url()` **before** this filter runs (so you can inspect or strip it here) — and a `revisionsUrl` / `revisionCount` pair, the revision browser behind the ⋯ menu's "View revisions" row, built by `openstation_window_revisions()` in the same pass. The client engine only accepts same-origin values for both URLs, and drops `revisionCount` when `revisionsUrl` doesn't survive.
 
@@ -721,7 +721,7 @@ add_filter( 'openstation_window_related_entities', function ( $related, $identit
 }, 10, 3 );
 ```
 
-Malformed entries (missing/empty `id`, `group`, `label`, or `url`) are dropped before the payload is announced, and unknown fields are stripped — one bad entry can't invalidate the whole identity client-side. The client-side counterpart is the `os.related-entities.items` JS filter (see [javascript-reference](./javascript-reference.md)); a recipe lives in [`docs/examples/related-entities.md`](./examples/related-entities.md).
+`label` and `groupLabel` are decoded to plain text first (entities decoded, tags stripped), so `get_the_title()` or a term name can go in as is; the label also titles the window the item opens. Malformed entries (missing/empty `id`, `group`, `label`, or `url`) are then dropped before the payload is announced, and unknown fields are stripped — one bad entry can't invalidate the whole identity client-side. The client-side counterpart is the `os.related-entities.items` JS filter (see [javascript-reference](./javascript-reference.md)); a recipe lives in [`docs/examples/related-entities.md`](./examples/related-entities.md).
 
 ---
 
