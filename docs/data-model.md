@@ -261,7 +261,6 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `desktop_mode_pwa_state` | PWA | Install / prompt state. |
 | `desktop_mode_seen_intros` | Onboarding | Intros already shown. |
 | `desktop_mode_rebrand_notice` | Onboarding | Rebrand notice dismissed. |
-| `openstation_enabled_at` | First run | Epoch seconds of the user's first enable; absent until then. Written by `openstation_record_user_enabled()` from the admin-bar toggle and the portal. |
 | `desktop_mode_game_playtime` | Games | Lifetime play time per game. |
 | `desktop_mode_game_playtime_days` | Games | Play time per day (rolling window). |
 | `openstation_station_home_card_preferences` | Station Home | Which home cards are shown or hidden. |

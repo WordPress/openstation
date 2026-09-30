@@ -960,28 +960,6 @@ do_action( 'openstation_oauth_relay_connected', string $service, int $user_id );
 
 ---
 
-### `openstation_user_enabled` — Stable
-
-Fires when a user turns OpenStation on, from either of the two paths that do so: the admin-bar toggle (`openstation_ajax_save()`) and the `/openstation/` portal's auto-enable. Runs after the first-run stamps are written — `openstation_enabled_at` on the user (their first enable) and `openstation_first_enabled_at` on the site (the site's first enable, any user) — so a listener can read them.
-
-```php
-do_action( 'openstation_user_enabled', int $user_id, bool $first_on_site );
-```
-
-`$first_on_site` is `true` exactly once per site: the enable that turned an install into an activated install. The action itself fires on every enable, not only a user's first; compare `openstation_get_user_enabled_at( $user_id )` with `time()` for that.
-
----
-
-### `openstation_user_disabled` — Stable
-
-Fires when a user turns OpenStation off through the admin-bar toggle. No stamp changes: the enabled-at stamps are "first time" facts and survive a switch back to classic.
-
-```php
-do_action( 'openstation_user_disabled', int $user_id );
-```
-
----
-
 ### `openstation_chromeless_after` — Stable
 Fires in the `admin_footer` of chromeless iframe requests. Receives the current admin page's `$hook_suffix`.
 
