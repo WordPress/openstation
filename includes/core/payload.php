@@ -349,6 +349,9 @@ function openstation_build_dock_items() {
 			$sub_entry = array(
 				'title' => $sub_title,
 				'url'   => $sub_url,
+				// The registered slug, kept for the window-tab merge
+				// below and stripped again before the payload ships.
+				'slug'  => (string) $row['slug'],
 			);
 			if ( $row['external'] ) {
 				// Consumers that route a URL into a window skip these;
@@ -398,6 +401,45 @@ function openstation_build_dock_items() {
 		// worse tile than no tile.
 		if ( $parent_is_container && $url === $parent_url ) {
 			continue;
+		}
+
+		// A native window in charge of this menu owns its rows too:
+		// whatever it offers as a tab, the dock offers as a row, same
+		// labels and same order, each one tagged with the tab it
+		// opens. The first tab IS the menu's own page, so it becomes
+		// the self-label rather than a second row for the tile's own
+		// destination. See `App::menu()`.
+		$window_tabs = openstation_app_menu_tabs( $identity_slug );
+		if ( $window_tabs ) {
+			$self_label = $window_tabs[0]['label'];
+			$claimed    = array();
+			foreach ( $window_tabs as $tab ) {
+				if ( '' !== $tab['page'] ) {
+					$claimed[] = $tab['page'];
+				}
+			}
+			// A page this window has no tab for is still a page: a
+			// plugin's screen registered under this menu, a taxonomy
+			// someone added. Dropping those would make them
+			// unreachable from the dock, so they follow the window's
+			// own rows rather than being replaced by them.
+			$kept = array();
+			foreach ( $sub_items as $sub_entry ) {
+				if ( ! in_array( $sub_entry['slug'], $claimed, true ) ) {
+					$kept[] = $sub_entry;
+				}
+			}
+			$sub_items = array();
+			foreach ( array_slice( $window_tabs, 1 ) as $tab ) {
+				$sub_items[] = array(
+					'title' => $tab['label'],
+					'url'   => add_query_arg( 'os_tab', $tab['id'], $url ),
+				);
+			}
+			$sub_items = array_merge( $sub_items, $kept );
+		}
+		foreach ( $sub_items as $i => $sub_entry ) {
+			unset( $sub_items[ $i ]['slug'] );
 		}
 
 		$dock_item = array(
@@ -731,10 +773,11 @@ function openstation_dock_item_is_multi( $menu_slug ) {
 	/**
 	 * Filters whether a dock item supports multiple open windows.
 	 *
-	 * Return true to let the user open more than one window of this page.
-	 * A "+" affordance appears on the dock icon and a "Open another" action
-	 * becomes available in the window's title-bar menu. Singletons (false)
-	 * always focus the existing window when re-opened.
+	 * Return true to advertise this page as multi-capable: an instance
+	 * rail appears under the dock icon and an "Open another" action
+	 * becomes available in the window's title-bar menu. It does not gate
+	 * the submenu, which opens a window of its own on every pick either
+	 * way; a tile click focuses the menu's open window.
 	 *
 	 * @param bool   $multi     Whether this page is multi-capable.
 	 * @param string $menu_slug The menu slug (e.g. `edit.php?post_type=page`).
@@ -1679,6 +1722,11 @@ function openstation_build_menu_payload() {
 	// openstation_menu_signature().
 	$payload['menuSig'] = openstation_menu_signature();
 
+	// Each script dependency's payload once, entries carry handles.
+	$script_dep_payloads          = array();
+	$payload                      = openstation_compact_script_deps( $payload, $script_dep_payloads );
+	$payload['scriptDepPayloads'] = (object) $script_dep_payloads;
+
 	return $payload;
 }
 
@@ -1897,6 +1945,100 @@ function openstation_resolve_script_dependencies( $handle ) {
 		$out[]             = $payload;
 	}
 	return $out;
+}
+
+/**
+ * Move every entry's `scriptDeps` payloads into one map.
+ *
+ * {@see openstation_resolve_script_dependencies()} returns the full
+ * payload of each dependency (URL, l10n, before/after), and ~20 entry
+ * builders call it. A dependency shared by N entries was therefore
+ * serialized N times: one plugin's 5.5 KB localized object became
+ * ~400 KB of a 489 KB `openStationConfig` (GH#892). This replaces each
+ * entry's `scriptDeps` list with its handles and puts each handle's
+ * payload in `$map` once. The shell resolves the handles back before
+ * any consumer reads them; see `src/script-dep-payloads.ts`.
+ *
+ * ENTRY DEPTH ONLY. `$payload` is a payload whose top-level values are
+ * entry lists (`serverWidgets`, `serverCommandScripts`, ...), and only
+ * a `scriptDeps` sitting directly on one of those entries is touched.
+ * The key is the shell's there. Deeper down it is a plugin's metadata
+ * (`settings => [ 'scriptDeps' => ... ]`), and rewriting it would hoist
+ * foreign data into the map first-wins and hydrate every real
+ * dependency of that handle to it. Scoping by depth rather than by a
+ * list of keys means a new builder is covered without an edit here.
+ * It also leaves every other branch of the payload unassigned, so
+ * PHP's copy-on-write never has to copy them.
+ *
+ * Every string left in a compacted list has an entry in `$map`: a bare
+ * handle a builder (or a filter on one) emitted is resolved here, by
+ * the same rule as {@see openstation_resolve_script_dependencies()}.
+ * A handle with nothing to fetch and nothing to run is dropped, as it
+ * is there. The client can then treat a string with no map entry as a
+ * payload from somewhere else, not a dependency this side dropped.
+ *
+ * Runs on the finished payload, so every builder, and every filter on
+ * a builder's output, still sees the full shape.
+ *
+ * @param array $payload Payload whose top-level values are entry lists.
+ * @param array $map     Handle => dependency payload, filled in place.
+ * @return array The payload with each entry's `scriptDeps` reduced to handles.
+ */
+function openstation_compact_script_deps( $payload, array &$map ) {
+	if ( ! is_array( $payload ) ) {
+		return $payload;
+	}
+	foreach ( $payload as $list_key => $entries ) {
+		if ( ! is_array( $entries ) ) {
+			continue;
+		}
+		foreach ( $entries as $entry_key => $entry ) {
+			if ( ! is_array( $entry ) || ! isset( $entry['scriptDeps'] ) || ! is_array( $entry['scriptDeps'] ) ) {
+				continue;
+			}
+			$payload[ $list_key ][ $entry_key ]['scriptDeps'] = openstation_compact_script_dep_list( $entry['scriptDeps'], $map );
+		}
+	}
+	return $payload;
+}
+
+/**
+ * One entry's `scriptDeps` list, reduced to handles.
+ *
+ * @param array $deps Dependency payloads and/or bare handles.
+ * @param array $map  Handle => dependency payload, filled in place.
+ * @return array Handles, in order; anything unkeyable passes through.
+ */
+function openstation_compact_script_dep_list( array $deps, array &$map ) {
+	$handles = array();
+	foreach ( $deps as $dep ) {
+		if ( is_string( $dep ) && '' !== $dep ) {
+			if ( ! isset( $map[ $dep ] ) ) {
+				$payload = openstation_resolve_script_payload( $dep );
+				if ( '' === $payload['url']
+					&& empty( $payload['before'] )
+					&& empty( $payload['after'] )
+					&& empty( $payload['l10n'] ) ) {
+					continue;
+				}
+				$payload['handle'] = $dep;
+				$map[ $dep ]       = $payload;
+			}
+			$handles[] = $dep;
+			continue;
+		}
+		if ( is_array( $dep ) && isset( $dep['handle'] ) && '' !== (string) $dep['handle'] ) {
+			$handle = (string) $dep['handle'];
+			if ( ! isset( $map[ $handle ] ) ) {
+				$map[ $handle ] = $dep;
+			}
+			$handles[] = $handle;
+			continue;
+		}
+		// A handle-less payload has nothing to key it by.
+		$handles[] = $dep;
+	}
+	return $handles;
 }
 
 /**
@@ -2634,6 +2776,7 @@ function openstation_collect_native_windows_payload() {
 			'styleInline'      => $style_payload['inline'],
 			'companionStyles'  => $companion_styles,
 			'tabs'             => $tab_descriptors,
+			'menuPages'        => isset( $entry['menu_pages'] ) ? array_values( (array) $entry['menu_pages'] ) : array(),
 		);
 	}
 

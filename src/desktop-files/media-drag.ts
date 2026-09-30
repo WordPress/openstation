@@ -26,6 +26,7 @@ import {
 	type UploadDragPayload,
 } from '../drag-bridge';
 import { showToast } from '../toast';
+import { toastRestFailure } from '../core/rest-failure';
 import { addUploadToMediaLibrary } from './rest';
 import type { DesktopFileShape } from './types';
 
@@ -65,11 +66,6 @@ export function uploadBridgePayload(
 	};
 }
 
-function errorMessage( err: unknown ): string {
-	const raw = err instanceof Error ? err.message : String( err );
-	return raw.replace( /^\[openstation\] files REST \d+: \S+ /, '' );
-}
-
 /**
  * Copy the stored file into the Media Library and describe the
  * attachment the way a media surface would. `null` (after a toast)
@@ -95,9 +91,7 @@ export async function resolveUploadPayload(
 			thumbnailUrl: payload.thumbnailUrl,
 		};
 	} catch ( err ) {
-		showToast( {
-			message: `Could not add to the Media Library: ${ errorMessage( err ) }`,
-		} );
+		toastRestFailure( showToast, err, { lead: `Could not add to the Media Library`, fallback: `Could not add to the Media Library.` } );
 		return null;
 	}
 }

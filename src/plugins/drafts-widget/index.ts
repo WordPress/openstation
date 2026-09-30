@@ -19,6 +19,9 @@ import '../../ui/components/os-notice/os-notice';
 import '../../ui/components/os-spinner/os-spinner';
 import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
+import { RestError, restErrorFromResponse } from '../../core/api-client';
+import { describeRestFailure, toastRestFailure } from '../../core/rest-failure';
+import { shellToast } from '../../core/shell-toast';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { startVisibilityAwarePoller } from '../../widgets/poller';
 import { adminBaseUrl as adminUrl, decodeHTML } from '../../utils';
@@ -30,7 +33,6 @@ interface DesktopApi {
 		confirmLabel?: string;
 		danger?: boolean;
 	} ): Promise< boolean >;
-	showToast?( opts: { message: string; type?: string } ): unknown;
 }
 
 function desktopApi(): DesktopApi | undefined {
@@ -57,13 +59,15 @@ function currentUserId(): number {
 }
 
 /** Move a draft to the Trash (reversible — not a permanent delete). */
-async function trashDraft( id: number ): Promise< boolean > {
+async function trashDraft( id: number ): Promise< void > {
 	const res = await trackedFetch(
 		`${ restRoot() }/wp/v2/posts/${ id }`,
 		{ method: 'DELETE', credentials: 'same-origin' },
 		{ source: 'desktop-mode/drafts' },
 	);
-	return res.ok;
+	if ( ! res.ok ) {
+		throw await restErrorFromResponse( res );
+	}
 }
 
 interface DraftSuggestions {
@@ -97,31 +101,27 @@ function aiAvailable(): boolean {
  */
 type SuggestionsFailure = 'no-provider' | 'quota' | 'auth' | 'unavailable' | 'other';
 
-class SuggestionsError extends Error {
+class SuggestionsError extends RestError {
 	readonly reason: SuggestionsFailure;
 
-	constructor( reason: SuggestionsFailure, status: number ) {
-		super( `HTTP ${ status }` );
-		this.reason = reason;
+	constructor( base: RestError ) {
+		super( base.message, {
+			status: base.status,
+			code: base.code,
+			data: base.data,
+			serverMessage: base.serverMessage,
+		} );
+		this.name = 'SuggestionsError';
+		this.reason = suggestionsFailure( base );
 	}
 }
 
-/** Read the reason out of a failed `/draft-suggestions` response body. */
-async function readSuggestionsFailure( res: Response ): Promise< SuggestionsFailure > {
-	interface FailureBody {
-		code?: unknown;
-		data?: { reason?: unknown };
-	}
-	let body: FailureBody | null = null;
-	try {
-		body = ( await res.json() ) as FailureBody;
-	} catch {
-		body = null;
-	}
-	if ( body?.code === 'openstation_ai_unavailable' ) {
+/** Read the reason out of a failed `/draft-suggestions` answer. */
+function suggestionsFailure( err: RestError ): SuggestionsFailure {
+	if ( err.code === 'openstation_ai_unavailable' ) {
 		return 'no-provider';
 	}
-	const reason = body?.data?.reason;
+	const reason = ( err.data as { reason?: unknown } | undefined )?.reason;
 	return reason === 'quota' || reason === 'auth' || reason === 'unavailable'
 		? reason
 		: 'other';
@@ -139,7 +139,7 @@ async function fetchSuggestions( id: number ): Promise< DraftSuggestions > {
 		{ source: 'desktop-mode/drafts' },
 	);
 	if ( ! res.ok ) {
-		throw new SuggestionsError( await readSuggestionsFailure( res ), res.status );
+		throw new SuggestionsError( await restErrorFromResponse( res ) );
 	}
 	return res.json() as Promise< DraftSuggestions >;
 }
@@ -163,7 +163,7 @@ interface ApplyFields {
 async function applyDraftField(
 	id: number,
 	fields: ApplyFields,
-): Promise< boolean > {
+): Promise< void > {
 	const res = await trackedFetch(
 		`${ restRoot() }/desktop-mode/v1/draft-apply`,
 		{
@@ -174,11 +174,9 @@ async function applyDraftField(
 		},
 		{ source: 'desktop-mode/drafts' },
 	);
-	return res.ok;
-}
-
-function toast( message: string, type?: 'error' ): void {
-	desktopApi()?.showToast?.( type ? { message, type } : { message } );
+	if ( ! res.ok ) {
+		throw await restErrorFromResponse( res );
+	}
 }
 
 /**
@@ -349,9 +347,9 @@ function applyButton(
 			return;
 		}
 		btn.setAttribute( 'busy', '' );
-		void applyDraftField( id, fields ).then( ( ok ) => {
-			btn.removeAttribute( 'busy' );
-			if ( ok ) {
+		void applyDraftField( id, fields )
+			.then( () => {
+				btn.removeAttribute( 'busy' );
 				btn.setAttribute( 'aria-disabled', 'true' );
 				btn.classList.add( 'is-applied' );
 				const check = document.createElement( 'span' );
@@ -367,10 +365,13 @@ function applyButton(
 				applied.textContent = __( 'applied' );
 				btn.appendChild( applied );
 				onOk?.();
-			} else {
-				toast( __( 'Could not apply the suggestion.' ), 'error' );
-			}
-		} );
+			} )
+			.catch( ( err: unknown ) => {
+				btn.removeAttribute( 'busy' );
+				toastRestFailure( shellToast, err, {
+					fallback: __( 'Could not apply the suggestion.' ),
+				} );
+			} );
 	} );
 	return btn;
 }
@@ -446,7 +447,7 @@ function renderSuggestions(
 					if ( name ) {
 						name.textContent = t;
 					}
-					toast( __( 'Title updated.' ) );
+					shellToast( { message: __( 'Title updated.' ) } );
 				} ),
 			);
 		}
@@ -459,7 +460,7 @@ function renderSuggestions(
 				data.excerpt,
 				'dm-drafts__suggest-item',
 				{ excerpt: data.excerpt },
-				() => toast( __( 'Excerpt updated.' ) ),
+				() => shellToast( { message: __( 'Excerpt updated.' ) } ),
 			),
 		);
 	}
@@ -474,7 +475,7 @@ function renderSuggestions(
 					tag,
 					'dm-drafts__suggest-tag',
 					{ tags: [ tag ] },
-					() => toast( __( 'Tag added.' ) ),
+					() => shellToast( { message: __( 'Tag added.' ) } ),
 				),
 			);
 		}
@@ -491,7 +492,7 @@ function renderSuggestions(
 					cat,
 					'dm-drafts__suggest-tag',
 					{ categories: [ cat ] },
-					() => toast( __( 'Category added.' ) ),
+					() => shellToast( { message: __( 'Category added.' ) } ),
 				),
 			);
 		}
@@ -564,7 +565,7 @@ async function fetchDrafts(): Promise< DraftRow[] > {
 		{ source: 'desktop-mode/drafts', silent: true },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `HTTP ${ res.status }` );
+		throw await restErrorFromResponse( res );
 	}
 	return res.json() as Promise< DraftRow[] >;
 }
@@ -624,7 +625,7 @@ function rowAction(
 function renderList(
 	container: HTMLElement,
 	drafts: DraftRow[] | null,
-	error: boolean,
+	error: string | null,
 	onChange: () => void,
 ): void {
 	container.innerHTML = '';
@@ -647,7 +648,7 @@ function renderList(
 	if ( error ) {
 		const err = document.createElement( 'div' );
 		err.className = 'dm-drafts__empty';
-		err.textContent = __( 'Could not load drafts.' );
+		err.textContent = error;
 		container.appendChild( err );
 		return;
 	}
@@ -763,17 +764,13 @@ async function onTrash(
 	// Optimistic: dim the row while the request is in flight.
 	row.classList.add( 'is-trashing' );
 	try {
-		const done = await trashDraft( draft.id );
-		if ( ! done ) {
-			throw new Error( 'trash failed' );
-		}
-		api?.showToast?.( { message: __( 'Draft moved to Trash.' ) } );
+		await trashDraft( draft.id );
+		shellToast( { message: __( 'Draft moved to Trash.' ) } );
 		onChange();
-	} catch {
+	} catch ( err ) {
 		row.classList.remove( 'is-trashing' );
-		api?.showToast?.( {
-			message: __( 'Could not move the draft to Trash.' ),
-			type: 'error',
+		toastRestFailure( shellToast, err, {
+			fallback: __( 'Could not move the draft to Trash.' ),
 		} );
 	}
 }
@@ -856,7 +853,7 @@ function restoreFocus( container: HTMLElement, mark: FocusMark | null ): void {
 function render(
 	container: HTMLElement,
 	drafts: DraftRow[] | null,
-	error: boolean,
+	error: string | null,
 	onChange: () => void,
 ): void {
 	const mark = markFocus( container );
@@ -882,11 +879,16 @@ const mount = async (
 		try {
 			const drafts = await fetchDrafts();
 			if ( ! destroyed ) {
-				render( container, drafts, false, refresh );
+				render( container, drafts, null, refresh );
 			}
-		} catch {
+		} catch ( err ) {
 			if ( ! destroyed ) {
-				render( container, null, true, refresh );
+				render(
+					container,
+					null,
+					describeRestFailure( err, { fallback: __( 'Could not load drafts.' ) } ).message,
+					refresh,
+				);
 			}
 		}
 	};

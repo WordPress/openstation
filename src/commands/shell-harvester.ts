@@ -71,6 +71,21 @@ const SITE_EDITOR_INTENT_RE = /getSiteEditorPage\s*\(|site-editor\.php/;
 const SITE_EDITOR_NAME_RE = /^(wp_template_part|wp_template|wp_navigation|wp_block)-(.+)$/;
 
 /**
+ * What picking a site-editor entity command does, shown as the row's
+ * description. Core labels these with the entity's bare title ("Page:
+ * 404", "Footer"), which says what the row is but not what it opens.
+ */
+function siteEditorDescription( name: string ): string | undefined {
+	const type = name.match( SITE_EDITOR_NAME_RE )?.[ 1 ];
+	return {
+		wp_template: __( 'Edit template' ),
+		wp_template_part: __( 'Edit template part' ),
+		wp_navigation: __( 'Edit navigation menu' ),
+		wp_block: __( 'Edit pattern' ),
+	}[ type ?? '' ];
+}
+
+/**
  * Look up a command name in the stashed `menu_commands` array (set by
  * `includes/render/assets.php` as an inline script before our bundle).
  * Each entry has shape `{ label, url, name }`. Returns the full entry
@@ -419,6 +434,7 @@ export class ShellCommandHarvester {
 			const def: DesktopCommand = {
 				slug,
 				label: c.label,
+				description: c.kind === 'navigate' ? siteEditorDescription( c.name ) : undefined,
 				icon,
 				iconSvg: c.iconSvg && c.iconSvg !== '' ? sanitizeIconSvg( c.iconSvg ) : undefined,
 				owner: OWNER,

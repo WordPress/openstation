@@ -9,6 +9,7 @@
 import type { WindowConfig } from '../types';
 import { urlMatchKey } from '../utils';
 import { isShellDocumentUrl } from '../shell-url';
+import { OS_TAB_PARAM } from '../native-url-remap';
 import { paintThemedControlIcon } from '../window-chrome/controls/paint-themed-icon';
 import { __, sprintf } from '../i18n';
 // Side-effect import — registers `<os-spinner>` so the loading
@@ -178,6 +179,19 @@ const INITIAL_ORIGIN = window.location.origin;
  * passes through here, which makes it the one gate that keeps the
  * desktop from booting a second desktop inside a window.
  */
+/**
+ * Whether a submenu row is a native window's tab rather than a page
+ * of its own — the `os_tab` tag the dock's rows carry for a menu a
+ * window is in charge of. See `App::menu()`.
+ */
+function namesAnotherWindowsTab( url: string ): boolean {
+	try {
+		return new URL( url, INITIAL_ORIGIN ).searchParams.has( OS_TAB_PARAM );
+	} catch {
+		return false;
+	}
+}
+
 export function withChromelessParam( url: string ): string | null {
 	const parsed = new URL( url, INITIAL_ORIGIN );
 	if ( parsed.origin !== INITIAL_ORIGIN ) {
@@ -443,18 +457,18 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// Leading menu button — sits before the icon + title. Rendered for
 	// every window, native or iframe; per-item gating below decides
 	// which actions actually apply. Native windows skip "Open in
-	// browser tab" since they have no admin URL to hand off.
+	// classic wp-admin" since they have no admin URL to hand off.
 	//
 	// Items in order:
-	//   - Open on startup        — checkable, marks this window as
-	//                              the default-window preference.
-	//   - Open another <Page>    — only when `config.multi`.
-	//   - Open in new window     — opens the current iframe URL as a
-	//                              fresh sibling.
-	//   - Reload                 — reloads the iframe, or re-runs the
-	//                              render callback of a native window.
-	//   - Open in browser tab    — detach to a classic admin tab.
-	//                              Iframe-only — skipped for native.
+	//   - Open on startup          — checkable, marks this window as
+	//                                the default-window preference.
+	//   - Open another <Page>      — only when `config.multi`.
+	//   - Open in new window       — opens the current iframe URL as a
+	//                                fresh sibling.
+	//   - Reload                   — reloads the iframe, or re-runs the
+	//                                render callback of a native window.
+	//   - Open in classic wp-admin — detach to a classic admin tab.
+	//                                Iframe-only — skipped for native.
 	const menuBtn = document.createElement( 'os-window-button' );
 	menuBtn.setAttribute( 'icon', 'menu' );
 	// Themed override for the ⋯ glyph. Goes through the same helper
@@ -546,7 +560,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	}
 
 	if ( ! config.native ) {
-		// "Open in browser tab" — was the title bar's detach button.
+		// "Open in classic wp-admin" — was the title bar's detach button.
 		// Strips chromeless params and opens the page in a classic
 		// admin tab. Iframe-only — native windows have no URL to
 		// hand off to the browser.
@@ -556,7 +570,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		openExternal.setAttribute( 'icon', 'dashicons-external' );
 		openExternal.classList.add( 'os-window__menu-item' );
 		openExternal.classList.add( 'os-window__menu-item--open-external' );
-		openExternal.textContent = __( 'Open in browser tab' );
+		openExternal.textContent = __( 'Open in classic wp-admin' );
 		menuPanel.appendChild( openExternal );
 	}
 
@@ -858,8 +872,17 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// this window's iframe, and the remote origin refuses the
 		// frame. They stay in the constellation flyout, which can hand
 		// a link to the browser.
+		//
+		// Neither do a native window's own tabs. When a window is in
+		// charge of a menu (`App::menu()`), the dock's rows for that
+		// menu ARE its tabs, tagged `os_tab`, and they mean nothing
+		// inside an iframe of a classic page: the URL renders the
+		// menu's landing page whatever the tag says, and the click
+		// would reach into the OTHER window to switch its tab. A strip
+		// navigates the window it belongs to; a row only another
+		// window can satisfy is not this window's tab.
 		const tabSubmenu = ( config.submenu ?? [] ).filter(
-			( s ) => ! s.offSite,
+			( s ) => ! s.offSite && ! namesAnotherWindowsTab( s.url ),
 		);
 
 		if ( tabSubmenu.length > 0 && config.url ) {

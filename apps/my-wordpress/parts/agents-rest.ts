@@ -12,6 +12,7 @@
 
 import { agentRequestId, runAgentJob } from '../../../src/agents-jobs';
 import { trackedFetch } from '../../../src/tracked-fetch';
+import { restErrorFromBody } from '../../../src/core/api-client';
 import type {
 	AgentDraft,
 	Ability,
@@ -59,16 +60,9 @@ async function request< T >(
 		},
 		SOURCE,
 	);
-	const body = ( await res.json().catch( () => null ) ) as
-		| ( T & { message?: string } )
-		| { message?: string }
-		| null;
+	const body = ( await res.json().catch( () => null ) ) as T | null;
 	if ( ! res.ok ) {
-		const message =
-			body && typeof body === 'object' && typeof body.message === 'string'
-				? body.message
-				: `HTTP ${ res.status }`;
-		throw new Error( message );
+		throw restErrorFromBody( res.status, body );
 	}
 	return body as T;
 }

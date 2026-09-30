@@ -48,6 +48,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `windowManager` | `WindowManager` instance | Stable |
 | `openWindow` | `( id: string, opts?: { source?: string } ) => boolean` | Stable |
 | `openNewWindow` | `( id: string, opts?: { source?: string } ) => boolean` *(always spawns a new instance)* | Stable |
+| `embedAdminPage` | `( host: HTMLElement, url: string, opts?: { windowId?: string } ) => () => void` *(a wp-admin screen inside a native window's body)* | Stable |
 | `registerWindow` | `( def: NativeWindowDef ) => Promise<Window>` | Stable *(returns a `Promise`)* |
 | `cloneTemplate` | `( templateOrId: string \| HTMLTemplateElement ) => DocumentFragment` | Stable |
 | `onWindow` | `( id, handlers, opts? ) => () => void` | Stable |

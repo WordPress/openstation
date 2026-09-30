@@ -19,7 +19,8 @@ import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
 import { isMobileStamped } from '../mode/stamp';
 import { workAreaRectOf } from '../work-area';
-import { __, sprintf } from './../i18n';
+import { __, _x, sprintf } from './../i18n';
+import { attachTooltip } from '../ui/components/os-tooltip/os-tooltip';
 import {
 	addParentSubscriber,
 	clearWindowChannels,
@@ -128,6 +129,7 @@ import {
 import type { PanelTabEntry } from './tabs';
 import {
 	closeActionsMenu,
+	describeActionsMenu,
 	flipMenuItemCheckOptimistically,
 	openActionsMenu,
 	refreshStartupCheckState,
@@ -210,6 +212,15 @@ export class Window {
 	 */
 	public iframe: HTMLIFrameElement | null;
 	public state: WindowState = 'normal';
+
+	/**
+	 * Set when an explicit `os-title-change` message tells us what
+	 * the title should be, so the `adoptPageTitle` heuristic doesn't
+	 * overwrite it.
+	 *
+	 * @internal
+	 */
+	public _hasExplicitTitle = false;
 
 	/** @internal */
 	public _titleBar: HTMLElement;
@@ -1239,6 +1250,22 @@ export class Window {
 				e.stopPropagation();
 				toggleActionsMenu( this );
 			} );
+			// A bare ⋯ glyph does not say what is behind it, so hovering
+			// it names the menu and lists its rows. Resolved on every
+			// show: plugin rows can come and go while the window is open.
+			attachTooltip( menuBtn, () => ( {
+				heading: __( 'Window actions' ),
+				text: describeActionsMenu( this ).reduce( ( list, label ) =>
+					list
+						? sprintf(
+							/* translators: 1: a list of menu item names so far, 2: the next name. */
+							_x( '%1$s, %2$s', 'list of menu item names' ),
+							list,
+							label,
+						)
+						: label,
+				'' ),
+			} ) );
 			const openAnother = menuPanel.querySelector(
 				'.os-window__menu-item--open-another',
 			);
@@ -1263,7 +1290,7 @@ export class Window {
 					this.onOpenInNewWindow?.( this );
 				} );
 			}
-			// "Reload" + "Open in browser tab" moved here from the
+			// "Reload" + "Open in classic wp-admin" moved here from the
 			// title-bar controls cluster. Both call straight
 			// into the existing `Window` API — no new manager wiring
 			// needed. Click closes the menu first so the iframe

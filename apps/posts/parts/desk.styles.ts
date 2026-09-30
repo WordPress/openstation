@@ -355,22 +355,13 @@ export const deskStyles = css`
 .os-posts-desk__dates {
 	padding-block: 16px;
 	border-block: 1px solid var( --os-ui-border, #dcdcde );
-	font-size: 11px;
-}
 
-.os-posts-desk__dates > div {
-	display: flex;
-	justify-content: space-between;
-	gap: 10px;
-	margin-block: 4px;
-}
-
-.os-posts-desk__dates dt {
-	color: var( --os-ui-fg-muted, #646970 );
-}
-
-.os-posts-desk__dates dd {
-	margin: 0;
+	/* The band's own rhythm: tighter and smaller than a facts list
+	   in a detail pane, which is what the kit's defaults are sized
+	   for. The layout itself is the component's. */
+	--os-ui-facts-font-size: 11px;
+	--os-ui-facts-row-gap: 4px;
+	--os-ui-facts-column-gap: 10px;
 }
 
 .os-posts-desk__fields section {

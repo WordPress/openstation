@@ -907,14 +907,12 @@ as the `var()` fallbacks in the consuming rules.
 The dock is not the only thing painting straight onto the desk, and the
 rest split two ways: **chrome gets a plate, the desk gets an ink.**
 
-The notch and the Add widget pill are objects, so they keep a plate
-whatever the wallpaper is doing and read on every desk without anyone
-knowing how bright it is. Each derives it from the glass beside it, the
-dock pill and the widget card respectively:
+The Add widget pill is an object, so it keeps a plate whatever the
+wallpaper is doing and reads on every desk without anyone knowing how
+bright it is. It derives it from the glass beside it, the widget card:
 
 | Token | Role |
 |---|---|
-| `--os-notch-bg` / `-border` / `-shadow` | The Site assistant pill |
 | `--os-widgets-add-bg` / `-bg-hover` / `-border` | The Add widget pill |
 
 **Retint these with your wallpaper, not with your windows.** A theme

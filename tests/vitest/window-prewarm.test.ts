@@ -7,6 +7,7 @@
  *     stays OUT of the stack, and announces nothing
  *   - `open()` for the same page adopts it: same Window instance,
  *     revealed, stacked, `os-window-opened` fired exactly then
+ *   - so does `openNew()`, the door every menu click takes
  *   - `open()` for a different URL under the same baseId discards the
  *     speculation and builds a fresh window
  *   - discard tears the element down without announcing a close
@@ -120,6 +121,17 @@ describe( 'WindowManager.prewarm', () => {
 		expect(
 			desktopArea.querySelectorAll( '.os-window' ),
 		).toHaveLength( 1 );
+	} );
+
+	test( 'openNew() adopts it too — that is the dock click path', async () => {
+		await manager.prewarm( openConfig( 'edit-php' ) );
+		const preEl = desktopArea.querySelector( '#wp-window-edit-php' );
+
+		const win = await manager.openNew( openConfig( 'edit-php' ) );
+
+		expect( win.element ).toBe( preEl );
+		expect( manager.getAll() ).toHaveLength( 1 );
+		expect( openedEvents ).toEqual( [ 'edit-php' ] );
 	} );
 
 	test( 'a different URL under the same baseId discards and builds fresh', async () => {

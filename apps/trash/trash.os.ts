@@ -23,7 +23,9 @@
  * @public
  */
 
-import { __, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
+import { __, _n, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
+import { restErrorFromResponse } from '../../src/core/api-client';
+import { toastRestFailure } from '../../src/core/rest-failure';
 import { beginTrashChange, projectTrash, trashKey, watchTrashChanges } from '../../src/desktop-files/trash-optimistic';
 import { isMobileStamped } from '../../src/mode/stamp';
 import { stackOnPhone } from '../../src/ui/components/os-table/stack-on-phone';
@@ -171,10 +173,37 @@ async function removeRefs( ctx: Ctx, refs: RecycleBinItemRef[], action: 'restore
 		if ( changed > 0 ) {
 			emitChanged( action, changed );
 		}
-	} catch {
+		// A refused dispatch already toasted from the runtime. A dispatch
+		// that went through but left rows behind is the server skipping
+		// items it would not touch; the rows slid back, say why.
+		const kept = ok ? operations.length - changed : 0;
+		if ( kept > 0 ) {
+			ctx.host.toast?.( {
+				message:
+					action === 'restore'
+						? sprintf(
+							/* translators: %d: number of items. */
+							_n( '%d item could not be restored.', '%d items could not be restored.', kept ),
+							kept,
+						)
+						: sprintf(
+							/* translators: %d: number of items. */
+							_n( '%d item could not be deleted.', '%d items could not be deleted.', kept ),
+							kept,
+						),
+				type: 'error',
+			} );
+		}
+	} catch ( err ) {
 		for ( const { operation } of operations ) {
 			void operation.finish( false );
 		}
+		toastRestFailure( ctx.host.toast, err, {
+			fallback:
+				action === 'restore'
+					? __( 'Could not restore the selected items.' )
+					: __( 'Could not delete the selected items.' ),
+		} );
 	}
 }
 
@@ -221,6 +250,8 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 		return operation ? [ operation ] : [];
 	} );
 	let placed = 0;
+	let failedRestores = 0;
+	let firstFailure: unknown;
 	let restored = 0;
 	for ( const ref of refs ) {
 		let result: BulkResponse;
@@ -231,12 +262,14 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 				body: JSON.stringify( { items: [ ref ] } ),
 			} );
 			if ( ! response.ok ) {
-				throw new Error( String( response.status ) );
+				throw await restErrorFromResponse( response );
 			}
 			result = ( await response.json() ) as BulkResponse;
 		} catch ( err ) {
 			// eslint-disable-next-line no-console
 			console.error( '[trash] pin-to-desktop restore failed', err );
+			failedRestores += 1;
+			firstFailure ??= err;
 			continue;
 		}
 		if ( ! result.ok.includes( ref.id ) ) {
@@ -261,6 +294,15 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 		placed += 1;
 	}
 	emitChanged( 'restore', restored );
+	if ( failedRestores > 0 ) {
+		toastRestFailure( ctx.host.toast, firstFailure, {
+			fallback: sprintf(
+				/* translators: %d: number of items. */
+				_n( '%d item could not be restored.', '%d items could not be restored.', failedRestores ),
+				failedRestores,
+			),
+		} );
+	}
 	try {
 		await ctx.dispatch( 'refresh' );
 	} finally {
@@ -302,7 +344,7 @@ async function emptyAll( ctx: Ctx ): Promise< void > {
 					body: '{}',
 				} );
 				if ( ! response.ok ) {
-					throw new Error( String( response.status ) );
+					throw await restErrorFromResponse( response );
 				}
 				return ( await response.json() ) as EmptyResponse;
 			},
@@ -324,6 +366,7 @@ async function emptyAll( ctx: Ctx ): Promise< void > {
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
 		console.error( '[trash] empty failed', err );
+		toastRestFailure( ctx.host.toast, err, { fallback: __( 'Could not empty the Recycle Bin.' ) } );
 	} finally {
 		ui.empty = { mode: 'idle', purged: 0, total: 0 };
 		clearSelection( ctx );

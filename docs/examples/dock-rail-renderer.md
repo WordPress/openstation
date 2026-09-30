@@ -184,6 +184,13 @@ encapsulate the right behaviour:
   build a window config from scratch can call
   `wp.os.deriveWindowId(url)` for the same id semantics.
 
+The two openers differ on purpose: `openItem` focuses the menu's open
+window and opens one only when there is none, while `openSubmenuPick`
+always opens a window of its own, so picking *Add New Post* twice
+gives two editors. A renderer that wants to list what is already open
+reads `windowManager.getAllByBaseIdOnActiveDesktop( baseId )` — the
+same list the default rail's hover-peek fans out.
+
 `openSubmenuPick(item, sub)` is the canonical path for surfacing
 submenus. A renderer that paints a radial menu / fan-out / cards
 popover and lets the user pick a child link calls this with the

@@ -289,6 +289,7 @@ function media_facts( \WP_Post $post ) {
 		'bytes'       => $bytes,
 		'size'        => $bytes > 0 ? (string) size_format( $bytes ) : '',
 		'dimensions'  => isset( $meta['width'], $meta['height'] ) ? $meta['width'] . ' × ' . $meta['height'] : '',
+		'alt'         => (string) get_post_meta( $post->ID, '_wp_attachment_image_alt', true ),
 		'author'      => (string) get_the_author_meta( 'display_name', (int) $post->post_author ),
 		'authorId'    => (int) $post->post_author,
 		'date'        => (string) get_the_date( 'c', $post ),
@@ -395,22 +396,30 @@ function edit_url( array $section, $id ) {
  * An iframe never reports its own title, so a window opened on a bare
  * URL keeps that URL as its name for as long as it lives — on a phone
  * the top bar then reads `…/wp-admin/post.php?post=…`. The item's own
- * title is what the user tapped; the window says the same.
+ * title is what the user tapped; the window says the same, decoded:
+ * stored titles and display names carry entities (`&amp;`).
  *
  * @param array<string,mixed> $section Section descriptor.
  * @param int                 $id      Item id.
  * @return string The title, or '' when the item is gone.
  */
 function edit_title( array $section, $id ) {
+	// An order's post is WooCommerce's `Order &ndash; <date>` stamp, or
+	// an untitled placeholder without sync: it wears its pane's title.
+	if ( woo_section_is( $section, 'wc-orders' ) ) {
+		$detail = woo_detail( $section, (int) $id );
+		return $detail ? (string) $detail['title'] : '';
+	}
 	if ( 'user' === $section['kind'] ) {
 		$user = get_userdata( (int) $id );
-		return $user ? (string) $user->display_name : '';
+		return $user ? openstation_plain_text_title( $user->display_name ) : '';
 	}
 	$post = get_post( (int) $id );
 	if ( ! $post ) {
 		return '';
 	}
-	return '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' );
+	$title = openstation_plain_text_title( $post->post_title );
+	return '' !== $title ? $title : __( '(no title)', 'desktop-mode' );
 }
 
 /**

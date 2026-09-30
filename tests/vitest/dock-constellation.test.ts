@@ -35,6 +35,11 @@ import { mountDockConstellation } from '../../src/dock-constellation';
 import { ITEM_MENU_OPENING_EVENT } from '../../src/item-visibility-menu';
 import type { DockItem, SystemDockItem } from '../../src/dock';
 import type { WindowManager } from '../../src/window-manager';
+import {
+	_resetNativeUrlRemap,
+	bindNativeUrlRemap,
+	registerNativeUrlRemap,
+} from '../../src/native-url-remap';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
 const appearance: DockItem = {
@@ -63,6 +68,8 @@ const settings: DockItem = {
 };
 
 const opened: Array< Record< string, unknown > > = [];
+/** Which manager door each open took, in the same order. */
+const doors: string[] = [];
 
 function makeManagerStub(): WindowManager {
 	return {
@@ -77,9 +84,11 @@ function makeManagerStub(): WindowManager {
 		focus: () => {},
 		open: ( cfg: Record< string, unknown > ) => {
 			opened.push( cfg );
+			doors.push( 'open' );
 		},
 		openNew: ( cfg: Record< string, unknown > ) => {
 			opened.push( cfg );
+			doors.push( 'openNew' );
 			return Promise.resolve( null );
 		},
 	} as unknown as WindowManager;
@@ -184,6 +193,7 @@ describe( 'dock constellation', () => {
 
 	beforeEach( () => {
 		opened.length = 0;
+		doors.length = 0;
 		installHooksStub();
 		vi.useFakeTimers();
 		// jsdom has no rAF by default under fake timers; route it
@@ -196,6 +206,7 @@ describe( 'dock constellation', () => {
 
 	afterEach( () => {
 		teardown?.();
+		_resetNativeUrlRemap();
 		vi.useRealTimers();
 		vi.unstubAllGlobals();
 		clearHooksStub();
@@ -368,6 +379,9 @@ describe( 'dock constellation', () => {
 
 		rows( '.os-constellation__head' )[ 0 ].click();
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/themes.php' );
+		// The menu's own page goes through `open()`, so a second click
+		// on it comes back to the window the first one gave you.
+		expect( doors.at( -1 ) ).toBe( 'open' );
 		expect( panel() ).toBeNull();
 
 		flushExit();
@@ -377,6 +391,9 @@ describe( 'dock constellation', () => {
 		// otherwise the window's tab strip has no way back to Themes.
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/site-editor.php' );
 		expect( opened.at( -1 )?.parentUrl ).toBe( '/wp-admin/themes.php' );
+		// A child page always gets a window of its own — Add New Post
+		// twice has to be two editors.
+		expect( doors.at( -1 ) ).toBe( 'openNew' );
 	} );
 
 	/*
@@ -996,6 +1013,54 @@ describe( 'dock constellation', () => {
 			'.os-constellation__row--live .os-constellation__row-label',
 		).map( ( el ) => el.textContent );
 		expect( live ).toEqual( [ 'OpenStation Preferences' ] );
+	} );
+
+	/*
+	 * A menu whose page a native window has claimed keeps its own URL
+	 * on the tile, but its window is open under the WINDOW's id. Walk
+	 * the same chain the tile's indicator does, or the group meant to
+	 * say "here is what you have open" says nothing while the window
+	 * is on screen.
+	 */
+	test( 'a menu whose window is native lists it as open', () => {
+		const tile = setupShell( 'unified' );
+		const live = {
+			id: 'desktop-mode-posts',
+			state: 'normal',
+			config: { title: 'Posts' },
+		} as unknown as ReturnType< typeof Object >;
+		bindNativeUrlRemap( {
+			getSnapshot: () => ( {} ) as never,
+			openById: () => true,
+			// Absolute: the registry resolves every URL against this.
+			adminUrl: `${ window.location.origin }/wp-admin/`,
+		} );
+		registerNativeUrlRemap( {
+			id: 'desktop-mode-posts',
+			nativeWindowId: 'desktop-mode-posts',
+			matches: ( _url, parsed ) => parsed.pathname.endsWith( '/edit.php' ),
+		} );
+
+		teardown?.();
+		teardown = mountDockConstellation( {
+			windowManager: {
+				...makeManagerStub(),
+				getAllByBaseIdOnActiveDesktop: ( id: string ) =>
+					id === 'desktop-mode-posts' ? [ live ] : [],
+			} as unknown as WindowManager,
+			adminUrl: '/wp-admin/',
+			// The stub's tile is `themes.php`; what matters is that its
+			// URL is one a native window has claimed.
+			getMenuItems: () => [ { ...appearance, url: '/wp-admin/edit.php' } ],
+			getSystemItem: () => undefined,
+		} );
+
+		hover( tile );
+		expect(
+			rows( '.os-constellation__row--live .os-constellation__row-label' ).map(
+				( el ) => el.textContent,
+			),
+		).toEqual( [ 'Posts' ] );
 	} );
 
 	test( 'an action menu with nothing open lists no windows', () => {

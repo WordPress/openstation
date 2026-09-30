@@ -33,7 +33,7 @@ function paint( items: PostListItem[] ): HTMLElement {
 	const root = document.createElement( 'div' );
 	const ctx = mockViewContext< ListState, ListData >( {
 		root,
-		state: { page: 1, perPage: 20, search: '', status: '', orderby: 'date', order: 'desc', author: [], tag: [] },
+		state: { tab: 'posts', page: 1, perPage: 20, search: '', status: '', orderby: 'date', order: 'desc', author: [], tag: [] },
 		data: { list: { page: 1, items, total: items.length, pages: 1, perPage: 20, error: '', code: '' } },
 		extra: { mode: 'posts' },
 	} );

@@ -272,8 +272,21 @@ const featuresSection: Section = ( s, ctx ) => {
 
 /** The beta switches: one row per opt-in native window. */
 const betaSection: Section = ( s ) => {
+	// A native window can put rows in its menu that wp-admin has no
+	// screen for — Pages' atlas — so flipping one of these changes
+	// what the server would register, and the payload the save
+	// request was built from already said otherwise. Spend a refresh,
+	// the way the developer-mode toggle does.
 	const beta = ( key: keyof typeof s & string, label: string, hint: string ) =>
-		item( label, s[ key ] === true, ( e ) => update( { [ key ]: pickedChecked( e ) } ), hint );
+		item(
+			label,
+			s[ key ] === true,
+			( e ) => {
+				update( { [ key ]: pickedChecked( e ) } );
+				pendingRegistrationRefresh = true;
+			},
+			hint,
+		);
 	return html`
 		<os-section
 			heading=${ __( 'Beta features' ) }

@@ -102,9 +102,16 @@ export function buildHost( ownerWindowId: string ): RuntimeHost {
 			} );
 		},
 		toast: ( options ) => {
-			api?.showToast(
-				options.duration ? { message: options.message, duration: options.duration } : { message: options.message },
-			);
+			const toast: { message: string; duration?: number; type?: string } = {
+				message: options.message,
+			};
+			if ( options.duration ) {
+				toast.duration = options.duration;
+			}
+			if ( options.type ) {
+				toast.type = options.type;
+			}
+			api?.showToast( toast );
 		},
 		setTitle: ( windowId, title ) => {
 			api?.windowManager.getById( windowId )?.setTitle( title );

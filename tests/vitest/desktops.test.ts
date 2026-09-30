@@ -228,6 +228,17 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const payload = evt!.args[ 0 ] as { desktopId: string; migratedTo: string };
 		expect( payload.desktopId ).toBe( second.id );
 		expect( payload.migratedTo ).toBe( 'desktop-1' );
+
+		// The active desk changed, so switch listeners (the workspace
+		// view among them) must hear it, after the close.
+		expect( log.map( ( e ) => e.name ) ).toEqual( [
+			'os.os.closed',
+			'os.os.switched',
+		] );
+		expect( log[ 1 ].args[ 0 ] ).toEqual( {
+			from: second.id,
+			to: 'desktop-1',
+		} );
 	} );
 
 	test( 'closing the leftmost desktop migrates to the right-neighbour', async () => {
@@ -257,9 +268,14 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const third = manager.createDesktop(); // desktop-3
 		// Active is still desktop-1.
 
+		const log = recordActions( hooks, DESKTOP_HOOKS );
+
 		manager.closeDesktop( third.id );
 
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect(
+			log.some( ( e ) => e.name === 'os.os.switched' ),
+		).toBe( false );
 		expect( manager.getDesktops().map( ( d ) => d.id ) ).toEqual( [
 			'desktop-1',
 			'desktop-2',

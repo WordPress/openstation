@@ -47,10 +47,41 @@ import {
 	dragKindsFromTriggers,
 } from '../../../src/agents-dispatch';
 import { isMobileStamped } from '../../../src/mode/stamp';
-import { shell, uiOf, type Ctx } from './types';
+import type { DragBridgePayload } from '../../../src/drag-bridge';
+import { shell, uiOf, type Ctx, type ListItem, type SectionDef } from './types';
 import { openPreview, previewDetail } from './optimistic';
 import { sectionOf } from './helpers';
 import { agentsMountIdOf, agentsRosterStamp, openChatWindow } from './agents';
+
+/**
+ * What an editor window needs to accept the drop: without it the
+ * block editor answers "Can't drop here". An attachment becomes an
+ * image (or video, audio, file) block; a post or a person, a link.
+ */
+function bridgePayloadOf( section: SectionDef | null, item: ListItem ): DragBridgePayload | undefined {
+	if ( ! section || ! item.link ) {
+		return undefined;
+	}
+	if ( section.kind === 'media' ) {
+		return {
+			kind: 'attachment',
+			id: item.id,
+			url: item.link,
+			title: item.title,
+			alt: item.alt ?? '',
+			mime: item.mime,
+			thumbnailUrl: item.thumb || undefined,
+		};
+	}
+	if ( section.kind === 'user' ) {
+		return { kind: 'user', id: item.id, url: item.link, title: item.title };
+	}
+	// Flat sections (Woo's Orders) list rows that are not posts.
+	if ( section.kind === 'post' && ! section.flat ) {
+		return { kind: 'post', id: item.id, postType: section.post_type, url: item.link, title: item.title };
+	}
+	return undefined;
+}
 
 /** Marquee + drag-out + infinite scroll + Escape, wired once per window. */
 export function wire( ctx: Ctx ): () => void {
@@ -100,6 +131,7 @@ export function wire( ctx: Ctx ): () => void {
 					icon: item.thumb || '',
 					entityId,
 					restPath,
+					bridgePayload: bridgePayloadOf( section, item ),
 					...( selectedItems.length > 1
 						? {
 							items: selectedItems.map( ( i ) => ( {

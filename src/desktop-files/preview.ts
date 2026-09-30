@@ -18,6 +18,7 @@
  */
 
 import { applyFilters } from '../hooks';
+import { restErrorFromResponse } from '../core/api-client';
 import { __, sprintf } from '../i18n';
 import { openExplorerDetail } from '../open-targets/explorer-open';
 import { joinRestUrl } from '../rest-url';
@@ -42,7 +43,7 @@ async function getJson< T >( url: string, init: FetchInit = {} ): Promise< T > {
 		...init,
 	} );
 	if ( ! response.ok ) {
-		throw new Error( `${ response.status } ${ response.statusText }` );
+		throw await restErrorFromResponse( response );
 	}
 	return ( await response.json() ) as T;
 }

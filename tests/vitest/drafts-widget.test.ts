@@ -173,7 +173,7 @@ describe( 'drafts widget — REST query', () => {
 		expect( listRequestUrl() ).not.toContain( 'author=' );
 	} );
 
-	test( 'polls without pulsing the activity bus', async () => {
+	test( 'polls silently, tagged with its source', async () => {
 		installShell();
 		teardown = await getMount()( container, makeCtx() );
 
@@ -264,8 +264,10 @@ describe( 'drafts widget — rendering', () => {
 		installShell( { ok: false } );
 		teardown = await getMount()( container, makeCtx() );
 
-		expect( container.querySelector( '.dm-drafts__empty' )?.textContent ).toBe(
-			'Could not load drafts.',
+		// The widget's own line, then what the server did: a 5xx has no
+		// message worth showing, so the status is named instead.
+		expect( container.querySelector( '.dm-drafts__empty' )?.textContent ).toMatch(
+			/^Could not load drafts\. The server answered with error \d+\.$/,
 		);
 	} );
 } );
@@ -559,7 +561,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 
 		await vi.waitFor( () => {
 			expect( desktop.showToast ).toHaveBeenCalledWith( {
-				message: 'Could not apply the suggestion.',
+				message: expect.stringMatching( /^Could not apply the suggestion\./ ),
 				type: 'error',
 			} );
 		} );

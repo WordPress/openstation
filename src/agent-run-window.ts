@@ -17,6 +17,8 @@
  */
 
 import { __, sprintf } from './i18n';
+import { toastRestFailure } from './core/rest-failure';
+import { shellToast } from './core/shell-toast';
 import { renderMarkdown } from './markdown';
 import './ui/components/os-avatar/os-avatar';
 import './ui/components/os-button/os-button';
@@ -260,6 +262,8 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	// moves (a save/delete happened) — never polled.
 	let conversations: AgentConversationSummary[] = [];
 	let conversationsLoaded = false;
+	/** The last list load failed: the sidebar says so instead of "no conversations". */
+	let conversationsFailed = false;
 	let seenRev = -1;
 
 	const refreshConversations = (): void => {
@@ -274,9 +278,13 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		} )
 			.then( ( rows ) => {
 				conversations = rows;
+				conversationsFailed = false;
 			} )
-			.catch( () => {
+			.catch( ( err: unknown ) => {
 				conversations = [];
+				conversationsFailed = true;
+				// eslint-disable-next-line no-console
+				console.error( '[openstation] agents: conversations failed to load:', err );
 			} )
 			.finally( () => {
 				conversationsLoaded = true;
@@ -317,7 +325,12 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
 				row.id,
 			);
-		} catch {
+		} catch ( err ) {
+			// eslint-disable-next-line no-console
+			console.error( '[openstation] agents: conversation delete failed:', err );
+			toastRestFailure( shellToast, err, {
+				fallback: __( 'Could not delete the conversation.', 'desktop-mode' ),
+			} );
 			return;
 		}
 		const state = agentsChatStore.state;
@@ -367,7 +380,10 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		if ( conversationsLoaded && visible.length === 0 ) {
 			const none = document.createElement( 'div' );
 			none.className = 'dm-agent-chat__convs-empty';
-			none.textContent = __( 'No conversations yet.', 'desktop-mode' );
+			// A failed load is not an empty history; say which it was.
+			none.textContent = conversationsFailed
+				? __( 'Could not load conversations.', 'desktop-mode' )
+				: __( 'No conversations yet.', 'desktop-mode' );
 			list.appendChild( none );
 		}
 		for ( const row of visible ) {

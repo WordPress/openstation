@@ -84,6 +84,16 @@ export type LocalAction< S, D > = (
  * current values, never a snapshot — so a listener installed in
  * `mounted()` can safely read `ctx.state` months of renders later.
  */
+/**
+ * One tab of a window that declared a menu — the shape `menuTabs`
+ * carries in the config extra. The dock's submenu row for it has the
+ * same label, in the same order.
+ */
+export interface MenuTab {
+	id: string;
+	label: string;
+}
+
 export interface ViewContext< S, D > {
 	readonly state: S;
 	readonly data: D;
@@ -113,6 +123,11 @@ export interface ViewContext< S, D > {
 	 * ship once with the window config instead of riding `data` on
 	 * every response (asset URLs, feature flags, the Trash app's
 	 * empty/full icon pair).
+	 *
+	 * A window that declared a menu (`App::menu()`) also finds its
+	 * tabs here as `menuTabs`: render the strip from that list and it
+	 * cannot drift from the dock's submenu, which is built from the
+	 * same declaration.
 	 */
 	readonly extra: Record< string, unknown >;
 	/**

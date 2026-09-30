@@ -1,6 +1,7 @@
 /** Same-origin, nonce-authenticated transport. No conversation persistence. */
 import { assertMioRequestBudget } from './budget';
 import { trackedFetch } from '../../tracked-fetch';
+import { restErrorFromBody } from '../../core/api-client';
 import type { MioTransport, MioTurn } from './types';
 
 export function createMioTransport( windowId: string ): MioTransport {
@@ -30,7 +31,10 @@ export function createMioTransport( windowId: string ): MioTransport {
 		);
 		const payload = await response.json();
 		if ( ! response.ok ) {
-			throw new Error( payload.message || 'MIO could not reach the AI provider.' );
+			const failure = restErrorFromBody( response.status, payload );
+			throw failure.serverMessage
+				? failure
+				: restErrorFromBody( response.status, payload, 'MIO could not reach the AI provider.' );
 		}
 		return payload as MioTurn;
 	};

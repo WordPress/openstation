@@ -17,7 +17,7 @@ page has a bug.
 | Data | Store | Why there |
 |---|---|---|
 | Desktop tiles, folders, uploaded files, shares, game scores and challenges | Plugin-owned tables (`{$wpdb->prefix}desktop_mode_*`) | Relational, high-cardinality, queried by owner / parent / state. Serialised blobs in options or meta would not index. |
-| Agent conversations, sticky notes | Custom post types in `wp_posts` | They are content: they get trash, capabilities, revisions and REST for free. |
+| Agent conversations, sticky notes | Custom post types in `wp_posts` | They are content: authorship, capabilities and deletion with their author come from Core. Both types are private (no admin UI, no Core REST, no revisions) and are served by their own REST routes; notes go to the trash, conversations are deleted outright. |
 | AI agents | Rows in `wp_users` | Authorship and capabilities come from Core; the profile lives in user meta. |
 | Per-user preferences, session, opt-in, play time | `wp_usermeta` | Follows the user; `get_user_meta()` is cached per request. |
 | Site-wide flags, schema versions, uploaded themes | `wp_options` | One value per site; the hot ones are `autoload = no`. |
@@ -195,7 +195,7 @@ The sections below name the exact tables and keys.
 | Files | ● | ● | ● | | ● | | ● |
 | Folder sharing | ● | | | | | | |
 | Games | ● | ● | | | ● | | |
-| Agents | | ● | ● | | ● | | ● |
+| Agents | | ● | ● | | ● | ● | ● |
 | Notes | | ● | ● | | ● | | |
 | Recycle Bin | | | ● | ● | ● | | |
 | Presence | | | | | ● | | |
@@ -315,6 +315,7 @@ truth; every one regenerates.
 | `desktop_mode_about_feed_v1`, `_failure_v1`, `_stale_v1` | About | The news feed and its failure / stale states. |
 | `desktop_mode_living_tree_snapshot` | Living Tree | Wallpaper snapshot. |
 | `desktop_mode_site_views_meta` | Stats | Site views metadata. |
+| `desktop_mode_agent_user_rate_{invoker}_{YmdH}`, `openstation_agent_rate_{agent}_{YmdH}` | Agents | Hourly invocation counters, one per human invoker and one per agent, bucketed by the UTC hour. They expire after an hour. |
 | `openstation_shell_build` | PWA | Hash of the shell bundles, used to detect a deploy. |
 | `dm_pwsz_map` | Plugins | On-disk size of each plugin. |
 

@@ -18,22 +18,14 @@
  * note; it says where the draft went instead.
  */
 
-import { __, sprintf } from '../i18n';
+import { __ } from '../i18n';
 import { broadcastNotesChange } from './broadcast';
-import {
-	convertNote,
-	isNotesRestError,
-	restoreNote,
-	type ConvertNoteResult,
-} from './rest';
+import { describeRestFailure, restFailureKind, toastRestFailure } from '../core/rest-failure';
+import { shellToast } from '../core/shell-toast';
+import { convertNote, restoreNote, type ConvertNoteResult } from './rest';
 import type { Note } from './types';
 
 interface DesktopApi {
-	showToast?: ( opts: {
-		message: string;
-		duration?: number;
-		action?: { label: string; onClick: () => void };
-	} ) => void;
 	deriveWindowId?: ( url: string, adminUrl?: string ) => string;
 	/** The boot config (`wp.os.config`), carrying `adminUrl`. */
 	config?: { adminUrl?: string };
@@ -153,57 +145,23 @@ function openDraftEditor( result: ConvertNoteResult ): string | null {
 }
 
 /**
- * The toast line for a failed convert, in plain words. Prefers the
- * route's own localized `WP_Error` message (ours or Core's), then a
- * line per failure class the status tells apart, then the generic one.
+ * The toast line for a failed convert, in plain words. One line is this
+ * flow's own: an unreadable 200 means the server MAY have converted, so
+ * it says where to look. Everything else is the shared answer
+ * (`describeRestFailure`): the route's own localized `WP_Error`
+ * message, then a line per failure class the status tells apart, then
+ * the generic one.
  */
 export function convertFailureMessage( err: unknown ): string {
-	if ( isNotesRestError( err ) ) {
-		if ( 'rest_cookie_invalid_nonce' === err.code || 401 === err.status ) {
-			return __(
-				'Your session has expired. Reload the page and try converting the note again.',
-				'desktop-mode',
-			);
-		}
-		if ( 404 === err.status ) {
-			return __(
-				'This note no longer exists. Reload the page to refresh the wall.',
-				'desktop-mode',
-			);
-		}
-		if ( 'openstation_notes_bad_response' === err.code ) {
-			// The request went through but the reply was not the route's
-			// JSON, so the server MAY have converted: say where to look.
-			return __(
-				'The site sent an unreadable reply while converting the note. Check Posts → Drafts before trying again.',
-				'desktop-mode',
-			);
-		}
-		if ( err.serverMessage ) {
-			if ( 403 === err.status ) {
-				return err.serverMessage;
-			}
-			return sprintf(
-				/* translators: %s: the reason the server gave. */
-				__( 'Could not convert the note to a post: %s', 'desktop-mode' ),
-				err.serverMessage,
-			);
-		}
-		return sprintf(
-			/* translators: %d: HTTP status code. */
-			__( 'Could not convert the note to a post (server error %d).', 'desktop-mode' ),
-			err.status,
-		);
-	}
-	if ( err instanceof TypeError ) {
-		// `fetch()` rejects with a TypeError when the request never got
-		// an answer: offline, DNS, a blocked request.
+	if ( restFailureKind( err ) === 'unreadable' ) {
 		return __(
-			'Could not reach the site to convert the note. Check your connection and try again.',
+			'The site sent an unreadable reply while converting the note. Check Posts → Drafts before trying again.',
 			'desktop-mode',
 		);
 	}
-	return __( 'Could not convert the note to a post.', 'desktop-mode' );
+	return describeRestFailure( err, {
+		fallback: __( 'Could not convert the note to a post.', 'desktop-mode' ),
+	} ).message;
 }
 
 export interface ConvertNoteCallbacks {
@@ -231,8 +189,9 @@ export async function convertNoteToPost(
 		// eslint-disable-next-line no-console
 		console.error( '[openstation] notes: convert failed:', err );
 		callbacks.onRestore( note );
-		getDesktopApi()?.showToast?.( {
+		shellToast( {
 			message: convertFailureMessage( err ),
+			type: 'error',
 			duration: 5000,
 		} );
 		return;
@@ -246,7 +205,7 @@ export async function convertNoteToPost(
 	const converted = editorWindowId
 		? __( 'Note converted to a draft post', 'desktop-mode' )
 		: __( 'Note converted to a draft post. Find it under Posts → Drafts.', 'desktop-mode' );
-	getDesktopApi()?.showToast?.( {
+	shellToast( {
 		message: converted,
 		duration: 6000,
 		action: {
@@ -271,6 +230,10 @@ export async function convertNoteToPost(
 							'[openstation] notes: convert undo failed:',
 							err,
 						);
+						toastRestFailure( shellToast, err, {
+							fallback: __( 'Could not restore the note.', 'desktop-mode' ),
+							duration: 5000,
+						} );
 					} );
 			},
 		},

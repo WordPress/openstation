@@ -28,6 +28,7 @@
  */
 
 import type { DesktopConfig } from '../types';
+import { restErrorFromResponse } from '../core/api-client';
 import {
 	ADMIN_BAR_MODES,
 	CUSTOM_ACCENT_ID,
@@ -758,9 +759,9 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 		},
 		{ windowId: attributedWindowId },
 	)
-		.then( ( res ) => {
+		.then( async ( res ) => {
 			if ( ! res.ok ) {
-				throw new Error( `${ res.status } ${ res.statusText }` );
+				throw await restErrorFromResponse( res );
 			}
 			// Server accepted — promote this state to the rollback
 			// baseline. Any subsequent save that fails will revert

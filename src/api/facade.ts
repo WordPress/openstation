@@ -147,6 +147,7 @@ import {
 	undismissInstallHint,
 } from '../pwa';
 import { trackedFetch } from '../boot/tracked-fetch';
+import { embedAdminPage } from '../native-windows';
 
 import type {
 	DesktopDebugWindow,
@@ -391,6 +392,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		registerWindow,
 		openWindow: openWindowById,
 		openNewWindow: openNewWindowById,
+		// No dep injection: the helper reads the window id off the
+		// host element's own ancestry, the way every other
+		// DOM-anchored shell helper does.
+		embedAdminPage,
 		loadWindowScript: loadWindowScriptById,
 		prewarmWindow: prewarmWindowById,
 		// No dep injection — the loader reads its URL off the boot

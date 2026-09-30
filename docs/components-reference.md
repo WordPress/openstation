@@ -232,10 +232,15 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | `<os-action-menu>` | `OsActionMenu` | `os-action-menu/os-action-menu.ts` | Button-anchored dropdown with top-layer placement, arrow/Home/End navigation, Escape/outside dismissal and focus restoration. Accepts translated `text` and accessible `label`; wraps context-menu options and their `os-context-menu-pick` event. |
 | `<os-context-menu>` / `<os-context-menu-option>` | `OsContextMenu`, `OsContextMenuOption` | `os-context-menu/os-context-menu.ts` | Right-click / long-press menu. |
 | `<os-flyout>` | `OsFlyout` | `os-flyout/os-flyout.ts` | Anchored popover. Supports placement strategies. |
+| `<os-tooltip>` | `OsTooltip`, `attachTooltip` | `os-tooltip/os-tooltip.ts` | Hover / keyboard-focus hint for a control whose glyph doesn't say what it does. Use `attachTooltip( el, content )`, not the tag. |
 | `<os-modal>` | `OsModal` | `os-modal/os-modal.ts` | Full-overlay modal with focus trap. |
 | `<os-confirm-dialog>` | `OsConfirmDialog`, `osConfirm` | `os-confirm-dialog/os-confirm-dialog.ts` | Confirm prompt — use `await osConfirm({...})` (never `window.confirm`). |
 | `<os-toast>` / `<os-toast-container>` | `OsToast`, `OsToastContainer` | `os-toast/os-toast.ts` | Top-right (top inline-end) toast notifications. |
 | `<os-notice>` | `OsNotice` | `os-notice/os-notice.ts` | Inline informational/warning notice. |
+
+**`<os-tooltip>` and `attachTooltip()`.** `attachTooltip( el, content, { delay } )` gives a control a tooltip and returns a function that removes it. `content` is a string, `{ heading, text }`, or a function returning either (or `null` to skip), resolved on every show, so it can describe state that changes while the control is on screen. Every attached control shares ONE `<os-tooltip>` on `document.body`, fixed-positioned so a window's overflow or transform cannot clip it, and placed below the control, flipped above when there is no room, and kept inside the viewport. It shows after a hover delay (500ms by default) or at once on keyboard focus; it hides on leave, press, blur or Escape; it never shows for touch, or while the control reports `aria-expanded="true"`. It is a visual aid only: the control still needs its own accessible name. Colours come from `--os-tooltip-bg` / `--os-tooltip-fg`, the same pair the dock's tooltip reads.
+
+**`<os-toast>` tone.** A `tone` attribute (`positive | warning | critical | neutral`) paints a coloured edge and a leading icon from the palette's notice tokens (`--os-ui-notice-success`, `-warning`, `-error`, `-neutral`), so a failure toast and a failure `<os-notice>` read as a set. Without it the toast is the plain dark chip. `showToast()` sets it from its `type` option through the server's toast-type registry, so a caller names a type (`error`), never a tone.
 
 **`<os-toast>` hold contract.** A toast reports when the user is attending to it — pointer over it, or focus anywhere inside it, including its action and close buttons in the shadow root. While that is true it carries a reflected `held` attribute and, on every transition, emits `os-toast-hold` with `{ held: boolean }`. `showToast()` listens and pauses the auto-dismiss countdown for the duration; a released countdown resumes with the time it had left, floored at 1.2s so a nearly-expired toast doesn't vanish the instant the pointer leaves. `held` is set by the component and is not something to write by hand — a toast that should never expire on its own is `persistent`. Dismissing a toast that currently holds focus hands focus back to the last element outside the toast stack that had it, so clicking `Undo` never drops the user on `<body>`.
 
@@ -259,6 +264,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | `<os-save-status>` | `OsSaveStatus` | `os-save-status/os-save-status.ts` | Save indicator (idle / saving / saved / failed). `variant="ring"` is the window title bar's status ring: outline for every phase but success, which fills. |
 | `<os-relative-time>` | `OsRelativeTime` | `os-relative-time/os-relative-time.ts` | Auto-updating "2 min ago". |
 | `<os-histogram>` | `OsHistogram` | `os-histogram/os-histogram.ts` | Stacked time histogram (inline SVG) with a toggle legend; `series` + `columns` JSON in, `os-series-toggle` out. Colours ride the status tokens. |
+| `<os-facts>` / `<os-fact>` | `OsFacts`, `OsFact` | `os-facts/os-facts.ts` | Label/value list — a real `<dl>` whose rows are `<os-fact label="…">` children carrying the value in their default slot (an `<os-code>`, an `<os-relative-time>`, a link, a badge). `layout="between"` spreads each pair across its own line; `stacked` puts the label above the value. An `<os-code>` value loses its snippet chrome and keeps the copy affordance; a theme can restore it through `--os-ui-facts-code-{bg,border,padding,font-size}`. |
 | `<os-stat>` | `OsStat` | `os-stat/os-stat.ts` | One stat tile: big value, small uppercase label, optional caption; `swatch` adds a severity chip coloured by the app tone contract (`data-tone` on the host). |
 | `<os-empty-state>` | `OsEmptyState` | `os-empty-state/os-empty-state.ts` | Empty-list / no-results placeholder. |
 | `<os-rating-summary>` | `OsRatingSummary` | `os-rating-summary/os-rating-summary.ts` | Star average + per-star bucket bars. |
@@ -277,7 +283,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 | --- | --- | --- | --- |
 | `<os-tabs>` / `<os-tab>` / `<os-tabpanel>` | `OsTabs`, `OsTab`, `OsTabPanel` | `os-tabs/os-tabs.ts` | Tab strip with associated panels, for a tab group **inside** content. A window's own top-level tabs belong in the window chrome instead — see `Window.setTabs()` in [`javascript-reference.md`](javascript-reference.md). |
 | `<os-tab-chip>` | `OsTabChip` | `os-tab-chip/os-tab-chip.ts` | Single chip tab (e.g. window tabs). |
-| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Numbered steps, stacked or as a horizontal trail. `current` marks where the reader is, `interactive` makes a step a jump target. |
+| `<os-steps>` / `<os-step>` | `OsSteps`, `OsStep` | `os-steps/os-steps.ts` | Numbered steps, stacked or as a horizontal trail. `current` marks where the reader is, `interactive` makes a step a jump target with a hover state. |
 | `<os-crumb-chain>` | `OsCrumbChain` | `os-crumb-chain/os-crumb-chain.ts` | Breadcrumb trail with chevron separators. |
 
 ## Color & theming

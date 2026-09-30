@@ -1979,6 +1979,8 @@ function openstation_my_wordpress_woo_enqueue() {
 					'canOrders'     => true === openstation_my_wordpress_woo_orders_permission(),
 					'canCustomers'  => true === openstation_my_wordpress_woo_customers_permission(),
 					'orderBands'    => openstation_my_wordpress_woo_order_bands(),
+					// `wc-` slug → label, for the Orders list view.
+					'orderStatuses' => wc_get_order_statuses(),
 					'productBands'  => openstation_my_wordpress_woo_product_bands(),
 					'couponBands'   => openstation_my_wordpress_woo_coupon_bands_with_counts(),
 					// Only built for a viewer who may see them — the

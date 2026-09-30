@@ -247,6 +247,11 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 				cast.description = from.description;
 				cast.vibes = from.vibes;
 				cast.instructions = from.instructions;
+				// The brief IS the system prompt field, so the copied
+				// instructions land there too: Describe shows what was
+				// copied and lets it be edited, instead of an empty box
+				// over a prompt that only the summary card admits to.
+				cast.brief = from.instructions;
 				cast.role = from.role;
 				cast.abilities = [ ...from.abilities ];
 				cast.triggers = from.triggers.map( ( t ) => ( {
@@ -270,7 +275,19 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			state.briefError = '';
 		},
 		'agent-step': ( state, args ) => {
-			state.wstep = Math.max( 0, Math.min( 4, Number( args.step ) ) ) as AppState[ 'wstep' ];
+			const next = Math.max( 0, Math.min( 4, Number( args.step ) ) ) as AppState[ 'wstep' ];
+			// Leaving Describe by any door — Continue, or a jump from
+			// the trail — takes the brief with it: what the textarea
+			// labelled "system prompt" says is what the agent gets.
+			// Drafting writes its rewrite back into the brief, so this
+			// never undoes a draft; it only carries the words along.
+			if ( state.wstep === 0 && next !== 0 && state.cast ) {
+				state.cast = {
+					...state.cast,
+					instructions: String( state.cast.brief ?? '' ).trim(),
+				};
+			}
+			state.wstep = next;
 			state.agentNotice = '';
 		},
 		'agent-pane': ( state, args ) => {
