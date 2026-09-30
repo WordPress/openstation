@@ -1270,7 +1270,7 @@ The prompt is shown to a user who has had OpenStation on for seven whole days by
 
 ### `openstation_usage_feedback_payload` — Experimental
 
-The submission, after it is built and before it is forwarded. The keys are the ones `readme.txt` discloses under "External services" (`id`, `use_case`, `likes`, `blockers`, `email`, `plugin_version`, `wp_version`, `locale`, `days_enabled`). `email` is an empty string unless the user typed one. Return an empty array to suppress the send; the route then answers `502` as if the forward had failed, and the form stays open for the user to retry or close.
+The submission, after it is built and before it is forwarded. The keys are the ones `readme.txt` discloses under "External services" (`id`, `requests`, `use_case`, `blockers`, `email`, `plugin_version`, `wp_version`, `locale`, `days_enabled`). `email` is an empty string unless the user typed one. Return an empty array to suppress the send; the route then answers `502` as if the forward had failed, and the form stays open for the user to retry or close.
 
 ```php
 apply_filters( 'openstation_usage_feedback_payload', array $payload );

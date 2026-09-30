@@ -162,7 +162,7 @@ describe( 'usage feedback — the form', () => {
 	test( 'asks three questions and leaves the email empty', async () => {
 		await sayYes();
 
-		for ( const name of [ 'use_case', 'likes', 'blockers' ] ) {
+		for ( const name of [ 'requests', 'use_case', 'blockers' ] ) {
 			expect( control( name )?.tagName.toLowerCase() ).toBe( 'os-textarea' );
 		}
 		// Anonymous unless the author decides otherwise: never prefilled.
@@ -171,11 +171,11 @@ describe( 'usage feedback — the form', () => {
 
 	test( 'Send forwards the answers without an email, closes and thanks', async () => {
 		await sayYes();
-		type( 'likes', '  The windows.  ' );
+		type( 'requests', '  Faster windows.  ' );
 		await send();
 
 		expect( requests() ).toEqual( [
-			[ SEND_URL, { use_case: '', likes: 'The windows.', blockers: '', email: '' } ],
+			[ SEND_URL, { requests: 'Faster windows.', use_case: '', blockers: '', email: '' } ],
 		] );
 		expect( form() ).toBeNull();
 		// No client-side seen write: the route records it in the same
@@ -203,7 +203,7 @@ describe( 'usage feedback — the form', () => {
 
 	test( 'a malformed address is refused before anything is sent', async () => {
 		await sayYes();
-		type( 'likes', 'The dock.' );
+		type( 'requests', 'A better dock.' );
 		type( 'email', 'not an email' );
 		await send();
 
@@ -233,7 +233,7 @@ describe( 'usage feedback — the form', () => {
 
 	test( 'a stray Escape does not throw typed answers away', async () => {
 		await sayYes();
-		type( 'likes', 'Half a thought' );
+		type( 'requests', 'Half a thought' );
 
 		cancelModal();
 		expect( form() ).not.toBeNull();

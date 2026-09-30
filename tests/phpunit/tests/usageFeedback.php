@@ -137,11 +137,11 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 
 		// The disclosure in readme.txt is the contract: these keys, no more.
 		$this->assertSame(
-			array( 'id', 'use_case', 'likes', 'blockers', 'email', 'plugin_version', 'wp_version', 'locale', 'days_enabled' ),
+			array( 'id', 'requests', 'use_case', 'blockers', 'email', 'plugin_version', 'wp_version', 'locale', 'days_enabled' ),
 			array_keys( $this->forwarded )
 		);
 		$this->assertSame( 'Editing posts side by side.', $this->forwarded['use_case'] );
-		$this->assertSame( '', $this->forwarded['likes'] );
+		$this->assertSame( '', $this->forwarded['requests'] );
 		$this->assertStringNotContainsString( '<script>', $this->forwarded['blockers'] );
 		$this->assertSame( 10, $this->forwarded['days_enabled'] );
 		$this->assertMatchesRegularExpression( '/^[0-9a-f-]{36}$/', $this->forwarded['id'] );
@@ -162,8 +162,8 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 
 		$response = $this->post(
 			array(
-				'likes' => 'The dock.',
-				'email' => 'reach-me@example.test',
+				'requests' => 'A better dock.',
+				'email'    => 'reach-me@example.test',
 			)
 		);
 
@@ -175,9 +175,9 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 		wp_set_current_user( self::$user_id );
 		$this->enabled_days_ago( 10 );
 
-		$this->post( array( 'likes' => str_repeat( 'a', OPENSTATION_USAGE_FEEDBACK_ANSWER_MAX + 50 ) ) );
+		$this->post( array( 'requests' => str_repeat( 'a', OPENSTATION_USAGE_FEEDBACK_ANSWER_MAX + 50 ) ) );
 
-		$this->assertSame( OPENSTATION_USAGE_FEEDBACK_ANSWER_MAX, mb_strlen( $this->forwarded['likes'] ) );
+		$this->assertSame( OPENSTATION_USAGE_FEEDBACK_ANSWER_MAX, mb_strlen( $this->forwarded['requests'] ) );
 	}
 
 	public function test_an_empty_form_is_refused_before_the_forward() {
@@ -186,8 +186,8 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 
 		$response = $this->post(
 			array(
-				'likes' => "  \n ",
-				'email' => 'reach-me@example.test',
+				'requests' => "  \n ",
+				'email'    => 'reach-me@example.test',
 			)
 		);
 
@@ -201,8 +201,8 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 
 		$response = $this->post(
 			array(
-				'likes' => 'The dock.',
-				'email' => 'not an address',
+				'requests' => 'A better dock.',
+				'email'    => 'not an address',
 			)
 		);
 
@@ -215,7 +215,7 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 		$this->enabled_days_ago( 10 );
 		$this->forward_status = 500;
 
-		$response = $this->post( array( 'likes' => 'The dock.' ) );
+		$response = $this->post( array( 'requests' => 'A better dock.' ) );
 
 		$this->assertSame( 502, $response->get_status() );
 		$this->assertFalse( openstation_has_seen_intro( self::$user_id, OPENSTATION_USAGE_FEEDBACK_INTRO_SLUG ) );
@@ -226,7 +226,7 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 		$this->enabled_days_ago( 10 );
 		add_filter( 'openstation_usage_feedback_payload', '__return_empty_array' );
 
-		$response = $this->post( array( 'likes' => 'The dock.' ) );
+		$response = $this->post( array( 'requests' => 'A better dock.' ) );
 
 		$this->assertSame( 502, $response->get_status() );
 		$this->assertSame( 0, $this->forward_calls );
@@ -236,7 +236,7 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 		wp_set_current_user( self::$user_id );
 		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
 
-		$response = $this->post( array( 'likes' => 'The dock.' ) );
+		$response = $this->post( array( 'requests' => 'A better dock.' ) );
 
 		$this->assertSame( 403, $response->get_status() );
 		$this->assertSame( 0, $this->forward_calls );
@@ -249,7 +249,7 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 
 		$this->assertNull( openstation_usage_feedback_config() );
 
-		$response = $this->post( array( 'likes' => 'The dock.' ) );
+		$response = $this->post( array( 'requests' => 'A better dock.' ) );
 		$this->assertSame( 403, $response->get_status() );
 		$this->assertSame( 0, $this->forward_calls );
 	}

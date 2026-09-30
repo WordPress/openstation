@@ -44,11 +44,11 @@ const OPENSTATION_USAGE_FEEDBACK_INTRO_SLUG = 'usage-feedback';
 const OPENSTATION_USAGE_FEEDBACK_MIN_DAYS = 7;
 
 /**
- * The questions the form asks, as the keys the intake stores: what
- * they mainly use OpenStation for, what they like most, and what
- * gets in their way or is missing.
+ * The questions the form asks, in its order, as the keys the intake
+ * stores: what we can do for them, what they mainly use OpenStation
+ * for, and what gets in their way or is missing.
  */
-const OPENSTATION_USAGE_FEEDBACK_QUESTIONS = array( 'use_case', 'likes', 'blockers' );
+const OPENSTATION_USAGE_FEEDBACK_QUESTIONS = array( 'requests', 'use_case', 'blockers' );
 
 /** Longest answer forwarded, in characters. */
 const OPENSTATION_USAGE_FEEDBACK_ANSWER_MAX = 1000;
@@ -154,8 +154,8 @@ function openstation_usage_feedback_payload( array $answers, $email, $user_id ) 
 	$days = openstation_usage_feedback_days_enabled( (int) $user_id );
 	return array(
 		'id'             => wp_generate_uuid4(),
+		'requests'       => (string) $answers['requests'],
 		'use_case'       => (string) $answers['use_case'],
-		'likes'          => (string) $answers['likes'],
 		'blockers'       => (string) $answers['blockers'],
 		'email'          => (string) $email,
 		'plugin_version' => OPENSTATION_VERSION,
@@ -214,8 +214,8 @@ function openstation_register_usage_feedback_route() {
 			'callback'            => 'openstation_rest_usage_feedback',
 			'permission_callback' => 'openstation_rest_usage_feedback_permission',
 			'args'                => array(
+				'requests' => $text,
 				'use_case' => $text,
-				'likes'    => $text,
 				'blockers' => $text,
 				// Not `format: email`: the field is optional, and an
 				// empty string has to pass. The handler validates it.
@@ -268,8 +268,8 @@ function openstation_rest_usage_feedback_permission() {
 function openstation_rest_usage_feedback( WP_REST_Request $request ) {
 	$answers = openstation_usage_feedback_answers(
 		array(
+			'requests' => $request->get_param( 'requests' ),
 			'use_case' => $request->get_param( 'use_case' ),
-			'likes'    => $request->get_param( 'likes' ),
 			'blockers' => $request->get_param( 'blockers' ),
 		)
 	);

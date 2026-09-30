@@ -135,7 +135,7 @@ export function showUsageFeedbackPrompt( opts: UsageFeedbackPromptOptions ): voi
 	const text = doc.createElement( 'p' );
 	text.className = `${ CARD_CLASS }__text`;
 	text.textContent = __(
-		'Tell us how OpenStation is going for you. Three short questions, all optional.',
+		'We want your feedback to improve OpenStation. Three short questions, all optional.',
 	);
 	card.appendChild( text );
 

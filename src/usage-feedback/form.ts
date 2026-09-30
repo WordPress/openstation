@@ -31,9 +31,9 @@ import type { UsageFeedbackFormOptions } from './types';
 export const ANSWER_MAX = 1000;
 
 /** The questions, in display order; the keys are the route's args. */
-export const QUESTIONS: ReadonlyArray< { key: 'use_case' | 'likes' | 'blockers'; label: () => string } > = [
+export const QUESTIONS: ReadonlyArray< { key: 'requests' | 'use_case' | 'blockers'; label: () => string } > = [
+	{ key: 'requests', label: () => __( 'What can we do for you?' ) },
 	{ key: 'use_case', label: () => __( 'What do you mainly use OpenStation for?' ) },
-	{ key: 'likes', label: () => __( 'What do you like most about it?' ) },
 	{ key: 'blockers', label: () => __( 'What gets in your way, or what is missing?' ) },
 ];
 
@@ -54,7 +54,7 @@ export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 	}
 	open = true;
 
-	const values: Record< string, string > = { use_case: '', likes: '', blockers: '', email: '' };
+	const values: Record< string, string > = { requests: '', use_case: '', blockers: '', email: '' };
 
 	const modal = document.createElement( 'os-modal' );
 	modal.className = 'os-usage-feedback';
@@ -145,8 +145,8 @@ export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 	footer.appendChild( send );
 
 	const answers = (): Record< string, string > => ( {
+		requests: values.requests.trim(),
 		use_case: values.use_case.trim(),
-		likes: values.likes.trim(),
 		blockers: values.blockers.trim(),
 	} );
 	const hasText = (): boolean => Object.values( values ).some( ( v ) => v.trim() !== '' );
