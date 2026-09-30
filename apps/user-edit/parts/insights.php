@@ -269,7 +269,7 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 			'id'        => (int) $comment->comment_ID,
 			'postId'    => (int) $comment->comment_post_ID,
 			'postTitle' => $post instanceof WP_Post ? ( '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' ) ) : '',
-			'excerpt'   => openstation_plain_text_title( wp_trim_words( wp_strip_all_tags( (string) $comment->comment_content ), 24 ) ),
+			'excerpt'   => openstation_plain_text_title( wp_trim_words( openstation_strip_all_tags( (string) $comment->comment_content ), 24 ) ),
 			'dateGmt'   => openstation_user_edit_window_gmt_or_local( $comment->comment_date_gmt, $comment->comment_date ),
 			'approved'  => '1' === (string) $comment->comment_approved,
 		);

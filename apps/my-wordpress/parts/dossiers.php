@@ -188,7 +188,7 @@ function sub( Os $os, array $section, $id, $relation ) {
 				$rows[] = array(
 					'id'       => (int) $comment->comment_ID,
 					'title'    => openstation_plain_text_title( $comment->comment_author ),
-					'subtitle' => openstation_plain_text_title( wp_trim_words( wp_strip_all_tags( (string) $comment->comment_content ), 12 ) ),
+					'subtitle' => openstation_plain_text_title( wp_trim_words( openstation_strip_all_tags( (string) $comment->comment_content ), 12 ) ),
 					'icon'     => 'dashicons-admin-comments',
 					'editUrl'  => current_user_can( 'edit_comment', (int) $comment->comment_ID )
 						? admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID )

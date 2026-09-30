@@ -253,14 +253,30 @@ function openstation_plain_text_title( $rendered ) {
 	// text (`&amp;lt;` in the source) does not come back as a `<` too.
 	$tag_start = '[a-zA-Z\/!?]';
 	$text      = str_replace( '&', '&amp;', $decoded );
-	$text      = preg_replace( "/<(?!{$tag_start})/", '&lt;', $text );
-	$text      = wp_strip_all_tags( $text );
+	$text      = openstation_strip_all_tags( $text );
 	$text      = str_replace( '&lt;', '<', $text );
 	$text      = str_replace( '&amp;', '&', $text );
 
 	// Removing a tag can leave a kept `<` against the text after it
 	// (`<<b>script>`): a space stops the pair from reading as a tag.
 	return trim( preg_replace( "/<(?={$tag_start})/", '< ', $text ) );
+}
+
+/**
+ * Strip the tags from stored HTML, keeping a `<` that opens no tag.
+ *
+ * A `<` opens a tag only before an ASCII letter, `/`, `!` or `?`. Any
+ * other one comes back as `&lt;`, the form kses saves it in, so the
+ * result is still HTML text: `wp_trim_words()` and `wp_html_excerpt()`,
+ * which strip tags themselves, pass it on to whatever decodes last.
+ *
+ * @param string $html Stored HTML.
+ * @return string Tag-free text, entities still encoded.
+ */
+function openstation_strip_all_tags( $html ) {
+	return wp_strip_all_tags(
+		preg_replace( '/<(?![a-zA-Z\/!?])/', '&lt;', (string) $html )
+	);
 }
 
 /**

@@ -142,6 +142,51 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::openstation_recycle_bin_plain_text
+	 * @covers ::openstation_strip_all_tags
+	 */
+	public function test_a_less_than_sign_that_opens_no_tag_is_kept() {
+		// No tag opens before a digit, so the `<` is text. The tags
+		// around it are still removed.
+		$this->assertSame(
+			'I <3 WordPress',
+			openstation_recycle_bin_plain_text( '<em>I</em> <3 <b>WordPress</b>' )
+		);
+
+		// The strip runs before the decode: an encoded tag is text the
+		// author typed, and it comes back as text.
+		$this->assertSame(
+			'How to use the <b> tag',
+			openstation_recycle_bin_plain_text( 'How to use the &lt;b&gt; tag' )
+		);
+	}
+
+	/**
+	 * @covers ::openstation_recycle_bin_excerpt
+	 */
+	public function test_a_subtitle_keeps_a_less_than_sign_through_the_trim() {
+		// Typed, stored as an entity or part of an encoded tag, the `<`
+		// is text, and `wp_trim_words()` must not take it for a tag.
+		$this->assertSame(
+			'I <3 it, 1 <2, and the <b> tag',
+			openstation_recycle_bin_excerpt( '<p>I <3 it, 1 &lt;2, and the &lt;b&gt; tag</p>' )
+		);
+
+		// Where WordPress counts characters instead of words, the count
+		// runs over the decoded text: `&amp;` is one character, and is
+		// never cut in half.
+		global $wp_locale;
+		$word_count_type            = $wp_locale->word_count_type;
+		$wp_locale->word_count_type = 'characters_excluding_spaces';
+		try {
+			$subtitle = openstation_recycle_bin_excerpt( 'Research is at R&amp;D today and tomorrow' );
+		} finally {
+			$wp_locale->word_count_type = $word_count_type;
+		}
+		$this->assertSame( 'Research is at R&D…', $subtitle );
+	}
+
+	/**
 	 * @covers ::openstation_notes_recycle_bin_item
 	 */
 	public function test_unstamped_trashed_notes_fall_back_to_the_owner_as_deleter() {

@@ -296,7 +296,7 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 				'authorName' => openstation_plain_text_title( $parent_comment->comment_author ),
 				'date'       => mysql2date( 'c', $parent_comment->comment_date_gmt, false ),
 				'excerpt'    => openstation_plain_text_title(
-					wp_trim_words( wp_strip_all_tags( $parent_comment->comment_content ), 40 )
+					wp_trim_words( openstation_strip_all_tags( $parent_comment->comment_content ), 40 )
 				),
 			);
 		}
@@ -340,7 +340,7 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 			),
 			'date'       => mysql2date( 'c', (string) $row['comment_date_gmt'], false ),
 			'excerpt'    => openstation_plain_text_title(
-				wp_trim_words( wp_strip_all_tags( (string) $row['comment_content'] ), 40 )
+				wp_trim_words( openstation_strip_all_tags( (string) $row['comment_content'] ), 40 )
 			),
 			'status'     => '1' === (string) $row['comment_approved']
 				? 'approved'

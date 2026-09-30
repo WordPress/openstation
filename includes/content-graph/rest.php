@@ -357,7 +357,7 @@ function openstation_content_graph_collect_comments( WP_Post $post ) {
 			'author'   => openstation_plain_text_title( $comment->comment_author ),
 			'user_id'  => (int) $comment->user_id,
 			'date'     => mysql2date( 'c', $comment->comment_date_gmt, false ),
-			'excerpt'  => openstation_plain_text_title( wp_html_excerpt( wp_strip_all_tags( (string) $comment->comment_content ), 140, '...' ) ),
+			'excerpt'  => openstation_plain_text_title( wp_html_excerpt( openstation_strip_all_tags( (string) $comment->comment_content ), 140, '...' ) ),
 			'edit_url' => (string) admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
 		);
 	}

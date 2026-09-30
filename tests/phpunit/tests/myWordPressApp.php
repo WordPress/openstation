@@ -772,7 +772,7 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 				'comment_post_ID' => self::$post_id,
 				// Stored as `pre_comment_author_name` stores an `&`.
 				'comment_author'  => 'Ada &amp; Grace',
-				'comment_content' => 'Great strategy, would read again.',
+				'comment_content' => 'Great strategy, I <3 it.',
 			)
 		);
 		$attached = self::factory()->attachment->create_object(
@@ -798,6 +798,8 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$comments = $this->dispatch( 'relation', $state, array( 'relation' => 'comments' ) );
 		$titles   = array_column( $comments['data']['sub']['rows'], 'title' );
 		$this->assertContains( 'Ada & Grace', $titles, 'Row titles are text: the tile and the window `sub-open` titles with them.' );
+		$subtitles = array_column( $comments['data']['sub']['rows'], 'subtitle' );
+		$this->assertContains( 'Great strategy, I <3 it.', $subtitles, 'A `<` that opens no tag is text, and the excerpt keeps it.' );
 
 		$revisions = $this->dispatch( 'relation', $state, array( 'relation' => 'revisions' ) );
 		$this->assertNotEmpty( $revisions['data']['sub']['rows'] );
