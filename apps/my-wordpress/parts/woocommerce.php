@@ -221,9 +221,9 @@ function woo_count( array $section ) {
 /**
  * One order as an app list row. The title is what a merchant scans
  * for — number and total — and the REAL status rides `wcStatus` for
- * the band assigner, never `status`: the tile ribbon only speaks
- * draft/pending/private/future, and `wc-processing` would paint a
- * meaningless ribbon on every order.
+ * the band assigner and the list view, never `status`: the tile
+ * ribbon only speaks draft/pending/private/future, and `wc-processing`
+ * would paint a meaningless ribbon on every order.
  *
  * @param \WC_Abstract_Order $order Order.
  * @return array<string,mixed>
@@ -263,6 +263,11 @@ function woo_order_item( $order ) {
 		'canEdit'   => method_exists( $order, 'get_edit_order_url' ),
 		'canDelete' => false,
 		'wcStatus'  => (string) $order->get_status(),
+		// The list view's facts. `format()`, as `WC_DateTime::date()`
+		// labels site time +00:00 and the client reads the offset.
+		'customer'  => '' !== $name ? $name : __( 'Guest', 'desktop-mode' ),
+		'date'      => $order->get_date_created() ? $order->get_date_created()->format( 'c' ) : '',
+		'modified'  => $order->get_date_modified() ? $order->get_date_modified()->format( 'c' ) : '',
 	);
 }
 

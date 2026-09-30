@@ -4676,7 +4676,7 @@ Posted from the **head** of every chromeless document, before the body renders. 
 { type: 'os-iframe-navigated' }
 ```
 
-It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting.
+It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting, and clears the explicit-title flag so a subsequent `adoptPageTitle()` call can adopt the new page's own name.
 
 #### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).

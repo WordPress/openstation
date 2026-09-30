@@ -23,6 +23,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The ids "Attached media" lists and counts: the post's attachments
+ * plus its featured image, each once.
+ *
+ * @param \WP_Post $post Post.
+ * @return int[]
+ */
+function media_ids( \WP_Post $post ) {
+	$ids = get_children(
+		array(
+			'post_parent' => $post->ID,
+			'post_type'   => 'attachment',
+			'fields'      => 'ids',
+		)
+	);
+	$ids = array_map( 'intval', $ids );
+	if ( has_post_thumbnail( $post ) ) {
+		$ids[] = (int) get_post_thumbnail_id( $post );
+	}
+	return array_unique( $ids );
+}
+
+/**
  * The detail FOLDER a post navigates into: the rendered article plus
  * one folder tile per related surface — Author, Contributors,
  * Comments, Categories, Tags, Attached media, Revisions — with live
@@ -46,15 +68,7 @@ function folder( Os $os, array $section, $id ) {
 	$categories   = is_array( $categories ) ? $categories : array();
 	$tags         = get_the_terms( $post, 'post_tag' );
 	$tags         = is_array( $tags ) ? $tags : array();
-	$media_count  = count(
-		get_children(
-			array(
-				'post_parent' => $id,
-				'post_type'   => 'attachment',
-				'fields'      => 'ids',
-			)
-		)
-	) + ( has_post_thumbnail( $post ) ? 1 : 0 );
+	$media_count  = count( media_ids( $post ) );
 	$comments     = (int) get_comments_number( $post );
 	$revisions    = wp_revisions_enabled( $post ) ? count( wp_get_post_revisions( $id, array( 'fields' => 'ids' ) ) ) : 0;
 
@@ -205,18 +219,7 @@ function sub( Os $os, array $section, $id, $relation ) {
 			break;
 		case 'media':
 			$label = __( 'Attached media', 'desktop-mode' );
-			$ids   = get_children(
-				array(
-					'post_parent' => $id,
-					'post_type'   => 'attachment',
-					'fields'      => 'ids',
-				)
-			);
-			$ids   = array_map( 'intval', array_keys( $ids ) );
-			if ( has_post_thumbnail( $post ) ) {
-				$ids[] = (int) get_post_thumbnail_id( $post );
-			}
-			foreach ( array_unique( $ids ) as $media_id ) {
+			foreach ( media_ids( $post ) as $media_id ) {
 				$media = get_post( $media_id );
 				if ( ! $media ) {
 					continue;
