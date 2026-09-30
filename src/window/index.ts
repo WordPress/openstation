@@ -1839,6 +1839,48 @@ export class Window {
 	}
 
 	/**
+	 * Float a snapped window: drop the snapped state AND give the window
+	 * a floating rect again.
+	 *
+	 * The inverse of {@link applySnap}, and deliberately more than a
+	 * state reset: a window left sitting at the half-screen geometry
+	 * still looks snapped, so anything meaning to demonstrate a snap
+	 * would have nothing to show. The shell tour calls this before its
+	 * snap card when the window is already against that edge.
+	 *
+	 * Sizes from `_savedGeometry` when the window has a floating rect to
+	 * go back to, else from the same proportions the drag-to-float path
+	 * uses (`pointer.ts`), so a window floated here and one the user
+	 * dragged out of a split land at the same size.
+	 *
+	 * A no-op unless the window is snapped.
+	 */
+	public unsnap(): void {
+		if ( ! this.isSnapped() ) {
+			return;
+		}
+		this.element.classList.remove(
+			'os-window--snapped-left',
+			'os-window--snapped-right',
+		);
+		const parent = this.element.parentElement;
+		if ( parent ) {
+			const area = workAreaRectOf( parent );
+			const saved = this._savedGeometry;
+			const width = saved?.width ?? Math.min( 960, Math.round( area.width * 0.6 ) );
+			const height = saved?.height ?? Math.min( 640, Math.round( area.height * 0.7 ) );
+			const x = saved?.x ?? area.x + Math.round( ( area.width - width ) / 2 );
+			const y = saved?.y ?? area.y + Math.round( ( area.height - height ) / 2 );
+			this.element.style.left = `${ x }px`;
+			this.element.style.top = `${ y }px`;
+			this.element.style.width = `${ width }px`;
+			this.element.style.height = `${ height }px`;
+		}
+		this.state = 'normal';
+		this._emitChange( 'state' );
+	}
+
+	/**
 	 * Predicate: is this window currently minimized?
 	 *
 	 * Equivalent to `state === 'minimized'`, but expressed as a

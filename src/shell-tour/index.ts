@@ -68,6 +68,14 @@ export interface ShellTourWindowLike {
 	readonly id: string;
 	readonly element: HTMLElement;
 	applySnap( zone: 'left' | 'right' ): void;
+	/**
+	 * Optional so a test double need not implement them. The snap card
+	 * floats a window that is already against the edge it is about to
+	 * demonstrate, because snapping it again would change nothing on
+	 * screen and the card would read as broken.
+	 */
+	isSnapped?(): boolean;
+	unsnap?(): void;
 }
 
 export interface ShellTourDeps {
@@ -82,11 +90,23 @@ export interface ShellTourDeps {
 	/**
 	 * Opens Preferences on Appearance, at the Desktop layout section.
 	 *
-	 * Returns the id of the window that opens, because that open is the
-	 * tour's own doing and the card after it is waiting for the user to
-	 * open one — see `ignoreWindowId` in {@link startShellTour}.
+	 * Reports the window, because that open is the tour's own doing on
+	 * two counts: the card after it is waiting for the user to open a
+	 * window (see `ignoreWindowId`), and the tour closes what it opened
+	 * when it ends — but only when it opened it, never a window the
+	 * user already had.
 	 */
-	openLayoutSettings: () => string;
+	openLayoutSettings: () => { windowId: string; wasAlreadyOpen: boolean };
+	/**
+	 * The Desktop layout section, once Preferences has painted it and
+	 * its page is actually showing; `null` until then. The layout card
+	 * re-anchors onto it so the user is looking at what to click.
+	 */
+	findLayoutTarget: () => Element | null;
+	/** Closes a window the tour opened. */
+	closeWindow: ( id: string ) => void;
+	/** Closes the assistant palette. */
+	closePalette: () => void;
 	/** Where the coachmark mounts. Defaults to `document.body`. */
 	host?: HTMLElement;
 }
@@ -110,7 +130,8 @@ interface StepDef {
 	id: StepId;
 	heading: string;
 	body: () => Node[];
-	primary: string;
+	/** A function when the label changes within the card. */
+	primary: string | ( () => string );
 	secondary: string;
 	anchor: () => Element | null;
 	/** "Do it for me". Returns true when it advanced the step itself. */
@@ -207,6 +228,17 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	 * Preferences by hand still completes the card.
 	 */
 	let ignoreWindowId = '';
+	/** Has the layout card opened Preferences yet? Drives its own label. */
+	let layoutShown = false;
+	/** Did a palette open while the tour was up? Then the tour closes it. */
+	let paletteOpened = false;
+	/**
+	 * Windows the tour OPENED, which it closes again when it ends, so a
+	 * first run does not leave the desk covered in what the tour did.
+	 * Only its own: a window that was already there, or that the user
+	 * opened, is theirs to keep.
+	 */
+	const openedByTour = new Set< string >();
 	let ended = false;
 
 	const steps: StepDef[] = [
@@ -229,18 +261,34 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			heading: __( 'Configure the layout as you wish' ),
 			body: () => [
 				paragraph(
-					__( 'The rail can move to another edge, split in two, or park itself out of the way. Desktop layout, in OpenStation Preferences, is where you choose.' ),
+					__( 'The rail can move to another edge, split in two, or park itself out of the way.' ),
 				),
+				paragraph( __( 'OpenStation Preferences → Appearance → Desktop layout.' ) ),
 			],
-			primary: __( 'Show me' ),
+			// Two beats in one card: open Preferences, then let the user
+			// look at what opened before moving on.
+			primary: () => ( layoutShown ? __( 'Next' ) : __( 'Show me' ) ),
 			secondary: __( 'Skip tour' ),
-			anchor: findDockRail,
+			anchor: () =>
+				( layoutShown ? deps.findLayoutTarget() : null ) ?? findDockRail(),
 			doIt: () => {
-				ignoreWindowId = deps.openLayoutSettings();
+				if ( layoutShown ) {
+					return true;
+				}
+				const { windowId, wasAlreadyOpen } = deps.openLayoutSettings();
+				ignoreWindowId = windowId;
+				if ( windowId && ! wasAlreadyOpen ) {
+					openedByTour.add( windowId );
+				}
+				layoutShown = true;
+				// Relabel now; re-anchor onto the section once the app has
+				// painted it, which is a few frames away at best.
+				paint();
+				followLayoutTarget();
 				// Opening a window is not this card's completion signal —
-				// `os.window.opened` belongs to the card after next — so
-				// advance here rather than waiting for one.
-				return true;
+				// `os.window.opened` belongs to the card after it — and the
+				// card is not finished anyway: the user still has to look.
+				return false;
 			},
 		},
 		{
@@ -347,11 +395,34 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			mark.removeAttribute( 'step' );
 			mark.removeAttribute( 'total' );
 		}
-		mark.setAttribute( 'primary-label', step.primary );
+		mark.setAttribute(
+			'primary-label',
+			'function' === typeof step.primary ? step.primary() : step.primary,
+		);
 		mark.setAttribute( 'secondary-label', step.secondary );
 		mark.replaceChildren( ...step.body() );
 		mark.anchor = step.anchor();
 		mark.setAttribute( 'open', '' );
+	};
+
+	/**
+	 * Re-anchor the layout card onto the Desktop layout section as soon
+	 * as Preferences has painted it and its page is showing. The
+	 * coachmark positions when its anchor is set and does not follow a
+	 * scroll, so this waits for the scroll to have landed rather than
+	 * pointing at where the section was.
+	 */
+	const followLayoutTarget = ( framesLeft = 60 ): void => {
+		if ( ended || 'layout' !== steps[ index ]?.id ) {
+			return;
+		}
+		if ( deps.findLayoutTarget() ) {
+			paint();
+			return;
+		}
+		if ( framesLeft > 0 ) {
+			requestAnimationFrame( () => followLayoutTarget( framesLeft - 1 ) );
+		}
 	};
 
 	const advance = (): void => {
@@ -359,7 +430,39 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			return;
 		}
 		index += 1;
+		if ( 'snap' === steps[ index ]?.id ) {
+			// A window already against that edge would not move, and a
+			// card whose "Do it for me" changes nothing reads as broken.
+			const win = deps.windowManager.getById( openedId );
+			if ( win?.isSnapped?.() ) {
+				win.unsnap?.();
+			}
+		}
 		paint();
+	};
+
+	/**
+	 * Put the desk back. The tour opens windows to demonstrate with, and
+	 * on a first boot leaving them all up is the opposite of the fresh
+	 * start it just finished describing. Only what the tour opened
+	 * itself, so a window the user already had is never taken away.
+	 */
+	const tidyUp = (): void => {
+		if ( paletteOpened ) {
+			try {
+				deps.closePalette();
+			} catch {
+				/* the tour is over; a palette left open is not worth a throw */
+			}
+		}
+		for ( const id of openedByTour ) {
+			try {
+				deps.closeWindow( id );
+			} catch {
+				/* same */
+			}
+		}
+		openedByTour.clear();
 	};
 
 	const handle: ShellTourHandle = {
@@ -384,6 +487,9 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			}
 			if ( reason === 'done' || reason === 'skip' || reason === 'escape' ) {
 				void markSeen( deps.config );
+				// The user is finished with the tour, however they said so.
+				// A restart or a teardown is not finished: leave the desk.
+				tidyUp();
 			}
 		},
 	};
@@ -398,7 +504,10 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	// me" dead for anyone who had Posts open when they took the tour.
 	// Not `WINDOW_FOCUSED`: the manager's own note says it double-fires
 	// on alt-tab and never fires when the window is already focused.
-	const windowArrived = ( detail?: { windowId?: string } ): void => {
+	const windowArrived = (
+		detail: { windowId?: string } | undefined,
+		wasOpened: boolean,
+	): void => {
 		if ( 'open-window' !== steps[ index ]?.id ) {
 			return;
 		}
@@ -407,10 +516,19 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			return;
 		}
 		openedId = typeof detail?.windowId === 'string' ? detail.windowId : '';
+		// A reopen means the screen was already on the desk, so it is the
+		// user's window and the tour does not close it at the end.
+		if ( wasOpened && openedId ) {
+			openedByTour.add( openedId );
+		}
 		advance();
 	};
-	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_OPENED, NS, windowArrived );
-	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_REOPENED, NS, windowArrived );
+	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_OPENED, NS, ( detail ) =>
+		windowArrived( detail, true ),
+	);
+	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_REOPENED, NS, ( detail ) =>
+		windowArrived( detail, false ),
+	);
 	addAction( HOOKS.SNAP_ZONE_COMMITTED, NS, () => {
 		if ( 'snap' === steps[ index ]?.id ) {
 			advance();
@@ -419,6 +537,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	document.addEventListener(
 		'os-palette-opened',
 		() => {
+			paletteOpened = true;
 			if ( 'palette' === steps[ index ]?.id ) {
 				advance();
 			}

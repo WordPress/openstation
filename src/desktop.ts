@@ -184,6 +184,8 @@ import {
 	registerPalette,
 	openPaletteOnly,
 	installPaletteShortcut,
+	listPalettes,
+	notifyPaletteVisibility,
 	type Palette,
 } from './palette-registry';
 import { type SharedStore } from './shared-store';
@@ -3604,10 +3606,22 @@ function init(): void {
 	 * up quietly: the page is already right, so the cost of losing the
 	 * race is the user scrolling to the section themselves.
 	 */
-	function revealSettingsSection( sectionId: string, framesLeft = 60 ): void {
+	/** The Desktop layout section in Preferences, the tour's deep-link target. */
+	const LAYOUT_SECTION_ID = 'os-settings-layout';
+
+	function visibleSettingsSection( sectionId: string ): HTMLElement | null {
 		const section = document.getElementById( sectionId );
-		if ( section && ! section.closest( '[hidden]' ) ) {
-			section.scrollIntoView( { block: 'start', behavior: 'smooth' } );
+		return section && ! section.closest( '[hidden]' ) ? section : null;
+	}
+
+	function revealSettingsSection( sectionId: string, framesLeft = 60 ): void {
+		const section = visibleSettingsSection( sectionId );
+		if ( section ) {
+			// Instant, not smooth: the shell tour anchors a coachmark to
+			// this section, and the coachmark positions once when its
+			// anchor is set rather than following a scroll. The settings
+			// search scrolls its own match the same way.
+			section.scrollIntoView( { block: 'start', behavior: 'instant' } );
 			return;
 		}
 		if ( framesLeft > 0 ) {
@@ -5180,11 +5194,24 @@ function init(): void {
 		isMobile: () => modeController.api.isMobile(),
 		openPalette: () => openPaletteOnly( 'desktop-mode-ai-assistant' ),
 		openLayoutSettings: () => {
+			// Asked BEFORE opening: the tour closes what it opened when it
+			// ends, and a Preferences window the user already had is not
+			// the tour's to close.
+			const wasAlreadyOpen = !! manager.getById( OS_SETTINGS_WINDOW_ID );
 			openOsSettings( { tabId: 'appearance' } );
-			revealSettingsSection( 'os-settings-layout' );
-			// Named back to the tour: this open is the tour's own, and
-			// the card after it is waiting for the user to open a window.
-			return OS_SETTINGS_WINDOW_ID;
+			revealSettingsSection( LAYOUT_SECTION_ID );
+			return { windowId: OS_SETTINGS_WINDOW_ID, wasAlreadyOpen };
+		},
+		findLayoutTarget: () => visibleSettingsSection( LAYOUT_SECTION_ID ),
+		closeWindow: ( id: string ) => manager.getById( id )?.close(),
+		closePalette: () => {
+			const palette = listPalettes().find(
+				( p ) => p.id === 'desktop-mode-ai-assistant',
+			);
+			if ( palette?.isOpen() ) {
+				palette.close();
+				notifyPaletteVisibility( palette.id, false );
+			}
 		},
 		openFallbackWindow: () => {
 			const url = `${ config.adminUrl }edit.php`;

@@ -34,11 +34,21 @@ const settle = async (): Promise< void > => {
 	}
 };
 
-function fakeWindow( id: string ): ShellTourWindowLike & { applySnap: ReturnType< typeof vi.fn > } {
+function fakeWindow(
+	id: string,
+	snapped = false,
+): ShellTourWindowLike & {
+	applySnap: ReturnType< typeof vi.fn >;
+	unsnap: ReturnType< typeof vi.fn >;
+} {
 	const element = document.createElement( 'div' );
 	element.className = 'os-window';
 	document.body.appendChild( element );
-	return { id, element, applySnap: vi.fn() };
+	let isSnapped = snapped;
+	const unsnap = vi.fn( () => {
+		isSnapped = false;
+	} );
+	return { id, element, applySnap: vi.fn(), isSnapped: () => isSnapped, unsnap };
 }
 
 describe( 'shell tour', () => {
@@ -49,7 +59,11 @@ describe( 'shell tour', () => {
 		openPalette: ReturnType< typeof vi.fn >;
 		openFallbackWindow: ReturnType< typeof vi.fn >;
 		openLayoutSettings: ReturnType< typeof vi.fn >;
+		closeWindow: ReturnType< typeof vi.fn >;
+		closePalette: ReturnType< typeof vi.fn >;
 	};
+	/** Stands in for the Desktop layout section once Preferences paints it. */
+	let layoutTarget: Element | null;
 
 	beforeEach( () => {
 		hooks = installHooksStub();
@@ -61,8 +75,15 @@ describe( 'shell tour', () => {
 			windowManager: { getById: ( id ) => windows.get( id ) },
 			openPalette: vi.fn(),
 			openFallbackWindow: vi.fn(),
-			openLayoutSettings: vi.fn( () => 'os-settings' ),
+			openLayoutSettings: vi.fn( () => ( {
+				windowId: 'os-settings',
+				wasAlreadyOpen: false,
+			} ) ),
+			findLayoutTarget: () => layoutTarget,
+			closeWindow: vi.fn(),
+			closePalette: vi.fn(),
 		};
+		layoutTarget = null;
 	} );
 	afterEach( () => {
 		endShellTour();
@@ -77,9 +98,9 @@ describe( 'shell tour', () => {
 
 	/** Click past the two orienting cards to 'Open a window'. */
 	const skipIntroCards = (): void => {
-		primary();
-		primary().click();
-		primary().click();
+		primary().click(); // menus -> layout
+		primary().click(); // layout: opens Preferences, card stays
+		primary().click(); // layout: acknowledged -> open a window
 	};
 
 	test( 'the real events advance the steps, and Done records the tour once', async () => {
@@ -201,7 +222,8 @@ describe( 'shell tour', () => {
 			)!;
 		};
 		latest().click(); // menus
-		latest().click(); // layout
+		latest().click(); // layout: opens Preferences
+		latest().click(); // layout: acknowledged
 		latest().click(); // open a window, with no tile to click
 		expect( deps.openFallbackWindow ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -221,13 +243,22 @@ describe( 'shell tour', () => {
 		primary().click();
 		expect( mark().getAttribute( 'heading' ) ).toBe( 'Configure the layout as you wish' );
 		expect( mark().anchor ).toBe( dock );
+		expect( mark().getAttribute( 'primary-label' ) ).toBe( 'Show me' );
 		expect( deps.openLayoutSettings ).not.toHaveBeenCalled();
 
+		// First beat: open Preferences and point at what opened, rather
+		// than moving on before the user has looked at it.
+		const section = document.createElement( 'div' );
+		document.body.appendChild( section );
+		layoutTarget = section;
 		primary().click();
 		expect( deps.openLayoutSettings ).toHaveBeenCalledTimes( 1 );
-		// Opening Preferences is not the completion signal; the card steps
-		// on its own rather than waiting for `os.window.opened`, which
-		// belongs to the card after it.
+		expect( mark().getAttribute( 'step' ) ).toBe( '2' );
+		expect( mark().anchor ).toBe( section );
+		expect( mark().getAttribute( 'primary-label' ) ).toBe( 'Next' );
+
+		// Second beat: on.
+		primary().click();
 		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
 		expect( mark().getAttribute( 'heading' ) ).toBe( 'Open a window' );
 	} );
@@ -239,8 +270,7 @@ describe( 'shell tour', () => {
 		// question and skipped "Open a window" entirely.
 		startShellTour( deps );
 		await settle();
-		primary().click();  // menus -> layout
-		primary().click();  // layout: opens Preferences, advances itself
+		skipIntroCards();
 		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
 
 		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'os-settings' } );
@@ -252,6 +282,77 @@ describe( 'shell tour', () => {
 		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'w3' } );
 		expect( mark().getAttribute( 'step' ) ).toBe( '4' );
 		expect( mark().anchor ).toBe( win.element );
+	} );
+
+	test( 'a window already snapped to the edge is floated before the snap card', async () => {
+		// Snapping a window that is already there changes nothing on
+		// screen, so "Do it for me" looked broken on a replay that left
+		// the window snapped from the run before.
+		startShellTour( deps );
+		await settle();
+		skipIntroCards();
+
+		const win = fakeWindow( 'w4', true );
+		windows.set( 'w4', win );
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'w4' } );
+
+		expect( mark().getAttribute( 'heading' ) ).toBe( 'Snap it to the side' );
+		expect( win.unsnap ).toHaveBeenCalledTimes( 1 );
+
+		// And the demonstration still runs from there.
+		primary().click();
+		expect( win.applySnap ).toHaveBeenCalledWith( 'left' );
+	} );
+
+	test( 'a window that was NOT snapped is left alone', async () => {
+		startShellTour( deps );
+		await settle();
+		skipIntroCards();
+
+		const win = fakeWindow( 'w5' );
+		windows.set( 'w5', win );
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'w5' } );
+
+		expect( win.unsnap ).not.toHaveBeenCalled();
+	} );
+
+	test( 'ending closes what the tour opened, and nothing else', async () => {
+		startShellTour( deps );
+		await settle();
+		primary().click();  // menus -> layout
+		primary().click();  // layout: opens Preferences (a fresh window)
+		primary().click();  // on to 'open a window'
+
+		// The user already had this one on the desk: a reopen, not an open.
+		const theirs = fakeWindow( 'theirs' );
+		windows.set( 'theirs', theirs );
+		hooks.doAction( HOOKS.WINDOW_REOPENED, { windowId: 'theirs' } );
+		hooks.doAction( HOOKS.SNAP_ZONE_COMMITTED, { windowId: 'theirs', zone: 'left' } );
+		document.dispatchEvent( new CustomEvent( 'os-palette-opened', { detail: { id: 'x' } } ) );
+
+		await settle();
+		primary().click(); // Done
+		expect( isShellTourRunning() ).toBe( false );
+
+		const closed = deps.closeWindow.mock.calls.map( ( c ) => c[ 0 ] );
+		expect( closed ).toEqual( [ 'os-settings' ] );
+		expect( closed ).not.toContain( 'theirs' );
+		expect( deps.closePalette ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a Preferences window the user already had is not closed', async () => {
+		deps.openLayoutSettings = vi.fn( () => ( {
+			windowId: 'os-settings',
+			wasAlreadyOpen: true,
+		} ) );
+		startShellTour( deps );
+		await settle();
+		primary().click();
+		primary().click();
+		primary().click();
+		endShellTour();
+		// `teardown` is not the user finishing, so nothing is tidied either.
+		expect( deps.closeWindow ).not.toHaveBeenCalled();
 	} );
 
 	test( 'the boot gate yields to other announcements and the phone layer', () => {
