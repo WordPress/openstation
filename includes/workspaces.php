@@ -8,19 +8,10 @@
  * arranged. That answer is the desktop's `profile`, and it rides along
  * with the desktop through {@see openstation_sanitize_session()}.
  *
- * This file owns two things:
- *
- *   1. The server-side view of the shipped templates, so a plugin can
- *      add or drop one from PHP without shipping JavaScript.
- *   2. Sanitization of a profile arriving from the client. The session
- *      is user meta written from an untrusted payload, so every field
- *      is bounded here and nowhere else.
- *
- * The JS side is `src/workspaces/`, and the two lists of shipped
- * templates are deliberately separate: PHP's exists so a filter has
- * something to filter, JS's is what the switcher renders. Neither
- * generates the other, and `Tests_OpenStation_Workspaces` pins that
- * the ids match.
+ * This file sanitizes a profile arriving from the client. The session
+ * is user meta written from an untrusted payload, so every field is
+ * bounded here and nowhere else. A workspace is made by saving a desk
+ * (`src/workspaces/`); sharing one is `includes/workspace-shares/`.
  *
  * @package OpenStation
  */
@@ -33,17 +24,6 @@ const OPENSTATION_WORKSPACE_MAX_APPS = 128;
 /** Hard cap on widgets named by one workspace's column. */
 const OPENSTATION_WORKSPACE_MAX_WIDGETS = 32;
 
-/**
- * How many nested arrays an appearance value may hold.
- *
- * Two is exactly what the deepest real shape needs:
- * `wallpaperSettings` is a record of wallpaper ids (one), each holding
- * that wallpaper's own settings (two), each holding scalars.
- * `customGradient` and `customImage` stop at one. Anything below that
- * is not a setting, and user meta is not a place to store an object
- * graph.
- */
-const OPENSTATION_WORKSPACE_APPEARANCE_MAX_DEPTH = 2;
 
 /** Hard cap on windows one workspace opens with. */
 const OPENSTATION_WORKSPACE_MAX_WINDOWS = 12;
@@ -52,164 +32,69 @@ const OPENSTATION_WORKSPACE_MAX_WINDOWS = 12;
 const OPENSTATION_WORKSPACE_LAYOUTS = array( 'free', 'cascade', 'tile', 'columns', 'focus' );
 
 /**
- * Appearance settings a workspace may repaint the desk with.
+ * Settings a workspace's `appearance` patch may carry: EVERY OpenStation
+ * setting, except the shell's own theme-seeding ledger.
  *
- * Mirrors `WORKSPACE_APPEARANCE_KEYS` in `src/workspaces/types.ts`,
- * and enforcing it here is not belt-and-braces: a profile is user meta
- * round-tripped through an untrusted client, and an unfiltered patch
- * spread onto the settings state at boot would be a way to write any
- * settings key from anywhere. Everything on the list is visual and
- * instantly reversible, which is the test for belonging — switching
- * desks must never leave a user somewhere they cannot get back from.
+ * Derived from the defaults, so a setting added later is overridable
+ * the day it ships. The client derives its list the same way
+ * (`WORKSPACE_APPEARANCE_KEYS`, from `DEFAULTS`), so neither can drift.
+ *
+ * @return string[]
  */
-const OPENSTATION_WORKSPACE_APPEARANCE_KEYS = array(
-	'wallpaper',
-	'wallpaperSettings',
-	'customGradient',
-	'customImage',
-	'accent',
-	'customAccent',
-	'desktopTheme',
-	'desktopLayout',
-	'dockPlacement',
-	'dockSize',
-	'dockBehavior',
-	'sideDockBehavior',
-	'windowRadius',
-	'windowReveal',
-	'unfocusEffect',
-	'adminBarMode',
-);
-
-/**
- * The workspace templates the server knows about.
- *
- * Mirrors `builtInPresets()` in `src/workspaces/presets.ts` — the ids,
- * labels and layouts are the contract; the app/window token lists live
- * on the JS side, which is where they are resolved against the live
- * navigation.
- *
- * Named for the job, not for the plugin: a desk called "Woo" is wrong
- * on a store running something else, and wrong again the day the
- * product is renamed. The products are still what the templates reach
- * for — the JS token lists name WooCommerce and Sensei directly — so
- * on a site that has them, Commerce is a WooCommerce desk in
- * everything but its label.
- *
- * And on a site that does not have them, the template is left out:
- * `requires` names the plugin, and this is the side of the wire that
- * knows whether it is active. The client's switcher shows what this
- * list names — see `installWorkspacePresetSync()` — so dropping an
- * entry here is what hides the card.
- *
- * Filterable so a site can add a template, or drop one it has no use
- * for.
- *
- * @return array[] List of `array{ id, label, description, icon, color, layout }`.
- */
-function openstation_workspace_presets() {
-	$presets = array(
-		array(
-			'id'          => 'commerce',
-			'label'       => __( 'Commerce', 'desktop-mode' ),
-			'description' => __( 'A shop floor. WooCommerce orders, products and analytics side by side; everything that is not commerce leaves the rails.', 'desktop-mode' ),
-			'icon'        => 'dashicons-cart',
-			'color'       => '#7f54b3',
-			'layout'      => 'columns',
-			'order'       => 10,
-			'requires'    => array( 'woocommerce/woocommerce.php' ),
-		),
-		array(
-			'id'          => 'learning',
-			'label'       => __( 'Learning', 'desktop-mode' ),
-			'description' => __( 'A course studio. Sensei courses, lessons and learners tiled together, so moving between them is a glance rather than a navigation.', 'desktop-mode' ),
-			'icon'        => 'dashicons-welcome-learn-more',
-			'color'       => '#43a047',
-			'layout'      => 'tile',
-			'order'       => 20,
-			'requires'    => array( 'sensei-lms/sensei-lms.php' ),
-		),
-		array(
-			'id'          => 'publishing',
-			'label'       => __( 'Publishing', 'desktop-mode' ),
-			'description' => __( 'A writing desk. A blank page takes two thirds of the screen, the library sits in the margin, and the rest of the admin is somewhere else.', 'desktop-mode' ),
-			'icon'        => 'dashicons-edit-page',
-			'color'       => '#c8102e',
-			'layout'      => 'focus',
-			'order'       => 30,
-		),
-	);
-
-	/**
-	 * Filters the workspace templates offered in the switcher.
-	 *
-	 * A template added here is a complete one: give it `apps` and
-	 * `windows` (lists of match tokens — see
-	 * `openstation_sanitize_workspace_preset()`) and the client will
-	 * resolve them against the live navigation the same way it
-	 * resolves a built-in's. The three shipped entries deliberately
-	 * carry neither, because the client already has their token lists
-	 * and duplicating them here would be two places to keep in step.
-	 *
-	 * `requires` is the one field that stays on this side: a list of
-	 * plugin basenames that must be active for the template to be
-	 * offered at all. Unset it on a shipped entry to be offered that
-	 * desk whatever is installed.
-	 *
-	 * @param array[] $presets List of preset definitions.
-	 */
-	$presets = apply_filters( 'openstation_workspace_presets', $presets );
-
-	if ( ! is_array( $presets ) ) {
-		return array();
-	}
-
-	$clean = array();
-	foreach ( $presets as $preset ) {
-		if ( ! openstation_workspace_preset_requirements_met( $preset ) ) {
-			continue;
-		}
-		$entry = openstation_sanitize_workspace_preset( $preset );
-		if ( null !== $entry ) {
-			$clean[] = $entry;
-		}
-	}
-	return $clean;
+function openstation_workspace_setting_keys() {
+	return array_values( array_diff( array_keys( openstation_default_os_settings() ), array( 'appliedThemeRecommendations' ) ) );
 }
 
 /**
- * Whether the plugins a template is built around are active here.
+ * Settings that are only cosmetic — how the desk looks, never what it
+ * does.
  *
- * `requires` is a list of plugin basenames — `woocommerce/woocommerce.php`,
- * the same string `is_plugin_active()` takes — and every one of them has
- * to be active or the template is not offered at all. A template that
- * names none is always offered.
+ * For a user a shared workspace PINS, these are where the workspace
+ * starts them, not where it keeps them: they are copied into the
+ * user's own settings when the link is claimed, and the user may
+ * change them after. Every other setting stays the workspace's while
+ * the user is pinned.
  *
- * The gate runs after the `openstation_workspace_presets` filter, so a
- * site that wants a template anyway can unset its `requires` there.
- *
- * @param mixed $preset Raw preset definition.
- * @return bool Whether the template may be offered.
+ * @return string[]
  */
-function openstation_workspace_preset_requirements_met( $preset ) {
-	if ( ! is_array( $preset ) || empty( $preset['requires'] ) || ! is_array( $preset['requires'] ) ) {
-		return true;
-	}
-	if ( ! function_exists( 'is_plugin_active' ) ) {
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-	}
-	foreach ( $preset['requires'] as $plugin ) {
-		if ( ! is_string( $plugin ) ) {
-			continue;
-		}
-		// A basename is a path, so the traversal characters go — the
-		// value is compared against `active_plugins`, never opened.
-		$plugin = str_replace( '..', '', substr( preg_replace( '#[^A-Za-z0-9_./-]#', '', $plugin ), 0, 256 ) );
-		if ( '' === $plugin || ! is_plugin_active( $plugin ) ) {
-			return false;
-		}
-	}
-	return true;
+function openstation_workspace_cosmetic_setting_keys() {
+	/**
+	 * Filters which settings a pinned user may change for themselves.
+	 *
+	 * @param string[] $keys Settings keys. Default: wallpaper, accent,
+	 *                       theme, window corners, reveals, the unfocus
+	 *                       effect, window-link visuals, Mio, the rail
+	 *                       renderer and the post-status ribbons.
+	 */
+	return array_values(
+		array_intersect(
+			(array) apply_filters(
+				'openstation_workspace_cosmetic_settings',
+				array(
+					'wallpaper',
+					'wallpaperSettings',
+					'customGradient',
+					'customImage',
+					'accent',
+					'customAccent',
+					'desktopTheme',
+					'windowRadius',
+					'windowReveal',
+					'windowRevealDuration',
+					'unfocusEffect',
+					'windowLinkRenderer',
+					'windowLinkVisibility',
+					'windowLinkHighlight',
+					'dockRailRenderer',
+					'mioEnabled',
+					'mioShowOnWallpaper',
+					'mioStyle',
+					'showPostStatusRibbons',
+				)
+			),
+			openstation_workspace_setting_keys()
+		)
+	);
 }
 
 /**
@@ -246,177 +131,79 @@ function openstation_sanitize_workspace_place( $raw ) {
 }
 
 /**
- * Sanitizes a workspace's appearance patch.
+ * Sanitizes a workspace's settings patch.
  *
- * Keys outside {@see OPENSTATION_WORKSPACE_APPEARANCE_KEYS} are
- * dropped, and so is any value that isn't a scalar or a plain array —
- * the settings layer's own deserializer validates the shapes, so this
- * only has to guarantee the patch cannot reach a key it has no
- * business setting, and cannot carry an object graph into user meta.
+ * Sparse: only the keys present are kept, and only keys
+ * {@see openstation_workspace_setting_keys()} allows. Each value goes
+ * through the same sanitizer that reads a user's saved settings — laid
+ * over the defaults, sanitized, and read back — so a workspace can
+ * carry exactly the values a user could have saved, and nothing else.
  *
- * `wallpaperSettings`, `customGradient` and `customImage` are the
- * array-valued members, so arrays are allowed but bounded by
- * {@see OPENSTATION_WORKSPACE_APPEARANCE_MAX_DEPTH} — exactly the
- * nesting the deepest of them reaches, and nothing below it.
- *
- * @param mixed $raw Raw appearance patch.
- * @return array Sanitized patch, possibly empty.
+ * @param mixed $raw Raw patch.
+ * @return array Sanitized patch; empty when there is none.
  */
 function openstation_sanitize_workspace_appearance( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$clean = array();
-	foreach ( OPENSTATION_WORKSPACE_APPEARANCE_KEYS as $key ) {
-		if ( ! array_key_exists( $key, $raw ) ) {
-			continue;
-		}
-		$value = $raw[ $key ];
-		if ( is_scalar( $value ) || null === $value ) {
-			$clean[ $key ] = is_string( $value ) ? substr( wp_strip_all_tags( $value ), 0, 512 ) : $value;
-			continue;
-		}
-		if ( is_array( $value ) ) {
-			$clean[ $key ] = openstation_sanitize_workspace_appearance_branch(
-				$value,
-				OPENSTATION_WORKSPACE_APPEARANCE_MAX_DEPTH
-			);
-		}
+	$patch = array_intersect_key( $raw, array_flip( openstation_workspace_setting_keys() ) );
+	if ( empty( $patch ) ) {
+		return array();
 	}
-	return $clean;
+	$clean = openstation_sanitize_os_settings( array_merge( openstation_default_os_settings(), $patch ) );
+	return array_intersect_key( $clean, $patch );
 }
 
-/**
- * Depth-bounded scalar filter for an appearance value's sub-arrays.
- *
- * @param array $value Raw sub-array.
- * @param int   $depth Remaining levels to descend.
- * @return array Sanitized sub-array.
- */
-function openstation_sanitize_workspace_appearance_branch( $value, $depth ) {
-	$out = array();
-	foreach ( $value as $key => $item ) {
-		$key = substr( preg_replace( '#[^A-Za-z0-9_/.-]#', '', (string) $key ), 0, 128 );
-		if ( '' === $key ) {
-			continue;
-		}
-		if ( is_scalar( $item ) || null === $item ) {
-			$out[ $key ] = is_string( $item ) ? substr( wp_strip_all_tags( $item ), 0, 512 ) : $item;
-			continue;
-		}
-		if ( is_array( $item ) && $depth > 1 ) {
-			$out[ $key ] = openstation_sanitize_workspace_appearance_branch( $item, $depth - 1 );
-		}
-	}
-	return $out;
-}
+/** Hard cap on notes one workspace carries. */
+const OPENSTATION_WORKSPACE_MAX_NOTES = 8;
+
+/** Note colours — mirrors `NOTE_COLORS` in `src/notes/colors.ts`. */
+const OPENSTATION_WORKSPACE_NOTE_COLORS = array( 'butter', 'blush', 'sky', 'mint', 'lilac', 'peach' );
 
 /**
- * Sanitizes one workspace template.
+ * Sanitizes a workspace's notes: read-only notes the desk's author pins
+ * on it, each dismissable by whoever uses the desk.
  *
- * Applied to everything the `openstation_workspace_presets` filter
- * returns, shipped entries included — a template reaches the client in
- * the shell config blob, and a plugin returning a malformed one should
- * cost that template rather than the whole switcher.
+ * Plain text only — a note is painted with `textContent`, and nothing
+ * here is ever markup. An XL note is twice the size and may say twice
+ * as much. Positions are fractions of the work area, like a launch
+ * window's `place`.
  *
- * Returns `null` for an entry with no usable id.
- *
- * @param mixed $raw Raw preset definition.
- * @return array|null Sanitized preset, or null.
+ * @param mixed $raw Raw notes.
+ * @return array[]
  */
-function openstation_sanitize_workspace_preset( $raw ) {
+function openstation_sanitize_workspace_notes( $raw ) {
 	if ( ! is_array( $raw ) ) {
-		return null;
+		return array();
 	}
-	$id = isset( $raw['id'] ) ? sanitize_key( (string) $raw['id'] ) : '';
-	if ( '' === $id ) {
-		return null;
-	}
-
-	$layout = isset( $raw['layout'] ) ? (string) $raw['layout'] : 'free';
-	if ( ! in_array( $layout, OPENSTATION_WORKSPACE_LAYOUTS, true ) ) {
-		$layout = 'free';
-	}
-
-	$label = isset( $raw['label'] ) ? wp_strip_all_tags( (string) $raw['label'] ) : '';
-	$color = isset( $raw['color'] ) ? sanitize_hex_color( (string) $raw['color'] ) : '';
-
-	$apps = array();
-	if ( isset( $raw['apps'] ) && is_array( $raw['apps'] ) ) {
-		foreach ( $raw['apps'] as $token ) {
-			if ( ! is_string( $token ) ) {
-				continue;
-			}
-			$token = substr( sanitize_text_field( $token ), 0, 128 );
-			if ( '' !== $token ) {
-				$apps[] = $token;
-			}
-			if ( count( $apps ) >= OPENSTATION_WORKSPACE_MAX_APPS ) {
-				break;
-			}
+	$notes = array();
+	foreach ( $raw as $note ) {
+		if ( ! is_array( $note ) ) {
+			continue;
+		}
+		$id   = isset( $note['id'] ) ? substr( preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $note['id'] ) ), 0, 24 ) : '';
+		$size = isset( $note['size'] ) && 'xl' === $note['size'] ? 'xl' : 'normal';
+		$text = isset( $note['text'] ) && is_string( $note['text'] ) ? trim( wp_strip_all_tags( $note['text'] ) ) : '';
+		if ( '' === $id || '' === $text ) {
+			continue;
+		}
+		$color   = isset( $note['color'] ) && in_array( $note['color'], OPENSTATION_WORKSPACE_NOTE_COLORS, true ) ? $note['color'] : 'butter';
+		$unit    = static function ( $v ) {
+			return is_numeric( $v ) ? round( max( 0.0, min( 1.0, (float) $v ) ), 4 ) : 0.1;
+		};
+		$notes[] = array(
+			'id'    => $id,
+			'text'  => mb_substr( $text, 0, 'xl' === $size ? 2000 : 1000 ),
+			'size'  => $size,
+			'color' => $color,
+			'x'     => $unit( $note['x'] ?? 0.1 ),
+			'y'     => $unit( $note['y'] ?? 0.1 ),
+		);
+		if ( count( $notes ) >= OPENSTATION_WORKSPACE_MAX_NOTES ) {
+			break;
 		}
 	}
-
-	$widgets = array();
-	if ( isset( $raw['widgets'] ) && is_array( $raw['widgets'] ) ) {
-		foreach ( $raw['widgets'] as $id ) {
-			if ( ! is_string( $id ) ) {
-				continue;
-			}
-			// Namespaced registry keys — the slash is part of the id.
-			$id = substr( preg_replace( '#[^A-Za-z0-9_/-]#', '', $id ), 0, 128 );
-			if ( '' !== $id ) {
-				$widgets[] = $id;
-			}
-			if ( count( $widgets ) >= OPENSTATION_WORKSPACE_MAX_WIDGETS ) {
-				break;
-			}
-		}
-	}
-
-	$windows = array();
-	if ( isset( $raw['windows'] ) && is_array( $raw['windows'] ) ) {
-		foreach ( $raw['windows'] as $win ) {
-			if ( ! is_array( $win ) ) {
-				continue;
-			}
-			$match = isset( $win['match'] ) ? substr( sanitize_text_field( (string) $win['match'] ), 0, 128 ) : '';
-			if ( '' === $match ) {
-				continue;
-			}
-			$entry = array( 'match' => $match );
-			if ( isset( $win['url'] ) && is_string( $win['url'] ) ) {
-				$url = substr( wp_strip_all_tags( $win['url'] ), 0, 512 );
-				if ( '' !== $url ) {
-					$entry['url'] = $url;
-				}
-			}
-			if ( isset( $win['title'] ) && is_string( $win['title'] ) ) {
-				$title = substr( wp_strip_all_tags( $win['title'] ), 0, 128 );
-				if ( '' !== $title ) {
-					$entry['title'] = $title;
-				}
-			}
-			$windows[] = $entry;
-			if ( count( $windows ) >= OPENSTATION_WORKSPACE_MAX_WINDOWS ) {
-				break;
-			}
-		}
-	}
-
-	return array(
-		'appearance'  => openstation_sanitize_workspace_appearance( isset( $raw['appearance'] ) ? $raw['appearance'] : null ),
-		'id'          => $id,
-		'label'       => '' !== $label ? $label : $id,
-		'description' => isset( $raw['description'] ) ? wp_strip_all_tags( (string) $raw['description'] ) : '',
-		'icon'        => isset( $raw['icon'] ) ? sanitize_html_class( (string) $raw['icon'] ) : 'dashicons-desktop',
-		'color'       => $color ? $color : '',
-		'apps'        => $apps,
-		'widgets'     => $widgets,
-		'windows'     => $windows,
-		'layout'      => $layout,
-		'order'       => isset( $raw['order'] ) ? (int) $raw['order'] : 0,
-	);
+	return $notes;
 }
 
 /**
@@ -564,6 +351,13 @@ function openstation_sanitize_workspace_profile( $raw ) {
 		),
 		'windows'     => $windows,
 		'layout'      => $layout,
+		// "Hide settings": the desk leaves out Settings, Preferences and
+		// the admin tools. A view for the desk's owner; for a user
+		// PINNED to it, the screens and apps are refused on the server
+		// too (includes/workspace-shares/restrictions.php).
+		'restricted'  => ! empty( $raw['restricted'] ),
+		// Read-only notes the desk's author pinned on it.
+		'notes'       => openstation_sanitize_workspace_notes( $raw['notes'] ?? null ),
 		// Absent means "the launch list has not run", and a workspace
 		// restored mid-provision would otherwise open its windows a
 		// second time on top of the ones the session just restored.

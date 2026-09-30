@@ -15,6 +15,8 @@
  * See `docs/workspaces.md`.
  */
 
+import { DEFAULTS } from '../settings/constants';
+
 /**
  * How a workspace arranges its windows when it is provisioned, and
  * what "Re-apply layout" does afterwards.
@@ -100,41 +102,25 @@ export interface WorkspaceWidgets {
 }
 
 /**
- * Appearance settings a workspace may repaint the desk with.
+ * The settings a workspace may carry: EVERY OpenStation setting, except
+ * the shell's own theme-seeding ledger.
  *
- * A deliberate allowlist rather than "any settings key". Two reasons:
- * a workspace has no business reaching `navPlacement` (the apps rule
- * already owns that) or `heartbeatRate` (a workspace is not a place to
- * hide a performance setting); and an allowlist is what lets the
- * persisted profile be validated on the server without the sanitizer
- * needing to know the whole settings schema.
+ * Derived from `DEFAULTS`, so a setting added later is overridable the
+ * day it ships — and the server derives its list the same way
+ * (`openstation_workspace_setting_keys()`), so the two cannot drift.
+ * The server sanitizes every value with the settings' own sanitizer.
  *
- * Everything here is visual and instantly reversible, which is the
- * test for belonging: switching desks must never leave the user
- * somewhere they cannot get back from.
+ * Every one is a view while the desk is on screen, restored the moment
+ * the user leaves it. For a user a shared workspace PINS, the server
+ * splits them: cosmetic ones are seeded into the user's own settings
+ * (theirs to change), the rest are held by the workspace.
  */
-export const WORKSPACE_APPEARANCE_KEYS = [
-	'wallpaper',
-	'wallpaperSettings',
-	'customGradient',
-	'customImage',
-	'accent',
-	'customAccent',
-	'desktopTheme',
-	'desktopLayout',
-	'dockPlacement',
-	'dockSize',
-	'dockBehavior',
-	'sideDockBehavior',
-	'windowRadius',
-	'windowReveal',
-	'unfocusEffect',
-	'adminBarMode',
-] as const;
+export const WORKSPACE_APPEARANCE_KEYS: readonly string[] = Object.keys( DEFAULTS ).filter(
+	( key ) => 'appliedThemeRecommendations' !== key,
+);
 
-/** One overridable appearance setting. */
-export type WorkspaceAppearanceKey =
-	( typeof WORKSPACE_APPEARANCE_KEYS )[ number ];
+/** One overridable setting. */
+export type WorkspaceAppearanceKey = string;
 
 /**
  * A workspace's look, as a sparse patch over the user's settings.
@@ -144,10 +130,8 @@ export type WorkspaceAppearanceKey =
  * leave. `{}` (or absent) means "the desk looks the way the user set
  * it up", which is what every plain Space does.
  *
- * Typed loosely on purpose: `OsSettingsState` lives in the settings
- * module and importing it here would tie the workspace model to the
- * settings implementation for the sake of one field. The allowlist
- * above is the contract; `pickWorkspaceAppearance()` enforces it.
+ * Typed loosely on purpose: the key list above is the contract, and
+ * `workspaceAppearance()` enforces it.
  */
 export type WorkspaceAppearance = Partial<
 	Record< WorkspaceAppearanceKey, unknown >
@@ -241,56 +225,39 @@ export interface WorkspaceProfile {
 	 * refuse to be tidied.
 	 */
 	provisioned?: boolean;
+	/**
+	 * "Hide settings": leave out Settings, OpenStation Preferences and
+	 * the admin tools (plugins, themes, the Customizer, editors, tools,
+	 * users, updates). The lists are the server's —
+	 * `config.workspaceRestricted`, filterable in PHP. A view for the
+	 * desk's owner; for a user pinned to it, the server refuses those
+	 * screens and apps too.
+	 */
+	restricted?: boolean;
+	/**
+	 * Read-only notes the desk's author pinned on it; each can be
+	 * dismissed by whoever uses the desk. See `WorkspaceNote`.
+	 */
+	notes?: WorkspaceNote[];
 }
 
 /**
- * A workspace template.
- *
- * Presets are resolved against the live navigation at creation time
- * and then discarded: what lands on the desktop is a
- * {@link WorkspaceProfile} of concrete ids. Plugins add their own
- * through `registerWorkspacePreset()` (JS) or the
- * `openstation_workspace_presets` filter (PHP).
+ * A note the author pins on a workspace's desk. Read-only to everyone
+ * using the desk — they can only dismiss it — and editable only while
+ * the workspace is being edited.
  */
-export interface WorkspacePreset {
+export interface WorkspaceNote {
+	/** Stable id: a dismissal is remembered against it. */
 	id: string;
-	/** Name shown in the switcher's "New from template" group. */
-	label: string;
-	/** One line under the label in the editor. */
-	description: string;
-	icon: string;
+	/** Plain text, never markup. Up to 1000 characters (2000 for XL). */
+	text: string;
+	/** An XL note is twice the size, for a longer, nicer write-up. */
+	size: 'normal' | 'xl';
+	/** One of the sticky-note colours (`NOTE_COLORS`). */
 	color: string;
-	/**
-	 * Tokens naming the apps this workspace is about. Each is tested
-	 * against every nav item the same way {@link WorkspaceLaunch.match}
-	 * is; everything that matches lands in `apps.ids`.
-	 *
-	 * An empty list means "show everything" — the profile is created
-	 * with `mode: 'all'`.
-	 */
-	apps: string[];
-	/**
-	 * Widget ids this desk puts in its column. Omit — or leave
-	 * empty — to keep the user's own column, which is what a template
-	 * with no opinion about widgets should do.
-	 */
-	widgets?: string[];
-	/** How a desk made from this template looks. Sparse; optional. */
-	appearance?: WorkspaceAppearance;
-	windows: WorkspaceLaunch[];
-	layout: WorkspaceLayoutId;
-	/**
-	 * Default name for a desk created from this preset. Falls back to
-	 * `label` when empty.
-	 */
-	defaultLabel?: string;
-	/**
-	 * Sort key in the switcher, ascending; ties keep registration
-	 * order. The three shipped presets claim 10 / 20 / 30, so a plugin
-	 * leaving this at the default 0 leads the list — which is the right
-	 * default for a site that installed a workspace on purpose.
-	 */
-	order?: number;
+	/** Where it hangs, as fractions of the work area. */
+	x: number;
+	y: number;
 }
 
 /** The blank profile a workspace starts from when no preset is used. */

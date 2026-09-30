@@ -461,6 +461,16 @@ export class OsSettings {
 	private overridePatch: Partial< OsSettingsState > | null = null;
 
 	/**
+	 * Where an edit made on a workspace's desk goes. The shell sets it:
+	 * it writes the patch into the workspace on screen and answers
+	 * true, or false when there is none it may write (the main desk, a
+	 * pinned user's desk). Unset, every edit is the user's own.
+	 */
+	public onWorkspaceEdit:
+		| ( ( patch: Partial< OsSettingsState > ) => boolean )
+		| null = null;
+
+	/**
 	 * Paint the desk with a workspace's appearance, or hand it back.
 	 *
 	 * A view, never a write. The user's settings survive intact in
@@ -523,8 +533,35 @@ export class OsSettings {
 	 * for every write.
 	 */
 	public save( opts: OsSettingsUpdateOptions = {} ): void {
+		// An edit made IN PLACE on a workspace's desk (a panel that
+		// writes `state` directly, then saves) is the workspace's too,
+		// like every edit made there through {@link update}.
+		if ( this.overridePatch && this.onWorkspaceEdit ) {
+			const current = this.state as unknown as Record< string, unknown >;
+			const painted = this.overridePatch as Record< string, unknown >;
+			const edited: Record< string, unknown > = {};
+			for ( const key of Object.keys( painted ) ) {
+				if ( ! sameSettingsValue( current[ key ], painted[ key ] ) ) {
+					edited[ key ] = current[ key ];
+				}
+			}
+			if (
+				Object.keys( edited ).length > 0 &&
+				true === this.onWorkspaceEdit( cloneSettingsPatch( edited as Partial< OsSettingsState > ) )
+			) {
+				Object.assign( this.overridePatch, cloneSettingsPatch( edited as Partial< OsSettingsState > ) );
+			}
+		}
 		saveState( this._persistableState(), opts );
 		this.notify();
+	}
+
+	/**
+	 * The user's own settings — on a workspace's desk, the ones kept
+	 * aside under the workspace's; anywhere else, the state itself.
+	 */
+	public userSettings(): OsSettingsState {
+		return this.baseState ?? this.state;
 	}
 
 	/** {@link state}, with untouched workspace overrides unwound. */
@@ -592,6 +629,29 @@ export class OsSettings {
 		const next = sanitizeSettings( incoming, this.state );
 		const touched = OS_SETTINGS_KEYS.filter( ( key ) => key in incoming );
 
+		// On a workspace's desk, EVERY edit belongs to the workspace:
+		// each one carries all of the OS settings, without exception,
+		// and the desk is what the user is looking at. Writing it to
+		// their own settings instead — only for the workspace to paint
+		// over it on the next switch — was an edit that silently did
+		// nothing. The shell answers false where there is no workspace
+		// it may write (the main desk, a pinned user's desk); then the
+		// edit is the user's, and lands on the settings kept aside for
+		// the other desks too, so a switch does not undo it.
+		const values = next as unknown as Record< string, unknown >;
+		const changed: Record< string, unknown > = {};
+		for ( const key of touched ) {
+			changed[ key ] = values[ key ];
+		}
+		const taken =
+			touched.length > 0 &&
+			true === this.onWorkspaceEdit?.( changed as Partial< OsSettingsState > );
+		if ( taken && this.overridePatch ) {
+			Object.assign( this.overridePatch, cloneSettingsPatch( changed as Partial< OsSettingsState > ) );
+		} else if ( ! taken && this.baseState ) {
+			Object.assign( this.baseState, cloneSettingsPatch( changed as Partial< OsSettingsState > ) );
+		}
+
 		Object.assign( this.state, next );
 
 		this.save( opts );
@@ -636,6 +696,14 @@ export class OsSettings {
 		next.customImage = this.state.customImage;
 		next.adminAssetCacheEnabled = this.state.adminAssetCacheEnabled;
 		next.windowPrewarmEnabled = this.state.windowPrewarmEnabled;
+		// On a workspace's desk, Reset puts THE WORKSPACE's settings
+		// back, like every other edit made there.
+		const patch: Record< string, unknown > = { ...next };
+		delete patch.appliedThemeRecommendations;
+		const taken = true === this.onWorkspaceEdit?.( patch as Partial< OsSettingsState > );
+		if ( ! taken && this.baseState ) {
+			Object.assign( this.baseState, cloneSettingsPatch( next ) );
+		}
 		Object.assign( this.state, next );
 		this.save( opts );
 		this.apply();

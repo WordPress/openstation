@@ -420,10 +420,22 @@ final class App {
 				return false;
 			}
 		}
-		if ( null !== $this->gate ) {
-			return (bool) call_user_func( $this->gate, $os );
+		if ( null !== $this->gate && ! call_user_func( $this->gate, $os ) ) {
+			return false;
 		}
-		return true;
+		/**
+		 * Filters whether the user may use an app that its own gate
+		 * already admitted — window, icon, tabs and dispatch alike.
+		 *
+		 * Can only narrow: it runs after the capability and `can()`
+		 * checks, which a `true` here does not override. A pinned
+		 * shared workspace that hides settings is the shipped use.
+		 *
+		 * @param bool   $allowed Whether the app is allowed. Default true.
+		 * @param string $app_id  App id.
+		 * @param Os     $os      The host.
+		 */
+		return (bool) $os->hooks->filter( 'openstation_app_allows', true, $this->id, $os );
 	}
 
 	// ------------------------------------------------------------- assets

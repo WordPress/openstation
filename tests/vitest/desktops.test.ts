@@ -92,11 +92,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 		clearHooksStub();
 	} );
 
-	test( 'starts with a single default desktop named "Workspace 1"', async () => {
+	test( 'starts with a single default desktop named "Main desk"', async () => {
 		const list = manager.getDesktops();
 		expect( list ).toHaveLength( 1 );
 		expect( list[ 0 ].id ).toBe( 'desktop-1' );
-		expect( list[ 0 ].label ).toBe( 'Workspace 1' );
+		expect( list[ 0 ].label ).toBe( 'Main desk' );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 	} );
 
@@ -241,14 +241,15 @@ describe( 'WindowManager — virtual desktops', async () => {
 		} );
 	} );
 
-	test( 'closing the leftmost desktop migrates to the right-neighbour', async () => {
+	test( 'the main desk cannot be closed, even with others open', async () => {
 		const second = manager.createDesktop();
 		const a = await manager.open( openConfig( 'a' ) );
 		manager.switchDesktop( second.id );
 
 		manager.closeDesktop( 'desktop-1' );
 
-		expect( a.config.desktopId ).toBe( second.id );
+		expect( manager.getDesktops().map( ( d ) => d.id ) ).toEqual( [ 'desktop-1', second.id ] );
+		expect( a.config.desktopId ).toBe( 'desktop-1' );
 		expect( manager.getActiveDesktopId() ).toBe( second.id );
 	} );
 
@@ -283,13 +284,12 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'closing the active desktop while in overview re-lays out the survivor', async () => {
-		// Set up: two windows on D1 (active), one on D2.
-		await manager.open( openConfig( 'a' ) );
-		await manager.open( openConfig( 'b' ) );
+		// Set up: one window on D1, two on D2 (active).
+		const c = await manager.open( openConfig( 'c' ) );
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
-		const c = await manager.open( openConfig( 'c' ) );
-		manager.switchDesktop( 'desktop-1' );
+		await manager.open( openConfig( 'a' ) );
+		await manager.open( openConfig( 'b' ) );
 
 		// Enter overview — D1 windows pick up the --overview class.
 		manager.enterOverview();
@@ -297,19 +297,19 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const b = manager.getById( 'b' )!;
 		expect( a.element.classList.contains( 'os-window--overview' ) ).toBe( true );
 		expect( b.element.classList.contains( 'os-window--overview' ) ).toBe( true );
-		// `c` is on the inactive desktop — hidden, no overview class.
+		// `c` is on the inactive (main) desktop — hidden, no overview class.
 		expect( c.element.style.display ).toBe( 'none' );
 		expect( c.element.classList.contains( 'os-window--overview' ) ).toBe( false );
 
-		// Close the active desktop. Survivor (desktop-2) absorbs a + b
-		// AND becomes active. Since we're in overview, the grid must
-		// re-lay out for the new active set: a, b, c all on desktop-2,
-		// all visible, all carrying the overview class.
-		manager.closeDesktop( 'desktop-1' );
+		// Close the active desktop. Survivor (the main desk) absorbs
+		// a + b AND becomes active. Since we're in overview, the grid
+		// must re-lay out for the new active set: a, b, c all on the
+		// main desk, all visible, all carrying the overview class.
+		manager.closeDesktop( second.id );
 
-		expect( manager.getActiveDesktopId() ).toBe( second.id );
-		expect( a.config.desktopId ).toBe( second.id );
-		expect( b.config.desktopId ).toBe( second.id );
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect( a.config.desktopId ).toBe( 'desktop-1' );
+		expect( b.config.desktopId ).toBe( 'desktop-1' );
 		// All three windows are now on the active desktop and back in
 		// the grid — none hidden, none missing the overview class.
 		expect( a.element.style.display ).toBe( '' );
@@ -1009,9 +1009,14 @@ describe( 'WindowManager — virtual desktops', async () => {
 				);
 				expect( deskWrappers ).toHaveLength( 3 );
 
+				// The main desk's name is fixed: its tile stands alone.
+				expect(
+					Array.from( deskWrappers[ 0 ].querySelectorAll( 'button' ) ).map( ( b ) => b.classList[ 0 ] ),
+				).toEqual( [ 'os-overview-top-bar__tile' ] );
+
 				// Tile, edit pencil, close X — the latter two are
 				// SIBLINGS of the tile, which is itself a <button>.
-				for ( const wrapper of deskWrappers ) {
+				for ( const wrapper of deskWrappers.slice( 1 ) ) {
 					expect(
 						Array.from( wrapper.querySelectorAll( 'button' ) ).map(
 							( b ) => b.classList[ 0 ],
@@ -1046,6 +1051,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 		// Regression guard for BUG-4: prior behaviour intercepted every
 		// Enter as "commit", making the close X inaccessible by keyboard.
 		test( 'Enter on a focused button does not exit overview', async () => {
+			manager.createDesktop();
 			await manager.open( openConfig( 'a' ) );
 			manager.enterOverview();
 

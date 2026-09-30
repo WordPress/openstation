@@ -277,6 +277,25 @@ export class WidgetLayer {
 	}
 
 	/** Public read for the picker / external callers. */
+	/**
+	 * Put the user's own column back to the one a fresh install starts
+	 * with. Acts on the user's list, never a workspace's column: the
+	 * caller is on the desk that shows it.
+	 */
+	public resetToDefaults(): void {
+		const defaults = DEFAULT_ENABLED_IDS.filter( ( id ) => !! registry.get( id ) );
+		for ( const id of [ ...this.enabledIds ] ) {
+			if ( ! defaults.includes( id ) ) {
+				this.remove( id );
+			}
+		}
+		for ( const id of defaults ) {
+			if ( ! this.enabledIds.includes( id ) ) {
+				this.add( id );
+			}
+		}
+	}
+
 	public getEnabledIds(): string[] {
 		return [ ...this.enabledIds ];
 	}

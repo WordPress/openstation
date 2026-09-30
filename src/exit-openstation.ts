@@ -15,6 +15,7 @@ import type { SystemDockItem } from './dock';
 import { SYSTEM_TILE_ORDER } from './dock-shell-tiles';
 import type { ShortcutsData } from './shortcuts';
 import { __ } from './i18n';
+import { isWorkspacePinned } from './workspaces/pin';
 
 export const EXIT_OPENSTATION_TILE_ID = 'os-exit';
 
@@ -77,6 +78,11 @@ export function getExitOpenStationTileDef(): SystemDockItem {
  * reason, falls back to navigating straight to `wp-admin`.
  */
 export async function exitOpenStation(): Promise< void > {
+	// A shared workspace pins OpenStation on until an admin releases
+	// the user; the server would refuse the switch.
+	if ( isWorkspacePinned() ) {
+		return;
+	}
 	const cfg = window.openStationAdminBar;
 	const fallback = cfg?.classicUrl || '/wp-admin/';
 

@@ -100,6 +100,8 @@ require_once OPENSTATION_DIR . 'includes/admin-bar.php';
 // `openstation_sanitize_workspace_profile()` on every desktop it reads.
 require_once OPENSTATION_DIR . 'includes/workspaces.php';
 require_once OPENSTATION_DIR . 'includes/session.php';
+// Shared workspaces hook the session (`openstation_session`), so after it.
+require_once OPENSTATION_DIR . 'includes/workspace-shares/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/multisite.php';
 require_once OPENSTATION_DIR . 'includes/presence.php';
 require_once OPENSTATION_DIR . 'includes/nonce-refresh.php';

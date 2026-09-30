@@ -37,6 +37,13 @@ function openstation_ajax_save() {
 
 	$enabled = ! empty( $_POST['enabled'] ) && '1' === $_POST['enabled'] ? '1' : '';
 
+	// A shared workspace pins OpenStation on until an admin releases the
+	// user. The meta write would be refused anyway; say so instead of
+	// reporting a switch that did not happen.
+	if ( '' === $enabled && openstation_workspace_is_pinned() ) {
+		wp_send_json_error( 'openstation_workspace_pinned', 403 );
+	}
+
 	update_user_meta( get_current_user_id(), 'desktop_mode_mode', $enabled );
 
 	// The first-run stamps and the enable / disable actions. One helper

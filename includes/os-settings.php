@@ -31,6 +31,9 @@ const OPENSTATION_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' 
 /** Valid window-radius IDs — mirrors the TS `WINDOW_RADII` constant. */
 const OPENSTATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' );
 
+/** How a newly opened window lands — mirrors the TS `OPEN_WINDOWS_AS` constant. */
+const OPENSTATION_OS_SETTINGS_OPEN_WINDOWS_AS = array( 'default', 'maximized', 'focused' );
+
 /**
  * Valid admin-bar mode IDs — mirrors the TS `ADMIN_BAR_MODES` constant.
  *
@@ -111,6 +114,7 @@ function openstation_default_os_settings() {
 		// owns every paint after it, so a mismatch shows up as the
 		// corners changing shape a moment after the shell boots.
 		'windowRadius'                => 'round',
+		'openWindowsAs'               => 'default',
 		// How the WordPress admin bar presents above the shell.
 		// `hidden` ships as the default so a fresh desktop has ONE
 		// navigation surface: everything the user can open lives on the
@@ -346,12 +350,19 @@ function openstation_get_os_settings( $user_id ) {
 		return openstation_sanitize_os_settings( array() );
 	}
 
-	$raw = get_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, true );
-	if ( ! is_array( $raw ) ) {
-		return openstation_sanitize_os_settings( array() );
-	}
+	$raw      = get_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, true );
+	$settings = openstation_sanitize_os_settings( is_array( $raw ) ? $raw : array() );
 
-	return openstation_sanitize_os_settings( $raw );
+	/**
+	 * Filters a user's OS settings as they are read — for the shell
+	 * config, the REST route and every server-side check alike.
+	 *
+	 * A pinned shared workspace uses it to hold the settings it locks.
+	 *
+	 * @param array $settings Sanitized settings.
+	 * @param int   $user_id  The user.
+	 */
+	return (array) apply_filters( 'openstation_os_settings', $settings, $user_id );
 }
 
 /**
@@ -368,6 +379,14 @@ function openstation_save_os_settings( $user_id, $settings ) {
 	}
 
 	$clean = openstation_sanitize_os_settings( $settings );
+
+	/**
+	 * Filters a user's OS settings just before they are saved.
+	 *
+	 * @param array $clean   Sanitized settings about to be stored.
+	 * @param int   $user_id The user.
+	 */
+	$clean = (array) apply_filters( 'openstation_os_settings_before_save', $clean, $user_id );
 	return false !== update_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, $clean );
 }
 
@@ -486,6 +505,11 @@ function openstation_sanitize_os_settings( $raw ) {
 	$window_radius = isset( $raw['windowRadius'] ) && in_array( $raw['windowRadius'], OPENSTATION_OS_SETTINGS_WINDOW_RADII, true )
 		? (string) $raw['windowRadius']
 		: $defaults['windowRadius'];
+
+	// How a newly opened window lands — one of the three known values.
+	$open_windows_as = isset( $raw['openWindowsAs'] ) && in_array( $raw['openWindowsAs'], OPENSTATION_OS_SETTINGS_OPEN_WINDOWS_AS, true )
+		? (string) $raw['openWindowsAs']
+		: $defaults['openWindowsAs'];
 
 	// Admin-bar mode — must be one of the three known values.
 	$admin_bar_mode = isset( $raw['adminBarMode'] )
@@ -1004,6 +1028,7 @@ function openstation_sanitize_os_settings( $raw ) {
 		'customAccent'                => $custom_accent,
 		'dockSize'                    => $dock_size,
 		'windowRadius'                => $window_radius,
+		'openWindowsAs'               => $open_windows_as,
 		'adminBarMode'                => $admin_bar_mode,
 		'desktopLayout'               => $desktop_layout,
 		'dockPlacement'               => $dock_placement,

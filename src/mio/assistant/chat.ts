@@ -8,6 +8,12 @@ import type { MioSession } from './session';
 
 export interface MioChatHandle {
 	destroy: () => void;
+	/**
+	 * Say something in the conversation as the user — what the window
+	 * did on their behalf ("I accepted the layout"). Queued while MIO is
+	 * still answering, and sent the moment it is done.
+	 */
+	send: ( message: string ) => void;
 }
 
 export function mountMioChat(
@@ -129,16 +135,28 @@ export function mountMioChat(
 		const newest = log.lastElementChild as HTMLElement | null;
 		// Start a new message at its beginning, including replies taller than
 		// the viewport. Subsequent reading belongs entirely to the user.
-		log.scrollTop = last !== renderedLast && newest ? newest.offsetTop : scroll;
+		// A new message that fits is shown whole — its action buttons
+		// too — so it sits at the bottom; a taller one opens at its
+		// start.
+		if ( last !== renderedLast && newest ) {
+			const fits = log.clientHeight > 0 && newest.offsetHeight <= log.clientHeight;
+			log.scrollTop = fits ? log.scrollHeight : newest.offsetTop;
+		} else {
+			log.scrollTop = scroll;
+		}
 		renderedLast = last;
 	};
 	const unsubscribeActions = session.responseActions.subscribe( () => {
 		const scroll = log.scrollTop;
+		// Actions arrive after their message: a reader already at the
+		// bottom stays there, so the buttons are not left cut off below.
+		const atBottom = log.clientHeight > 0 && log.scrollHeight - scroll - log.clientHeight < 24;
 		for ( const entry of bubbles.values() ) {
 			entry.update();
 		}
-		log.scrollTop = scroll;
+		log.scrollTop = atBottom ? log.scrollHeight : scroll;
 	} );
+	const queued: string[] = [];
 	const submit = async (): Promise<void> => {
 		if ( busy || ! draft.trim() ) {
 			return;
@@ -171,6 +189,11 @@ export function mountMioChat(
 				stop.hidden = true;
 				send.removeAttribute( 'disabled' );
 				paint();
+				const next = queued.shift();
+				if ( undefined !== next ) {
+					draft = next;
+					void submit();
+				}
 			}
 		}
 	};
@@ -197,6 +220,17 @@ export function mountMioChat(
 		}
 	} );
 	return {
+		send: ( message: string ) => {
+			if ( destroyed || ! message.trim() ) {
+				return;
+			}
+			if ( busy ) {
+				queued.push( message );
+				return;
+			}
+			draft = message;
+			void submit();
+		},
 		destroy: () => {
 			destroyed = true;
 			inputResize.disconnect();

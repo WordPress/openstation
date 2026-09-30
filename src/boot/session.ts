@@ -80,6 +80,11 @@ export function hasRestorableSession(
 	if ( onlyDesktop?.id && onlyDesktop.id !== 'desktop-1' ) {
 		return true;
 	}
+	// One desk that IS a workspace — a shared workspace a link just
+	// pinned is exactly this shape — is not the default desk.
+	if ( onlyDesktop?.profile ) {
+		return true;
+	}
 	return !! session.activeDesktop && session.activeDesktop !== 'desktop-1';
 }
 

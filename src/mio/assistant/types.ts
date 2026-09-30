@@ -32,6 +32,15 @@ export interface MioWindowContext {
 	/** A connected element belonging to this window's body. */
 	host: HTMLElement;
 	title: string;
+	/**
+	 * Where the chat opens. `'float'` (default) is the floating card in
+	 * the window's corner. `'side'` docks it as a full-height panel on
+	 * the window's trailing edge and pads the window body by its width,
+	 * so the app's content reflows beside the conversation instead of
+	 * under it — for windows where the user watches the result while
+	 * they talk.
+	 */
+	chatLayout?: 'float' | 'side';
 	/** Stable instance id and a live document/window revision, never model supplied. */
 	windowId?: string;
 	revision?: () => string;
@@ -116,6 +125,13 @@ export interface MioWindowLease {
 	setEnabled: ( enabled: boolean ) => void;
 	/** Open the floating conversation for this context, only while focused. */
 	openChat: () => Promise<void>;
+	/**
+	 * Say something in this window's open conversation as the user —
+	 * what the window did on their behalf, so MIO carries on from it
+	 * ("I accepted the layout"). Queued while MIO is answering. `false`
+	 * when no chat is open here (nothing is sent).
+	 */
+	send: ( message: string ) => boolean;
 	/** Content-free, memory-only operation metadata, including uncertain saves. */
 	getOperations: () => MioOperation[];
 	/** Reconcile via the caller's read-only endpoint, including after disposal. */
