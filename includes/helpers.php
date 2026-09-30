@@ -233,6 +233,11 @@ function openstation_site_title() {
  * Decode BEFORE the tag strip, never after: `&lt;script&gt;` decodes
  * into a real tag, and stripping second is what removes it.
  *
+ * A `<` opens a tag only before an ASCII letter, `/`, `!` or `?`, the
+ * HTML tokenizer's rule, whether or not a `>` closes it. Any other `<`
+ * is text (`I <3 WordPress`), and `strip_tags()` on its own would drop
+ * it with everything after it.
+ *
  * @param string $rendered A title or name, rendered or as stored.
  * @return string Plain text, tag-free.
  */
@@ -243,7 +248,19 @@ function openstation_plain_text_title( $rendered ) {
 		get_bloginfo( 'charset' )
 	);
 
-	return trim( wp_strip_all_tags( $decoded ) );
+	// A `<` that opens no tag sits out the strip as `&lt;`. `&` is
+	// escaped first and restored last, so an `&lt;` the decode left as
+	// text (`&amp;lt;` in the source) does not come back as a `<` too.
+	$tag_start = '[a-zA-Z\/!?]';
+	$text      = str_replace( '&', '&amp;', $decoded );
+	$text      = preg_replace( "/<(?!{$tag_start})/", '&lt;', $text );
+	$text      = wp_strip_all_tags( $text );
+	$text      = str_replace( '&lt;', '<', $text );
+	$text      = str_replace( '&amp;', '&', $text );
+
+	// Removing a tag can leave a kept `<` against the text after it
+	// (`<<b>script>`): a space stops the pair from reading as a tag.
+	return trim( preg_replace( "/<(?={$tag_start})/", '< ', $text ) );
 }
 
 /**
