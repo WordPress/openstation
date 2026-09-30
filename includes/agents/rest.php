@@ -616,7 +616,7 @@ function openstation_agents_rest_shape_user( $user ) {
 	return array(
 		'id'           => (int) $user->ID,
 		'slug'         => $slug,
-		'name'         => (string) $user->display_name,
+		'name'         => openstation_plain_text_title( $user->display_name ),
 		'description'  => openstation_agent_get_description( (int) $user->ID ),
 		'instructions' => openstation_agent_get_instructions( (int) $user->ID ),
 		'role'         => $role,

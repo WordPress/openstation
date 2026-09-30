@@ -7786,7 +7786,7 @@ shape every route returns:
 interface Agent {
 	id: number;          // wp_users.ID
 	slug: string;        // user_login minus the 'agent-' prefix
-	name: string;
+	name: string;        // display name as plain text (entities decoded); paint it as text
 	description: string;
 	instructions: string; // system prompt
 	role: string;

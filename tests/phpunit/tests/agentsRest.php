@@ -297,6 +297,34 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The shell paints `name` as text and WordPress stores it with
+	 * entities (`Q&amp;A Helper`), so it ships decoded. The Define pane
+	 * sends it back on every save, which must not read as a rename.
+	 *
+	 * @covers ::openstation_agents_rest_shape_user
+	 * @covers ::openstation_agent_update
+	 */
+	public function test_name_is_plain_text_and_saving_it_back_is_not_a_rename() {
+		$shape = $this->create_agent_via_rest( array( 'name' => 'Q&A Helper' ) );
+		$this->assertSame( 'Q&A Helper', $shape['name'] );
+
+		$fired = 0;
+		add_action(
+			'openstation_agent_updated',
+			static function () use ( &$fired ) {
+				++$fired;
+			}
+		);
+
+		$req = $this->request( 'POST', "/agents/{$shape['id']}", array( 'id' => $shape['id'] ) );
+		$req->set_header( 'Content-Type', 'application/json' );
+		$req->set_body( wp_json_encode( array( 'name' => $shape['name'] ) ) );
+		$this->assertNotWPError( openstation_agents_rest_patch( $req ) );
+
+		$this->assertSame( 0, $fired );
+	}
+
+	/**
 	 * @covers ::openstation_agents_rest_delete
 	 */
 	public function test_delete_removes_agent() {
