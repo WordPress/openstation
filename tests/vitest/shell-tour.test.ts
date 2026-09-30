@@ -1,10 +1,12 @@
 /**
- * The shell tour — three coachmarks that advance on the real events.
+ * The shell tour — five coachmarks, three of which advance on the real
+ * events.
  *
- * Pins the contract the tour exists for: a step completes when the
- * user does the thing (a window opens, a snap commits, the palette
- * opens), leaving records the dismissal exactly once, and the two
- * replay signals start it whatever the boot gate said.
+ * Pins the contract the tour exists for: the two opening cards orient
+ * and step on click, a gesture step completes when the user does the
+ * thing (a window opens, a snap commits, the palette opens), leaving
+ * records the dismissal exactly once, and the two replay signals start
+ * it whatever the boot gate said.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -43,7 +45,11 @@ describe( 'shell tour', () => {
 	let hooks: FakeWpHooks;
 	let fetchSpy: ReturnType< typeof vi.fn >;
 	let windows: Map< string, ShellTourWindowLike >;
-	let deps: ShellTourDeps & { openPalette: ReturnType< typeof vi.fn >; openFallbackWindow: ReturnType< typeof vi.fn > };
+	let deps: ShellTourDeps & {
+		openPalette: ReturnType< typeof vi.fn >;
+		openFallbackWindow: ReturnType< typeof vi.fn >;
+		openLayoutSettings: ReturnType< typeof vi.fn >;
+	};
 
 	beforeEach( () => {
 		hooks = installHooksStub();
@@ -55,6 +61,7 @@ describe( 'shell tour', () => {
 			windowManager: { getById: ( id ) => windows.get( id ) },
 			openPalette: vi.fn(),
 			openFallbackWindow: vi.fn(),
+			openLayoutSettings: vi.fn( () => 'os-settings' ),
 		};
 	} );
 	afterEach( () => {
@@ -65,21 +72,34 @@ describe( 'shell tour', () => {
 	} );
 
 	const mark = (): OsCoachmark => document.querySelector( 'os-coachmark' ) as OsCoachmark;
+	const primary = (): HTMLElement =>
+		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.primary' )!;
+
+	/** Click past the two orienting cards to 'Open a window'. */
+	const skipIntroCards = (): void => {
+		primary();
+		primary().click();
+		primary().click();
+	};
 
 	test( 'the real events advance the steps, and Done records the tour once', async () => {
 		startShellTour( deps );
 		await settle();
 		expect( isShellTourRunning() ).toBe( true );
 		expect( mark().getAttribute( 'step' ) ).toBe( '1' );
+		expect( mark().getAttribute( 'total' ) ).toBe( '5' );
+
+		skipIntroCards();
+		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
 
 		const win = fakeWindow( 'w1' );
 		windows.set( 'w1', win );
 		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'w1' } );
-		expect( mark().getAttribute( 'step' ) ).toBe( '2' );
+		expect( mark().getAttribute( 'step' ) ).toBe( '4' );
 		expect( mark().anchor ).toBe( win.element );
 
 		hooks.doAction( HOOKS.SNAP_ZONE_COMMITTED, { windowId: 'w1', zone: 'left' } );
-		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
+		expect( mark().getAttribute( 'step' ) ).toBe( '5' );
 		expect( mark().anchor ).toBeNull();
 
 		document.dispatchEvent( new CustomEvent( 'os-palette-opened', { detail: { id: 'x' } } ) );
@@ -112,15 +132,14 @@ describe( 'shell tour', () => {
 	test( '"Do it for me" snaps the opened window and opens the palette through the shell', async () => {
 		startShellTour( deps );
 		await settle();
+		skipIntroCards();
 		const win = fakeWindow( 'w2' );
 		windows.set( 'w2', win );
 		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'w2' } );
 
-		const primary = (): HTMLElement =>
-			mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.primary' )!;
 		primary().click();
 		expect( win.applySnap ).toHaveBeenCalledWith( 'left' );
-		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
+		expect( mark().getAttribute( 'step' ) ).toBe( '5' );
 
 		primary().click();
 		expect( deps.openPalette ).toHaveBeenCalledTimes( 1 );
@@ -134,18 +153,19 @@ describe( 'shell tour', () => {
 		// WINDOW_OPENED left "Do it for me" dead.
 		startShellTour( deps );
 		await settle();
-		expect( mark().getAttribute( 'step' ) ).toBe( '1' );
+		skipIntroCards();
+		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
 
 		const win = fakeWindow( 'w9' );
 		windows.set( 'w9', win );
 		hooks.doAction( HOOKS.WINDOW_REOPENED, { windowId: 'w9' } );
 
-		expect( mark().getAttribute( 'step' ) ).toBe( '2' );
-		// The reopened window is the one step 2 snaps and anchors to.
+		expect( mark().getAttribute( 'step' ) ).toBe( '4' );
+		// The reopened window is the one the snap card snaps and anchors to.
 		expect( mark().anchor ).toBe( win.element );
 	} );
 
-	test( '"Do it for me" on step 1 activates the dock tile\'s primary button, else the fallback', async () => {
+	test( '"Do it for me" on the open-window card activates the dock tile\'s primary button, else the fallback', async () => {
 		// The dock binds its open handler on the inner primary button,
 		// not on the tile; clicking the tile itself opened nothing.
 		const dock = document.createElement( 'div' );
@@ -158,21 +178,80 @@ describe( 'shell tour', () => {
 
 		startShellTour( deps );
 		await settle();
+		// The orienting cards point at the rail; the gesture card at the tile.
+		expect( mark().anchor ).toBe( dock );
+		skipIntroCards();
 		expect( mark().anchor ).toBe( dock.querySelector( '.os-dock__item' ) );
-		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.primary' )!.click();
+		primary().click();
 		expect( opened ).toHaveBeenCalledTimes( 1 );
 		expect( deps.openFallbackWindow ).not.toHaveBeenCalled();
-		// Still step 1: the window opens asynchronously and the hook advances it.
-		expect( mark().getAttribute( 'step' ) ).toBe( '1' );
+		// Still on the open-window card: the window opens asynchronously
+		// and the hook advances it.
+		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
 
 		endShellTour();
 		dock.remove();
 		startShellTour( deps );
 		await settle();
 		// The ended coachmark lingers 60 ms to restore focus; take the new one.
-		const marks = document.querySelectorAll< OsCoachmark >( 'os-coachmark' );
-		marks[ marks.length - 1 ].shadowRoot!.querySelector< HTMLElement >( 'os-button.primary' )!.click();
+		const latest = (): HTMLElement => {
+			const marks = document.querySelectorAll< OsCoachmark >( 'os-coachmark' );
+			return marks[ marks.length - 1 ].shadowRoot!.querySelector< HTMLElement >(
+				'os-button.primary',
+			)!;
+		};
+		latest().click(); // menus
+		latest().click(); // layout
+		latest().click(); // open a window, with no tile to click
 		expect( deps.openFallbackWindow ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'the orienting cards point at the rail, and the layout card opens Preferences', async () => {
+		const dock = document.createElement( 'div' );
+		dock.className = 'os-dock';
+		dock.innerHTML =
+			'<div class="os-dock__item" data-nav-id="menu-posts"><button class="os-dock__item-primary">Posts</button></div>';
+		document.body.appendChild( dock );
+
+		startShellTour( deps );
+		await settle();
+		expect( mark().getAttribute( 'heading' ) ).toBe( 'All your menu items are here' );
+		expect( mark().anchor ).toBe( dock );
+
+		primary().click();
+		expect( mark().getAttribute( 'heading' ) ).toBe( 'Configure the layout as you wish' );
+		expect( mark().anchor ).toBe( dock );
+		expect( deps.openLayoutSettings ).not.toHaveBeenCalled();
+
+		primary().click();
+		expect( deps.openLayoutSettings ).toHaveBeenCalledTimes( 1 );
+		// Opening Preferences is not the completion signal; the card steps
+		// on its own rather than waiting for `os.window.opened`, which
+		// belongs to the card after it.
+		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
+		expect( mark().getAttribute( 'heading' ) ).toBe( 'Open a window' );
+	} );
+
+	test( 'the window the layout card opens does not complete the card after it', async () => {
+		// Preferences opens a window, and `os.window.opened` lands a tick
+		// later — with the next card already on screen waiting for
+		// exactly that event. Without this the tour answered its own
+		// question and skipped "Open a window" entirely.
+		startShellTour( deps );
+		await settle();
+		primary().click();  // menus -> layout
+		primary().click();  // layout: opens Preferences, advances itself
+		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
+
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'os-settings' } );
+		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
+
+		// Swallowed once only: a window the user opens still counts.
+		const win = fakeWindow( 'w3' );
+		windows.set( 'w3', win );
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'w3' } );
+		expect( mark().getAttribute( 'step' ) ).toBe( '4' );
+		expect( mark().anchor ).toBe( win.element );
 	} );
 
 	test( 'the boot gate yields to other announcements and the phone layer', () => {

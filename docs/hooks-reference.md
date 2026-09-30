@@ -1254,7 +1254,7 @@ Return `false` to suppress it, e.g. from a managed-host onboarding flow.
 
 ### `openstation_show_shell_tour` — Stable
 
-Decides whether the first-boot shell tour — three coachmarks: open a window, snap it, press ⌘K — is offered to a user. Shipped to the shell as `config.shellTour`.
+Decides whether the first-boot shell tour — five coachmarks: where the menus are, how to change the layout, then open a window, snap it, press ⌘K — is offered to a user. Shipped to the shell as `config.shellTour`.
 
 ```php
 apply_filters( 'openstation_show_shell_tour', bool $offer, int $user_id );

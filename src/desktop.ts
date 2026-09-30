@@ -3594,6 +3594,27 @@ function init(): void {
 	 * opens so a fresh render mounts on it; if the window is already
 	 * open, `focusTab` switches the live tab strip in place.
 	 */
+	/**
+	 * Scroll a Preferences section into view once the app has painted it.
+	 *
+	 * `openOsSettings()` returns before the window body exists on a fresh
+	 * open, and before the tab strip has revealed the new panel on an
+	 * already-open one, so the target is either absent or still inside a
+	 * `hidden` pane for a few frames. Poll until it is neither, then give
+	 * up quietly: the page is already right, so the cost of losing the
+	 * race is the user scrolling to the section themselves.
+	 */
+	function revealSettingsSection( sectionId: string, framesLeft = 60 ): void {
+		const section = document.getElementById( sectionId );
+		if ( section && ! section.closest( '[hidden]' ) ) {
+			section.scrollIntoView( { block: 'start', behavior: 'smooth' } );
+			return;
+		}
+		if ( framesLeft > 0 ) {
+			requestAnimationFrame( () => revealSettingsSection( sectionId, framesLeft - 1 ) );
+		}
+	}
+
 	function openOsSettings( opts: { tabId?: string } = {} ): void {
 		// Tabs that merged into another page. A deep link to a page
 		// that no longer exists is worse than a stale one: `focusTab`
@@ -5147,8 +5168,9 @@ function init(): void {
 	// announcement. Fire-and-forget: it sleeps until the desk has
 	// settled before mounting, which boot should not block on.
 	void maybeShowRebrandNotice( { config } );
-	// The first-boot tour: three coachmarks (open a window, snap it,
-	// press ⌘K) on a user's first boot, and on demand after that
+	// The first-boot tour: five coachmarks (where the menus are, how to
+	// change the layout, then open a window, snap it, press ⌘K) on a
+	// user's first boot, and on demand after that
 	// ("Take the tour", "Reset what's-new dialogs"). Steps advance on
 	// the real events; the shell only lends the tour its own
 	// entry points so the lazy bundle never reads shell module state.
@@ -5157,6 +5179,13 @@ function init(): void {
 		windowManager: manager,
 		isMobile: () => modeController.api.isMobile(),
 		openPalette: () => openPaletteOnly( 'desktop-mode-ai-assistant' ),
+		openLayoutSettings: () => {
+			openOsSettings( { tabId: 'appearance' } );
+			revealSettingsSection( 'os-settings-layout' );
+			// Named back to the tour: this open is the tour's own, and
+			// the card after it is waiting for the user to open a window.
+			return OS_SETTINGS_WINDOW_ID;
+		},
 		openFallbackWindow: () => {
 			const url = `${ config.adminUrl }edit.php`;
 			const id = deriveWindowId( url, config.adminUrl );

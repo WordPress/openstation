@@ -277,7 +277,7 @@ const featuresSection: Section = ( s, ctx ) => {
 			</div>
 			<div class="os-features__row">
 				<p class="os-features__hint">
-					${ __( 'Replays the 20-second first-boot tour: open a window, snap it, find anything.' ) }
+					${ __( 'Replays the first-boot tour: where the menus are, changing the layout, opening a window, snapping it, finding anything.' ) }
 				</p>
 				<os-button variant="secondary" @click=${ startShellTour }>
 					${ __( 'Take the tour' ) }

@@ -2,8 +2,9 @@
 /**
  * OpenStation — the shell tour's server-side gate.
  *
- * The tour itself is JavaScript (`src/shell-tour/`), three coachmarks
- * on a user's first boot: open a window, snap it, press ⌘K. The
+ * The tour itself is JavaScript (`src/shell-tour/`), five coachmarks
+ * on a user's first boot: where the menus are, how to change the
+ * layout, then open a window, snap it, press ⌘K. The
  * server decides two things about it: whether this site offers it at
  * all (the `openstation_show_shell_tour` filter), and whether this
  * user has already had it — the latter through the seen-intros

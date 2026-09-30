@@ -820,7 +820,7 @@ Fires after the user resets the one-time announcement flags in **OpenStation Pre
 
 ### `os-shell-tour-start` — Experimental
 
-Dispatch on `document` to start (or restart) the first-boot shell tour on demand: three `<os-coachmark>` cards — open a window, snap it, press ⌘K — each of which completes when the user actually does the thing (`os.window.opened`, `os.snap.zone-committed`, `os-palette-opened`) and each of which carries a **Do it for me**. **Take the tour** in OpenStation Preferences → Features dispatches exactly this; `os-intros-reset` starts the tour too. No detail payload.
+Dispatch on `document` to start (or restart) the first-boot shell tour on demand: five `<os-coachmark>` cards. Two orient (the menu rail, and Desktop layout in OpenStation Preferences) and step on click; three are gestures — open a window, snap it, press ⌘K — each of which completes when the user actually does the thing (`os.window.opened`, `os.snap.zone-committed`, `os-palette-opened`) and each of which carries a **Do it for me**. **Take the tour** in OpenStation Preferences → Features dispatches exactly this; `os-intros-reset` starts the tour too. No detail payload.
 
 ```javascript
 document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );

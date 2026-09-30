@@ -479,7 +479,7 @@ const TARGETS = {
 		fileBase: 'release-card',
 		iifeName: 'openStationReleaseCardBundle',
 	},
-	// Shell tour — the three first-boot coachmarks (`<os-coachmark>` +
+	// Shell tour — the five first-boot coachmarks (`<os-coachmark>` +
 	// the step driver). Only a user's first boot, a reset or "Take the
 	// tour" needs it; injected by `src/shell-tour/loader.ts` from the
 	// main bundle. Publishes `window.openStationShellTour`.

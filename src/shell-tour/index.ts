@@ -1,13 +1,14 @@
 /**
- * The shell tour — three coachmarks on a user's first boot.
+ * The shell tour — five coachmarks on a user's first boot.
  *
- * Open a window, snap it, press ⌘K. Twenty seconds, and the three
+ * Where the menus are, how to change the layout, then the three
  * gestures that make the station a station rather than a wallpaper
- * behind wp-admin. Each step completes when the user actually does
- * the thing — a window opens, a snap commits, the palette opens — and
- * every card carries a "Do it for me" so nobody is stuck. There is no
- * scrim: step 2 asks the user to drag a window, so the desk has to be
- * live underneath.
+ * behind wp-admin: open a window, snap it, press ⌘K. The two opening
+ * cards orient; the three that follow each complete when the user
+ * actually does the thing — a window opens, a snap commits, the
+ * palette opens — and every card carries an action so nobody is
+ * stuck. There is no scrim: the snap card asks the user to drag a
+ * window, so the desk has to be live underneath.
  *
  * ## It takes its entry points, not the shell
  *
@@ -78,6 +79,14 @@ export interface ShellTourDeps {
 	openPalette: () => void;
 	/** Opens some window when no dock tile can be found to click. */
 	openFallbackWindow: () => void;
+	/**
+	 * Opens Preferences on Appearance, at the Desktop layout section.
+	 *
+	 * Returns the id of the window that opens, because that open is the
+	 * tour's own doing and the card after it is waiting for the user to
+	 * open one — see `ignoreWindowId` in {@link startShellTour}.
+	 */
+	openLayoutSettings: () => string;
 	/** Where the coachmark mounts. Defaults to `document.body`. */
 	host?: HTMLElement;
 }
@@ -90,7 +99,15 @@ export interface ShellTourHandle {
 	end( reason: ShellTourEndReason ): void;
 }
 
+/**
+ * What each card is, for the step signals to match on. An index would
+ * have to be renumbered every time a card moves, silently pointing a
+ * signal at the wrong step; a name cannot drift.
+ */
+type StepId = 'menus' | 'layout' | 'open-window' | 'snap' | 'palette' | 'done';
+
 interface StepDef {
+	id: StepId;
 	heading: string;
 	body: () => Node[];
 	primary: string;
@@ -137,6 +154,20 @@ function findDockTile(): HTMLElement | null {
 	return null;
 }
 
+/**
+ * The rail the menu tiles live on.
+ *
+ * Resolved from the tile the "open a window" card points at, so Split's
+ * two rails collapse to the one that actually carries the menus rather
+ * than whichever comes first in the DOM.
+ */
+function findDockRail(): HTMLElement | null {
+	return (
+		findDockTile()?.closest< HTMLElement >( '.os-dock' ) ??
+		document.querySelector< HTMLElement >( '.os-dock' )
+	);
+}
+
 function paragraph( text: string ): HTMLParagraphElement {
 	const p = document.createElement( 'p' );
 	p.textContent = text;
@@ -167,10 +198,53 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 
 	let index = 0;
 	let openedId = '';
+	/**
+	 * A window the tour opened itself, which must not count as the user
+	 * opening one. The layout card opens Preferences; that fires
+	 * `os.window.opened` a tick later, by which time the card after it
+	 * is on screen asking for exactly that event, and it would answer
+	 * its own question. Consumed once, so a user who then opens
+	 * Preferences by hand still completes the card.
+	 */
+	let ignoreWindowId = '';
 	let ended = false;
 
 	const steps: StepDef[] = [
 		{
+			id: 'menus',
+			heading: __( 'All your menu items are here' ),
+			body: () => [
+				paragraph(
+					__( 'Every WordPress admin menu lives on this rail. Hover a tile for its name; the ones with submenus fan them out.' ),
+				),
+			],
+			// Nothing to perform, so the action is simply the way on.
+			primary: __( 'Next' ),
+			secondary: __( 'Skip tour' ),
+			anchor: findDockRail,
+			doIt: () => true,
+		},
+		{
+			id: 'layout',
+			heading: __( 'Configure the layout as you wish' ),
+			body: () => [
+				paragraph(
+					__( 'The rail can move to another edge, split in two, or park itself out of the way. Desktop layout, in OpenStation Preferences, is where you choose.' ),
+				),
+			],
+			primary: __( 'Show me' ),
+			secondary: __( 'Skip tour' ),
+			anchor: findDockRail,
+			doIt: () => {
+				ignoreWindowId = deps.openLayoutSettings();
+				// Opening a window is not this card's completion signal —
+				// `os.window.opened` belongs to the card after next — so
+				// advance here rather than waiting for one.
+				return true;
+			},
+		},
+		{
+			id: 'open-window',
 			heading: __( 'Open a window' ),
 			body: () => [
 				paragraph(
@@ -196,6 +270,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			},
 		},
 		{
+			id: 'snap',
 			heading: __( 'Snap it to the side' ),
 			body: () => [
 				paragraph(
@@ -214,6 +289,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			},
 		},
 		{
+			id: 'palette',
 			heading: __( 'Find anything' ),
 			body: () => {
 				const p = document.createElement( 'p' );
@@ -246,6 +322,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			},
 		},
 		{
+			id: 'done',
 			heading: __( 'You are set' ),
 			body: () => [
 				paragraph(
@@ -322,7 +399,11 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	// Not `WINDOW_FOCUSED`: the manager's own note says it double-fires
 	// on alt-tab and never fires when the window is already focused.
 	const windowArrived = ( detail?: { windowId?: string } ): void => {
-		if ( index !== 0 ) {
+		if ( 'open-window' !== steps[ index ]?.id ) {
+			return;
+		}
+		if ( ignoreWindowId && detail?.windowId === ignoreWindowId ) {
+			ignoreWindowId = '';
 			return;
 		}
 		openedId = typeof detail?.windowId === 'string' ? detail.windowId : '';
@@ -331,14 +412,14 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_OPENED, NS, windowArrived );
 	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_REOPENED, NS, windowArrived );
 	addAction( HOOKS.SNAP_ZONE_COMMITTED, NS, () => {
-		if ( index === 1 ) {
+		if ( 'snap' === steps[ index ]?.id ) {
 			advance();
 		}
 	} );
 	document.addEventListener(
 		'os-palette-opened',
 		() => {
-			if ( index === 2 ) {
+			if ( 'palette' === steps[ index ]?.id ) {
 				advance();
 			}
 		},
