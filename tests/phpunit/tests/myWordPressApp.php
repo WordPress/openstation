@@ -476,6 +476,34 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers \OpenStation\Apps\MyWordPress\lock_holder
+	 */
+	public function test_list_rows_name_whoever_else_holds_the_edit_lock() {
+		require_once ABSPATH . 'wp-admin/includes/post.php';
+		// Stored as `Tom &amp; Jerry`; the client paints the name as text.
+		$holder = self::factory()->user->create(
+			array(
+				'role'         => 'editor',
+				'display_name' => 'Tom & Jerry',
+			)
+		);
+		wp_set_current_user( $holder );
+		wp_set_post_lock( self::$post_id );
+
+		$locked_by = function () {
+			$rows = $this->dispatch( 'refresh', array( 'section' => 'posts' ) )['data']['list']['items'];
+			return array_column( $rows, 'lockedBy', 'id' )[ self::$post_id ];
+		};
+		$this->assertSame( '', $locked_by(), 'Nobody is told about their own lock.' );
+
+		wp_set_current_user( self::$admin_id );
+		$this->assertSame( 'Tom & Jerry', $locked_by() );
+
+		wp_set_current_user( self::$author_id );
+		$this->assertSame( '', $locked_by(), 'Someone who cannot edit the post never learns who is editing it.' );
+	}
+
+	/**
 	 * @covers \OpenStation\Apps\MyWordPress\mount
 	 * @covers \OpenStation\Apps\MyWordPress\view_action
 	 */

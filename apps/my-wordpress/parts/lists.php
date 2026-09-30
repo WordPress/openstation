@@ -56,8 +56,8 @@ function lock_holder( $post_id ) {
 		return '';
 	}
 	$lock = openstation_my_wordpress_post_lock_payload( (int) $post_id );
-	if ( is_array( $lock ) && ! empty( $lock['locked'] ) && ! empty( $lock['name'] ) ) {
-		return (string) $lock['name'];
+	if ( is_array( $lock ) ) {
+		return openstation_plain_text_title( $lock['userName'] );
 	}
 	return '';
 }
