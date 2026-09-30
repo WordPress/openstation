@@ -16,6 +16,8 @@
  * backdrop and the close button. The caller owns what that means.
  */
 
+import { restErrorFromResponse } from '../core/api-client';
+import { describeRestFailure } from '../core/rest-failure';
 import { __ } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import '../ui/components/os-modal/os-modal';
@@ -201,7 +203,9 @@ export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 		clearError();
 		send.setAttribute( 'busy', '' );
 		send.setAttribute( 'disabled', '' );
-		let ok = false;
+		// What went wrong, if anything: a `RestError` for a reply that
+		// was not a success, whatever `fetch` threw when no reply came.
+		let failure: unknown = null;
 		try {
 			const res = await trackedFetch(
 				opts.restUrl,
@@ -215,12 +219,20 @@ export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 				},
 				{ source: 'desktop-mode/usage-feedback' },
 			);
-			ok = res.ok;
-		} catch {
-			ok = false;
+			if ( ! res.ok ) {
+				failure = await restErrorFromResponse( res );
+			}
+		} catch ( err ) {
+			failure = err;
 		}
-		if ( ! ok ) {
-			fail( __( 'We could not send that right now. Please try again in a moment.' ) );
+		if ( failure !== null ) {
+			// Say why: the server's own message for a refusal, the
+			// offline or expired-session line when that is the cause.
+			fail(
+				describeRestFailure( failure, {
+					fallback: __( 'We could not send that right now. Please try again in a moment.' ),
+				} ).message,
+			);
 			return;
 		}
 		close( 'sent' );
