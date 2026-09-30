@@ -307,7 +307,7 @@ export function buildColumns(
 			sortable: true,
 			stack: 'meta',
 			width: '160px',
-			render: ( _v, row ) => row.deleted_by || '—',
+			render: ( _v, row ) => decodeHTML( row.deleted_by ?? '' ) || '—',
 		},
 		{
 			key: '__actions',

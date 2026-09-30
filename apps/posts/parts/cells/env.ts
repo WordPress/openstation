@@ -108,7 +108,7 @@ export function authorOf( row: PostListItem ): { id: number; name: string; avata
 	if ( embedded ) {
 		return {
 			id: embedded.id,
-			name: embedded.name,
+			name: decodeHTML( embedded.name ?? '' ),
 			avatar: pickAvatarUrl( embedded.avatar_urls ) || undefined,
 		};
 	}

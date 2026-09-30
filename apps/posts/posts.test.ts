@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
 import app from './posts.os';
 import { createPostsApp } from './parts/app';
-import { buildTitleCell } from './parts/cells/basic';
+import { buildAuthorCell, buildTitleCell } from './parts/cells/basic';
 import { buildCategoriesCell } from './parts/cells/categories';
 import type { CellEnv } from './parts/cells/env';
 import { buildParentCell, buildSlugCell, buildTemplateCell, refreshParentTitleRoster } from './parts/cells/pages';
@@ -658,6 +658,14 @@ describe( 'the cells', () => {
 		const draft = buildTitleCell( row( 6, { status: 'draft', link: 'http://x.test/d' } ), env );
 		expect( pills( draft ) ).toEqual( [ 'Posts page', 'Draft' ] );
 		expect( draft.querySelector( 'a[target="_blank"]' ) ).toBeNull();
+	} );
+
+	it( 'the author cell paints the name as text, and nothing for an author core could not embed', () => {
+		const named = buildAuthorCell( row( 1, { _embedded: { author: [ { id: 2, name: 'Q&amp;A Helper' } ] } } ) );
+		expect( named.textContent ).toBe( 'Q&A Helper' );
+		// A deleted author embeds as core's error object, which has no name.
+		const orphan = buildAuthorCell( row( 1, { _embedded: { author: [ { code: 'rest_user_invalid_id' } as never ] } } ) );
+		expect( orphan.textContent ).toBe( '' );
 	} );
 
 	it( 'the pages cells read the template map and the parent roster', () => {

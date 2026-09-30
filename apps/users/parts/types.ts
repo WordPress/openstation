@@ -22,6 +22,7 @@ export interface UserStats {
 
 export interface UserListItem {
 	id: number;
+	/** Plain text, entities decoded on the server. */
 	name: string;
 	slug: string;
 	email?: string;

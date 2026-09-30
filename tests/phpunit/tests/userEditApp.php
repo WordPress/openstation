@@ -241,6 +241,31 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The sidebar and the activity feed paint text, and core stores a
+	 * name or a title with `&` as `&amp;`.
+	 *
+	 * @covers ::openstation_user_edit_window_compute_insights
+	 */
+	public function test_insights_carry_names_and_titles_as_plain_text() {
+		wp_update_user(
+			array(
+				'ID'           => self::$editor_id,
+				'display_name' => 'Edgar & Co',
+			)
+		);
+		self::factory()->post->create(
+			array(
+				'post_author' => self::$editor_id,
+				'post_title'  => 'Salt &amp; Pepper',
+			)
+		);
+
+		$insights = openstation_user_edit_window_compute_insights( get_userdata( self::$editor_id ) );
+		$this->assertSame( 'Edgar & Co', $insights['displayName'] );
+		$this->assertSame( 'Salt & Pepper', $insights['recentPosts'][0]['title'] );
+	}
+
+	/**
 	 * Logging out elsewhere: self keeps this device unless asked for
 	 * `all`; another user loses every session whatever the scope.
 	 *

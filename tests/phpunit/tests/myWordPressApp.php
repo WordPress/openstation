@@ -270,10 +270,10 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	 * @covers \OpenStation\Apps\MyWordPress\footprint_from_params
 	 */
 	public function test_a_footprint_param_lands_the_mount_and_the_reopen_on_that_person() {
-		$mounted = $this->dispatch( 'mount', array(), array(), array( 'footprint' => self::$author_id, 'fpName' => 'Ann <b>Author</b>' ) );
+		$mounted = $this->dispatch( 'mount', array(), array(), array( 'footprint' => self::$author_id, 'fpName' => 'Ann <b>Author</b> <3 Q&A' ) );
 		$this->assertTrue( $mounted['ok'] );
 		$this->assertSame( self::$author_id, $mounted['state']['footprint'] );
-		$this->assertSame( 'Ann Author', $mounted['state']['fpName'], 'The breadcrumb placeholder is sanitised.' );
+		$this->assertSame( 'Ann Author <3 Q&A', $mounted['state']['fpName'], 'The breadcrumb placeholder is sanitised, and stays text.' );
 
 		$plain = $this->dispatch( 'mount' );
 		$this->assertSame( 0, $plain['state']['footprint'], 'No params, no footprint.' );
