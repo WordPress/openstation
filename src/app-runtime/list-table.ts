@@ -5,13 +5,9 @@
  * A list window renders its `<os-table>` once, marked `os-preserve`,
  * and drives it from `updated()`: the component owns its own DOM and
  * a re-render must not rebuild the cells, the pickers or the scroll
- * position. Every list window then does the same four things on every
+ * position. Every list window then does the same things on every
  * paint — a card list on a phone (and the columns built for it), the
- * one-time wiring, a selection cleared when the QUERY changes (an id
- * picked under the previous page must not ride into the next bulk
- * action), and the rows assigned only when they actually changed with
- * the selection pruned to what is still visible. Four windows wrote
- * that by hand; this owns it.
+ * one-time wiring, and the rows assigned only when they actually changed.
  *
  * Usage, in a client view:
  *
@@ -101,7 +97,6 @@ export function createListTableSync< Row >(): ListTableSync< Row > {
 			if ( ! table ) {
 				return result;
 			}
-			const rowId = opts.rowId ?? ( ( row: Row ) => ( row as { id: string | number } ).id );
 
 			// A card per row on a phone, and the columns built for it —
 			// rebuilt only when the answer changes.
@@ -118,33 +113,17 @@ export function createListTableSync< Row >(): ListTableSync< Row > {
 				opts.wire?.( table );
 			}
 
-			// A query change replaces the result set wholesale — ids picked
-			// under the previous view must not linger invisibly.
 			if ( opts.listKey !== listKey ) {
 				listKey = opts.listKey;
-				if ( selectionKeys( table ).length > 0 ) {
-					table.clearSelection();
-					result.selectionChanged = true;
-					opts.onSelection?.( [] );
-				}
 			}
 
 			// Assign the rows only when they changed, so a selection or
-			// expand repaint never rebuilds the cells; then prune the
-			// selection to the rows still on screen so a bulk bar's count
-			// stays truthful.
+			// expand repaint never rebuilds the cells.
 			if ( opts.fingerprint !== fingerprint ) {
 				fingerprint = opts.fingerprint;
 				table.data = opts.rows;
 				result.dataChanged = true;
-				const visible = new Set( opts.rows.map( ( row ) => String( rowId( row ) ) ) );
-				const before = selectionKeys( table );
-				const kept = before.filter( ( key ) => visible.has( key ) );
-				if ( kept.length !== before.length ) {
-					( table as { selection: unknown } ).selection = kept;
-					result.selectionChanged = true;
-					opts.onSelection?.( kept );
-				}
+				opts.onSelection?.( selectionKeys( table ) );
 			}
 			return result;
 		},

@@ -840,16 +840,15 @@ describe( 'the writing desk', () => {
 		expect( root.ownerDocument.activeElement ).toBe( root.querySelector( '[data-inspect-id="2"]' ) );
 	} );
 
-	it( 'drops hidden selections when the server query changes and keeps details current', async () => {
+	it( 'preserves selections when the server query changes and keeps details current', async () => {
 		const { root, ctx, table } = mount();
 		root.querySelector( '[data-story-id="2"] os-checkbox' )!.dispatchEvent( new CustomEvent( 'os-checkbox-change', { detail: { checked: true } } ) );
 		ctx.state.search = 'Row 1';
 		( ctx as { data: ListData } ).data = data( [ row( 1 ) ] );
 		ctx.repaint();
 		await flush();
-		expect( Array.from( table().selection ?? [] ) ).toEqual( [] );
+		expect( Array.from( table().selection ?? [] ) ).toEqual( [ 2 ] );
 		expect( root.querySelectorAll( '[data-story-id]' ) ).toHaveLength( 1 );
-		expect( root.querySelector( '[data-os-posts-bulk]' )?.hasAttribute( 'hidden' ) ).toBe( true );
 	} );
 
 	it( 'sorts through the existing server action', () => {
