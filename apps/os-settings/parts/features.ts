@@ -274,7 +274,9 @@ const featuresSection: Section = ( s, ctx ) => {
 			</div>
 			<div class="os-features__row">
 				<p class="os-features__hint">
-					${ __( 'Brings back the one-time announcements you have dismissed, such as the welcome dialog.' ) }
+					${ isMobileStamped()
+						? __( 'Brings back the one-time announcements you have dismissed.' )
+						: __( 'Brings back the one-time announcements you have dismissed and replays the tour right away.' ) }
 				</p>
 				<os-button variant="secondary" ?disabled=${ ui.resetting } @click=${ () => void resetIntros( ctx ) }>
 					${ ui.resetting ? __( 'Resetting…' ) : __( 'Reset what’s-new dialogs' ) }
