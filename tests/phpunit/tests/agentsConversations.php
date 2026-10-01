@@ -453,6 +453,91 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The title and the transcript are text, not HTML: they must come
+	 * back as sent from a user whose saves WordPress runs through kses.
+	 * The quoted attribute is the worst case, kses unescapes its quotes
+	 * and the stored JSON stops decoding.
+	 *
+	 * @covers ::openstation_agent_conversation_preserve_text
+	 */
+	public function test_text_round_trips_for_a_user_without_unfiltered_html() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
+		kses_init();
+
+		$opener = 'Summarize the Q&A post in C:\docs';
+		$answer = 'Use `<details>` & a <script>x</script> tag, then <a href="https://example.org/?a=1&b=2">link</a> it.';
+
+		$created = $this->create_conversation(
+			array(
+				array(
+					'role' => 'user',
+					'text' => $opener,
+					'at'   => 1,
+				),
+				array(
+					'role' => 'agent',
+					'text' => $answer,
+					'at'   => 2,
+				),
+			)
+		);
+		$this->assertSame( $opener, $created['title'] );
+		$this->assertSame( array( $opener, $answer ), wp_list_pluck( $created['messages'], 'text' ) );
+
+		$retitled = 'Is 1 < 2 & 3 > 2?';
+		$updated  = openstation_agents_rest_conversations_update(
+			$this->request(
+				'PUT',
+				"/agents/conversations/{$created['id']}",
+				array(
+					'id'       => $created['id'],
+					'messages' => array(
+						array(
+							'role' => 'user',
+							'text' => $retitled,
+							'at'   => 3,
+						),
+						array(
+							'role' => 'agent',
+							'text' => $answer,
+							'at'   => 4,
+						),
+					),
+				)
+			)
+		)->get_data();
+		$this->assertSame( $retitled, $updated['title'] );
+		$this->assertSame( array( $retitled, $answer ), wp_list_pluck( $updated['messages'], 'text' ) );
+	}
+
+	/**
+	 * A utf8mb3 posts table rejects an emoji and the insert fails, so
+	 * `wp_insert_post()` swaps them for entities first. Storing the
+	 * title as passed must not undo that.
+	 *
+	 * @covers ::openstation_agent_conversation_preserve_text
+	 */
+	public function test_emoji_opener_still_saves_on_a_utf8mb3_table() {
+		add_filter(
+			'pre_get_col_charset',
+			static function () {
+				return 'utf8mb3';
+			}
+		);
+
+		$data = $this->create_conversation(
+			array(
+				array(
+					'role' => 'user',
+					'text' => "Ship it \u{1F680}",
+				),
+			)
+		);
+		$this->assertSame( 'Ship it &#x1f680;', $data['title'] );
+		$this->assertSame( "Ship it \u{1F680}", $data['messages'][0]['text'] );
+	}
+
+	/**
 	 * @covers ::openstation_agents_rest_conversations_delete
 	 */
 	public function test_delete_removes_the_row() {
