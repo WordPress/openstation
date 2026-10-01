@@ -123,7 +123,7 @@ export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 	disclosure.className = 'os-usage-feedback__disclosure';
 	disclosure.style.cssText = NOTE_STYLE;
 	disclosure.textContent = __(
-		'Nothing is sent until you click Send. Then your answers, your language, and the OpenStation and WordPress versions go to openstation.blog, the plugin’s own site, run by Automattic. Without an email, nothing identifies you or your site.',
+		'Nothing is sent until you click Send. Then your answers, your language, the OpenStation and WordPress versions, and how many days you have had OpenStation on go to openstation.blog, the plugin’s own site, run by Automattic. Without an email, nothing identifies you or your site.',
 	);
 	body.appendChild( disclosure );
 
