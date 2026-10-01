@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import './os-coachmark';
-import type { OsCoachmark } from './os-coachmark';
+import { COACHMARK_EXIT_MS, type OsCoachmark } from './os-coachmark';
 
 /** Three microtasks: the paint, then the two the component queues behind it. */
 const settle = async (): Promise< void > => {
@@ -53,11 +53,36 @@ describe( '<os-coachmark>', () => {
 		expect( host.ownerDocument.activeElement ).toBe( mark );
 		expect( mark.shadowRoot!.activeElement?.classList.contains( 'primary' ) ).toBe( true );
 
+		vi.useFakeTimers( { toFake: [ 'setTimeout', 'clearTimeout' ] } );
 		mark.removeAttribute( 'open' );
+		await settle();
+		// Focus is back straight away; the card is still fading out.
+		expect( host.ownerDocument.activeElement ).toBe( before );
+		expect( hide ).not.toHaveBeenCalled();
+		expect( layer.hidden ).toBe( false );
+		expect( layer.classList.contains( 'leaving' ) ).toBe( true );
+
+		vi.advanceTimersByTime( COACHMARK_EXIT_MS );
 		await settle();
 		expect( hide ).toHaveBeenCalledTimes( 1 );
 		expect( layer.hidden ).toBe( true );
-		expect( host.ownerDocument.activeElement ).toBe( before );
+		vi.useRealTimers();
+	} );
+
+	test( 'reopening mid fade-out cancels the exit instead of hiding', async () => {
+		vi.useFakeTimers( { toFake: [ 'setTimeout', 'clearTimeout' ] } );
+		const mark = await mount( 'open' );
+		mark.removeAttribute( 'open' );
+		await settle();
+		mark.setAttribute( 'open', '' );
+		await settle();
+		vi.advanceTimersByTime( COACHMARK_EXIT_MS );
+		await settle();
+		const layer = mark.shadowRoot!.querySelector< HTMLElement >( '.layer' )!;
+		expect( hide ).not.toHaveBeenCalled();
+		expect( layer.hidden ).toBe( false );
+		expect( layer.classList.contains( 'leaving' ) ).toBe( false );
+		vi.useRealTimers();
 	} );
 
 	test( 'renders the counter and fires the three events', async () => {
@@ -71,6 +96,10 @@ describe( '<os-coachmark>', () => {
 
 		const root = mark.shadowRoot!;
 		expect( root.querySelector( '.meta' )!.textContent ).toBe( '1 of 3' );
+		// The built-in counter is English; a caller passes its own.
+		mark.setAttribute( 'counter-label', '1 de 3' );
+		await settle();
+		expect( root.querySelector( '.meta' )!.textContent ).toBe( '1 de 3' );
 		root.querySelector< HTMLElement >( 'os-button.primary' )!.click();
 		root.querySelector< HTMLElement >( 'os-button.secondary' )!.click();
 		root
@@ -104,5 +133,99 @@ describe( '<os-coachmark>', () => {
 
 		mark.anchor = null;
 		expect( outline.hidden ).toBe( true );
+	} );
+
+	test( 'an anchor that is hidden or removed lets go of the ring, and takes it back when it returns', async () => {
+		// A hidden anchor is still connected and reports a rect of zeros,
+		// which put the card and an 8px ring in the top-left corner; a
+		// removed one stopped the tracking and left the ring behind.
+		const mark = await mount( 'open' );
+		const outline = mark.shadowRoot!.querySelector< HTMLElement >( '.outline' )!;
+		const frames = async (): Promise< void > => {
+			await new Promise( ( resolve ) => requestAnimationFrame( () => resolve( null ) ) );
+			await new Promise( ( resolve ) => requestAnimationFrame( () => resolve( null ) ) );
+		};
+		const target = document.createElement( 'div' );
+		host.appendChild( target );
+		let visible = true;
+		target.getBoundingClientRect = () =>
+			( visible
+				? { left: 100, top: 200, width: 50, height: 40, right: 150, bottom: 240 }
+				: { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 } ) as DOMRect;
+		// jsdom has no layout, so no `checkVisibility` either.
+		( target as unknown as { checkVisibility: () => boolean } ).checkVisibility = () => visible;
+		mark.anchor = target;
+		expect( outline.hidden ).toBe( false );
+
+		visible = false;
+		await frames();
+		expect( outline.hidden ).toBe( true );
+
+		visible = true;
+		await frames();
+		expect( outline.hidden ).toBe( false );
+		expect( outline.style.left ).toBe( '96px' );
+
+		target.remove();
+		await frames();
+		expect( outline.hidden ).toBe( true );
+	} );
+
+	test( 'a new anchor animates the move; the anchor moving on its own does not', async () => {
+		const mark = await mount( 'open' );
+		const layer = mark.shadowRoot!.querySelector< HTMLElement >( '.layer' )!;
+		const target = document.createElement( 'div' );
+		host.appendChild( target );
+		mark.anchor = target;
+		expect( layer.classList.contains( 'stepping' ) ).toBe( true );
+
+		layer.classList.remove( 'stepping' );
+		// Tracking a dragged window re-positions every frame; if that
+		// transitioned, the ring would trail behind the drag.
+		( mark as unknown as { _position(): void } )._position();
+		expect( layer.classList.contains( 'stepping' ) ).toBe( false );
+	} );
+
+	test( 'the speaker stands beside the card, never between it and the anchor', async () => {
+		const mark = await mount( 'open speaker-size="100"' );
+		const root = mark.shadowRoot!;
+		const card = root.querySelector< HTMLElement >( '.card' )!;
+		const tail = root.querySelector< HTMLElement >( '.tail' )!;
+		card.getBoundingClientRect = () =>
+			( { left: 0, top: 0, width: 300, height: 120, right: 300, bottom: 120 } ) as DOMRect;
+		Object.defineProperty( window, 'innerHeight', { value: 768, configurable: true } );
+		Object.defineProperty( window, 'innerWidth', { value: 1024, configurable: true } );
+		const spots: Array< { x: number; y: number } > = [];
+		mark.addEventListener( 'os-coachmark-speaker', ( e ) =>
+			spots.push( ( e as CustomEvent< { x: number; y: number } > ).detail ),
+		);
+		const anchorAt = ( left: number, top: number ): HTMLElement => {
+			const el = document.createElement( 'div' );
+			host.appendChild( el );
+			el.getBoundingClientRect = () =>
+				( { left, top, width: 40, height: 40, right: left + 40, bottom: top + 40 } ) as DOMRect;
+			return el;
+		};
+
+		// A dock tile near the right edge: the card goes above it, at its
+		// usual distance, and speaks from its left, where the room is.
+		mark.anchor = anchorAt( 800, 700 );
+		expect( card.style.top ).toBe( `${ 700 - 4 - 12 - 120 }px` );
+		expect( tail.dataset.edge ).toBe( 'left' );
+		const cardLeft = parseFloat( card.style.left );
+		const reach = 16 + 100 / 2;
+		expect( spots[ spots.length - 1 ] ).toEqual( { x: cardLeft - reach, y: 700 - 4 - 12 - 120 + 60 } );
+
+		// A card beside its anchor speaks from below instead.
+		mark.setAttribute( 'placement', 'end' );
+		mark.anchor = anchorAt( 100, 100 );
+		expect( tail.dataset.edge ).toBe( 'bottom' );
+		const top = parseFloat( card.style.top );
+		expect( spots[ spots.length - 1 ].y ).toBe( top + 120 + reach );
+
+		// Without a speaker, a plain card with no tail.
+		mark.removeAttribute( 'speaker-size' );
+		mark.anchor = anchorAt( 800, 700 );
+		expect( tail.hidden ).toBe( true );
 	} );
 } );

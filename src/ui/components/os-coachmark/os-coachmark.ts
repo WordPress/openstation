@@ -41,12 +41,31 @@ export type OsCoachmarkPlacement = 'auto' | 'top' | 'bottom' | 'start' | 'end';
 
 type Side = 'top' | 'bottom' | 'start' | 'end';
 
+/** The card edge the tail sits on, in physical terms. */
+type TailEdge = 'top' | 'bottom' | 'left' | 'right';
+
 /** Distance between the outline and the card. */
 const GAP = 12;
 /** Kept between the card and the viewport edge. */
 const MARGIN = 12;
 /** How far the outline sits outside the anchor's own box. */
 const OUTLINE_INSET = 4;
+/** Clearance on each side of a speaker, inside the gap left for it. */
+const SPEAKER_PAD = 16;
+/** The tail never sits closer than this to a card corner. */
+const TAIL_EDGE = 28;
+
+/**
+ * How long the card takes to fade out once `open` is removed. The
+ * popover stays in the top layer until then, so a host that removes
+ * the element should wait at least this long or it cuts the fade.
+ */
+export const COACHMARK_EXIT_MS = 180;
+/** How long a step change animates the card and the outline. */
+const STEP_MS = 360;
+
+/** Tracking key for an anchor that is set but has no box to point at. */
+const ANCHOR_GONE = 'gone';
 
 const SIDES: readonly Side[] = [ 'bottom', 'top', 'end', 'start' ];
 
@@ -63,15 +82,36 @@ function opposite( side: Side ): Side {
 	}
 }
 
+/**
+ * Is there a box on screen for the card to point at?
+ *
+ * Connected is not enough. An anchor inside a `hidden` ancestor (a
+ * closed panel, a tab pane that is not showing) is still in the
+ * document, and the browser reports its rect as zeros: a real-looking
+ * box at the top-left corner, which is where the card and its ring
+ * then went. `checkVisibility()` is false for exactly that case, an
+ * element with no box of its own. Where the engine lacks it the anchor
+ * is taken at its word.
+ */
+function hasBox( el: Element ): boolean {
+	if ( ! el.isConnected ) {
+		return false;
+	}
+	const check = ( el as { checkVisibility?: () => boolean } ).checkVisibility;
+	return typeof check !== 'function' || check.call( el );
+}
+
 export class OsCoachmark extends Component {
 	static props = [
 		'open',
 		'placement',
 		'step',
 		'total',
+		'counter-label',
 		'heading',
 		'primary-label',
 		'secondary-label',
+		'speaker-size',
 	] as const;
 	static styles = [ styles ];
 
@@ -90,7 +130,7 @@ export class OsCoachmark extends Component {
 				name: 'anchor',
 				type: 'Element | null (property)',
 				description:
-					'The element the card points at and outlines. Set it from script — an element reference, never an id. `null` centres the card in the viewport with no outline. The outline follows the anchor while the coachmark is open, so a dragged window keeps its highlight.',
+					'The element the card points at and outlines. Set it from script — an element reference, never an id. `null` centres the card in the viewport with no outline. The outline follows the anchor while the coachmark is open, so a dragged window keeps its highlight. An anchor that leaves the document or stops being rendered (a closed panel, a hidden tab pane) is treated as `null` until it is back.',
 			},
 			{
 				name: 'placement',
@@ -101,6 +141,12 @@ export class OsCoachmark extends Component {
 			},
 			{ name: 'step', type: 'number', description: 'Current step, rendered with `total` as "1 of 3".' },
 			{ name: 'total', type: 'number', description: 'Step count. Omit both to hide the counter.' },
+			{
+				name: 'counter-label',
+				type: 'string',
+				description:
+					'The counter text, already translated ("1 de 3"). Replaces the built-in English "1 of 3"; still shown only when `step` and `total` are set.',
+			},
 			{ name: 'heading', type: 'string', description: 'The card heading. Pass a translated string.' },
 			{ name: 'primary-label', type: 'string', default: 'Next', description: 'Label of the primary button.' },
 			{
@@ -108,6 +154,12 @@ export class OsCoachmark extends Component {
 				type: 'string',
 				default: 'Skip',
 				description: 'Label of the secondary button. An empty string hides it.',
+			},
+			{
+				name: 'speaker-size',
+				type: 'number (px)',
+				description:
+					'Turns the card into a speech balloon for someone standing beside it: a character, an avatar. The speaker goes across from the anchor, never between the two (left or right of a card above or below its anchor, above or below one beside it), on whichever of the two sides has more room. The card grows a tail pointing at them and reports where they should stand through `os-coachmark-speaker`. Omit it for a plain card.',
 			},
 		],
 		slots: [ { name: '(default)', description: 'The card body — a sentence or two; `<os-key>` for a chord.' } ],
@@ -118,6 +170,12 @@ export class OsCoachmark extends Component {
 				name: 'os-coachmark-dismiss',
 				detail: '{ step }',
 				description: 'Escape was pressed with focus in the card. The host decides what that means; the coachmark does not close itself.',
+			},
+			{
+				name: 'os-coachmark-speaker',
+				detail: '{ x, y }',
+				description:
+					'Where the speaker should stand, in viewport coordinates, whenever that changes. Only with `speaker-size` set. The card does not move the speaker itself: it has no idea what one is.',
 			},
 		],
 		example: html`
@@ -170,6 +228,12 @@ export class OsCoachmark extends Component {
 	private _raf = 0;
 	private _lastKey = '';
 	private _listeners: AbortController | null = null;
+	/** Fading out: still in the top layer, no longer tracking or focused. */
+	private _leaving = false;
+	private _exitTimer = 0;
+	private _stepTimer = 0;
+	/** Last speaker point reported, so an unchanged one is not re-sent. */
+	private _speakerKey = '';
 
 	/** The element the card points at and outlines. */
 	get anchor(): Element | null {
@@ -179,6 +243,10 @@ export class OsCoachmark extends Component {
 		this._anchor = el ?? null;
 		this._lastKey = '';
 		if ( this._shown ) {
+			// Setting the anchor is how a host moves on to the next step,
+			// so this is the one place the move animates. Tracking an
+			// anchor that moves by itself does not come through here.
+			this._beginStep();
 			this._position();
 		}
 	}
@@ -200,6 +268,8 @@ export class OsCoachmark extends Component {
 
 	disconnectedCallback(): void {
 		this._teardown();
+		this._finishExit();
+		window.clearTimeout( this._stepTimer );
 	}
 
 	protected render(): TemplateResult {
@@ -207,13 +277,14 @@ export class OsCoachmark extends Component {
 		const step = this.getAttribute( 'step' );
 		const total = this.getAttribute( 'total' );
 		// A raw "%1 of %2" is a translation problem the caller owns:
-		// labels arrive translated, and so does the counter when the
-		// caller renders it. The component's default is the English
+		// labels arrive translated, and so does the counter, through
+		// `counter-label`. The component's default is the English
 		// pattern every other kit default uses.
-		const meta = step && total ? `${ step } of ${ total }` : '';
+		const meta =
+			step && total ? this.getAttribute( 'counter-label' ) || `${ step } of ${ total }` : '';
 		const primary = this.getAttribute( 'primary-label' ) ?? 'Next';
 		const secondary = this.getAttribute( 'secondary-label' ) ?? 'Skip';
-		return html`<div class="layer" popover="manual" ?hidden=${ ! open }>
+		return html`<div class="layer" popover="manual" ?hidden=${ ! open && ! this._leaving }>
 			<div class="outline" hidden aria-hidden="true"></div>
 			<div
 				class="card"
@@ -222,6 +293,7 @@ export class OsCoachmark extends Component {
 				tabindex="-1"
 				@keydown=${ this._onKeyDown }
 			>
+				<span class="tail" hidden aria-hidden="true"></span>
 				<p class="meta">${ meta }</p>
 				<h2 id="os-coachmark-heading">${ this.getAttribute( 'heading' ) ?? '' }</h2>
 				<div class="body"><slot></slot></div>
@@ -274,6 +346,10 @@ export class OsCoachmark extends Component {
 		if ( ! layer ) {
 			return;
 		}
+		// Reopened mid fade-out: the popover never left the top layer, so
+		// cancel the exit rather than showing it a second time.
+		this._finishExit( false );
+		this.card?.classList.remove( 'swap' );
 		this._shown = true;
 		const active = this.ownerDocument.activeElement;
 		this._returnFocus =
@@ -299,19 +375,76 @@ export class OsCoachmark extends Component {
 
 	private _hide(): void {
 		this._teardown();
+		// Focus goes back now, not after the fade: a keyboard user should
+		// not wait on an animation to be somewhere again.
+		const back = this._returnFocus;
+		this._returnFocus = null;
+		if ( back && back.isConnected ) {
+			back.focus?.( { preventScroll: true } );
+		}
 		const layer = this.layer;
-		if ( layer ) {
+		if ( ! layer ) {
+			return;
+		}
+		// Stay in the top layer long enough to fade out, instead of
+		// vanishing the moment the host says so.
+		this._leaving = true;
+		layer.classList.add( 'leaving' );
+		this.requestUpdate();
+		this._exitTimer = window.setTimeout( () => this._finishExit(), COACHMARK_EXIT_MS );
+	}
+
+	/**
+	 * End a fade-out. `leave` false cancels it instead: the coachmark
+	 * was reopened before the fade finished, so it stays in the top
+	 * layer.
+	 */
+	private _finishExit( leave = true ): void {
+		if ( ! this._leaving ) {
+			return;
+		}
+		window.clearTimeout( this._exitTimer );
+		this._exitTimer = 0;
+		this._leaving = false;
+		const layer = this.layer;
+		layer?.classList.remove( 'leaving' );
+		if ( leave && layer ) {
 			try {
 				layer.hidePopover?.();
 			} catch {
 				// Not open — nothing to hide.
 			}
 		}
-		const back = this._returnFocus;
-		this._returnFocus = null;
-		if ( back && back.isConnected ) {
-			back.focus?.( { preventScroll: true } );
+		this.requestUpdate();
+	}
+
+	/**
+	 * Animate the next re-position and restart the content swap. Only a
+	 * step change comes through here, so a card tracking an anchor that
+	 * moves on its own (a window being dragged) still follows it frame
+	 * for frame instead of trailing behind.
+	 */
+	private _beginStep(): void {
+		const layer = this.layer;
+		const card = this.card;
+		if ( ! layer || ! card ) {
+			return;
 		}
+		layer.classList.add( 'stepping' );
+		card.classList.remove( 'swap' );
+		// Restart the animation: a class removed and re-added in one
+		// frame is otherwise a no-op.
+		void card.offsetWidth;
+		card.classList.add( 'swap' );
+		window.clearTimeout( this._stepTimer );
+		// Only the geometry transition is switched off again. `swap`
+		// stays on the card until the next step: taking it off would
+		// hand the card back its enter animation, and a changed
+		// animation name restarts, replaying the fade-in after every
+		// step.
+		this._stepTimer = window.setTimeout( () => {
+			layer.classList.remove( 'stepping' );
+		}, STEP_MS );
 	}
 
 	/** Stop tracking and drop listeners; shared by hide and disconnect. */
@@ -329,7 +462,10 @@ export class OsCoachmark extends Component {
 	 * Follow the anchor while open. A window being dragged, a dock
 	 * tile magnifying under the pointer: neither fires an event the
 	 * coachmark could subscribe to, so it reads the rect once a frame
-	 * and only touches the DOM when something moved.
+	 * and only touches the DOM when something moved. An anchor going
+	 * away (removed, or hidden with its panel) is a move too: the card
+	 * re-centres and the ring comes off, rather than staying behind on
+	 * the spot where the anchor used to be.
 	 */
 	private _track(): void {
 		if ( typeof requestAnimationFrame !== 'function' ) {
@@ -340,9 +476,12 @@ export class OsCoachmark extends Component {
 				this._raf = 0;
 				return;
 			}
-			if ( this._anchor && this._anchor.isConnected ) {
-				const r = this._anchor.getBoundingClientRect();
-				const key = `${ r.left },${ r.top },${ r.width },${ r.height }`;
+			if ( this._anchor ) {
+				let key = ANCHOR_GONE;
+				if ( hasBox( this._anchor ) ) {
+					const r = this._anchor.getBoundingClientRect();
+					key = `${ r.left },${ r.top },${ r.width },${ r.height }`;
+				}
 				if ( key !== this._lastKey ) {
 					this._position();
 				}
@@ -362,13 +501,26 @@ export class OsCoachmark extends Component {
 		const vw = window.innerWidth;
 		const vh = window.innerHeight;
 		const cr = card.getBoundingClientRect();
-		const anchor = this._anchor && this._anchor.isConnected ? this._anchor : null;
+		const anchor = this._anchor && hasBox( this._anchor ) ? this._anchor : null;
+		const speaker = Math.max( 0, Number( this.getAttribute( 'speaker-size' ) ) || 0 );
+		// The card keeps its usual distance from the anchor whether or
+		// not someone is speaking it: the speaker stands BESIDE the card,
+		// never between it and the thing it points at, where they hid
+		// the very control the card was about and pushed the card away
+		// from its ring.
+		const gap = GAP;
 
 		if ( ! anchor ) {
 			outline.hidden = true;
-			card.style.left = `${ Math.max( MARGIN, ( vw - cr.width ) / 2 ) }px`;
-			card.style.top = `${ Math.max( MARGIN, ( vh - cr.height ) / 2 ) }px`;
-			this._lastKey = '';
+			const left = Math.max( MARGIN, ( vw - cr.width ) / 2 );
+			const top = Math.max( MARGIN, ( vh - cr.height ) / 2 );
+			card.style.left = `${ left }px`;
+			card.style.top = `${ top }px`;
+			// An anchor that is set but has nowhere to be right now is
+			// remembered as such, so tracking re-positions once when it
+			// goes and once when it comes back, not every frame between.
+			this._lastKey = this._anchor ? ANCHOR_GONE : '';
+			this._placeSpeaker( 'top', left, top, cr, speaker );
 			return;
 		}
 
@@ -388,7 +540,7 @@ export class OsCoachmark extends Component {
 			end: rtl ? ar.left : vw - ar.right,
 		};
 		const need = ( side: Side ): number =>
-			( side === 'top' || side === 'bottom' ? cr.height : cr.width ) + GAP + MARGIN;
+			( side === 'top' || side === 'bottom' ? cr.height : cr.width ) + gap + MARGIN;
 		const fits = ( side: Side ): boolean => room[ side ] >= need( side );
 
 		const requested = this.getAttribute( 'placement' ) ?? 'auto';
@@ -416,23 +568,96 @@ export class OsCoachmark extends Component {
 		switch ( side ) {
 			case 'top':
 				left = centerX;
-				top = ar.top - OUTLINE_INSET - GAP - cr.height;
+				top = ar.top - OUTLINE_INSET - gap - cr.height;
 				break;
 			case 'bottom':
 				left = centerX;
-				top = ar.bottom + OUTLINE_INSET + GAP;
+				top = ar.bottom + OUTLINE_INSET + gap;
 				break;
 			default:
 				top = centerY;
 				left =
 					physical( side ) === 'left'
-						? ar.left - OUTLINE_INSET - GAP - cr.width
-						: ar.right + OUTLINE_INSET + GAP;
+						? ar.left - OUTLINE_INSET - gap - cr.width
+						: ar.right + OUTLINE_INSET + gap;
 		}
 		left = Math.min( Math.max( MARGIN, left ), Math.max( MARGIN, vw - cr.width - MARGIN ) );
 		top = Math.min( Math.max( MARGIN, top ), Math.max( MARGIN, vh - cr.height - MARGIN ) );
 		card.style.left = `${ left }px`;
 		card.style.top = `${ top }px`;
+
+		this._placeSpeaker( side, left, top, cr, speaker );
+	}
+
+	/**
+	 * Stand the speaker beside the card and point the tail at them.
+	 *
+	 * Beside means on the axis across the one the card and its anchor
+	 * share: a card above or below its anchor gets its speaker to the
+	 * left or right, a card to one side of its anchor gets them above or
+	 * below. That keeps the space between the card and the anchor clear,
+	 * so the speaker never stands in front of what the card is pointing
+	 * at, and the card stays close to its ring. Of the two sides, the
+	 * one with more room wins (a card near the right edge speaks from
+	 * its left); a tie goes to the right, or below. A card with no
+	 * anchor counts as above-or-below.
+	 */
+	private _placeSpeaker(
+		side: Side,
+		left: number,
+		top: number,
+		cr: DOMRect,
+		speaker: number,
+	): void {
+		const tail = this.card?.querySelector< HTMLElement >( '.tail' );
+		if ( ! tail ) {
+			return;
+		}
+		if ( speaker <= 0 ) {
+			tail.hidden = true;
+			this._speakerKey = '';
+			return;
+		}
+		const vw = window.innerWidth;
+		const vh = window.innerHeight;
+		const reach = SPEAKER_PAD + speaker / 2;
+		const clamp = ( n: number, min: number, max: number ): number =>
+			Math.min( Math.max( n, min ), Math.max( min, max ) );
+
+		let edge: TailEdge;
+		let point: { x: number; y: number };
+		if ( side === 'top' || side === 'bottom' ) {
+			edge = vw - ( left + cr.width ) >= left ? 'right' : 'left';
+			point = {
+				x: edge === 'right' ? left + cr.width + reach : left - reach,
+				y: clamp( top + cr.height / 2, MARGIN + speaker / 2, vh - MARGIN - speaker / 2 ),
+			};
+		} else {
+			edge = vh - ( top + cr.height ) >= top ? 'bottom' : 'top';
+			point = {
+				x: clamp( left + cr.width / 2, MARGIN + speaker / 2, vw - MARGIN - speaker / 2 ),
+				y: edge === 'bottom' ? top + cr.height + reach : top - reach,
+			};
+		}
+
+		// The tail sits on the edge facing the speaker, level with them,
+		// kept off the card's rounded corners.
+		tail.hidden = false;
+		tail.dataset.edge = edge;
+		const vertical = edge === 'top' || edge === 'bottom';
+		const length = vertical ? cr.width : cr.height;
+		const along = clamp(
+			vertical ? point.x - left : point.y - top,
+			TAIL_EDGE,
+			length - TAIL_EDGE,
+		);
+		tail.style.setProperty( '--_tail-at', `${ along }px` );
+
+		const key = `${ Math.round( point.x ) },${ Math.round( point.y ) }`;
+		if ( key !== this._speakerKey ) {
+			this._speakerKey = key;
+			this.emit( 'os-coachmark-speaker', point );
+		}
 	}
 
 	/** The focusable controls inside the card, in tab order. */

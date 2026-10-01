@@ -166,6 +166,28 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		).toBe( 'left' );
 	} );
 
+	test( 'snapTo remembers the floating rect, and a snap from a snapped state does not overwrite it', async () => {
+		// A scripted snap (the shell tour's "Do it for me") went through
+		// `applySnap`, which is the geometry alone: dragging the window off
+		// the edge afterwards restored a default size, not the user's.
+		const win = await manager.open( openConfig( 'a' ) );
+		const floating = { offsetLeft: 300, offsetTop: 200, offsetWidth: 700, offsetHeight: 500 };
+		for ( const [ prop, value ] of Object.entries( floating ) ) {
+			Object.defineProperty( win.element, prop, { value, configurable: true } );
+		}
+		win._savedGeometry = null;
+
+		win.snapTo( 'left' );
+		expect( win.state ).toBe( 'snapped-left' );
+		expect( win._savedGeometry ).toEqual( { x: 300, y: 200, width: 700, height: 500 } );
+
+		// Now the rect on screen is the snap's, not the user's.
+		Object.defineProperty( win.element, 'offsetWidth', { value: 800, configurable: true } );
+		win.snapTo( 'right' );
+		expect( win.state ).toBe( 'snapped-right' );
+		expect( win._savedGeometry ).toEqual( { x: 300, y: 200, width: 700, height: 500 } );
+	} );
+
 	test( 'commitSnapIfPending returns false when no zone is armed', async () => {
 		const win = await manager.open( openConfig( 'a' ) );
 		expect( commitSnapIfPending( manager, win ) ).toBe( false );

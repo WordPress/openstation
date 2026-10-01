@@ -259,7 +259,7 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `desktop_mode_default_window` | Core | The window that opens on arrival. |
 | `desktop_mode_file_associations` | Files | Which app opens each file type. |
 | `desktop_mode_pwa_state` | PWA | Install / prompt state. |
-| `desktop_mode_seen_intros` | Onboarding | Intros already shown. |
+| `desktop_mode_seen_intros` | Onboarding | Intros already shown, as a list of slugs. The shell tour writes three: `shell-tour` (do not auto-start it again), then `shell-tour-skipped` or `shell-tour-done` for how the run ended. Those two replace each other, so only the latest run counts; skipped is what puts the relaunch icon on the desk. "Reset what's-new dialogs" clears the list. |
 | `desktop_mode_rebrand_notice` | Onboarding | Rebrand notice dismissed. |
 | `desktop_mode_game_playtime` | Games | Lifetime play time per game. |
 | `desktop_mode_game_playtime_days` | Games | Play time per day (rolling window). |

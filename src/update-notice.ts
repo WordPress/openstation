@@ -87,22 +87,6 @@ export interface UpdateNoticeDeps {
 }
 
 /**
- * The dismissal key for a pending core update.
- *
- * Keyed on the exact available version, so dismissing 7.0.1 doesn't
- * also hide a later 7.0.2 (a newer release is a new notice). Exported
- * so the shell tour can ask "will the release card show this boot?"
- * with the same answer this module gives.
- */
-export function coreUpdateDismissKey( update: CoreUpdateInfo ): string {
-	const exact =
-		typeof update.available === 'string' && update.available
-			? update.available
-			: update.version;
-	return `desktop-mode/core-update:${ exact }`;
-}
-
-/**
  * "WordPress X is available." — with the codename when one is present
  * ("WordPress 7.0 "Armstrong" is available.").
  */
@@ -122,8 +106,13 @@ export function updateMessage( version: string, name: string ): string {
  * release card once its art is fetched + loaded, the plain toast if no
  * art is available. No-op when there's nothing to show or the release
  * was already dismissed.
+ *
+ * Resolves `true` when it put something on screen, `false` when it
+ * showed nothing. The shell tour waits on that answer: two
+ * announcements on one boot read as a broken page, and only this
+ * function knows, once the art has resolved, whether it made one.
  */
-export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void > {
+export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< boolean > {
 	const { update, openUrl } = deps;
 	if (
 		! update ||
@@ -132,7 +121,7 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 		typeof update.url !== 'string' ||
 		! update.url
 	) {
-		return;
+		return false;
 	}
 
 	const version = update.version;
@@ -141,9 +130,15 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 			? update.branch
 			: version;
 	const crossing = update.crossing === true;
-	const dismissKey = coreUpdateDismissKey( update );
+	// Key dismissal on the exact available version, so dismissing 7.0.1
+	// doesn't also hide a later 7.0.2 (a newer release is a new notice).
+	const exact =
+		typeof update.available === 'string' && update.available
+			? update.available
+			: version;
+	const dismissKey = `desktop-mode/core-update:${ exact }`;
 	if ( isNoticeDismissed( dismissKey ) ) {
-		return;
+		return false;
 	}
 	// The art-less toast dismisses on its own key. Closing a fallback
 	// the user was only shown because the art wasn't ready yet must not
@@ -174,12 +169,12 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 			dismissKey,
 			onUpdate: openUpdateScreen,
 		} );
-		return;
+		return true;
 	}
 
 	// No art (unknown release / offline / image failed) → plain toast.
 	if ( isNoticeDismissed( toastDismissKey ) ) {
-		return;
+		return false;
 	}
 	showToast( {
 		message: updateMessage( version, '' ),
@@ -191,4 +186,5 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 			onClick: openUpdateScreen,
 		},
 	} );
+	return true;
 }

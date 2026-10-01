@@ -289,6 +289,7 @@ import { toggleFullscreen } from './fullscreen';
 import { openShortcutsWith, SHORTCUTS_WINDOW_ID } from './shortcuts';
 import { maybeShowRebrandNotice } from './rebrand-notice';
 import { installShellTour } from './shell-tour/loader';
+import { spendMenuRefresh } from './settings/spend-menu-refresh';
 import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { renderIcon } from './icon';
@@ -3576,6 +3577,53 @@ function init(): void {
 		} );
 	}
 
+	/** The Desktop layout section in Preferences, the tour's deep-link target. */
+	const LAYOUT_SECTION_ID = 'os-settings-layout';
+
+	/**
+	 * How long {@link revealSettingsSection} waits for its section. A
+	 * cold Preferences open is two lazy bundles and a request, so the
+	 * wait is the network's, and has to outlast ordinary hosting.
+	 */
+	const SETTINGS_SECTION_WAIT_MS = 8000;
+
+	function visibleSettingsSection( sectionId: string ): HTMLElement | null {
+		const section = document.getElementById( sectionId );
+		return section && ! section.closest( '[hidden]' ) ? section : null;
+	}
+
+	/**
+	 * Scroll a Preferences section into view once the app has painted it.
+	 *
+	 * `openOsSettings()` returns before the window body exists on a fresh
+	 * open, and before the tab strip has revealed the new panel on an
+	 * already-open one, so the target is either absent or still inside a
+	 * `hidden` pane for a while. Poll until it is neither, then give up
+	 * quietly: the page is already right, so the cost of losing the race
+	 * is the user scrolling to the section themselves.
+	 *
+	 * The wait is a deadline rather than a count of frames, which was
+	 * one second on a 60 Hz screen and half that on a 120 Hz one: less
+	 * than the request a cold open makes on an ordinary host.
+	 */
+	function revealSettingsSection(
+		sectionId: string,
+		deadline = performance.now() + SETTINGS_SECTION_WAIT_MS,
+	): void {
+		const section = visibleSettingsSection( sectionId );
+		if ( section ) {
+			// Instant, not smooth: the shell tour anchors a coachmark to
+			// this section, and the coachmark positions once when its
+			// anchor is set rather than following a scroll. The settings
+			// search scrolls its own match the same way.
+			section.scrollIntoView( { block: 'start', behavior: 'instant' } );
+			return;
+		}
+		if ( performance.now() < deadline ) {
+			requestAnimationFrame( () => revealSettingsSection( sectionId, deadline ) );
+		}
+	}
+
 	/**
 	 * Public OS Settings opener. Routes through the same
 	 * `manager.open()` call the system tile uses so a window
@@ -3596,39 +3644,6 @@ function init(): void {
 	 * opens so a fresh render mounts on it; if the window is already
 	 * open, `focusTab` switches the live tab strip in place.
 	 */
-	/**
-	 * Scroll a Preferences section into view once the app has painted it.
-	 *
-	 * `openOsSettings()` returns before the window body exists on a fresh
-	 * open, and before the tab strip has revealed the new panel on an
-	 * already-open one, so the target is either absent or still inside a
-	 * `hidden` pane for a few frames. Poll until it is neither, then give
-	 * up quietly: the page is already right, so the cost of losing the
-	 * race is the user scrolling to the section themselves.
-	 */
-	/** The Desktop layout section in Preferences, the tour's deep-link target. */
-	const LAYOUT_SECTION_ID = 'os-settings-layout';
-
-	function visibleSettingsSection( sectionId: string ): HTMLElement | null {
-		const section = document.getElementById( sectionId );
-		return section && ! section.closest( '[hidden]' ) ? section : null;
-	}
-
-	function revealSettingsSection( sectionId: string, framesLeft = 60 ): void {
-		const section = visibleSettingsSection( sectionId );
-		if ( section ) {
-			// Instant, not smooth: the shell tour anchors a coachmark to
-			// this section, and the coachmark positions once when its
-			// anchor is set rather than following a scroll. The settings
-			// search scrolls its own match the same way.
-			section.scrollIntoView( { block: 'start', behavior: 'instant' } );
-			return;
-		}
-		if ( framesLeft > 0 ) {
-			requestAnimationFrame( () => revealSettingsSection( sectionId, framesLeft - 1 ) );
-		}
-	}
-
 	function openOsSettings( opts: { tabId?: string } = {} ): void {
 		// Tabs that merged into another page. A deep link to a page
 		// that no longer exists is worse than a stale one: `focusTab`
@@ -5134,8 +5149,9 @@ function init(): void {
 	// per-window update nag (suppressed inside windows server-side).
 	// Async (resolves art from wordpress.org); fire-and-forget. Reuses
 	// the in-shell link open path so "Update now" lands on the update
-	// screen as a window.
-	void maybeShowUpdate( {
+	// screen as a window. The promise is kept for the shell tour, which
+	// stands down for a boot the notice actually took.
+	const updateNoticeShown = maybeShowUpdate( {
 		update: config.coreUpdate,
 		openUrl: ( { url, title } ) => {
 			if ( tryNativeUrlRemap( url ) ) {
@@ -5188,10 +5204,12 @@ function init(): void {
 	// ("Take the tour", "Reset what's-new dialogs"). Steps advance on
 	// the real events; the shell only lends the tour its own
 	// entry points so the lazy bundle never reads shell module state.
+	let tourMioSpot: { x: number; y: number } | null = null;
 	installShellTour( {
 		config,
 		windowManager: manager,
 		isMobile: () => modeController.api.isMobile(),
+		updateNoticeShown,
 		openPalette: () => openPaletteOnly( 'desktop-mode-ai-assistant' ),
 		openLayoutSettings: () => {
 			// Asked BEFORE opening: the tour closes what it opened when it
@@ -5222,6 +5240,36 @@ function init(): void {
 				notifyPaletteVisibility( palette.id, false );
 			}
 		},
+		// Mío walks the tour, summoned for it: on screen without touching
+		// the user's saved preference, and handed back to that preference
+		// when the tour ends. Not on a phone, where Mío never boots.
+		mio: {
+			size: () =>
+				modeController.api.isMobile() ? 0 : mioApi.getConfig().appearance.radius * 2,
+			summon: () => {
+				// The bundle loads on a first summon, so Mío arrives after
+				// the first card; send it to wherever the tour has asked
+				// for by then.
+				void mio.summon().then( () => mio.setAnchor( tourMioSpot ) );
+			},
+			follow: ( spot ) => {
+				tourMioSpot = spot;
+				mio.setAnchor( spot );
+			},
+			release: () => {
+				tourMioSpot = null;
+				mio.setAnchor( null );
+				mio.dismiss();
+			},
+		},
+		refreshDesktopIcons: spendMenuRefresh,
+		// The assistant is a modal with a full-screen backdrop, so its
+		// root element would be an anchor with no room beside it: the
+		// visible box is the panel inside.
+		findAssistant: () =>
+			document.querySelector(
+				'#desktop-mode-ai-assistant:not([hidden]) .os-ai__panel',
+			),
 		openFallbackWindow: () => {
 			const url = `${ config.adminUrl }edit.php`;
 			const id = deriveWindowId( url, config.adminUrl );

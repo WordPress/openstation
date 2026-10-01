@@ -1,5 +1,6 @@
 /**
- * The shell tour — five coachmarks on a user's first boot.
+ * The shell tour — five coachmarks on a user's first boot, and a
+ * closing card after them.
  *
  * Where the menus are, how to change the layout, then the three
  * gestures that make the station a station rather than a wallpaper
@@ -33,12 +34,21 @@
 
 import '../ui/components/os-coachmark/os-coachmark';
 import '../ui/components/os-key/os-key';
-import type { OsCoachmark } from '../ui/components/os-coachmark/os-coachmark';
-import { __ } from '../i18n';
+import {
+	COACHMARK_EXIT_MS,
+	type OsCoachmark,
+	type OsCoachmarkPlacement,
+} from '../ui/components/os-coachmark/os-coachmark';
+import { __, sprintf } from '../i18n';
 import { addAction, HOOKS, removeAction } from '../hooks';
 import { trackedFetch } from '../tracked-fetch';
 
-import { SHELL_TOUR_INTRO_SLUG, SHELL_TOUR_START_EVENT } from './constants';
+import {
+	SHELL_TOUR_DONE_SLUG,
+	SHELL_TOUR_INTRO_SLUG,
+	SHELL_TOUR_SKIPPED_SLUG,
+	SHELL_TOUR_START_EVENT,
+} from './constants';
 
 export { SHELL_TOUR_INTRO_SLUG, SHELL_TOUR_START_EVENT };
 
@@ -56,6 +66,14 @@ const DOCK_TILE_SELECTORS = [
 	'.os-dock .os-dock__item',
 ];
 
+/**
+ * How long a card waits for the thing it is about to point at: the
+ * Desktop layout section, the assistant's panel. Long enough for a cold
+ * open on ordinary hosting; past it the card stays where it is, which
+ * is still a working card.
+ */
+const TARGET_WAIT_MS = 8000;
+
 /** The platform-native chord for the palette. */
 const SHORTCUT_LABEL =
 	typeof navigator !== 'undefined' &&
@@ -67,7 +85,11 @@ const SHORTCUT_LABEL =
 export interface ShellTourWindowLike {
 	readonly id: string;
 	readonly element: HTMLElement;
-	applySnap( zone: 'left' | 'right' ): void;
+	/**
+	 * Snap the way a drag to the edge does: remember the floating rect
+	 * first, so dragging the window off the edge later gives it back.
+	 */
+	snapTo( zone: 'left' | 'right' ): void;
 	/**
 	 * Optional so a test double need not implement them. The snap card
 	 * floats a window that is already against the edge it is about to
@@ -92,7 +114,7 @@ export interface ShellTourDeps {
 	 *
 	 * Reports the window, because that open is the tour's own doing on
 	 * two counts: the card after it is waiting for the user to open a
-	 * window (see `ignoreWindowId`), and the tour closes what it opened
+	 * window (see `owedWindowId`), and the tour closes what it opened
 	 * when it ends — but only when it opened it, never a window the
 	 * user already had.
 	 */
@@ -108,6 +130,30 @@ export interface ShellTourDeps {
 	closeWindow: ( id: string ) => void;
 	/** Closes the assistant palette. */
 	closePalette: () => void;
+	/**
+	 * Mío, walking the tour alongside the cards, which become its speech
+	 * balloons. Optional: without it the cards are plain. `size` is Mío's
+	 * body diameter, known before it is on screen, so the first card
+	 * leaves room for it before it has arrived; 0 means no Mío here.
+	 */
+	mio?: {
+		size: () => number;
+		summon: () => void;
+		follow: ( point: { x: number; y: number } | null ) => void;
+		release: () => void;
+	};
+	/**
+	 * Rebuild the desktop icons from a fresh payload. The relaunch icon
+	 * is a server registration, so this is how it appears after a skip
+	 * and goes away after a finish without an F5.
+	 */
+	refreshDesktopIcons?: () => void;
+	/**
+	 * The assistant's visible panel while it is open, or null. The last
+	 * card goes underneath it, balloon and all, rather than on top of
+	 * the thing the card before it just opened.
+	 */
+	findAssistant?: () => Element | null;
 	/** Where the coachmark mounts. Defaults to `document.body`. */
 	host?: HTMLElement;
 }
@@ -115,7 +161,7 @@ export interface ShellTourDeps {
 export type ShellTourEndReason = 'done' | 'skip' | 'escape' | 'restart' | 'teardown';
 
 export interface ShellTourHandle {
-	/** Zero-based index of the current card (3 is the closing card). */
+	/** Zero-based index of the current card (5 is the closing card). */
 	readonly step: number;
 	end( reason: ShellTourEndReason ): void;
 }
@@ -133,6 +179,16 @@ interface StepDef {
 	body: () => Node[];
 	/** A function when the label changes within the card. */
 	primary: string | ( () => string );
+	/** Which side of the anchor the card takes; the coachmark decides when unset. */
+	placement?: OsCoachmarkPlacement;
+	/**
+	 * `false` for a card Mío cannot stand beside. The closing card sits
+	 * under the assistant, a body-level modal whose backdrop covers the
+	 * whole shell, and Mío lives inside the shell's stacking context:
+	 * no z-index puts it above that backdrop, so a balloon there would
+	 * point its tail at an empty gap.
+	 */
+	speaker?: boolean;
 	secondary: string;
 	anchor: () => Element | null;
 	/** "Do it for me". Returns true when it advanced the step itself. */
@@ -141,8 +197,8 @@ interface StepDef {
 
 let current: ShellTourHandle | null = null;
 
-/** Record the tour as seen. Silent on failure: see the rebrand notice. */
-async function markSeen( config: ShellTourDeps[ 'config' ] ): Promise< void > {
+/** Record an intro slug. Silent on failure: see the rebrand notice. */
+async function markSeen( config: ShellTourDeps[ 'config' ], slug: string ): Promise< void > {
 	const base = config.seenIntrosUrl;
 	if ( ! base ) {
 		return;
@@ -156,7 +212,7 @@ async function markSeen( config: ShellTourDeps[ 'config' ] ): Promise< void > {
 					'Content-Type': 'application/json',
 					'X-WP-Nonce': config.restNonce ?? '',
 				},
-				body: JSON.stringify( { slug: SHELL_TOUR_INTRO_SLUG } ),
+				body: JSON.stringify( { slug } ),
 			},
 			{ source: 'desktop-mode/shell-tour', silent: true },
 		);
@@ -164,6 +220,19 @@ async function markSeen( config: ShellTourDeps[ 'config' ] ): Promise< void > {
 		// The user has taken or skipped the tour; the cost of a lost
 		// write is seeing it once more.
 	}
+}
+
+/**
+ * Record how the tour ended, then let the relaunch icon catch up.
+ *
+ * Sequential on purpose: the icon is decided server-side from both
+ * slugs, so the payload that shows or hides it has to be built after
+ * both writes have landed.
+ */
+async function recordOutcome( deps: ShellTourDeps, finished: boolean ): Promise< void > {
+	await markSeen( deps.config, SHELL_TOUR_INTRO_SLUG );
+	await markSeen( deps.config, finished ? SHELL_TOUR_DONE_SLUG : SHELL_TOUR_SKIPPED_SLUG );
+	deps.refreshDesktopIcons?.();
 }
 
 function findDockTile(): HTMLElement | null {
@@ -216,23 +285,44 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	const { signal } = controller;
 	const mark = document.createElement( 'os-coachmark' ) as OsCoachmark;
 	mark.className = 'os-shell-tour';
+	// Mío speaks the cards. The balloon picks a spot beside itself, across
+	// from the highlighted control so Mío never stands in front of it,
+	// and reports it; Mío walks there. Sized before Mío is on screen, so
+	// the first card already knows where Mío will stand when it lands.
+	const mio = deps.mio && deps.mio.size() > 0 ? deps.mio : null;
+	const speakerSize = mio ? String( mio.size() ) : '';
+	if ( speakerSize ) {
+		mark.setAttribute( 'speaker-size', speakerSize );
+	}
 	( deps.host ?? document.body ).appendChild( mark );
 
 	let index = 0;
 	let openedId = '';
 	/**
-	 * A window the tour opened itself, which must not count as the user
-	 * opening one. The layout card opens Preferences; that fires
-	 * `os.window.opened` a tick later, by which time the card after it
-	 * is on screen asking for exactly that event, and it would answer
-	 * its own question. Consumed once, so a user who then opens
-	 * Preferences by hand still completes the card.
+	 * A window the tour asked for whose open event has not arrived yet,
+	 * and which must not count as the user opening one. The layout card
+	 * opens Preferences; when that open is slow enough to land after the
+	 * user has moved on, the card then on screen is asking for exactly
+	 * that event and would answer its own question.
+	 *
+	 * Armed only while the event is really owed (see the layout card's
+	 * second beat) and consumed once. Arming it unconditionally left it
+	 * set for good whenever the event had already fired, and it then ate
+	 * the user's own open of Preferences on the next card.
 	 */
-	let ignoreWindowId = '';
+	let owedWindowId = '';
 	/** Has the layout card opened Preferences yet? Drives its own label. */
 	let layoutShown = false;
+	/** The Preferences window the layout card brought up, to close after it. */
+	let layoutWindowId = '';
 	/** Did a palette open while the tour was up? Then the tour closes it. */
 	let paletteOpened = false;
+	/**
+	 * Did "Do it for me" ask for the window the open-window card is
+	 * waiting on? The open event looks the same whoever caused it, and
+	 * only the tour's own open is the tour's to close.
+	 */
+	let tourAskedForWindow = false;
 	/**
 	 * Windows the tour OPENED, which it closes again when it ends, so a
 	 * first run does not leave the desk covered in what the tour did.
@@ -277,6 +367,24 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			anchor: () => deps.findLayoutTarget() ?? findDockRail(),
 			doIt: () => {
 				if ( layoutShown ) {
+					// Done with it: Preferences would otherwise stand in front
+					// of every card after this one, and of Mío beside them.
+					// Closed even when the user had it open already, because
+					// that is the common case ("Take the tour" lives inside
+					// it); it applies settings as they change, so nothing is
+					// lost.
+					if ( layoutWindowId ) {
+						// Still not on the desk means its open event is still
+						// to come, and will land on the card after this one.
+						// It then stays the tour's to close at the end, because
+						// the close below has nothing to close yet.
+						const landed = !! deps.windowManager.getById( layoutWindowId );
+						owedWindowId = landed ? '' : layoutWindowId;
+						deps.closeWindow( layoutWindowId );
+						if ( landed ) {
+							openedByTour.delete( layoutWindowId );
+						}
+					}
 					return true;
 				}
 				// What the card is pointing at right now, so the follow
@@ -284,7 +392,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 				// from "the tile is still the best we have".
 				const pointedAt = deps.findLayoutTarget();
 				const { windowId, wasAlreadyOpen } = deps.openLayoutSettings();
-				ignoreWindowId = windowId;
+				layoutWindowId = windowId;
 				if ( windowId && ! wasAlreadyOpen ) {
 					openedByTour.add( windowId );
 				}
@@ -292,7 +400,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 				// Relabel now; re-anchor onto the section once the app has
 				// painted it, which is a few frames away at best.
 				paint();
-				followLayoutTarget( pointedAt );
+				followTarget( 'layout', deps.findLayoutTarget, pointedAt );
 				// Opening a window is not this card's completion signal —
 				// `os.window.opened` belongs to the card after it — and the
 				// card is not finished anyway: the user still has to look.
@@ -311,6 +419,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			secondary: __( 'Skip tour' ),
 			anchor: findDockTile,
 			doIt: () => {
+				tourAskedForWindow = true;
 				const tile = findDockTile();
 				if ( tile ) {
 					// The dock binds its open handler on the inner
@@ -337,10 +446,9 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			secondary: __( 'Skip tour' ),
 			anchor: () => deps.windowManager.getById( openedId )?.element ?? null,
 			doIt: () => {
-				deps.windowManager.getById( openedId )?.applySnap( 'left' );
-				// `applySnap` is the geometry, not the gesture: the
-				// commit hook only fires from a real drag, so advance
-				// here.
+				deps.windowManager.getById( openedId )?.snapTo( 'left' );
+				// `snapTo` is the snap, not the gesture: the commit hook
+				// only fires from a real drag, so advance here.
 				return true;
 			},
 		},
@@ -387,7 +495,11 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			],
 			primary: __( 'Done' ),
 			secondary: '',
-			anchor: () => null,
+			// Under the assistant "Find anything" opened, so it stays
+			// in view; centred when the assistant is not up.
+			anchor: () => deps.findAssistant?.() ?? null,
+			placement: 'bottom',
+			speaker: false,
 			doIt: () => true,
 		},
 	];
@@ -399,47 +511,68 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 		if ( index < TOTAL ) {
 			mark.setAttribute( 'step', String( index + 1 ) );
 			mark.setAttribute( 'total', String( TOTAL ) );
+			mark.setAttribute(
+				'counter-label',
+				/* translators: 1: the current step, 2: the number of steps. */
+				sprintf( __( '%1$d of %2$d' ), index + 1, TOTAL ),
+			);
 		} else {
 			mark.removeAttribute( 'step' );
 			mark.removeAttribute( 'total' );
+			mark.removeAttribute( 'counter-label' );
 		}
 		mark.setAttribute(
 			'primary-label',
 			'function' === typeof step.primary ? step.primary() : step.primary,
 		);
 		mark.setAttribute( 'secondary-label', step.secondary );
+		if ( step.placement ) {
+			mark.setAttribute( 'placement', step.placement );
+		} else {
+			mark.removeAttribute( 'placement' );
+		}
+		if ( speakerSize && false !== step.speaker ) {
+			mark.setAttribute( 'speaker-size', speakerSize );
+		} else {
+			mark.removeAttribute( 'speaker-size' );
+		}
 		mark.replaceChildren( ...step.body() );
 		mark.anchor = step.anchor();
 		mark.setAttribute( 'open', '' );
 	};
 
 	/**
-	 * Re-anchor the layout card once the target MOVES ON — from the tile
-	 * that opens Preferences to the Desktop layout section itself.
+	 * Re-anchor a card once its target MOVES ON: from the tile that opens
+	 * Preferences to the Desktop layout section, or from nothing to the
+	 * assistant's panel once its lazy bundle has painted it.
 	 *
 	 * Waiting for a target to merely exist would return on the first
-	 * frame, because the tile is already there; the card would then
-	 * stay pinned to the dock while the section it is talking about sat
-	 * open behind it. The coachmark positions when its anchor is set
-	 * and does not follow a scroll, so this waits for the section to be
-	 * painted, its page showing and the reveal scrolled, then points.
+	 * frame whenever a fallback is already there (the tile is), pinning
+	 * the card to it while the thing it is talking about sat open behind
+	 * it. The coachmark positions when its anchor is set and does not
+	 * follow a scroll, so this waits for the target to be painted and
+	 * showing, then points.
+	 *
+	 * The wait is a deadline, not a frame count: both targets sit behind
+	 * a lazy bundle and a request, so how long they take is the network's
+	 * business, and a count of frames is half as long on a 120 Hz screen.
 	 */
-	const followLayoutTarget = (
+	const followTarget = (
+		id: StepId,
+		find: () => Element | null,
 		previous: Element | null,
-		framesLeft = 60,
+		deadline = performance.now() + TARGET_WAIT_MS,
 	): void => {
-		if ( ended || 'layout' !== steps[ index ]?.id ) {
+		if ( ended || id !== steps[ index ]?.id ) {
 			return;
 		}
-		const target = deps.findLayoutTarget();
+		const target = find();
 		if ( target && target !== previous ) {
 			paint();
 			return;
 		}
-		if ( framesLeft > 0 ) {
-			requestAnimationFrame( () =>
-				followLayoutTarget( previous, framesLeft - 1 ),
-			);
+		if ( performance.now() < deadline ) {
+			requestAnimationFrame( () => followTarget( id, find, previous, deadline ) );
 		}
 	};
 
@@ -457,6 +590,12 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			}
 		}
 		paint();
+		if ( 'done' === steps[ index ]?.id && deps.findAssistant ) {
+			// The assistant's bundle loads on its first open and paints
+			// behind a placeholder, so its panel can arrive a few seconds
+			// after this card does.
+			followTarget( 'done', deps.findAssistant, mark.anchor );
+		}
 	};
 
 	/**
@@ -496,15 +635,20 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			removeAction( HOOKS.WINDOW_OPENED, NS );
 			removeAction( HOOKS.WINDOW_REOPENED, NS );
 			removeAction( HOOKS.SNAP_ZONE_COMMITTED, NS );
-			// Let the coachmark run its close (focus restore) before
-			// the node goes; a removed element cannot hand focus back.
+			// Let the coachmark fade out and hand focus back before the
+			// node goes; removing it sooner cuts the fade short.
 			mark.removeAttribute( 'open' );
-			window.setTimeout( () => mark.remove(), 60 );
+			window.setTimeout( () => mark.remove(), COACHMARK_EXIT_MS + 40 );
 			if ( current === handle ) {
 				current = null;
 			}
+			// A restart hands Mío straight to the next run, so letting it
+			// go here would only flicker it off and on again.
+			if ( reason !== 'restart' ) {
+				mio?.release();
+			}
 			if ( reason === 'done' || reason === 'skip' || reason === 'escape' ) {
-				void markSeen( deps.config );
+				void recordOutcome( deps, reason === 'done' );
 				// The user is finished with the tour, however they said so.
 				// A restart or a teardown is not finished: leave the desk.
 				tidyUp();
@@ -529,16 +673,18 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 		if ( 'open-window' !== steps[ index ]?.id ) {
 			return;
 		}
-		if ( ignoreWindowId && detail?.windowId === ignoreWindowId ) {
-			ignoreWindowId = '';
+		if ( owedWindowId && detail?.windowId === owedWindowId ) {
+			owedWindowId = '';
 			return;
 		}
 		openedId = typeof detail?.windowId === 'string' ? detail.windowId : '';
-		// A reopen means the screen was already on the desk, so it is the
-		// user's window and the tour does not close it at the end.
-		if ( wasOpened && openedId ) {
+		// The tour's to close only when the tour asked for it AND it was
+		// not there before: a tile the user clicked themselves, or a
+		// screen that was already on the desk (a reopen), is theirs.
+		if ( tourAskedForWindow && wasOpened && openedId ) {
 			openedByTour.add( openedId );
 		}
+		tourAskedForWindow = false;
 		advance();
 	};
 	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_OPENED, NS, ( detail ) =>
@@ -579,6 +725,19 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	);
 	mark.addEventListener( 'os-coachmark-secondary', () => handle.end( 'skip' ), { signal } );
 	mark.addEventListener( 'os-coachmark-dismiss', () => handle.end( 'escape' ), { signal } );
+
+	// ---- Mío ---------------------------------------------------------
+	if ( mio ) {
+		// Every place the balloon puts its speaker, Mío goes. The card
+		// reports a spot only when it changes, so this is one call per
+		// step (plus any move of the anchor), not one per frame.
+		mark.addEventListener(
+			'os-coachmark-speaker',
+			( e ) => mio.follow( ( e as CustomEvent< { x: number; y: number } > ).detail ),
+			{ signal },
+		);
+		mio.summon();
+	}
 
 	paint();
 	return handle;

@@ -55,7 +55,12 @@ function openstation_activation_nudge_screens() {
  * 5. The screen is one of {@see openstation_activation_nudge_screens()}.
  * 6. The request is not chromeless (an iframe inside the shell).
  * 7. The user has not clicked "Not now".
- * 8. The `openstation_show_activation_nudge` filter agrees.
+ * 8. The welcome dialog is not rendering on this same request. The
+ *    nudge is the second touch, for after the modal has been
+ *    dismissed; on the first admin load both passed their gates, and
+ *    "Plugin activated" came with a modal, a notice and a row action
+ *    all asking for the same click.
+ * 9. The `openstation_show_activation_nudge` filter agrees.
  *
  * @return bool
  */
@@ -84,12 +89,18 @@ function openstation_should_show_activation_nudge() {
 	if ( openstation_has_seen_intro( $user_id, OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG ) ) {
 		return false;
 	}
+	// Asked of the dialog's own gate rather than of its seen-slug: a
+	// site that filters the dialog off never records the slug, and the
+	// nudge would then wait for a dismissal that cannot happen.
+	if ( function_exists( 'openstation_should_show_welcome_dialog' ) && openstation_should_show_welcome_dialog() ) {
+		return false;
+	}
 
 	/**
 	 * Filters whether the activation nudge renders for the current
 	 * user on the current request. Every earlier gate (capability,
-	 * site never enabled, install age, screen, seen-state) has already
-	 * passed when this fires.
+	 * site never enabled, install age, screen, seen-state, no welcome
+	 * dialog on this request) has already passed when this fires.
 	 *
 	 * @param bool $show    Whether to render the notice. Default true.
 	 * @param int  $user_id Current user ID.

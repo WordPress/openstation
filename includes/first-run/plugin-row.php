@@ -12,6 +12,12 @@
  * shell screen. The portal's same-origin check accepts a click from
  * `plugins.php`.
  *
+ * Not inside the shell. There `plugins.php` is a window, a chromeless
+ * iframe, and both targets are whole-page destinations: followed from
+ * the row they would load the shell screen inside one of its own
+ * windows, which cannot paint there. Someone reading the row in a
+ * window is already where the link goes.
+ *
  * @package OpenStation
  */
 
@@ -31,6 +37,9 @@ function openstation_plugin_row_action_links( $links ) {
 		$links = array();
 	}
 	if ( ! current_user_can( 'read' ) ) {
+		return $links;
+	}
+	if ( openstation_is_chromeless_request() ) {
 		return $links;
 	}
 

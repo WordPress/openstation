@@ -1224,7 +1224,7 @@ Decides whether the activation nudge — a dismissible admin notice on the Dashb
 apply_filters( 'openstation_show_activation_nudge', bool $show, int $user_id );
 ```
 
-The filter only fires after every built-in gate has passed: the user can `activate_plugins`, does not have OpenStation on, nobody on the site has ever enabled it (`openstation_first_enabled_at` is absent), the install stamp is real (`via: activation`, never a backfill) and under 14 days old, the screen is one of the four, the request is not chromeless, and the user has not clicked **Not now** (the `activation-nudge` slug in `desktop_mode_seen_intros`, wiped by "Reset what's-new dialogs" like every other intro). The welcome dialog is the first touch; this is the second, quieter one, and both stop the moment anyone on the site enables.
+The filter only fires after every built-in gate has passed: the user can `activate_plugins`, does not have OpenStation on, nobody on the site has ever enabled it (`openstation_first_enabled_at` is absent), the install stamp is real (`via: activation`, never a backfill) and under 14 days old, the screen is one of the four, the request is not chromeless, the user has not clicked **Not now** (the `activation-nudge` slug in `desktop_mode_seen_intros`, wiped by "Reset what's-new dialogs" like every other intro), and the welcome dialog is not rendering on the same request. The welcome dialog is the first touch; this is the second, quieter one, shown only once the dialog is out of the way (dismissed, or switched off by `openstation_show_welcome_dialog`), and both stop the moment anyone on the site enables.
 
 Return `false` to suppress it, e.g. from a managed-host onboarding flow.
 
@@ -1238,7 +1238,7 @@ Decides whether the first-boot shell tour — five coachmarks: where the menus a
 apply_filters( 'openstation_show_shell_tour', bool $offer, int $user_id );
 ```
 
-Whether the user already took or skipped it is not this filter's question: that is the `shell-tour` slug in `desktop_mode_seen_intros`, which the shell reads from `config.seenIntros`. Existing users are marked seen by migration 10 on update, so only a genuinely new user boots into the tour; "Reset what's-new dialogs" and the **Take the tour** button in OpenStation Preferences → Features replay it regardless of this filter's boot-time answer — the filter gates the automatic first-boot start, not the explicit request.
+Whether the user already took or skipped it is not this filter's question: that is the `shell-tour` slug in `desktop_mode_seen_intros`, which the shell reads from `config.seenIntros`. Existing users are marked seen by migration 10 on update, so only a genuinely new user boots into the tour; "Reset what's-new dialogs" and the **Take the tour** button in OpenStation Preferences → Features replay it regardless of this filter's boot-time answer — the filter gates the automatic first-boot start, not the explicit request. It does gate the relaunch icon a skipped tour leaves on the desk: a site that switched the tour off offers no way back into it.
 
 Return `false` to switch the automatic tour off site-wide or for a role.
 

@@ -79,7 +79,8 @@ function openstation_has_seen_intro( $user_id, $slug ) {
  * Adds a slug to the user's seen-intros list.
  *
  * Idempotent — re-marking an already-seen intro is a no-op that
- * still returns true.
+ * still returns true. A slug that supersedes others
+ * ({@see openstation_seen_intros_superseded_by()}) removes them first.
  *
  * @param int    $user_id User ID.
  * @param string $slug    Intro slug.
@@ -93,18 +94,42 @@ function openstation_mark_intro_seen( $user_id, $slug ) {
 	}
 
 	$current = openstation_get_seen_intros( $user_id );
-	if ( in_array( $slug, $current, true ) ) {
+	$kept    = array_values( array_diff( $current, openstation_seen_intros_superseded_by( $slug ) ) );
+	if ( in_array( $slug, $kept, true ) && count( $kept ) === count( $current ) ) {
 		return true;
 	}
 
-	$current[] = $slug;
-	$current   = array_slice( $current, 0, OPENSTATION_SEEN_INTROS_MAX );
+	if ( ! in_array( $slug, $kept, true ) ) {
+		$kept[] = $slug;
+	}
+	$kept = array_slice( $kept, 0, OPENSTATION_SEEN_INTROS_MAX );
 
 	return false !== update_user_meta(
 		$user_id,
 		OPENSTATION_SEEN_INTROS_META_KEY,
-		$current
+		$kept
 	);
+}
+
+/**
+ * Slugs a newly recorded one makes obsolete: facts where only the
+ * latest counts, which an append-only list cannot otherwise express.
+ *
+ * The shell tour's two outcomes are the one pair. A run ends skipped
+ * or finished, and the relaunch icon asks about the LATEST run: kept
+ * side by side, one finished run long ago hid the icon after every
+ * skip that came later. The strings mirror the constants in
+ * `includes/first-run/shell-tour.php`, which loads after this file.
+ *
+ * @param string $slug The slug being recorded.
+ * @return string[] Slugs it replaces.
+ */
+function openstation_seen_intros_superseded_by( $slug ) {
+	$pairs = array(
+		'shell-tour-skipped' => array( 'shell-tour-done' ),
+		'shell-tour-done'    => array( 'shell-tour-skipped' ),
+	);
+	return isset( $pairs[ $slug ] ) ? $pairs[ $slug ] : array();
 }
 
 /**

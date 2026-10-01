@@ -24,6 +24,20 @@ defined( 'ABSPATH' ) || exit;
 class OpenStation_Shortcut_File extends OpenStation_File {
 
 	/**
+	 * The resolved registration entry: `false` until asked for, then
+	 * the entry or null.
+	 *
+	 * One placement asks five times (exists, can_read, title, icon,
+	 * serialize) and every answer runs the whole `openstation_icons`
+	 * filter chain, so a desk of shortcuts paid for the chain five
+	 * times over per tile. An instance is one placement in one
+	 * listing; it resolves once.
+	 *
+	 * @var array|null|false
+	 */
+	private $resolved_entry = false;
+
+	/**
 	 * Get the file type identifier.
 	 *
 	 * @return string
@@ -104,19 +118,21 @@ class OpenStation_Shortcut_File extends OpenStation_File {
 	}
 
 	/**
-	 * Lazily resolve the registration entry from the icon registry.
+	 * Lazily resolve the registration entry, through the `openstation_icons`
+	 * filter the placement that points here was minted from. The raw
+	 * registry would not know a filter-injected icon, and its placement
+	 * would serialize as a missing file.
 	 *
 	 * @return array|null Null when the entry is gone or the ref is invalid.
 	 */
 	private function entry(): ?array {
-		$id = (string) $this->ref;
-		if ( '' === $id ) {
-			return null;
+		if ( false !== $this->resolved_entry ) {
+			return $this->resolved_entry;
 		}
-		if ( ! function_exists( 'openstation_desktop_icon_registry' ) ) {
-			return null;
-		}
-		$entry = openstation_desktop_icon_registry( $id );
-		return is_array( $entry ) ? $entry : null;
+		$id                   = (string) $this->ref;
+		$this->resolved_entry = ( '' !== $id && function_exists( 'openstation_desktop_icon_entry' ) )
+			? openstation_desktop_icon_entry( $id )
+			: null;
+		return $this->resolved_entry;
 	}
 }

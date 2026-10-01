@@ -38,7 +38,7 @@ function fakeWindow(
 	id: string,
 	snapped = false,
 ): ShellTourWindowLike & {
-	applySnap: ReturnType< typeof vi.fn >;
+	snapTo: ReturnType< typeof vi.fn >;
 	unsnap: ReturnType< typeof vi.fn >;
 } {
 	const element = document.createElement( 'div' );
@@ -48,7 +48,7 @@ function fakeWindow(
 	const unsnap = vi.fn( () => {
 		isSnapped = false;
 	} );
-	return { id, element, applySnap: vi.fn(), isSnapped: () => isSnapped, unsnap };
+	return { id, element, snapTo: vi.fn(), isSnapped: () => isSnapped, unsnap };
 }
 
 describe( 'shell tour', () => {
@@ -61,6 +61,7 @@ describe( 'shell tour', () => {
 		openLayoutSettings: ReturnType< typeof vi.fn >;
 		closeWindow: ReturnType< typeof vi.fn >;
 		closePalette: ReturnType< typeof vi.fn >;
+		refreshDesktopIcons: ReturnType< typeof vi.fn >;
 	};
 	/** Stands in for the Desktop layout section once Preferences paints it. */
 	let layoutTarget: Element | null;
@@ -82,6 +83,7 @@ describe( 'shell tour', () => {
 			findLayoutTarget: () => layoutTarget,
 			closeWindow: vi.fn(),
 			closePalette: vi.fn(),
+			refreshDesktopIcons: vi.fn(),
 		};
 		layoutTarget = null;
 	} );
@@ -93,6 +95,11 @@ describe( 'shell tour', () => {
 	} );
 
 	const mark = (): OsCoachmark => document.querySelector( 'os-coachmark' ) as OsCoachmark;
+	/** Every intro slug the tour has recorded, in order. */
+	const posted = (): string[] =>
+		fetchSpy.mock.calls.map(
+			( [ , init ] ) => ( JSON.parse( String( ( init as RequestInit ).body ) ) as { slug: string } ).slug,
+		);
 	const primary = (): HTMLElement =>
 		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.primary' )!;
 
@@ -130,24 +137,31 @@ describe( 'shell tour', () => {
 		await settle();
 		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.primary' )!.click();
 		expect( isShellTourRunning() ).toBe( false );
-		expect( fetchSpy ).toHaveBeenCalledTimes( 1 );
-		const [ url, init ] = fetchSpy.mock.calls[ 0 ] as [ string, RequestInit ];
+		await settle();
+		const [ url ] = fetchSpy.mock.calls[ 0 ] as [ string, RequestInit ];
 		expect( url ).toBe( 'https://example.test/wp-json/desktop-mode/v1/intros/seen' );
-		expect( JSON.parse( String( init.body ) ) ).toEqual( { slug: SHELL_TOUR_INTRO_SLUG } );
+		// Seen (no boot auto-start), then finished (no relaunch icon), and
+		// only then the icons are rebuilt, from state both writes are in.
+		expect( posted() ).toEqual( [ SHELL_TOUR_INTRO_SLUG, 'shell-tour-done' ] );
+		expect( deps.refreshDesktopIcons ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	test( 'Skip records the tour exactly once; a later Escape does not post again', async () => {
+	test( 'Skip records the tour as unfinished, once; a later Escape does not post again', async () => {
 		startShellTour( deps );
 		await settle();
 		const m = mark();
 		m.shadowRoot!.querySelector< HTMLElement >( 'os-button.secondary' )!.click();
-		expect( fetchSpy ).toHaveBeenCalledTimes( 1 );
+		await settle();
+		// Skipped is unfinished: that is what puts the relaunch icon up.
+		expect( posted() ).toEqual( [ SHELL_TOUR_INTRO_SLUG, 'shell-tour-skipped' ] );
+		expect( deps.refreshDesktopIcons ).toHaveBeenCalledTimes( 1 );
 
 		m.shadowRoot!
 			.querySelector< HTMLElement >( '.card' )!
 			.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ) );
 		endShellTour();
-		expect( fetchSpy ).toHaveBeenCalledTimes( 1 );
+		await settle();
+		expect( posted() ).toHaveLength( 2 );
 	} );
 
 	test( '"Do it for me" snaps the opened window and opens the palette through the shell', async () => {
@@ -159,7 +173,7 @@ describe( 'shell tour', () => {
 		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'w2' } );
 
 		primary().click();
-		expect( win.applySnap ).toHaveBeenCalledWith( 'left' );
+		expect( win.snapTo ).toHaveBeenCalledWith( 'left' );
 		expect( mark().getAttribute( 'step' ) ).toBe( '5' );
 
 		primary().click();
@@ -310,7 +324,7 @@ describe( 'shell tour', () => {
 
 		// And the demonstration still runs from there.
 		primary().click();
-		expect( win.applySnap ).toHaveBeenCalledWith( 'left' );
+		expect( win.snapTo ).toHaveBeenCalledWith( 'left' );
 	} );
 
 	test( 'a window that was NOT snapped is left alone', async () => {
@@ -330,6 +344,7 @@ describe( 'shell tour', () => {
 		await settle();
 		primary().click();  // menus -> layout
 		primary().click();  // layout: opens Preferences (a fresh window)
+		windows.set( 'os-settings', fakeWindow( 'os-settings' ) );
 		primary().click();  // on to 'open a window'
 
 		// The user already had this one on the desk: a reopen, not an open.
@@ -344,24 +359,31 @@ describe( 'shell tour', () => {
 		expect( isShellTourRunning() ).toBe( false );
 
 		const closed = deps.closeWindow.mock.calls.map( ( c ) => c[ 0 ] );
+		// Preferences went when its card was done; the tidy-up does not
+		// try it again, and the user's own window is never touched.
 		expect( closed ).toEqual( [ 'os-settings' ] );
 		expect( closed ).not.toContain( 'theirs' );
 		expect( deps.closePalette ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	test( 'a Preferences window the user already had is not closed', async () => {
+	test( 'the layout card closes Preferences when it is done, once, even one the user had', async () => {
+		// Left open it stood in front of every later card and of Mío.
+		// Usually it was open already: "Take the tour" lives inside it.
 		deps.openLayoutSettings = vi.fn( () => ( {
 			windowId: 'os-settings',
 			wasAlreadyOpen: true,
 		} ) );
 		startShellTour( deps );
 		await settle();
-		primary().click();
-		primary().click();
-		primary().click();
-		endShellTour();
-		// `teardown` is not the user finishing, so nothing is tidied either.
+		primary().click(); // menus -> layout
+		primary().click(); // Show me
 		expect( deps.closeWindow ).not.toHaveBeenCalled();
+
+		primary().click(); // Next
+		expect( deps.closeWindow ).toHaveBeenCalledWith( 'os-settings' );
+
+		endShellTour();
+		expect( deps.closeWindow ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'the layout card waits for the section, not just for any target', async () => {
@@ -387,6 +409,119 @@ describe( 'shell tour', () => {
 		expect( mark().anchor ).toBe( section );
 	} );
 
+	test( 'Mío walks the tour: summoned, following each balloon, released at the end', async () => {
+		const mio = { size: () => 112, summon: vi.fn(), follow: vi.fn(), release: vi.fn() };
+		deps.mio = mio;
+		startShellTour( deps );
+		await settle();
+		expect( mio.summon ).toHaveBeenCalledTimes( 1 );
+		// The balloon leaves room for Mío before Mío has even loaded.
+		expect( mark().getAttribute( 'speaker-size' ) ).toBe( '112' );
+
+		// Wherever the balloon puts its speaker, Mío goes.
+		mark().dispatchEvent( new CustomEvent( 'os-coachmark-speaker', { detail: { x: 40, y: 50 } } ) );
+		expect( mio.follow ).toHaveBeenLastCalledWith( { x: 40, y: 50 } );
+
+		// A restart hands Mío to the next run instead of flickering it.
+		startShellTour( deps );
+		expect( mio.release ).not.toHaveBeenCalled();
+
+		endShellTour();
+		expect( mio.release ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'without a Mío on this screen the cards stay plain', async () => {
+		deps.mio = { size: () => 0, summon: vi.fn(), follow: vi.fn(), release: vi.fn() };
+		startShellTour( deps );
+		await settle();
+		// A phone, say: no gap, no summon.
+		expect( mark().hasAttribute( 'speaker-size' ) ).toBe( false );
+		expect( deps.mio.summon ).not.toHaveBeenCalled();
+	} );
+
+	test( 'the closing card goes under the assistant, once its panel has painted', async () => {
+		// Centred, it sat on top of the assistant "Find anything" had just
+		// opened. The assistant loads lazily, so its panel can arrive
+		// after the card does.
+		let panel: Element | null = null;
+		deps.findAssistant = () => panel;
+		deps.mio = { size: () => 112, summon: vi.fn(), follow: vi.fn(), release: vi.fn() };
+		startShellTour( deps );
+		await settle();
+		expect( mark().getAttribute( 'speaker-size' ) ).toBe( '112' );
+		skipIntroCards();
+		const win = fakeWindow( 'w6' );
+		windows.set( 'w6', win );
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'w6' } );
+		hooks.doAction( HOOKS.SNAP_ZONE_COMMITTED, { windowId: 'w6', zone: 'left' } );
+		// Placement is per card: the others leave it to the coachmark.
+		expect( mark().hasAttribute( 'placement' ) ).toBe( false );
+
+		document.dispatchEvent( new CustomEvent( 'os-palette-opened', { detail: { id: 'x' } } ) );
+		expect( mark().getAttribute( 'heading' ) ).toBe( 'You are set' );
+		expect( mark().getAttribute( 'placement' ) ).toBe( 'bottom' );
+		// A plain card: the assistant's backdrop covers the whole shell,
+		// Mío included, so a balloon would point at an empty gap.
+		expect( mark().hasAttribute( 'speaker-size' ) ).toBe( false );
+		expect( mark().anchor ).toBeNull();
+
+		panel = document.createElement( 'div' );
+		document.body.appendChild( panel );
+		await new Promise( ( resolve ) => requestAnimationFrame( () => resolve( null ) ) );
+		expect( mark().anchor ).toBe( panel );
+	} );
+
+	test( 'a window the user opened is theirs to keep; one "Do it for me" opened is closed', async () => {
+		// The card ASKS the user to click a tile. Closing the window they
+		// opened, the moment they skip to get on with it, took their work
+		// away for doing what the tour said.
+		startShellTour( deps );
+		await settle();
+		skipIntroCards();
+		windows.set( 'mine', fakeWindow( 'mine' ) );
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'mine' } );
+		expect( mark().getAttribute( 'step' ) ).toBe( '4' );
+		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.secondary' )!.click();
+		expect( isShellTourRunning() ).toBe( false );
+		expect( deps.closeWindow.mock.calls.map( ( c ) => c[ 0 ] ) ).not.toContain( 'mine' );
+
+		// The same open, asked for through "Do it for me", is the tour's.
+		deps.closeWindow.mockClear();
+		startShellTour( deps );
+		await settle();
+		const marks = document.querySelectorAll< OsCoachmark >( 'os-coachmark' );
+		const latest = marks[ marks.length - 1 ];
+		const press = ( which: 'primary' | 'secondary' ): void =>
+			latest.shadowRoot!.querySelector< HTMLElement >( `os-button.${ which }` )!.click();
+		press( 'primary' ); // menus
+		press( 'primary' ); // layout: Show me
+		press( 'primary' ); // layout: Next
+		press( 'primary' ); // open a window: Do it for me
+		windows.set( 'tours', fakeWindow( 'tours' ) );
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'tours' } );
+		press( 'secondary' );
+		expect( deps.closeWindow.mock.calls.map( ( c ) => c[ 0 ] ) ).toContain( 'tours' );
+	} );
+
+	test( 'Preferences landing while its own card is up does not eat a later open of it', async () => {
+		// The usual order: "Show me" opens Preferences and the open event
+		// fires there and then, with the layout card still up. Nothing is
+		// owed after that, so the user opening Preferences on the next
+		// card is a window opening like any other.
+		startShellTour( deps );
+		await settle();
+		primary().click(); // menus -> layout
+		primary().click(); // Show me
+		windows.set( 'os-settings', fakeWindow( 'os-settings' ) );
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'os-settings' } );
+		expect( mark().getAttribute( 'step' ) ).toBe( '2' );
+		primary().click(); // Next: Preferences closes
+		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
+
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'os-settings' } );
+		expect( mark().getAttribute( 'step' ) ).toBe( '4' );
+	} );
+
 	test( 'the boot gate yields to other announcements and the phone layer', () => {
 		const base = { seenIntros: [] } as unknown as DesktopConfig;
 		const desktop = (): boolean => false;
@@ -395,10 +530,76 @@ describe( 'shell tour', () => {
 		expect( shouldAutoStartShellTour( { ...base, seenIntros: [ 'shell-tour' ] }, desktop ) ).toBe( false );
 		expect( shouldAutoStartShellTour( { ...base, rebrandNotice: true }, desktop ) ).toBe( false );
 		expect( shouldAutoStartShellTour( { ...base, soloWindow: 'x' }, desktop ) ).toBe( false );
-		expect(
-			shouldAutoStartShellTour( { ...base, coreUpdate: { version: '7.1', url: 'u' } }, desktop ),
-		).toBe( false );
 		expect( shouldAutoStartShellTour( base, () => true ) ).toBe( false );
+	} );
+
+	test( 'the first-boot start yields to the core-update notice only when it showed something', async () => {
+		// A pending update is not an announcement by itself: the notice
+		// may already be dismissed (the card, or the toast that stands in
+		// when the art cannot be had). Gating on the config alone kept the
+		// tour from a new user on an outdated site, boot after boot, with
+		// nothing on screen to yield to.
+		vi.useFakeTimers();
+		const start = vi.fn();
+		( window as unknown as { openStationShellTour: unknown } ).openStationShellTour = {
+			startShellTour: start,
+			endShellTour: vi.fn(),
+			isShellTourRunning: () => false,
+		};
+		const boot = ( updateNoticeShown: Promise< boolean > ): ( () => void ) =>
+			installShellTour( {
+				...deps,
+				config: { ...deps.config, seenIntros: [] } as unknown as DesktopConfig,
+				isMobile: () => false,
+				updateNoticeShown,
+			} );
+
+		const shown = boot( Promise.resolve( true ) );
+		await vi.advanceTimersByTimeAsync( MOUNT_DELAY_MS + 10 );
+		expect( start ).not.toHaveBeenCalled();
+		shown();
+
+		const nothingShown = boot( Promise.resolve( false ) );
+		await vi.advanceTimersByTimeAsync( MOUNT_DELAY_MS + 10 );
+		expect( start ).toHaveBeenCalledTimes( 1 );
+		nothingShown();
+		delete ( window as unknown as { openStationShellTour?: unknown } ).openStationShellTour;
+	} );
+
+	test( 'no route starts the tour on the phone layer, and a flip to it ends a running one', () => {
+		// The boot gate always knew; the three replay routes did not, and
+		// the tour ran on a phone: cards about a rail that is not there,
+		// pinned to the corner because their anchors have no box.
+		const start = vi.fn();
+		const end = vi.fn();
+		( window as unknown as { openStationShellTour: unknown } ).openStationShellTour = {
+			startShellTour: start,
+			endShellTour: end,
+			isShellTourRunning: () => false,
+		};
+		let mobile = true;
+		const uninstall = installShellTour( {
+			...deps,
+			config: { ...deps.config, seenIntros: [ 'shell-tour' ] } as unknown as DesktopConfig,
+			isMobile: () => mobile,
+		} );
+		document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );
+		document.dispatchEvent( new CustomEvent( 'os-intros-reset' ) );
+		hooks.doAction( HOOKS.DESKTOP_ICON_CLICKED, { id: 'openstation-shell-tour' } );
+		expect( start ).not.toHaveBeenCalled();
+
+		mobile = false;
+		document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );
+		expect( start ).toHaveBeenCalledTimes( 1 );
+
+		// Narrowed to a phone mid-tour: ended, and not through a path
+		// that records it as seen.
+		hooks.doAction( HOOKS.MODE_CHANGED, { mode: 'tablet', previous: 'desktop' } );
+		expect( end ).not.toHaveBeenCalled();
+		hooks.doAction( HOOKS.MODE_CHANGED, { mode: 'mobile', previous: 'tablet' } );
+		expect( end ).toHaveBeenCalledTimes( 1 );
+		uninstall();
+		delete ( window as unknown as { openStationShellTour?: unknown } ).openStationShellTour;
 	} );
 
 	test( 'a reset replays the tour even though the boot payload says it was seen', () => {
@@ -409,7 +610,7 @@ describe( 'shell tour', () => {
 			endShellTour: vi.fn(),
 			isShellTourRunning: () => false,
 		};
-		installShellTour( {
+		const uninstall = installShellTour( {
 			...deps,
 			config: { ...deps.config, seenIntros: [ 'shell-tour' ] } as unknown as DesktopConfig,
 			isMobile: () => false,
@@ -421,6 +622,7 @@ describe( 'shell tour', () => {
 		expect( start ).toHaveBeenCalledTimes( 1 );
 		document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );
 		expect( start ).toHaveBeenCalledTimes( 2 );
+		uninstall();
 		delete ( window as unknown as { openStationShellTour?: unknown } ).openStationShellTour;
 	} );
 } );

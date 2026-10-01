@@ -1832,6 +1832,33 @@ export class Window {
 	}
 
 	/**
+	 * Snap the window to `zone` the way a drag to the edge does:
+	 * remember the floating rect, then {@link applySnap}.
+	 *
+	 * `applySnap` alone is the geometry, which is right for a session
+	 * restore (the floating rect was saved in the session that snapped
+	 * it). A snap that happens NOW, to a floating window, owes the user
+	 * the way back: dragging the window off the edge restores from
+	 * `_savedGeometry`, and without it the window comes back at a
+	 * default size instead of the one they had.
+	 *
+	 * Saved only on the way out of `normal`, the same rule as maximize:
+	 * from any other state the rect on screen is that state's, not the
+	 * user's.
+	 */
+	public snapTo( zone: 'left' | 'right' ): void {
+		if ( this.state === 'normal' ) {
+			this._savedGeometry = {
+				x: this.element.offsetLeft,
+				y: this.element.offsetTop,
+				width: this.element.offsetWidth,
+				height: this.element.offsetHeight,
+			};
+		}
+		this.applySnap( zone );
+	}
+
+	/**
 	 * Apply the snap-zone visuals (state class + inline geometry). Does
 	 * NOT mutate `state`, save geometry, emit a change event, or fire
 	 * any action — callers own all of those side-effects so the same

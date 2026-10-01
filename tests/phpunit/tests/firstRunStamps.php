@@ -59,11 +59,15 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 		);
 	}
 
-	/** The state the nudge is for: an admin on the Dashboard, fresh install. */
+	/**
+	 * The state the nudge is for: an admin on the Dashboard of a fresh
+	 * install, who has already dismissed the welcome dialog.
+	 */
 	private function nudge_baseline() {
 		wp_set_current_user( self::$admin_id );
 		set_current_screen( 'dashboard' );
 		$this->install( 1 );
+		openstation_mark_intro_seen( self::$admin_id, OPENSTATION_WELCOME_INTRO_SLUG );
 	}
 
 	// ------------------------------------------------------------------
@@ -229,6 +233,26 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The nudge is the second touch. On the first admin load after
+	 * activation the welcome dialog is on screen, and a notice under a
+	 * modal that asks for the same click is one prompt too many.
+	 *
+	 * @covers ::openstation_should_show_activation_nudge
+	 */
+	public function test_nudge_waits_until_the_welcome_dialog_is_out_of_the_way() {
+		$this->nudge_baseline();
+		openstation_clear_seen_intros( self::$admin_id );
+		$this->assertTrue( openstation_should_show_welcome_dialog(), 'The dialog owns this request.' );
+		$this->assertFalse( openstation_should_show_activation_nudge() );
+
+		// A site that filters the dialog off never records its slug; the
+		// nudge must not wait for a dismissal that cannot happen.
+		add_filter( 'openstation_show_welcome_dialog', '__return_false' );
+		$this->assertTrue( openstation_should_show_activation_nudge() );
+		remove_filter( 'openstation_show_welcome_dialog', '__return_false' );
+	}
+
+	/**
 	 * @covers ::openstation_should_show_activation_nudge
 	 */
 	public function test_nudge_never_shows_to_a_subscriber() {
@@ -319,6 +343,13 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 		$links = apply_filters( $hook, array() );
 		$this->assertStringContainsString( 'Open OpenStation', $links['openstation'] );
 		$this->assertStringNotContainsString( openstation_portal_url(), $links['openstation'] );
+
+		// Inside the shell the Plugins screen is a window, and the shell
+		// screen cannot load inside one of its own windows.
+		$_GET['openstation_chromeless'] = '1';
+		$links                          = apply_filters( $hook, array( 'deactivate' => '<a href="#">Deactivate</a>' ) );
+		unset( $_GET['openstation_chromeless'] );
+		$this->assertSame( array( 'deactivate' ), array_keys( $links ) );
 	}
 
 	// ------------------------------------------------------------------
@@ -356,5 +387,63 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 
 		$this->assertNull( openstation_get_first_enabled_stamp() );
 		$this->assertNull( openstation_get_install_stamp() );
+	}
+
+	/**
+	 * The relaunch icon is for a user who bailed out of the tour, and
+	 * only until they finish a run. A veteran the migration marked as
+	 * having seen it never skipped anything, so an update must not put
+	 * the icon on their desk.
+	 *
+	 * @covers ::openstation_shell_tour_relaunch_icon
+	 * @covers ::openstation_shell_tour_is_unfinished
+	 */
+	public function test_relaunch_icon_shows_only_while_a_skipped_tour_is_unfinished() {
+		$user = self::factory()->user->create();
+		wp_set_current_user( $user );
+		$icon = static function () {
+			foreach ( openstation_build_desktop_icons_payload() as $entry ) {
+				if ( OPENSTATION_SHELL_TOUR_ICON_ID === $entry['id'] ) {
+					return $entry;
+				}
+			}
+			return null;
+		};
+
+		$this->assertNull( $icon(), 'A user who never ran the tour has no icon.' );
+
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_INTRO_SLUG );
+		$this->assertNull( $icon(), 'Seen is not skipped: a migrated veteran gets no icon.' );
+
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_SKIPPED_SLUG );
+		$entry = $icon();
+		$this->assertNotNull( $entry, 'Skipped and unfinished: the icon is up.' );
+		// No target: the click is the request, caught by the shell.
+		$this->assertSame( '', $entry['window'] );
+		$this->assertSame( '', $entry['url'] );
+		$this->assertFalse( $entry['pinned'], 'Pinned icons refuse "Hide from desktop".' );
+		// The desk paints it from a placement row whose shortcut has to
+		// resolve through the same filter it was injected by. The raw
+		// registry never knew this icon, and a lookup there served the
+		// tile as a missing file: in the payload, but never on the desk.
+		$file = openstation_resolve_file( 'shortcut', OPENSTATION_SHELL_TOUR_ICON_ID );
+		$this->assertNotNull( $file );
+		$this->assertTrue( $file->exists(), 'The shortcut behind the desktop tile resolves.' );
+		$this->assertSame( 'Take the tour', $file->serialize()['title'] );
+
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_DONE_SLUG );
+		$this->assertNull( $icon(), 'Finished a run: the icon goes.' );
+
+		// The latest run is what counts. Kept side by side, one finished
+		// run hid the icon after every skip that came after it.
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_SKIPPED_SLUG );
+		$this->assertNotNull( $icon(), 'Skipped a later run: the icon is back.' );
+		$this->assertNotContains( OPENSTATION_SHELL_TOUR_DONE_SLUG, openstation_get_seen_intros( $user ) );
+
+		openstation_clear_seen_intros( $user );
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_SKIPPED_SLUG );
+		add_filter( 'openstation_show_shell_tour', '__return_false' );
+		$this->assertNull( $icon(), 'A site that switched the tour off offers no way back into it.' );
+		remove_filter( 'openstation_show_shell_tour', '__return_false' );
 	}
 }

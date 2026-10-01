@@ -55,6 +55,7 @@ export const COMPONENT_EVENTS: readonly string[] = [
 	'os-coachmark-dismiss',
 	'os-coachmark-primary',
 	'os-coachmark-secondary',
+	'os-coachmark-speaker',
 	'os-color-change',
 	'os-confirm',
 	'os-context-menu-pick',
