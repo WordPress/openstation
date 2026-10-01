@@ -68,7 +68,7 @@ Extend OpenStation through documented PHP and JavaScript APIs. Register windows,
 
 = External services =
 
-No external service is required for OpenStation's desktop interface. The optional AI Assistant, two user-initiated enrichment features and an optional feedback form on deactivation make the external requests described below.
+No external service is required for OpenStation's desktop interface. The optional AI Assistant, two user-initiated enrichment features, an optional feedback form on deactivation and an optional one-time feedback form for active users make the external requests described below.
 
 **AI Assistant**
 
@@ -93,6 +93,15 @@ When an administrator deactivates OpenStation, a dialog asks one optional questi
 * **When it is sent:** only when you click Send in the dialog shown on deactivation. There is no background ping.
 * **Why it is sent:** to learn what did not work so it can be fixed.
 * **Who provides the service:** the request goes from your server to [openstation.blog](https://openstation.blog/), the plugin's own site, operated by Automattic. Review the [Automattic Privacy Policy](https://automattic.com/privacy/). Site owners can turn the dialog off with the `openstation_deactivation_feedback_enabled` filter.
+
+**Usage feedback**
+
+After you have had OpenStation on for a week, a small card asks once whether you have two minutes to say how it is going. Answering **No thanks** sends nothing, and it never comes back. Saying yes opens a short form with three optional questions and an optional email field. Nothing is sent unless you click **Send**; **Cancel**, Escape and the close button send nothing.
+
+* **What is sent:** the answers you typed, the email address if you chose to type one (the field starts empty and is never filled in for you), your language, the OpenStation and WordPress versions, and how many days you have had OpenStation on. Nothing that identifies your site: no URL, no site id, no user name, and no IP address is stored. Without an email the submission is anonymous. Each submission carries a random id used only to ignore an accidental retry.
+* **When it is sent:** only when you click Send in the form. There is no background ping.
+* **Why it is sent:** to learn what works and what gets in the way. An email address, when given, is used only to follow up on the feedback.
+* **Who provides the service:** the request goes from your server to [openstation.blog](https://openstation.blog/), the plugin's own site, operated by Automattic. Review the [Automattic Privacy Policy](https://automattic.com/privacy/). Site owners can turn the prompt off with the `openstation_usage_feedback_enabled` filter.
 
 **WordPress.org plugin information**
 
@@ -133,7 +142,7 @@ Most plugin admin pages open as windows without special integration. Plugins tha
 
 = Does the plugin require an external service to function? =
 
-No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and extension APIs work without an external service. The optional AI Assistant requires a configured AI provider. OpenStation also makes limited, user-initiated requests to resolve URL-shortcut favicons and display WordPress.org plugin information, and offers an optional, one-click feedback form when you deactivate. See "External services" in the description.
+No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and extension APIs work without an external service. The optional AI Assistant requires a configured AI provider. OpenStation also makes limited, user-initiated requests to resolve URL-shortcut favicons and display WordPress.org plugin information, offers an optional, one-click feedback form when you deactivate, and once asks active users whether they want to share feedback. See "External services" in the description.
 
 = Does it patch WordPress core? =
 

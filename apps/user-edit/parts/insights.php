@@ -243,7 +243,7 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 	) {
 		$recent_posts[] = array(
 			'id'           => (int) $post->ID,
-			'title'        => '' !== $post->post_title ? $post->post_title : __( '(no title)', 'desktop-mode' ),
+			'title'        => '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' ),
 			'status'       => (string) $post->post_status,
 			'type'         => (string) $post->post_type,
 			'dateGmt'      => openstation_user_edit_window_gmt_or_local( $post->post_date_gmt, $post->post_date ),
@@ -268,8 +268,8 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 		$recent_comments[] = array(
 			'id'        => (int) $comment->comment_ID,
 			'postId'    => (int) $comment->comment_post_ID,
-			'postTitle' => $post instanceof WP_Post ? ( '' !== $post->post_title ? $post->post_title : __( '(no title)', 'desktop-mode' ) ) : '',
-			'excerpt'   => wp_trim_words( wp_strip_all_tags( (string) $comment->comment_content ), 24 ),
+			'postTitle' => $post instanceof WP_Post ? ( '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' ) ) : '',
+			'excerpt'   => openstation_plain_text_title( wp_trim_words( openstation_strip_all_tags( (string) $comment->comment_content ), 24 ) ),
 			'dateGmt'   => openstation_user_edit_window_gmt_or_local( $comment->comment_date_gmt, $comment->comment_date ),
 			'approved'  => '1' === (string) $comment->comment_approved,
 		);
@@ -303,7 +303,7 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 
 	return array(
 		'userId'               => $id,
-		'displayName'          => (string) $user->display_name,
+		'displayName'          => openstation_plain_text_title( $user->display_name ),
 		'avatarUrl'            => (string) get_avatar_url( $id, array( 'size' => 96 ) ),
 		'profileUrl'           => (string) get_author_posts_url( $id ),
 		'roles'                => array_values( (array) $user->roles ),

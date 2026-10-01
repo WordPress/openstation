@@ -131,7 +131,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	// ----- Profile -----------------------------------------------------
 	$profile = array(
 		'id'          => (int) $user->ID,
-		'name'        => $user->display_name,
+		'name'        => openstation_plain_text_title( $user->display_name ),
 		'description' => (string) $user->description,
 		'link'        => get_author_posts_url( $user->ID ),
 		'website'     => esc_url_raw( $user->user_url ),
@@ -384,7 +384,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		}
 		$recent[] = array(
 			'id'     => (int) $p->ID,
-			'title'  => get_the_title( $p ),
+			'title'  => openstation_plain_text_title( get_the_title( $p ) ),
 			'date'   => mysql2date( 'c', $p->post_date_gmt, false ),
 			'status' => (string) $p->post_status,
 			'type'   => (string) $p->post_type,
@@ -415,7 +415,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	foreach ( (array) $top_term_rows as $row ) {
 		$top_terms[] = array(
 			'id'       => (int) $row['term_id'],
-			'name'     => (string) $row['name'],
+			'name'     => openstation_plain_text_title( $row['name'] ),
 			'slug'     => (string) $row['slug'],
 			'taxonomy' => (string) $row['taxonomy'],
 			'count'    => (int) $row['n'],

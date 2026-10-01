@@ -496,12 +496,12 @@ function openstation_files_shape_file_share( $row ) {
 		$shape['fileName']    = (string) $file['display_name'];
 		$shape['ownerId']     = (int) $file['owner_id'];
 		$owner                = get_userdata( (int) $file['owner_id'] );
-		$shape['ownerName']   = $owner ? $owner->display_name : '';
+		$shape['ownerName']   = $owner ? openstation_plain_text_title( $owner->display_name ) : '';
 		$shape['ownerAvatar'] = $owner ? get_avatar_url( $owner->ID, array( 'size' => 48 ) ) : '';
 	}
 	// Principal enrichment for the owner-side share list.
 	$principal            = get_userdata( (int) $row['principal_ref'] );
-	$shape['displayName'] = $principal ? $principal->display_name : '';
+	$shape['displayName'] = $principal ? openstation_plain_text_title( $principal->display_name ) : '';
 	$shape['avatarUrl']   = $principal ? get_avatar_url( $principal->ID, array( 'size' => 48 ) ) : '';
 	return $shape;
 }

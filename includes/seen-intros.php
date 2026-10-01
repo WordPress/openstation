@@ -5,10 +5,12 @@
  * Tracks which one-time announcements the current user has already
  * dismissed, so each is shown once and never bothers them again.
  *
- * Two surfaces use it today: the activation welcome dialog
+ * Three surfaces use it today: the activation welcome dialog
  * (`includes/welcome-dialog.php`, slug `activation-welcome`), shown
- * in the classic admin while OpenStation is disabled, and the rebrand
- * notice (`src/rebrand-notice.ts`, slug `openstation-rebrand`). The
+ * in the classic admin while OpenStation is disabled, the rebrand
+ * notice (`src/rebrand-notice.ts`, slug `openstation-rebrand`), and
+ * the usage feedback prompt (`includes/feedback/usage.php`, slug
+ * `usage-feedback`, marked server-side on a successful send). The
  * key is intentionally generic, so anything else that needs
  * show-once semantics registers its own slug and reuses this storage.
  * OpenStation Preferences → Features exposes a "Reset what's-new

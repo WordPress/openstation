@@ -1280,6 +1280,44 @@ apply_filters( 'openstation_deactivation_feedback_endpoint', string $url );
 
 ---
 
+### `openstation_usage_feedback_enabled` — Experimental
+
+Whether the one-time usage feedback prompt exists on this site. It gates both surfaces at once: the `usageFeedback` key in the shell config (the prompt never appears without it) and the `POST /desktop-mode/v1/feedback/usage` route, which answers `403` when this returns `false`.
+
+```php
+apply_filters( 'openstation_usage_feedback_enabled', bool $enabled );
+```
+
+```php
+add_filter( 'openstation_usage_feedback_enabled', '__return_false' );
+```
+
+The prompt is shown to a user who has had OpenStation on for seven whole days by the `openstation_enabled_at` stamp and has not answered or dismissed the `usage-feedback` intro; the gate is `openstation_usage_feedback_eligible()` in `includes/feedback/usage.php`.
+
+---
+
+### `openstation_usage_feedback_payload` — Experimental
+
+The submission, after it is built and before it is forwarded. The keys are the ones `readme.txt` discloses under "External services" (`id`, `requests`, `use_case`, `blockers`, `email`, `plugin_version`, `wp_version`, `locale`, `days_enabled`). `email` is an empty string unless the user typed one. Return an empty array to suppress the send; the route then answers `502` as if the forward had failed, and the form stays open for the user to retry or close.
+
+```php
+apply_filters( 'openstation_usage_feedback_payload', array $payload );
+```
+
+Do not add anything that identifies the site or the person: the disclosure in `readme.txt` is the contract, and `tests/phpunit/tests/usageFeedback.php` pins the key list.
+
+---
+
+### `openstation_usage_feedback_endpoint` — Experimental
+
+The intake URL, `https://openstation.blog/wp-json/openstation-feedback/v1/usage` by default (the OpenStation Feedback Intake plugin on the plugin's own site). Hosts that run their own intake point this at it; it receives the payload above as a JSON `POST` with a five-second timeout and no redirects. An empty string skips the forward, which the route reports as a failed send.
+
+```php
+apply_filters( 'openstation_usage_feedback_endpoint', string $url );
+```
+
+---
+
 ### `openstation_shell_config` — Stable
 
 The JS configuration blob injected as `window.openStationConfig`. Powers the window manager, dock, and session restore. Filter this to inject custom payloads the shell can read at boot.

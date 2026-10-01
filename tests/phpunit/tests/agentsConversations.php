@@ -23,7 +23,7 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		$agent = openstation_agent_create(
 			array(
-				'name'         => 'Conversation Agent',
+				'name'         => 'Q&A Agent',
 				'role'         => 'author',
 				'instructions' => 'Be terse.',
 			)
@@ -91,7 +91,8 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$data = $this->create_conversation();
 
 		$this->assertSame( self::$agent_id, $data['agentId'] );
-		$this->assertSame( 'Conversation Agent', $data['agentName'] );
+		// Stored as `Q&amp;A Agent`; the chat paints the name as text.
+		$this->assertSame( 'Q&A Agent', $data['agentName'] );
 		$this->assertSame( 'Summarize post 12 for me please', $data['title'] );
 		$this->assertSame( 2, $data['messageCount'] );
 		$this->assertSame( 'user', $data['messages'][0]['role'] );

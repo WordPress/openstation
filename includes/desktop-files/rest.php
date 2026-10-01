@@ -856,7 +856,7 @@ function openstation_files_check_if_match( $current_ms, WP_REST_Request $req, $r
 	}
 	$actor_payload = array(
 		'id'     => $viewer_can_see ? $actor_id : 0,
-		'name'   => $viewer_can_see && $actor ? $actor->display_name : '',
+		'name'   => $viewer_can_see && $actor ? openstation_plain_text_title( $actor->display_name ) : '',
 		'avatar' => $viewer_can_see && $actor ? get_avatar_url( $actor->ID, array( 'size' => 32 ) ) : '',
 	);
 
@@ -902,7 +902,7 @@ function openstation_files_shape_share( $row ) {
 	if ( 'user' === $row['principal_type'] ) {
 		$uid                  = (int) $row['principal_ref'];
 		$user                 = $uid > 0 ? get_userdata( $uid ) : null;
-		$shape['displayName'] = $user ? $user->display_name : '';
+		$shape['displayName'] = $user ? openstation_plain_text_title( $user->display_name ) : '';
 		$shape['avatarUrl']   = $user ? get_avatar_url( $uid, array( 'size' => 48 ) ) : '';
 	} else {
 		$roles                = wp_roles();
@@ -1222,7 +1222,7 @@ function openstation_files_rest_search_users( WP_REST_Request $req ) {
 		// `slug` field WP's own `/wp/v2/users` endpoint surfaces.
 		$out[] = array(
 			'id'        => (int) $user->ID,
-			'name'      => (string) $user->display_name,
+			'name'      => openstation_plain_text_title( $user->display_name ),
 			'slug'      => (string) $user->user_nicename,
 			'avatarUrl' => get_avatar_url( $user->ID, array( 'size' => 48 ) ),
 		);

@@ -514,6 +514,8 @@ function openstation_enqueue_assets() {
 	 *     @type string $shellTourBundleUrl URL of the lazy shell-tour bundle, injected on first use.
 	 *     @type array  $firstRun     `{ installedAt, firstEnabledAt, enabledAt }`, epoch seconds, 0 when unknown — the first-run stamps, read-only.
 	 *     @type bool   $rebrandNotice Whether to offer this user the one-off announcement explaining the rename from Desktop Mode to OpenStation. True only when migration 5 flagged this user as a Desktop Mode user from before the rename AND they haven't dismissed the `openstation-rebrand` intro. Only ever present in the shell config, so the announcement never reaches the classic admin.
+	 *     @type array|null $usageFeedback What the one-time usage feedback prompt needs (`restUrl`), or `null` when this user is not owed it: the feature is off, they have had OpenStation on for fewer than seven days by the `openstation_enabled_at` stamp, or they already answered or dismissed the `usage-feedback` intro. Carries no user data.
+	 *     @type string $usageFeedbackBundleUrl URL of the lazy `usage-feedback` bundle, the form the prompt opens.
 	 * }
 	 */
 	$config = apply_filters(
@@ -732,6 +734,12 @@ function openstation_enqueue_assets() {
 			// enabled it, and when this user did. See
 			// `includes/first-run/stamps.php`.
 			'firstRun'                      => openstation_first_run_config( get_current_user_id() ),
+			// Null for everyone but a user who has had OpenStation on
+			// long enough and has not answered yet; the gate lives in
+			// `includes/feedback/usage.php`. The form is a lazy bundle
+			// fetched only when the user says yes to the prompt.
+			'usageFeedback'                 => function_exists( 'openstation_usage_feedback_config' ) ? openstation_usage_feedback_config() : null,
+			'usageFeedbackBundleUrl'        => $lazy_bundle_url( 'usage-feedback' ),
 			'aiSearchUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			// AI assistant availability + per-user toggle. Drives whether the
 			// Cmd+K palette and admin-bar icon appear, and the setup placeholder.

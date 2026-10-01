@@ -1120,7 +1120,10 @@ function openstation_agent_update( $user_id, array $fields ) {
 				__( 'Agent name cannot be empty.', 'desktop-mode' )
 			);
 		}
-		if ( $name !== (string) $user->display_name ) {
+		// Compared as plain text: the stored name carries entities
+		// (`&amp;`), and the client sends back the decoded one it was
+		// given on every save. Raw, that reads as a rename.
+		if ( openstation_plain_text_title( $name ) !== openstation_plain_text_title( $user->display_name ) ) {
 			$changed['name'] = array(
 				'from' => (string) $user->display_name,
 				'to'   => $name,

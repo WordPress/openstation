@@ -1556,7 +1556,7 @@ function openstation_files_share_inject_shell_config( $config ) {
 				$shape['folderName']  = (string) $folder['name'];
 				$shape['ownerId']     = (int) $folder['owner_id'];
 				$owner_user           = get_userdata( (int) $folder['owner_id'] );
-				$shape['ownerName']   = $owner_user ? $owner_user->display_name : '';
+				$shape['ownerName']   = $owner_user ? openstation_plain_text_title( $owner_user->display_name ) : '';
 				$shape['ownerAvatar'] = $owner_user ? get_avatar_url( $owner_user->ID, array( 'size' => 48 ) ) : '';
 			}
 			$pending[] = $shape;

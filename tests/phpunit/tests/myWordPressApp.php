@@ -270,10 +270,10 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	 * @covers \OpenStation\Apps\MyWordPress\footprint_from_params
 	 */
 	public function test_a_footprint_param_lands_the_mount_and_the_reopen_on_that_person() {
-		$mounted = $this->dispatch( 'mount', array(), array(), array( 'footprint' => self::$author_id, 'fpName' => 'Ann <b>Author</b>' ) );
+		$mounted = $this->dispatch( 'mount', array(), array(), array( 'footprint' => self::$author_id, 'fpName' => 'Ann <b>Author</b> <3 Q&A' ) );
 		$this->assertTrue( $mounted['ok'] );
 		$this->assertSame( self::$author_id, $mounted['state']['footprint'] );
-		$this->assertSame( 'Ann Author', $mounted['state']['fpName'], 'The breadcrumb placeholder is sanitised.' );
+		$this->assertSame( 'Ann Author <3 Q&A', $mounted['state']['fpName'], 'The breadcrumb placeholder is sanitised, and stays text.' );
 
 		$plain = $this->dispatch( 'mount' );
 		$this->assertSame( 0, $plain['state']['footprint'], 'No params, no footprint.' );
@@ -402,8 +402,11 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		);
 		$long  = self::factory()->post->create(
 			array(
-				'post_title'   => 'Long read',
+				// Stored the way kses stores an `&` for an Author.
+				'post_title'   => 'Long read &amp; more',
 				'post_content' => str_repeat( 'Tom &amp; Jerry go on. ', 40 ),
+				// `wp_insert_user()` stores this name with `&amp;`.
+				'post_author'  => self::factory()->user->create( array( 'display_name' => 'Pérez & Hijos' ) ),
 				// The factory invents one otherwise; the trim path is the point.
 				'post_excerpt' => '',
 			)
@@ -418,6 +421,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 				$this->assertStringNotContainsString( '&amp;', $candidate['excerpt'] );
 				$this->assertStringContainsString( 'Tom & Jerry', $candidate['excerpt'] );
 				$this->assertStringContainsString( '[…]', $candidate['excerpt'] );
+				// So is the tile label, which a drag or "Send to" carries on.
+				$this->assertSame( 'Long read & more', $candidate['title'] );
+				$this->assertSame( 'Pérez & Hijos', $candidate['author'] );
 			}
 		}
 
@@ -467,6 +473,34 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( array( 'administrator' ), $admin['roles'] );
 		$this->assertMatchesRegularExpression( '/^\d{4}-\d\d-\d\dT/', $admin['registered'] );
 		$this->assertGreaterThanOrEqual( 1, $admin['posts'], 'The published-post count rides the row, counted once per page.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\lock_holder
+	 */
+	public function test_list_rows_name_whoever_else_holds_the_edit_lock() {
+		require_once ABSPATH . 'wp-admin/includes/post.php';
+		// Stored as `Tom &amp; Jerry`; the client paints the name as text.
+		$holder = self::factory()->user->create(
+			array(
+				'role'         => 'editor',
+				'display_name' => 'Tom & Jerry',
+			)
+		);
+		wp_set_current_user( $holder );
+		wp_set_post_lock( self::$post_id );
+
+		$locked_by = function () {
+			$rows = $this->dispatch( 'refresh', array( 'section' => 'posts' ) )['data']['list']['items'];
+			return array_column( $rows, 'lockedBy', 'id' )[ self::$post_id ];
+		};
+		$this->assertSame( '', $locked_by(), 'Nobody is told about their own lock.' );
+
+		wp_set_current_user( self::$admin_id );
+		$this->assertSame( 'Tom & Jerry', $locked_by() );
+
+		wp_set_current_user( self::$author_id );
+		$this->assertSame( '', $locked_by(), 'Someone who cannot edit the post never learns who is editing it.' );
 	}
 
 	/**
@@ -736,8 +770,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		self::factory()->comment->create(
 			array(
 				'comment_post_ID' => self::$post_id,
-				'comment_author'  => 'Ada',
-				'comment_content' => 'Great strategy, would read again.',
+				// Stored as `pre_comment_author_name` stores an `&`.
+				'comment_author'  => 'Ada &amp; Grace',
+				'comment_content' => 'Great strategy, I <3 it.',
 			)
 		);
 		$attached = self::factory()->attachment->create_object(
@@ -762,7 +797,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 
 		$comments = $this->dispatch( 'relation', $state, array( 'relation' => 'comments' ) );
 		$titles   = array_column( $comments['data']['sub']['rows'], 'title' );
-		$this->assertContains( 'Ada', $titles );
+		$this->assertContains( 'Ada & Grace', $titles, 'Row titles are text: the tile and the window `sub-open` titles with them.' );
+		$subtitles = array_column( $comments['data']['sub']['rows'], 'subtitle' );
+		$this->assertContains( 'Great strategy, I <3 it.', $subtitles, 'A `<` that opens no tag is text, and the excerpt keeps it.' );
 
 		$revisions = $this->dispatch( 'relation', $state, array( 'relation' => 'revisions' ) );
 		$this->assertNotEmpty( $revisions['data']['sub']['rows'] );

@@ -290,6 +290,7 @@ import { openShortcutsWith, SHORTCUTS_WINDOW_ID } from './shortcuts';
 import { maybeShowRebrandNotice } from './rebrand-notice';
 import { installShellTour } from './shell-tour/loader';
 import { spendMenuRefresh } from './settings/spend-menu-refresh';
+import { maybeAskForUsageFeedback } from './usage-feedback/index';
 import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { renderIcon } from './icon';
@@ -5282,6 +5283,11 @@ function init(): void {
 			} );
 		},
 	} );
+	// Ask a user who has had OpenStation on for a while whether they
+	// have two minutes to say how it is going. A small prompt, once,
+	// whatever they answer; no-op unless the server put
+	// `usageFeedback` in the config.
+	void maybeAskForUsageFeedback( { config } );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {
 			baseUrl: config.filesUrl,

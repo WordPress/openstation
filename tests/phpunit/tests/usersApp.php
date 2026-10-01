@@ -171,6 +171,12 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 	 * @covers \OpenStation\App\Runtime::dispatch
 	 */
 	public function test_mount_serves_the_rows_wp_v2_users_serves_with_the_openstation_fields() {
+		wp_update_user(
+			array(
+				'ID'           => self::$editor_id,
+				'display_name' => 'Edgar & Editor',
+			)
+		);
 		$response = $this->dispatch( 'mount' );
 		$this->assertTrue( $response['ok'] );
 		$list = $response['data']['list'];
@@ -187,6 +193,8 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 			}
 		}
 		$this->assertNotNull( $row );
+		// Core's row carries the name as stored (`&amp;`); the view paints text.
+		$this->assertSame( 'Edgar & Editor', $row['name'] );
 		// The `context=edit` fields the columns paint, and the REST
 		// fields that are cheap per row.
 		$this->assertArrayHasKey( 'email', $row );

@@ -2022,6 +2022,12 @@ export interface MultisiteConfig {
 /**
  * Desktop shell configuration passed from PHP via wp_localize_script.
  */
+/** What the usage feedback prompt needs; see `DesktopConfig.usageFeedback`. */
+export interface UsageFeedbackConfig {
+	/** `POST /desktop-mode/v1/feedback/usage`. */
+	restUrl: string;
+}
+
 export interface DesktopConfig {
 	/** The current admin page URL (to auto-open in the first window). */
 	currentPage: string;
@@ -2555,6 +2561,16 @@ export interface DesktopConfig {
 	 * `src/rebrand-notice.ts`.
 	 */
 	rebrandNotice?: boolean;
+	/**
+	 * The one-time usage feedback prompt, or `null` when this user is
+	 * not owed it. The server decides: the feature is on, the user has
+	 * had OpenStation on for long enough by the `openstation_enabled_at`
+	 * stamp, and they have not answered or dismissed the
+	 * `usage-feedback` intro. See `includes/feedback/usage.php`.
+	 */
+	usageFeedback?: UsageFeedbackConfig | null;
+	/** URL of the lazy `usage-feedback` bundle, the form the prompt opens. */
+	usageFeedbackBundleUrl?: string;
 	/**
 	 * Slugs of one-time intro dialogs this user has dismissed. Shared
 	 * with the native windows' first-open intros.
