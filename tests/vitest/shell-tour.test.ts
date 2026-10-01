@@ -529,6 +529,15 @@ describe( 'shell tour', () => {
 		expect( shouldAutoStartShellTour( { ...base, shellTour: false }, desktop ) ).toBe( false );
 		expect( shouldAutoStartShellTour( { ...base, seenIntros: [ 'shell-tour' ] }, desktop ) ).toBe( false );
 		expect( shouldAutoStartShellTour( { ...base, rebrandNotice: true }, desktop ) ).toBe( false );
+		// The usage feedback prompt, while it is still owed.
+		const feedback = { restUrl: 'u' };
+		expect( shouldAutoStartShellTour( { ...base, usageFeedback: feedback }, desktop ) ).toBe( false );
+		expect(
+			shouldAutoStartShellTour(
+				{ ...base, usageFeedback: feedback, seenIntros: [ 'usage-feedback' ] },
+				desktop,
+			),
+		).toBe( true );
 		expect( shouldAutoStartShellTour( { ...base, soloWindow: 'x' }, desktop ) ).toBe( false );
 		expect( shouldAutoStartShellTour( base, () => true ) ).toBe( false );
 	} );

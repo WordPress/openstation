@@ -36,7 +36,13 @@ const CARD_CLASS = 'os-usage-feedback-prompt';
 const TITLE_ID = 'os-usage-feedback-prompt-title';
 
 const STYLES = `
-.${ CARD_CLASS } {
+/* The role is in the selector to outrank one rule: the WordPress
+   components stylesheet sets position relative on every region, at the
+   same specificity as a bare class. It loads on demand (the assistant
+   brings it in), so it lands after these styles and won: the card
+   dropped out of its corner to the bottom-left of the shell, partly
+   off screen, the moment the user pressed the palette shortcut. */
+.${ CARD_CLASS }[role='region'] {
 	--os-ui-fg: var( --os-ui-modal-text, #f0f0f1 );
 	--os-ui-fg-muted: var( --os-ui-modal-text-muted, #a7aaad );
 	--os-ui-border: var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
@@ -97,7 +103,7 @@ const STYLES = `
 	gap: 10px;
 }
 @media ( prefers-reduced-motion: reduce ) {
-	.${ CARD_CLASS } { animation: none; }
+	.${ CARD_CLASS }[role='region'] { animation: none; }
 }
 `;
 

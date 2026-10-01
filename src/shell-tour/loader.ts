@@ -26,6 +26,7 @@ import type { ShellTourDeps, ShellTourHandle } from './index';
 import { SHELL_TOUR_ICON_ID, SHELL_TOUR_INTRO_SLUG, SHELL_TOUR_START_EVENT } from './constants';
 import { addAction, HOOKS, removeAction } from '../hooks';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
+import { USAGE_FEEDBACK_INTRO_SLUG } from '../usage-feedback/index';
 
 /** Hook namespace for the loader's listeners. */
 const NS = 'openstation/shell-tour-loader';
@@ -71,11 +72,14 @@ function loadedApi(): ShellTourApi | null {
  *
  * Not when the site switched it off, when this user already had it,
  * when the shell is painting a single solo window, on the phone
- * layer, or when the rebrand notice owns this boot. Two announcements
- * on one boot read as a broken page; the tour is the one that can
- * wait. The core-update notice is the other announcement, and it is
- * asked separately (`updateNoticeShown`): whether it shows anything
- * is not knowable from the config.
+ * layer, or when the rebrand notice or the usage feedback prompt owns
+ * this boot. Two announcements on one boot read as a broken page; the
+ * tour is the one that can wait. The prompt is owed a week into using
+ * OpenStation, so the two only meet for someone who never got the
+ * tour in that week (their boots so far were on a phone, say). The
+ * core-update notice is the other announcement, and it is asked
+ * separately (`updateNoticeShown`): whether it shows anything is not
+ * knowable from the config.
  */
 export function shouldAutoStartShellTour( config: DesktopConfig, isMobile: () => boolean ): boolean {
 	if ( config.shellTour === false ) {
@@ -88,6 +92,9 @@ export function shouldAutoStartShellTour( config: DesktopConfig, isMobile: () =>
 		return false;
 	}
 	if ( config.rebrandNotice ) {
+		return false;
+	}
+	if ( config.usageFeedback && ! config.seenIntros?.includes( USAGE_FEEDBACK_INTRO_SLUG ) ) {
 		return false;
 	}
 	if ( isMobile() ) {
