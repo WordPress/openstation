@@ -341,14 +341,16 @@ export function resolveStatusSegments(): StatusSegment[] {
 }
 
 /**
- * The shipped bulk action: "Move to trash". `trash` runs the app's
- * server action over the ids not already in the trash (a second
- * delete would remove them for good) and returns `false` — the
- * action's own dispatch already refreshed the list.
+ * The shipped bulk actions: "Move to trash" and "Restore". `trash` runs the
+ * window's server action over the ids not already in the trash (a second
+ * delete would remove them for good); `restore` runs over the ids in the
+ * trash. Both return `false` — the action's own dispatch already refreshed
+ * the list.
  */
 export function defaultBulkActions(
 	mode: 'posts' | 'pages',
 	trash: ( ids: number[] ) => Promise< boolean >,
+	restore?: ( ids: number[] ) => Promise< boolean >,
 ): BulkAction[] {
 	return [
 		{
@@ -376,6 +378,24 @@ export function defaultBulkActions(
 				} );
 				if ( trashable.length > 0 ) {
 					await trash( trashable );
+				}
+				ctx.table.clearSelection();
+				return false;
+			},
+		},
+		{
+			id: 'restore',
+			label: __( 'Restore' ),
+			icon: 'dashicons-image-rotate',
+			variant: 'secondary',
+			run: async ( ids, ctx ): Promise< false > => {
+				const data = ctx.table.data ?? [];
+				const restorable = ids.filter( ( id ) => {
+					const row = data.find( ( r ) => r.id === id );
+					return row && row.status === 'trash';
+				} );
+				if ( restorable.length > 0 && restore ) {
+					await restore( restorable );
 				}
 				ctx.table.clearSelection();
 				return false;
