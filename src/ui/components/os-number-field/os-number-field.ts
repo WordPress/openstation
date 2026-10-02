@@ -162,7 +162,7 @@ export class OsNumberField extends Component {
 					step=${ step }
 					name=${ name }
 					aria-invalid=${ invalid ? 'true' : 'false' }
-					aria-label=${ label || '' }
+					aria-label=${ label || null }
 					@input=${ ( e: Event ) => this._onInput( e ) }
 					@change=${ ( e: Event ) => this._onCommit( e ) }
 					@keydown=${ ( e: KeyboardEvent ) => this._onKeyDown( e ) }
