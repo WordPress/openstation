@@ -277,4 +277,168 @@ describe( '<os-segmented> + <os-segment>', () => {
 
 		expect( group.getAttribute( 'value' ) ).toBe( 'a' );
 	} );
+	test( 'the group is one tab stop: roving tabindex, and the shadow button is never one', async () => {
+		host.innerHTML = `
+			<os-segmented value="default" label="Dock size">
+				<os-segment value="compact">Compact</os-segment>
+				<os-segment value="default">Default</os-segment>
+				<os-segment value="large">Large</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		await tick();
+		const segs = Array.from( host.querySelectorAll( 'os-segment' ) );
+		expect( segs.map( ( s ) => s.getAttribute( 'tabindex' ) ) ).toEqual( [
+			'-1',
+			'0',
+			'-1',
+		] );
+		// Focus belongs to the host, which is what carries role="radio"
+		// and aria-checked. A focusable shadow button would be a second
+		// stop per segment announcing neither.
+		for ( const seg of segs ) {
+			expect(
+				seg.shadowRoot!.querySelector( 'button' )!.getAttribute( 'tabindex' ),
+			).toBe( '-1' );
+		}
+	} );
+
+	test( 'ArrowRight and ArrowDown move the selection forward and wrap', async () => {
+		host.innerHTML = `
+			<os-segmented value="compact">
+				<os-segment value="compact">Compact</os-segment>
+				<os-segment value="default">Default</os-segment>
+				<os-segment value="large">Large</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		await tick();
+		const group = host.querySelector( 'os-segmented' )!;
+		const heard: string[] = [];
+		group.addEventListener( 'os-pick', ( e ) =>
+			heard.push( ( e as CustomEvent ).detail.value ),
+		);
+
+		const press = async ( key: string ) => {
+			group.dispatchEvent(
+				new KeyboardEvent( 'keydown', { key, bubbles: true } ),
+			);
+			await tick();
+			await tick();
+		};
+
+		await press( 'ArrowRight' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'default' );
+		// Both axes: a radiogroup answers Up/Down as well as Left/Right.
+		await press( 'ArrowDown' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'large' );
+		await press( 'ArrowRight' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'compact' );
+		expect( heard ).toEqual( [ 'default', 'large', 'compact' ] );
+	} );
+
+	test( 'ArrowLeft wraps backwards, Home and End jump the ends', async () => {
+		host.innerHTML = `
+			<os-segmented value="compact">
+				<os-segment value="compact">Compact</os-segment>
+				<os-segment value="default">Default</os-segment>
+				<os-segment value="large">Large</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		await tick();
+		const group = host.querySelector( 'os-segmented' )!;
+		const press = async ( key: string ) => {
+			group.dispatchEvent(
+				new KeyboardEvent( 'keydown', { key, bubbles: true } ),
+			);
+			await tick();
+			await tick();
+		};
+
+		await press( 'ArrowLeft' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'large' );
+		await press( 'Home' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'compact' );
+		await press( 'End' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'large' );
+		// The roving stop follows the selection, so the next Tab in
+		// lands where the user left off.
+		expect(
+			host
+				.querySelector( 'os-segment[value="large"]' )!
+				.getAttribute( 'tabindex' ),
+		).toBe( '0' );
+	} );
+
+	test( 'a key the group does not own is left to the page', async () => {
+		host.innerHTML = `
+			<os-segmented value="compact">
+				<os-segment value="compact">Compact</os-segment>
+				<os-segment value="default">Default</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		await tick();
+		const group = host.querySelector( 'os-segmented' )!;
+		const e = new KeyboardEvent( 'keydown', {
+			key: 'Tab',
+			bubbles: true,
+			cancelable: true,
+		} );
+		group.dispatchEvent( e );
+		await tick();
+		expect( e.defaultPrevented ).toBe( false );
+		expect( group.getAttribute( 'value' ) ).toBe( 'compact' );
+	} );
+
+	test( 'a segment added after the last render is still reachable', async () => {
+		host.innerHTML = `
+			<os-segmented value="compact">
+				<os-segment value="compact">Compact</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		await tick();
+		const group = host.querySelector( 'os-segmented' )!;
+		const late = document.createElement( 'os-segment' );
+		late.setAttribute( 'value', 'late' );
+		late.textContent = 'Late';
+		group.appendChild( late );
+		await tick();
+		await tick();
+		await tick();
+		// Without the childList observer this segment carries no
+		// tabindex at all, and its shadow button is no longer a stop
+		// either — it would have no keyboard path in.
+		expect( late.getAttribute( 'tabindex' ) ).toBe( '-1' );
+		group.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'ArrowRight', bubbles: true } ),
+		);
+		await tick();
+		await tick();
+		expect( group.getAttribute( 'value' ) ).toBe( 'late' );
+	} );
+
+	test( 'a value naming no segment still leaves one tab stop', async () => {
+		host.innerHTML = `
+			<os-segmented value="nope">
+				<os-segment value="compact">Compact</os-segment>
+				<os-segment value="default">Default</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		await tick();
+		const segs = Array.from( host.querySelectorAll( 'os-segment' ) );
+		// Nothing is checked, but the group must not drop out of the
+		// tab order: the first segment holds the stop.
+		expect( segs.map( ( s ) => s.getAttribute( 'aria-checked' ) ) ).toEqual( [
+			'false',
+			'false',
+		] );
+		expect( segs.map( ( s ) => s.getAttribute( 'tabindex' ) ) ).toEqual( [
+			'0',
+			'-1',
+		] );
+	} );
 } );
