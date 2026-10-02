@@ -518,7 +518,7 @@ function renderRow(
 		<tr
 			class="os-mywp__row ${ isOpen ? 'is-open' : '' } ${ isSelected ? 'is-selected' : '' }"
 			data-item-id=${ String( item.id ) }
-			data-mywp-drag=${ section.kind === 'user' ? 'user' : section.post_type }
+			data-mywp-drag=${ section.kind === 'post' && ! section.flat ? 'post' : section.post_type || section.kind }
 			role="row"
 			aria-selected=${ isSelected ? 'true' : 'false' }
 			tabindex="0"
