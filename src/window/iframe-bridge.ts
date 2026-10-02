@@ -209,9 +209,18 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 
 	// A navigation landed, reported from the answering document's head
 	// — as early as a response can say so, and a second or more ahead
-	// of `os-ready` below, which is a footer script. Only a window
-	// waiting on a submit has anything to do with it.
+	// of `os-ready` below, which is a footer script. A window waiting
+	// on a submit settles on it. A finished screen hands off from it
+	// when the shell cannot read the frame, which the `load` listener
+	// in `_wireTabNavSync` needs to do.
 	if ( data.type === 'os-iframe-navigated' ) {
+		if (
+			typeof data.url === 'string' &&
+			! canReadFrameLocation( win ) &&
+			handleFinishedScreenHandoff( win, data.url )
+		) {
+			return;
+		}
 		win._hasExplicitTitle = false;
 		win._settleNavigationActivity();
 	}
@@ -1076,6 +1085,21 @@ function navigatedUrl( win: Window, href: string ): string {
 		// No navigation-timing support, or a torn-down frame.
 	}
 	return href;
+}
+
+/**
+ * Whether the shell can read where its frame is. A document sent with
+ * `Document-Isolation-Policy` gets an agent cluster of its own, so the
+ * parent sees it as cross-origin even on the same origin. WordPress
+ * sends that header on the block editor in Chromium, for client-side
+ * media processing.
+ */
+function canReadFrameLocation( win: Window ): boolean {
+	try {
+		return !! win.iframe?.contentWindow?.location.href;
+	} catch {
+		return false;
+	}
 }
 
 /**

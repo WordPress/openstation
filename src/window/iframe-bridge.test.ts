@@ -1222,6 +1222,43 @@ describe( 'iframe-bridge: finished-screen handoff', () => {
 		expect( win.close ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'an editor the shell cannot read hands off from its head report', () => {
+		// WordPress sends the block editor with `Document-Isolation-Policy`
+		// in Chromium, so reading the frame's location throws and the
+		// `load` listener has no URL to hand off with. Left open, the
+		// Revisions window stays a second editor, and its own "View
+		// revisions" row then navigates it instead of opening a window.
+		const { openWindow } = bindFakeDispatcher();
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/revision.php?revision=31',
+		);
+		const isolated = {
+			get location(): Location {
+				throw new DOMException( 'Blocked a frame', 'SecurityError' );
+			},
+		};
+		Object.defineProperty( win.iframe as HTMLIFrameElement, 'contentWindow', {
+			value: isolated,
+			configurable: true,
+		} );
+
+		const event = new MessageEvent( 'message', {
+			data: {
+				type: 'os-iframe-navigated',
+				url:
+					window.location.origin +
+					'/wp-admin/post.php?post=4&action=edit&message=5&revision=31',
+			},
+			origin: window.location.origin,
+		} );
+		Object.defineProperty( event, 'source', { value: isolated } );
+		handleWindowMessage( win, event );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( openWindow.mock.calls[ 0 ][ 0 ].id ).toBe( 'post-php-post-4' );
+		expect( win.close ).toHaveBeenCalledTimes( 1 );
+	} );
+
 	test( 'staying on the revisions screen is not a handoff', () => {
 		const { openWindow } = bindFakeDispatcher();
 		const win = mockScreenWindow(

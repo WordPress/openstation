@@ -341,6 +341,8 @@ A window opened on `revision.php` closes itself when its iframe leaves that scre
 
 Restoring a revision is a `document.location` assignment in `wp-admin/js/revisions.js`, so no click ever reaches the bridge; WP's redirect just lands wherever the frame happens to be. The URL forwarded is the one navigation timing recorded, not `location.href` — `wp-admin/js/common.js` strips WP's removable query args (`message`, `settings-updated`, …) via `replaceState` on DOM ready, which is *before* the parent's `load` listener runs, and `message=5` is what renders the "Post restored to revision from …" notice.
 
+A landing on the block editor is one the parent cannot read: WordPress sends it with `Document-Isolation-Policy` in Chromium, which makes the frame cross-origin to the shell. There the handoff runs from the URL the document reports from its head ([`os-iframe-navigated`](javascript-reference.md#os-iframe-navigated--experimental)), which is read before `common.js` touches it. Without it, the Revisions window would stay open as a second editor, and picking "View revisions" there would navigate it in place instead of opening a window.
+
 This is deliberately a short list (`HANDOFF_SCREENS` in `src/window/iframe-bridge.ts`) and not a general "any window that crosses slugs hands off" rule: the submenu tab strip re-points windows across slugs on purpose (Appearance → Menus), and closing a window out from under that click would be hostile. A screen belongs here only when leaving it means the screen is finished.
 
 ## Activity-footprint launcher inside chromeless iframes — Stable
