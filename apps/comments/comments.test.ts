@@ -313,6 +313,44 @@ describe( 'conversation', () => {
 		);
 	} );
 
+	it( 'a spam comment shows Not Spam and Trash — no Approve, Reply or Edit', () => {
+		const { root } = mount(
+			{ selected: 1 },
+			data( { thread: thread( [ row( { status: 'spam', openstation_can_edit: true } ) ] ) } ),
+		);
+		const actions = Array.from( root.querySelectorAll( '.os-comments__msg-actions os-button' ) ).map( ( b ) => b.textContent?.trim() );
+		// Trash is intentionally kept for spam rows: the Recycle Bin is the
+		// permanent-deletion path; trashing a spam comment routes it there.
+		expect( actions ).toEqual( [ 'Not Spam', 'Trash' ] );
+		expect( actions ).not.toContain( 'Approve' );
+		expect( actions ).not.toContain( 'Reply' );
+		expect( actions ).not.toContain( 'Edit' );
+	} );
+
+	it( 'a trashed comment shows Restore and Spam — no Approve, Reply, Edit or Trash', () => {
+		const { root } = mount(
+			{ selected: 1 },
+			data( { thread: thread( [ row( { status: 'trash', openstation_can_edit: true } ) ] ) } ),
+		);
+		const actions = Array.from( root.querySelectorAll( '.os-comments__msg-actions os-button' ) ).map( ( b ) => b.textContent?.trim() );
+		expect( actions ).toEqual( [ 'Restore', 'Spam' ] );
+		expect( actions ).not.toContain( 'Approve' );
+		expect( actions ).not.toContain( 'Reply' );
+		expect( actions ).not.toContain( 'Edit' );
+	} );
+
+	it( 'Not Spam dispatches unspam; Restore dispatches untrash — no confirmation needed', () => {
+		const spamRow = row( { status: 'spam' } );
+		const { root: spamRoot, ctx: spamCtx } = mount( { selected: 1 }, data( { thread: thread( [ spamRow ] ) } ) );
+		( spamRoot.querySelector( '.os-comments__msg-actions os-button' ) as HTMLElement ).click();
+		expect( spamCtx.dispatch ).toHaveBeenCalledWith( 'moderate', { ids: [ 1 ], action: 'unspam' }, { confirm: null } );
+
+		const trashRow = row( { status: 'trash' } );
+		const { root: trashRoot, ctx: trashCtx } = mount( { selected: 1 }, data( { thread: thread( [ trashRow ] ) } ) );
+		( trashRoot.querySelector( '.os-comments__msg-actions os-button' ) as HTMLElement ).click();
+		expect( trashCtx.dispatch ).toHaveBeenCalledWith( 'moderate', { ids: [ 1 ], action: 'untrash' }, { confirm: null } );
+	} );
+
 	it( 'Reply retargets the composer; Send dispatches the draft and Enter sends too', async () => {
 		const rows = [ row( { id: 1 } ), row( { id: 2, parent: 1, author_name: 'Bob' } ) ];
 		const { root, ctx, ui } = mount( { selected: 1 }, data( { thread: thread( rows ) } ) );
