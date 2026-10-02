@@ -137,6 +137,7 @@ import {
 	createNativeWindowSync,
 	createRegisterWindow,
 	hydrateServerEntries,
+	windowScriptData,
 	type NativeWindowRestoreState,
 	type WindowLifecycleHandlers,
 } from './native-windows';
@@ -3816,7 +3817,7 @@ function init(): void {
 	void syncNativeWindows(
 		hydrateServerEntries(
 			Array.isArray( config.nativeWindows ) ? config.nativeWindows : [],
-			config.nativeWindowScriptData,
+			windowScriptData( config ),
 		),
 	);
 

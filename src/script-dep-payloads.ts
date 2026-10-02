@@ -69,7 +69,12 @@ function resolve( list: unknown[], map: DepPayloads, where: string ): LazyScript
 		}
 		const payload = map[ dep ];
 		if ( payload ) {
-			out.push( { ...payload, handle: dep } );
+			// A handle that is also a native window's bundle carries that
+			// bundle's `deps` closure in the shared map (GH#898). As
+			// somebody's dependency it is loaded on its own, so the
+			// closure is not part of its shape here.
+			const { deps: _closure, ...rest } = payload as typeof payload & { deps?: unknown };
+			out.push( { ...rest, handle: dep } );
 			continue;
 		}
 		console.warn( `[openstation] ${ where }: script dependency "${ dep }" is not in scriptDepPayloads and was dropped.` );
