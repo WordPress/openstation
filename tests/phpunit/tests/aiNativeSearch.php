@@ -131,9 +131,12 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$post_id    = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$comment_id = self::factory()->comment->create(
 			array(
-				'comment_post_ID'  => $post_id,
-				'comment_approved' => '1',
-				'comment_content'  => 'Loved the Alcazaba at sunset, magical views.',
+				'comment_post_ID'      => $post_id,
+				'comment_approved'     => '1',
+				'comment_content'      => 'Loved the Alcazaba at sunset, magical views.',
+				'comment_author'       => 'Rocío',
+				'comment_author_email' => 'rocio@example.test',
+				'comment_author_IP'    => '192.0.2.7',
 			)
 		);
 
@@ -144,6 +147,14 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 
 		$ids = wp_list_pluck( $result['items'], 'id' );
 		$this->assertContains( $comment_id, $ids, 'Keyword search should find the unanalyzed comment.' );
+
+		// "Which readers asked about X?" needs the name the post shows; the
+		// email and IP stay with the moderation screens.
+		$match = $result['items'][ array_search( $comment_id, $ids, true ) ];
+		$this->assertSame( 'Rocío', $match['author_name'] );
+		$payload = wp_json_encode( $result );
+		$this->assertStringNotContainsString( 'rocio@example.test', $payload );
+		$this->assertStringNotContainsString( '192.0.2.7', $payload );
 	}
 
 	/**
@@ -160,6 +171,7 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 				'comment_post_ID'  => $post_a,
 				'comment_approved' => '1',
 				'comment_content'  => 'Question about the night tour please.',
+				'comment_author'   => 'Jaime',
 			)
 		);
 		self::factory()->comment->create(
@@ -178,6 +190,7 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$ids = wp_list_pluck( $result['items'], 'id' );
 		$this->assertContains( $on_a, $ids );
 		$this->assertCount( 1, $ids, 'Only the target post\'s comments should be returned.' );
+		$this->assertSame( 'Jaime', $result['items'][0]['author_name'] );
 	}
 
 	/**

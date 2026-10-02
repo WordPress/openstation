@@ -593,16 +593,18 @@ function openstation_ai_search_fetch_comments( $query, $offset ) {
 		$parent_title = wp_strip_all_tags( $parent_post->post_title );
 
 		$items[] = array(
-			'id'         => (int) $comment->comment_ID,
-			'type'       => 'comment',
+			'id'          => (int) $comment->comment_ID,
+			'type'        => 'comment',
 			// Comparison data — real comment text + parent post title.
-			'post_title' => $parent_title,
-			'excerpt'    => openstation_ai_search_excerpt( $comment->comment_content ),
+			'post_title'  => $parent_title,
+			// The name the post shows beside the comment, never its email or IP.
+			'author_name' => openstation_plain_text_title( get_comment_author( $comment ) ),
+			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content ),
 			// Links.
-			'url'        => (string) get_comment_link( $comment ),
-			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
-			'post_id'    => (int) $comment->comment_post_ID,
-			'post_url'   => (string) get_permalink( $parent_post ),
+			'url'         => (string) get_comment_link( $comment ),
+			'edit_url'    => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
+			'post_id'     => (int) $comment->comment_post_ID,
+			'post_url'    => (string) get_permalink( $parent_post ),
 		);
 	}
 
@@ -695,13 +697,14 @@ function openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset
 	$items = array();
 	foreach ( $comments as $comment ) {
 		$items[] = array(
-			'id'         => (int) $comment->comment_ID,
-			'type'       => 'comment',
-			'post_id'    => $post_id,
-			'post_title' => $parent_title,
-			'excerpt'    => openstation_ai_search_excerpt( $comment->comment_content ),
-			'url'        => (string) get_comment_link( $comment ),
-			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
+			'id'          => (int) $comment->comment_ID,
+			'type'        => 'comment',
+			'post_id'     => $post_id,
+			'post_title'  => $parent_title,
+			'author_name' => openstation_plain_text_title( get_comment_author( $comment ) ),
+			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content ),
+			'url'         => (string) get_comment_link( $comment ),
+			'edit_url'    => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
 		);
 	}
 
