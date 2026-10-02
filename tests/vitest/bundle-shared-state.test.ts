@@ -31,6 +31,8 @@ const BUNDLES = {
 	shell: 'assets/js/desktop.js',
 	notes: 'assets/js/notes.js',
 	windowSystem: 'assets/js/window-system.js',
+	filesOverlays: 'assets/js/files-overlays.js',
+	fileDrop: 'assets/js/file-drop.js',
 } as const;
 
 /**
@@ -65,6 +67,15 @@ const WINDOW_SYSTEM_SHARED_KEYS = [
 	'desktop-mode/connection',
 ] as const;
 
+/**
+ * The files REST client's deps, across the shell's seams with
+ * `files-overlays` and `file-drop`. Only the shell installs them. On a
+ * module-level `let`, the lazy bundles' copies stay unset: every share
+ * dialog and invite prompt fails with "called before installRestDeps()",
+ * and a dropped folder tree silently loses its empty directories.
+ */
+const FILES_SHARED_KEYS = [ 'desktop-files/rest-deps' ] as const;
+
 function read( path: string ): string | null {
 	return existsSync( path ) ? readFileSync( path, 'utf8' ) : null;
 }
@@ -72,7 +83,14 @@ function read( path: string ): string | null {
 const shell = read( BUNDLES.shell );
 const notes = read( BUNDLES.notes );
 const windowSystem = read( BUNDLES.windowSystem );
-const built = shell !== null && notes !== null && windowSystem !== null;
+const filesOverlays = read( BUNDLES.filesOverlays );
+const fileDrop = read( BUNDLES.fileDrop );
+const built =
+	shell !== null &&
+	notes !== null &&
+	windowSystem !== null &&
+	filesOverlays !== null &&
+	fileDrop !== null;
 
 /**
  * Skipped when the bundles are not built.
@@ -111,6 +129,23 @@ describe.skipIf( ! built )( 'cross-bundle state', () => {
 			expect(
 				windowSystem?.includes( key ),
 				`${ key } absent from the window-system bundle — its state is module-level again, so the shell cannot see it`,
+			).toBe( true );
+		} );
+	}
+
+	for ( const key of FILES_SHARED_KEYS ) {
+		it( `"${ key }" is resolved through the shared store in the shell, files-overlays and file-drop bundles`, () => {
+			expect(
+				shell?.includes( key ),
+				`${ key } absent from the shell bundle — its state is module-level again, so the lazy files bundles cannot see the deps it installs`,
+			).toBe( true );
+			expect(
+				filesOverlays?.includes( key ),
+				`${ key } absent from the files-overlays bundle — its state is module-level again, so it cannot see the deps the shell installed`,
+			).toBe( true );
+			expect(
+				fileDrop?.includes( key ),
+				`${ key } absent from the file-drop bundle — its state is module-level again, so it cannot see the deps the shell installed`,
 			).toBe( true );
 		} );
 	}
