@@ -162,6 +162,28 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 		$this->assertCount( 3, $names );
 	}
 
+	/**
+	 * libzip writes nothing for an archive without entries, and with no
+	 * file to stream the serve filter falls through to the JSON marker,
+	 * which the browser saves instead of a zip.
+	 */
+	public function test_zip_of_a_folder_holding_only_references_is_an_empty_archive() {
+		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Links' ) );
+		openstation_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
+		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
+		openstation_files_place( self::$owner_id, (int) $root_id, 'post', (string) $post_id );
+
+		$res = $this->zip_request( (int) $root_id );
+		$this->assertNotWPError( $res );
+		$path = $res->get_data()['__openstation_stream']['path'];
+
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $path ) );
+		$this->assertSame( 0, $zip->numFiles );
+		$zip->close();
+		wp_delete_file( $path );
+	}
+
 	public function test_zip_dedupes_case_colliding_names() {
 		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Dupes' ) );
 		openstation_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
