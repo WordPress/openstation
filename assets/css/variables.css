@@ -1892,6 +1892,8 @@ body.os-active {
 	 * the thing that gets perched on. Still under the dock (200).
 	 */
 	--os-z-desktop-name: 195;
+	/* Genie flight layer — above windows and shell captions, below the dock. */
+	--os-z-genie: calc( var( --os-z-dock ) - 1 );
 	/*
 	 * Window-link ties (relation splines between windows). The accent
 	 * follows the admin color scheme. Solid colors only — the resting

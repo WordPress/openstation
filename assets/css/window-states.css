@@ -387,6 +387,11 @@
 	transition: none !important;
 }
 
+/* Keep the flying window above ordinary restacks until WAAPI finishes. */
+.os-window--genie-flight {
+	z-index: var( --os-z-genie, 199 ) !important;
+}
+
 /*
  * `pointer-events: none` on the window root above is not enough on
  * its own: a number of descendants (most notably `.os-
