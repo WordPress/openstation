@@ -333,7 +333,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 		// same defaults it always did, and every button dispatches
 		// against the live selection at click time.
 		if ( ! ui.bulkActions ) {
-			ui.bulkActions = resolveBulkActions( defaultBulkActions( mode, ( ids ) => ctx.dispatch( 'trash', { ids } ) ) );
+			ui.bulkActions = resolveBulkActions( defaultBulkActions( mode, ( ids ) => ctx.dispatch( 'trash', { ids } ) ), mode );
 		}
 		return html`
 			<div class="os-app-list__toolbar-right ${ footer ? 'os-app-list__bulk--footer' : '' }" data-os-posts-bulk ?hidden=${ ui.selected === 0 }>
