@@ -347,13 +347,13 @@ export function setSubmenuTabs(
  *   2. Create an iframe for the external URL, hidden by default.
  *   3. Append a tab to the strip with label + detach + close chips.
  *   4. Switch to the new tab.
- *   5. Start a readiness probe — if the iframe's `load` event doesn't
- *      fire in that window (network failure, hard block), auto-dismiss
- *      the tab and open the URL in a real browser tab with an
- *      explanatory toast. For subtler blocks (X-Frame-Options showing
- *      the browser's error page *inside* the iframe, which does fire
- *      `load`), the user sees the error and can hit the detach button
- *      themselves.
+ *   5. Start a readiness probe: if the iframe still has no page when it
+ *      runs out (the server has not answered), auto-dismiss the tab and
+ *      open the URL in a real browser tab with an explanatory toast. A
+ *      page that is still loading keeps its tab, and so does a blocked
+ *      one: the browser shows its error page *inside* the iframe
+ *      (X-Frame-Options, a refused connection), where the user can see
+ *      it and hit the detach button themselves.
  */
 export function addExternalTab(
 	win: Window,
@@ -425,19 +425,16 @@ export function addExternalTab(
 	iframe.src = url;
 	body.appendChild( iframe );
 
-	// Readiness probe. If `load` never fires within the timeout, assume
-	// the request failed at the network layer (DNS, offline, connection
-	// refused) and fall back to a real browser tab. When `load` does
-	// fire — even for X-Frame-Options-blocked requests that render the
-	// browser's error page inside the iframe — keep the tab; the user
-	// can see the failure and hit the detach button themselves.
+	// Readiness probe. A frame with no page by the deadline gets a real
+	// browser tab instead; see `hasPage()` for why `load` alone is not
+	// the signal.
 	let loaded = false;
 	const onLoad = (): void => {
 		loaded = true;
 	};
 	iframe.addEventListener( 'load', onLoad, { once: true } );
 	const probeTimer = window.setTimeout( () => {
-		if ( loaded ) {
+		if ( loaded || hasPage( iframe ) ) {
 			return;
 		}
 		iframe.removeEventListener( 'load', onLoad );
@@ -592,6 +589,23 @@ export function detachExternalTab( win: Window, tabId: string ): void {
 	}
 	window.open( url, '_blank', 'noopener' );
 	closeExternalTab( win, tabId );
+}
+
+/**
+ * Whether an external sub-tab's frame has a page yet, finished or not.
+ *
+ * Not `load`: it waits for every image, script and embed on the page,
+ * so a slow front end is on screen long before it fires. A frame the
+ * server has not answered yet still holds its initial `about:blank`,
+ * and one we cannot read holds a page from another origin (the
+ * browser's own error page included).
+ */
+function hasPage( iframe: HTMLIFrameElement ): boolean {
+	try {
+		return iframe.contentWindow?.location.href !== 'about:blank';
+	} catch {
+		return true;
+	}
 }
 
 /**
