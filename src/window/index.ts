@@ -3310,7 +3310,14 @@ export class Window {
 				}
 				if ( scrollX || scrollY ) {
 					try {
-						buffer.contentWindow?.scrollTo( scrollX, scrollY );
+						// `instant` overrides a theme's `scroll-behavior:
+						// smooth`, which would animate the jump after the
+						// swap.
+						buffer.contentWindow?.scrollTo( {
+							left: scrollX,
+							top: scrollY,
+							behavior: 'instant',
+						} );
 					} catch {
 						/* cross-origin */
 					}
@@ -3374,10 +3381,11 @@ export class Window {
 			{ once: true },
 		);
 
-		// Insert BEFORE assigning src — a detached iframe doesn't
-		// start loading.
-		current.insertAdjacentElement( 'afterend', buffer );
+		// URL first, then insert. An iframe inserted without a URL
+		// fires `load` for its initial about:blank synchronously, which
+		// would run the swap above onto an empty frame.
 		buffer.src = target;
+		current.insertAdjacentElement( 'afterend', buffer );
 	}
 
 	/**
