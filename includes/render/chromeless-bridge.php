@@ -210,7 +210,13 @@ add_action( 'admin_head', 'openstation_chromeless_offset_neutralizer_script', 1 
  * browser painted the "Settings saved." notice the ring is
  * confirming. From the head it beats the body to the screen.
  *
- * The parent ignores it unless that window has a submit waiting.
+ * It also says where the frame landed, for documents the shell cannot
+ * read: one sent with `Document-Isolation-Policy`, as WordPress sends
+ * the block editor in Chromium, is cross-origin to the parent, and a
+ * Revisions window that restores into the editor still has to hand off.
+ *
+ * The parent acts on it only for a window with a submit waiting, or
+ * one whose frame it cannot read.
  */
 function openstation_chromeless_navigation_ping_script() {
 	if ( ! openstation_is_chromeless_request() ) {
@@ -218,7 +224,7 @@ function openstation_chromeless_navigation_ping_script() {
 	}
 
 	wp_print_inline_script_tag(
-		"try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:'os-iframe-navigated'},window.location.origin);}}catch(e){}"
+		"try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:'os-iframe-navigated',url:window.location.href},window.location.origin);}}catch(e){}"
 	);
 }
 add_action( 'admin_head', 'openstation_chromeless_navigation_ping_script', 1 );

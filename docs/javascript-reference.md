@@ -4694,13 +4694,15 @@ Posted once by the chromeless bridge script when its message listeners are attac
 ```
 
 #### `os-iframe-navigated` — Experimental
-Posted from the **head** of every chromeless document, before the body renders. It says one thing: a navigation landed in this window.
+Posted from the **head** of every chromeless document, before the body renders. It says that a navigation landed in this window, and where.
 
 ```typescript
-{ type: 'os-iframe-navigated' }
+{ type: 'os-iframe-navigated', url: string }
 ```
 
-It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting, and clears the explicit-title flag so a subsequent `adoptPageTitle()` call can adopt the new page's own name.
+It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting or a frame it cannot read, and clears the explicit-title flag so a subsequent `adoptPageTitle()` call can adopt the new page's own name.
+
+`url` is the document's own `location.href`, for the frames the parent cannot read: a document sent with `Document-Isolation-Policy` (WordPress sends it on the block editor in Chromium) is cross-origin to the shell, so a Revisions window that restores into the editor hands off from this URL instead (see [Screens that hand off when they're done](bridge-protocol.md#screens-that-hand-off-when-theyre-done)).
 
 #### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).
