@@ -22,10 +22,14 @@
  * would test `wp.element` rather than any of the above.
  */
 
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { ShellCommandHarvester } from '../../src/commands/shell-harvester';
-import type { CommandContext } from '../../src/commands';
+import {
+	findCommand,
+	unregisterByOwner,
+	type CommandContext,
+} from '../../src/commands';
 import type { WindowManager } from '../../src/window-manager';
 
 type StoreCallback = ( args: { close(): void } ) => void;
@@ -121,5 +125,40 @@ describe( 'shell harvester — invoking a harvested command', () => {
 			/plugin\/vanished/,
 		);
 		expect( close ).not.toHaveBeenCalled();
+	} );
+} );
+
+describe( 'shell harvester — running a "Go to" command', () => {
+	afterEach( () => {
+		unregisterByOwner( 'global' );
+		Reflect.deleteProperty( window, '__openStationMenuCommands' );
+	} );
+
+	test( 'titles the window with the menu label after a re-harvest', () => {
+		const name = 'options-general.php-options-permalink.php';
+		Object.assign( window, {
+			__openStationMenuCommands: [
+				{ label: 'Settings > Permalinks', url: 'options-permalink.php', name },
+			],
+		} );
+		const open = vi.fn();
+		const harvester = new ShellCommandHarvester( {
+			manager: { open } as unknown as WindowManager,
+			adminUrl: 'https://example.test/wp-admin/',
+		} ) as unknown as { publish( raw: unknown[] ): void };
+		const goTo = { name, label: 'Go to: Settings > Permalinks', callback: () => {} };
+		const viewSite = { name: 'core/view-site', label: 'View site', callback: () => {} };
+
+		// Core's commands arrive in more than one pass on every boot
+		// (loaders resolve after the menu commands), and a later pass
+		// re-registers each command from its cached classification.
+		harvester.publish( [ goTo ] );
+		harvester.publish( [ goTo, viewSite ] );
+		findCommand( 'global-options-general-php-options-permalink-php' )
+			?.run( '', contextSpy().ctx );
+
+		expect( open ).toHaveBeenCalledWith(
+			expect.objectContaining( { title: 'Settings > Permalinks' } ),
+		);
 	} );
 } );

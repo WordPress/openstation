@@ -35,9 +35,9 @@ export const DRAG_THRESHOLD_PX = 5;
 export const DRAG_THRESHOLD_SQUARED = DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX;
 
 /**
- * How long an external sub-tab's iframe gets to fire its initial
- * `load` event before we assume the request failed and fall back to
- * opening the URL in a real browser tab.
+ * How long an external sub-tab's iframe gets to receive its page
+ * before we assume the request failed and fall back to opening the
+ * URL in a real browser tab.
  */
 export const EXTERNAL_IFRAME_READY_TIMEOUT_MS = 3000;
 
