@@ -151,17 +151,24 @@ interface Classified {
 export interface ShellCommandHarvesterOptions {
 	manager: WindowManager;
 	adminUrl: string;
+	/**
+	 * The menu's name for an admin URL, when the menu lists it: the dock
+	 * tile's for the page a tile opens, the submenu row's otherwise.
+	 * Session restore titles the window with it on the next boot.
+	 */
+	titleForUrl?: ( url: string ) => string | undefined;
 }
 
 export class ShellCommandHarvester {
 	private readonly manager: WindowManager;
 	private readonly adminUrl: string;
+	private readonly titleForUrl?: ( url: string ) => string | undefined;
 
 	private mounted = false;
 	private host: HTMLDivElement | null = null;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private root: any = null;
-	private kindCache: Record< string, { kind: 'navigate' | 'action' | 'skip'; url?: string; iconSvg?: string } > =
+	private kindCache: Record< string, { kind: 'navigate' | 'action' | 'skip'; url?: string; iconSvg?: string; windowTitle?: string } > =
 		Object.create( null );
 	private callbackCache: Record< string, ( ...args: unknown[] ) => void > =
 		Object.create( null );
@@ -170,6 +177,7 @@ export class ShellCommandHarvester {
 	constructor( opts: ShellCommandHarvesterOptions ) {
 		this.manager = opts.manager;
 		this.adminUrl = opts.adminUrl;
+		this.titleForUrl = opts.titleForUrl;
 	}
 
 	/** Mount the harvester. Idempotent. Safe to call before `wp.data` loads. */
@@ -481,6 +489,7 @@ export class ShellCommandHarvester {
 			out.kind = cached.kind;
 			out.url = cached.url;
 			out.iconSvg = cached.iconSvg;
+			out.windowTitle = cached.windowTitle;
 			return out;
 		}
 
@@ -521,6 +530,7 @@ export class ShellCommandHarvester {
 				kind: out.kind,
 				url: out.url,
 				iconSvg: out.iconSvg,
+				windowTitle: out.windowTitle,
 			};
 			return out;
 		}
@@ -652,7 +662,7 @@ export class ShellCommandHarvester {
 				return;
 			}
 			const id = deriveWindowId( url, this.adminUrl );
-			this.manager.open( { id, baseId: id, url, title, icon } );
+			this.manager.open( { id, baseId: id, url, title: this.titleForUrl?.( url ) || title, icon } );
 		};
 	}
 

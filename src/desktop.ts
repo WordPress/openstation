@@ -201,6 +201,7 @@ import { bootPluginPresenceWatch } from './plugin-presence';
 import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
 import { bootAuthRecovery } from './auth-recovery';
+import { findDockTitleForUrl } from './boot/geometry';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
 import { hasRestorableSession, openCurrentPage, restoreSession } from './boot/session';
@@ -2617,6 +2618,7 @@ function init(): void {
 		const shellHarvester = new ShellCommandHarvester( {
 			manager,
 			adminUrl: config.adminUrl,
+			titleForUrl: ( url ) => findDockTitleForUrl( url, config ),
 		} );
 		shellHarvester.install();
 		document.addEventListener(
