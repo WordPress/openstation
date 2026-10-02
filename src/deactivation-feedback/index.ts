@@ -134,11 +134,42 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 	}
 	card.appendChild( group );
 
+	// "Too buggy" with no details is an answer nobody can act on, and
+	// the placeholder alone was not enough to get one: it is faint, it
+	// vanishes on the first keystroke, and it sits under a subtitle
+	// that opens with "Optional". So ticking it swaps the field's
+	// visible label for the question, which the field then points at
+	// for screen readers. Focus stays where the user is; details stay
+	// optional.
+	//
+	// Label and question share one grid cell, so the slot is always as
+	// tall as the taller of the two and the swap is a cross-fade in
+	// place. The card is centred in the viewport: anything that changed
+	// its height would move every checkbox under the pointer.
+	const fieldHead = doc.createElement( 'div' );
+	fieldHead.className = 'os-deactivation-feedback__field-head';
+	card.appendChild( fieldHead );
+
+	const fieldLabel = doc.createElement( 'label' );
+	fieldLabel.className = 'os-deactivation-feedback__label';
+	fieldLabel.htmlFor = 'os-deactivation-feedback-details';
+	fieldLabel.textContent = __( 'Details (optional)' );
+	fieldHead.appendChild( fieldLabel );
+
+	const prompt = doc.createElement( 'p' );
+	prompt.id = 'os-deactivation-feedback-prompt';
+	prompt.className = 'os-deactivation-feedback__prompt';
+	prompt.textContent = __( 'What broke, and on which screen? One sentence is enough for us to find it.' );
+	fieldHead.appendChild( prompt );
+
 	const details = doc.createElement( 'textarea' );
+	details.id = 'os-deactivation-feedback-details';
 	details.className = 'os-deactivation-feedback__details';
 	details.name = 'details';
 	details.maxLength = DETAILS_MAX;
 	details.rows = 3;
+	// The accessible name stays put while the visible label fades out
+	// for the question; the question arrives as the description.
 	details.setAttribute( 'aria-label', __( 'Details (optional)' ) );
 	details.placeholder = __( 'Anything else? (optional)' );
 	card.appendChild( details );
@@ -182,9 +213,15 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 		const picked = ticked();
 		send.disabled = picked.length === 0 && details.value.trim() === '';
 		// Steer the free text toward what would let us act on it.
-		if ( picked.includes( 'too_buggy' ) ) {
+		const buggy = picked.includes( 'too_buggy' );
+		fieldHead.toggleAttribute( 'data-asking', buggy );
+		if ( buggy ) {
+			details.setAttribute( 'aria-describedby', prompt.id );
 			details.placeholder = __( 'Which page or plugin?' );
-		} else if ( picked.includes( 'missing_features' ) ) {
+			return;
+		}
+		details.removeAttribute( 'aria-describedby' );
+		if ( picked.includes( 'missing_features' ) ) {
 			details.placeholder = __( 'Which features?' );
 		} else {
 			details.placeholder = __( 'Anything else? (optional)' );
