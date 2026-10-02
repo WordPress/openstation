@@ -3879,7 +3879,7 @@ The root-level folder a post type belongs to, resolved from the file that called
 
 | Registrant location | Group id | Label |
 |---|---|---|
-| `WP_PLUGIN_DIR/<folder>/…` | `plugin:<folder>` | the plugin's `Plugin Name` header |
+| `WP_PLUGIN_DIR/<folder>/…`, including a folder symlinked there | `plugin:<folder>` | the plugin's `Plugin Name` header |
 | `WPMU_PLUGIN_DIR/…` | `mu-plugin:<slug>` | the mu-plugin's `Plugin Name` header |
 | a theme root | `theme:<stylesheet>` | the theme's `Name` |
 | anything else | `null` | — renders loose at the root |

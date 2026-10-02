@@ -621,7 +621,11 @@ path** (walking the backtrace to the first frame inside an extension
 directory, skipping OpenStation's own frames) and resolves it lazily:
 to a plugin file for the dock's attribution, and to a
 plugin / mu-plugin / theme group for the site window
-(`includes/my-wordpress/owner.php`). Recording is gated to admin
+(`includes/my-wordpress/owner.php`). PHP reports a symlinked plugin
+folder by its target (WordPress.com's managed plugins live in
+`/wordpress/plugins/<slug>/<version>/`), so backtrace frames and
+reflected callbacks are first mapped back through Core's
+`$wp_plugin_paths`, the list `plugin_basename()` uses. Recording is gated to admin
 requests (`openstation_should_track_type_registrants`, filterable):
 only admin surfaces read the map, and a front-end page view registers
 the same types — paying a bounded `debug_backtrace()` per registration

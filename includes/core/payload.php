@@ -1028,7 +1028,7 @@ function openstation_plugin_file_for_path( $file ) {
 		return null;
 	}
 	$plugins_dir = wp_normalize_path( WP_PLUGIN_DIR );
-	$norm        = wp_normalize_path( $file );
+	$norm        = openstation_plugin_link_path( wp_normalize_path( $file ) );
 	if ( 0 !== strpos( $norm, $plugins_dir . '/' ) ) {
 		return null;
 	}
@@ -1499,6 +1499,7 @@ function openstation_registrant_file_from_backtrace() {
 		if ( '' !== $self_dir && 0 === strpos( $norm, $self_dir ) ) {
 			continue;
 		}
+		$norm = openstation_plugin_link_path( $norm );
 		foreach ( $dirs as $dir ) {
 			if ( 0 === strpos( $norm, $dir ) ) {
 				return $norm;
@@ -1506,6 +1507,34 @@ function openstation_registrant_file_from_backtrace() {
 		}
 	}
 	return null;
+}
+
+/**
+ * Map a path PHP reported back to the plugin folder WordPress loaded
+ * it through.
+ *
+ * PHP resolves symlinks in file names, so a plugin folder linked into
+ * `plugins/` from elsewhere shows up in backtraces and reflection outside
+ * `WP_PLUGIN_DIR`. WordPress.com's managed plugins are linked that way:
+ * `plugins/woocommerce` resolves to `/wordpress/plugins/woocommerce/<version>/`.
+ * Core records each active plugin's link and target in
+ * `$wp_plugin_paths` before loading it, and `plugin_basename()` maps
+ * through the same list.
+ *
+ * @param string $path Normalized absolute path.
+ * @return string The same file under the plugin's link, or `$path`
+ *                when no active plugin is linked from there.
+ */
+function openstation_plugin_link_path( $path ) {
+	global $wp_plugin_paths;
+
+	foreach ( (array) $wp_plugin_paths as $link => $target ) {
+		$target = trailingslashit( (string) $target );
+		if ( 0 === strpos( $path, $target ) ) {
+			return trailingslashit( (string) $link ) . substr( $path, strlen( $target ) );
+		}
+	}
+	return $path;
 }
 
 add_action(
