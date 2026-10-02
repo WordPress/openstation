@@ -161,6 +161,13 @@ export interface MenuRefreshDeps {
 	 * keep working unchanged.
 	 */
 	syncShortcuts?: () => void;
+	/**
+	 * Re-seed open iframe windows' submenu tabs from the new dock items.
+	 * A window builds its tab strip once, at open; without this a theme
+	 * switch inside the Appearance window leaves it offering Menus and
+	 * Widgets the dock has already dropped.
+	 */
+	syncWindowSubmenus?: () => void;
 }
 
 /**
@@ -259,6 +266,7 @@ export function createApplyPayload(
 		applyDesktopIcons,
 		refreshRootPlacements,
 		syncShortcuts,
+		syncWindowSubmenus,
 		applyMultisite,
 	} = deps;
 
@@ -327,6 +335,7 @@ export function createApplyPayload(
 		// deactivation changes which
 		// items exist, without waiting for the next OS Settings change.
 		syncShortcuts?.();
+		syncWindowSubmenus?.();
 
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added

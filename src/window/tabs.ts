@@ -21,7 +21,11 @@ import {
 	urlMatchKey,
 } from '../utils';
 import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
-import { syncTabStripSemantics, withChromelessParam } from './dom';
+import {
+	buildSubmenuTabs,
+	syncTabStripSemantics,
+	withChromelessParam,
+} from './dom';
 import {
 	activatePanelTab,
 	positionTabPlate,
@@ -215,6 +219,122 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 		tab.classList.toggle( 'os-window__tab--active', isActive );
 		tab.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
 	}
+}
+
+/**
+ * The page an iframe window is on, for matching against its tabs. An
+ * iframe that has not loaded yet reports `about:blank`, which names no
+ * page; the URL the window was asked to open is the truer answer then.
+ */
+function pageUrlOf( win: Window ): string | undefined {
+	const current = win.getCurrentUrl();
+	return current && current !== 'about:blank' ? current : win.config.url;
+}
+
+/**
+ * Re-seed an open iframe window's submenu tabs from the dock entry it
+ * belongs to.
+ *
+ * The strip is built once, when the window opens, but the menu behind
+ * it can change while the window stays open. Switching to a block
+ * theme from the Appearance window takes Menus, Widgets, Customize and
+ * Background out of that menu; the dock follows on the next menu
+ * refresh, and the strip has to follow too, or its Menus tab loads a
+ * screen WordPress now refuses ("Your theme does not support
+ * navigation menus or widgets").
+ *
+ * Compares the tabs it would build with the ones on screen and does
+ * nothing when they match, which is every refresh that changed some
+ * other menu: rebuilding would replay the plate and could drop
+ * keyboard focus for nothing. Otherwise the submenu tabs are replaced
+ * where they stand, external sub-tabs keep their place, and the lit
+ * tab is worked out again from the page the window is on now.
+ *
+ * @return Whether the strip changed.
+ */
+export function setSubmenuTabs(
+	win: Window,
+	entry: {
+		url: string;
+		submenu?: Window[ 'config' ][ 'submenu' ];
+		selfLabel?: string;
+	},
+): boolean {
+	const strip = win.element.querySelector< HTMLElement >( '.os-window__tabs' );
+	if ( ! strip || win.config.native ) {
+		return false;
+	}
+	const next = {
+		...win.config,
+		submenu: entry.submenu ?? [],
+		selfLabel: entry.selfLabel,
+		parentUrl: entry.url || win.config.parentUrl,
+		url: pageUrlOf( win ),
+	};
+	// No page to light a tab against, and `buildSubmenuTabs` would
+	// answer an empty list, which here would read as "every tab went".
+	if ( ! next.url ) {
+		return false;
+	}
+	const currentUrl = next.url;
+	win.config.submenu = next.submenu;
+	win.config.selfLabel = next.selfLabel;
+	win.config.parentUrl = next.parentUrl;
+
+	const fresh = buildSubmenuTabs( next );
+	const current = Array.from(
+		strip.querySelectorAll< HTMLElement >( ':scope > [data-kind="submenu"]' ),
+	);
+	const signature = ( tabs: HTMLElement[] ): string =>
+		tabs.map( ( t ) => `${ t.dataset.url ?? '' }\n${ t.textContent ?? '' }` ).join( '\n\n' );
+	if ( signature( fresh ) === signature( current ) ) {
+		return false;
+	}
+
+	// Carry the highlight over when its page is still a tab, so an
+	// off-menu page (which `syncActiveTab` leaves alone) keeps the tab
+	// the user came from.
+	const litUrl = current.find( ( t ) =>
+		t.classList.contains( 'os-window__tab--active' ),
+	)?.dataset.url;
+	if ( litUrl && ! fresh.some( ( t ) => t.classList.contains( 'os-window__tab--active' ) ) ) {
+		const keep = fresh.find( ( t ) => t.dataset.url === litUrl );
+		keep?.classList.add( 'os-window__tab--active' );
+		keep?.setAttribute( 'aria-selected', 'true' );
+	}
+
+	const hadFocus = current.some( ( t ) => t === strip.ownerDocument.activeElement );
+	const anchor =
+		current[ 0 ] ??
+		strip.querySelector( ':scope > [data-kind="main"]' )?.nextSibling ??
+		strip.querySelector( '.os-window__tab-plate' )?.nextSibling ??
+		null;
+	for ( const tab of fresh ) {
+		strip.insertBefore( tab, anchor );
+	}
+	for ( const stale of current ) {
+		stale.remove();
+	}
+
+	// The "Main" tab only stands in for a missing submenu: drop it once
+	// sub-pages exist, and bring it back if they all went while
+	// external tabs still need a way back to the admin page.
+	const main = strip.querySelector( ':scope > [data-kind="main"]' );
+	if ( fresh.length > 0 ) {
+		main?.remove();
+	} else if ( externalTabCount( win ) > 0 ) {
+		ensureMainTab( win, strip );
+	}
+
+	syncTabStripSemantics( strip );
+	syncActiveTab( win, currentUrl );
+	if ( hadFocus ) {
+		(
+			strip.querySelector< HTMLElement >( '.os-window__tab--active' ) ??
+			strip.querySelector< HTMLElement >( ':scope > .os-window__tab' )
+		)?.focus();
+	}
+	return true;
 }
 
 /**

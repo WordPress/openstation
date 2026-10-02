@@ -35,6 +35,7 @@ import {
 import type { NativeUrlRemap } from './native-url-remap';
 import { matchesStationHomeUrl } from './open-targets/station-home-url';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
+import { syncOpenWindowSubmenus } from './window/submenu-sync';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
@@ -4768,6 +4769,7 @@ function init(): void {
 				} );
 		},
 		syncShortcuts: syncShortcutsNow,
+		syncWindowSubmenus: () => syncOpenWindowSubmenus( manager.getAll(), config ),
 	} );
 
 	// Live desktop-theme repaint.
