@@ -299,6 +299,7 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `_desktop_mode_recycle_bin_change_ts` | Recycle Bin | Timestamp of the last bin change, for the badge (`autoload = no`). |
 | `openstation_app_store` | App Framework | The `Store` contract with `site` scope. |
 | `openstation_installed_at` | First run | `{ at, via }`: when the plugin was activated (`autoload = no`). `via` is `activation` from the activation hook, `backfill` when reconstructed on `admin_init` for an install that predates the stamp; a backfilled age reads as unknown everywhere. |
+| `openstation_activated_by` | First run | ID of the user who last activated the plugin, `0` when nobody was logged in (WP-CLI, a Playground Blueprint). Written by `openstation_record_activator()` on every activation; the welcome dialog shows only to this user. |
 | `openstation_first_enabled_at` | First run | `{ at, via }`: the first time any user turned OpenStation on (`autoload = no`). Written by `openstation_record_user_enabled()`. On a site that already had users in the shell, `openstation_record_installed()` and migration 10 write `at: 0, via: backfill` instead. Its presence is what stops the activation nudge. |
 
 ## Transients

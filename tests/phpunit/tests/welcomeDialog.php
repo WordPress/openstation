@@ -26,6 +26,8 @@ class Tests_OpenStation_WelcomeDialog extends WP_UnitTestCase {
 		// tests passing via the openstation_is_enabled() gate instead).
 		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
 		openstation_clear_seen_intros( self::$user_id );
+		// The dialog is for whoever activated the plugin: be that user.
+		openstation_record_activator();
 	}
 
 	public function tear_down() {
@@ -62,6 +64,32 @@ class Tests_OpenStation_WelcomeDialog extends WP_UnitTestCase {
 	 */
 	public function test_hidden_after_intro_dismissed() {
 		openstation_mark_intro_seen( self::$user_id, OPENSTATION_WELCOME_INTRO_SLUG );
+
+		$this->assertFalse( openstation_should_show_welcome_dialog() );
+	}
+
+	/**
+	 * Dismissal is per user, so without the activator gate every other
+	 * account on the site got the dialog on its first wp-admin visit.
+	 *
+	 * @covers ::openstation_should_show_welcome_dialog
+	 */
+	public function test_hidden_for_users_who_did_not_activate_the_plugin() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$this->assertFalse( openstation_should_show_welcome_dialog() );
+	}
+
+	/**
+	 * WP-CLI and Playground Blueprints activate with nobody logged in, so
+	 * there is nobody to greet.
+	 *
+	 * @covers ::openstation_record_activator
+	 */
+	public function test_hidden_after_an_activation_without_a_user() {
+		wp_set_current_user( 0 );
+		openstation_record_activator();
+		wp_set_current_user( self::$user_id );
 
 		$this->assertFalse( openstation_should_show_welcome_dialog() );
 	}

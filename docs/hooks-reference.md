@@ -1209,6 +1209,7 @@ The filter only fires after OpenStation has already verified that:
 3. The request is NOT chromeless.
 4. The user has not yet dismissed the `activation-welcome` intro (stored in the `desktop_mode_seen_intros` user meta — the same surface the "Reset what's-new dialogs" button in OpenStation Preferences → Features wipes).
 5. OpenStation is not already enabled for the user — this is a "switch to OpenStation" promo, so it has nothing to say once the user is in the shell.
+6. The user is the one who activated the plugin (the `openstation_activated_by` option). Nobody gets the dialog after an activation without a logged-in user (WP-CLI, a Playground Blueprint), or on a site activated before the option existed.
 
 Dismissal persists through the same `POST /desktop-mode/v1/intros/seen` route the in-shell announcements use, with one wrinkle: because the dialog only appears while OpenStation is **disabled**, that route makes a scoped exception for the `activation-welcome` slug and accepts it from any logged-in `read`-capable account (every other slug still requires OpenStation enabled). Without it the dismissal would `403` and the dialog would re-appear on every classic-admin page load.
 
@@ -1224,7 +1225,7 @@ Decides whether the activation nudge — a dismissible admin notice on the Dashb
 apply_filters( 'openstation_show_activation_nudge', bool $show, int $user_id );
 ```
 
-The filter only fires after every built-in gate has passed: the user can `activate_plugins`, does not have OpenStation on, nobody on the site has ever enabled it (`openstation_first_enabled_at` is absent), the install stamp is real (`via: activation`, never a backfill) and under 14 days old, the screen is one of the four, the request is not chromeless, the user has not clicked **Not now** (the `activation-nudge` slug in `desktop_mode_seen_intros`, wiped by "Reset what's-new dialogs" like every other intro), and the welcome dialog is not rendering on the same request. The welcome dialog is the first touch; this is the second, quieter one, shown only once the dialog is out of the way (dismissed, or switched off by `openstation_show_welcome_dialog`), and both stop the moment anyone on the site enables.
+The filter only fires after every built-in gate has passed: the user can `activate_plugins`, does not have OpenStation on, nobody on the site has ever enabled it (`openstation_first_enabled_at` is absent), the install stamp is real (`via: activation`, never a backfill) and under 14 days old, the screen is one of the four, the request is not chromeless, the user has not clicked **Not now** (the `activation-nudge` slug in `desktop_mode_seen_intros`, wiped by "Reset what's-new dialogs" like every other intro), and the welcome dialog is not rendering on the same request. The welcome dialog is the first touch; this is the second, quieter one, shown only once the dialog is out of the way (dismissed, switched off by `openstation_show_welcome_dialog`, or meant for the admin who activated the plugin rather than this one), and both stop the moment anyone on the site enables.
 
 Return `false` to suppress it, e.g. from a managed-host onboarding flow.
 

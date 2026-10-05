@@ -7,9 +7,10 @@
  *
  * Data: WP REST /wp/v2/posts?status=draft (edit context — returns the
  * drafts the current user can edit). Refresh: every 60s, plus an
- * immediate refresh when the user closes the editor or switches back to
- * the desktop (window closed/blurred), so a just-saved draft shows up
- * without waiting for the poll. Clicking a row links to
+ * immediate refresh on every `os.post.changed` broadcast (an editor
+ * save, a relayed content change) and when a window closes or blurs,
+ * so a just-saved draft shows up without waiting for the poll.
+ * Clicking a row links to
  * post.php?action=edit; the shell's link interceptor opens it as a
  * native window.
  */
@@ -502,6 +503,14 @@ function renderSuggestions(
 
 const WIDGET_ID = 'desktop-mode/drafts';
 const REFRESH_MS = 60_000;
+
+/**
+ * The content-change broadcast for the `post` type: the one the list
+ * queries. Listened for on `document` as the raw `os-broadcast`
+ * CustomEvent rather than through `wp.os.subscribe`, the same way the
+ * window lifecycle events are, so the widget does not need the facade.
+ */
+const POSTS_CHANGED_TOPIC = 'os.post.changed';
 const LIMIT = 8;
 
 interface DraftRow {
@@ -895,11 +904,14 @@ const mount = async (
 	await refresh();
 	const poller = startVisibilityAwarePoller( refresh, REFRESH_MS );
 
-	// There is no dedicated "post saved" event (the editor is a chromeless
-	// iframe), so we lean on window lifecycle: when the user closes the
-	// editor or switches back to the desktop after saving a draft, refresh
-	// so the new/edited draft shows up immediately instead of on the next
-	// poll. Debounced to coalesce bursts (a blur + focus during a switch).
+	// Refresh as soon as posts change anywhere on the desktop: the editor's
+	// save-watcher announces every block-editor save, and the content-change
+	// layer relays footer renders and Heartbeat catches, all as
+	// `os.post.changed` broadcasts. A draft saved in a window that keeps
+	// focus fires no window lifecycle event, so without this it waited for
+	// the poll. The window lifecycle nudges stay for whatever the bus does
+	// not see. Debounced to coalesce bursts (a blur + focus during a switch,
+	// a save and its Heartbeat echo).
 	let nudgeTimer: ReturnType< typeof setTimeout > | null = null;
 	const nudge = (): void => {
 		if ( nudgeTimer !== null ) {
@@ -910,8 +922,15 @@ const mount = async (
 			void refresh();
 		}, 600 );
 	};
+	const onBroadcast = ( e: Event ): void => {
+		const topic = ( e as CustomEvent< { topic?: string } | null > ).detail?.topic;
+		if ( topic === POSTS_CHANGED_TOPIC ) {
+			nudge();
+		}
+	};
 	document.addEventListener( 'os-window-closed', nudge );
 	document.addEventListener( 'os-window-blurred', nudge );
+	document.addEventListener( 'os-broadcast', onBroadcast );
 
 	return () => {
 		destroyed = true;
@@ -921,6 +940,7 @@ const mount = async (
 		}
 		document.removeEventListener( 'os-window-closed', nudge );
 		document.removeEventListener( 'os-window-blurred', nudge );
+		document.removeEventListener( 'os-broadcast', onBroadcast );
 	};
 };
 

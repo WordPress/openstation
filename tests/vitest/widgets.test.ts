@@ -1416,6 +1416,20 @@ describe( 'widgets/layer', () => {
 		layer.setVisibleIds( [ 'stats' ] );
 		expect( layer.getMountedIds() ).toEqual( [ 'stats' ] );
 
+		// The picker's "Added" follows the desk, not the user's list:
+		// `clock` is theirs but not on this desk, `stats` is on it.
+		layer.openPicker();
+		const addedLabels = (): string[] =>
+			Array.from(
+				document.querySelectorAll(
+					'.os-widget-picker__entry--added .os-widget-picker__entry-label',
+				),
+			).map( ( el ) => el.textContent ?? '' );
+		expect( addedLabels() ).toEqual( [ 'stats' ] );
+		document.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'Escape' } ),
+		);
+
 		// The × on it. This used to do nothing at all: `remove` looked
 		// for the id in the user's list, found nothing, and returned.
 		layer.remove( 'stats' );
