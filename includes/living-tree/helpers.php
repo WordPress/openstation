@@ -96,9 +96,8 @@ function openstation_living_tree_traffic() {
  * Last-14-days visits from Jetpack Stats, or `null` when unavailable.
  *
  * Reads through `Automattic\Jetpack\Stats\WPCOM_Stats::get_visits()` —
- * the same WPCOM endpoint the `jetpack/v4/stats/visits` REST route
- * (used by the site-views widget's client) proxies, but callable
- * server-side without a per-user capability check, so the snapshot's
+ * the same WPCOM read the site-views widget's `site-views-jetpack`
+ * route makes, but without that route's per-user stats gate, so the snapshot's
  * transient cache holds the same value no matter which user primes it.
  * Any failure — Jetpack absent, no `get_visits` method, WP_Error,
  * unexpected payload — returns `null` and the caller falls back to the

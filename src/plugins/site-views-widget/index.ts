@@ -5,7 +5,9 @@
  * total view count, and a week-over-week delta arrow.
  *
  * Data priority:
- *   1. Jetpack Stats REST /jetpack/v4/stats/visits?unit=day&quantity=14
+ *   1. Jetpack Stats      /desktop-mode/v1/site-views-jetpack
+ *      (server reads WPCOM_Stats::get_visits(), gated on Jetpack's own
+ *      stats permission; answers available: false when it cannot)
  *   2. Meta-key fallback  /desktop-mode/v1/site-views-meta
  *      (reads _post_views_YYYY-MM-DD meta written by post-views plugins)
  *
@@ -39,21 +41,18 @@ function apiRoot(): string {
 async function tryJetpack(): Promise< DayRow[] | null > {
 	try {
 		const res = await trackedFetch(
-			apiRoot() + '/jetpack/v4/stats/visits?unit=day&quantity=14',
+			apiRoot() + '/desktop-mode/v1/site-views-jetpack',
 			{ credentials: 'same-origin' },
 			{ source: 'desktop-mode/site-views-jetpack', silent: true },
 		);
 		if ( ! res.ok ) {
 			return null;
 		}
-		const data = await res.json() as { data?: [ number, number ][] };
-		if ( ! Array.isArray( data?.data ) ) {
+		const data = await res.json() as { available?: boolean; days?: DayRow[] };
+		if ( ! data?.available || ! Array.isArray( data.days ) ) {
 			return null;
 		}
-		return data.data.map( ( [ ts, views ] ) => ( {
-			date: new Date( ts * 1000 ).toISOString().slice( 0, 10 ),
-			views: views || 0,
-		} ) );
+		return data.days;
 	} catch {
 		return null;
 	}
