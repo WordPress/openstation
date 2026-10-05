@@ -28,8 +28,11 @@ afterEach( () => {
 	}
 } );
 
-function networkFrame() {
+function networkFrame( fetchStatus?: number ) {
 	const f = frame();
+	if ( fetchStatus !== undefined ) {
+		f.w.fetch = async () => new Response( '', { status: fetchStatus } );
+	}
 	class XHR extends f.w.EventTarget {
 		status = 200;
 		failSend = false;
@@ -48,6 +51,37 @@ function networkFrame() {
 }
 
 describe( 'media bridge lifecycle', () => {
+	test.each( [ 'xhr', 'fetch' ] )( '%s Heartbeat failures do not accelerate Heartbeat, while other auth failures still do', async ( transport ) => {
+		const { w, messages, xhr } = networkFrame( 403 );
+		let authChecks = 0;
+		w.wp = { heartbeat: { connectNow: () => { authChecks++; } } };
+		xhr.status = 403;
+		const form = new w.FormData();
+		form.set( 'action', 'heartbeat' );
+		const send = async ( url: string, body: string | URLSearchParams | FormData ) => {
+			if ( transport === 'fetch' ) {
+				await w.fetch( url, { method: 'POST', body } );
+			} else {
+				const request = xhr as unknown as XMLHttpRequest;
+				request.open( 'POST', url );
+				request.send( body );
+				xhr.dispatchEvent( new w.Event( 'loadend' ) );
+			}
+		};
+		// Core's jQuery transport sends the action in this serialized POST body.
+		await send( '/wp-admin/admin-ajax.php', '_nonce=test&action=heartbeat&screen_id=post' );
+		await send( '/wp-admin/admin-ajax.php', new w.URLSearchParams( { action: 'heartbeat' } ) );
+		await send( '/wp-admin/admin-ajax.php', form );
+		await send( '/wp-admin/admin-ajax.php?action=heartbeat', '' );
+		expect( authChecks ).toBe( 0 );
+		expect( messages.filter( ( m ) => m.type === 'os-iframe-activity' ) ).toHaveLength( 0 );
+		// A similar action name must not be mistaken for Heartbeat. Nor may a
+		// skipped Heartbeat consume the cooldown for a real auth failure.
+		await send( '/wp-admin/admin-ajax.php', 'action=heartbeat-settings' );
+		expect( authChecks ).toBe( 1 );
+		expect( messages.filter( ( m ) => m.type === 'os-iframe-activity' ) ).toHaveLength( 2 );
+	} );
+
 	test( 'reusing an XHR reports each completion once, with balanced activity', () => {
 		const { w, xhr, messages } = networkFrame();
 		for ( let i = 0; i < 100; i++ ) {

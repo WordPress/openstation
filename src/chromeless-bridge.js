@@ -404,10 +404,10 @@
 			// this reason. The action rides in the POST body, not the
 			// URL, so both are checked.
 			try {
-				if ( String( url || '' ).indexOf( 'action=heartbeat' ) !== -1 ) {
+				if ( /[?&]action=heartbeat(?:&|$)/.test( String( url || '' ) ) ) {
 					return true;
 				}
-				if ( typeof body === 'string' && body.indexOf( 'action=heartbeat' ) !== -1 ) {
+				if ( typeof body === 'string' && /(?:^|&)action=heartbeat(?:&|$)/.test( body ) ) {
 					return true;
 				}
 				if ( body && typeof body.get === 'function' && body.get( 'action' ) === 'heartbeat' ) {
@@ -417,8 +417,8 @@
 			return false;
 		};
 
-		var osActivityBegin = function ( method, url, body ) {
-			if ( osIsReadRequest( method ) || osIsBackgroundRequest( url, body ) ) {
+		var osActivityBegin = function ( method, background ) {
+			if ( osIsReadRequest( method ) || background ) {
 				return false;
 			}
 			try {
@@ -457,12 +457,12 @@
 		// force an immediate tick. `wp.heartbeat.connectNow()` is
 		// safe to call repeatedly; we still debounce to avoid storms
 		// when many requests fail at once. Same-origin gate keeps us
-		// out of third-party 403s. The URL gate avoids looping on
-		// heartbeat itself (heartbeat shouldn't 403 — but if it does
-		// the recursive connectNow would not help anyway).
+		// out of third-party 403s. Recognize Heartbeat before sending:
+		// Core puts its action in the POST body, not the URL. A failed
+		// Heartbeat must not accelerate itself or consume the cooldown.
 		var osAuthCheckCooldownUntil = 0;
-		var osMaybeForceAuthCheck = function ( status, url ) {
-			if ( status !== 401 && status !== 403 ) {
+		var osMaybeForceAuthCheck = function ( status, url, background ) {
+			if ( background || ( status !== 401 && status !== 403 ) ) {
 				return;
 			}
 			var urlStr = String( url || '' );
@@ -626,7 +626,10 @@
 					}
 				}
 
-				var tracked = osActivityBegin( method, url, ( init && init.body ) || ( input && input.body ) );
+				// Retain only the classification, not an upload body, in
+				// the completion callbacks shared by activity/auth checks.
+				var background = osIsBackgroundRequest( url, ( init && init.body ) || ( input && input.body ) );
+				var tracked = osActivityBegin( method, background );
 
 				var promise;
 				try {
@@ -656,7 +659,7 @@
 						// `fetch` resolves for 4xx / 5xx, so the ring
 						// settles on `res.ok` and not on the promise.
 						osActivityEnd( tracked, ! res.ok, res.status );
-						osMaybeForceAuthCheck( res.status, url );
+						osMaybeForceAuthCheck( res.status, url, background );
 						return res;
 					},
 					function ( err ) {
@@ -708,7 +711,8 @@
 					: Date.now();
 				// The body is where an admin-ajax action name lives,
 				// and the action name is how Heartbeat is recognised.
-				var tracked = osActivityBegin( xhr.__wpdMethod, xhr.__wpdUrl, body );
+				var background = osIsBackgroundRequest( xhr.__wpdUrl, body );
+				var tracked = osActivityBegin( xhr.__wpdMethod, background );
 
 				// Apply contributed headers right before send. Doing it
 				// here rather than in open() means contributions added
@@ -765,7 +769,7 @@
 						extra
 					);
 					osActivityEnd( tracked, failed, xhr.status );
-					osMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl );
+					osMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl, background );
 				};
 				try {
 					xhr.addEventListener( 'loadend', fire );
