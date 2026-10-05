@@ -124,7 +124,9 @@ Three things this has to get right, and each has a test:
 
 - **Desk to desk.** Switching from an overridden workspace straight to another restores the user's base *first*, so the second desk's patch lands on their settings rather than on the first desk's.
 - **Saving while standing on one.** Opening Preferences on an overridden desk and saving writes the **user's** value back for every key they did not touch. Without that, one save would quietly adopt the workspace's wallpaper as their own.
-- **Editing while standing on one.** A key they *did* change is theirs, and it is saved. The rest go back.
+- **Editing while standing on one.** A key they *did* change is theirs, and it is saved. The rest go back. Every save also refreshes the copy kept aside, so leaving the desk hands back what they have now, not what they had on the way in; a stale copy put the old wallpaper back on exit and the next save wrote it to user meta.
+
+A profile write to the desk on screen repaints the look only when it changed `appearance`. Recording a widget, provisioning or saving the arrangement re-applies the widget column alone, so a wallpaper picked on the desk survives adding a widget to it.
 
 **Only allowlisted keys are honoured** — `wallpaper`, `wallpaperSettings`, `customGradient`, `customImage`, `accent`, `customAccent`, `desktopTheme`, `desktopLayout`, `dockPlacement`, `dockSize`, `dockBehavior`, `sideDockBehavior`, `windowRadius`, `windowReveal`, `unfocusEffect`, `adminBarMode`. That is not tidiness. A profile is user meta round-tripped through an untrusted client, and an unfiltered patch spread onto the settings state at boot would be a way to write any settings key from anywhere. The server enforces the same list, and bounds the nesting of the array-valued members.
 
