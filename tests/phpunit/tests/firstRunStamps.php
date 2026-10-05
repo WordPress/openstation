@@ -242,6 +242,7 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 	public function test_nudge_waits_until_the_welcome_dialog_is_out_of_the_way() {
 		$this->nudge_baseline();
 		openstation_clear_seen_intros( self::$admin_id );
+		openstation_record_activator();
 		$this->assertTrue( openstation_should_show_welcome_dialog(), 'The dialog owns this request.' );
 		$this->assertFalse( openstation_should_show_activation_nudge() );
 
