@@ -319,6 +319,7 @@ truth; every one regenerates.
 | `desktop_mode_agent_user_rate_{invoker}_{YmdH}`, `openstation_agent_rate_{agent}_{YmdH}` | Agents | Hourly invocation counters, one per human invoker and one per agent, bucketed by the UTC hour. They expire after an hour. |
 | `openstation_shell_build` | PWA | Hash of the shell bundles, used to detect a deploy. |
 | `dm_pwsz_map` | Plugins | On-disk size of each plugin. |
+| `openstation_plugins_handoff_{user_id}` | Windows | The screen a plugin redirected a plugins window to, held for the plugins screen the window went back to, which opens it in a window of its own. Expires after a minute. |
 
 The Plugins app also uses the `desktop-mode-plugins` object-cache group for
 in-request caching.

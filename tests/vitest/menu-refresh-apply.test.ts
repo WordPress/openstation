@@ -148,6 +148,19 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( config.dockItems ).toBe( items );
 	} );
 
+	test( 'an icon the bridge harvested survives the refresh probe’s gear placeholder', () => {
+		const { deps, dock } = makeDeps();
+		const apply = createApplyPayload( deps );
+		const url = 'http://localhost/wp-admin/admin.php?page=elementor-home';
+		const harvested = 'url("data:image/svg+xml;base64,PHN2Zy8+")';
+
+		apply( { dockItems: [ ...MIN_DOCK, { id: 'elementor', title: 'Elementor', url, icon: harvested } ] } );
+		apply( { dockItems: [ ...MIN_DOCK, { id: 'elementor', title: 'Elementor', url, icon: 'dashicons-admin-generic' } ] } );
+
+		const applied = dock.replaceItems.mock.calls[ 1 ][ 0 ] as Array< { id: string; icon?: string } >;
+		expect( applied.find( ( item ) => item.id === 'elementor' )?.icon ).toBe( harvested );
+	} );
+
 	// Spatial's core-icon synthesis (and ordinary promoted shortcuts)
 	// must stay current when a plugin activation/deactivation changes
 	// the dock-item list live — otherwise the files-layer shortcut set

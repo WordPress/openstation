@@ -206,6 +206,7 @@ require_once OPENSTATION_DIR . 'includes/first-run/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/feedback/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/pwa.php';
 require_once OPENSTATION_DIR . 'includes/compat/divi.php';
+require_once OPENSTATION_DIR . 'includes/compat/elementor.php';
 
 // Admin-rendering modules — every hook these register (`admin_init`,
 // `admin_enqueue_scripts`, `in_admin_header`, `admin_head`,

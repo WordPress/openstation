@@ -1108,7 +1108,7 @@ Calling `open()` with an id (or `baseId`) that's already on screen focuses the e
 - **"Open another <Page>"** — only when the window was opened with `multi: true`. Calls `openNew()` with the window's *original* landing URL.
 - **"Open in new window"** — iframe windows only. Opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
 - **"Reload"** — both window types; see below.
-- **"Open in classic wp-admin"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab. A native window has no URL to hand off.
+- **"Open in classic wp-admin"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab, where navigation stays classic until the user switches back to OpenStation. A native window has no URL to hand off.
 
 **Reload is common to both window types.** "Put this back the way it loaded" is the same intent whether the content came from an admin page or from a plugin's render callback, so `Window.reload()` and its ⋯ row work on native windows too.
 
@@ -4719,7 +4719,7 @@ Posted when a link inside the iframe points off-site; the parent opens an extern
 ```
 
 #### `os-open-user-footprint` — Stable
-Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer app on that user's footprint and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit). The routing is the shared footprint target (`src/open-targets/footprint-target.ts`); see also `bridge-protocol.md`.
+Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer app on that user's footprint and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit unless the link asked for a new context). The routing is the shared footprint target (`src/open-targets/footprint-target.ts`); see also `bridge-protocol.md`.
 
 ```typescript
 { type: 'os-open-user-footprint'; userId: number; userName: string }

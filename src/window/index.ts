@@ -222,6 +222,14 @@ export class Window {
 	 */
 	public _hasExplicitTitle = false;
 
+	/**
+	 * The URL the page in the frame reported for itself, and the
+	 * frame's `src` when it did. See {@link getCurrentUrl}.
+	 *
+	 * @internal
+	 */
+	public _reportedLocation: { url: string; src: string } | null = null;
+
 	/** @internal */
 	public _titleBar: HTMLElement;
 	/** @internal */
@@ -1163,6 +1171,10 @@ export class Window {
 	 * falling back to the iframe's src attribute for cases where the
 	 * content document isn't yet reachable (cross-origin edge, early
 	 * load).
+	 *
+	 * A same-origin page sent with `Document-Isolation-Policy` (the
+	 * block editor, Elementor's editor) can't be read either; its own
+	 * report beats `src` until the frame is pointed elsewhere.
 	 */
 	public getCurrentUrl(): string {
 		if ( ! this.iframe ) {
@@ -1178,7 +1190,10 @@ export class Window {
 				return href;
 			}
 		} catch {
-			/* Cross-origin read rejected — fall through. */
+			const reported = this._reportedLocation;
+			if ( reported && reported.src === this.iframe.src ) {
+				return reported.url;
+			}
 		}
 		return this.iframe.src;
 	}
@@ -2810,9 +2825,8 @@ export class Window {
 	 * `desktop_mode_portal` flag, and tags the URL with
 	 * `desktop_mode_classic=1` so the server-side admin_init redirect
 	 * (which otherwise forwards plain admin URLs to `/openstation/`)
-	 * lets the request through. The tag only has to survive the first
-	 * request; once the browser renders the page, the user's in-tab
-	 * navigation returns to normal admin flow.
+	 * lets the request through. Navigations inside that tab keep the
+	 * tag, so the user stays in classic wp-admin.
 	 *
 	 * The desktop window itself stays open — detach is a branch, not
 	 * a move. If the user wants to close it afterwards, they can.

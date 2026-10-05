@@ -270,6 +270,12 @@ export function createApplyPayload(
 		applyMultisite,
 	} = deps;
 
+	// Icons the bridge read off a window's admin menu (a computed
+	// `url( … )`), by dock item URL. The refresh probe renders no menu
+	// and sends the gear again, so a plugin activated live would lose
+	// its icon to the next probe until a full reload.
+	const harvestedIcons = new Map< string, string >();
+
 	/** Order-insensitive fingerprint of an icon list's ids. */
 	const iconIdSet = (
 		list: ReadonlyArray< { id?: unknown } > | undefined,
@@ -321,6 +327,16 @@ export function createApplyPayload(
 		// sidebar.
 		if ( ! Array.isArray( dockItems ) || dockItems.length === 0 ) {
 			return;
+		}
+		for ( const item of dockItems as Array< { url?: unknown; icon?: unknown } > ) {
+			if ( ! item || typeof item.url !== 'string' || typeof item.icon !== 'string' ) {
+				continue;
+			}
+			if ( item.icon.startsWith( 'url(' ) ) {
+				harvestedIcons.set( item.url, item.icon );
+			} else if ( item.icon === 'dashicons-admin-generic' && harvestedIcons.has( item.url ) ) {
+				item.icon = harvestedIcons.get( item.url );
+			}
 		}
 		const prevDockItems = config.dockItems;
 		applyDockItems( dockItems as DesktopConfig[ 'dockItems' ] );

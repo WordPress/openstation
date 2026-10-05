@@ -1970,7 +1970,7 @@ export class Dock {
 		// 3a. Raw CSS `url(...)` value — only the live-activation icon
 		//     harvest in includes/render/chromeless-bridge.php produces
 		//     this shape. It hands us the iframe's computed
-		//     `::before { background-image }` verbatim so we can paint it
+		//     `::before { background-image }` or `mask-image` verbatim so we can paint it
 		//     identically to how F5 would (via _extractNativeMenuIcon's
 		//     shape-c branch), without losing fidelity through a data-URI
 		//     re-encode. Server-built icons never take this branch.
@@ -2097,6 +2097,7 @@ export class Dock {
 	 *   (b) a dashicon class on `.wp-menu-image` itself
 	 *   (c) a CSS background-image on `.wp-menu-image::before` (the
 	 *       `menu-icon-XYZ` pattern Yoast, WooCommerce, Jetpack, etc. use)
+	 *   (d) a CSS mask-image on `.wp-menu-image::before` (Elementor 4)
 	 *
 	 * Returns null when the URL doesn't match any admin-menu entry or
 	 * none of the three shapes are detectable.
@@ -2164,6 +2165,12 @@ export class Dock {
 		const bg = before.backgroundImage;
 		if ( bg && bg !== 'none' && ! bg.includes( 'url("")' ) ) {
 			return this._makeSvgIcon( bg );
+		}
+
+		// Shape (d): a CSS mask on ::before (Elementor 4's logo).
+		const mask = before.maskImage || before.webkitMaskImage;
+		if ( mask && mask !== 'none' && ! mask.includes( 'url("")' ) ) {
+			return this._makeSvgIcon( mask );
 		}
 
 		// Fallback within the native-menu branch: background-image on

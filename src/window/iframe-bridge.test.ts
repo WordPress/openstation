@@ -17,6 +17,11 @@ import {
 	registerDestructiveAdminAction,
 } from '../destructive-admin-actions';
 import { HOOKS } from '../hooks';
+import {
+	_resetNativeUrlRemap,
+	bindNativeUrlRemap,
+	registerNativeUrlRemap,
+} from '../native-url-remap';
 import { deriveWindowId } from '../utils';
 import type { Window } from './index';
 import {
@@ -493,6 +498,38 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( assignSpy ).toHaveBeenCalledWith( target );
 		expect( openWindow ).not.toHaveBeenCalled();
 		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a new-context link to a native screen leaves the source open', () => {
+		bindFakeDispatcher();
+		const opened: string[] = [];
+		bindNativeUrlRemap( {
+			getSnapshot: () => ( {} ) as never,
+			openById: ( id ) => {
+				opened.push( id );
+				return true;
+			},
+			adminUrl,
+		} );
+		registerNativeUrlRemap( {
+			id: 'test-posts',
+			nativeWindowId: 'test-posts',
+			matches: ( _url, parsed ) => parsed.pathname.endsWith( '/edit.php' ),
+		} );
+		const { win } = mockAdminWindow( { id: 'plugins-php' } );
+
+		try {
+			postToWindow( win, {
+				type: 'os-iframe-admin-link',
+				url: adminUrl + 'edit.php',
+				newContext: true,
+			} );
+
+			expect( opened ).toEqual( [ 'test-posts' ] );
+			expect( win.close ).not.toHaveBeenCalled();
+		} finally {
+			_resetNativeUrlRemap();
+		}
 	} );
 
 	test( 'different-slug click opens a fresh window and leaves the source intact', () => {

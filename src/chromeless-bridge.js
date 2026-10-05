@@ -935,6 +935,12 @@
 							__wpdHarvest[ __wpdKey ] = __wpdBg;
 							continue;
 						}
+						/* (c2) ::before mask-image (Elementor 4's logo) */
+						var __wpdMask = __wpdBefore && ( __wpdBefore.maskImage || __wpdBefore.webkitMaskImage );
+						if ( __wpdMask && __wpdMask !== 'none' && __wpdMask.indexOf( 'url("")' ) === -1 ) {
+							__wpdHarvest[ __wpdKey ] = __wpdMask;
+							continue;
+						}
 						/* (d) background on the wrap itself */
 						var __wpdWrapBg = window.getComputedStyle( __wpdImgWrap ).backgroundImage;
 						if ( __wpdWrapBg && __wpdWrapBg !== 'none' && __wpdWrapBg.indexOf( 'url("")' ) === -1 ) {

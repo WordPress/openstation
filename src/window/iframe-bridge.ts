@@ -223,6 +223,10 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		}
 		win._hasExplicitTitle = false;
 		win._settleNavigationActivity();
+		// For a frame the shell can't read; see `Window.getCurrentUrl()`.
+		if ( typeof data.url === 'string' && data.url !== '' && win.iframe ) {
+			win._reportedLocation = { url: data.url, src: win.iframe.src };
+		}
 	}
 
 	// Iframe boot signal — the chromeless bridge script posts this
@@ -337,8 +341,9 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	//
 	//   1. Native-window remap hit (e.g. `edit.php` while the user has
 	//      the native Posts opt-in on) → open the native window and
-	//      close the source iframe. Same behavior as the original
-	//      "Exit editor" path on a locked-post takeover dialog.
+	//      close the source iframe, unless the link asked for a new
+	//      context. Same behavior as the original "Exit editor" path
+	//      on a locked-post takeover dialog.
 	//
 	//   2. Same-page slug → drive the source iframe's
 	//      `location.assign()` so the in-place navigation matches the
@@ -378,7 +383,10 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	) {
 		const deps = adminLinkDepsStore.state.deps;
 		if ( tryNativeUrlRemap( data.url ) ) {
-			win.close();
+			// Only a link followed in place leaves the page it was on.
+			if ( data.newContext !== true ) {
+				win.close();
+			}
 		} else if ( deps ) {
 			const linkLabel =
 				typeof data.label === 'string' ? data.label : '';
