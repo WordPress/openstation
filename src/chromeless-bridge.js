@@ -729,6 +729,9 @@
 				}
 
 				var fire = function () {
+					// An uploader may open/send the same XHR again. Keep
+					// this request's closure out of later completions.
+					xhr.removeEventListener( 'loadend', fire );
 					var dur = ( ( typeof performance !== 'undefined' && performance.now )
 						? performance.now()
 						: Date.now() ) - start;
@@ -767,7 +770,16 @@
 				try {
 					xhr.addEventListener( 'loadend', fire );
 				} catch ( _err ) { /* swallow */ }
-				return osOrigSend.apply( this, arguments );
+				try {
+					return osOrigSend.apply( this, arguments );
+				} catch ( sync ) {
+					// A synchronous send failure has no loadend to remove
+					// the listener or balance the activity-start message.
+					xhr.removeEventListener( 'loadend', fire );
+					osReportNetwork( xhr.__wpdMethod, xhr.__wpdUrl, 0, 0, true, null );
+					osActivityEnd( tracked, true, 0 );
+					throw sync;
+				}
 			};
 		}
 
