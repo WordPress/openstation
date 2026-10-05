@@ -77,4 +77,5 @@ export interface AiAssistantConfig {
  */
 export type AiAssistantFactory = ( config: AiAssistantConfig ) => AiAssistantApi & {
 	attachAsk( fn: AskFn ): void;
+	setBaselineLoading( loading: boolean ): void;
 };

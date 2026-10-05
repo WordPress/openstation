@@ -983,6 +983,15 @@ body.os-active .os-ai__settings-link {
 	font-size: 13px;
 }
 
+/* "Loading WordPress commands…" under the list while the Core palette
+   runtime is still in flight. Inset like a row, so the 16px spinner is
+   centred in the 36px icon column of the commands above it and the
+   label starts where their titles do. */
+.os-ai__state--loading {
+	padding: 4px 11px 4px 21px;
+	gap: 20px;
+}
+
 /* -----------------------------------------------------------------
  * Continue button (budget-exhausted state)
  * ---------------------------------------------------------------- */

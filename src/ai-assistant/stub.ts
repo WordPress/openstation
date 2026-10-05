@@ -39,7 +39,7 @@ declare global {
 	}
 }
 
-type LoadedAi = AiAssistantApi & { attachAsk( fn: AskFn ): void };
+type LoadedAi = ReturnType< AiAssistantFactory >;
 
 /**
  * Inject the impl script tag, await load, return the factory.
@@ -121,27 +121,18 @@ export class AiAssistantStub implements AiAssistantApi {
 	}
 
 	private _ensure(): Promise< LoadedAi > {
-		// Palette runtime first, and OUTSIDE the `_loadPromise` guard
-		// below. `ensureCommandPaletteAssets()` clears its own memo when
-		// a load fails, precisely so the next ⌘K can retry a flaky
-		// connection — but that retry never happened, because its only
-		// caller sat behind a guard that is set once and never cleared.
-		// One 404 among the ~50 replayed scripts and the palette showed
-		// shell commands only, with no WP baseline and no hoisted plugin
-		// contributors, for the rest of the session.
-		//
-		// Calling it every time is free: it is already memoised, so the
-		// success path hands back the same resolved promise.
-		//
-		// Fire-and-forget by design — the palette opens immediately with
-		// the shell's own commands and the WP set pops in when the chain
-		// lands, via `os-command-palette-ready`.
-		ensureCommandPaletteAssets().catch( ( err ) => {
-			// eslint-disable-next-line no-console -- a failed palette-runtime load would otherwise be silent; the palette still works with shell commands only.
-			console.warn( '[openstation] command-palette runtime failed to load', err );
-		} );
-
 		if ( this._loadPromise ) {
+			// A retry for the palette runtime, which clears its own memo
+			// when a load fails precisely so the next ⌘K can retry a
+			// flaky connection. One 404 among the ~50 replayed scripts
+			// used to leave the palette with shell commands only, no WP
+			// baseline and no hoisted plugin contributors, for the rest
+			// of the session, because this call sat behind a guard that
+			// is set once and never cleared. Only once the impl is in,
+			// though: until then the hook below owns the first load.
+			if ( this._real ) {
+				this._loadPaletteRuntime( this._real );
+			}
 			return this._loadPromise;
 		}
 		// The assistant's stylesheet is a `deferredStyles` entry, not
@@ -149,14 +140,45 @@ export class AiAssistantStub implements AiAssistantApi {
 		// parallel with the impl bundle below.
 		ensureDeferredStyle( 'desktop-mode-ai-assistant' );
 		this._loadPromise = loadImpl( this._scriptUrl ).then( ( factory ) => {
-			const real = factory( this._config ) as LoadedAi;
+			const real = factory( this._config );
 			if ( this._pendingAsk ) {
 				real.attachAsk( this._pendingAsk );
 			}
 			this._real = real;
 			return real;
 		} );
+		// The Core palette runtime AFTER the impl, never alongside it.
+		// It is ~50 scripts, every one preloaded at once, and started
+		// first it took the whole connection: on a slow link the 40 kB
+		// panel queued behind the Gutenberg runtime and the placeholder
+		// stayed up for as long as all of it took to download, when
+		// the panel is the part the user is waiting to see. The panel
+		// opens with the shell's own commands, says the WP set is on
+		// its way (`setBaselineLoading`), and the set pops in when the
+		// chain lands, via `os-command-palette-ready`.
+		void this._loadPromise.then(
+			( real ) => this._loadPaletteRuntime( real ),
+			// The impl failed: `open()` reports it, and there is no
+			// panel to fill.
+			() => undefined,
+		);
 		return this._loadPromise;
+	}
+
+	/**
+	 * Bring in the Core palette runtime, telling the panel while it is
+	 * in flight. Memoised underneath, so calling it on every open is
+	 * free once the chain is in: the flag goes up and comes back down
+	 * in the same task, before anything paints.
+	 */
+	private _loadPaletteRuntime( real: LoadedAi ): void {
+		real.setBaselineLoading( true );
+		ensureCommandPaletteAssets()
+			.catch( ( err ) => {
+				// eslint-disable-next-line no-console -- a failed palette-runtime load would otherwise be silent; the palette still works with shell commands only.
+				console.warn( '[openstation] command-palette runtime failed to load', err );
+			} )
+			.finally( () => real.setBaselineLoading( false ) );
 	}
 
 	open(): void {
@@ -179,10 +201,12 @@ export class AiAssistantStub implements AiAssistantApi {
 		}
 		void this._ensure()
 			.then( ( r ) => {
-				hidePalettePlaceholder();
 				if ( this._intendOpen ) {
 					r.open();
 				}
+				// Under the panel until its fade-in is over, so the
+				// backdrop does not blink out between the two.
+				hidePalettePlaceholder( true );
 			} )
 			.catch( ( err ) => {
 				hidePalettePlaceholder();

@@ -211,6 +211,12 @@ export class AiAssistant implements AiAssistantApi {
 	private _lastAiResult: { query: string; data: SearchResult } | null = null;
 	private _currentRemoteCommands: DesktopCommand[] = [];
 	private _remoteSearchToken = 0;
+	/**
+	 * The WordPress command set is still on its way: the Core palette
+	 * runtime loads after this bundle, and until it lands the list holds
+	 * the shell's own commands only. Set by the stub.
+	 */
+	private _baselineLoading = false;
 
 	/** Index of the highlighted command in the filtered list (keyboard nav). */
 	private _selectedCommand = 0;
@@ -409,6 +415,26 @@ export class AiAssistant implements AiAssistantApi {
 	/** Late-binding helper used by `desktop.ts`. Not part of the public API. */
 	public attachAsk( fn: AskFn ): void {
 		this.ask = fn;
+	}
+
+	/**
+	 * Say whether the WordPress command set is still loading. Called
+	 * by the stub around the Core palette runtime's load. Not part of
+	 * the public API.
+	 *
+	 * Without it, the list a first ⌘K opens on holds three or four
+	 * shell commands for as long as that runtime takes, and a search
+	 * for "Add new post" answers "No commands matching", which is
+	 * indistinguishable from a palette that is broken.
+	 */
+	public setBaselineLoading( loading: boolean ): void {
+		if ( this._baselineLoading === loading ) {
+			return;
+		}
+		this._baselineLoading = loading;
+		if ( this._isOpen ) {
+			this._renderForMode();
+		}
 	}
 
 	// ------------------------------------------------------------------
@@ -1313,6 +1339,17 @@ export class AiAssistant implements AiAssistantApi {
 		// commands on empty input.
 		const matches = this._commandMatches();
 
+		// Only where the whole registry is listed: AI mode's pinned
+		// contextual commands come from the focused window, not from
+		// the runtime still loading.
+		const loadingRow =
+			this._baselineLoading && ( parsed.isCommand || this._mode === 'commands' )
+				? `<div class="os-ai__state os-ai__state--loading">
+					${ ICON_SPINNER }
+					<span>${ this._esc( __( 'Loading WordPress commands…' ) ) }</span>
+				</div>`
+				: '';
+
 		if ( matches.length === 0 ) {
 			const q = parsed.isCommand ? `/${ parsed.slug }` : this._input.value.trim();
 			const message = sprintf(
@@ -1324,6 +1361,7 @@ export class AiAssistant implements AiAssistantApi {
 				<div class="os-ai__state os-ai__state--empty">
 					<span>${ message }</span>
 				</div>
+				${ loadingRow }
 			`;
 			return;
 		}
@@ -1381,6 +1419,7 @@ export class AiAssistant implements AiAssistantApi {
 				${ heading }
 				${ items }
 			</div>
+			${ loadingRow }
 		`;
 
 		// Click handlers — clicking a row runs the command (or locks it in
