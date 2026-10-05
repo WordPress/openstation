@@ -82,6 +82,32 @@ describe( 'media bridge lifecycle', () => {
 		expect( messages.filter( ( m ) => m.type === 'os-iframe-activity' ) ).toHaveLength( 2 );
 	} );
 
+	test.each( [ 'xhr', 'fetch' ] )( '%s keeps reads quiet and balances failed writes', async ( transport ) => {
+		const { w, messages, xhr } = networkFrame( 500 );
+		xhr.status = 500;
+		const send = async ( method: string ) => {
+			if ( transport === 'fetch' ) {
+				await w.fetch( '/wp-admin/admin-ajax.php', { method, body: 'action=query-attachments' } );
+			} else {
+				const request = xhr as unknown as XMLHttpRequest;
+				request.open( method, '/wp-admin/admin-ajax.php' );
+				request.send( 'action=query-attachments' );
+				xhr.dispatchEvent( new w.Event( 'loadend' ) );
+			}
+		};
+		// QUERY carries a body but is still a read. Classification must use
+		// the method, and a refused start must not emit an unmatched end.
+		for ( const method of [ 'GET', 'HEAD', 'OPTIONS', 'QUERY' ] ) {
+			await send( method );
+		}
+		expect( messages.filter( ( m ) => m.type === 'os-iframe-activity' ) ).toEqual( [] );
+		await send( 'POST' );
+		expect( messages.filter( ( m ) => m.type === 'os-iframe-activity' ) ).toEqual( [
+			expect.objectContaining( { phase: 'start' } ),
+			expect.objectContaining( { phase: 'end', failed: true, status: 500 } ),
+		] );
+	} );
+
 	test( 'reusing an XHR reports each completion once, with balanced activity', () => {
 		const { w, xhr, messages } = networkFrame();
 		for ( let i = 0; i < 100; i++ ) {
