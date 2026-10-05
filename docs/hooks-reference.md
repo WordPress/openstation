@@ -4506,6 +4506,8 @@ apply_filters( 'openstation_living_tree_snapshot', array $snapshot ): array
 
 The full snapshot before it is cached and served. Keep the shape intact — the JS client trusts this contract — and keep it aggregates-only (the golden rule: hormones, never geometry).
 
+On a site where Jetpack Stats is on, it runs twice per cache build: once for the snapshot, and once with `traffic` resolved without Jetpack. The `traffic` of that second run is what a caller outside Jetpack's stats gate is served, so a change this filter makes to `traffic` reaches every caller.
+
 ### `openstation_living_tree_seo_health` — Experimental (filter)
 
 ```php
@@ -4530,7 +4532,7 @@ apply_filters( 'openstation_living_tree_traffic', int $views ): int
 
 The recent-traffic hormone (drives the wind — canopy sway amplitude and frequency). The default value follows the same source ladder as the site-views widget: **Jetpack Stats** (last 14 days of visits via `WPCOM_Stats::get_visits()`) when Jetpack's Stats module is on and answers, else the sum of the `_post_views_YYYY-MM-DD` post-meta convention over the same window, else `0` (a windless day). Analytics plugins with their own counters should hook this and return their real 14-day view count; the value is clamped non-negative.
 
-The Jetpack number is served only to a caller who passes Jetpack's own stats gate (`manage_options` or `view_stats`, the roles picked in Jetpack's Stats settings). For anyone else on a site where Jetpack Stats is on, the snapshot route resolves the ladder from the post-meta sum down and runs this filter on that value, so the filter can fire more than once per snapshot and a hooked counter is served to every caller the route admits.
+The Jetpack number is served only to a caller who passes Jetpack's own stats gate (`manage_options` or `view_stats`, the roles picked in Jetpack's Stats settings). For anyone else on a site where Jetpack Stats is on, the snapshot carries a second value, resolved from the post-meta sum down when the cache is built. So on such a site this filter runs twice per build, and a hooked counter is served to every caller the route admits.
 
 ---
 

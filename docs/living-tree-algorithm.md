@@ -405,7 +405,10 @@ settings, so a caller outside that gate (`manage_options` or
 `view_stats`) gets the ladder without Jetpack instead: the
 `_post_views_YYYY-MM-DD` sum, then the `openstation_living_tree_traffic`
 filter. Their tree sways to that value, which can be calmer than the
-one an administrator sees.
+one an administrator sees. Both values are worked out when the cache
+is built, each through the `openstation_living_tree_snapshot` filter,
+and the cache entry keeps the second under a key that is never served,
+so serving either caller reads nothing again.
 
 ---
 
