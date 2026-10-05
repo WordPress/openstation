@@ -19,24 +19,38 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 
 	public function tear_down() {
 		delete_transient( 'desktop_mode_site_views_meta' );
-		if ( property_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats', 'visits_response' ) ) {
-			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
-			\Automattic\Jetpack\Stats\WPCOM_Stats::$last_args       = null;
-		}
+		$this->reset_jetpack_stubs();
 		parent::tear_down();
 	}
 
 	/**
-	 * Load the scriptable WPCOM_Stats stub, or skip when real Jetpack is
-	 * loaded and the stub cannot be scripted.
+	 * Put the Jetpack stubs, when loaded, back to their defaults: Stats
+	 * module on, an erroring reader, no recorded call.
+	 */
+	private function reset_jetpack_stubs() {
+		if ( property_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats', 'visits_response' ) ) {
+			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
+			\Automattic\Jetpack\Stats\WPCOM_Stats::$last_args       = null;
+		}
+		if ( property_exists( '\Automattic\Jetpack\Modules', 'stats_active' ) ) {
+			\Automattic\Jetpack\Modules::$stats_active = true;
+		}
+	}
+
+	/**
+	 * Load the scriptable Jetpack stubs from their defaults, whatever an
+	 * earlier test class left in them, or skip when real Jetpack is
+	 * loaded and they cannot be scripted.
 	 */
 	private function load_wpcom_stats_stub() {
 		if ( ! class_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats' ) ) {
 			require_once dirname( __DIR__ ) . '/stubs/class-wpcom-stats-stub.php';
 		}
-		if ( ! property_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats', 'visits_response' ) ) {
-			$this->markTestSkipped( 'Real Jetpack is loaded; the scriptable stub is unavailable.' );
+		if ( ! property_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats', 'visits_response' )
+			|| ! property_exists( '\Automattic\Jetpack\Modules', 'stats_active' ) ) {
+			$this->markTestSkipped( 'Real Jetpack is loaded; the scriptable stubs are unavailable.' );
 		}
+		$this->reset_jetpack_stubs();
 	}
 
 	/**
@@ -74,10 +88,9 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertSame(
 			array(
-				'source'    => 'jetpack',
-				'available' => true,
-				'has_data'  => true,
-				'days'      => array(
+				'available'  => true,
+				'restricted' => false,
+				'days'       => array(
 					array(
 						'date'  => '2026-07-10',
 						'views' => 3,
@@ -101,12 +114,12 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 
 	/**
 	 * Site-wide traffic is behind Jetpack's own stats gate, not the
-	 * widget's `edit_posts`; Jetpack failing reads as "unavailable" so
-	 * the client falls back to the meta source.
+	 * widget's `edit_posts`. A caller outside it is told the numbers are
+	 * withheld, and WordPress.com is never asked on their behalf.
 	 *
 	 * @covers ::openstation_site_views_jetpack_callback
 	 */
-	public function test_jetpack_source_is_unavailable_without_the_stats_gate_or_on_error() {
+	public function test_jetpack_source_is_restricted_without_the_stats_gate() {
 		$this->load_wpcom_stats_stub();
 		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array(
 			'fields' => array( 'period', 'views' ),
@@ -115,14 +128,52 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 
 		$response = $this->get_jetpack_route_as( 'author' );
 		$this->assertSame( 200, $response->get_status() );
-		$this->assertFalse( $response->get_data()['available'] );
-		$this->assertSame( array(), $response->get_data()['days'] );
+		$this->assertSame(
+			array(
+				'available'  => false,
+				'restricted' => true,
+				'days'       => array(),
+			),
+			$response->get_data()
+		);
 		$this->assertNull( \Automattic\Jetpack\Stats\WPCOM_Stats::$last_args, 'WordPress.com is not asked for a caller without the gate' );
 
 		$this->assertSame( 403, $this->get_jetpack_route_as( 'subscriber' )->get_status() );
+	}
 
-		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null; // WP_Error.
+	/**
+	 * Jetpack failing to answer reads as "unavailable", never as zeros
+	 * or a guessed column, so the client falls back to the meta source.
+	 *
+	 * @covers ::openstation_site_views_jetpack_days
+	 * @covers ::openstation_site_views_jetpack_stats_active
+	 */
+	public function test_jetpack_source_is_unavailable_when_stats_cannot_answer() {
+		$this->load_wpcom_stats_stub();
+
+		// The stub's default answer is a WP_Error.
 		$this->assertFalse( $this->get_jetpack_route_as( 'administrator' )->get_data()['available'] );
+
+		// No `views` column: the second one is visitors, not views.
+		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array(
+			'fields' => array( 'period', 'visitors' ),
+			'data'   => array( array( '2026-07-11', 9 ) ),
+		);
+		$this->assertFalse( $this->get_jetpack_route_as( 'administrator' )->get_data()['available'] );
+
+		// Stats module off: the reader would answer zeros for a site
+		// that is not counting, so it is not asked at all.
+		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array(
+			'fields' => array( 'period', 'views' ),
+			'data'   => array( array( '2026-07-11', 0 ) ),
+		);
+		\Automattic\Jetpack\Stats\WPCOM_Stats::$last_args = null;
+		\Automattic\Jetpack\Modules::$stats_active        = false;
+		$data = $this->get_jetpack_route_as( 'author' )->get_data();
+		$this->assertFalse( $data['available'] );
+		$this->assertFalse( $data['restricted'], 'Nothing is withheld on a site where Jetpack Stats is off' );
+		$this->assertFalse( $this->get_jetpack_route_as( 'administrator' )->get_data()['available'] );
+		$this->assertNull( \Automattic\Jetpack\Stats\WPCOM_Stats::$last_args );
 	}
 
 	/**

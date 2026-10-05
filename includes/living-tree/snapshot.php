@@ -13,7 +13,9 @@
  * their trees must still be individuals.
  *
  * The response is cached in a transient (TTL 6h) and invalidated whenever
- * content changes (`save_post` / `deleted_post` / `comment_post`).
+ * content changes (`save_post` / `deleted_post` / `comment_post`). One
+ * field is settled per caller after the cache: `traffic`, when it comes
+ * from Jetpack Stats, see {@see openstation_living_tree_snapshot_for_caller()}.
  *
  * @package OpenStation
  */
@@ -76,19 +78,41 @@ add_action( 'rest_api_init', 'openstation_living_tree_register_routes' );
  * @return WP_REST_Response
  */
 function openstation_living_tree_rest_snapshot() {
-	$cached = get_transient( OPENSTATION_LIVING_TREE_CACHE_KEY );
-	if ( is_array( $cached ) ) {
-		return rest_ensure_response( $cached );
+	$snapshot = get_transient( OPENSTATION_LIVING_TREE_CACHE_KEY );
+	if ( ! is_array( $snapshot ) ) {
+		$snapshot = openstation_living_tree_build_snapshot();
+		set_transient(
+			OPENSTATION_LIVING_TREE_CACHE_KEY,
+			$snapshot,
+			OPENSTATION_LIVING_TREE_CACHE_TTL
+		);
 	}
 
-	$snapshot = openstation_living_tree_build_snapshot();
-	set_transient(
-		OPENSTATION_LIVING_TREE_CACHE_KEY,
-		$snapshot,
-		OPENSTATION_LIVING_TREE_CACHE_TTL
-	);
+	return rest_ensure_response( openstation_living_tree_snapshot_for_caller( $snapshot ) );
+}
 
-	return rest_ensure_response( $snapshot );
+/**
+ * The snapshot as the current caller may read it.
+ *
+ * On a site where Jetpack Stats is counting, `traffic` is the sum of
+ * the daily rows the site-views widget serves only behind Jetpack's
+ * stats gate, and a total over withheld rows gives away what the rows
+ * hide. A caller outside that gate gets the traffic ladder without
+ * Jetpack instead: the post-views meta, then the
+ * `openstation_living_tree_traffic` filter.
+ *
+ * Runs on the way out, after the cache, so the transient stays the
+ * same for every caller.
+ *
+ * @param array $snapshot The built or cached snapshot.
+ * @return array
+ */
+function openstation_living_tree_snapshot_for_caller( $snapshot ) {
+	if ( ! openstation_site_views_jetpack_stats_active() || openstation_site_views_user_can_read_jetpack() ) {
+		return $snapshot;
+	}
+	$snapshot['traffic'] = openstation_living_tree_traffic( false );
+	return $snapshot;
 }
 
 /**

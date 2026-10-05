@@ -5,8 +5,8 @@
  * Sparkline graph of page views over the last 7 days with
  * week-over-week delta. Tries Jetpack Stats first, falls back
  * to a _post_views_YYYY-MM-DD meta-key aggregator. Both sources are
- * read server side and answered in the same `{ source, has_data,
- * days }` shape.
+ * read server side, one route each, and both answer their rows as
+ * `days`: `{ date, views }`, oldest first.
  *
  * Refresh: every 10 minutes.
  * Requires: OpenStation 0.18.0+ (openstation_register_widget).
@@ -65,50 +65,62 @@ add_action( 'rest_api_init', 'openstation_register_site_views_rest_route' );
  * serve this caller, so the client falls through to the meta source
  * without a failed request on every site that has no Jetpack:
  *
- * - The caller does not pass Jetpack's stats gate. This mirrors the
- *   `permission_callback` of Jetpack's stats-app REST controller:
- *   `manage_options` or `view_stats` (the roles picked in Jetpack's
- *   Stats settings). Without it an Author would read the site-wide
- *   traffic Jetpack itself withholds from them.
+ * - The caller does not pass Jetpack's stats gate, see
+ *   {@see openstation_site_views_user_can_read_jetpack()}. That answer
+ *   also carries `restricted: true`, so the widget can say the numbers
+ *   exist and are withheld instead of asking for a plugin that is
+ *   already active.
  * - Jetpack is absent, the Stats module is off, or WordPress.com
  *   answered with an error (for example a site that is not connected).
  *
  * A successful answer is trusted even when every day is zero: Jetpack
  * is collecting, and a quiet week is a real answer.
  *
- * @return array{source:string,available:bool,has_data:bool,days:array}
+ * @return array{available:bool,restricted:bool,days:array}
  */
 function openstation_site_views_jetpack_callback() {
-	$days = null;
-	if ( current_user_can( 'manage_options' ) || current_user_can( 'view_stats' ) ) { // phpcs:ignore WordPress.WP.Capabilities.Unknown -- Jetpack's stats capability, mapped by its Stats package.
-		$days = openstation_site_views_jetpack_days();
-	}
+	$restricted = openstation_site_views_jetpack_stats_active() && ! openstation_site_views_user_can_read_jetpack();
+	$days       = $restricted ? null : openstation_site_views_jetpack_days();
 
 	return array(
-		'source'    => 'jetpack',
-		'available' => null !== $days,
-		'has_data'  => null !== $days && array_sum( array_column( $days, 'views' ) ) > 0,
-		'days'      => null === $days ? array() : $days,
+		'available'  => null !== $days,
+		'restricted' => $restricted,
+		'days'       => null === $days ? array() : $days,
 	);
 }
 
 /**
- * Whether Jetpack's Stats module is on.
+ * Whether the current user passes Jetpack's own stats gate.
+ *
+ * Mirrors the `permission_callback` of Jetpack's stats-app REST
+ * controller: `manage_options` or `view_stats` (the roles picked in
+ * Jetpack's Stats settings). Every surface that serves a number read
+ * from Jetpack Stats asks this, the Living Tree's traffic total
+ * included, so OpenStation never hands out traffic Jetpack itself
+ * withholds from the caller.
+ *
+ * @return bool
+ */
+function openstation_site_views_user_can_read_jetpack() {
+	return current_user_can( 'manage_options' ) || current_user_can( 'view_stats' ); // phpcs:ignore WordPress.WP.Capabilities.Unknown -- Jetpack's stats capability, mapped by its Stats package.
+}
+
+/**
+ * Whether Jetpack Stats is there to ask: its reader is loaded and the
+ * Stats module is on.
  *
  * `WPCOM_Stats` is autoloaded whenever Jetpack is active, module on or
  * off, so its presence alone says nothing about whether the site is
  * counting. With the module off the recent days read as zero, which
- * would hide a post-views plugin that is counting.
+ * would hide a post-views plugin that is counting. A site where the
+ * module state cannot be read is treated as off for the same reason.
  *
  * @return bool
  */
 function openstation_site_views_jetpack_stats_active() {
-	if ( class_exists( '\Automattic\Jetpack\Modules' ) ) {
-		return ( new \Automattic\Jetpack\Modules() )->is_active( 'stats' );
-	}
-	// Every Jetpack that ships WPCOM_Stats also ships Modules; only a
-	// bare WPCOM_Stats (a test double) gets here.
-	return true;
+	return class_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats' )
+		&& class_exists( '\Automattic\Jetpack\Modules' )
+		&& ( new \Automattic\Jetpack\Modules() )->is_active( 'stats' );
 }
 
 /**
@@ -116,13 +128,18 @@ function openstation_site_views_jetpack_stats_active() {
  *
  * WordPress.com answers `{ fields: [ 'period', 'views', ... ], data:
  * [ [ 'YYYY-MM-DD', 12, ... ], ... ] }`. Rows are positional per
- * `fields`, so both columns are located by name.
+ * `fields`, so both columns are located by name. An answer that names
+ * neither is not guessed at by position: another column read as views
+ * is a wrong number, and no answer lets the meta source speak instead.
+ *
+ * Not gated on the caller: every caller that serves these rows, or a
+ * total of them, asks {@see openstation_site_views_user_can_read_jetpack()}.
  *
  * @return array<int,array{date:string,views:int}>|null Rows oldest
  *         first, or null when Jetpack Stats cannot answer.
  */
 function openstation_site_views_jetpack_days() {
-	if ( ! class_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats' ) || ! openstation_site_views_jetpack_stats_active() ) {
+	if ( ! openstation_site_views_jetpack_stats_active() ) {
 		return null;
 	}
 	$wpcom_stats = new \Automattic\Jetpack\Stats\WPCOM_Stats();
@@ -153,8 +170,9 @@ function openstation_site_views_jetpack_days() {
 	$fields      = isset( $stats['fields'] ) && is_array( $stats['fields'] ) ? $stats['fields'] : array();
 	$date_index  = array_search( 'period', $fields, true );
 	$views_index = array_search( 'views', $fields, true );
-	$date_index  = false === $date_index ? 0 : (int) $date_index;
-	$views_index = false === $views_index ? 1 : (int) $views_index;
+	if ( false === $date_index || false === $views_index ) {
+		return null;
+	}
 
 	$days = array();
 	foreach ( $stats['data'] as $row ) {

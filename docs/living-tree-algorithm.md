@@ -398,6 +398,15 @@ stay addressable. Freshness comes from `delete_transient()` on
 `save_post` / `deleted_post` / `comment_post`, not from a
 content-signature key.
 
+One field is settled per caller, on the way out of that cache:
+`traffic`. On a site where Jetpack Stats is counting it is a total
+over numbers Jetpack shows only to the roles picked in its Stats
+settings, so a caller outside that gate (`manage_options` or
+`view_stats`) gets the ladder without Jetpack instead: the
+`_post_views_YYYY-MM-DD` sum, then the `openstation_living_tree_traffic`
+filter. Their tree sways to that value, which can be calmer than the
+one an administrator sees.
+
 ---
 
 ## Implementation notes (as shipped)

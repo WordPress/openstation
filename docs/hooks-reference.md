@@ -4528,7 +4528,9 @@ The growth-vigour hormone (0..1). The default is derived from core's own **Site 
 apply_filters( 'openstation_living_tree_traffic', int $views ): int
 ```
 
-The recent-traffic hormone (drives the wind — canopy sway amplitude and frequency). The default value follows the same source ladder as the site-views widget: **Jetpack Stats** (last 14 days of visits via `WPCOM_Stats::get_visits()`) when Jetpack is available, else the sum of the `_post_views_YYYY-MM-DD` post-meta convention over the same window, else `0` (a windless day). Analytics plugins with their own counters should hook this and return their real 14-day view count; the value is clamped non-negative.
+The recent-traffic hormone (drives the wind — canopy sway amplitude and frequency). The default value follows the same source ladder as the site-views widget: **Jetpack Stats** (last 14 days of visits via `WPCOM_Stats::get_visits()`) when Jetpack's Stats module is on and answers, else the sum of the `_post_views_YYYY-MM-DD` post-meta convention over the same window, else `0` (a windless day). Analytics plugins with their own counters should hook this and return their real 14-day view count; the value is clamped non-negative.
+
+The Jetpack number is served only to a caller who passes Jetpack's own stats gate (`manage_options` or `view_stats`, the roles picked in Jetpack's Stats settings). For anyone else on a site where Jetpack Stats is on, the snapshot route resolves the ladder from the post-meta sum down and runs this filter on that value, so the filter can fire more than once per snapshot and a hooked counter is served to every caller the route admits.
 
 ---
 
