@@ -181,6 +181,8 @@ wp.os.windowManager.focusLayout();  // one leading, the rest stacked in the marg
 
 **`focus`** leads with the **focused** window, not the first in the stack, so re-applying after clicking into the reference list does not demote the thing you just reached for. A workspace opening its launch list, Restore putting it back, or a reload reopening one of its windows leads with the list's first entry instead: the Publishing template's blank draft, with the Posts list in the margin. With one window it degrades to "maximize politely". Its split is `0.64`, filterable through `os.arrange.focus.split`; a return outside `[0.3, 0.9]` falls back rather than being clamped.
 
+**Every arrangement respects minimum widths**, and so does an edge snap. `columns`, each row of `tile()`, and the two halves of a snap split evenly only while every window's share covers its registered `minWidth`; a window that needs more takes it, and the others share what is left. `focus` moves its split the same way: the lead never goes below its own minimum, and leaves the stack the widest minimum among the windows in it. When the minimums cannot all fit, each window keeps its own anyway and stays inside the work area, the first against the left edge and the last against the right, overlapping its neighbours rather than going below its floor.
+
 ---
 
 ## JavaScript API — `wp.os.workspaces`
