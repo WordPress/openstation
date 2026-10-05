@@ -142,4 +142,32 @@ describe( 'session saver — flush()', () => {
 
 		await expect( save.flush() ).resolves.toBeUndefined();
 	} );
+
+	test( 'flush can retry after the request throws before returning a promise', async () => {
+		const save = createSessionSaver( fakeManager( [ 'a' ] ), fakeConfig() );
+		trackedFetchMock.mockImplementationOnce( () => {
+			throw new TypeError( 'request setup failed' );
+		} );
+		await save.flush();
+
+		let settled = false;
+		const retry = save.flush().then( () => {
+			settled = true;
+		} );
+		// Use a bounded microtask checkpoint: a stale activeSave spins in
+		// the await loop and would prevent a timer-based timeout firing.
+		for ( let i = 0; i < 20; i++ ) {
+			await Promise.resolve();
+		}
+		const settledWithoutAnotherSave = settled;
+		// Rescue a regressed implementation before asserting, so this test
+		// fails normally instead of starving the entire test worker.
+		if ( ! settled ) {
+			save();
+			vi.advanceTimersByTime( 1500 );
+			await retry;
+		}
+		expect( settledWithoutAnotherSave ).toBe( true );
+		expect( trackedFetchMock ).toHaveBeenCalledTimes( 2 );
+	} );
 } );
