@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculator</title>
+<link rel="stylesheet" href="/assets/css/variables.css">
+<link rel="stylesheet" href="/assets/css/app-runtime.css">
+<link rel="stylesheet" href="/apps/calculator/calculator.css">
+<style>
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #111; }
+#app { width: min(380px, 100vw); height: 520px; }
+</style>
+<body class="os-active">
+<div id="app" class="os-app"></div>
+<script type="module">
+import '/src/ui/components/os-button/os-button.ts';
+import { createSession } from '/src/app-runtime/session.ts';
+import app from '/apps/calculator/calculator.os.ts';
+import { initialState } from '/apps/calculator/parts/arithmetic.ts';
+window.requests = 0;
+const root = document.querySelector('#app');
+window.session = createSession({
+ root, windowId: app.id, client: app,
+ host: { fetch: async () => { window.requests++; throw new Error('Arithmetic must be local'); } },
+ config: { osApp: true, id: app.id, title: 'Calculator', endpoint: '/dispatch', state: initialState(), data: [], client: true, actions: [], titleBarButtons: [], windowActions: [], appearance: {}, extra: {} }
+});
+window.session.paintEagerly();
+root.querySelector('.os-calculator').focus();
+window.ready = true;
+</script>
+</body>
+</html>

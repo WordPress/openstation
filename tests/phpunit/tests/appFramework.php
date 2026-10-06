@@ -972,4 +972,20 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_apps_client_bundle( $manifest ) );
 		$this->assertSame( '', openstation_apps_client_base( array( 'client' => '', 'client_source' => '', 'file' => '' ) ), 'Built in code: nothing to look up.' );
 	}
+
+	public function test_calculator_registers_a_local_client_app_with_a_read_capability_gate() {
+		$registry = new Registry();
+		$registry->load_dir( dirname( __DIR__, 3 ) . '/apps/calculator' );
+		$app = $registry->get( 'openstation-calculator' );
+		$this->assertInstanceOf( App::class, $app );
+		$this->assertFalse( $app->allows( Os::standalone( array( 'auth' => new StandaloneAuth( 0 ) ) ) ) );
+		$this->assertFalse( $app->allows( Os::standalone( array( 'auth' => new StandaloneAuth( 1 ) ) ) ) );
+		$this->assertTrue( $app->allows( Os::standalone( array( 'auth' => new StandaloneAuth( 1, array( 'read' ) ) ) ) ) );
+		$manifest = $app->manifest();
+		$this->assertSame( 'dock', $manifest['placement'] );
+		$this->assertSame( 'any', $manifest['admin'] );
+		$this->assertSame( '0', $manifest['state']['display'] );
+		$this->assertSame( array(), $manifest['actions'] );
+		$this->assertStringEndsWith( 'calculator.os.ts', $manifest['client_source'] );
+	}
 }
