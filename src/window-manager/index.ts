@@ -65,8 +65,11 @@ import {
 import {
 	abortSnapIfPending,
 	commitSnapIfPending,
+	installSnapPartnerReflow,
+	snapPartnerMinWidth,
 	updateSnapZoneForDrag,
 } from './snap-zones';
+import { snapHalfRect } from './geometry';
 import {
 	beginGridSnap,
 	cancelGridSnap,
@@ -287,6 +290,7 @@ export class WindowManager {
 
 	/** Release the dock safe-area subscription when the manager is destroyed. */
 	private _unsubscribeWorkArea: () => void;
+	private _uninstallSnapPartnerReflow: () => void;
 
 	/**
 	 * Debounce timer that clears `--reflowing` from stateful windows
@@ -436,6 +440,7 @@ export class WindowManager {
 			this.desktopResizeObserver.observe( desktop );
 		}
 		this._unsubscribeWorkArea = subscribeWorkArea( () => this.reflowStatefulWindows() );
+		this._uninstallSnapPartnerReflow = installSnapPartnerReflow( this );
 		this.installIframeFocusBridge();
 	}
 
@@ -493,7 +498,8 @@ export class WindowManager {
 	/**
 	 * Re-apply state-driven bounds to any window whose geometry is
 	 * derived from the work area's dimensions: maximized (full
-	 * work area) and snapped-left / snapped-right (half work area). Also
+	 * work area) and snapped-left / snapped-right (half work area, moved
+	 * off the middle for minimum widths, see `snapHalfRect`). Also
 	 * clamps normal (floating) windows to the GRAB_MARGIN boundaries
 	 * so they are not stranded off-screen when the viewport shrinks.
 	 *
@@ -537,16 +543,17 @@ export class WindowManager {
 				w.state === 'snapped-right'
 			) {
 				w.element.classList.add( 'os-window--reflowing' );
-				const halfW = Math.floor( area.width / 2 );
-				const height = area.height;
-				const left =
-					w.state === 'snapped-left'
-						? area.x
-						: area.x + area.width - halfW;
-				w.element.style.left = `${ left }px`;
-				w.element.style.top = `${ area.y }px`;
-				w.element.style.width = `${ halfW }px`;
-				w.element.style.height = `${ height }px`;
+				const zone = w.state === 'snapped-left' ? 'left' : 'right';
+				const rect = snapHalfRect(
+					area,
+					zone,
+					w.config.minWidth || 0,
+					snapPartnerMinWidth( this, w, zone ),
+				);
+				w.element.style.left = `${ rect.x }px`;
+				w.element.style.top = `${ rect.y }px`;
+				w.element.style.width = `${ rect.width }px`;
+				w.element.style.height = `${ rect.height }px`;
 			} else if ( w.state === 'normal' ) {
 				const currentX = parseInt( w.element.style.left, 10 ) || 0;
 				const currentY = parseInt( w.element.style.top, 10 ) || 0;
@@ -963,7 +970,10 @@ export class WindowManager {
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
-			...( duplicate
+			// A floating twin, so it does not hide the primary — unless
+			// the user opens every window maximized, where it lands
+			// like any other.
+			...( duplicate && 'default' === ( config.openAs ?? this.openWindowsAs() )
 				? { initialState: 'normal', x: cascadeX, y: cascadeY }
 				: {} ),
 			...config,
@@ -1063,8 +1073,16 @@ export class WindowManager {
 			workArea.y + margin,
 			Math.min( cascadeY, workArea.y + workArea.height - resolvedHeight - margin ),
 		);
+		// "Open windows as" — only for a window nobody gave a state: a
+		// session restore stages its own, and a caller that passes
+		// `openAs` has decided how this window opens.
+		const openAs =
+			! hasExplicitState && ! staged && ! createOpts.prewarm
+				? config.openAs ?? this.openWindowsAs()
+				: 'default';
 		const resolvedState =
 			config.initialState ??
+			( 'default' !== openAs ? 'maximized' : undefined ) ??
 			( saved?.state === 'maximized' ? 'maximized' : undefined );
 
 		// Clamp saved x / y to the current desktop area so a window
@@ -1395,6 +1413,8 @@ export class WindowManager {
 			this.onToggleStartupRequested?.( w );
 		};
 		win.snapConfigProvider = () => this.getSnapConfig();
+		win.snapPartnerMinWidthProvider = ( zone ) =>
+			snapPartnerMinWidth( this, win, zone );
 		// Edge-snap + split-overview flow. `onDragMove` updates the
 		// snap preview on every pointermove; `onDragEnd` commits the
 		// snap (and returns true, suppressing the pointer layer's
@@ -1490,6 +1510,20 @@ export class WindowManager {
 			this._stack.forEach( ( w, i ) => w.setZIndex( BASE_Z_INDEX + i ) );
 		} else {
 			this.focus( win );
+		}
+
+		// Focused: one task in front of you — every other window on the
+		// desk steps back to the dock.
+		if ( 'focused' === openAs ) {
+			for ( const other of this._stack ) {
+				if (
+					other !== win &&
+					other.state !== 'minimized' &&
+					( other.config.desktopId || this._activeDesktopId ) === win.config.desktopId
+				) {
+					other.minimize();
+				}
+			}
 		}
 
 		const openedDetail = {
@@ -2543,6 +2577,13 @@ export class WindowManager {
 
 	// ---- Overview delegations ----
 
+	/**
+	 * How a window nobody gave a state lands — the user's "Open windows
+	 * as" setting. Bound by the shell to the effective settings;
+	 * `'default'` for a manager built without.
+	 */
+	public openWindowsAs: () => 'default' | 'maximized' | 'focused' = () => 'default';
+
 	public enterOverview(): void {
 		// A phone has no desk to zoom out of: its overview is the app
 		// switcher. Every route into Overview — the System tile, a
@@ -2574,6 +2615,7 @@ export class WindowManager {
 	 */
 	public destroy(): void {
 		this._unsubscribeWorkArea();
+		this._uninstallSnapPartnerReflow();
 		this.desktopResizeObserver?.disconnect();
 		if ( this._reflowRestoreTimer !== null ) {
 			window.clearTimeout( this._reflowRestoreTimer );

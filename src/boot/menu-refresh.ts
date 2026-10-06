@@ -97,7 +97,7 @@ export interface MenuRefreshDeps {
 	applyMultisite?: ( block: MultisiteConfig | null ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/** See `MenuRefreshDeps.refreshRootPlacements` in `../menu-refresh-apply`. */
-	refreshRootPlacements?: () => void;
+	refreshRootPlacements?: ( addedIconIds: string[] ) => void;
 	/** See `MenuRefreshDeps.syncShortcuts` in `../menu-refresh-apply`. */
 	syncShortcuts?: () => void;
 	/** See `MenuRefreshDeps.syncWindowSubmenus` in `../menu-refresh-apply`. */

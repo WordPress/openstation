@@ -146,9 +146,11 @@ export interface MenuRefreshDeps {
 	 * is only fully visible after a round-trip — the nav/shortcut
 	 * sync alone deliberately never mints synthetics for icon-backed
 	 * items. Called only when the payload's icon id-set actually
-	 * differs from the previous one. Optional, like its siblings.
+	 * differs from the previous one, with the ids that are new in
+	 * this payload so the caller can seat their freshly minted
+	 * placements on the visible desktop. Optional, like its siblings.
 	 */
-	refreshRootPlacements?: () => void;
+	refreshRootPlacements?: ( addedIconIds: string[] ) => void;
 	/**
 	 * Re-run the files-layer shortcut reconciliation
 	 * (`syncShortcutsWithVisibility`) against the freshly-applied dock
@@ -276,14 +278,15 @@ export function createApplyPayload(
 	// its icon to the next probe until a full reload.
 	const harvestedIcons = new Map< string, string >();
 
+	/** An icon list's ids, in list order. */
+	const iconIds = (
+		list: ReadonlyArray< { id?: unknown } > | undefined,
+	): string[] => ( list ?? [] ).map( ( icon ) => String( icon?.id ?? '' ) );
+
 	/** Order-insensitive fingerprint of an icon list's ids. */
 	const iconIdSet = (
 		list: ReadonlyArray< { id?: unknown } > | undefined,
-	): string =>
-		( list ?? [] )
-			.map( ( icon ) => String( icon?.id ?? '' ) )
-			.sort()
-			.join( '\n' );
+	): string => iconIds( list ).sort().join( '\n' );
 
 	return function applyPayload( payload: MenuRefreshPayload ): void {
 		// Entries carry dependency handles; put the payloads back first.
@@ -571,7 +574,14 @@ export function createApplyPayload(
 				) !==
 				iconIdSet( desktopIcons as ReadonlyArray< { id?: unknown } > )
 			) {
-				refreshRootPlacements?.();
+				const prevIds = new Set(
+					iconIds( prevDesktopIcons as ReadonlyArray< { id?: unknown } > ),
+				);
+				refreshRootPlacements?.(
+					iconIds( desktopIcons as ReadonlyArray< { id?: unknown } > ).filter(
+						( id ) => id !== '' && ! prevIds.has( id ),
+					),
+				);
 			}
 			config.desktopIcons =
 				desktopIcons as DesktopConfig[ 'desktopIcons' ];

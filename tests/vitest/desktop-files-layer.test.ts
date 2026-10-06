@@ -394,4 +394,42 @@ describe( 'FilesLayer', () => {
 		).toBe( 'x' );
 		handle.dispose();
 	} );
+
+	test( 'an icon a live refresh brings in takes the first free cell of the visible desktop', async () => {
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		const fetchSpy = setupRestStub();
+		const shortcut = ( id: number, ref: string, x: number, y: number ) =>
+			placement( id, { x, y, file: { type: 'shortcut', ref } } );
+		// (0,1) is a hole: the server counted a row there the user
+		// cannot see, so it minted the new icon at the top of the next
+		// column instead.
+		store.setFolderPlacements( 0, [
+			shortcut( 1, 'a', 16, 16 ),
+			shortcut( 2, 'b', 16, 256 ),
+			shortcut( 3, 'new-app', 124, 16 ),
+		] );
+		const host = document.createElement( 'div' );
+		Object.defineProperty( host, 'clientWidth', { value: 1280 } );
+		Object.defineProperty( host, 'clientHeight', { value: 716 } );
+		document.body.appendChild( host );
+
+		layer.settleArrivedShortcuts( host, [ 'new-app' ] );
+
+		const bucket = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
+		const moved = bucket.find( ( p ) => p.id === 3 );
+		expect( moved ).toMatchObject( { x: 16, y: 136 } );
+		// Persisted, so the next page load paints the same desktop; the
+		// icons that were already there are left where they are.
+		const patches = fetchSpy.mock.calls.filter(
+			( call ) => ( call[ 1 ] as RequestInit | undefined )?.method === 'PATCH',
+		);
+		expect( patches ).toHaveLength( 1 );
+		expect( patches[ 0 ][ 0 ] ).toContain( '/placements/3' );
+		expect( JSON.parse( String( ( patches[ 0 ][ 1 ] as RequestInit ).body ) ) ).toEqual( {
+			x: 16,
+			y: 136,
+		} );
+	} );
 } );

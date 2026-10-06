@@ -188,6 +188,37 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		expect( win._savedGeometry ).toEqual( { x: 300, y: 200, width: 700, height: 500 } );
 	} );
 
+	test( 'a half widens to a minimum width, and the other side takes the remainder', async () => {
+		// The bug: a 1000px-minimum window snapped to 800px whatever it
+		// declared. The preview has to show what the commit will do.
+		const wide = await manager.open( { ...openConfig( 'wide' ), minWidth: 1000 } );
+		const narrow = await manager.open( openConfig( 'narrow' ) );
+		const geometry = ( w: typeof wide ) => [ w.element.style.left, w.element.style.width ];
+
+		narrow.snapTo( 'right' );
+		expect( geometry( narrow ) ).toEqual( [ '800px', '800px' ] );
+
+		expect( snapZoneBounds( manager, 'left', wide ) ).toEqual( { x: 0, y: 0, width: 1000, height: 900 } );
+		wide.snapTo( 'left' );
+		expect( geometry( wide ) ).toEqual( [ '0px', '1000px' ] );
+		// Already snapped across: it makes room rather than hiding under.
+		expect( geometry( narrow ) ).toEqual( [ '1000px', '600px' ] );
+
+		// The wide one leaves, and the split goes back to the middle.
+		wide.unsnap();
+		expect( geometry( narrow ) ).toEqual( [ '800px', '800px' ] );
+	} );
+
+	test( 'two halves whose minimums cannot both fit each keep theirs and overlap', async () => {
+		const a = await manager.open( { ...openConfig( 'a' ), minWidth: 1000 } );
+		const b = await manager.open( { ...openConfig( 'b' ), minWidth: 1000 } );
+		a.snapTo( 'left' );
+		b.snapTo( 'right' );
+		// Each against its own edge, inside the work area.
+		expect( [ a.element.style.left, a.element.style.width ] ).toEqual( [ '0px', '1000px' ] );
+		expect( [ b.element.style.left, b.element.style.width ] ).toEqual( [ '600px', '1000px' ] );
+	} );
+
 	test( 'commitSnapIfPending returns false when no zone is armed', async () => {
 		const win = await manager.open( openConfig( 'a' ) );
 		expect( commitSnapIfPending( manager, win ) ).toBe( false );

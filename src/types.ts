@@ -82,6 +82,13 @@ export interface Desktop {
  * Configuration for a desktop window.
  */
 export interface WindowConfig {
+	/**
+	 * How this window lands, overriding the user's "Open windows as":
+	 * `'default'` (floating), `'maximized'`, or `'focused'` (maximized,
+	 * the desk's other windows minimized). Ignored when `initialState`
+	 * is given.
+	 */
+	openAs?: 'default' | 'maximized' | 'focused';
 	/** Unique window identifier, derived from the admin page slug. */
 	id: string;
 	/**

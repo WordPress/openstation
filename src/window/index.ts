@@ -19,6 +19,7 @@ import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
 import { isMobileStamped } from '../mode/stamp';
 import { workAreaRectOf } from '../work-area';
+import { snapHalfRect } from '../window-manager/geometry';
 import { __, _x, sprintf } from './../i18n';
 import { attachTooltip } from '../ui/components/os-tooltip/os-tooltip';
 import {
@@ -639,6 +640,16 @@ export class Window {
 	 */
 	public snapConfigProvider:
 		| ( () => { enabled: boolean; cellWidth: number; cellHeight: number } )
+		| null = null;
+
+	/**
+	 * Resolver for the minimum width the other half of a split needs:
+	 * the widest `minWidth` among the windows snapped to the side
+	 * opposite `zone`. Wired by the window-manager; without it a snap
+	 * assumes the other side is empty.
+	 */
+	public snapPartnerMinWidthProvider:
+		| ( ( zone: 'left' | 'right' ) => number )
 		| null = null;
 
 	/**
@@ -1891,8 +1902,15 @@ export class Window {
 		if ( ! parent ) {
 			return false;
 		}
-		const area = workAreaRectOf( parent );
-		const halfW = Math.floor( area.width / 2 );
+		// Half the work area, moved off the middle for minimum widths:
+		// this window never goes below its own, and leaves the window
+		// snapped across from it its own.
+		const rect = snapHalfRect(
+			workAreaRectOf( parent ),
+			zone,
+			this.config.minWidth || 0,
+			this.snapPartnerMinWidthProvider?.( zone ) ?? 0,
+		);
 		this.element.classList.remove(
 			'os-window--maximized',
 			'os-window--fullscreen',
@@ -1900,10 +1918,10 @@ export class Window {
 			'os-window--snapped-right',
 		);
 		this.element.classList.add( `os-window--snapped-${ zone }` );
-		this.element.style.left = `${ zone === 'left' ? area.x : area.x + area.width - halfW }px`;
-		this.element.style.top = `${ area.y }px`;
-		this.element.style.width = `${ halfW }px`;
-		this.element.style.height = `${ area.height }px`;
+		this.element.style.left = `${ rect.x }px`;
+		this.element.style.top = `${ rect.y }px`;
+		this.element.style.width = `${ rect.width }px`;
+		this.element.style.height = `${ rect.height }px`;
 		return true;
 	}
 

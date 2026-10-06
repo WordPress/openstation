@@ -372,6 +372,9 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 				],
 			} );
 			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 1 );
+			// The new ids ride along, so the caller can seat the rows
+			// the server just minted on the visible desktop.
+			expect( refreshRootPlacements ).toHaveBeenLastCalledWith( [ 'jorvy' ] );
 
 			// Same id-set again (payloads also arrive on ordinary
 			// plugin-page navigations) — no wasted REST round-trip.
@@ -387,6 +390,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			// tile into its missing state without an F5.
 			apply( { dockItems: [ ...MIN_DOCK ], desktopIcons: [] } );
 			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 2 );
+			expect( refreshRootPlacements ).toHaveBeenLastCalledWith( [] );
 			expect( config.desktopIcons ).toEqual( [] );
 		} );
 
