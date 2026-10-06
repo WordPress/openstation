@@ -20,6 +20,31 @@ use OpenStation\App\Standalone\Auth as StandaloneAuth;
 
 class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 
+	public function test_calculator_is_a_native_app_with_a_gated_launcher_and_local_state() {
+		$app = openstation_apps_registry()->get( 'openstation-calculator' );
+		$this->assertNotNull( $app );
+		$manifest = $app->manifest();
+		$this->assertSame( 'dock', $manifest['placement'] );
+		$this->assertNotNull( $manifest['desktop_icon'] );
+		$this->assertStringEndsWith( 'calculator.os.ts', $manifest['client_source'] );
+		$this->assertFileExists( $manifest['style'] );
+		$this->assertTrue( $manifest['prefetch'] );
+
+		wp_set_current_user( self::$editor_id );
+		$mounted = openstation_apps_runtime()->dispatch(
+			'openstation-calculator',
+			array( 'action' => 'mount', 'state' => array( 'display' => '42', 'undeclared' => 'ignored' ) ),
+			openstation_apps_os()
+		);
+		$this->assertTrue( $mounted['ok'] );
+		$this->assertSame( '42', $mounted['state']['display'] );
+		$this->assertArrayNotHasKey( 'undeclared', $mounted['state'] );
+		$this->assertSame( array(), $mounted['data'] );
+
+		wp_set_current_user( 0 );
+		$this->assertFalse( $app->allows( openstation_apps_os() ) );
+	}
+
 	protected static $admin_id;
 	protected static $editor_id;
 

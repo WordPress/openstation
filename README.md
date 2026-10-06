@@ -33,6 +33,9 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 - **Station Home**
   Native, role-aware replacement for the ordinary WordPress Dashboard inside OpenStation: recent personal work, four live site instruments, an actionable attention queue, and quick paths to create, upload, view the site, open WP Explorer, or deliberately return to the Classic Dashboard.
 
+- **Calculator**
+  A native app with large buttons for basic arithmetic, decimals, percentages, sign changes, and repeated equals. Open it from the dock or its desktop shortcut; calculations run immediately in the browser. See [Calculator](docs/calculator.md) for keyboard controls.
+
 - **Per-user opt-in**
   Admin-bar toggle sets the `desktop_mode_mode` user meta. A dedicated `/openstation/` portal URL auto-enables OpenStation for first-time visitors (gated by `openstation_portal_auto_enable`) and the `admin_init` redirect sends opted-in users from `/wp-admin/` to the portal (`openstation_admin_redirect_to_portal`).
 

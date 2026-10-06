@@ -1,0 +1,84 @@
+.os-calculator {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	gap: 12px;
+	box-sizing: border-box;
+	min-block-size: 0;
+	padding: 16px;
+	overflow: auto;
+	container-type: inline-size;
+	color: var( --os-ui-fg, #1d2327 );
+	background: var( --os-ui-surface, #fff );
+}
+
+.os-calculator__screen {
+	display: flex;
+	flex-direction: column;
+	justify-content: end;
+	gap: 8px;
+	flex-shrink: 0;
+	box-sizing: border-box;
+	min-block-size: 96px;
+	padding-block: 8px;
+}
+
+.os-calculator__expression {
+	min-block-size: 20px;
+	overflow-wrap: anywhere;
+	text-align: end;
+	font-size: 14px;
+	font-variant-numeric: tabular-nums;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-calculator__display {
+	--os-ui-display-size: clamp( 22px, 8cqi, 48px );
+	padding: 0;
+}
+
+.os-calculator__keypad {
+	flex: 1;
+	min-block-size: 320px;
+}
+
+.os-calculator__key {
+	font-size: 24px;
+	font-variant-numeric: tabular-nums;
+}
+
+.os-calculator__key::part(button) {
+	min-block-size: 56px;
+	block-size: 100%;
+}
+
+.os-calculator__key--utility {
+	font-size: 20px;
+}
+
+.os-calculator__key--operator::part(button) {
+	color: var( --os-ui-accent, #2271b1 );
+}
+
+.os-calculator__key--operator[aria-pressed="true"]::part(button) {
+	outline: 2px solid var( --os-ui-accent, #2271b1 );
+	outline-offset: -3px;
+}
+
+.os-calculator__hint {
+	margin: 0;
+	text-align: center;
+	font-size: 11px;
+	line-height: 1.5;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+@container (max-width: 280px) {
+	.os-calculator__screen {
+		min-block-size: 80px;
+	}
+
+	.os-calculator__keypad {
+		min-block-size: 320px;
+	}
+}

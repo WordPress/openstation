@@ -55,6 +55,8 @@ The pattern is the one Phoenix LiveView, Laravel Livewire and Hotwire proved: th
 
 ## Anatomy of an app
 
+[Calculator](./calculator.md) is a compact client-view example in `apps/calculator/`: a capability-gated native window with a prefetched empty data payload, schema-bound calculation state, local keypad actions, and keyboard handling scoped to its mount root. It uses the existing component kit and adds no server actions.
+
 Everything hangs off `OpenStation\App::define( $id )`. Every method returns `$this`.
 
 ### Identity

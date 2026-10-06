@@ -53,6 +53,8 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 
 - **[Presence storage migration](./migration-presence-storage.md)** — atomic per-user storage, deployment bridge, failure recovery and rollback.
 
+40. **[Calculator](./calculator.md)** — *Experimental.* A basic native app with a large keypad, local arithmetic, keyboard controls, and an App Framework implementation using the existing component kit.
+
 ## Conventions used in this docs folder
 
 - **Status labels** — every hook, event, or API surface carries one of:
