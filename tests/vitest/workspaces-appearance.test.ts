@@ -153,26 +153,26 @@ describe( 'workspace appearance — a view, never a write', () => {
 	} );
 
 	test( 'update(): an overridden setting edited on the desk goes to the workspace', () => {
-		settings.state.openWindowsAs = 'default';
+		settings.state.confirmCloseAllWindows = false;
 		const taken: unknown[] = [];
 		settings.onWorkspaceEdit = ( patch ) => {
 			taken.push( patch );
 			return true;
 		};
-		settings.setWorkspaceAppearance( { openWindowsAs: 'default', wallpaper: 'mono' } );
+		settings.setWorkspaceAppearance( { confirmCloseAllWindows: false, wallpaper: 'mono' } );
 
-		settings.update( { openWindowsAs: 'maximized' } );
+		settings.update( { confirmCloseAllWindows: true } );
 
-		expect( taken ).toEqual( [ { openWindowsAs: 'maximized' } ] );
-		expect( settings.state.openWindowsAs ).toBe( 'maximized' );
+		expect( taken ).toEqual( [ { confirmCloseAllWindows: true } ] );
+		expect( settings.state.confirmCloseAllWindows ).toBe( true );
 		// Not the user's own: leaving the desk hands theirs back.
-		expect( saved?.openWindowsAs ).toBe( 'default' );
+		expect( saved?.confirmCloseAllWindows ).toBe( false );
 		settings.setWorkspaceAppearance( null );
-		expect( settings.state.openWindowsAs ).toBe( 'default' );
+		expect( settings.state.confirmCloseAllWindows ).toBe( false );
 	} );
 
 	test( 'update(): EVERY edit on a workspace desk is the workspace’s, even one it never named', () => {
-		settings.state.openWindowsAs = 'default';
+		settings.state.confirmCloseAllWindows = false;
 		const taken: unknown[] = [];
 		settings.onWorkspaceEdit = ( patch ) => {
 			taken.push( patch );
@@ -180,13 +180,13 @@ describe( 'workspace appearance — a view, never a write', () => {
 		};
 		settings.setWorkspaceAppearance( { wallpaper: 'mono' } );
 
-		settings.update( { openWindowsAs: 'maximized' } );
+		settings.update( { confirmCloseAllWindows: true } );
 
-		expect( taken ).toEqual( [ { openWindowsAs: 'maximized' } ] );
-		expect( settings.state.openWindowsAs ).toBe( 'maximized' );
-		expect( saved?.openWindowsAs ).toBe( 'default' );
+		expect( taken ).toEqual( [ { confirmCloseAllWindows: true } ] );
+		expect( settings.state.confirmCloseAllWindows ).toBe( true );
+		expect( saved?.confirmCloseAllWindows ).toBe( false );
 		settings.setWorkspaceAppearance( null );
-		expect( settings.state.openWindowsAs ).toBe( 'default' );
+		expect( settings.state.confirmCloseAllWindows ).toBe( false );
 	} );
 
 	test( 'save(): an edit made in place on a workspace desk goes to the workspace', () => {
@@ -206,17 +206,17 @@ describe( 'workspace appearance — a view, never a write', () => {
 	} );
 
 	test( 'update(): on the main desk (no workspace to write), the edit is the user’s and survives a switch', () => {
-		settings.state.openWindowsAs = 'default';
+		settings.state.confirmCloseAllWindows = false;
 		settings.onWorkspaceEdit = () => false;
 		settings.setWorkspaceAppearance( { wallpaper: 'mono' } );
 
-		settings.update( { openWindowsAs: 'maximized' } );
+		settings.update( { confirmCloseAllWindows: true } );
 
-		expect( saved?.openWindowsAs ).toBe( 'maximized' );
+		expect( saved?.confirmCloseAllWindows ).toBe( true );
 		settings.setWorkspaceAppearance( null );
-		expect( settings.state.openWindowsAs ).toBe( 'maximized' );
+		expect( settings.state.confirmCloseAllWindows ).toBe( true );
 		settings.setWorkspaceAppearance( { wallpaper: 'aurora' } );
-		expect( settings.state.openWindowsAs ).toBe( 'maximized' );
+		expect( settings.state.confirmCloseAllWindows ).toBe( true );
 	} );
 
 	test( 'update(): with nowhere to write (a pinned desk), the edit is the user’s', () => {

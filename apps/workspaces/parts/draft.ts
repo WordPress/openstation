@@ -40,7 +40,6 @@ export interface WorkspaceDraft {
 	/** Proposed notes; null until proposed (an empty list is "no notes"). */
 	notes: WorkspaceNote[] | null;
 	hideSettings: boolean;
-	openAs: string;
 	accepted: Record< DraftStep, boolean >;
 }
 
@@ -56,7 +55,6 @@ export function newDraft( init: Partial< WorkspaceDraft > = {} ): WorkspaceDraft
 		widgets: null,
 		notes: null,
 		hideSettings: false,
-		openAs: 'default',
 		...init,
 		accepted: { layout: false, apps: false, widgets: false, notes: false },
 	};
@@ -187,9 +185,6 @@ export function toggleWidget( draft: WorkspaceDraft, id: string ): void {
  */
 export function draftProfile( draft: WorkspaceDraft, base?: WorkspaceProfile | null ): WorkspaceProfile {
 	const appearance = { ...( base?.appearance ?? {} ) } as Record< string, unknown >;
-	if ( 'default' !== draft.openAs || 'openWindowsAs' in appearance ) {
-		appearance.openWindowsAs = draft.openAs;
-	}
 	return {
 		preset: base?.preset ?? '',
 		icon: draft.icon,

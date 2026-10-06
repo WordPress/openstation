@@ -40,7 +40,6 @@ import {
 	OS_SETTINGS_WINDOW_ID,
 	STORAGE_KEY,
 	WINDOW_RADII,
-	OPEN_WINDOWS_AS,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
@@ -188,7 +187,6 @@ const SANITIZERS: Sanitizers = {
 	customAccent: matching( /^#[0-9a-fA-F]{6}$/ ),
 	dockSize: oneOf( DOCK_SIZES ),
 	windowRadius: oneOf( WINDOW_RADII ),
-	openWindowsAs: oneOf( OPEN_WINDOWS_AS ),
 	adminBarMode: oneOf( ADMIN_BAR_MODES ),
 	desktopLayout: oneOf( DESKTOP_LAYOUTS ),
 	dockPlacement: oneOf( DOCK_PLACEMENTS ),

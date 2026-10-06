@@ -3008,10 +3008,6 @@ function init(): void {
 	const settingsHiddenHere = (): boolean =>
 		isWorkspacePinned() && !! getActiveWorkspaceProfile( manager )?.restricted;
 
-	// "Open windows as", read from the EFFECTIVE settings — so a
-	// workspace that overrides it decides for the windows opened on it.
-	manager.openWindowsAs = () => osSettings.state.openWindowsAs ?? 'default';
-
 	// On a workspace's desk, every Preferences edit is an edit to the
 	// workspace — each one carries ALL of the OS settings, and the
 	// desk is what the user is looking at. Never for a pinned user:

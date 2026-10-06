@@ -389,9 +389,6 @@ function openLaunchUrl(
 		selfLabel: menu?.selfLabel,
 		multi: !! menu?.multi,
 		desktopId,
-		// The desk places its own windows; "Open windows as" is for the
-		// windows a user opens.
-		openAs: 'default',
 		// A window the desk puts on cells or fractions opens floating —
 		// never at the size it was last remembered at, which may be
 		// maximized and would swallow the place the desk gave it.

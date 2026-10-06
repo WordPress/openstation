@@ -335,7 +335,7 @@ describe( 'visibility', () => {
 			...blankWorkspaceProfile(),
 			appearance: {
 				wallpaper: 'mono',
-				openWindowsAs: 'focused',
+				confirmCloseAllWindows: true,
 				navPlacement: { 'edit-php': 'hidden' },
 				heartbeatRate: 30,
 				// Shell-owned: writing it would re-arm a theme's seed.
@@ -346,7 +346,7 @@ describe( 'visibility', () => {
 		};
 		expect( workspaceAppearance( profile ) ).toEqual( {
 			wallpaper: 'mono',
-			openWindowsAs: 'focused',
+			confirmCloseAllWindows: true,
 			navPlacement: { 'edit-php': 'hidden' },
 			heartbeatRate: 30,
 		} );

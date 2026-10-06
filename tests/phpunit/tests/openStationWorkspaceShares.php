@@ -329,7 +329,7 @@ class Tests_OpenStation_WorkspaceShares extends WP_UnitTestCase {
 			array(
 				'appearance' => array(
 					'wallpaper'     => 'mono',
-					'openWindowsAs' => 'focused',
+					'confirmCloseAllWindows' => false,
 					'dockPlacement' => 'left',
 				),
 			)
@@ -338,32 +338,32 @@ class Tests_OpenStation_WorkspaceShares extends WP_UnitTestCase {
 
 		$settings = openstation_get_os_settings( self::$editor_id );
 		$this->assertSame( 'mono', $settings['wallpaper'] );
-		$this->assertSame( 'focused', $settings['openWindowsAs'] );
+		$this->assertSame( false, $settings['confirmCloseAllWindows'] );
 		$this->assertSame( 'left', $settings['dockPlacement'] );
 
-		// The wallpaper is theirs to change; the window rule is not.
+		// The wallpaper is theirs to change; the close confirmation is not.
 		openstation_save_os_settings(
 			self::$editor_id,
 			array_merge(
 				$settings,
 				array(
 					'wallpaper'     => 'aurora',
-					'openWindowsAs' => 'default',
+					'confirmCloseAllWindows' => true,
 				)
 			)
 		);
 		$after = openstation_get_os_settings( self::$editor_id );
 		$this->assertSame( 'aurora', $after['wallpaper'] );
-		$this->assertSame( 'focused', $after['openWindowsAs'] );
+		$this->assertSame( false, $after['confirmCloseAllWindows'] );
 
 		// The desk paints only what the workspace holds.
 		$desk = openstation_get_session( self::$editor_id, false )['desktops'][0];
 		$this->assertArrayNotHasKey( 'wallpaper', $desk['profile']['appearance'] );
-		$this->assertSame( 'focused', $desk['profile']['appearance']['openWindowsAs'] );
+		$this->assertSame( false, $desk['profile']['appearance']['confirmCloseAllWindows'] );
 
 		// Released: the held rule lets go, their own value comes back.
 		openstation_workspace_pin_release( self::$editor_id );
-		$this->assertSame( 'default', openstation_get_os_settings( self::$editor_id )['openWindowsAs'] );
+		$this->assertSame( true, openstation_get_os_settings( self::$editor_id )['confirmCloseAllWindows'] );
 	}
 
 	/**
@@ -375,15 +375,15 @@ class Tests_OpenStation_WorkspaceShares extends WP_UnitTestCase {
 	 */
 	public function test_a_share_carries_every_setting_even_from_a_sparse_workspace() {
 		$own = openstation_get_os_settings( self::$editor_id );
-		openstation_save_os_settings( self::$editor_id, array_merge( $own, array( 'openWindowsAs' => 'maximized' ) ) );
+		openstation_save_os_settings( self::$editor_id, array_merge( $own, array( 'confirmCloseAllWindows' => false ) ) );
 
 		$share = $this->share( array( 'appearance' => array( 'wallpaper' => 'mono' ) ) );
-		$this->assertSame( 'default', $share['profile']['appearance']['openWindowsAs'] );
+		$this->assertSame( true, $share['profile']['appearance']['confirmCloseAllWindows'] );
 		$this->assertSame( 'mono', $share['profile']['appearance']['wallpaper'] );
 		$this->assertArrayNotHasKey( 'appliedThemeRecommendations', $share['profile']['appearance'] );
 
 		openstation_workspace_share_claim( $share['token'], self::$editor_id );
-		$this->assertSame( 'default', openstation_get_os_settings( self::$editor_id )['openWindowsAs'] );
+		$this->assertSame( true, openstation_get_os_settings( self::$editor_id )['confirmCloseAllWindows'] );
 	}
 
 	/**

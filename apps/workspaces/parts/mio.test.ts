@@ -201,9 +201,8 @@ describe( 'MIO workspace actions', () => {
 			windows: [],
 			layout: 'free' as const,
 		};
-		const next = applyFields( base, { add_apps: [ 'menu-plugins' ], open_windows_as: 'focused' } );
+		const next = applyFields( base, { add_apps: [ 'menu-plugins' ] } );
 		expect( next.icon ).toBe( 'dashicons-cart' );
 		expect( next.apps.ids ).toEqual( [ 'menu-posts', 'menu-plugins' ] );
-		expect( next.appearance ).toEqual( { openWindowsAs: 'focused' } );
 	} );
 } );

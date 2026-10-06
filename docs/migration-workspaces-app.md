@@ -55,7 +55,7 @@ seeded and theirs to change; the rest are held
 ## New
 
 Building and editing workspaces by asking MIO, in the Workspaces window (window-scoped actions — not WordPress abilities). 
-Every workspace carries ALL of the OS settings, and a change made in Preferences on a workspace's desk is saved into that workspace (`OsSettings.onWorkspaceEdit`, `userSettings()`); the main desk keeps the user's own. The `openWindowsAs` setting (Preferences → Windows → Open windows as: Default, Maximized, Focused) and `WindowConfig.openAs`; the `openstation_os_settings` and `openstation_os_settings_before_save` filters; `wp.os.workspaces.saveAs()`, `restoreMain()` (also `/restore-main-desk` and Restore under the main desk's tile), `manage()`, `rename()`, `remove()`,
+Every workspace carries ALL of the OS settings, and a change made in Preferences on a workspace's desk is saved into that workspace (`OsSettings.onWorkspaceEdit`, `userSettings()`); the main desk keeps the user's own. The `openstation_os_settings` and `openstation_os_settings_before_save` filters; `wp.os.workspaces.saveAs()`, `restoreMain()` (also `/restore-main-desk` and Restore under the main desk's tile), `manage()`, `rename()`, `remove()`,
 `isPinned()`; the profile's optional `restricted` flag ("Hide
 settings"); the profile's optional `notes` (read-only, dismissible
 desk notes, regular or XL — the edit bar's **+ Note** / **+ XL note**

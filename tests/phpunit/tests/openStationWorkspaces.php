@@ -227,7 +227,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 				'appearance' => array(
 					'wallpaper'                   => 'mono',
 					'dockBehavior'                => 'dynamic',
-					'openWindowsAs'               => 'focused',
+					'confirmCloseAllWindows'               => true,
 					'navPlacement'                => array( 'edit-php' => 'hidden' ),
 					'developerModeEnabled'        => true,
 					// Invalid values fall back the way a saved setting's do.
@@ -240,7 +240,7 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$look = $profile['appearance'];
 
 		$this->assertSame( 'mono', $look['wallpaper'] );
-		$this->assertSame( 'focused', $look['openWindowsAs'] );
+		$this->assertSame( true, $look['confirmCloseAllWindows'] );
 		$this->assertTrue( $look['developerModeEnabled'] );
 		$this->assertArrayHasKey( 'navPlacement', $look );
 		$this->assertSame( openstation_default_os_settings()['windowRadius'], $look['windowRadius'] );

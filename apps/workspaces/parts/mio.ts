@@ -77,8 +77,6 @@ const ICONS = [
 	'dashicons-sos',
 ];
 
-const OPEN_AS = [ 'default', 'maximized', 'focused' ];
-
 /** What the prompt and the buttons need from the window. */
 export interface WorkspacesMioHost {
 	host: HTMLElement;
@@ -220,7 +218,6 @@ const FIELDS = {
 	},
 	windows: { type: 'array', maxItems: 12, items: WINDOW_SCHEMA },
 	hide_settings: { type: 'boolean', description: 'Leave out Settings, Preferences, plugins, themes, tools, users and updates.' },
-	open_windows_as: { type: 'string', enum: OPEN_AS },
 };
 
 function schema( properties: Record< string, unknown >, required: string[] = [] ): Record< string, unknown > {
@@ -255,9 +252,6 @@ export function validFields( args: Record< string, unknown >, apps: readonly Mio
 		}
 	}
 	if ( 'hide_settings' in args && 'boolean' !== typeof args.hide_settings ) {
-		return false;
-	}
-	if ( 'open_windows_as' in args && ! OPEN_AS.includes( args.open_windows_as as string ) ) {
 		return false;
 	}
 	if ( 'windows' in args ) {
@@ -346,9 +340,6 @@ export function applyFields( base: WorkspaceProfile, args: Record< string, unkno
 	if ( 'boolean' === typeof args.hide_settings ) {
 		next.restricted = args.hide_settings;
 	}
-	if ( 'string' === typeof args.open_windows_as ) {
-		next.appearance = { ...( next.appearance ?? {} ), openWindowsAs: args.open_windows_as };
-	}
 	return next;
 }
 
@@ -412,7 +403,6 @@ export function describeDraft( draft: WorkspaceDraft | null ): Record< string, u
 			widgets: draft.widgets,
 			notes: draft.notes?.map( ( n ) => ( { text: n.text, size: n.size } ) ) ?? null,
 			hide_settings: draft.hideSettings,
-			open_windows_as: draft.openAs,
 		},
 	};
 }
@@ -530,12 +520,11 @@ export function workspacesMioAbilities(
 					color: FIELDS.color,
 					windows: { type: 'array', minItems: 1, maxItems: 12, items: { ...WINDOW_SCHEMA, required: [ 'app' ] } },
 					hide_settings: FIELDS.hide_settings,
-					open_windows_as: FIELDS.open_windows_as,
 				},
 				[ 'windows' ],
 			),
 			validate: ( args ) =>
-				onlyKeys( args, [ 'name', 'desktop_id', 'icon', 'color', 'windows', 'hide_settings', 'open_windows_as' ] ) &&
+				onlyKeys( args, [ 'name', 'desktop_id', 'icon', 'color', 'windows', 'hide_settings' ] ) &&
 				Array.isArray( args.windows ) &&
 				args.windows.length > 0 &&
 				( args.windows as Array< Record< string, unknown > > ).every( ( w ) => !! toGridSpan( w ) ) &&
@@ -567,9 +556,6 @@ export function workspacesMioAbilities(
 				}
 				if ( 'boolean' === typeof args.hide_settings ) {
 					draft.hideSettings = args.hide_settings;
-				}
-				if ( 'string' === typeof args.open_windows_as ) {
-					draft.openAs = args.open_windows_as;
 				}
 				const windows = toLaunches( args.windows as unknown[] );
 				// The same layout again — MIO repeating itself after a
@@ -718,7 +704,7 @@ export function workspacesMioAbilities(
 		{
 			name: 'update_workspace',
 			effect: 'write',
-			description: 'Small change to an existing workspace that needs no preview: its name, glyph, colour, hide_settings, open_windows_as, or add_apps / remove_apps on the dock. To move windows, use propose_layout with its desktop_id.',
+			description: 'Small change to an existing workspace that needs no preview: its name, glyph, colour, hide_settings, or add_apps / remove_apps on the dock. To move windows, use propose_layout with its desktop_id.',
 			parameters: schema(
 				{
 					desktop_id: { type: 'string' },
@@ -726,14 +712,13 @@ export function workspacesMioAbilities(
 					icon: FIELDS.icon,
 					color: FIELDS.color,
 					hide_settings: FIELDS.hide_settings,
-					open_windows_as: FIELDS.open_windows_as,
 					add_apps: { type: 'array', items: { type: 'string' } },
 					remove_apps: { type: 'array', items: { type: 'string' } },
 				},
 				[ 'desktop_id' ],
 			),
 			validate: ( args ) =>
-				onlyKeys( args, [ 'desktop_id', 'name', 'icon', 'color', 'hide_settings', 'open_windows_as', 'add_apps', 'remove_apps' ] ) &&
+				onlyKeys( args, [ 'desktop_id', 'name', 'icon', 'color', 'hide_settings', 'add_apps', 'remove_apps' ] ) &&
 				workspaceDesks().some( ( d ) => d.id === args.desktop_id ) &&
 				validFields( args ),
 			allowed,
