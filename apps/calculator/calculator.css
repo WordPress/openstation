@@ -1,0 +1,70 @@
+.os-calculator {
+	box-sizing: border-box;
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 16px;
+	block-size: 100%;
+	min-block-size: 0;
+	overflow: auto;
+	padding: 20px;
+	color: var( --os-ui-fg, #1d2327 );
+	background: var( --os-ui-surface, #fff );
+	container-type: inline-size;
+	outline: none;
+}
+
+.os-calculator:focus-visible {
+	box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
+}
+
+.os-calculator__screen {
+	flex: 0 0 auto;
+	min-inline-size: 0;
+	padding-block: 12px 20px;
+	text-align: end;
+	font-variant-numeric: tabular-nums;
+}
+
+.os-calculator__expression {
+	min-block-size: 24px;
+	margin-block-end: 8px;
+	color: var( --os-ui-fg-muted, #646970 );
+	font-size: 14px;
+	overflow-wrap: anywhere;
+}
+
+.os-calculator__result {
+	display: block;
+	padding-inline: 0;
+}
+
+.os-calculator__result::part( output ) {
+	font-size: clamp( 16px, calc( 150cqi / var( --_calculator-digits, 12 ) ), 48px );
+	font-weight: 500;
+	line-height: 1.2;
+	overflow-wrap: anywhere;
+}
+
+.os-calculator__keypad {
+	display: grid;
+	flex: 1 0 auto;
+	grid-template-columns: repeat( 4, minmax( 0, 1fr ) );
+	grid-template-rows: repeat( 5, minmax( 56px, 1fr ) );
+	gap: 8px;
+}
+
+.os-calculator__keypad os-button {
+	font-size: 24px;
+	--os-ui-button-min-height: 56px;
+	--os-ui-button-padding: 12px 4px;
+}
+
+@container ( max-width: 260px ) {
+	.os-calculator__keypad {
+		gap: 6px;
+	}
+	.os-calculator__keypad os-button {
+		font-size: 20px;
+	}
+}

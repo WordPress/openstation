@@ -20,6 +20,42 @@ use OpenStation\App\Standalone\Auth as StandaloneAuth;
 
 class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 
+	public function test_calculator_registers_a_gated_native_app_and_echoes_local_state() {
+		$app = openstation_app( 'openstation-calculator' );
+		$this->assertNotNull( $app );
+		$manifest = $app->manifest();
+		$this->assertSame( 'dock', $manifest['placement'] );
+		$this->assertNotNull( $manifest['desktop_icon'] );
+		$this->assertSame( 'any', $manifest['admin'] );
+		$this->assertSame( '.os-calculator', $manifest['autofocus'] );
+		$this->assertTrue( $manifest['prefetch'] );
+		$this->assertStringEndsWith( 'calculator.os.ts', $manifest['client_source'] );
+		$this->assertFileExists( $manifest['style'] );
+
+		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $subscriber );
+		$this->assertTrue( $app->allows( openstation_apps_os() ) );
+		$response = openstation_apps_runtime()->dispatch(
+			$app->id(),
+			array(
+				'action' => 'mount',
+				'state'  => array( 'display' => '12.5', 'operator' => '+', 'waiting' => true ),
+			),
+			openstation_apps_os()
+		);
+		$this->assertTrue( $response['ok'] );
+		$this->assertSame( '12.5', $response['state']['display'] );
+		$this->assertSame( '+', $response['state']['operator'] );
+		$this->assertTrue( $response['state']['waiting'] );
+		$this->assertSame( array(), $response['data'] );
+
+		wp_set_current_user( 0 );
+		$this->assertFalse( $app->allows( openstation_apps_os() ) );
+		$denied = openstation_apps_runtime()->dispatch( $app->id(), array( 'action' => 'mount' ), openstation_apps_os() );
+		$this->assertFalse( $denied['ok'] );
+		$this->assertSame( 403, $denied['status'] );
+	}
+
 	protected static $admin_id;
 	protected static $editor_id;
 

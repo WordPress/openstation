@@ -529,6 +529,7 @@ src/app-runtime/client.ts       what an .os.ts imports as @openstation/app: defi
 assets/css/app-runtime.css      the mount root + first-paint spinner
 assets/js/apps/<name>[.min].js  built client views (npm run build:apps)
 apps/code-blue/                 code-blue.os.php + code-blue.os.ts + log-reader.php + code-blue.css — the client-view reference
+apps/calculator/                calculator.os.php + calculator.os.ts + calculator.css — a basic calculator with local arithmetic and large buttons; see its README for controls and keyboard shortcuts
 apps/station-home/              station-home.os.php + parts/{snapshot,view}.php + station-home.css — the server-view reference
 apps/my-wordpress/, apps/trash/ the WP Explorer and Recycle Bin apps
 apps/os-settings/               os-settings.os.php + os-settings.os.ts + parts/*.ts + os-settings.css — OpenStation Preferences, the app that edits shell state through the public API
