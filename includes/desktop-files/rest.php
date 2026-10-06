@@ -1184,16 +1184,29 @@ function openstation_files_rest_search_users( WP_REST_Request $req ) {
 	$exclude[] = (int) get_current_user_id();
 	$exclude   = array_values( array_unique( array_filter( $exclude ) ) );
 
+	// Eligibility lives in the query, not only in the loop below:
+	// with `number` applied first, a page of 20 Subscribers (or
+	// agents) sorting ahead of the editors came back empty after
+	// the per-row check, and the picker showed nobody at all. The
+	// loop still re-checks every row, because the filter below can
+	// rewrite these args.
 	$args = array(
-		'number'  => 20,
-		'orderby' => 'display_name',
-		'order'   => 'ASC',
-		'exclude' => $exclude,
+		'number'     => 20,
+		'orderby'    => 'display_name',
+		'order'      => 'ASC',
+		'exclude'    => $exclude,
+		'capability' => 'edit_posts',
+		'meta_query' => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- agents are excluded in SQL so they cannot use up the page.
+			array(
+				'key'     => OPENSTATION_AGENT_USER_MARKER_META,
+				'compare' => 'NOT EXISTS',
+			),
+		),
 		// `fields => 'all'` returns full WP_User objects so the
 		// capability check below resolves role caps correctly. A
 		// stdClass with stripped fields breaks `user_can()` on
 		// some WordPress versions and silently drops every row.
-		'fields'  => 'all',
+		'fields'     => 'all',
 	);
 	if ( '' !== $q ) {
 		$args['search']         = '*' . $q . '*';
@@ -1212,7 +1225,7 @@ function openstation_files_rest_search_users( WP_REST_Request $req ) {
 	$users = $query->get_results();
 	$out   = array();
 	foreach ( (array) $users as $user ) {
-		if ( ! user_can( $user, 'edit_posts' ) ) {
+		if ( ! openstation_files_share_user_is_eligible( $user ) ) {
 			continue;
 		}
 		// Disambiguation handle uses `user_nicename` (the public

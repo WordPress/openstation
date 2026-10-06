@@ -5,10 +5,11 @@
  * A dismissible admin notice on the Dashboard and Plugins screens,
  * for administrators, while nobody on the site has turned OpenStation
  * on and the install is young. The welcome dialog
- * (`includes/welcome-dialog.php`) is the first touch; this is the
- * second, quieter one for the same admin after they dismissed the
- * modal, and it lives where plugin admins actually look. Both stop
- * the moment anyone on the site enables.
+ * (`includes/welcome-dialog.php`) is the first touch for the admin
+ * who activated the plugin; this is the second, quieter one for them
+ * after they dismissed the modal, and the only one for every other
+ * admin. It lives where plugin admins actually look. Both stop the
+ * moment anyone on the site enables.
  *
  * It is a Core admin notice and not a shell surface because, by
  * definition, the shell is not running for the people it targets.

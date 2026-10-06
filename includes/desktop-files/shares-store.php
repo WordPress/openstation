@@ -184,6 +184,25 @@ function openstation_files_share_eligible_roles() {
 }
 
 /**
+ * Whether a user may be named as a share recipient: a person with
+ * `edit_posts`, never an agent. Agents are synthetic accounts that
+ * cannot log in (see `openstation_agent_is_agent()`), so an invite to
+ * one would sit pending forever and only clutter the picker. Folder
+ * invites, file invites and the share picker's user search all ask
+ * this one question, so the picker never offers someone the invite
+ * routes would refuse.
+ *
+ * @param WP_User $user Candidate recipient.
+ * @return bool
+ */
+function openstation_files_share_user_is_eligible( $user ) {
+	if ( ! $user instanceof WP_User || ! $user->exists() ) {
+		return false;
+	}
+	return user_can( $user, 'edit_posts' ) && ! openstation_agent_is_agent( $user );
+}
+
+/**
  * Whether `$user_id` may manage the share rules of `$folder_id`.
  * Default: only the folder's owner. Plugins (e.g. a team-admin
  * extension) can broaden this via the filter.
@@ -359,9 +378,11 @@ function openstation_folder_share_invite( $folder_id, $actor_id, $principal_type
 		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot manage shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
-	// Eligibility gate. Users must have `edit_posts`; roles must
-	// appear in the eligible-roles list. This is the only place
-	// the "exclude low-tier roles" rule is enforced — visibility
+	// Eligibility gate. Users must pass
+	// `openstation_files_share_user_is_eligible()` (`edit_posts`, not
+	// an agent); roles must appear in the eligible-roles list. This
+	// is the only place the "exclude low-tier roles" rule is
+	// enforced — visibility
 	// is computed downstream from accepted rows on this table.
 	if ( 'user' === $principal_type ) {
 		$uid = (int) $principal_ref;
@@ -377,7 +398,7 @@ function openstation_folder_share_invite( $folder_id, $actor_id, $principal_type
 		if ( $uid === $owner_id ) {
 			return new WP_Error( 'openstation_files_share_owner', __( 'You cannot share with the folder owner.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
-		if ( ! user_can( $user, 'edit_posts' ) ) {
+		if ( ! openstation_files_share_user_is_eligible( $user ) ) {
 			return new WP_Error( 'openstation_files_ineligible_principal', __( 'This user is not eligible.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 		$principal_ref = (string) $uid;

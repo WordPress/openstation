@@ -13,6 +13,7 @@ import type {
 	DOCK_BEHAVIORS,
 	DOCK_SIZES,
 	WINDOW_RADII,
+	OPEN_WINDOWS_AS,
 } from './constants';
 
 /**
@@ -25,6 +26,7 @@ import type {
 export type AccentId = string;
 export type DockSizeId = ( typeof DOCK_SIZES )[ number ][ 'id' ];
 export type WindowRadiusId = ( typeof WINDOW_RADII )[ number ][ 'id' ];
+export type OpenWindowsAsId = ( typeof OPEN_WINDOWS_AS )[ number ][ 'id' ];
 export type AdminBarModeId = ( typeof ADMIN_BAR_MODES )[ number ][ 'id' ];
 export type DockBehaviorId = ( typeof DOCK_BEHAVIORS )[ number ][ 'id' ];
 export type DockPlacementId = 'left' | 'right' | 'bottom';
@@ -110,6 +112,12 @@ export interface OsSettingsState {
 	 * long as the theme is worn.
 	 */
 	windowRadius: WindowRadiusId;
+	/**
+	 * How a newly opened window lands: `'default'` (floating),
+	 * `'maximized'`, or `'focused'` (maximized, the desk's other
+	 * windows minimized). See `OPEN_WINDOWS_AS`.
+	 */
+	openWindowsAs: OpenWindowsAsId;
 	/**
 	 * How the WordPress admin bar presents above the shell:
 	 * `'static'` (always visible, vanilla behavior), `'dynamic'`

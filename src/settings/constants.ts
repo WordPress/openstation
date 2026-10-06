@@ -148,6 +148,23 @@ export const WINDOW_RADII = [
 ] as const;
 
 /**
+ * How a newly opened window lands on the desk.
+ *
+ * - `default`   — floating, where the window manager's cascade puts it.
+ * - `maximized` — filling the desk's work area.
+ * - `focused`   — maximized, with every other window on the desk
+ *                 minimized: one task in front of you at a time.
+ *
+ * Only windows the user opens — a session restore, or a workspace
+ * placing its own windows, keeps the geometry it has.
+ */
+export const OPEN_WINDOWS_AS = [
+	{ id: 'default', label: 'Default' },
+	{ id: 'maximized', label: 'Maximized' },
+	{ id: 'focused', label: 'Focused' },
+] as const;
+
+/**
  * Admin-bar presentation modes. Drives the
  * `os-admin-bar-<id>` body class (written by PHP on render
  * and re-written by the settings apply pass), which is what
@@ -242,6 +259,7 @@ export const DEFAULTS: OsSettingsState = {
 	// is no longer the shipped default — the label is cosmetic, the id
 	// is data. See `WINDOW_RADII`.
 	windowRadius: 'round',
+	openWindowsAs: 'default',
 	// Hidden by default. A desktop whose navigation is consolidated
 	// into one dock has no second place left for navigation to live,
 	// and the top bar was the loudest of those second places. The

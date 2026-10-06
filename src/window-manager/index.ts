@@ -963,7 +963,10 @@ export class WindowManager {
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
-			...( duplicate
+			// A floating twin, so it does not hide the primary — unless
+			// the user opens every window maximized, where it lands
+			// like any other.
+			...( duplicate && 'default' === ( config.openAs ?? this.openWindowsAs() )
 				? { initialState: 'normal', x: cascadeX, y: cascadeY }
 				: {} ),
 			...config,
@@ -1063,8 +1066,16 @@ export class WindowManager {
 			workArea.y + margin,
 			Math.min( cascadeY, workArea.y + workArea.height - resolvedHeight - margin ),
 		);
+		// "Open windows as" — only for a window nobody gave a state: a
+		// session restore stages its own, and a caller that passes
+		// `openAs` has decided how this window opens.
+		const openAs =
+			! hasExplicitState && ! staged && ! createOpts.prewarm
+				? config.openAs ?? this.openWindowsAs()
+				: 'default';
 		const resolvedState =
 			config.initialState ??
+			( 'default' !== openAs ? 'maximized' : undefined ) ??
 			( saved?.state === 'maximized' ? 'maximized' : undefined );
 
 		// Clamp saved x / y to the current desktop area so a window
@@ -1490,6 +1501,20 @@ export class WindowManager {
 			this._stack.forEach( ( w, i ) => w.setZIndex( BASE_Z_INDEX + i ) );
 		} else {
 			this.focus( win );
+		}
+
+		// Focused: one task in front of you — every other window on the
+		// desk steps back to the dock.
+		if ( 'focused' === openAs ) {
+			for ( const other of this._stack ) {
+				if (
+					other !== win &&
+					other.state !== 'minimized' &&
+					( other.config.desktopId || this._activeDesktopId ) === win.config.desktopId
+				) {
+					other.minimize();
+				}
+			}
 		}
 
 		const openedDetail = {
@@ -2542,6 +2567,13 @@ export class WindowManager {
 	}
 
 	// ---- Overview delegations ----
+
+	/**
+	 * How a window nobody gave a state lands — the user's "Open windows
+	 * as" setting. Bound by the shell to the effective settings;
+	 * `'default'` for a manager built without.
+	 */
+	public openWindowsAs: () => 'default' | 'maximized' | 'focused' = () => 'default';
 
 	public enterOverview(): void {
 		// A phone has no desk to zoom out of: its overview is the app
