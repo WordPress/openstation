@@ -1949,3 +1949,80 @@ os-tab-chip + os-tab-chip {
 		animation: none;
 	}
 }
+
+/*
+ * Optional status bar: the window's address as one quiet line along its
+ * bottom edge. Plain selectable text, outside the title-bar drag target;
+ * it only reaches full contrast while the pointer or focus is on it.
+ */
+.os-window__app-link {
+	display: none;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 6px;
+	min-inline-size: 0;
+	padding-block: 2px;
+	/* Both ends clear the corner resize handles, which sit above the bar. */
+	padding-inline: var(--os-resize-size, 20px);
+	border-block-start: 1px solid var(--os-window-border, #dcdcde);
+	background: var(--os-window-bg, #fff);
+	color: var(--os-ui-fg-muted, #646970);
+	font-size: 11px;
+	line-height: 16px;
+	opacity: 0.7;
+	transition: opacity 120ms ease;
+}
+
+.os-window__app-link-text {
+	flex: 1 1 auto;
+	min-inline-size: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	user-select: text;
+	-webkit-user-select: text;
+}
+
+.os-window__app-link-copy {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	inline-size: 16px;
+	block-size: 16px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 3px;
+	background: none;
+	color: inherit;
+}
+
+.os-window__app-link-copy:hover {
+	color: var(--os-ui-fg, #1d2327);
+}
+
+.os-window__app-link-copy.is-copied {
+	color: var(--os-ui-accent, #2271b1);
+}
+
+.os-show-app-links .os-window__app-link:not([hidden]) {
+	display: flex;
+}
+
+.os-window__app-link:hover,
+.os-window__app-link:focus-within {
+	opacity: 1;
+}
+
+.os-window__app-link-text:focus-visible,
+.os-window__app-link-copy:focus-visible {
+	outline: 1px solid var(--os-ui-accent, #2271b1);
+	outline-offset: -1px;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-window__app-link {
+		transition: none;
+	}
+}

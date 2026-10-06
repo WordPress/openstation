@@ -129,6 +129,16 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( stub.updateOsSettings ).not.toHaveBeenCalled();
 	} );
 
+	test( 'app links are opt-in, available to editors, and repaint after a change', () => {
+		paint( false );
+		const checkbox = root.querySelector<HTMLElement>( 'os-checkbox-label[label="Show app links"]' )!;
+		expect( checkbox.hasAttribute( 'checked' ) ).toBe( false );
+		checkbox.dispatchEvent( new CustomEvent( 'os-checkbox-change', { detail: { checked: true } } ) );
+		expect( stub.state.showAppLinks ).toBe( true );
+		ctx.repaint();
+		expect( root.querySelector( 'os-checkbox-label[label="Show app links"]' )?.hasAttribute( 'checked' ) ).toBe( true );
+	} );
+
 	test( 'the first row of each band opens a group', () => {
 		paint();
 		const starts = Array.from( root.querySelectorAll( '#os-settings-nav > os-tab[data-group-start="true"]' ) ).map(

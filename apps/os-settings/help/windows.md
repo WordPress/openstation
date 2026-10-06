@@ -27,3 +27,13 @@ The master **Window links** feature (`set_window_links_enabled`) is on Features.
 ## MIO inside a window
 
 An explicitly registered, focused window can host MIO. Inside it, MIO ignores other windows, docks and controls for collision and magnet calculations; only the owning window body's outer boundaries constrain its movement. Closing, minimizing or leaving the owner cancels its active conversation work. A focused eligible window receives MIO through a shrink/move/grow transition, with reduced-motion users receiving an immediate handoff. See [MIO actions](actions.md).
+
+## App links
+
+“Show app links” (`set_show_app_links`) is off by default. Turning it on shows
+each window's address in a quiet status bar along its bottom edge: plain,
+selectable text after a copy icon. Click the icon (or select the text) and share
+the link to open the same app or page inside OpenStation. An
+iframe window's address is the page's own admin URL and follows navigation; a
+native app's is `admin.php?page=openstation&app=<id>`. The recipient still needs
+OpenStation and the usual permissions.

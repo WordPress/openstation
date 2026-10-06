@@ -38,6 +38,22 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	 * @covers ::openstation_save_os_settings
 	 * @covers ::openstation_get_os_settings
 	 */
+	public function test_app_links_are_opt_in_and_survive_a_user_settings_round_trip() {
+		$this->assertFalse( openstation_default_os_settings()['showAppLinks'] );
+		$this->assertFalse( openstation_sanitize_os_settings( array( 'showAppLinks' => 'false' ) )['showAppLinks'] );
+		$user_id = self::factory()->user->create();
+		openstation_save_os_settings( $user_id, array( 'showAppLinks' => true ) );
+		$this->assertTrue( openstation_get_os_settings( $user_id )['showAppLinks'] );
+		openstation_save_os_settings( $user_id, array( 'showAppLinks' => false ) );
+		$this->assertFalse( openstation_get_os_settings( $user_id )['showAppLinks'] );
+	}
+
+	/**
+	 * @covers ::openstation_default_os_settings
+	 * @covers ::openstation_sanitize_os_settings
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_mio_master_aliases_and_wallpaper_preference_round_trip() {
 		$this->assertFalse( openstation_default_os_settings()['mioApiEnabled'] );
 		$this->assertTrue( openstation_default_os_settings()['mioShowOnWallpaper'] );

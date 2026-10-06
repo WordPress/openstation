@@ -38,6 +38,7 @@ export const MIO_BOOLEAN_SETTINGS = [
 	'nativePluginsEnabled',
 	'nativeCommentsEnabled',
 	'confirmCloseAllWindows',
+	'showAppLinks',
 	'libraryHdOnly',
 ] as const;
 

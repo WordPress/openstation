@@ -444,6 +444,8 @@ export const HOOKS = {
 	WINDOW_GEOMETRY: 'os.window.geometry',
 	/** Action, fires when a window is added to the stack. */
 	WINDOW_OPENED: 'os.window.opened',
+	/** Filter: share URL string; context { windowId, config, url }. Empty hides the row. */
+	WINDOW_SHARE_URL: 'os.window.share-url',
 	/**
 	 * Action, fires when a window's body enters the loading state — at
 	 * construction (every window starts loading) and whenever a plugin

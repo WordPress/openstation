@@ -10,8 +10,9 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import { buildAppLink, readAppLink } from '../../src/window/share-link';
 
-import { isShellDocumentUrl, SHELL_PAGE_SLUG } from '../../src/shell-url';
+import { isShellDocumentUrl, SHELL_PAGE_SLUG, shellUrlWithoutBootArgs } from '../../src/shell-url';
 import { isSpeculatableDocument } from '../../src/pwa/sw-policy';
 import { withChromelessParam } from '../../src/window/dom';
 import { openCurrentPage } from '../../src/boot/session';
@@ -122,5 +123,33 @@ describe( 'consumers refuse the shell screen', () => {
 			url: `${ ADMIN }edit.php`,
 			title: 'Posts',
 		} );
+	} );
+} );
+
+
+describe( 'shareable app links', () => {
+	it( 'gives an iframe window its own page address, without shell flags or nonces', () => {
+		const current = `${ ADMIN }post.php?post=42&action=edit&openstation_chromeless=1&_wpnonce=secret#editor`;
+		expect( buildAppLink( { id: 'post-42' }, current, ADMIN ) ).toBe( `${ ADMIN }post.php?post=42&action=edit#editor` );
+		expect( buildAppLink( { id: 'plugins' }, `${ ADMIN }plugins.php?plugin=dir%2Ffile.php&openstation_chromeless=1`, ADMIN ) )
+			.toBe( `${ ADMIN }plugins.php?plugin=dir%2Ffile.php` );
+		expect( buildAppLink( { id: 'dashboard' }, `${ ADMIN }index.php?openstation_chromeless=1`, ADMIN ) ).toBe( ADMIN );
+		expect( buildAppLink( { id: 'preview' }, `${ ORIGIN }/hello/`, ADMIN ) ).toBe( `${ ORIGIN }/hello/` );
+	} );
+
+	it( 'names a native app by its registry id on the shell screen, and reads it back', () => {
+		const link = buildAppLink( { id: 'acme/inbox-2', baseId: 'acme/inbox', native: true }, '#acme/inbox-2', ADMIN );
+		expect( link ).toBe( `${ ADMIN }admin.php?page=openstation&app=acme/inbox` );
+		expect( readAppLink( link ) ).toEqual( { app: 'acme/inbox' } );
+		expect( shellUrlWithoutBootArgs( link ) ).toBe( SHELL );
+	} );
+
+	it( 'refuses nested desktops, unsafe URLs, and malformed instructions', () => {
+		for ( const url of [ SHELL, 'javascript:alert(1)', 'https://other.test/wp-admin/edit.php', 'https://user:password@example.test/wp-admin/edit.php' ] ) {
+			expect( buildAppLink( { id: 'unsafe' }, url, ADMIN ) ).toBe( '' );
+		}
+		for ( const address of [ 'not a url', `${ SHELL }&app=bad%3Cscript%3E`, `${ ADMIN }edit.php?app=inbox` ] ) {
+			expect( readAppLink( address ) ).toBeNull();
+		}
 	} );
 } );

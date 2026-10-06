@@ -12,9 +12,10 @@
  * iframe's `os-title-change`, and the shell's own page-title
  * adoption for windows it could only guess a name for.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Window } from '../../src/window';
 import type { WindowConfig } from '../../src/types';
+import { syncActiveTab } from '../../src/window/tabs';
 import { paintWindowSlots } from '../../src/window-chrome/slots/render';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -103,5 +104,48 @@ describe( 'Window.setTitle', () => {
 
 		expect( () => mounted.win.setTitle( 'Revisions' ) ).not.toThrow();
 		expect( mounted.win.config.title ).toBe( 'Revisions' );
+	} );
+} );
+
+
+describe( 'window app-link row', () => {
+	let win: Window;
+	beforeEach( () => installHooksStub() );
+	afterEach( () => {
+		win?.destroy();
+		clearHooksStub();
+		window.getSelection()?.removeAllRanges();
+	} );
+
+	test( 'sits below the content, follows navigation without submenu tabs, and selects only its text', () => {
+		win = new Window( baseConfig() );
+		document.body.appendChild( win.element );
+		const row = win.element.querySelector< HTMLElement >( '.os-window__app-link' )!;
+		expect( row.previousElementSibling?.classList.contains( 'os-window__body' ) ).toBe( true );
+		const text = row.querySelector< HTMLElement >( '.os-window__app-link-text' )!;
+		syncActiveTab( win, `${ window.location.origin }/wp-admin/post.php?post=77&action=edit&openstation_chromeless=1` );
+		expect( text.textContent ).toBe( `${ window.location.origin }/wp-admin/post.php?post=77&action=edit` );
+		text.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'a', ctrlKey: true, bubbles: true } ) );
+		expect( window.getSelection()?.toString() ).toBe( text.textContent );
+	} );
+
+	test( 'copies the address from the icon at the start of the bar', async () => {
+		const writeText = vi.fn( async () => undefined );
+		Object.defineProperty( navigator, 'clipboard', { value: { writeText }, configurable: true } );
+		win = new Window( baseConfig( { native: true, baseId: 'acme-inbox' } ) );
+		const row = win.element.querySelector< HTMLElement >( '.os-window__app-link' )!;
+		const copy = row.firstElementChild as HTMLButtonElement;
+		expect( copy.classList.contains( 'os-window__app-link-copy' ) ).toBe( true );
+		copy.click();
+		await vi.waitFor( () => expect( copy.classList.contains( 'is-copied' ) ).toBe( true ) );
+		expect( writeText ).toHaveBeenCalledWith( row.querySelector( '.os-window__app-link-text' )!.textContent );
+		Reflect.deleteProperty( navigator, 'clipboard' );
+	} );
+
+	test( 'allows a plugin to suppress its window address', () => {
+		const hooks = installHooksStub();
+		hooks.addFilter( 'os.window.share-url', 'acme/private', () => '' );
+		win = new Window( baseConfig( { native: true, baseId: 'acme-private' } ) );
+		expect( win.element.querySelector< HTMLElement >( '.os-window__app-link' )!.hidden ).toBe( true );
 	} );
 } );

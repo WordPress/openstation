@@ -216,6 +216,8 @@ export class OsSettings {
 			return;
 		}
 
+		document.body.classList.toggle( 'os-show-app-links', this.state.showAppLinks );
+
 		// Mirror the persisted per-wallpaper settings into the shared
 		// runtime store BEFORE the layer mounts anything, so the mount's
 		// `ctx.settings` reads the user's saved values. apply() runs on

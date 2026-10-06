@@ -251,10 +251,25 @@ export const closeAllSection: Section = ( s ) => html`
 	</os-section>
 `;
 
+/** Shareable app addresses, kept out of the window until the user opts in. */
+export const appLinksSection: Section = ( s ) => html`
+	<os-section
+		heading=${ __( 'App links' ) }
+		description=${ __( 'Show each window’s address in a quiet status bar along its bottom edge. Select and copy it to share: the link opens that app or page inside OpenStation.' ) }
+	>
+		<os-checkbox-label
+			label=${ __( 'Show app links' ) }
+			?checked=${ s.showAppLinks }
+			@os-checkbox-change=${ ( e: Event ) => update( { showAppLinks: pickedChecked( e ) } ) }
+		></os-checkbox-label>
+	</os-section>
+`;
+
 /** The Windows page, top to bottom. */
 export const renderWindows: Section = ( s, ctx ) => html`
 	${ openWindowsAsSection( s, ctx ) }
 	${ windowRadiusSection( s, ctx ) }
+	${ appLinksSection( s, ctx ) }
 	${ effectsSection( s, ctx ) }
 	${ closeAllSection( s, ctx ) }
 `;

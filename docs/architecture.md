@@ -40,6 +40,18 @@ deprecation shims (PHP via `_doing_it_wrong`, JS via
 `installDeprecatedAlias` from `@api/deprecated`) — no name in the
 public surface disappears silently.
 
+Window addresses are an opt-in per-user preference (`showAppLinks` in the
+existing `desktop_mode_os_settings` blob). The shell displays them as
+selectable text in a status bar along each window's bottom edge. An iframe
+window's address is its page's own URL (shell flags and nonces removed), which
+the plain-admin redirect already opens as a window. A native window's address
+is the shell screen with an `app` query arg naming its registry id; boot reads
+it once, strips it from the address bar, waits for session restore, and opens
+the app through the ordinary native opener, without serializing private app
+state. The recipient's normal registration, opt-in and WordPress permissions
+still apply. See
+[Shareable app links](javascript-reference.md#shareable-app-links--experimental).
+
 ## The big picture
 
 ```

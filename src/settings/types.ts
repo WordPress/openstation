@@ -351,6 +351,8 @@ export interface OsSettingsState {
 	 * no way back is a trap, not a preference. Per-user.
 	 */
 	confirmCloseAllWindows: boolean;
+	/** Show a subtle, selectable OpenStation app link below each window’s tabs. */
+	showAppLinks: boolean;
 	/**
 	 * Whether Mio, the desk companion, is on. Toggled from Mio's dock
 	 * tile; the shell lazy-loads `assets/js/mio[.min].js` the first

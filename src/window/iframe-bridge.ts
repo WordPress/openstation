@@ -8,6 +8,7 @@
  * at module-init time — the chromeless iframe is always same-origin.
  */
 
+import { paintAppLink } from './share-link';
 import { doAction, HOOKS } from '../hooks';
 import { __, sprintf } from '../i18n';
 import { showToast } from '../toast';
@@ -162,6 +163,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	if ( data.type === 'os-title-change' && typeof data.title === 'string' ) {
 		win._hasExplicitTitle = true;
 		win.setTitle( data.title );
+		paintAppLink( win );
 	}
 
 	// Content-identity announcement from the chromeless bridge — the
@@ -227,6 +229,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		if ( typeof data.url === 'string' && data.url !== '' && win.iframe ) {
 			win._reportedLocation = { url: data.url, src: win.iframe.src };
 		}
+		paintAppLink( win );
 	}
 
 	// Iframe boot signal — the chromeless bridge script posts this

@@ -34,6 +34,7 @@ import {
 import { navigateWithUnsavedGuard } from './unsaved-guard';
 import { tryNativeUrlRemap } from '../native-url-remap';
 import type { Window } from './index';
+import { paintAppLink } from './share-link';
 
 /*
  * The strip's own DOM behaviour lives in `tab-strip.ts`, which imports
@@ -155,6 +156,7 @@ function findPageOwnerTab(
  * comparison — it's which iframe is foregrounded.
  */
 export function syncActiveTab( win: Window, currentUrl: string ): void {
+	paintAppLink( win, currentUrl );
 	const submenuTabs = win.element.querySelectorAll<HTMLElement>(
 		'.os-window__tab[data-kind="submenu"]',
 	);

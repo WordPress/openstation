@@ -139,6 +139,7 @@ import {
 import { handleDragStart, handleResizeStart } from './pointer';
 import { navigateWithUnsavedGuard } from './unsaved-guard';
 import { speculateDocument } from '../pwa/speculate';
+import { mountAppLink } from './share-link';
 
 /**
  * Ask the service worker to fetch a submenu tab's screen ahead of the
@@ -722,6 +723,7 @@ export class Window {
 		this._titleEl = this.element.querySelector( '.os-window__title' ) as HTMLElement;
 		this._boundOnMessage = ( e: MessageEvent ) => handleWindowMessage( this, e );
 
+		mountAppLink( this );
 		this.bindEvents();
 		if ( this.iframe ) {
 			this._wireContentFocusForwarder( this.iframe );

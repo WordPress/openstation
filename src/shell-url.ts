@@ -63,10 +63,12 @@ export function isShellDocumentUrl( url: URL | string, base?: string ): boolean 
  * the JS side reads them from the URL. `openstation_hop` is the login
  * token a switch from another install carries, spent server-side
  * before the shell renders; `openstation_hop_from` is the direction it
- * lands with.
+ * lands with. `app` is the one the shell reads itself: the native app a
+ * shared window address asks for (`src/window/share-link.ts`).
  */
 const SHELL_BOOT_ARGS = [
 	'target',
+	'app',
 	'intent',
 	'openstation_overview',
 	'openstation_hop',

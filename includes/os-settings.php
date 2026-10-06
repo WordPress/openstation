@@ -260,6 +260,8 @@ function openstation_default_os_settings() {
 		// what writes false; OpenStation Preferences -> Windows is what
 		// turns it back on. Per-user.
 		'confirmCloseAllWindows'      => true,
+		// Selectable app links below window tabs. Per-user, opt-in.
+		'showAppLinks'                => false,
 		// Mio — a soft-body companion that floats over
 		// the wallpaper, settles onto nearby windows, and watches the
 		// pointer. Off by default; toggled from the wallpaper context
@@ -844,6 +846,10 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['showDesktopOnWallpaperClick']
 		: $defaults['showDesktopOnWallpaperClick'];
 
+	$show_app_links = isset( $raw['showAppLinks'] ) && is_bool( $raw['showAppLinks'] )
+		? $raw['showAppLinks']
+		: $defaults['showAppLinks'];
+
 	$confirm_close_all_windows = isset( $raw['confirmCloseAllWindows'] )
 		? (bool) $raw['confirmCloseAllWindows']
 		: $defaults['confirmCloseAllWindows'];
@@ -1048,6 +1054,7 @@ function openstation_sanitize_os_settings( $raw ) {
 		'windowPrewarmEnabled'        => $window_prewarm_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
 		'confirmCloseAllWindows'      => $confirm_close_all_windows,
+		'showAppLinks'                => $show_app_links,
 		'mioEnabled'                  => $mio_enabled,
 		'mioApiEnabled'               => $mio_enabled,
 		'mioShowOnWallpaper'          => isset( $raw['mioShowOnWallpaper'] ) ? (bool) $raw['mioShowOnWallpaper'] : $defaults['mioShowOnWallpaper'],

@@ -51,6 +51,7 @@ import { revealInstance, stampArrival } from './multisite/instance-transition';
 import { installOverviewHeader, refreshOverviewTopBar } from './window-manager/overview';
 import { deriveWindowId, urlMatchKey } from './utils';
 import { shellUrlWithoutBootArgs } from './shell-url';
+import { readAppLink } from './window/share-link';
 import {
 	HOOKS,
 	addAction,
@@ -2240,10 +2241,12 @@ function init(): void {
 	}
 
 	// The boot args have already been read — server-side, into
-	// `config.currentPage` and `config.fromPortalIntent`. Drop them from
+	// `config.currentPage` and `config.fromPortalIntent` (`app`, just
+	// below, is the one the shell reads itself). Drop them from
 	// the address bar so they stay one-shot: left there, every reload
 	// re-opens the target on top of the restored session. Done before
 	// anything can throw, so a boot failure can't leave them pinned.
+	const appLinkTarget = readAppLink( window.location.href );
 	const cleanUrl = shellUrlWithoutBootArgs( window.location.href );
 	if ( cleanUrl ) {
 		try {
@@ -4023,7 +4026,7 @@ function init(): void {
 	// Restore, then the entry window if this boot opens one: the point
 	// after which every window the desk starts with exists.
 	let bootWindowsSettled: Promise< unknown > = sessionRestore;
-	if ( ! soloWindowId && shouldAutoOpenCurrentPage( {
+	if ( ! soloWindowId && ! appLinkTarget && shouldAutoOpenCurrentPage( {
 		fromPortal: config.fromPortal,
 		fromPortalIntent: config.fromPortalIntent,
 		hasSession,
@@ -4037,6 +4040,15 @@ function init(): void {
 				}
 			} ),
 		);
+	}
+
+	if ( ! soloWindowId && appLinkTarget ) {
+		// A shared app address: open that app on top of the restored desk.
+		bootWindowsSettled = sessionRestore.then( () => {
+			if ( ! openNativeWindowById( appLinkTarget.app ) ) {
+				showToast( { message: __( 'This app is not available on this site.' ) } );
+			}
+		} );
 	}
 
 	// A switch from another site's overview lands in THIS one's — the
@@ -4157,6 +4169,7 @@ function init(): void {
 		config.defaultWindow?.enabled &&
 		config.fromPortal &&
 		! config.fromPortalIntent &&
+		! appLinkTarget &&
 		! hasSession &&
 		isNativeDefault
 	) {

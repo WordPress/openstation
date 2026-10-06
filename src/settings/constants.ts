@@ -350,6 +350,7 @@ export const DEFAULTS: OsSettingsState = {
 	// "Don't ask again" checkbox is what turns this off; Preferences →
 	// Windows is what turns it back on.
 	confirmCloseAllWindows: true,
+	showAppLinks: false,
 	mioEnabled: false,
 	mioApiEnabled: false,
 	mioShowOnWallpaper: true,

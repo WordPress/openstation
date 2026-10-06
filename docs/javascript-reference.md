@@ -900,6 +900,45 @@ window.wp.os = {
 
 The full surface is broader; the table above lists the core primitives most plugins reach for. See the per-API sections below for shapes.
 
+### Shareable app links — Experimental
+
+**OpenStation Preferences → Windows → Show app links** enables `showAppLinks`
+(default `false`, per-user). Every window then shows its address as one quiet
+line of plain text in a status bar along its bottom edge, after a copy icon.
+Clicking the icon copies the address (the icon turns into a tick for a moment;
+only a failed copy raises a toast). The text is also selectable with the
+pointer; focus it and press Cmd/Ctrl+A to select only that address. Toggling the preference updates open windows immediately.
+
+Addresses are as canonical as the window allows:
+
+- **Iframe windows** use the page's own URL, following it as it navigates:
+  `…/wp-admin/edit.php?post_type=page`. Chromeless/portal/solo flags and
+  `_wpnonce` / `_ajax_nonce` are removed, the page's other args keep their own
+  spelling, and the Dashboard is the admin root (`…/wp-admin/`). A plain admin
+  URL opens as a window for a recipient in OpenStation (through the plain-admin
+  redirect, so `openstation_admin_redirect_to_portal` governs it) and as the
+  classic screen for anyone else. A same-origin front-end preview's address is
+  the front-end URL itself.
+- **Native windows** have no page of their own, so the address names the app on
+  the shell screen by its registered `baseId` (or `id`), never an instance
+  suffix: `…/wp-admin/admin.php?page=openstation&app=acme-inbox`. The shell opens
+  that app on top of the recipient's restored session and removes `app` from
+  the address bar, so a reload restores the session normally. These are app
+  entry links; they do not serialize a native app's private state or params.
+
+Recipients need the usual app/page permissions; links grant no access and
+cannot open a cross-origin URL or nest the desktop inside itself.
+
+The `os.window.share-url` filter receives `(url, { windowId, config, url })`,
+where the context's `url` is the current content address. Return an empty
+string to hide a window's row, or return an alternative plain-text address:
+
+```js
+wp.hooks.addFilter( 'os.window.share-url', 'acme/private-app', ( url, ctx ) =>
+    ctx.config.baseId === 'acme-private' ? '' : url
+);
+```
+
 ### `windowManager` — Stable
 
 Exposed instance of the `WindowManager` class.
@@ -4007,7 +4046,7 @@ The sidebar search filters pages using rendered text and component labels. Prefe
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, openWindowsAs, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockBehavior` (`'static'` \| `'dynamic'` — the dock always on screen, or folded into a thin indicator line at its edge and morphed back when the pointer reaches that edge; stamped as `data-os-dock-behavior` on the rail; a dynamic rail reserves no [work area](#workarea--experimental)), `sideDockBehavior` (the same choice for the `classic` layout's sidebar, its own rail on its own edge; ignored by the one-rail layouts), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativePagesHiddenColumns`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`, `stationHomeEnabled` — Station Home as the Dashboard, default off), `adminAssetCacheEnabled` (the service worker's shared admin-asset cache) and `windowPrewarmEnabled` (hover-intent window preloading) — both default on and are read-only mirrors of site-wide Extended options, applied on shell reload, `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — plus `customAccent`, `customGradient`, `customImage`, `wallpaperSettings`, `libraryHdOnly`, `heartbeatRate`, `showDesktopOnWallpaperClick`, `confirmCloseAllWindows`, `mioEnabled`, `mioApiEnabled`, `mioShowOnWallpaper` and `mioStyle` — the snapshot IS the whole `OsSettingsState`; see `src/settings/types.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `openWindowsAs` is how a newly opened window lands: `'default'` (the usual placement and remembered state), `'maximized'`, or `'focused'` (maximized, with the desk's other windows minimized); a window opened with an explicit `initialState`, a session restore and a prewarm are exempt, and `WindowConfig.openAs` overrides it per open. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OpenStation Preferences state — `{ wallpaper, accent, dockSize, windowRadius, openWindowsAs, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `os-admin-bar-<mode>` body class), `desktopLayout`, `dockPlacement` (`'bottom'` \| `'left'` \| `'right'` — which edge the dock sits on; read by the one-rail layouts, ignored by `classic`), `dockBehavior` (`'static'` \| `'dynamic'` — the dock always on screen, or folded into a thin indicator line at its edge and morphed back when the pointer reaches that edge; stamped as `data-os-dock-behavior` on the rail; a dynamic rail reserves no [work area](#workarea--experimental)), `sideDockBehavior` (the same choice for the `classic` layout's sidebar, its own rail on its own edge; ignored by the one-rail layouts), `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativePagesHiddenColumns`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`, `stationHomeEnabled` — Station Home as the Dashboard, default off), `adminAssetCacheEnabled` (the service worker's shared admin-asset cache) and `windowPrewarmEnabled` (hover-intent window preloading) — both default on and are read-only mirrors of site-wide Extended options, applied on shell reload, `developerModeEnabled`, `foldersSharingEnabled`, `navPlacement`, `navOrder`, and `dockPromotedPositions` — plus `customAccent`, `customGradient`, `customImage`, `wallpaperSettings`, `libraryHdOnly`, `heartbeatRate`, `showDesktopOnWallpaperClick`, `confirmCloseAllWindows`, `showAppLinks`, `mioEnabled`, `mioApiEnabled`, `mioShowOnWallpaper` and `mioStyle` — the snapshot IS the whole `OsSettingsState`; see `src/settings/types.ts` for the authoritative shape. `navPlacement` maps a nav-item id to `'rail' | 'desktop' | 'both' | 'hidden'` and `navOrder` is a flat ordering hint across every rail zone; both replaced the pre-navigation `itemVisibility` / `dockOrder` (see [migration-navigation.md](./migration-navigation.md)). `openWindowsAs` is how a newly opened window lands: `'default'` (the usual placement and remembered state), `'maximized'`, or `'focused'` (maximized, with the desk's other windows minimized); a window opened with an explicit `initialState`, a session restore and a prewarm are exempt, and `WindowConfig.openAs` overrides it per open. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OpenStation Preferences → Components tab's missing-import-warner demo — set from OpenStation Preferences → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OpenStation Preferences changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -5229,6 +5268,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `os.window.geometry` | filter | Stable | `( geometry, ctx ) => geometry` — last call before `WindowConfig` is baked. See [the geometry filter section below](#window-geometry-filter) for the contract and a recipe. |
+| `os.window.share-url` | filter | Experimental | `(url: string, ctx: { windowId, config, url }) → string`. Customize the window address shown in the status bar; return an empty string to hide it. Context `url` is the current content URL. |
 | `os.window.opened` | action | Stable | `{ windowId, page, title, url }` |
 | `os.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized, navigated, params }` — fires when `openWindow()` is called for an already-open window; `navigated` is `true` when the request carried a URL the window wasn't showing and the framework navigated the existing iframe to it in place; `params` are the window's open-time params AFTER the request's were written onto it (an App Framework window retargets from them through its `reopen` action) |
 | `os.window.content-loading` | action | Stable | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
