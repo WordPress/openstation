@@ -972,4 +972,34 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_apps_client_bundle( $manifest ) );
 		$this->assertSame( '', openstation_apps_client_base( array( 'client' => '', 'client_source' => '', 'file' => '' ) ), 'Built in code: nothing to look up.' );
 	}
+
+	public function test_calculator_mounts_for_a_reader_as_a_native_client_app() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+		$app = openstation_apps_registry()->get( 'openstation-calculator' );
+		$this->assertNotNull( $app );
+		$this->assertTrue( $app->allows( openstation_apps_os() ) );
+		$manifest = $app->manifest();
+		$this->assertSame( 'any', $manifest['admin'] );
+		$this->assertSame( 'dock', $manifest['placement'] );
+		$this->assertNotNull( $manifest['desktop_icon'] );
+		$this->assertTrue( $manifest['prefetch'] );
+		$this->assertStringEndsWith( 'calculator.os.ts', $manifest['client_source'] );
+		$this->assertFileExists( $manifest['style'] );
+		$mounted = openstation_apps_runtime()->dispatch(
+			'openstation-calculator',
+			array( 'action' => 'mount', 'client' => true, 'state' => array( 'display' => '42', 'unexpected' => true ) ),
+			openstation_apps_os()
+		);
+		$this->assertTrue( $mounted['ok'] );
+		$this->assertSame( '42', $mounted['state']['display'] );
+		$this->assertArrayNotHasKey( 'unexpected', $mounted['state'] );
+		$this->assertSame( array(), $mounted['data'] );
+	}
+
+	public function test_calculator_rejects_anonymous_access() {
+		wp_set_current_user( 0 );
+		$app = openstation_apps_registry()->get( 'openstation-calculator' );
+		$this->assertFalse( $app->allows( openstation_apps_os() ) );
+	}
+
 }
