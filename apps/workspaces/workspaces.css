@@ -1,0 +1,639 @@
+/**
+ * Workspaces app — one column of cards, one card per workspace.
+ *
+ * Every colour reads a palette token with its pre-brand literal as the
+ * fallback (see AGENTS.md, "The palette lives in variables.css"). A
+ * workspace's own colour arrives as `--os-workspace-accent` on its card.
+ */
+
+.os-workspaces {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	box-sizing: border-box;
+	block-size: 100%;
+	padding: 20px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	container-type: inline-size;
+}
+
+/* Children keep their own height; the column scrolls, it does not squash them. */
+.os-workspaces > * {
+	flex-shrink: 0;
+}
+
+.os-workspaces__intro {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.os-workspaces__intro > os-button {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+
+.os-workspaces__intro-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+/*
+ * The main desk, as the workspace it would become: the shape of a card,
+ * dashed because it does not exist yet, the accent only on its glyph.
+ */
+.os-workspaces__capture {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 14px 16px;
+	border: 1px dashed var( --os-ui-border-strong, #4d4a52 );
+	border-radius: 12px;
+	background: transparent;
+}
+
+.os-workspaces__capture-glyph {
+	flex: 0 0 auto;
+	width: 36px;
+	height: 36px;
+	font-size: 22px;
+	line-height: 36px;
+	text-align: center;
+	border-radius: 10px;
+	color: var( --os-ui-accent, #f252fc );
+	background: var( --os-ui-surface-raised, rgba( 255, 251, 255, 0.06 ) );
+}
+
+.os-workspaces__capture-body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.os-workspaces__capture-actions {
+	display: flex;
+	flex: 0 0 auto;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 4px;
+}
+
+.os-workspaces__capture-title {
+	font-size: 14px;
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.os-workspaces__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.os-workspaces__chip {
+	max-width: 160px;
+	padding: 1px 8px;
+	overflow: hidden;
+	border-radius: 999px;
+	font-size: 11px;
+	line-height: 18px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	border: var( --os-ui-chip-border, 1px solid var( --os-ui-border, #33303a ) );
+	color: var( --os-ui-chip-fg, var( --os-ui-fg-muted, #b3afb5 ) );
+	background: var( --os-ui-chip-bg, var( --os-ui-surface-raised, rgba( 255, 251, 255, 0.06 ) ) );
+}
+
+.os-workspaces__none {
+	padding-inline: 4px;
+}
+
+.os-workspaces__title {
+	margin: 0 0 4px;
+	font-size: 18px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.os-workspaces__heading {
+	margin: 12px 0 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.os-workspaces__subhead {
+	margin: 8px 0 0;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.os-workspaces__hint {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.os-workspaces__hint--indent {
+	margin-inline-start: 28px;
+	margin-block-start: -6px;
+}
+
+.os-workspaces__card {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border: 1px solid var( --os-ui-border, #33303a );
+	border-inline-start: 4px solid var( --os-workspace-accent, var( --os-ui-accent, #f252fc ) );
+	border-radius: 12px;
+	background: var( --os-ui-surface, #1a1721 );
+}
+
+.os-workspaces__card-head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.os-workspaces__card-head os-text-field {
+	flex: 1;
+	min-inline-size: 0;
+}
+
+.os-workspaces__glyph {
+	flex: 0 0 auto;
+	width: 36px;
+	height: 36px;
+	font-size: 22px;
+	line-height: 36px;
+	text-align: center;
+	border-radius: 10px;
+	color: var( --os-workspace-accent, var( --os-ui-accent, #f252fc ) );
+	background: var( --os-ui-surface-raised, rgba( 255, 251, 255, 0.06 ) );
+}
+
+.os-workspaces__looks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px 24px;
+}
+
+.os-workspaces__looks os-swatch-grid {
+	min-inline-size: 0;
+}
+
+.os-workspaces__looks .dashicons {
+	font-size: 16px;
+	inline-size: 16px;
+	block-size: 16px;
+	color: var( --os-ui-fg, #1d2327 );
+}
+
+.os-workspaces__summary,
+.os-workspaces__details-body {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 10px;
+	min-inline-size: 0;
+}
+
+.os-workspaces__details {
+	padding-block-start: 12px;
+	border-block-start: 1px solid var( --os-ui-border, #33303a );
+}
+
+.os-workspaces__details::part(heading) {
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.os-workspaces__details::part(summary) {
+	min-block-size: 32px;
+	flex-wrap: wrap;
+}
+
+.os-workspaces__details-body > os-checkbox,
+.os-workspaces__details-body > os-switch,
+.os-workspaces__details-body > .os-workspaces__link,
+.os-workspaces__details-body > .os-workspaces__people {
+	align-self: stretch;
+}
+
+.os-workspaces__actions,
+.os-workspaces__link,
+.os-workspaces__changed {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 8px;
+}
+
+.os-workspaces__link os-text-field {
+	flex: 1;
+	min-inline-size: min( 220px, 100% );
+}
+
+.os-workspaces__changed {
+	align-items: center;
+}
+
+.os-workspaces__share {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.os-workspaces__people {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.os-workspaces__person {
+	display: grid;
+	grid-template-columns: minmax( 0, 1fr ) minmax( 0, 1.4fr ) auto auto;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+}
+
+.os-workspaces__person-email {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+@container ( max-width: 560px ) {
+	.os-workspaces__intro {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.os-workspaces__capture {
+		flex-wrap: wrap;
+	}
+
+	.os-workspaces__capture-actions {
+		flex: 1 1 100%;
+	}
+
+	.os-workspaces__card-head {
+		flex-wrap: wrap;
+	}
+
+	.os-workspaces__card-head os-text-field {
+		flex-basis: calc( 100% - 48px );
+	}
+
+	.os-workspaces__person {
+		grid-template-columns: minmax( 0, 1fr ) auto auto;
+	}
+
+	.os-workspaces__person-email {
+		display: none;
+	}
+}
+
+/*
+ * The draft MIO is building: a small desk the user checks at every
+ * step. Wallpaper-shaped, the 6 × 6 grid faint on it, windows as
+ * skeletons on their cells, the dock along the bottom, the widget
+ * column down the right.
+ */
+.os-workspaces__draft {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border: 1px solid var( --os-ui-accent, #f252fc );
+	border-radius: 12px;
+	background: var( --os-ui-surface, #1a1721 );
+}
+
+.os-workspaces__draft-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.os-workspaces__draft-steps {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.os-workspaces__draft-steps li {
+	padding: 2px 10px;
+	border: 1px solid var( --os-ui-border, #33303a );
+	border-radius: 999px;
+}
+
+.os-workspaces__draft-steps li.is-current {
+	border-color: var( --os-ui-accent, #f252fc );
+	color: var( --os-ui-fg, #fffbff );
+	font-weight: 600;
+}
+
+.os-workspaces__draft-steps li.is-done {
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.os-workspaces__draft-steps button {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.os-workspaces__desk {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	aspect-ratio: 16 / 10;
+	overflow: hidden;
+	border-radius: 10px;
+	background:
+		radial-gradient( circle at 20% 10%, var( --os-ui-accent-soft, transparent ), transparent 60% ),
+		var( --os-ui-surface-sunken, #0c0b0f );
+	box-shadow: inset 0 0 0 1px var( --os-ui-border, #33303a );
+}
+
+.os-workspaces__desk-grid {
+	position: relative;
+	flex: 1;
+	margin: 6px;
+	background-image:
+		linear-gradient( to right, var( --os-ui-surface-raised, rgba( 255, 251, 255, 0.06 ) ) 1px, transparent 1px ),
+		linear-gradient( to bottom, var( --os-ui-surface-raised, rgba( 255, 251, 255, 0.06 ) ) 1px, transparent 1px );
+	background-size: calc( 100% / 6 ) calc( 100% / 6 );
+}
+
+.os-workspaces__desk-window {
+	position: absolute;
+	box-sizing: border-box;
+	padding: 3px;
+	animation: os-workspaces-draft-in 0.25s ease-out;
+}
+
+.os-workspaces__desk-window > * {
+	position: relative;
+}
+
+.os-workspaces__desk-window::before {
+	content: "";
+	position: absolute;
+	inset: 3px;
+	border: 1px solid var( --os-ui-border-strong, #4d4a52 );
+	border-radius: 6px;
+	background: var( --os-ui-surface, #1a1721 );
+}
+
+.os-workspaces__desk-titlebar {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 4px 7px;
+	overflow: hidden;
+	border-radius: 6px 6px 0 0;
+	background: var( --os-ui-surface-elevated, #33303a );
+	color: var( --os-ui-fg, #fffbff );
+	font-size: 11px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.os-workspaces__desk-lines {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	padding: 8px;
+}
+
+.os-workspaces__desk-lines i {
+	display: block;
+	height: 5px;
+	border-radius: 3px;
+	background: var( --os-ui-surface-elevated, #33303a );
+}
+
+.os-workspaces__desk-lines i:nth-child( 2 ) {
+	width: 70%;
+}
+
+.os-workspaces__desk-lines i:nth-child( 3 ) {
+	width: 45%;
+}
+
+.os-workspaces__desk-widgets {
+	position: absolute;
+	inset-block: 6px;
+	inset-inline-end: 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	width: 13%;
+}
+
+.os-workspaces__desk-widget {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 30px;
+	border-radius: 6px;
+	background: var( --os-ui-surface-elevated, #33303a );
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.os-workspaces__desk-dock {
+	display: flex;
+	align-self: center;
+	align-items: center;
+	gap: 6px;
+	min-height: 24px;
+	margin-block-end: 6px;
+	padding: 4px 10px;
+	border-radius: 10px;
+	border: 1px solid var( --os-ui-border, #33303a );
+	background: var( --os-ui-surface, #1a1721 );
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.os-workspaces__desk-dock .os-workspaces__hint {
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	font-size: 11px;
+}
+
+.os-workspaces__desk-dock-item {
+	display: inline-flex;
+	animation: os-workspaces-draft-in 0.25s ease-out;
+}
+
+.os-workspaces__draft-icon {
+	flex: 0 0 auto;
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+	object-fit: contain;
+}
+
+.os-workspaces__draft-panel {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.os-workspaces__draft-choices {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.os-workspaces__draft-choice {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 12px;
+	border: 1px solid var( --os-ui-border, #33303a );
+	border-radius: 999px;
+	background: transparent;
+	font: inherit;
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	cursor: pointer;
+	transition:
+		background-color 0.15s ease,
+		border-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.os-workspaces__draft-choice:hover:not( :disabled ) {
+	border-color: var( --os-ui-accent, #f252fc );
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.os-workspaces__draft-choice.is-on {
+	border-color: var( --os-ui-accent, #f252fc );
+	background: var( --os-ui-accent, #f252fc );
+	color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
+}
+
+/* Kept because a window uses it: on, and not up for removal. */
+.os-workspaces__draft-choice.is-on:disabled {
+	opacity: 0.75;
+	cursor: default;
+}
+
+.os-workspaces__draft-choice:focus-visible {
+	outline: 2px solid transparent;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px var( --os-ui-accent, #f252fc ) );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-workspaces__draft-choice {
+		transition: none;
+	}
+}
+
+@keyframes os-workspaces-draft-in {
+	from {
+		opacity: 0;
+		transform: scale( 0.96 );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-workspaces__desk-window,
+	.os-workspaces__desk-dock-item {
+		animation: none;
+	}
+}
+
+/* Notes on the preview desk: small papers where they will hang. */
+.os-workspaces__desk-note {
+	position: absolute;
+	z-index: 1;
+	box-sizing: border-box;
+	width: 13%;
+	max-height: 22%;
+	padding: 5px 6px;
+	overflow: hidden;
+	border-radius: 2px;
+	background: var( --dm-note-paper, #fff3a6 );
+	color: var( --dm-note-ink, #4d4419 );
+	font-size: 8px;
+	line-height: 1.3;
+	box-shadow: var( --os-ui-flyout-shadow, 0 3px 8px rgba( 0, 0, 0, 0.35 ) );
+	transform: rotate( -2deg );
+	animation: os-workspaces-draft-in 0.25s ease-out;
+}
+
+.os-workspaces__desk-note.is-xl {
+	width: 26%;
+	max-height: 44%;
+	font-size: 10px;
+}
+
+.os-workspaces__draft-notes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.os-workspaces__draft-note {
+	position: relative;
+	box-sizing: border-box;
+	width: 200px;
+	padding: 10px 28px 10px 12px;
+	border-radius: 3px;
+	background: var( --dm-note-paper, #fff3a6 );
+	color: var( --dm-note-ink, #4d4419 );
+	font-size: 12px;
+}
+
+.os-workspaces__draft-note p {
+	margin: 4px 0 0;
+	white-space: pre-wrap;
+}
+
+.os-workspaces__draft-note-size {
+	font-size: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	opacity: 0.7;
+}
+
+.os-workspaces__draft-note button {
+	position: absolute;
+	top: 4px;
+	inset-inline-end: 4px;
+	border: 0;
+	background: none;
+	color: inherit;
+	font-size: 16px;
+	cursor: pointer;
+}

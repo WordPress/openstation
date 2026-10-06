@@ -1833,7 +1833,7 @@ manager.moveWindowToDesktop( windowId, desktopId ): boolean;  // one window to a
 
 `moveWindowToDesktop()` moves one window and nothing else about it — geometry, state, focus order and iframe stay as they are; it shows or hides at once according to whether its new desk is the active one. `false` when either id is unknown, `true` (and nothing fired) when it is already there. The phone layer uses it to fold every desk onto the active one while the mode is `mobile` (see [`docs/mobile.md`](./mobile.md#the-session-on-a-phone)) — the session still records each window on the desk it came from, so leaving the mode puts everything back; a plugin can use it for a "move to desk" action.
 
-**Workspaces** build on this: a desktop plus the answer to what it is FOR — which apps show on it, which widgets sit on it, what it looks like, what it opens with. `wp.os.workspaces.*` creates them, `wp.os.workspaces.registerPreset()` adds a template, and three ship: Commerce, Learning and Publishing — named for the job, built around the products that do it. The `+` in the **Workspaces top bar** opens a wizard whose first step is a blank desk one Enter away; Edit under a tile opens the same wizard on that desk. Workspaces is already the Spaces surface, and the desk itself belongs to the user's windows.
+**Workspaces** build on this: a desktop plus the answer to what it is FOR — which apps show on it, which widgets sit on it, what it looks like, what it opens with. A workspace is made by arranging the main desk and saving it — **Create a workspace** in Overview (which opens the Workspaces app), `/save-workspace`, or `wp.os.workspaces.saveAs()` — and managed (renamed, shared, deleted, its recipients released) in the **Workspaces app**, `wp.os.workspaces.manage()`. The `+` makes a plain desk. A workspace can be shared with a link that pins it as the opener's only desk; `wp.os.workspaces.isPinned()` says whether the current user is. `wp.os.workspaces.apps()` lists every app a workspace can use — admin menus with their tabs, plugin apps, Trash and OpenStation's native apps — each with its screens and whether it has a dock icon (see [workspaces.md](workspaces.md#shapes)).
 
 The one rule the whole feature rests on: **a workspace is a view, never a write.** The rails, the widget column and the appearance are all computed on top of the user's own state and restored the moment they leave, so a workspace they delete costs them nothing. See **[Workspaces](./workspaces.md)** for the whole surface: it is documented there rather than here because it is a layer above Spaces, not a change to them.
 
@@ -5118,10 +5118,24 @@ A desktop plus the answer to what it is FOR. Full surface in **[Workspaces](./wo
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `os.workspaces.presets` | filter | Stable | `WorkspacePreset[]` — the switcher's template list. Return a shorter list to drop one, a longer one to add your own. |
-| `os.workspaces.profile` | filter | Stable | `WorkspaceProfile`, context `WorkspacePreset` — fires as a profile is read off a template, before the desktop is created |
 | `os.workspaces.updated` | action | Stable | `{ desktopId, profile }` — a workspace's profile changed; `profile` is `null` when it became a plain Space |
 | `os.workspaces.provisioned` | action | Stable | `{ desktopId, opened, layout }` — the launch list has run. Fires once per workspace, never once per visit |
+
+#### `wp.os.widgets.list()` — Experimental
+
+Every registered widget as the add-widget picker lists them: `Array<{ id, label, description, icon }>`. Read-only — for a surface outside the shell bundle (an app window) that cannot share the widget registry module. The Workspaces window's MIO reads it to propose a desk's widget column.
+
+#### Shell config keys for shared workspaces
+
+| Key | Shape | Meaning |
+|---|---|---|
+| `workspacePin` | `{ label, author } \| null` | The shared workspace the user is pinned to — their main and only desk. The shell withholds Overview, the Workspaces and Exit tiles, the `+`, *Open in classic wp-admin* and the workspace commands; the server enforces the pin regardless. |
+| `workspaceArrival` | `{ status, label, desktop } \| null` | What a share link did, on the request right after its redirect. `status`: `pinned`, `added`, `already`, `managed`, `disabled`, `not-allowed`, `invalid`. |
+| `workspaceCanShare` | `boolean` | Whether the user may share workspaces (and is never pinned). |
+| `workspaceDismissedNotes` | `string[]` | Ids of the workspace notes this user has dismissed; the shell skips them. A dismissal is sent to `POST desktop-mode/v1/workspace-notes/dismiss` with `{ id }`. |
+| `workspaceRestricted` | `{ screens: string[], apps: string[] }` | What "Hide settings" leaves out — the admin files and app ids the server refuses a pinned user on such a desk. |
+
+The body carries `os-workspace-pinned` while the user is pinned.
 
 #### Arrangements added by workspaces
 

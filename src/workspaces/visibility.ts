@@ -26,16 +26,18 @@ import { WORKSPACE_APPEARANCE_KEYS } from './types';
  * Two exemptions, and both are structural rather than tuning:
  *
  * - **Controls.** Overview, the System tile (the only route to
- *   Preferences that does not depend on the admin menu), Trash, Mio,
- *   Exit OpenStation. A workspace that could hide these could strand
- *   the user on a desk with no way to change it, and the way out of
- *   that state would be to edit user meta.
+ *   Preferences that does not depend on the admin menu), Mio, Exit
+ *   OpenStation. A workspace that could hide these could strand the
+ *   user on a desk with no way to change it, and the way out of that
+ *   state would be to edit user meta. A control that opens a window of
+ *   its own — Trash — is an app in a control's tile, not a way out, so
+ *   a workspace chooses it like any other app.
  * - **Locked items.** Exit OpenStation already refuses every other
  *   placement write for the same reason; this is that rule, restated
  *   where it would otherwise be bypassed.
  */
 export function workspaceMayHide( item: NavItem ): boolean {
-	return 'control' !== item.kind && ! item.locked;
+	return ( 'control' !== item.kind || !! item.windowId ) && ! item.locked;
 }
 
 /**
@@ -51,18 +53,69 @@ export function workspacePlacements(
 	items: readonly NavItem[],
 	profile: WorkspaceProfile | null | undefined,
 ): Record< string, NavPlacement > {
-	if ( ! profile || 'only' !== profile.apps.mode ) {
+	const narrows = !! profile && 'only' === profile.apps.mode;
+	const restricts = !! profile?.restricted;
+	if ( ! profile || ( ! narrows && ! restricts ) ) {
 		return base as Record< string, NavPlacement >;
 	}
 	const keep = new Set( profile.apps.ids );
 	const next: Record< string, NavPlacement > = { ...base };
 	for ( const item of items ) {
-		if ( keep.has( item.id ) || ! workspaceMayHide( item ) ) {
+		if ( ! workspaceMayHide( item ) ) {
 			continue;
 		}
-		next[ item.id ] = 'hidden';
+		// "Hide settings" wins over the kept list: a desk that keeps
+		// Settings and hides settings hides them.
+		if ( ( narrows && ! keep.has( item.id ) ) || ( restricts && workspaceRestrictsItem( item ) ) ) {
+			next[ item.id ] = 'hidden';
+		}
 	}
 	return next;
+}
+
+/** What "Hide settings" leaves out — `config.workspaceRestricted`. */
+export interface WorkspaceRestrictions {
+	/** Admin file names (`plugins.php`). */
+	screens: readonly string[];
+	/** App Framework / native window ids. */
+	apps: readonly string[];
+}
+
+/** The server's lists, read from the boot config. Empty when absent. */
+export function workspaceRestrictions(): WorkspaceRestrictions {
+	const config = (
+		window as unknown as {
+			openStationConfig?: { workspaceRestricted?: Partial< WorkspaceRestrictions > };
+		}
+	).openStationConfig?.workspaceRestricted;
+	return {
+		screens: Array.isArray( config?.screens ) ? config.screens : [],
+		apps: Array.isArray( config?.apps ) ? config.apps : [],
+	};
+}
+
+/** The admin file an item opens (`plugins.php`), or ''. */
+function adminFileOf( url: string | undefined ): string {
+	if ( ! url ) {
+		return '';
+	}
+	const path = url.split( /[?#]/ )[ 0 ];
+	return path.slice( path.lastIndexOf( '/' ) + 1 );
+}
+
+/**
+ * Whether "Hide settings" leaves this item out: it opens one of the
+ * restricted screens, or is one of the restricted apps.
+ */
+export function workspaceRestrictsItem(
+	item: NavItem,
+	lists: WorkspaceRestrictions = workspaceRestrictions(),
+): boolean {
+	if ( item.windowId && lists.apps.includes( item.windowId ) ) {
+		return true;
+	}
+	const file = adminFileOf( item.menu?.url ?? item.entry?.url );
+	return '' !== file && lists.screens.includes( file );
 }
 
 /**
@@ -117,13 +170,9 @@ export function workspaceAppearance(
 }
 
 /**
- * Read a settings snapshot into a workspace appearance patch.
- *
- * "Use the look I have now" — the same gesture as capturing the open
- * windows, and for the same reason: a look is arrived at by trying
- * things in Preferences with the desk in front of you, not by filling
- * in a form. Only the allowlisted keys are taken, so a capture can
- * never smuggle an unrelated setting into a profile.
+ * Every setting on a snapshot, as a workspace carries them: ALL of the
+ * OS settings, without exception, belong to each workspace. Only the
+ * shell-owned theme ledger is left out.
  */
 export function captureWorkspaceAppearance(
 	snapshot: Readonly< Record< string, unknown > >,

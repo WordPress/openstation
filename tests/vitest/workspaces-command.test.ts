@@ -1,11 +1,9 @@
 /**
- * `/workspace` — the switcher from the keyboard.
+ * `/workspace` — desks from the keyboard.
  *
- * The pill sits under the window layer by design, so this command is
- * the route that still works with something maximized over it. What
- * matters here is that one command answers the whole question — switch,
- * create, edit — and that "commerce" lands on the Commerce *desk*
- * rather than on "New: Commerce" when both are in the list.
+ * One command answers the whole question — switch, save the main desk
+ * as a workspace, manage them — and a workspace is never created from
+ * a template or a form here: only by saving a desk.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -38,14 +36,18 @@ describe( '/workspace', () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 	let deps: WorkspaceDeps;
-	let edit: ReturnType< typeof vi.fn >;
+	let manage: ReturnType< typeof vi.fn >;
+	let saveAs: ReturnType< typeof vi.fn >;
+	let restoreMain: ReturnType< typeof vi.fn >;
 
 	beforeEach( () => {
 		installHooksStub();
 		desktop = document.createElement( 'div' );
 		document.body.appendChild( desktop );
 		manager = new WindowManager( desktop );
-		edit = vi.fn();
+		manage = vi.fn();
+		saveAs = vi.fn( () => ( { id: 'desktop-2' } ) );
+		restoreMain = vi.fn();
 		deps = {
 			manager,
 			getNavItems: () => [],
@@ -54,11 +56,14 @@ describe( '/workspace', () => {
 			openNative: vi.fn(),
 			refreshLayout: vi.fn(),
 		};
-		registerWorkspaceCommand( deps, edit );
+		registerWorkspaceCommand( deps, manage, saveAs, undefined, restoreMain );
 	} );
 
 	afterEach( () => {
 		unregisterCommand( 'workspace' );
+		unregisterCommand( 'save-workspace' );
+		unregisterCommand( 'keep-desk' );
+		unregisterCommand( 'restore-main-desk' );
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -73,48 +78,53 @@ describe( '/workspace', () => {
 		expect( mine[ 0 ].label ).toBe( 'Workspace' );
 	} );
 
-	test( 'with no args it offers desks, then templates, then the editor', async () => {
+	test( 'with no args it offers desks, then save, manage and keep — no templates', async () => {
 		const command = listCommands().find( ( c ) => c.slug === 'workspace' )!;
 		const rows = await labels( command.suggest?.( '', ctx() ) );
 
-		expect( rows[ 0 ] ).toBe( 'Workspace 1' );
-		expect( rows ).toContain( 'New: Commerce' );
-		expect( rows ).toContain( 'New: Learning' );
-		expect( rows ).toContain( 'New: Publishing' );
-		expect( rows.at( -2 ) ).toBe( 'Edit this workspace…' );
-		expect( rows.at( -1 ) ).toBe( 'Keep this desk' );
+		expect( rows[ 0 ] ).toBe( 'Main desk' );
+		expect( rows.some( ( r ) => r.startsWith( 'New:' ) ) ).toBe( false );
+		expect( rows.slice( -3 ) ).toEqual( [
+			'Save desk as new workspace',
+			'Manage workspaces…',
+			'Keep this desk',
+		] );
 	} );
 
-	test( 'running a template name creates and enters that desk', () => {
-		const command = listCommands().find( ( c ) => c.slug === 'workspace' )!;
-		const before = manager.getDesktops().length;
+	test( '/save-workspace saves, and says so when there is nothing to save', () => {
+		const command = listCommands().find( ( c ) => c.slug === 'save-workspace' )!;
+		const context = ctx();
+		expect( command.run( '', context ) ).toBeUndefined();
+		expect( saveAs ).toHaveBeenCalled();
+		expect( context.close ).toHaveBeenCalled();
 
-		command.run( 'New: Publishing', ctx() );
-
-		expect( manager.getDesktops() ).toHaveLength( before + 1 );
-		const active = manager.getActiveDesktop();
-		expect( active.label ).toBe( 'Publishing' );
-		expect( active.profile?.preset ).toBe( 'publishing' );
+		saveAs.mockReturnValue( null );
+		expect( String( command.run( '', ctx() ) ) ).toContain( 'no desk to save' );
 	} );
 
-	test( 'an existing desk wins over the template of the same name', () => {
-		const shop = createWorkspace( deps, { preset: 'commerce' } );
+	test( 'a desk name switches to that desk', () => {
+		const shop = createWorkspace( deps, { label: 'Commerce' } );
 		manager.switchDesktop( manager.getDesktops()[ 0 ].id );
 		const command = listCommands().find( ( c ) => c.slug === 'workspace' )!;
 		const before = manager.getDesktops().length;
 
 		command.run( 'commerce', ctx() );
 
-		// Switched, not created: "/workspace commerce" when a Commerce
-		// desk already exists means "take me there".
+		// Switched, never created.
 		expect( manager.getDesktops() ).toHaveLength( before );
 		expect( manager.getActiveDesktopId() ).toBe( shop.id );
 	} );
 
-	test( 'the editor row opens the editor on the current desk', () => {
+	test( '/restore-main-desk hands off to the restore, which asks first', () => {
+		const command = listCommands().find( ( c ) => c.slug === 'restore-main-desk' )!;
+		command.run( '', ctx() );
+		expect( restoreMain ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'the manage row opens the Workspaces app on the current desk', () => {
 		const command = listCommands().find( ( c ) => c.slug === 'workspace' )!;
-		command.run( 'Edit this workspace', ctx() );
-		expect( edit ).toHaveBeenCalledWith( manager.getActiveDesktopId() );
+		command.run( 'Manage workspaces', ctx() );
+		expect( manage ).toHaveBeenCalledWith( manager.getActiveDesktopId() );
 	} );
 
 	test( 'no match reports it instead of guessing', () => {

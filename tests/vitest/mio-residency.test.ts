@@ -148,6 +148,78 @@ describe( 'MIO window ownership', () => {
 		lease.dispose(); await flush();
 		delete window.openStationMountMioChat;
 	} );
+	test( 'a side-docked chat pads the window body by its width, and closing gives it back', async () => {
+		vi.stubGlobal( 'requestAnimationFrame', vi.fn( () => 1 ) );
+		vi.stubGlobal( 'cancelAnimationFrame', vi.fn() );
+		const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' );
+		shell.append( layer ); document.body.append( shell );
+		const context = { ...makeWindow( 'side' ), chatLayout: 'side' as const };
+		const body = context.host;
+		Object.defineProperty( body, 'clientWidth', { value: 1000, configurable: true } );
+		const handle = { getPosition: () => ( { x: 100, y: 150 } ), setAnchor: vi.fn(), setPosition: vi.fn(), setAnimating: vi.fn(), applyConfig: vi.fn(), destroy: vi.fn() };
+		const residency = new MioResidency( { shell, layer: () => layer, focused: () => 'side', handle: () => handle, enabled: () => true, ready: async () => undefined } );
+		const lease = residency.register( 'side', context ); await flush();
+		window.openStationMountMioChat = vi.fn( ( frame: HTMLElement ) => {
+			const panel = document.createElement( 'section' ); panel.className = 'os-mio-chat'; frame.append( panel );
+			return { destroy: () => panel.remove() };
+		} ) as unknown as typeof window.openStationMountMioChat;
+		await lease.openChat();
+
+		const win = document.getElementById( 'wp-window-side' )!;
+		expect( document.querySelector( '.os-mio-chat' )!.classList.contains( 'os-mio-chat--side' ) ).toBe( true );
+		expect( body.dataset.osMioSideChat ).toBe( 'true' );
+		expect( win.style.getPropertyValue( '--os-mio-side-chat-size' ) ).toBe( '360px' );
+
+		residency.closeChat();
+		expect( body.dataset.osMioSideChat ).toBeUndefined();
+		expect( win.style.getPropertyValue( '--os-mio-side-chat-size' ) ).toBe( '' );
+		lease.dispose(); await flush();
+		delete window.openStationMountMioChat;
+	} );
+	test( 'each window keeps its own chat: focusing another window closes nothing', async () => {
+		vi.stubGlobal( 'requestAnimationFrame', vi.fn( () => 1 ) );
+		vi.stubGlobal( 'cancelAnimationFrame', vi.fn() );
+		const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' );
+		shell.append( layer ); document.body.append( shell );
+		let focused = 'a';
+		const handle = { getPosition: () => ( { x: 100, y: 150 } ), setAnchor: vi.fn(), setPosition: vi.fn(), setAnimating: vi.fn(), applyConfig: vi.fn(), destroy: vi.fn() };
+		const residency = new MioResidency( { shell, layer: () => layer, focused: () => focused, handle: () => handle, enabled: () => true, ready: async () => undefined } );
+		const a = residency.register( 'a', { ...makeWindow( 'a' ), chatLayout: 'side' } );
+		const b = residency.register( 'b', makeWindow( 'b' ) );
+		await flush();
+		const destroyed: string[] = [];
+		window.openStationMountMioChat = vi.fn( ( frame: HTMLElement, title: string ) => {
+			const panel = document.createElement( 'section' ); panel.className = 'os-mio-chat'; panel.dataset.title = title; frame.append( panel );
+			return { destroy: () => { destroyed.push( title ); panel.remove(); } };
+		} ) as unknown as typeof window.openStationMountMioChat;
+		const chatOf = ( id: string ) => document.querySelector( `#wp-window-${ id } .os-mio-chat` );
+
+		await a.openChat();
+		expect( chatOf( 'a' ) ).not.toBeNull();
+
+		// Focus the other window: A's chat — and its docked width — stay.
+		focused = 'b'; residency.refresh(); await flush();
+		expect( chatOf( 'a' ) ).not.toBeNull();
+		expect( document.querySelector< HTMLElement >( '#wp-window-a .os-window__body' )!.dataset.osMioSideChat ).toBe( 'true' );
+		expect( document.querySelector< HTMLElement >( '#wp-window-a .os-mio-residence' )!.hidden ).toBe( false );
+
+		// Both open at once.
+		await b.openChat();
+		expect( chatOf( 'a' ) ).not.toBeNull();
+		expect( chatOf( 'b' ) ).not.toBeNull();
+		expect( destroyed ).toEqual( [] );
+
+		// Closing one leaves the other.
+		b.dispose(); await flush();
+		expect( destroyed ).toEqual( [ 'b' ] );
+		expect( chatOf( 'a' ) ).not.toBeNull();
+
+		// The master switch closes what is left.
+		residency.closeChat();
+		expect( destroyed ).toEqual( [ 'b', 'a' ] );
+		a.dispose(); await flush();
+		delete window.openStationMountMioChat;
+	} );
 	test( 'AI availability gates chat live while offline callouts keep their residence', async () => {
 		vi.stubGlobal( 'requestAnimationFrame', vi.fn( () => 1 ) );
 		vi.stubGlobal( 'cancelAnimationFrame', vi.fn() );

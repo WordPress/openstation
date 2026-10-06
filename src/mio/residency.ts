@@ -1,4 +1,14 @@
-/** Opt-in, per-instance residency. One owner, one layer, cancellable handoffs. */
+/**
+ * Opt-in, per-instance residency. One owner, one layer, cancellable
+ * handoffs — and a chat PER WINDOW.
+ *
+ * The mascot is one creature, so it lives in one window at a time: the
+ * focused one (the owner). A conversation belongs to its window, not to
+ * the mascot: opening a chat in one window never closes another's, and
+ * focusing another window leaves every open chat where it is, still
+ * working. Only the master switch, a window's own MIO toggle, losing AI
+ * availability, or the window going away closes a chat.
+ */
 import { addAction, doAction, HOOKS } from '../hooks';
 import { __ } from '../i18n';
 import { registerMioWindowToggle } from './window-toggle';
@@ -23,6 +33,10 @@ interface Resident {
 	button: HTMLElement;
 	session: MioSession;
 	observer: ResizeObserver;
+	/** This window's open conversation, or null. */
+	chat: MioChatHandle | null;
+	/** The body padded for this window's side-docked chat, while open. */
+	sideBody: HTMLElement | null;
 }
 
 interface ResidencyOptions {
@@ -54,7 +68,7 @@ export class MioResidency {
 		}
 	} );
 	private owner: Resident | null = null;
-	private chat: MioChatHandle | null = null;
+	/** The mascot's anchor beside the OWNER's open chat — one mascot, one anchor. */
 	private chatPlacement: ReturnType<typeof followMioChat> | null = null;
 	private thinkingOwner: string | null = null;
 	private revision = 0;
@@ -111,6 +125,9 @@ export class MioResidency {
 			frame.style.left = `${ body.offsetLeft }px`;
 			frame.style.width = `${ body.clientWidth }px`;
 			frame.style.height = `${ body.clientHeight }px`;
+			if ( body.dataset.osMioSideChat ) {
+				sizeSideChat( body );
+			}
 		};
 		const observer = new ResizeObserver( measure );
 		observer.observe( body );
@@ -131,13 +148,16 @@ export class MioResidency {
 			frame,
 			button,
 			observer,
+			chat: null,
+			sideBody: null,
+			// A conversation keeps working when its window loses focus:
+			// the user may be reading another window while this one's
+			// answer arrives. It stops with the switches, not with focus.
 			session: new MioSession(
 				{ ...context, windowId: id },
 				createMioTransport( id ),
 				() =>
 					this.canChat() && resident.enabled &&
-					this.owner === resident &&
-					this.options.focused() === id &&
 					context.host.isConnected,
 			),
 		};
@@ -154,6 +174,7 @@ export class MioResidency {
 			resident.enabled = enabled;
 			if ( ! enabled ) {
 				resident.session.cancel();
+				this.closeChatOf( resident );
 			}
 			this.refresh();
 			doAction( 'os.mio.window-enabled-changed', { windowId: id, enabled } );
@@ -177,18 +198,26 @@ export class MioResidency {
 			if ( ! context.host.isConnected || ! this.canChat() || ! resident.enabled || this.owner !== resident || this.options.focused() !== id ) {
 				return;
 			}
-			this.closeChat();
-			this.chat =
+			// This window's chat only — another window's stays open.
+			this.closeChatOf( resident );
+			resident.chat =
 				window.openStationMountMioChat?.( frame, context.title, resident.session, () =>
-					this.closeChat( true ),
+					this.closeChatOf( resident, true ),
 				) ?? null;
-			button.hidden = this.chat !== null;
+			button.hidden = resident.chat !== null;
 			resident.callout?.setActive( false );
-			this.syncVisibility();
 			const panel = frame.querySelector<HTMLElement>( '.os-mio-chat' );
-			if ( panel ) {
-				this.chatPlacement = followMioChat( frame, panel, this.options.handle );
+			if ( panel && 'side' === context.chatLayout ) {
+				// Docked: the panel takes the trailing edge at full height,
+				// and the body gives up that width so the app reflows
+				// beside it.
+				panel.classList.add( 'os-mio-chat--side' );
+				body.dataset.osMioSideChat = 'true';
+				resident.sideBody = body;
+				sizeSideChat( body );
 			}
+			this.anchorMascot();
+			this.syncVisibility();
 		};
 		button.addEventListener( 'click', () => {
 			void openChat().catch( ( error: unknown ) => {
@@ -200,6 +229,7 @@ export class MioResidency {
 			if ( this.residents.get( id ) !== resident ) {
 				return;
 			}
+			this.closeChatOf( resident );
 			this.residents.delete( id );
 			resident.session.dispose();
 			resident.callout?.dispose();
@@ -226,24 +256,68 @@ export class MioResidency {
 			isEnabled: () => resident.enabled,
 			setEnabled,
 			openChat,
+			send: ( message ) => {
+				if ( ! resident.chat ) {
+					return false;
+				}
+				resident.chat.send( message );
+				return true;
+			},
 			getOperations: () => resident.session.operations.list(),
 			inspectOperation: ( callId, signal = new AbortController().signal ) => resident.session.operations.inspect( callId, signal ),
 			dispose,
 		};
 	}
 
+	/** Close every window's chat — the master switch going off. */
 	public closeChat( focus = false ): void {
-		this.chatPlacement?.close( focus );
-		this.chatPlacement = null;
-		this.chat?.destroy();
-		this.chat = null;
-		if ( this.owner ) {
-			this.owner.button.hidden = ! this.canChat();
-			if ( focus ) {
-				( this.owner.button.shadowRoot?.querySelector<HTMLButtonElement>( 'button' ) ?? this.owner.button ).focus();
-			}
+		for ( const resident of this.residents.values() ) {
+			this.closeChatOf( resident, focus && resident === this.owner );
 		}
 		this.syncCallouts();
+	}
+
+	/**
+	 * Close one window's chat, giving its body back its width. Returns
+	 * focus to its launcher when asked (the chat's own close button).
+	 */
+	private closeChatOf( resident: Resident, focus = false ): void {
+		if ( resident.sideBody ) {
+			delete resident.sideBody.dataset.osMioSideChat;
+			windowOf( resident.sideBody ).style.removeProperty( '--os-mio-side-chat-size' );
+			resident.sideBody = null;
+		}
+		if ( resident === this.owner ) {
+			this.chatPlacement?.close( focus );
+			this.chatPlacement = null;
+		}
+		if ( resident.chat ) {
+			resident.chat.destroy();
+			resident.chat = null;
+			resident.button.hidden = ! this.canChat();
+			if ( focus ) {
+				( resident.button.shadowRoot?.querySelector<HTMLButtonElement>( 'button' ) ?? resident.button ).focus();
+			}
+		}
+		// A frame kept visible only for its chat hides with it.
+		if ( resident !== this.owner ) {
+			resident.frame.hidden = true;
+		}
+		this.syncCallouts();
+	}
+
+	/**
+	 * Put the mascot beside the owner's open chat — or release it when
+	 * the owner has none. One mascot, so only the owner's chat anchors
+	 * it; another window's chat stays open without it.
+	 */
+	private anchorMascot(): void {
+		this.chatPlacement?.close( false );
+		this.chatPlacement = null;
+		const panel = this.owner?.chat ? this.owner.frame.querySelector< HTMLElement >( '.os-mio-chat' ) : null;
+		if ( this.owner && panel ) {
+			this.chatPlacement = followMioChat( this.owner.frame, panel, this.options.handle );
+		}
 	}
 
 	private syncVisibility(): void {
@@ -251,7 +325,7 @@ export class MioResidency {
 		if ( layer ) {
 			layer.dataset.mioVisible = String(
 				this.owner
-					? !! this.chat || this.owner.calloutVisible
+					? !! this.owner.chat || this.owner.calloutVisible
 					: ( this.options.held?.() ?? false ) || ( this.options.wallpaperVisible?.() ?? true ),
 			);
 		}
@@ -259,7 +333,7 @@ export class MioResidency {
 
 	private syncCallouts(): void {
 		for ( const resident of this.residents.values() ) {
-			resident.callout?.setActive( this.options.enabled() && resident.enabled && this.owner === resident && ! this.chat && ! this.transitioning );
+			resident.callout?.setActive( this.options.enabled() && resident.enabled && this.owner === resident && ! resident.chat && ! this.transitioning );
 		}
 		this.syncVisibility();
 	}
@@ -283,12 +357,12 @@ export class MioResidency {
 
 	public refresh(): void {
 		const enabled = this.options.enabled();
-		if ( ! this.canChat() && this.chat ) {
+		if ( ! this.canChat() ) {
 			this.closeChat();
 		}
 		for ( const resident of this.residents.values() ) {
 			resident.toggle?.update();
-			resident.button.hidden = ! this.canChat() || ( resident === this.owner && this.chat !== null );
+			resident.button.hidden = ! this.canChat() || resident.chat !== null;
 			if ( ! this.canChat() ) {
 				resident.session.cancel();
 			}
@@ -312,8 +386,11 @@ export class MioResidency {
 		this.targetLayer = layer;
 		const previous = this.owner;
 		this.transitioning = true;
-		this.closeChat();
-		previous?.session.cancel();
+		// Focus moving on does not close anything: every open chat stays
+		// in its window, and a turn in flight keeps going. Only the
+		// mascot moves, and with it its anchor.
+		this.chatPlacement?.close( false );
+		this.chatPlacement = null;
 		this.owner = next;
 		this.syncCallouts();
 		this.syncThinking();
@@ -355,8 +432,11 @@ export class MioResidency {
 				if ( revision !== this.revision ) {
 					return;
 				}
+				// The owner's frame shows, and so does every frame holding
+				// an open chat — a conversation stays on screen in its
+				// window whoever has the focus.
 				for ( const resident of this.residents.values() ) {
-					resident.frame.hidden = resident !== next;
+					resident.frame.hidden = resident !== next && ! resident.chat;
 				}
 				if ( layer ) {
 					// Measure the full layout, never the zero-sized shrink transform.
@@ -394,6 +474,7 @@ export class MioResidency {
 					this.animation = null;
 					layer?.style.removeProperty( 'opacity' );
 					this.transitioning = false;
+					this.anchorMascot();
 					this.syncCallouts();
 					this.options.handle()?.setAnimating( ! document.hidden );
 				}
@@ -401,4 +482,21 @@ export class MioResidency {
 		};
 		this.moving = transition();
 	}
+}
+
+/** The window element around a body — the parent of both the body and MIO's frame. */
+function windowOf( body: HTMLElement ): HTMLElement {
+	return body.closest< HTMLElement >( '[id^="wp-window-"]' ) ?? body.parentElement ?? body;
+}
+
+/**
+ * The width a side-docked chat takes: 360px, or 45% of a narrower
+ * window, never under 280px. Written as `--os-mio-side-chat-size` on
+ * the WINDOW, which holds both the body (its padding reads it) and
+ * MIO's frame (the panel reads it) — the two are siblings.
+ */
+function sizeSideChat( body: HTMLElement ): void {
+	const width = body.clientWidth;
+	const size = Math.max( Math.min( 360, Math.round( width * 0.45 ) ), Math.min( 280, width ) );
+	windowOf( body ).style.setProperty( '--os-mio-side-chat-size', `${ size }px` );
 }

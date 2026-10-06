@@ -133,14 +133,14 @@ function openstation_session_now_ms() {
 function openstation_default_desktop() {
 	return array(
 		'id'    => 'desktop-1',
-		'label' => 'Workspace 1',
+		'label' => __( 'Main desk', 'desktop-mode' ),
 	);
 }
 
 /**
  * Returns the default empty session shape.
  *
- * Includes a default desktop ("Workspace 1") so the client can always
+ * Includes a default desktop (the "Main desk") so the client can always
  * assume at least one desktop exists at boot — the shell can't
  * function with zero desktops.
  *
@@ -233,13 +233,16 @@ function openstation_get_session( $user_id, $network = null ) {
 		)
 	);
 
-	return array(
+	$session = array(
 		'windows'       => $windows,
 		'desktops'      => $desktops,
 		'activeDesktop' => $active_desktop,
 		'focused'       => isset( $raw['focused'] ) ? (string) $raw['focused'] : '',
 		'updated'       => isset( $raw['updated'] ) ? (int) $raw['updated'] : 0,
 	);
+
+	/** This filter is documented in includes/session.php (openstation_save_session). */
+	return apply_filters( 'openstation_session', $session, $user_id, (bool) $network, 'read' );
 }
 
 /**
@@ -297,6 +300,21 @@ function openstation_save_session( $user_id, $session, $network = null ) {
 	}
 
 	$clean = openstation_sanitize_session( $session, $network );
+
+	/**
+	 * Filters a desktop session on its way into and out of storage.
+	 *
+	 * Runs on every read (`openstation_get_session()`) and on every
+	 * save, after sanitizing. The place to hold a session to a shape
+	 * the client cannot talk its way out of — a pinned shared
+	 * workspace is the shipped use.
+	 *
+	 * @param array  $session Sanitized session.
+	 * @param int    $user_id Owner.
+	 * @param bool   $network Whether this is the network admin's session.
+	 * @param string $context `read` or `save`.
+	 */
+	$clean = apply_filters( 'openstation_session', $clean, $user_id, (bool) $network, 'save' );
 
 	return false !== update_user_meta( $user_id, openstation_session_meta_key( $network ), $clean );
 }

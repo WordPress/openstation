@@ -33,6 +33,28 @@ Every registration automatically adds a MIO portrait toggle to that window’s t
 
 `wp.os.mio.getWindowId(): string | null` reports the selected owner; `null` means desktop. While MIO is switched off there is no active owner; registrations remain available for the next enable. Existing appearance, position and toggle methods remain available.
 
+## Chat layout: floating or docked
+
+`lease.send( message: string ): boolean` says something in this window's open conversation **as the user** — what the window did on their behalf, so MIO carries on from it without the user having to type it. The Workspaces window sends "I accepted the layout." when its preview's Accept button is pressed, and MIO moves straight to the next step. The message shows in the chat like one the user typed, is queued while MIO is still answering, and goes the moment it is done. Returns `false` (and sends nothing) when no chat is open in this window.
+
+`chatLayout?: 'float' | 'side'` chooses where the conversation opens. Docked (`'side'`), the conversation takes the panel's full height and MIO sits in the panel's own header, never over the app beside it. In either layout, a new reply that fits the conversation is shown whole — its action buttons included — and a longer one opens at its start.
+
+- **`'float'`** (default) — the floating card in the window's corner, over the app. Right for a question and an answer.
+- **`'side'`** — a full-height panel docked to the window's trailing edge, and the window body padded by the panel's width so the app's own content reflows **beside** the conversation instead of under it. Right for a window whose content is the result of the conversation: the user watches it change while they talk. The Workspaces window uses it, so its live preview stays in view while MIO builds a desk.
+
+```typescript
+wp.os.mio.registerWindow( ctx.windowId, {
+    host: ctx.root,
+    title: 'My builder',
+    chatLayout: 'side',
+    prompt: () => '…',
+    documents,
+    abilities: () => myActions(),
+} );
+```
+
+The docked width is 360px, or 45% of a narrower window, never under 280px, and follows the window as it is resized. It is published as `--os-mio-side-chat-size` on the window element, and the body carries `data-os-mio-side-chat` while the panel is open — an app that positions something against the body's trailing edge can read either. Closing the chat removes both; the body is back to its full width. Your app needs no CSS of its own for the reflow, but its root should scroll its own content (`overflow: auto` on a full-height root) so the narrower column stays reachable.
+
 ## Availability switches
 
 The dock’s MIO button and Features → **MIO API** share one per-user master switch (`mioEnabled`, default `false`). `mioApiEnabled` is a synchronized compatibility alias: either name can be patched, and `mioEnabled` wins if both are supplied. Switching off closes chat, cancels pending work, hides the mascot and window controls, and suspends leases. Re-enabling resumes existing leases and preserves per-window choices and callout dismissals.
@@ -62,7 +84,9 @@ Preferences uses this exact pattern: every visit to About presents the journal t
 
 The single `#os-mio` layer shrinks around the companion, moves into an overlay fitted to the owning window's body, and grows back. Each leg lasts 150 ms. Reduced motion skips both legs. The frame is separate from scrolling app content and follows body resizes. Inside a window, the runtime uses an empty obstacle set: no collisions with controls, other windows or docks, and no attraction to them. The body boundaries still constrain motion.
 
-Focus on another registered window hands MIO to it. Focus on an unregistered window, minimization or leaving the desktop returns it to the shell. A handoff cancels obsolete animation and model work. Window-local positions never replace the saved desktop resting position.
+Focus on another registered window hands the MIO **mascot** to it. Focus on an unregistered window, minimization or leaving the desktop returns it to the shell. A handoff cancels obsolete animation. Window-local positions never replace the saved desktop resting position.
+
+**Conversations belong to their windows, not to the mascot.** Each registered window has its own chat: opening one never closes another's, and focusing another window leaves every open chat where it is — docked chats keep their width — with any turn in flight still running. Two windows can be talking to MIO at once. A chat closes only with its own close button, the window's MIO toggle, the master switch, losing AI availability, or the lease being disposed. The mascot anchors beside the focused window's open chat; another window's chat stays open without it.
 
 `os.mio.owner-changed` is a `wp.hooks` action with `{windowId: string|null, previousWindowId: string|null}`. It fires at the handoff, between shrink and grow. It carries no prompt, conversation or tool data. There is no matching document CustomEvent.
 
@@ -118,7 +142,7 @@ Reads and validation-only calls may repeat up to four times for the same name/ar
 
 Successful writes return `{effect:'write', status:'confirmed', receipt, data?}`. Receipts are nonempty strings of at most 500 characters, unique per logical write. Reusing a receipt for another call is terminal and cannot count as another confirmed write. Prefer an authoritative server receipt. Existing `{saved:true, ...}` results remain accepted as explicit acknowledgements and receive a client call-ID receipt; that acknowledgement is **not server-side idempotency**. An unacknowledged write or `{effect:'write', status:'unknown'}` stops the turn. A successful non-writing no-op can return `{effect:'none', status:'completed', data?}`.
 
-A chain is not a transaction. Earlier completed actions remain applied if a later one fails or the user presses Stop. Closing chat, moving focus or disposing the window aborts the pending request and prevents late replies from dispatching more actions. Already submitted server writes may still complete; cancellation is not rollback. Return meaningful results rather than an optimistic “done.” Each history result is serialized immediately, preserving historical read results even when later actions mutate the same store. Preferences waits for the existing save lifecycle and compares the requested values with the completed save’s `savedSettings` snapshot before returning a saved result. Its result includes `changed` and `changes: [{setting, before, after}]`, captured from before the optimistic update. Use this evidence to distinguish a change from an already-selected value; the dynamic prompt’s current state is refreshed after the action.
+A chain is not a transaction. Earlier completed actions remain applied if a later one fails or the user presses Stop. Closing chat, switching MIO off (globally or for the window) or disposing the window aborts the pending request and prevents late replies from dispatching more actions. Moving focus to another window does not. Already submitted server writes may still complete; cancellation is not rollback. Return meaningful results rather than an optimistic “done.” Each history result is serialized immediately, preserving historical read results even when later actions mutate the same store. Preferences waits for the existing save lifecycle and compares the requested values with the completed save’s `savedSettings` snapshot before returning a saved result. Its result includes `changed` and `changes: [{setting, before, after}]`, captured from before the optimistic update. Use this evidence to distinguish a change from an already-selected value; the dynamic prompt’s current state is refreshed after the action.
 
 ## Turn identity and operation lifecycle
 
@@ -127,7 +151,7 @@ A chain is not a transaction. Earlier completed actions remain applied if a late
 A context may supply these synchronous observers:
 
 - `onTurnBegin(context)` once before the first provider request.
-- `onTurnAbort(context)` once when stopped, disposed or losing focus/availability. This fires immediately, including while a submitted write is unresolved.
+- `onTurnAbort(context)` once when stopped, disposed or losing availability. This fires immediately, including while a submitted write is unresolved.
 - `onTurnEnd(summary)` once when the asynchronous turn settles, with `status` (`completed`, `failed`, `aborted`), call and validation counts, reads, confirmed writes and unknown write outcomes. If a transport never settles, abort still fires; end awaits settlement.
 - `onOperation(operation)` when an identified call starts or resolves. Observer exceptions do not control execution or cause retries.
 
@@ -149,7 +173,7 @@ For larger forms, use app-owned draft resources, edit IDs, revisioned reads and 
 
 MIO eases toward a chat anchor through the soft-body simulation’s damped spring, preserving position and momentum. The anchor has no distance cutoff: dragging takes precedence, and releasing returns MIO beside chat. Canvas resizes repaint synchronously before browser paint to avoid empty frames. Resizes retarget the spring; closing chat fades the mascot out, or resumes the caller’s active callout. The return spring retains the pre-chat position relative to the current window. A subsequent drag releases that return anchor. Handoffs and the master switch clear obsolete anchors. Narrow windows keep MIO’s original home when there is no room beside the panel.
 
-A pending turn blends a visible pondering pose into the mascot itself: its silhouette breathes and tilts with its face, the eyes look around and softly narrow, and its existing ring colours sweep gently. Matching chat dots and a title-bar pulse accompany the mascot. The pose transforms only the drawing, preserving the physics position and chat anchor. Stop, close, focus changes and disabling MIO end this transient state. Reduced motion retains a static tilted, upward-looking expression and still dots. A disabled halo stays disabled; the face and silhouette still express thinking. Thinking never overwrites the user’s appearance settings.
+A pending turn blends a visible pondering pose into the mascot itself: its silhouette breathes and tilts with its face, the eyes look around and softly narrow, and its existing ring colours sweep gently. Matching chat dots and a title-bar pulse accompany the mascot. The pose transforms only the drawing, preserving the physics position and chat anchor. Stop, close and disabling MIO end this transient state; the pose follows the mascot to whichever window is focused. Reduced motion retains a static tilted, upward-looking expression and still dots. A disabled halo stays disabled; the face and silhouette still express thinking. Thinking never overwrites the user’s appearance settings.
 
 The floating, nonmodal conversation uses the component kit's buttons and auto-growing textarea, the shared escaped Markdown renderer for assistant replies, a polite live log, a keyboard-accessible launcher, Escape to close, and Stop while a turn is running. New messages reveal their beginning rather than jumping to the end of a long reply; the reader then controls scrolling. It is separate from the decorative `aria-hidden` MIO canvas. Closing chat preserves its window's memory; closing the window or reloading removes it. Different windows never share backscroll.
 
@@ -205,7 +229,7 @@ A `MioResponseAction` descriptor contains:
 
 The shell examines at most 100 descriptors, omits invalid entries and duplicate IDs, and retains at most three actions. Controls use `os-button` and existing chat/component tokens, wrap on narrow windows, and expose a “Suggested actions” group and polite per-action progress/error status. Availability is refreshed when rendering and on activation; app permissions still need authoritative server checks. Errors remain beside the button, preserve the assistant message and never enter provider history. Only another deliberate click retries an action. A pending button cannot start another invocation, including after cancellation while an app promise is still settling.
 
-The shell invokes `run` directly in the click handler, preserving the user gesture until the callback's first await. Prefer a native preview window with a stable per-resource ID. Browser-tab fallbacks must preserve popup authorization themselves (for example opening a blank tab synchronously, navigating after an authenticated URL arrives, and closing it on failure). Successfully opening a destination may change focus and close this chat; that does not retroactively turn completed navigation into failure.
+The shell invokes `run` directly in the click handler, preserving the user gesture until the callback's first await. Prefer a native preview window with a stable per-resource ID. Browser-tab fallbacks must preserve popup authorization themselves (for example opening a blank tab synchronously, navigating after an authenticated URL arrives, and closing it on failure). Successfully opening a destination may change focus; the chat stays open in its window.
 
 `MioChatMessage` gains optional `id` and `actionIds`. These are opaque references, not descriptors. Callbacks, labels, errors, nonce-bearing URLs and resource closures stay in a lease-local registry; the model-facing message history contains only role/text. Closing chat aborts pending button work but retains eligible callbacks for reopening. Disposing the lease removes them permanently. Evicting messages releases their callbacks; the registry retains actions for at most the last 40 messages even with a custom store. Store eviction is reconciled on message writes, render and click. Restoring serialized messages into another session cannot recreate controls. Stable message and button nodes preserve focus and scroll during status changes.
 

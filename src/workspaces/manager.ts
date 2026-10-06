@@ -11,7 +11,7 @@
  * {@link provisionWorkspace} explains why.
  */
 
-import { applyFilters, doAction, HOOKS } from '../hooks';
+import { doAction, HOOKS } from '../hooks';
 import type { Desktop } from '../types';
 import type { NavItem } from '../nav/types';
 import type { Window } from '../window';
@@ -23,7 +23,6 @@ import {
 	tryNativeUrlRemap,
 } from '../native-url-remap';
 import { resolveLaunches, type ResolvedLaunch } from './match';
-import { findWorkspacePreset, workspaceProfileFromPreset } from './presets';
 import {
 	blankWorkspaceProfile,
 	WORKSPACE_MAX_WINDOWS,
@@ -61,6 +60,24 @@ export interface WorkspaceDeps {
 	 * `OsSettings.setWorkspaceAppearance()`.
 	 */
 	setAppearance?: ( patch: Record< string, unknown > | null ) => void;
+	/**
+	 * The user's own OS settings, all of them — what a workspace that
+	 * does not name a setting takes it from. Every workspace carries
+	 * ALL of the OS settings: this fills in the ones a caller left out.
+	 */
+	userAppearance?: () => Record< string, unknown >;
+}
+
+/**
+ * A profile's settings, completed: every OS setting, the ones it does
+ * not name taken from the user's own. Without a source to fill from,
+ * the profile's own settings as they are.
+ */
+function completeAppearance(
+	deps: WorkspaceDeps,
+	profile: WorkspaceProfile,
+): Record< string, unknown > {
+	return { ...( deps.userAppearance?.() ?? {} ), ...( workspaceAppearance( profile ) ?? {} ) };
 }
 
 /** The profile on a desktop, or `null` for a plain Space. */
@@ -155,9 +172,12 @@ export function applyWorkspaceAppearance(
 	deps: WorkspaceDeps,
 	desktopId: string,
 ): void {
-	deps.setAppearance?.(
-		workspaceAppearance( getWorkspaceProfile( deps.manager, desktopId ) ),
-	);
+	// A workspace's desk is painted with ALL of the OS settings — the
+	// ones it does not name as the user has them — so every setting on
+	// it is the workspace's, and an edit made there goes to it. A plain
+	// desk gets the user's own back.
+	const profile = getWorkspaceProfile( deps.manager, desktopId );
+	deps.setAppearance?.( profile ? completeAppearance( deps, profile ) : null );
 }
 
 /**
@@ -178,23 +198,22 @@ export function applyWorkspaceView(
 	applyWorkspaceWidgets( deps, desktopId );
 }
 
+/**
+ * Windows a desk never keeps. The Workspaces app is the tool you save
+ * a desk WITH — open on the desk at the moment of saving, but never
+ * part of what the desk is for.
+ */
+const NEVER_CAPTURED = new Set( [ 'openstation-workspaces' ] );
+
 /** What {@link createWorkspace} needs to know. */
 export interface CreateWorkspaceOptions {
-	/** Preset id to read the profile from. Omit for a blank desk. */
-	preset?: string;
-	/** Name. Falls back to the preset's, then to the auto-numbered one. */
+	/** Name. Falls back to the auto-numbered one. */
 	label?: string;
-	/** Explicit profile, overriding whatever the preset would produce. */
+	/** The profile the desk carries. Omit for a plain desk. */
 	profile?: WorkspaceProfile;
 	/** Switch to the new workspace once it exists. Default true. */
 	activate?: boolean;
-	/**
-	 * Dress this existing desk instead of making one.
-	 *
-	 * The `+` creates its desk and lands on it before the wizard
-	 * opens, so the user configures the canvas in front of them; the
-	 * wizard's Create then has a desk to fill in, not one to make.
-	 */
+	/** Dress this existing desk instead of making one. */
 	desktopId?: string;
 }
 
@@ -210,27 +229,21 @@ export function createWorkspace(
 	deps: WorkspaceDeps,
 	options: CreateWorkspaceOptions = {},
 ): Desktop {
-	const preset = options.preset ? findWorkspacePreset( options.preset ) : null;
-
-	let profile = options.profile ?? null;
-	if ( ! profile && preset ) {
-		profile = applyFilters< WorkspaceProfile, [ typeof preset ] >(
-			HOOKS.WORKSPACE_PROFILE,
-			workspaceProfileFromPreset( preset, deps.getNavItems() ),
-			preset,
-		);
-	}
-
 	const existing = options.desktopId
 		? deps.manager.getDesktops().find( ( d ) => d.id === options.desktopId )
 		: undefined;
 	const desktop = existing ?? deps.manager.createDesktop();
-	const label = options.label ?? preset?.defaultLabel ?? preset?.label ?? '';
-	if ( label ) {
-		deps.manager.renameDesktop( desktop.id, label );
+	if ( options.label ) {
+		deps.manager.renameDesktop( desktop.id, options.label );
 	}
-	if ( profile ) {
-		setWorkspaceProfile( deps, desktop.id, profile );
+	if ( options.profile ) {
+		// Every workspace carries ALL of the OS settings, from the
+		// moment it exists: the ones the caller did not name are the
+		// user's, as they are now.
+		setWorkspaceProfile( deps, desktop.id, {
+			...options.profile,
+			appearance: completeAppearance( deps, options.profile ),
+		} );
 	}
 	if ( options.activate !== false ) {
 		deps.manager.switchDesktop( desktop.id );
@@ -346,7 +359,7 @@ function claimOpenWindows(
 function openLaunchUrl(
 	deps: WorkspaceDeps,
 	url: string,
-	launch: { title?: string; item: NavItem },
+	launch: Pick< ResolvedLaunch, 'title' | 'item' | 'gridSpan' | 'place' >,
 	desktopId: string,
 	claimed: Set< string >,
 ): Promise< Window | null > {
@@ -387,6 +400,10 @@ function openLaunchUrl(
 		selfLabel: menu?.selfLabel,
 		multi: !! menu?.multi,
 		desktopId,
+		// A window the desk puts on cells or fractions opens floating —
+		// never at the size it was last remembered at, which may be
+		// maximized and would swallow the place the desk gave it.
+		...( launch.gridSpan || launch.place ? { initialState: 'normal' as const } : {} ),
 	} );
 }
 
@@ -632,17 +649,20 @@ export function captureWorkspaceWindows(
 	desktopId: string,
 ): WorkspaceLaunch[] {
 	const out: WorkspaceLaunch[] = [];
-	const seen = new Set< string >();
 	const area = workAreaRectOf( mgr._desktop );
 	for ( const win of mgr.getAll() ) {
 		if ( ( win.config.desktopId || mgr.getActiveDesktopId() ) !== desktopId ) {
 			continue;
 		}
+		// Every window is its own entry — two of one app (the Posts
+		// list and Add Post beside it) are two windows on the desk, and
+		// a launch list has held repeated `match`es since it could open
+		// two tabs of one window. Only the tool the desk is saved with
+		// is left out.
 		const id = win.config.baseId || win.id;
-		if ( seen.has( id ) ) {
+		if ( NEVER_CAPTURED.has( id ) ) {
 			continue;
 		}
-		seen.add( id );
 		const entry: WorkspaceLaunch = {
 			match: id,
 			title: win.config.title || id,
@@ -705,6 +725,11 @@ function placeLaunchedWindow(
 	win: Window,
 	launch: Pick< WorkspaceLaunch, 'gridSpan' | 'place' >,
 ): void {
+	// A window the desk is placing comes out of maximized first: the
+	// place IS the arrangement, and a maximized window ignores it.
+	if ( ( launch.gridSpan || launch.place ) && 'maximized' === win.state ) {
+		win.toggleMaximize();
+	}
 	const area = workAreaRectOf( mgr._desktop );
 	if ( launch.gridSpan ) {
 		win._gridSpan = {
@@ -828,6 +853,67 @@ export function saveDeskToWorkspace(
 	}
 	setWorkspaceProfile( deps, desktopId, next );
 	return next;
+}
+
+/** What {@link cloneDeskAsWorkspace} needs beyond the deps. */
+export interface CloneDeskOptions extends SaveDeskOptions {
+	/** The look on the source desk, from `captureWorkspaceAppearance()`. */
+	appearance?: WorkspaceProfile[ 'appearance' ];
+	/** Name for the new workspace. Omit for the auto-numbered one. */
+	label?: string;
+}
+
+/**
+ * Save a desk as a NEW workspace: the only way one is made.
+ *
+ * The user sets the main desk up the way they want it — windows where
+ * they want them, the widgets, the apps on the rails, the look — and
+ * saves. That arrangement becomes a new desk carrying it as a profile;
+ * the source desk is left exactly as it was, so the main desk stays the
+ * workbench the next workspace is built on.
+ *
+ * The new desk is NOT provisioned: its windows open, where they were,
+ * the first time it is entered. Not switched to either — the user is
+ * still working on the desk they just saved.
+ *
+ * Returns the new desk, or `null` when the source does not exist.
+ */
+export function cloneDeskAsWorkspace(
+	deps: WorkspaceDeps,
+	sourceId: string,
+	opts: CloneDeskOptions = {},
+): Desktop | null {
+	if ( ! deps.manager.getDesktops().some( ( d ) => d.id === sourceId ) ) {
+		return null;
+	}
+	const profile: WorkspaceProfile = {
+		...blankWorkspaceProfile(),
+		windows: captureWorkspaceWindows( deps.manager, sourceId ),
+		layout: 'free',
+		provisioned: false,
+	};
+	if ( opts.visibleAppIds ) {
+		const controls = new Set(
+			deps.getNavItems()
+				.filter( ( item ) => 'control' === item.kind || item.locked )
+				.map( ( item ) => item.id ),
+		);
+		profile.apps = {
+			mode: 'only',
+			ids: opts.visibleAppIds.filter( ( id ) => ! controls.has( id ) ),
+		};
+	}
+	if ( opts.mountedWidgetIds ) {
+		profile.widgets = { mode: 'only', ids: [ ...opts.mountedWidgetIds ] };
+	}
+	if ( opts.appearance && Object.keys( opts.appearance ).length > 0 ) {
+		profile.appearance = { ...opts.appearance };
+	}
+	return createWorkspace( deps, {
+		label: opts.label,
+		profile,
+		activate: false,
+	} );
 }
 
 /**

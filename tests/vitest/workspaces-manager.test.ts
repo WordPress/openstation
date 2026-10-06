@@ -12,15 +12,11 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import type { NavItem } from '../../src/nav';
 import {
-	applyServerWorkspacePresets,
 	applyWorkspaceView,
 	applyWorkspaceWidgets,
 	captureWorkspaceWindows,
 	createWorkspace,
-	findWorkspacePreset,
 	getWorkspaceProfile,
-	installWorkspacePresetSync,
-	listWorkspacePresets,
 	provisionWorkspace,
 	reopenWorkspaceWindows,
 	saveDeskToWorkspace,
@@ -28,6 +24,7 @@ import {
 	absoluteAdminUrl,
 	WORKSPACE_MAX_WINDOWS,
 	type WorkspaceDeps,
+	type WorkspaceProfile,
 } from '../../src/workspaces';
 import {
 	_resetNativeUrlRemap,
@@ -84,6 +81,40 @@ function navItems(): NavItem[] {
 			locked: true,
 		},
 	];
+}
+
+
+/** A writing desk: a blank draft leading, the Posts list beside it. */
+function publishingProfile(): WorkspaceProfile {
+	return {
+		preset: '',
+		icon: 'dashicons-edit-page',
+		color: '#c8102e',
+		apps: { mode: 'only', ids: [ 'edit-php', 'upload-php' ] },
+		widgets: { mode: 'only', ids: [ 'desktop-mode/drafts' ] },
+		appearance: { wallpaper: 'mono', accent: 'rose' },
+		windows: [
+			{ match: 'edit.php', url: 'post-new.php', title: 'New draft' },
+			{ match: 'edit.php', url: 'edit.php' },
+		],
+		layout: 'focus',
+		provisioned: false,
+	};
+}
+
+/** A shop floor. */
+function commerceProfile(): WorkspaceProfile {
+	return {
+		preset: '',
+		icon: 'dashicons-cart',
+		color: '#7f54b3',
+		apps: { mode: 'only', ids: [ 'woocommerce' ] },
+		widgets: { mode: 'only', ids: [ 'clock' ] },
+		appearance: { wallpaper: 'dark', accent: 'indigo' },
+		windows: [ { match: 'woocommerce' } ],
+		layout: 'columns',
+		provisioned: false,
+	};
 }
 
 describe( 'workspace operations', () => {
@@ -158,45 +189,15 @@ describe( 'workspace operations', () => {
 		vi.restoreAllMocks();
 	} );
 
-	test( 'create() from a template names, profiles and activates the desk', () => {
-		const before = manager.getDesktops().length;
-		const created = createWorkspace( deps, { preset: 'publishing' } );
-
-		expect( manager.getDesktops() ).toHaveLength( before + 1 );
-		expect( created.label ).toBe( 'Publishing' );
-		expect( manager.getActiveDesktopId() ).toBe( created.id );
-
-		const profile = getWorkspaceProfile( manager, created.id );
-		expect( profile?.preset ).toBe( 'publishing' );
-		expect( profile?.layout ).toBe( 'focus' );
-		// The rails answer to the profile, so a write has to repaint.
-		expect( refreshLayout ).toHaveBeenCalled();
-	} );
-
-	test( 'create() without a template leaves a plain Space', () => {
+	test( 'create() with no profile leaves a plain Space', () => {
 		const created = createWorkspace( deps, { activate: false } );
 		expect( getWorkspaceProfile( manager, created.id ) ).toBeNull();
 		// Not activated: the caller said so.
 		expect( manager.getActiveDesktopId() ).not.toBe( created.id );
 	} );
 
-	test( 'the profile filter can extend a template before it lands', () => {
-		hooks.addFilter(
-			'os.workspaces.profile',
-			'test/extend',
-			( profile: unknown ) => ( {
-				...( profile as Record< string, unknown > ),
-				icon: 'dashicons-star-filled',
-			} ),
-		);
-		const created = createWorkspace( deps, { preset: 'commerce' } );
-		expect( getWorkspaceProfile( manager, created.id )?.icon ).toBe(
-			'dashicons-star-filled',
-		);
-	} );
-
 	test( 'setProfile( null ) turns a workspace back into a plain Space', () => {
-		const created = createWorkspace( deps, { preset: 'commerce' } );
+		const created = createWorkspace( deps, { label: 'Commerce', profile: commerceProfile() } );
 		const log = recordActions( hooks, WORKSPACE_HOOKS );
 
 		expect( setWorkspaceProfile( deps, created.id, null ) ).toBe( true );
@@ -257,9 +258,9 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'a focus desk leads with its first entry, not the window that opened last', async () => {
-		// The Publishing template: the blank draft first, the Posts list
+		// A writing desk: the blank draft first, the Posts list
 		// second, so the list is the window focused when the layout runs.
-		const created = createWorkspace( deps, { preset: 'publishing' } );
+		const created = createWorkspace( deps, { label: 'Publishing', profile: publishingProfile() } );
 
 		provisionWorkspace( deps, created.id );
 		await new Promise< void >( ( resolve ) =>
@@ -595,7 +596,7 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'capture shapes the open windows into a launch list', async () => {
-		const created = createWorkspace( deps, { preset: 'publishing' } );
+		const created = createWorkspace( deps, { label: 'Publishing', profile: publishingProfile() } );
 		await manager.open( {
 			id: 'edit-php',
 			url: `${ ADMIN_URL }edit.php`,
@@ -629,8 +630,20 @@ describe( 'workspace operations', () => {
 		expect( captured[ 1 ] ).not.toHaveProperty( 'url' );
 	} );
 
+	test( 'capture keeps every window — two of one app are two entries', async () => {
+		const created = createWorkspace( deps, { label: 'Writing', profile: publishingProfile() } );
+		await manager.openNew( { id: 'edit-php', baseId: 'edit-php', url: `${ ADMIN_URL }edit.php`, title: 'Posts', icon: 'x' } );
+		await manager.openNew( { id: 'edit-php', baseId: 'edit-php', url: `${ ADMIN_URL }post-new.php`, title: 'Add Post', icon: 'x' } );
+		await manager.open( { id: 'openstation-workspaces', url: '#openstation-workspaces', title: 'Workspaces', icon: 'x', native: true } );
+
+		const captured = captureWorkspaceWindows( manager, created.id );
+
+		expect( captured.map( ( w ) => w.title ) ).toEqual( [ 'Posts', 'Add Post' ] );
+		expect( captured.map( ( w ) => w.match ) ).toEqual( [ 'edit-php', 'edit-php' ] );
+	} );
+
 	test( 'capture records where each window is, in a form that survives a resize', async () => {
-		const created = createWorkspace( deps, { preset: 'publishing' } );
+		const created = createWorkspace( deps, { label: 'Publishing', profile: publishingProfile() } );
 		// A free window: its box becomes fractions of the work area.
 		const free = await manager.open( {
 			id: 'edit-php',
@@ -672,7 +685,7 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'saveDesk makes the workspace open the way the desk is', async () => {
-		const created = createWorkspace( deps, { preset: 'commerce' } );
+		const created = createWorkspace( deps, { label: 'Commerce', profile: commerceProfile() } );
 		await manager.open( {
 			id: 'edit-php',
 			url: `${ ADMIN_URL }edit.php`,
@@ -696,9 +709,9 @@ describe( 'workspace operations', () => {
 		// Controls are never named: the narrowing cannot hide them
 		// and a checklist should not offer "Exit" as a choice.
 		expect( saved?.apps ).toEqual( { mode: 'only', ids: [ 'edit-php', 'my-panel' ] } );
-		// The template's own identity is kept — this is the same desk,
+		// The desk's own identity is kept — this is the same desk,
 		// opening differently.
-		expect( saved?.preset ).toBe( 'commerce' );
+		expect( saved?.icon ).toBe( 'dashicons-cart' );
 		expect( getWorkspaceProfile( manager, created.id ) ).toEqual( saved );
 		expect( log.some( ( e ) => e.name === 'os.workspaces.updated' ) ).toBe( true );
 	} );
@@ -933,90 +946,5 @@ describe( 'workspace operations', () => {
 		expect(
 			absoluteAdminUrl( 'https://other.test/x', ADMIN_URL ),
 		).toBe( 'https://other.test/x' );
-	} );
-} );
-
-describe( 'template server sync', () => {
-	let teardown: ( () => void ) | null = null;
-
-	beforeEach( () => {
-		installHooksStub();
-		teardown = installWorkspacePresetSync();
-	} );
-
-	afterEach( () => {
-		_resetNativeUrlRemap();
-		teardown?.();
-		teardown = null;
-		clearHooksStub();
-	} );
-
-	test( 'before the server has spoken, every built-in stands', () => {
-		// A shell booting without the config key must not show an
-		// empty switcher.
-		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
-			'commerce',
-			'learning',
-			'publishing',
-		] );
-	} );
-
-	test( 'a template the server no longer names is dropped', () => {
-		applyServerWorkspacePresets( [
-			{ id: 'learning' },
-			{ id: 'publishing' },
-		] );
-		// The PHP filter removed Commerce — a blog with no store.
-		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
-			'learning',
-			'publishing',
-		] );
-		expect( findWorkspacePreset( 'commerce' ) ).toBeNull();
-	} );
-
-	test( 'a server template with an id of its own is registered whole', () => {
-		applyServerWorkspacePresets( [
-			{ id: 'commerce' },
-			{ id: 'learning' },
-			{ id: 'publishing' },
-			{
-				id: 'support',
-				label: 'Support',
-				icon: 'dashicons-sos',
-				layout: 'columns',
-				apps: [ 'edit-comments.php' ],
-				windows: [ { match: 'edit-comments.php' } ],
-				order: 40,
-			},
-		] );
-		const support = findWorkspacePreset( 'support' );
-		expect( support ).toMatchObject( {
-			label: 'Support',
-			layout: 'columns',
-			apps: [ 'edit-comments.php' ],
-		} );
-		// Order 40 puts it after the three shipped desks.
-		expect( listWorkspacePresets().at( -1 )?.id ).toBe( 'support' );
-	} );
-
-	test( 'a server template survives a payload that still names it', () => {
-		applyServerWorkspacePresets( [ { id: 'commerce' }, { id: 'support' } ] );
-		applyServerWorkspacePresets( [ { id: 'commerce' }, { id: 'support' } ] );
-		expect( findWorkspacePreset( 'support' ) ).not.toBeNull();
-	} );
-
-	test( 'a server template retires when its plugin is deactivated', () => {
-		applyServerWorkspacePresets( [ { id: 'commerce' }, { id: 'support' } ] );
-		expect( findWorkspacePreset( 'support' ) ).not.toBeNull();
-		applyServerWorkspacePresets( [ { id: 'commerce' } ] );
-		expect( findWorkspacePreset( 'support' ) ).toBeNull();
-	} );
-
-	test( 'a malformed layout on a server template falls back', () => {
-		applyServerWorkspacePresets( [
-			{ id: 'commerce' },
-			{ id: 'weird', layout: 'diagonal' },
-		] );
-		expect( findWorkspacePreset( 'weird' )?.layout ).toBe( 'free' );
 	} );
 } );

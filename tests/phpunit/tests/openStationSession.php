@@ -69,7 +69,7 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		// must always include `Workspace 1` and a matching active id.
 		$this->assertCount( 1, $empty['desktops'] );
 		$this->assertSame( 'desktop-1', $empty['desktops'][0]['id'] );
-		$this->assertSame( 'Workspace 1', $empty['desktops'][0]['label'] );
+		$this->assertSame( 'Main desk', $empty['desktops'][0]['label'] );
 		$this->assertSame( 'desktop-1', $empty['activeDesktop'] );
 	}
 

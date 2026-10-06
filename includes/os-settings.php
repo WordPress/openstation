@@ -350,12 +350,19 @@ function openstation_get_os_settings( $user_id ) {
 		return openstation_sanitize_os_settings( array() );
 	}
 
-	$raw = get_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, true );
-	if ( ! is_array( $raw ) ) {
-		return openstation_sanitize_os_settings( array() );
-	}
+	$raw      = get_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, true );
+	$settings = openstation_sanitize_os_settings( is_array( $raw ) ? $raw : array() );
 
-	return openstation_sanitize_os_settings( $raw );
+	/**
+	 * Filters a user's OS settings as they are read — for the shell
+	 * config, the REST route and every server-side check alike.
+	 *
+	 * A pinned shared workspace uses it to hold the settings it locks.
+	 *
+	 * @param array $settings Sanitized settings.
+	 * @param int   $user_id  The user.
+	 */
+	return (array) apply_filters( 'openstation_os_settings', $settings, $user_id );
 }
 
 /**
@@ -372,6 +379,14 @@ function openstation_save_os_settings( $user_id, $settings ) {
 	}
 
 	$clean = openstation_sanitize_os_settings( $settings );
+
+	/**
+	 * Filters a user's OS settings just before they are saved.
+	 *
+	 * @param array $clean   Sanitized settings about to be stored.
+	 * @param int   $user_id The user.
+	 */
+	$clean = (array) apply_filters( 'openstation_os_settings_before_save', $clean, $user_id );
 	return false !== update_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, $clean );
 }
 

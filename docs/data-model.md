@@ -1,7 +1,7 @@
 # Data model — where OpenStation keeps its data
 
 Everything the plugin persists, and how the pieces relate: eight
-plugin-owned tables, two custom post types, and a set of keys in
+plugin-owned tables, three custom post types, and a set of keys in
 WordPress's own meta and options tables — plus the caches, the upload
 directories and the cron hooks around them. Read this before adding a
 store, renaming a key, or asking "where does X live?".
@@ -17,7 +17,7 @@ page has a bug.
 | Data | Store | Why there |
 |---|---|---|
 | Desktop tiles, folders, uploaded files, shares, game scores and challenges | Plugin-owned tables (`{$wpdb->prefix}desktop_mode_*`) | Relational, high-cardinality, queried by owner / parent / state. Serialised blobs in options or meta would not index. |
-| Agent conversations, sticky notes | Custom post types in `wp_posts` | They are content: authorship, capabilities and deletion with their author come from Core. Both types are private (no admin UI, no Core REST, no revisions) and are served by their own REST routes; notes go to the trash, conversations are deleted outright. |
+| Agent conversations, sticky notes, shared workspaces | Custom post types in `wp_posts` | They are content: authorship, capabilities and deletion with their author come from Core. All three are private (no admin UI, no Core REST, no revisions); conversations and notes are served by their own REST routes, shared workspaces by the Workspaces app. Notes go to the trash, conversations and shares are deleted outright, and a share outlives its author. |
 | AI agents | Rows in `wp_users` | Authorship and capabilities come from Core; the profile lives in user meta. |
 | Per-user preferences, session, opt-in, play time | `wp_usermeta` | Follows the user; `get_user_meta()` is cached per request. |
 | Site-wide flags, schema versions, uploaded themes | `wp_options` | One value per site; the hot ones are `autoload = no`. |
@@ -200,6 +200,7 @@ The sections below name the exact tables and keys.
 | Recycle Bin | | | ● | ● | ● | | |
 | Presence | | | | | ● | | |
 | Preferences and session | | ● | | | ● | | |
+| Shared workspaces | | ● | ● | | | | |
 | First run | | ● | | | ● | | |
 | App Framework `Store` | | ● | | | ● | | |
 | Desktop themes | | | | | ● | | ● |
@@ -242,6 +243,7 @@ explains the history. Multisite gets one set of tables per site through
 | `post_type` | Module | What it is | Meta on the post |
 |---|---|---|---|
 | `desktop_mode_chat` | Agents | One conversation with an AI agent. The post belongs to the human; the agent is in meta. | `_desktop_mode_agent_chat_agent_id` → `wp_users.ID` of the agent |
+| `openstation_ws_share` | Shared workspaces | One workspace shared with a link: the frozen snapshot as JSON in `post_content`, the name as its title, the sharer as its author. Not deleted with its author. | `_openstation_ws_token`, `_openstation_ws_desktop`, `_openstation_ws_version`, `_openstation_ws_disabled`, `_openstation_ws_hash` — see [workspaces.md](./workspaces.md#shared-workspaces-stored) |
 | `wpd_note` | Notes | One sticky note on the desktop. | `_wpd_note_x`, `_wpd_note_y`, `_wpd_note_z`, `_wpd_note_color`, `_wpd_note_seed`, `_wpd_note_converted_post` → `wp_posts.ID` |
 
 ## User meta (`wp_usermeta`)
@@ -263,6 +265,9 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `desktop_mode_rebrand_notice` | Onboarding | Rebrand notice dismissed. |
 | `desktop_mode_game_playtime` | Games | Lifetime play time per game. |
 | `desktop_mode_game_playtime_days` | Games | Play time per day (rolling window). |
+| `openstation_workspace_pin` | Shared workspaces | A **user option** (`update_user_option()`, so the key is prefixed per site): the share a user is pinned to, the version their desk last opened, and the stash of the session they had before. Deleted on release. |
+| `openstation_workspace_claims` | Shared workspaces | A user option: every share the user has claimed → the desk it landed on and when. What makes a link claim once. |
+| `openstation_workspace_dismissed_notes` | Shared workspaces | A user option: the ids of the workspace notes the user has dismissed (the most recent 200). Written by `POST desktop-mode/v1/workspace-notes/dismiss`. |
 | `openstation_station_home_card_preferences` | Station Home | Which home cards are shown or hidden. |
 | `openstation_app_store` | App Framework | The `Store` contract with `user` scope, a key → value map. Plugins stores `desktop-mode-plugins:installed-view` here (`cards` or `table`, default `cards`). The same name with `site` scope is an option. |
 | `_desktop_mode_last_login_at` | Users | Last login time. |

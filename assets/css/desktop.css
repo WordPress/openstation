@@ -1878,6 +1878,57 @@ os-notice a:active {
 	.os-mio-chat { animation: none; }
 }
 
+/*
+ * A side-docked chat (`chatLayout: 'side'`): a full-height panel on the
+ * window's trailing edge, and the body padded by its width so the app
+ * reflows beside the conversation. The width is the body's
+ * `--os-mio-side-chat-size`, measured by the residency.
+ */
+.os-window__body[data-os-mio-side-chat] {
+	box-sizing: border-box;
+	padding-inline-end: var( --os-mio-side-chat-size, 360px );
+}
+
+.os-mio-chat.os-mio-chat--side {
+	inset-block: 0;
+	inset-inline-end: 0;
+	inline-size: var( --os-mio-side-chat-size, 360px );
+	max-block-size: none;
+	border-width: 0;
+	border-inline-start-width: 1px;
+	border-radius: 0;
+	box-shadow: -8px 0 32px var( --os-mio-chat-glow, #00000020 );
+	animation-name: os-mio-chat-dock;
+}
+
+/*
+ * Docked, MIO lives in the panel's header — the residency anchors it
+ * there — so the header keeps room for it, and MIO paints above the
+ * panel rather than behind it.
+ */
+.os-mio-chat.os-mio-chat--side header {
+	min-block-size: 112px;
+	padding-inline-start: 144px;
+}
+
+/* Docked, the conversation takes the panel's full height. */
+.os-mio-chat.os-mio-chat--side .os-mio-chat__log {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	max-block-size: none;
+}
+
+.os-mio-residence:has( > .os-mio-chat--side ) > .os-mio {
+	z-index: 2;
+}
+
+@keyframes os-mio-chat-dock {
+	from {
+		opacity: 0;
+		transform: translateX( 24px );
+	}
+}
+
 .os-mio-residence > .os-mio { z-index: 0; }
 .os-mio-chat, .os-mio-chat-launcher { z-index: 1; }
 

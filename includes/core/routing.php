@@ -420,6 +420,11 @@ function openstation_is_classic_request() {
 	if ( empty( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) ) {
 		return false;
 	}
+	// A user pinned to a shared workspace has no classic admin to
+	// detach into: the flag is the way out of the desk they were given.
+	if ( function_exists( 'openstation_workspace_is_pinned' ) && openstation_workspace_is_pinned() ) {
+		return false;
+	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
 	return '1' === sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) );
 }
@@ -432,6 +437,9 @@ function openstation_is_classic_request() {
  * @return bool
  */
 function openstation_is_classic_referer() {
+	if ( function_exists( 'openstation_workspace_is_pinned' ) && openstation_workspace_is_pinned() ) {
+		return false;
+	}
 	if ( empty( $_SERVER['HTTP_REFERER'] ) ) {
 		return false;
 	}

@@ -2,14 +2,9 @@
 /**
  * Tests for the workspaces layer.
  *
- * Two things live server-side and both are pinned here:
- *
- *   1. The template list and its filter — including that the ids match
- *      the client's built-ins, because the two lists are deliberately
- *      separate and nothing generates one from the other.
- *   2. Profile sanitization. A profile arrives inside the session,
- *      which is user meta written from an untrusted payload, so every
- *      field is bounded here and nowhere else.
+ * Profile sanitization. A profile arrives inside the session, which is
+ * user meta written from an untrusted payload, so every field is
+ * bounded here and nowhere else.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -26,192 +21,8 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_filters( 'openstation_workspace_presets' );
 		delete_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY );
 		parent::tear_down();
-	}
-
-	/**
-	 * Make the plugins the shipped templates are built around active,
-	 * so the list is the whole list. Without this a test install has
-	 * neither, and Commerce and Learning are correctly withheld.
-	 */
-	private function activate_template_plugins() {
-		update_option(
-			'active_plugins',
-			array( 'woocommerce/woocommerce.php', 'sensei-lms/sensei-lms.php' )
-		);
-	}
-
-	/**
-	 * The three shipped desks, in the order the switcher paints them.
-	 *
-	 * The ids are the contract with `builtInPresets()` in
-	 * `src/workspaces/presets.ts`: the client resolves a template's
-	 * tokens, the server exists so a filter has something to filter,
-	 * and a drifting id would silently turn "drop the Commerce desk" into a
-	 * filter that removes nothing.
-	 *
-	 * @covers ::openstation_workspace_presets
-	 */
-	public function test_ships_three_templates_in_order() {
-		$this->activate_template_plugins();
-		$ids = wp_list_pluck( openstation_workspace_presets(), 'id' );
-		$this->assertSame( array( 'commerce', 'learning', 'publishing' ), $ids );
-	}
-
-	/**
-	 * Every shipped template names a layout the client understands.
-	 *
-	 * @covers ::openstation_workspace_presets
-	 */
-	public function test_shipped_layouts_are_valid() {
-		$this->activate_template_plugins();
-		foreach ( openstation_workspace_presets() as $preset ) {
-			$this->assertContains( $preset['layout'], OPENSTATION_WORKSPACE_LAYOUTS );
-			$this->assertNotSame( '', $preset['label'] );
-			$this->assertNotSame( '', $preset['icon'] );
-		}
-	}
-
-	/**
-	 * A site with no store drops the Commerce desk in one line.
-	 *
-	 * @covers ::openstation_workspace_presets
-	 */
-	public function test_filter_can_drop_a_shipped_template() {
-		$this->activate_template_plugins();
-		add_filter(
-			'openstation_workspace_presets',
-			static function ( $presets ) {
-				return array_values(
-					array_filter(
-						$presets,
-						static function ( $preset ) {
-							return 'commerce' !== $preset['id'];
-						}
-					)
-				);
-			}
-		);
-		$ids = wp_list_pluck( openstation_workspace_presets(), 'id' );
-		$this->assertSame( array( 'learning', 'publishing' ), $ids );
-	}
-
-	/**
-	 * A template built around a plugin is only offered where it is
-	 * active.
-	 *
-	 * The whole point: without WooCommerce the Commerce tokens still
-	 * match a handful of core menus, so offering the card means the
-	 * user picks a shop floor and gets a Dashboard.
-	 *
-	 * @covers ::openstation_workspace_preset_requirements_met
-	 */
-	public function test_template_is_withheld_until_its_plugin_is_active() {
-		update_option( 'active_plugins', array() );
-		$this->assertSame(
-			array( 'publishing' ),
-			wp_list_pluck( openstation_workspace_presets(), 'id' )
-		);
-
-		update_option( 'active_plugins', array( 'woocommerce/woocommerce.php' ) );
-		$this->assertSame(
-			array( 'commerce', 'publishing' ),
-			wp_list_pluck( openstation_workspace_presets(), 'id' )
-		);
-	}
-
-	/**
-	 * A plugin's own template gets the same handle, and a site that
-	 * wants a shipped one anyway can unset its requirement.
-	 *
-	 * @covers ::openstation_workspace_preset_requirements_met
-	 */
-	public function test_requires_is_honoured_for_filtered_templates() {
-		update_option( 'active_plugins', array() );
-		add_filter(
-			'openstation_workspace_presets',
-			static function ( $presets ) {
-				$presets = array_map(
-					static function ( $preset ) {
-						if ( 'commerce' === $preset['id'] ) {
-							unset( $preset['requires'] );
-						}
-						return $preset;
-					},
-					$presets
-				);
-				$presets[] = array(
-					'id'       => 'support',
-					'label'    => 'Support',
-					'layout'   => 'columns',
-					'requires' => array( 'my-helpdesk/my-helpdesk.php' ),
-				);
-				return $presets;
-			}
-		);
-		$ids = wp_list_pluck( openstation_workspace_presets(), 'id' );
-		$this->assertSame( array( 'commerce', 'publishing' ), $ids );
-	}
-
-	/**
-	 * A plugin can ship a complete workspace from PHP alone.
-	 *
-	 * @covers ::openstation_workspace_presets
-	 */
-	public function test_filter_can_add_a_complete_template() {
-		add_filter(
-			'openstation_workspace_presets',
-			static function ( $presets ) {
-				$presets[] = array(
-					'id'      => 'support',
-					'label'   => 'Support',
-					'icon'    => 'dashicons-sos',
-					'layout'  => 'columns',
-					'apps'    => array( 'edit-comments.php', 'users.php' ),
-					'windows' => array( array( 'match' => 'users.php' ) ),
-					'order'   => 40,
-				);
-				return $presets;
-			}
-		);
-		$presets = openstation_workspace_presets();
-		$added   = end( $presets );
-		$this->assertSame( 'support', $added['id'] );
-		$this->assertSame( array( 'edit-comments.php', 'users.php' ), $added['apps'] );
-		$this->assertSame( 'users.php', $added['windows'][0]['match'] );
-		$this->assertSame( 40, $added['order'] );
-	}
-
-	/**
-	 * A malformed template costs that template, not the switcher.
-	 *
-	 * @covers ::openstation_sanitize_workspace_preset
-	 */
-	public function test_malformed_templates_are_dropped_individually() {
-		$this->activate_template_plugins();
-		add_filter(
-			'openstation_workspace_presets',
-			static function ( $presets ) {
-				$presets[] = array( 'label' => 'No id here' );
-				$presets[] = 'not an array';
-				$presets[] = array(
-					'id'     => 'odd',
-					'layout' => 'diagonal',
-				);
-				return $presets;
-			}
-		);
-		$presets = openstation_workspace_presets();
-		$ids     = wp_list_pluck( $presets, 'id' );
-		$this->assertSame( array( 'commerce', 'learning', 'publishing', 'odd' ), $ids );
-		// An unknown layout falls back rather than reaching the client.
-		$odd = end( $presets );
-		$this->assertSame( 'free', $odd['layout'] );
-		// A template with no label is named after its id, so the
-		// switcher never paints a blank row.
-		$this->assertSame( 'odd', $odd['label'] );
 	}
 
 	/**
@@ -404,122 +215,37 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A template may name its column, and the ids survive sanitizing.
-	 *
-	 * @covers ::openstation_sanitize_workspace_preset
-	 */
-	public function test_template_may_name_widgets() {
-		add_filter(
-			'openstation_workspace_presets',
-			static function ( $presets ) {
-				$presets[] = array(
-					'id'      => 'support',
-					'label'   => 'Support',
-					'widgets' => array( 'clock', 'desktop-mode/recent-comments' ),
-				);
-				return $presets;
-			}
-		);
-		$presets = openstation_workspace_presets();
-		$added   = end( $presets );
-		$this->assertSame(
-			array( 'clock', 'desktop-mode/recent-comments' ),
-			$added['widgets']
-		);
-	}
-
-	/**
-	 * The appearance patch is filtered to the allowlist.
-	 *
-	 * Not belt-and-braces: a profile is user meta round-tripped through
-	 * an untrusted client, and an unfiltered patch spread onto the
-	 * settings state at boot would be a way to write any settings key
-	 * from anywhere.
+	 * A workspace may carry every setting — sanitized by the settings'
+	 * own rules — but never the theme ledger or a key that is not one.
 	 *
 	 * @covers ::openstation_sanitize_workspace_appearance
+	 * @covers ::openstation_workspace_setting_keys
 	 */
-	public function test_appearance_is_restricted_to_the_allowlist() {
+	public function test_appearance_carries_every_setting_sanitized() {
 		$profile = openstation_sanitize_workspace_profile(
 			array(
 				'appearance' => array(
-					'wallpaper'    => 'mono',
-					'accent'       => 'rose',
-					'dockBehavior' => 'dynamic',
-					// Not appearance. The apps rule owns placement, and
-					// a workspace is not a place to hide a performance
-					// setting or a capability flag.
-					'navPlacement'         => array( 'edit-php' => 'hidden' ),
-					'heartbeatRate'        => 5,
-					'developerModeEnabled' => true,
+					'wallpaper'                   => 'mono',
+					'dockBehavior'                => 'dynamic',
+					'confirmCloseAllWindows'               => true,
+					'navPlacement'                => array( 'edit-php' => 'hidden' ),
+					'developerModeEnabled'        => true,
+					// Invalid values fall back the way a saved setting's do.
+					'windowRadius'                => 'blobby',
+					'appliedThemeRecommendations' => array( 'x' ),
+					'notASetting'                 => 1,
 				),
 			)
 		);
-		$this->assertSame(
-			array( 'wallpaper', 'accent', 'dockBehavior' ),
-			array_keys( $profile['appearance'] )
-		);
-	}
+		$look = $profile['appearance'];
 
-	/**
-	 * Array-valued appearance keys survive; deep graphs do not.
-	 *
-	 * `wallpaperSettings`, `customGradient` and `customImage` are flat
-	 * records of scalars. Anything nested deeper than they go is not a
-	 * setting, and user meta is not a place to store an object graph.
-	 *
-	 * @covers ::openstation_sanitize_workspace_appearance
-	 */
-	public function test_appearance_arrays_are_depth_bounded() {
-		$profile = openstation_sanitize_workspace_profile(
-			array(
-				'appearance' => array(
-					'customGradient'    => array(
-						'from'  => '#000000',
-						'to'    => '#ffffff',
-						'angle' => 45,
-					),
-					'wallpaperSettings' => array(
-						'living-tree' => array( 'density' => 3 ),
-					),
-					'customImage'       => array(
-						'id'  => 12,
-						'url' => 'https://example.test/a.png',
-					),
-				),
-			)
-		);
-		$this->assertSame(
-			array(
-				'from'  => '#000000',
-				'to'    => '#ffffff',
-				'angle' => 45,
-			),
-			$profile['appearance']['customGradient']
-		);
-		$this->assertSame( 3, $profile['appearance']['wallpaperSettings']['living-tree']['density'] );
-		$this->assertSame( 12, $profile['appearance']['customImage']['id'] );
-
-		// The bound is what `wallpaperSettings` actually reaches: a
-		// record of wallpaper ids, each holding that wallpaper's own
-		// settings, each holding scalars. One level further is dropped
-		// rather than stored — user meta is not a place for an object
-		// graph, and nothing that deep is a setting.
-		$deep = openstation_sanitize_workspace_profile(
-			array(
-				'appearance' => array(
-					'wallpaperSettings' => array(
-						'living-tree' => array(
-							'density' => 3,
-							'nested'  => array( 'too' => 'far' ),
-						),
-					),
-				),
-			)
-		);
-		$this->assertSame(
-			array( 'living-tree' => array( 'density' => 3 ) ),
-			$deep['appearance']['wallpaperSettings']
-		);
+		$this->assertSame( 'mono', $look['wallpaper'] );
+		$this->assertSame( true, $look['confirmCloseAllWindows'] );
+		$this->assertTrue( $look['developerModeEnabled'] );
+		$this->assertArrayHasKey( 'navPlacement', $look );
+		$this->assertSame( openstation_default_os_settings()['windowRadius'], $look['windowRadius'] );
+		$this->assertArrayNotHasKey( 'appliedThemeRecommendations', $look );
+		$this->assertArrayNotHasKey( 'notASetting', $look );
 	}
 
 	/**
@@ -531,31 +257,6 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 	public function test_absent_appearance_is_empty() {
 		$profile = openstation_sanitize_workspace_profile( array( 'layout' => 'tile' ) );
 		$this->assertSame( array(), $profile['appearance'] );
-	}
-
-	/**
-	 * A template may dress its desk.
-	 *
-	 * @covers ::openstation_sanitize_workspace_preset
-	 */
-	public function test_template_may_carry_an_appearance() {
-		add_filter(
-			'openstation_workspace_presets',
-			static function ( $presets ) {
-				$presets[] = array(
-					'id'         => 'support',
-					'label'      => 'Support',
-					'appearance' => array(
-						'wallpaper' => 'forest',
-						'nope'      => 'dropped',
-					),
-				);
-				return $presets;
-			}
-		);
-		$presets = openstation_workspace_presets();
-		$added   = end( $presets );
-		$this->assertSame( array( 'wallpaper' => 'forest' ), $added['appearance'] );
 	}
 
 	/**

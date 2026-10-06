@@ -138,6 +138,7 @@ import {
 import { handleDragStart, handleResizeStart } from './pointer';
 import { navigateWithUnsavedGuard } from './unsaved-guard';
 import { speculateDocument } from '../pwa/speculate';
+import { isWorkspacePinned } from '../workspaces/pin';
 
 /**
  * Ask the service worker to fetch a submenu tab's screen ahead of the
@@ -2832,6 +2833,9 @@ export class Window {
 	 * a move. If the user wants to close it afterwards, they can.
 	 */
 	public detach(): void {
+		if ( isWorkspacePinned() ) {
+			return;
+		}
 		const current = this.getCurrentUrl();
 		let url: URL;
 		try {

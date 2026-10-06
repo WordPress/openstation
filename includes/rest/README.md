@@ -18,6 +18,7 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/intros` | DELETE | `includes/seen-intros.php` | logged-in + OpenStation enabled |
 | `/os-settings` | GET / POST | `includes/os-settings.php` | logged-in + OpenStation enabled |
 | `/extended-options` | GET / POST | `includes/extended-options.php` | `manage_options` |
+| `/workspace-notes/dismiss` | POST | `includes/workspace-shares/notes.php` | logged-in + OpenStation enabled. Only ever writes the caller's own dismissed-notes list; the id is sanitized and the list capped at 200 |
 | `/pwa-state` | GET / POST | `includes/pwa.php` | logged-in + OpenStation enabled |
 | `/feedback/deactivation` | POST | `includes/feedback/rest.php` | `activate_plugins` + `openstation_deactivation_feedback_enabled()`; deliberately not `openstation_rest_require_enabled()` (the person deactivating usually has OpenStation off). No object-level checks: the route stores nothing on the site, it forwards an anonymous payload to the intake on openstation.blog and answers `{ sent }` |
 | `/feedback/usage` | POST | `includes/feedback/usage.php` | logged-in + OpenStation enabled + `openstation_usage_feedback_enabled()`. No object-level checks: the route stores nothing on the site but the caller's own `usage-feedback` seen-intro flag, forwards the typed answers (and an email only when one was typed) to the intake on openstation.blog and answers `{ sent }` (`400` for an empty form or a malformed address, `502` when the forward failed) |

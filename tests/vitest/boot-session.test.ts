@@ -38,6 +38,32 @@ describe( 'boot session helpers', () => {
 		).toBe( false );
 	} );
 
+	test( 'one main desk carrying a workspace is restorable — a pinned shared workspace', () => {
+		expect(
+			hasRestorableSession(
+				session( {
+					desktops: [
+						{
+							id: 'desktop-1',
+							label: 'Store',
+							profile: {
+								preset: '',
+								icon: 'dashicons-cart',
+								color: '',
+								apps: { mode: 'only', ids: [ 'edit-php' ] },
+								windows: [],
+								layout: 'free',
+								provisioned: false,
+							},
+						},
+					],
+					activeDesktop: 'desktop-1',
+					updated: 10,
+				} ),
+			),
+		).toBe( true );
+	} );
+
 	test( 'desktop lifecycle hooks schedule session persistence', () => {
 		const hooks = installHooksStub();
 		const save = vi.fn();

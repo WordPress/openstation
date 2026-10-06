@@ -21,19 +21,16 @@ import type { NavItem, NavKind, NavPlacement } from '../../src/nav';
 import {
 	blankWorkspaceProfile,
 	captureWorkspaceAppearance,
-	findWorkspacePreset,
 	itemMatchesToken,
-	listWorkspacePresets,
-	registerWorkspacePreset,
 	resolveAppIds,
 	resolveLaunches,
-	unregisterWorkspacePreset,
+	workspaceAppCatalog,
 	withWorkspaceApp,
 	withWorkspaceWidget,
 	workspaceAppearance,
 	workspaceMayHide,
 	workspacePlacements,
-	workspaceProfileFromPreset,
+	workspaceRestrictsItem,
 	workspaceWidgetIds,
 	WORKSPACE_LAYOUTS,
 } from '../../src/workspaces';
@@ -149,121 +146,49 @@ describe( 'matching', () => {
 		expect( launches[ 0 ].title ).toBe( 'New draft' );
 	} );
 
+	test( 'a native app with no nav item still opens, by its registered id', () => {
+		const natives = [ { id: 'desktop-mode-os-settings', title: 'OpenStation Preferences', icon: '' } ];
+		const launches = resolveLaunches( fullSite(), [ { match: 'desktop-mode-os-settings' }, { match: 'nothing-here' } ], natives );
+		expect( launches ).toHaveLength( 1 );
+		expect( launches[ 0 ].url ).toBe( '' );
+		expect( launches[ 0 ].item.windowId ).toBe( 'desktop-mode-os-settings' );
+	} );
+
+	test( 'the app catalogue: every app, native or not, once', () => {
+		const items: NavItem[] = [
+			item( 'menu-posts', 'core', { windowId: 'edit-php', menu: { id: 'menu-posts', title: 'Posts', icon: '', url: 'http://x.test/wp-admin/edit.php', badge: 0, submenu: [ { title: 'Add Post', url: 'http://x.test/wp-admin/post-new.php' } ], isCore: true } as NavItem[ 'menu' ] } ),
+			item( 'os-system', 'control' ),
+			item( 'os-exit', 'control', { locked: true } ),
+			item( 'desktop-mode-recycle-bin', 'control', { title: 'Trash', windowId: 'desktop-mode-recycle-bin' } ),
+			item( 'my-wordpress', 'app', { windowId: 'my-wordpress' } ),
+		];
+		const natives = [
+			{ id: 'desktop-mode-recycle-bin', title: 'Trash', icon: '' },
+			{ id: 'my-wordpress', title: 'WP Explorer', icon: '' },
+			{ id: 'desktop-mode-posts', title: 'Posts', icon: '' },
+			{ id: 'desktop-mode-os-settings', title: 'OpenStation Preferences', icon: '' },
+			{ id: 'openstation-workspaces', title: 'Workspaces', icon: '' },
+		];
+		const apps = workspaceAppCatalog( items, natives, new Set( [ 'desktop-mode-posts' ] ), 'http://x.test/wp-admin/' );
+		expect( apps.map( ( a ) => [ a.id, a.dock ] ) ).toEqual( [
+			[ 'menu-posts', true ],
+			[ 'desktop-mode-recycle-bin', true ],
+			[ 'my-wordpress', true ],
+			[ 'desktop-mode-os-settings', false ],
+		] );
+		// An app is its main page first, then its tabs.
+		expect( apps[ 0 ].pages ).toEqual( [
+			{ title: 'menu-posts', url: 'edit.php' },
+			{ title: 'Add Post', url: 'post-new.php' },
+		] );
+	} );
+
 	test( 'a launch with no explicit url opens the matched item', () => {
 		const launches = resolveLaunches( fullSite(), [
 			{ match: 'wc-orders' },
 		] );
 		expect( launches[ 0 ].url ).toBe( 'admin.php?page=wc-orders' );
 		expect( launches[ 0 ].title ).toBe( 'WooCommerce' );
-	} );
-} );
-
-describe( 'presets', () => {
-	test( 'the three shipped desks are there, in order', () => {
-		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
-			'commerce',
-			'learning',
-			'publishing',
-		] );
-	} );
-
-	test( 'every shipped layout is a real one', () => {
-		for ( const preset of listWorkspacePresets() ) {
-			expect( WORKSPACE_LAYOUTS ).toContain( preset.layout );
-		}
-	} );
-
-	test( 'a registered preset sorts by order and can be removed', () => {
-		registerWorkspacePreset( {
-			id: 'support',
-			label: 'Support',
-			description: '',
-			icon: 'dashicons-sos',
-			color: '',
-			apps: [],
-			windows: [],
-			layout: 'columns',
-		} );
-		// Default order 0 leads — a site that installed a workspace on
-		// purpose should see it first.
-		expect( listWorkspacePresets()[ 0 ].id ).toBe( 'support' );
-		unregisterWorkspacePreset( 'support' );
-		expect(
-			listWorkspacePresets().some( ( p ) => p.id === 'support' ),
-		).toBe( false );
-	} );
-
-	test( 'a profile read from Commerce narrows to the shop plus the essentials', () => {
-		const preset = findWorkspacePreset( 'commerce' )!;
-		const profile = workspaceProfileFromPreset( preset, fullSite() );
-		expect( profile.apps.mode ).toBe( 'only' );
-		expect( profile.apps.ids ).toContain( 'woocommerce' );
-		expect( profile.apps.ids ).toContain( 'edit-php-post-type-product' );
-		// Dashboard, Media and Settings ride along with every template:
-		// a desk with no way to reach them is a dead end.
-		expect( profile.apps.ids ).toContain( 'index-php' );
-		expect( profile.apps.ids ).toContain( 'upload-php' );
-		expect( profile.apps.ids ).toContain( 'options-general-php' );
-		// …and the course plugin does not.
-		expect( profile.apps.ids ).not.toContain( 'sensei' );
-		expect( profile.layout ).toBe( 'columns' );
-		// The launch list has not run yet.
-		expect( profile.provisioned ).toBe( false );
-	} );
-
-	test( 'a template degrades on a site missing the apps it names', () => {
-		const coreOnly = fullSite().filter( ( i ) => 'core' === i.kind );
-		const profile = workspaceProfileFromPreset(
-			findWorkspacePreset( 'commerce' )!,
-			coreOnly,
-		);
-		// Still a workspace, still narrowed — just to what exists.
-		expect( profile.apps.mode ).toBe( 'only' );
-		expect( profile.apps.ids ).toEqual( [
-			'index-php',
-			'upload-php',
-			'options-general-php',
-		] );
-	} );
-
-	test( 'Publishing is the writing desk', () => {
-		const preset = findWorkspacePreset( 'publishing' )!;
-		expect( preset.layout ).toBe( 'focus' );
-		// It opens with a blank page, not with the library.
-		expect( preset.windows[ 0 ].url ).toBe( 'post-new.php' );
-		// Its instruments are about the page, not the audience — the
-		// point of the whole template is what it leaves out.
-		expect( preset.widgets ).toContain( 'desktop-mode/drafts' );
-		expect( preset.widgets ).not.toContain( 'desktop-mode/site-views' );
-	} );
-
-	test( 'a template with widgets gives the desk its own column', () => {
-		const profile = workspaceProfileFromPreset(
-			findWorkspacePreset( 'commerce' )!,
-			fullSite(),
-		);
-		expect( profile.widgets?.mode ).toBe( 'only' );
-		expect( profile.widgets?.ids ).toContain( 'desktop-mode/site-views' );
-	} );
-
-	test( 'a template with no widget opinion leaves the column alone', () => {
-		registerWorkspacePreset( {
-			id: 'quiet',
-			label: 'Quiet',
-			description: '',
-			icon: 'dashicons-desktop',
-			color: '',
-			apps: [ 'edit.php' ],
-			windows: [],
-			layout: 'free',
-		} );
-		const profile = workspaceProfileFromPreset(
-			findWorkspacePreset( 'quiet' )!,
-			fullSite(),
-		);
-		expect( profile.widgets?.mode ).toBe( 'all' );
-		expect( workspaceWidgetIds( profile ) ).toBeNull();
-		unregisterWorkspacePreset( 'quiet' );
 	} );
 } );
 
@@ -307,6 +232,37 @@ describe( 'visibility', () => {
 			false,
 		);
 		expect( workspaceMayHide( item( 'x', 'plugin' ) ) ).toBe( true );
+		// Trash is an app in a control's tile: a workspace picks it.
+		expect( workspaceMayHide( item( 'desktop-mode-recycle-bin', 'control', { windowId: 'desktop-mode-recycle-bin' } ) ) ).toBe( true );
+	} );
+
+	test( '"Hide settings" hides the restricted screens, even ones the desk keeps', () => {
+		const profile: WorkspaceProfile = {
+			...blankWorkspaceProfile(),
+			apps: { mode: 'only', ids: [ 'edit-php', 'options-general-php' ] },
+			restricted: true,
+		};
+		const lists = { screens: [ 'options-general.php' ], apps: [ 'desktop-mode-os-settings' ] };
+		( window as unknown as { openStationConfig: unknown } ).openStationConfig = {
+			workspaceRestricted: lists,
+		};
+		try {
+			const next = workspacePlacements( {}, fullSite(), profile );
+			expect( next[ 'options-general-php' ] ).toBe( 'hidden' );
+			expect( next[ 'edit-php' ] ).toBeUndefined();
+			// On a desk that shows everything, it still hides settings.
+			const all = workspacePlacements( {}, fullSite(), {
+				...blankWorkspaceProfile(),
+				restricted: true,
+			} );
+			expect( all[ 'options-general-php' ] ).toBe( 'hidden' );
+			expect( all[ 'woocommerce' ] ).toBeUndefined();
+			expect(
+				workspaceRestrictsItem( item( 'prefs', 'plugin', { windowId: 'desktop-mode-os-settings' } ), lists ),
+			).toBe( true );
+		} finally {
+			delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
+		}
 	} );
 
 	test( 'withWorkspaceApp adds and removes without duplicating', () => {
@@ -374,49 +330,42 @@ describe( 'visibility', () => {
 		expect( workspaceAppearance( legacy ) ).toBeNull();
 	} );
 
-	test( 'a look is filtered to the allowlist', () => {
+	test( 'a workspace may carry every setting, but never the theme ledger or a made-up key', () => {
 		const profile: WorkspaceProfile = {
 			...blankWorkspaceProfile(),
 			appearance: {
 				wallpaper: 'mono',
-				accent: 'rose',
-				// Not an appearance key. A profile is user meta round-
-				// tripped through an untrusted client, so an unfiltered
-				// patch would be a way to write any settings key from
-				// anywhere.
+				confirmCloseAllWindows: true,
 				navPlacement: { 'edit-php': 'hidden' },
-				heartbeatRate: 1,
+				heartbeatRate: 30,
+				// Shell-owned: writing it would re-arm a theme's seed.
+				appliedThemeRecommendations: [ 'x' ],
+				// Not a setting at all.
+				notASetting: true,
 			} as WorkspaceProfile[ 'appearance' ],
 		};
 		expect( workspaceAppearance( profile ) ).toEqual( {
 			wallpaper: 'mono',
-			accent: 'rose',
+			confirmCloseAllWindows: true,
+			navPlacement: { 'edit-php': 'hidden' },
+			heartbeatRate: 30,
 		} );
 	} );
 
-	test( 'capture takes the allowlisted keys off a snapshot', () => {
+	test( 'capture takes every setting off a snapshot', () => {
 		const captured = captureWorkspaceAppearance( {
 			wallpaper: 'aurora',
-			accent: 'emerald',
+			dockBehavior: 'dynamic',
+			navOrder: [ 'a', 'b' ],
+			developerModeEnabled: true,
+			appliedThemeRecommendations: [ 'x' ],
+		} );
+		expect( captured ).toEqual( {
+			wallpaper: 'aurora',
 			dockBehavior: 'dynamic',
 			navOrder: [ 'a', 'b' ],
 			developerModeEnabled: true,
 		} );
-		expect( captured ).toEqual( {
-			wallpaper: 'aurora',
-			accent: 'emerald',
-			dockBehavior: 'dynamic',
-		} );
-	} );
-
-	test( 'every shipped template dresses its desk', () => {
-		for ( const preset of listWorkspacePresets() ) {
-			const profile = workspaceProfileFromPreset( preset, fullSite() );
-			const look = workspaceAppearance( profile );
-			expect( look ).not.toBeNull();
-			expect( look ).toHaveProperty( 'wallpaper' );
-			expect( look ).toHaveProperty( 'accent' );
-		}
 	} );
 
 	test( 'adding an app to a desk that shows everything is a no-op', () => {

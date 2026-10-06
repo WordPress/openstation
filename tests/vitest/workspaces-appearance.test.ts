@@ -152,6 +152,85 @@ describe( 'workspace appearance — a view, never a write', () => {
 		expect( saved?.wallpaper ).toBe( 'galaxy' );
 	} );
 
+	test( 'update(): an overridden setting edited on the desk goes to the workspace', () => {
+		settings.state.confirmCloseAllWindows = false;
+		const taken: unknown[] = [];
+		settings.onWorkspaceEdit = ( patch ) => {
+			taken.push( patch );
+			return true;
+		};
+		settings.setWorkspaceAppearance( { confirmCloseAllWindows: false, wallpaper: 'mono' } );
+
+		settings.update( { confirmCloseAllWindows: true } );
+
+		expect( taken ).toEqual( [ { confirmCloseAllWindows: true } ] );
+		expect( settings.state.confirmCloseAllWindows ).toBe( true );
+		// Not the user's own: leaving the desk hands theirs back.
+		expect( saved?.confirmCloseAllWindows ).toBe( false );
+		settings.setWorkspaceAppearance( null );
+		expect( settings.state.confirmCloseAllWindows ).toBe( false );
+	} );
+
+	test( 'update(): EVERY edit on a workspace desk is the workspace’s, even one it never named', () => {
+		settings.state.confirmCloseAllWindows = false;
+		const taken: unknown[] = [];
+		settings.onWorkspaceEdit = ( patch ) => {
+			taken.push( patch );
+			return true;
+		};
+		settings.setWorkspaceAppearance( { wallpaper: 'mono' } );
+
+		settings.update( { confirmCloseAllWindows: true } );
+
+		expect( taken ).toEqual( [ { confirmCloseAllWindows: true } ] );
+		expect( settings.state.confirmCloseAllWindows ).toBe( true );
+		expect( saved?.confirmCloseAllWindows ).toBe( false );
+		settings.setWorkspaceAppearance( null );
+		expect( settings.state.confirmCloseAllWindows ).toBe( false );
+	} );
+
+	test( 'save(): an edit made in place on a workspace desk goes to the workspace', () => {
+		settings.state.accent = 'pulse';
+		const taken: unknown[] = [];
+		settings.onWorkspaceEdit = ( patch ) => {
+			taken.push( patch );
+			return true;
+		};
+		settings.setWorkspaceAppearance( { accent: 'rose', wallpaper: 'mono' } );
+
+		settings.state.accent = 'teal';
+		settings.save();
+
+		expect( taken ).toEqual( [ { accent: 'teal' } ] );
+		expect( saved?.accent ).toBe( 'pulse' );
+	} );
+
+	test( 'update(): on the main desk (no workspace to write), the edit is the user’s and survives a switch', () => {
+		settings.state.confirmCloseAllWindows = false;
+		settings.onWorkspaceEdit = () => false;
+		settings.setWorkspaceAppearance( { wallpaper: 'mono' } );
+
+		settings.update( { confirmCloseAllWindows: true } );
+
+		expect( saved?.confirmCloseAllWindows ).toBe( true );
+		settings.setWorkspaceAppearance( null );
+		expect( settings.state.confirmCloseAllWindows ).toBe( true );
+		settings.setWorkspaceAppearance( { wallpaper: 'aurora' } );
+		expect( settings.state.confirmCloseAllWindows ).toBe( true );
+	} );
+
+	test( 'update(): with nowhere to write (a pinned desk), the edit is the user’s', () => {
+		settings.state.accent = 'pulse';
+		settings.onWorkspaceEdit = () => false;
+		settings.setWorkspaceAppearance( { accent: 'rose' } );
+
+		settings.update( { accent: 'teal' } );
+
+		expect( saved?.accent ).toBe( 'teal' );
+		settings.setWorkspaceAppearance( null );
+		expect( settings.state.accent ).toBe( 'teal' );
+	} );
+
 	test( 'an edit saved on an overridden desk is still there after leaving it', () => {
 		settings.state.wallpaper = 'galaxy';
 		settings.state.accent = 'pulse';

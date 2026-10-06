@@ -29,6 +29,7 @@ import {
 import {
 	bindNativeUrlRemap,
 	isPersonViewClaimed,
+	listNativeUrlRemaps,
 	registerNativeUrlRemap,
 	tryNativeUrlRemap,
 } from './native-url-remap';
@@ -54,6 +55,7 @@ import { shellUrlWithoutBootArgs } from './shell-url';
 import {
 	HOOKS,
 	addAction,
+	addFilter,
 	doAction,
 	type WpHooks,
 } from './hooks';
@@ -162,7 +164,7 @@ import {
 import { ensureDeferredStyle } from './deferred-styles';
 import { showToast, type ToastOptions } from './toast';
 import { restErrorFromResponse } from './core/api-client';
-import { __, sprintf } from './i18n';
+import { __, _n, sprintf } from './i18n';
 import {
 	bootstrapPwa,
 	type NotifyOptions,
@@ -250,34 +252,31 @@ import {
 	type WorkAreaApi,
 } from './work-area';
 import {
-	applyServerWorkspacePresets,
 	applyWorkspaceView,
-	blankWorkspaceProfile,
 	captureWorkspaceAppearance,
-	captureWorkspaceWindows,
-	createWorkspace,
+	cloneDeskAsWorkspace,
 	createWorkspacesApi,
 	getActiveWorkspaceProfile,
 	installWorkspaceOverviewControl,
-	installWorkspacePresetSync,
-	listWorkspacePresets,
+	isWorkspacePinned,
 	getWorkspaceProfile,
+	WORKSPACE_MAX_WINDOWS,
 	provisionWorkspace,
 	reopenWorkspaceWindows,
 	registerWorkspaceCommand,
 	saveDeskToWorkspace,
 	setWorkspaceProfile,
 	withWorkspaceWidget,
-	workspaceProfileFromPreset,
 	type WorkspaceDeps,
 	type WorkspacesApi,
+	registeredNativeWindows,
+	workspaceAppCatalog,
 } from './workspaces';
-import { openWorkspaceWizard } from './workspaces/wizard-loader';
+import { announceWorkspaceArrival } from './workspaces/arrival';
+import { showWorkspaceEditBar } from './workspaces/edit-bar';
+import { WorkspaceNotesLayer } from './workspaces/notes';
+import { joinRestUrl } from './rest-url';
 import { installGridSpanReflow } from './window-manager/grid-snap';
-import { all as listWidgetDefs } from './widgets/registry';
-import { all as listWallpaperDefs } from './wallpapers/registry';
-import { getAccents } from './settings/constants';
-import type { WorkspacePreset } from './workspaces/types';
 import {
 	ASSISTANT_TILE_ID,
 	OS_ASSISTANT_ICON,
@@ -335,6 +334,7 @@ import {
 	isWallpaperMenuOpen,
 	openWallpaperMenu,
 	type ServerWallpaperMenuItem,
+	type WallpaperMenuItem,
 	type SortMode as RootSortMode,
 } from './desktop-files/wallpaper-menu';
 import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
@@ -342,6 +342,7 @@ import { openUrlDialog } from './desktop-files/overlays-loader';
 import { installFileDropSentinel } from './os-file-drop/sentinel';
 import { hydrateScriptDeps } from './script-dep-payloads';
 import type {
+	Desktop,
 	DesktopConfig,
 	DesktopWallpaperServerEntry,
 	NativeWindowDef,
@@ -725,6 +726,8 @@ export interface OpenStationPublicApi {
 		 * exist.
 		 */
 		redock: ( id: string ) => void;
+		/** Every registered widget: id, label, description and icon. */
+		list: () => Array< { id: string; label: string; description: string; icon: string } >;
 	};
 	/**
 	 * Register a shell-level system tile (a JS-owned launcher that
@@ -1882,11 +1885,11 @@ export interface OpenStationPublicApi {
 	 * apps show on it, which widgets sit on it, which windows it opens
 	 * with, how they are arranged.
 	 *
-	 * `create()` mints a desk (optionally from a template),
-	 * `getProfile()` / `setProfile()` read and write what it is,
-	 * `arrange()` re-applies a layout, `capture()` turns the desk's
-	 * open windows into a launch list, and `registerPreset()` adds a
-	 * template of your own to the switcher.
+	 * `saveAs()` saves the main desk as a new workspace — the one way
+	 * a workspace is made — `manage()` opens the Workspaces app,
+	 * `edit()` edits one on its own desk, `getProfile()` /
+	 * `setProfile()` read and write what it is, and `isPinned()` says
+	 * whether the user is pinned to a shared one.
 	 *
 	 * A workspace narrows the rails by computing the navigation with
 	 * extra `'hidden'` placements — it never writes to the user's
@@ -1895,12 +1898,10 @@ export interface OpenStationPublicApi {
 	 *
 	 * @example
 	 * ```js
-	 * wp.os.workspaces.registerPreset( {
-	 *     id: 'support', label: 'Support', description: 'Tickets and users.',
-	 *     icon: 'dashicons-sos', color: '#2271b1', layout: 'columns',
-	 *     apps: [ 'edit-comments.php', 'users.php', 'my-helpdesk' ],
-	 *     windows: [ { match: 'my-helpdesk' }, { match: 'users.php' } ],
-	 * } );
+	 * const desk = wp.os.workspaces.saveAs();
+	 * if ( desk ) {
+	 *     wp.os.workspaces.manage( desk.id );
+	 * }
 	 * ```
 	 */
 	workspaces: WorkspacesApi;
@@ -2740,117 +2741,22 @@ function init(): void {
 		);
 
 	/**
-	 * Everything the wizard shows, whichever mode it opens in.
-	 *
-	 * Passed as data — the apps it could show, the widgets, the
-	 * wallpapers and accents, the templates — and the result comes back
-	 * through one `onCreate` / `onSave`. That is what lets the wizard
-	 * live in its own lazy bundle without any cross-bundle module state:
-	 * it never reads a store, and there is no store copy of it to drift.
-	 */
-	const wizardWorld = ( deps: WorkspaceDeps ) => ( {
-		presets: listWorkspacePresets(),
-		apps: deps.getNavItems().map( ( item ) => ( {
-			id: item.id,
-			title: item.title,
-			kind: item.kind,
-			locked: item.locked,
-			// What the app opens, for the Windows step's picker. An
-			// admin menu has a url; a native window has an id; a
-			// control (Overview, Exit) has neither and is not offered.
-			url: item.menu?.url || item.entry?.url || undefined,
-			windowId: item.windowId,
-		} ) ),
-		widgets: listWidgetDefs().map( ( def ) => ( {
-			id: def.id,
-			label: def.label || def.id,
-			description: def.description,
-		} ) ),
-		enabledWidgetIds: widgetLayer?.getEnabledIds() ?? [],
-		// `preview` is the same CSS the Preferences swatches paint, so a
-		// wallpaper looks in the wizard the way it looks in the picker
-		// the user already knows.
-		wallpapers: listWallpaperDefs().map( ( def ) => ( {
-			id: def.id,
-			label: def.label,
-			preview: def.preview,
-		} ) ),
-		accents: getAccents().map( ( a ) => ( {
-			id: a.id,
-			label: a.label,
-			value: a.value,
-		} ) ),
-		resolvePreset: ( preset: WorkspacePreset ) =>
-			workspaceProfileFromPreset( preset, deps.getNavItems() ),
-		captureAppearance: currentWorkspaceLook,
-	} );
-
-	/**
-	 * The `+`: open the wizard over the desk it is about to dress.
-	 *
-	 * The desk exists before the wizard does, so the user configures a
-	 * canvas they can see rather than one they are promised. The `+`
-	 * makes it and lands on it, and hands the id here; a programmatic
-	 * caller has done neither, so make it here instead.
-	 */
-	const createWorkspaceWithWizard = ( desktopId?: string ): void => {
-		if ( ! workspaceDeps ) {
-			return;
-		}
-		const deps = workspaceDeps;
-		const target = desktopId ?? createWorkspace( deps ).id;
-		openWorkspaceWizard( {
-			mode: 'create',
-			...wizardWorld( deps ),
-			onCreate: ( result ) => {
-				// A template left untouched creates FROM the preset, so
-				// the `os.workspaces.profile` filter runs exactly as it
-				// would have from the old dropdown. Anything customized
-				// carries its own profile; a blank desk carries none.
-				createWorkspace( deps, {
-					desktopId: target,
-					label: result.label || undefined,
-					...( result.preset
-						? { preset: result.preset }
-						: { profile: result.profile ?? undefined } ),
-				} );
-				// The desk is already the active one, so the switch that
-				// normally triggers provisioning is a no-op — a template
-				// would land with its look and none of its windows.
-				applyWorkspaceViewForMode( deps, target );
-				provisionWorkspaceForMode( deps, target );
-			},
-		} );
-	};
-
-	/**
 	 * "Keep this desk": make the workspace open the way the desk is
 	 * now — these windows where they are, these widgets, these apps.
 	 * The one write a workspace makes on purpose, and the cheapest way
 	 * to turn a plain Space into one.
 	 */
 	const saveDesk = ( desktopId: string = manager.getActiveDesktopId() ): boolean => {
-		if ( ! workspaceDeps ) {
+		if ( ! workspaceDeps || isWorkspacePinned() ) {
 			return false;
 		}
-		const nav = layoutDispatcher?.getNav();
-		let visibleAppIds: string[] | undefined;
-		if ( nav ) {
-			const onScreen = [
-				...nav.dock.core,
-				...nav.dock.apps,
-				...nav.dock.controls,
-				...nav.sidebar,
-				...nav.desktop,
-			];
-			// An ephemeral tile is there because its window is open,
-			// not because the user placed it.
-			visibleAppIds = onScreen
-				.filter( ( item ) => ! nav.ephemeral.has( item.id ) )
-				.map( ( item ) => item.id );
+		// The main desk is the workbench workspaces are made on, never
+		// a workspace itself: keeping it means saving a new one.
+		if ( desktopId === manager.getDesktops()[ 0 ]?.id ) {
+			return null !== saveAsWorkspace( desktopId );
 		}
 		const saved = saveDeskToWorkspace( workspaceDeps, desktopId, {
-			visibleAppIds,
+			visibleAppIds: visibleNavIds(),
 			mountedWidgetIds: widgetLayer?.getMountedIds(),
 		} );
 		if ( ! saved ) {
@@ -2858,19 +2764,24 @@ function init(): void {
 		}
 		const label =
 			manager.getDesktops().find( ( d ) => d.id === desktopId )?.label ?? '';
-		// The count is what was KEPT, which the capture already capped
-		// to what the server will store. When the desk held more, say
-		// so — a toast that promised fifteen and delivered twelve would
-		// be the one thing about this feature that lied.
+		// The count is what was KEPT. It is smaller than the desk only
+		// when the desk held more windows than a workspace can open, so
+		// that is the one case the toast says so — plainly, with the
+		// limit. (The Workspaces window itself is never kept, and is
+		// not a window "left out".)
 		const onDesk = manager
 			.getAll()
-			.filter( ( w ) => ( w.config.desktopId || desktopId ) === desktopId ).length;
+			.filter(
+				( w ) =>
+					( w.config.desktopId || desktopId ) === desktopId &&
+					'openstation-workspaces' !== ( w.config.baseId || w.id ),
+			).length;
 		const kept = saved.windows.length;
 		let message: string;
-		if ( onDesk > kept ) {
+		if ( onDesk > kept && kept >= WORKSPACE_MAX_WINDOWS ) {
 			message = sprintf(
 				// translators: %1$s is the workspace name, %2$d the windows kept, %3$d the windows on the desk.
-				__( '%1$s will open like this — the top %2$d of %3$d windows, where they are.' ),
+				__( '%1$s will open with %2$d of its %3$d windows — a workspace holds at most %2$d. The ones on top were kept.' ),
 				label,
 				kept,
 				onDesk,
@@ -2878,7 +2789,7 @@ function init(): void {
 		} else {
 			message = sprintf(
 				// translators: %1$s is the workspace name, %2$d a number of windows.
-				__( '%1$s will open like this — %2$d windows, where they are.' ),
+				_n( '%1$s will open like this — %2$d window, where it is.', '%1$s will open like this — %2$d windows, where they are.', kept ),
 				label,
 				kept,
 			);
@@ -2887,44 +2798,333 @@ function init(): void {
 		return true;
 	};
 
-	/** Edit under a tile: open the wizard on an existing desk. */
-	const editWorkspace = ( desktopId: string ): void => {
-		if ( ! workspaceDeps ) {
-			return;
+	/**
+	 * The apps on the rails right now, minus the ones there only
+	 * because their window is open. What "these apps" means when a
+	 * desk is kept or saved.
+	 */
+	const visibleNavIds = (): string[] | undefined => {
+		const nav = layoutDispatcher?.getNav();
+		if ( ! nav ) {
+			return undefined;
 		}
-		const desktop = manager
-			.getDesktops()
-			.find( ( d ) => d.id === desktopId );
-		if ( ! desktop ) {
-			return;
+		return [
+			...nav.dock.core,
+			...nav.dock.apps,
+			...nav.dock.controls,
+			...nav.sidebar,
+			...nav.desktop,
+		]
+			.filter( ( item ) => ! nav.ephemeral.has( item.id ) )
+			.map( ( item ) => item.id );
+	};
+
+	/**
+	 * Put the MAIN desk back the way a fresh install starts it: its
+	 * windows closed and the Dashboard opened, the settings at their
+	 * defaults, the widget column at its default.
+	 *
+	 * Only the main desk. The settings ARE the main desk's look — it has
+	 * no workspace of its own — and every workspace carries all of its
+	 * own settings, so the other desks are untouched, and so are shared
+	 * links and the files on the desktop. An uploaded wallpaper image
+	 * survives too (see `OsSettings.reset()`): it is something the user
+	 * made, not a preference.
+	 *
+	 * Asks first. Returns whether it ran.
+	 */
+	const restoreMainDesk = async (): Promise< boolean > => {
+		const main = manager.getDesktops()[ 0 ];
+		if ( ! main || ! workspaceDeps || isWorkspacePinned() ) {
+			return false;
 		}
-		const deps = workspaceDeps;
-		openWorkspaceWizard( {
-			mode: 'edit',
-			desktopId,
-			label: desktop.label,
-			// A plain Space edited for the first time starts from the
-			// blank profile rather than from nothing, so the form has
-			// something to bind to and saving turns it into a workspace.
-			profile: desktop.profile ?? blankWorkspaceProfile(),
-			...wizardWorld( deps ),
-			onSave: ( result ) => {
-				if ( result.label ) {
-					manager.renameDesktop( desktopId, result.label );
-				}
-				// `null` when the user switched everything off — the desk
-				// goes back to being a plain Space, tile and all.
-				setWorkspaceProfile( deps, desktopId, result.profile );
-			},
-			captureWindows: () => captureWorkspaceWindows( manager, desktopId ),
-			// Refused on the last desktop: `closeDesktop` would decline
-			// it anyway, and an offered action that does nothing is
-			// worse than one that isn't there.
-			onDelete:
-				manager.getDesktops().length > 1
-					? () => manager.closeDesktop( desktopId )
-					: undefined,
+		const ok = await osConfirm( {
+			title: sprintf(
+				// translators: %s is the main desk's name.
+				__( 'Restore %s?' ),
+				main.label,
+			),
+			message: __(
+				'The main desk goes back to how it was when OpenStation was installed: its windows close, and the look, dock, settings and widgets return to their defaults. Your other workspaces, shared links and desktop files are not touched.',
+			),
+			confirmLabel: __( 'Restore main desk' ),
+			danger: true,
 		} );
+		if ( ! ok ) {
+			return false;
+		}
+		// Stand on it first: the settings reset and the widget reset act
+		// on what the main desk shows, never on another desk's override.
+		manager.switchDesktop( main.id );
+		if ( main.profile ) {
+			setWorkspaceProfile( workspaceDeps, main.id, null );
+		}
+		manager.closeAll( {
+			exceptIds: manager
+				.getAll()
+				.filter( ( w ) => ( w.config.desktopId || main.id ) !== main.id )
+				.map( ( w ) => w.id ),
+		} );
+		osSettings.reset();
+		widgetLayer?.resetToDefaults();
+		// Closing is asynchronous — an iframe window first asks its page
+		// about unsaved changes — so the Dashboard opens once the desk
+		// has emptied, or it would be handed the old window on its way
+		// out. Bounded: a page that keeps its window open is the user's
+		// answer, not something to wait on.
+		const onMain = (): boolean =>
+			manager.getAll().some( ( w ) => ( w.config.desktopId || main.id ) === main.id );
+		for ( let waited = 0; onMain() && waited < 3000; waited += 100 ) {
+			await new Promise( ( resolve ) => window.setTimeout( resolve, 100 ) );
+		}
+		const dashboard = `${ config.adminUrl }index.php`;
+		if ( ! tryNativeUrlRemap( dashboard ) ) {
+			const baseId = deriveWindowId( dashboard, config.adminUrl );
+			void manager.open( {
+				id: baseId,
+				baseId,
+				url: dashboard,
+				title: __( 'Dashboard' ),
+				icon: 'dashicons-dashboard',
+			} );
+		}
+		showToast( {
+			message: sprintf(
+				// translators: %s is the main desk's name.
+				__( '%s is back to how it started.' ),
+				main.label,
+			),
+			type: 'success',
+		} );
+		return true;
+	};
+
+	/**
+	 * The notes a workspace's author pinned on its desk, hanging on the
+	 * wallpaper of that desk — read-only and dismissable, or editable
+	 * while the desk is being edited. Not on a phone: there is no
+	 * workspace there.
+	 */
+	let editingDeskId = '';
+	const workspaceNotes = desktopArea
+		? new WorkspaceNotesLayer( {
+			host: desktopArea,
+			pluginUrl: config.pluginUrl ?? '',
+			dismissed: config.workspaceDismissedNotes ?? [],
+			dismiss: ( id ) => {
+				void trackedFetch(
+					manager,
+					joinRestUrl( config.restUrl ?? '', 'desktop-mode/v1/workspace-notes/dismiss' ),
+					{
+						method: 'POST',
+						credentials: 'same-origin',
+						headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': config.restNonce },
+						body: JSON.stringify( { id } ),
+					},
+					{ source: 'desktop-mode/workspace-notes', silent: true },
+				).catch( () => undefined );
+			},
+		} )
+		: null;
+	const paintWorkspaceNotes = (): void => {
+		if ( ! workspaceNotes ) {
+			return;
+		}
+		if ( modeController.api.isMobile() ) {
+			workspaceNotes.show( null );
+			return;
+		}
+		const active = manager.getActiveDesktopId();
+		workspaceNotes.show( getWorkspaceProfile( manager, active )?.notes, editingDeskId === active );
+	};
+	addAction( HOOKS.DESKTOP_SWITCHED, 'desktop-mode/workspace-notes', paintWorkspaceNotes );
+	// A profile write repaints the notes — except on the desk being
+	// edited, where the page holds the author's unsaved notes.
+	addAction( HOOKS.WORKSPACE_UPDATED, 'desktop-mode/workspace-notes', ( payload: { desktopId?: string } ) => {
+		if ( ! ( editingDeskId && payload?.desktopId === editingDeskId && workspaceNotes?.isEditing() ) ) {
+			paintWorkspaceNotes();
+		}
+	} );
+
+	/**
+	 * Edit a workspace on its own desk: switch there and keep a toast
+	 * up whose Save changes keeps the desk as it is at that moment —
+	 * windows where they are, widgets, apps, look. Then the Workspaces
+	 * app opens on it, where a shared workspace's change is published.
+	 *
+	 * Editing in place rather than in a form: the desk is the editor.
+	 */
+	const editWorkspaceDesk = ( desktopId: string ): void => {
+		const desk = manager.getDesktops().find( ( d ) => d.id === desktopId );
+		if ( ! desk || isWorkspacePinned() ) {
+			return;
+		}
+		// The Workspaces window steps aside while the desk is being
+		// arranged — it is the tool the desk is edited FROM, not part of
+		// the desk — and comes back when the edit ends, either way.
+		const stepAside = manager
+			.getAll()
+			.filter( ( win ) => WORKSPACES_APP_ID === ( win.config.baseId || win.id ) && 'minimized' !== win.state );
+		for ( const win of stepAside ) {
+			win.minimize();
+		}
+		// Bring the same window back — onto the desk the user is on now,
+		// focused on the workspace — rather than opening a second one.
+		const comeBack = (): void => {
+			const win = stepAside.find( ( w ) => manager.getById( w.id ) );
+			if ( ! win ) {
+				manageWorkspaces( desktopId );
+				return;
+			}
+			manager.moveWindowToDesktop( win.id, manager.getActiveDesktopId() );
+			win.restore();
+			manager.focus( win.id );
+			manageWorkspaces( desktopId );
+		};
+		manager.switchDesktop( desktopId );
+		editingDeskId = desktopId;
+		paintWorkspaceNotes();
+		const endEdit = (): void => {
+			editingDeskId = '';
+			paintWorkspaceNotes();
+		};
+		showWorkspaceEditBar( {
+			label: desk.label,
+			actions: [
+				{ label: __( '+ Note' ), onClick: () => workspaceNotes?.add( 'normal' ) },
+				{ label: __( '+ XL note' ), onClick: () => workspaceNotes?.add( 'xl' ) },
+			],
+			onSave: () => {
+				// The notes as the author left them go onto the profile
+				// first; the desk capture then keeps them with the rest.
+				const profile = getWorkspaceProfile( manager, desktopId );
+				if ( workspaceDeps && profile && workspaceNotes ) {
+					setWorkspaceProfile( workspaceDeps, desktopId, { ...profile, notes: workspaceNotes.collect() } );
+				}
+				if ( ! saveDesk( desktopId ) ) {
+					return false;
+				}
+				endEdit();
+				comeBack();
+				return true;
+			},
+			onCancel: () => {
+				endEdit();
+				comeBack();
+			},
+		} );
+	};
+
+	/**
+	 * Whether Preferences is off the table here: a pinned desk with
+	 * "Hide settings" on. The server refuses the window for that user;
+	 * this only stops the shell offering it.
+	 */
+	const settingsHiddenHere = (): boolean =>
+		isWorkspacePinned() && !! getActiveWorkspaceProfile( manager )?.restricted;
+
+	// On a workspace's desk, every Preferences edit is an edit to the
+	// workspace — each one carries ALL of the OS settings, and the
+	// desk is what the user is looking at. Never for a pinned user:
+	// their desk belongs to whoever shared it.
+	osSettings.onWorkspaceEdit = ( patch ) => {
+		if ( ! workspaceDeps || isWorkspacePinned() ) {
+			return false;
+		}
+		const deskId = manager.getActiveDesktopId();
+		const profile = getWorkspaceProfile( manager, deskId );
+		if ( ! profile ) {
+			return false;
+		}
+		// Written complete: a workspace made before it carried every
+		// setting gets them all now, the unnamed ones as the user has
+		// them.
+		setWorkspaceProfile( workspaceDeps, deskId, {
+			...profile,
+			appearance: {
+				...captureWorkspaceAppearance(
+					osSettings.userSettings() as unknown as Record< string, unknown >,
+				),
+				...( profile.appearance ?? {} ),
+				...patch,
+			},
+		} );
+		return true;
+	};
+
+	/** The Workspaces app's window id — `apps/workspaces/workspaces.os.php`. */
+	const WORKSPACES_APP_ID = 'openstation-workspaces';
+
+	/**
+	 * Open the Workspaces app, on a desk when one is named — and with
+	 * MIO's chat open when `mio` is set.
+	 */
+	const manageWorkspaces = ( desktopId?: string, opts: { mio?: boolean } = {} ): void => {
+		const params: Record< string, string | boolean > = {};
+		if ( desktopId ) {
+			params.desktop = desktopId;
+		}
+		if ( opts.mio ) {
+			params.mio = true;
+		}
+		nativeWindows.openById( WORKSPACES_APP_ID, {
+			source: 'desktop-mode/workspaces',
+			...( Object.keys( params ).length ? { params } : {} ),
+		} );
+	};
+
+	/** Whether MIO can chat: MIO on, AI on, a provider configured. */
+	const mioCanChat = (): boolean =>
+		!! (
+			osSettings.state.mioEnabled &&
+			osSettings.state.ai.enabled &&
+			config.aiAssistant?.available &&
+			config.aiAssistant.assistantProviderConfigured
+		);
+
+	/**
+	 * Save a desk — the main one unless told otherwise — as a NEW
+	 * workspace. The one way a workspace is made: arrange the main
+	 * desk, save it, and a new desk carries that arrangement.
+	 *
+	 * The visible apps and the mounted widgets are read off the screen,
+	 * so they describe the source desk only while it is the one in
+	 * front of the user. From anywhere else, save the windows and look
+	 * and leave the rails and column to the user's own.
+	 */
+	const saveAsWorkspace = (
+		sourceId?: string,
+		{ announce = true }: { announce?: boolean } = {},
+	): Desktop | null => {
+		if ( ! workspaceDeps || isWorkspacePinned() ) {
+			return null;
+		}
+		const source = sourceId ?? manager.getDesktops()[ 0 ]?.id ?? '';
+		const onScreen = source === manager.getActiveDesktopId();
+		const created = cloneDeskAsWorkspace( workspaceDeps, source, {
+			visibleAppIds: onScreen ? visibleNavIds() : undefined,
+			mountedWidgetIds: onScreen ? widgetLayer?.getMountedIds() : undefined,
+			appearance: onScreen ? currentWorkspaceLook() : undefined,
+		} );
+		if ( ! created ) {
+			return null;
+		}
+		if ( ! announce ) {
+			return created;
+		}
+		showToast( {
+			message: sprintf(
+				// translators: %s is the new workspace's name.
+				__( 'Saved as %s. Name it, share it or see who uses it in Workspaces.' ),
+				created.label,
+			),
+			type: 'success',
+			action: {
+				label: __( 'Manage' ),
+				onClick: () => manageWorkspaces( created.id ),
+			},
+		} );
+		return created;
 	};
 
 	/**
@@ -3277,8 +3477,12 @@ function init(): void {
 				// shows every app whatever desk happens to be active.
 				// The crossing subscription below repaints the rails
 				// when the answer changes.
+				//
+				// Except a pinned one: its narrowing is the point of the
+				// desk, and the server refuses the screens it leaves
+				// out whatever the grid would offer.
 				getWorkspaceProfile: () =>
-					modeController.api.isMobile()
+					modeController.api.isMobile() && ! isWorkspacePinned()
 						? null
 						: getActiveWorkspaceProfile( manager ),
 			},
@@ -3363,32 +3567,74 @@ function init(): void {
 				osSettings.setWorkspaceAppearance(
 					patch as Partial< typeof osSettings.state > | null,
 				),
+			userAppearance: () =>
+				captureWorkspaceAppearance(
+					osSettings.userSettings() as unknown as Record< string, unknown >,
+				),
 		};
-		// The filter that lets the `openstation_workspace_presets` PHP
-		// filter drop a shipped template goes in BEFORE the payload
-		// lands, so a read between boot and sync already goes through
-		// it.
-		installWorkspacePresetSync();
-		applyServerWorkspacePresets( config.workspacePresets );
-		// ⌘K → `/workspace`. The pill is the discoverable route and it
-		// sits under the window layer, which is the right trade for a
-		// floating affordance and the wrong one for the only way in.
-		registerWorkspaceCommand(
-			workspaceDeps,
-			editWorkspace,
-			createWorkspaceWithWizard,
-			saveDesk,
+		// ⌘K → `/workspace`, `/save-workspace`, `/keep-desk`. A pinned
+		// user has one desk and no say over it, so none of them — and
+		// no workspace controls in Overview either (which a pinned user
+		// cannot open anyway).
+		if ( ! isWorkspacePinned() ) {
+			registerWorkspaceCommand(
+				workspaceDeps,
+				manageWorkspaces,
+				() => saveAsWorkspace(),
+				saveDesk,
+				() => void restoreMainDesk(),
+			);
+
+			// Save, Manage and Restore under the overview tiles. This
+			// hands that bar the operations it cannot build from a
+			// `WindowManager` alone; it asks for them each time it
+			// paints.
+			installWorkspaceOverviewControl( {
+				...workspaceDeps,
+				saveAsWorkspace,
+				openManager: manageWorkspaces,
+				restoreMain: () => void restoreMainDesk(),
+			} );
+		}
+
+		// The wallpaper's right-click menu: Save on the main desk (the
+		// gesture is "this desk, as it is"), and no Preferences row on
+		// a pinned desk that hides settings.
+		addFilter(
+			'os.wallpaper-context-menu',
+			'desktop-mode/workspaces',
+			( items: WallpaperMenuItem[] ): WallpaperMenuItem[] => {
+				if ( settingsHiddenHere() ) {
+					return items.filter( ( item ) => 'os-settings' !== item.id );
+				}
+				if (
+					isWorkspacePinned() ||
+					manager.getActiveDesktopId() !== manager.getDesktops()[ 0 ]?.id
+				) {
+					return items;
+				}
+				return [
+					...items,
+					{
+						id: 'save-workspace',
+						label: __( 'Save desk as new workspace' ),
+						icon: 'dashicons-images-alt2',
+						sort: 28,
+						onClick: () => {
+							saveAsWorkspace();
+						},
+					},
+				];
+			},
 		);
 
-		// The picker lives in the overview top bar — overview is
-		// already the Spaces surface, and the desk itself is the
-		// user's. This hands that bar the operations it cannot build
-		// from a `WindowManager` alone; it asks for a control each
-		// time it paints.
-		installWorkspaceOverviewControl( {
-			...workspaceDeps,
-			openCreator: createWorkspaceWithWizard,
-			openEditor: editWorkspace,
+		// A share link just landed here: say what came of it, then
+		// take the status off the URL so a reload does not say it
+		// again.
+		announceWorkspaceArrival( config.workspaceArrival ?? null, ( desktopId ) => {
+			if ( manager.getDesktops().some( ( d ) => d.id === desktopId ) ) {
+				manager.switchDesktop( desktopId );
+			}
 		} );
 
 		// Entering a workspace for the first time opens its windows and
@@ -3496,20 +3742,38 @@ function init(): void {
 			// out, so the tile has to do something defensible alone.
 			// Wrapped so the click event never lands in the options
 			// parameter openOsSettings actually takes.
-			onOpen: () => openOsSettings(),
+			//
+			// Except under "Hide settings" on a pinned desk, where the
+			// server does not register Preferences at all.
+			onOpen: () => {
+				if ( ! settingsHiddenHere() ) {
+					openOsSettings();
+				}
+			},
 			get submenu() {
 				// `windowId` on the rows that open one is what lets
 				// the flyout list System's live windows the way it
 				// lists an admin menu's. Rows that open nothing
 				// (Fullscreen, Log out) leave it unset.
-				const rows: SubmenuItem[] = [
-					{
-						title: 'OpenStation Preferences',
+				const rows: SubmenuItem[] = settingsHiddenHere()
+					? []
+					: [
+						{
+							title: 'OpenStation Preferences',
+							url: '',
+							windowId: OS_SETTINGS_WINDOW_ID,
+							onSelect: () => openOsSettings(),
+						},
+					];
+				// Workspaces, where they are made and managed. Not for
+				// someone pinned to a shared one: they have one desk.
+				if ( ! isWorkspacePinned() ) {
+					rows.push( {
+						title: __( 'Create workspace' ),
 						url: '',
-						windowId: OS_SETTINGS_WINDOW_ID,
-						onSelect: () => openOsSettings(),
-					},
-				];
+						onSelect: () => manageWorkspaces(),
+					} );
+				}
 				if ( config.homeUrl ) {
 					rows.push( {
 						title: 'View site',
@@ -3736,7 +4000,13 @@ function init(): void {
 		// nodes while the desktop is up. Reuses the existing
 		// save-openstation AJAX endpoint via the
 		// `window.openStationAdminBar` global; no new PHP surface.
-		layoutDispatcher.appendSystemTile( getExitOpenStationTileDef() );
+		//
+		// Not for a user pinned to a shared workspace: the desk IS
+		// their admin until someone releases them, and the server
+		// refuses the switch-off anyway.
+		if ( ! isWorkspacePinned() ) {
+			layoutDispatcher.appendSystemTile( getExitOpenStationTileDef() );
+		}
 
 		// Null on a single-site install and without `manage_network`.
 		if ( config.multisite ) {
@@ -3797,22 +4067,53 @@ function init(): void {
 		// for it because the gesture is undiscoverable: a shortcut
 		// nobody pressed is a feature nobody has. The id stays
 		// `os-overview`: it keys visibility overrides in Preferences.
-		layoutDispatcher.appendSystemTile( {
-			id: OVERVIEW_TILE_ID,
-			title: 'Workspaces',
-			icon: OS_OVERVIEW_ICON,
-			navKind: 'control',
-			placeable: true,
-			order: SYSTEM_TILE_ORDER.overview,
-			isOpen: () => manager._overviewActive,
-			onOpen: () => {
-				if ( manager._overviewActive ) {
-					manager.exitOverview();
-				} else {
-					manager.enterOverview();
-				}
-			},
-		} );
+		// A pinned user has one desk and nothing to pick between.
+		if ( ! isWorkspacePinned() ) {
+			layoutDispatcher.appendSystemTile( {
+				id: OVERVIEW_TILE_ID,
+				title: 'Workspaces',
+				icon: OS_OVERVIEW_ICON,
+				navKind: 'control',
+				placeable: true,
+				order: SYSTEM_TILE_ORDER.overview,
+				isOpen: () => manager._overviewActive,
+				onOpen: () => {
+					if ( manager._overviewActive ) {
+						manager.exitOverview();
+					} else {
+						manager.enterOverview();
+					}
+				},
+				// Hovering the tile says what it is for: saving the main
+				// desk as a workspace, and managing the ones there are.
+				get submenu(): SubmenuItem[] {
+					const withMio: SubmenuItem[] = mioCanChat()
+						? [
+							{
+								title: __( 'Build a workspace with MIO…' ),
+								url: '',
+								onSelect: () => manageWorkspaces( undefined, { mio: true } ),
+							},
+						]
+						: [];
+					return [
+						...withMio,
+						{
+							title: __( 'Save main desk as new workspace' ),
+							url: '',
+							onSelect: () => {
+								saveAsWorkspace();
+							},
+						},
+						{
+							title: __( 'Manage workspaces…' ),
+							url: '',
+							onSelect: () => manageWorkspaces(),
+						},
+					];
+				},
+			} );
+		}
 	}
 	const dock: Dock | null = layoutDispatcher?.getPrimary() ?? null;
 
@@ -4066,10 +4367,20 @@ function init(): void {
 			const bootDesktop = manager.getActiveDesktopId();
 			// Not on a phone: a desk's launch list is a desktop's worth
 			// of iframes, and the phone boot restores one window.
+			//
+			// A desk the session brought back unprovisioned — a shared
+			// workspace a link just pinned, or one its author has since
+			// republished — opens its whole list, placed and arranged,
+			// rather than only the windows it is missing.
 			if ( ! modeController.api.isMobile() ) {
-				reopenWorkspaceWindows( deps, bootDesktop );
+				if ( getWorkspaceProfile( manager, bootDesktop )?.provisioned === false ) {
+					provisionWorkspace( deps, bootDesktop );
+				} else {
+					reopenWorkspaceWindows( deps, bootDesktop );
+				}
 			}
 			applyWorkspaceViewForMode( deps, bootDesktop );
+			paintWorkspaceNotes();
 		} );
 	}
 
@@ -4917,8 +5228,8 @@ function init(): void {
 		mio: mioApi,
 		mode: modeController.api,
 		// Bound to the same deps bag the overview bar and the
-		// provisioner use, so `wp.os.workspaces.create( … )` and the
-		// wizard's Create are the same call.
+		// provisioner use, so `wp.os.workspaces.saveAs()` and the Save
+		// under the main desk's tile are the same call.
 		workspaces: createWorkspacesApi(
 			workspaceDeps ?? {
 				manager,
@@ -4929,10 +5240,21 @@ function init(): void {
 				openNative: nativeWindows.openById,
 				refreshLayout: () => layoutDispatcher?.refresh(),
 			},
-			editWorkspace,
-			currentWorkspaceLook,
-			createWorkspaceWithWizard,
-			saveDesk,
+			{
+				manage: manageWorkspaces,
+				currentLook: currentWorkspaceLook,
+				saveAs: saveAsWorkspace,
+				restoreMain: restoreMainDesk,
+				edit: editWorkspaceDesk,
+				saveDesk,
+				apps: () =>
+					workspaceAppCatalog(
+						layoutDispatcher?.getNavItems() ?? [],
+						registeredNativeWindows(),
+						new Set( listNativeUrlRemaps().map( ( r ) => r.nativeWindowId ) ),
+						config.adminUrl,
+					),
+			},
 		),
 		wallpaperSuspend: {
 			suspend: ( reason: string ) => wallpaperLayer?.suspend( reason ),

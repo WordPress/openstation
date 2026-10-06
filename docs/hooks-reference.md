@@ -1563,67 +1563,6 @@ apply_filters( 'openstation_network_request_url', string $url, string $base );
 
 `$url` is the full request URL about to be made; `$base` is the install's public URL. `bin/wp-env-network-dev.sh` uses it to route two local wp-env instances through Docker's host gateway.
 
-### `openstation_workspace_presets` — Stable
-
-The workspace templates offered as cards on the wizard's Start step, beside Blank workspace. A **[workspace](workspaces.md)** is a desktop plus the answer to what it is for: which apps show on it, which windows it opens with, how they are arranged. Three ship — Commerce, Learning and Publishing, named for the job and built around the products that do it (the Commerce tokens name WooCommerce, the Learning ones name Sensei).
-
-```php
-apply_filters( 'openstation_workspace_presets', array $presets );
-```
-
-Each entry:
-
-```php
-array(
-    'id'          => string, // unique slug
-    'label'       => string, // switcher row (already translated)
-    'description' => string, // optional; one line in the editor
-    'icon'        => string, // dashicon class
-    'color'       => string, // optional '#rrggbb' accent
-    'layout'      => string, // 'free' | 'cascade' | 'tile' | 'columns' | 'focus'
-    'apps'        => array,  // optional match tokens; empty means "show everything"
-    'widgets'     => array,  // optional widget ids; empty means "the user's own column"
-    'appearance'  => array,  // optional sparse settings patch (allowlisted keys only)
-    'windows'     => array,  // optional: array( array( 'match' => …, 'url' => …, 'title' => … ) )
-    'order'       => int,    // optional; ascending. Shipped desks claim 10 / 20 / 30
-)
-```
-
-The filter has both powers. **Removing** an entry drops that template — a blog with no store has no reason to be offered a Commerce desk. **Adding** one with an id of its own registers it whole, so a plugin can ship a complete workspace from PHP with no JavaScript at all.
-
-`apps` and `windows` hold **match tokens**, not ids: each is tested as a substring against every navigable item's id, URL, window id and title, and a launch entry that matches nothing is skipped. That is what lets a template degrade on a site missing the plugin it names instead of opening four permission errors. The three shipped entries deliberately carry neither — the client already has their token lists, and a second copy here would be a second place to keep in step.
-
-`widgets` is different: widget ids are registry keys (`desktop-mode/post-stats`), so they are named exactly and need no resolving. A template that names widgets gives its desk that column while it is active; one that names none leaves the user's own column alone. One naming a widget whose plugin is absent is skipped at mount — a shorter column, not a broken desk.
-
-`appearance` is a **sparse settings patch** — wallpaper, accent, desktop theme, dock — painted on entry and handed straight back on exit. Keys outside the allowlist are dropped here rather than reaching the client: a profile is user meta round-tripped through an untrusted client, and an unfiltered patch spread onto the settings state at boot would be a way to write any settings key from anywhere. See [Appearance is a view too](workspaces.md#appearance-is-a-view-too) for the list and for what happens when a user saves Preferences while standing on an overridden desk.
-
-```php
-add_filter( 'openstation_workspace_presets', function ( $presets ) {
-    $presets[] = array(
-        'id'      => 'support',
-        'label'   => __( 'Support', 'my-ext' ),
-        'icon'    => 'dashicons-sos',
-        'color'   => '#2271b1',
-        'layout'  => 'columns',
-        'apps'    => array( 'my-helpdesk', 'edit-comments.php', 'users.php' ),
-        'widgets' => array( 'clock', 'desktop-mode/recent-comments' ),
-        'appearance' => array(
-            'wallpaper' => 'dark',
-            'accent'    => 'wp-blue',
-        ),
-        'windows' => array( array( 'match' => 'my-helpdesk' ) ),
-        'order'   => 40,
-    );
-    return $presets;
-} );
-```
-
-Every entry is sanitized, shipped ones included: an entry with no `id` is dropped, an unknown `layout` falls back to `'free'`, and one with no `label` is named after its id. A malformed template costs that template, never the wizard.
-
-See [`docs/workspaces.md`](workspaces.md) and [`docs/examples/workspace-preset.md`](examples/workspace-preset.md).
-
----
-
 ### `openstation_portal_auto_enable` — Stable
 
 When a user lands on `/openstation/` without OpenStation enabled, the portal auto-enables it for them by default. Return `false` to require an explicit toggle instead.
@@ -4342,6 +4281,20 @@ add_filter( 'openstation_app_window_args', function ( $args, $id ) {
 
 This is how the WooCommerce integration attaches its `os-my-wordpress-woocommerce` bundle (and stylesheet) to the My WordPress app — the same bundle WP Explorer's window declares, one subscriber decorating both windows.
 
+### `openstation_app_allows` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_app_allows', bool $allowed, string $app_id, OpenStation\App\Os $os ): bool
+```
+
+Whether the user may use an app its own gate (`capabilities()` / `can()`) already admitted — the window, its icon and tabs, and its dispatch endpoint alike, since all of them ask `App::allows()`. It can only narrow: it runs after the app's own checks, and returning `true` does not override a refusal. Runs through the host's `Hooks` contract, so the framework core stays WordPress-free. Shared workspaces use it to refuse Preferences and the admin apps to a pinned user on a desk with "Hide settings".
+
+```php
+add_filter( 'openstation_app_allows', function ( $allowed, $app_id ) {
+	return $allowed && ! ( 'openstation-code-blue' === $app_id && ! current_user_can( 'manage_options' ) );
+}, 10, 2 );
+```
+
 ### `openstation_app_registered` — Experimental (action)
 
 ```php
@@ -4367,6 +4320,157 @@ Body `{ action, state, args, client }`; response `{ ok, state, html, effects }`.
 - `openstation_app( $id )` — the registered `App` or null.
 - `openstation_app_render( $id, array $state = array() )` — the whole window as a value: `manifest`, `state` after `mount`, `html`, `effects`.
 - `openstation_apps_registry()`, `openstation_apps_runtime()`, `openstation_apps_os()`.
+
+---
+
+## Shared workspaces
+
+A workspace shared with a link, and the pin it puts on whoever opens it — see [`workspaces.md`](./workspaces.md#sharing-a-workspace). Every hook below is `Experimental`.
+
+### `openstation_session` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_session', array $session, int $user_id, bool $network, string $context ): array
+```
+
+A desktop session on its way into and out of storage — on every read (`openstation_get_session()`, `$context = 'read'`) and every save, after sanitizing (`'save'`). The place to hold a session to a shape the client cannot talk its way out of. The pin is the shipped use: it reshapes a pinned user's session to one desk, whatever the client sent.
+
+### `openstation_workspace_share_capability` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_workspace_share_capability', string $capability ): string
+```
+
+The capability that may share workspaces, manage every link on the site and release pinned users. Default `manage_options`. Holders are never pinned by a link: opening one adds the workspace as an ordinary desk.
+
+```php
+// Let shop managers share desks with their staff.
+add_filter( 'openstation_workspace_share_capability', fn() => 'manage_woocommerce' );
+```
+
+### `openstation_workspace_claim_capability` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_workspace_claim_capability', string $capability ): string
+```
+
+The capability a user needs to RECEIVE a shared workspace. Default `edit_posts` — Contributor and above, Shop Manager and the like. Anyone else who opens a link is told it is not for their account, and nothing changes. (Users who can share are never pinned either way.)
+
+```php
+// Only people who can publish may receive a desk.
+add_filter( 'openstation_workspace_claim_capability', fn() => 'publish_posts' );
+```
+
+### `openstation_workspace_share_snapshot` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_workspace_share_snapshot', array $snapshot, int $author, string $desktop_id ): array
+```
+
+The sanitized profile a share is about to store, on first share and on every republish. Sanitized again after the filter.
+
+### `openstation_workspace_shared` — Experimental (action)
+
+```php
+do_action( 'openstation_workspace_shared', array $share, bool $republished )
+```
+
+A workspace was shared (`$republished` false) or republished. `$share` carries `id`, `label`, `author`, `desktop`, `token`, `url`, `version`, `disabled`, `profile`.
+
+### `openstation_workspace_share_claimed` — Experimental (action)
+
+```php
+do_action( 'openstation_workspace_share_claimed', string $status, array $share, int $user_id )
+```
+
+A share link was opened. `$status` is `pinned`, `added`, `already`, `managed`, `disabled` or `not-allowed`. (An unknown token has no share, and fires nothing.)
+
+### `openstation_workspace_share_redirect` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_workspace_share_redirect', string $url, array $result ): string
+```
+
+Where a share link lands after claiming. Default: the shell screen with `os_workspace_status` and `os_workspace_share`, which the shell turns into one toast. Redirected with `wp_safe_redirect()`.
+
+### `openstation_workspace_pin_released` — Experimental (action)
+
+```php
+do_action( 'openstation_workspace_pin_released', int $user_id, array|null $share )
+```
+
+A pinned user was released — from the Workspaces app, by deleting the link, or because their share disappeared. `$share` is null in the last case.
+
+### `openstation_workspace_share_deleting` — Experimental (action)
+
+```php
+do_action( 'openstation_workspace_share_deleting', array $share )
+```
+
+A share is about to be deleted. Everyone it pinned has already been released.
+
+### `openstation_os_settings` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_os_settings', array $settings, int $user_id ): array
+```
+
+A user's OS settings as they are read — for the shell config, the REST route and every server-side check alike. A pinned shared workspace holds its non-cosmetic settings here.
+
+### `openstation_os_settings_before_save` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_os_settings_before_save', array $clean, int $user_id ): array
+```
+
+A user's sanitized OS settings just before they are stored. A pinned shared workspace keeps the user's own stored values for the settings it holds, so neither the workspace's values nor an attempt to change them reaches storage.
+
+### `openstation_workspace_cosmetic_settings` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_workspace_cosmetic_settings', string[] $keys ): string[]
+```
+
+Which settings a pinned user may change for themselves. The workspace seeds them into the user's own settings when the link is claimed; every other setting it carries stays held while they are pinned. Default: wallpaper and its settings, the custom gradient and image, accent and custom accent, desktop theme, window corners, reveal and its duration, the unfocus effect, window-link renderer / visibility / highlight, the rail renderer, Mio's toggles and style, and the post-status ribbons.
+
+### `openstation_workspace_fence_always_allowed` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_workspace_fence_always_allowed', string[] $urls ): string[]
+```
+
+Admin-relative URLs a pinned user can reach whatever their workspace includes. Default: the shell screen, `index.php`, `profile.php`.
+
+### `openstation_workspace_fence_allows` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_workspace_fence_allows', bool $allowed, int $user_id, array $share, string $pagenow ): bool
+```
+
+The last word on whether a pinned user may load the current admin screen. False answers with a 403.
+
+```php
+// A help screen every pinned client may open.
+add_filter( 'openstation_workspace_fence_allows', function ( $allowed, $user_id, $share, $pagenow ) {
+	return $allowed || ( 'admin.php' === $pagenow && 'my-help' === ( $_GET['page'] ?? '' ) );
+}, 10, 4 );
+```
+
+### `openstation_workspace_restricted_screens` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_workspace_restricted_screens', string[] $files ): string[]
+```
+
+The admin files "Hide settings" leaves out — Settings, plugins, themes, the Customizer, editors, menus and widgets, tools, users, updates, site health. Matched on the file, so a plugin page under Settings (`options-general.php?page=…`) goes with its parent. Shipped to the shell as `config.workspaceRestricted.screens`.
+
+### `openstation_workspace_restricted_apps` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_workspace_restricted_apps', string[] $app_ids ): string[]
+```
+
+The App Framework windows "Hide settings" leaves out. Default: `desktop-mode-os-settings`, `desktop-mode-plugins`, `desktop-mode-users`, `openstation-network`, `openstation-code-blue`, `openstation-workspaces`. Shipped to the shell as `config.workspaceRestricted.apps`.
 
 ---
 

@@ -357,8 +357,8 @@ function openstation_redirect_plain_admin_to_portal() {
 	// The "Detach to new tab" button tags its URL with this flag so the
 	// user can view one admin page classically without disabling desktop
 	// mode account-wide. Navigations inside that tab keep it (see the
-	// Referer check below).
-	if ( ! empty( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	// Referer check below); a pinned user cannot use this escape.
+	if ( openstation_is_classic_request() ) {
 		return;
 	}
 
@@ -395,7 +395,9 @@ function openstation_redirect_plain_admin_to_portal() {
 	 * @param int  $user_id  The current user's ID.
 	 */
 	$redirect = apply_filters( 'openstation_admin_redirect_to_portal', true, get_current_user_id() );
-	if ( ! $redirect ) {
+	// A pinned user's admin IS the desk: a plain admin URL is not a
+	// door out of it, whatever a site-wide opt-out says.
+	if ( ! $redirect && ! ( function_exists( 'openstation_workspace_is_pinned' ) && openstation_workspace_is_pinned() ) ) {
 		return;
 	}
 

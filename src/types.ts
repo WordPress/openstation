@@ -2120,15 +2120,17 @@ export interface DesktopConfig {
 	 */
 	serverDesktopThemes?: DesktopThemeServerEntry[];
 	/**
-	 * Workspace templates the server knows about
-	 * (`openstation_workspace_presets`). The one registry in the family
-	 * that carries no script: a template is metadata plus two token
-	 * lists, so `src/workspaces/server-sync.ts` reconciles it
-	 * synchronously. An entry naming a client built-in says only "this
-	 * one still exists"; an entry with an id of its own is registered
-	 * whole, so a plugin can ship a workspace from PHP alone.
+	 * The shared workspace this user is pinned to — their main and only
+	 * desk until an admin releases them — or null. See
+	 * `includes/workspace-shares/pin.php`.
 	 */
-	workspacePresets?: import( './workspaces/server-sync' ).WorkspacePresetServerEntry[];
+	workspacePin?: import( './workspaces/pin' ).WorkspacePin | null;
+	/** What a share link just did, right after its redirect; else null. */
+	workspaceArrival?: import( './workspaces/arrival' ).WorkspaceArrival | null;
+	/** Whether this user may share workspaces (and is never pinned). */
+	workspaceCanShare?: boolean;
+	/** Ids of the workspace notes this user has dismissed. */
+	workspaceDismissedNotes?: string[];
 	/**
 	 * Whether this user may upload / delete desktop themes. Gates the
 	 * management controls in OS Settings → Themes; picking a theme is

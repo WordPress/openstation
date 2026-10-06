@@ -587,25 +587,29 @@
 }
 
 /*
- * The desk's actions — a column below the tile, separated by the
+ * The desk's actions — one row below the tile, separated by the
  * wrapper's gap. Not over the preview: the preview is the tile's
  * picture of the desk, and a bar laid across it covers the one thing
- * the tile is there to show. Not the corners either — edit and close
- * have those — and Restore needs a word, because no glyph says
- * "rebuild this desk".
+ * the tile is there to show. Not the corners either — rename and close
+ * have those.
  *
- * **Restore** is always visible, but only painted on a desk with
- * something to restore, so its absence is information. Once any desk
- * on the bar can restore, every column reserves the row, so every
- * tile box stays on the same line.
+ * **Save** under the main desk, **Manage** and **Restore** under a
+ * workspace. Each is painted only where it has work to do, so its
+ * absence is information. Once any desk on the bar has one, every
+ * column reserves the row, so every tile box stays on the same line.
  */
 .os-overview-top-bar__tile-actions {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
+	justify-content: center;
 	gap: 4px;
+	/* Exactly the tile's width, whatever the buttons need: a row wider
+	   than its tile widened the wrapper and pushed the next tile away. */
+	width: 0;
+	min-width: 100%;
 }
 
-/* One 22px row, once some desk on the bar can restore. */
+/* One 22px row, once some desk on the bar has an action. */
 .os-overview-top-bar__list--restorable .os-overview-top-bar__tile-actions {
 	min-height: 22px;
 }
@@ -616,7 +620,7 @@
 	justify-content: center;
 	gap: 5px;
 	height: 22px;
-	padding: 0 8px;
+	padding: 0 6px;
 	border: 1px solid rgba( 255, 255, 255, 0.14 );
 	border-radius: 8px;
 	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.42 ) );
@@ -624,8 +628,10 @@
 	font: inherit;
 	font-size: 10px;
 	font-weight: 600;
-	letter-spacing: 0.04em;
+	letter-spacing: 0.02em;
 	text-transform: uppercase;
+	white-space: nowrap;
+	min-width: 0;
 	cursor: pointer;
 	transition:
 		opacity 0.15s ease,
@@ -647,8 +653,8 @@
 }
 
 .os-overview-top-bar__tile-action:focus-visible {
-	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
-	outline-offset: 2px;
+	outline: 2px solid transparent;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px var( --os-ui-accent, #f252fc ) );
 }
 
 @media ( prefers-reduced-motion: reduce ) {
@@ -696,6 +702,41 @@
  * block, which is what keeps the dashed box level with the tiles
  * instead of stretching over the buttons underneath them.
  */
+/*
+ * "Create a workspace" — a slot after the `+`, in the accent: it is
+ * the action the bar exists to offer, not a spare desk.
+ */
+.os-overview-top-bar__tile--create {
+	/* Wide enough for "Create a workspace" whole. */
+	width: 160px;
+	border-color: var( --os-ui-accent, #f252fc );
+	background: var( --os-ui-accent-soft, transparent );
+}
+
+.os-overview-top-bar__tile--create .os-overview-top-bar__tile-preview {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: none;
+	border-bottom-color: transparent;
+}
+
+.os-overview-top-bar__tile-create-glyph {
+	width: 24px;
+	height: 24px;
+	font-size: 24px;
+	color: var( --os-ui-accent, #f252fc );
+}
+
+.os-overview-top-bar__tile--create:hover {
+	background: color-mix( in srgb, var( --os-ui-accent, #f252fc ) 24%, transparent );
+}
+
+.os-overview-top-bar__tile--create:focus-visible {
+	outline: 2px solid transparent;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px var( --os-ui-accent, #f252fc ) );
+}
+
 .os-overview-top-bar__tile--add {
 	width: 60px;
 	background: transparent;
@@ -758,5 +799,56 @@
 @media ( prefers-reduced-motion: reduce ) {
 	.os-overview-top-bar {
 		transition-duration: 0.01ms;
+	}
+}
+
+/*
+ * "Editing workspace …" — the full-width bar across the top of the
+ * shell while a workspace is edited on its own desk. The shell's first
+ * flex child, so it pushes the desk down rather than covering it.
+ */
+.os-workspace-editbar {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 16px;
+	z-index: 2;
+	color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
+	background: var( --os-ui-accent, #f252fc );
+	box-shadow: var( --os-ui-flyout-shadow, 0 2px 12px rgba( 0, 0, 0, 0.25 ) );
+	animation: os-workspace-editbar-in 0.2s ease-out;
+}
+
+.os-workspace-editbar__glyph {
+	flex: 0 0 auto;
+	font-size: 20px;
+	width: 20px;
+	height: 20px;
+}
+
+.os-workspace-editbar__text {
+	display: flex;
+	flex: 1;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 12px;
+	min-width: 0;
+	font-size: 13px;
+}
+
+.os-workspace-editbar__text span {
+	opacity: 0.85;
+}
+
+@keyframes os-workspace-editbar-in {
+	from {
+		transform: translateY( -100% );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-workspace-editbar {
+		animation: none;
 	}
 }

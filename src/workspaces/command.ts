@@ -1,31 +1,28 @@
 /**
- * `/workspace` — the switcher, from the keyboard.
+ * `/workspace` — desks, from the keyboard.
  *
- * The pill at the desk's top-leading corner is the discoverable route
- * and it sits under the window layer, which is the right trade for a
- * floating affordance and the wrong one for the only way in. This
- * command is the other route: ⌘K, type, Enter, and the desk changes
- * whatever is maximized over the pill.
+ * One command for one question — *which desk?* — with every answer in
+ * the list: the desks that exist, then saving the main desk as a new
+ * workspace, then the Workspaces app, which is where a workspace is
+ * renamed, shared and deleted.
  *
- * One command rather than three (`/workspace`, `/workspace-new`,
- * `/workspace-edit`) because they are one question — *which desk?* —
- * and the answer list is short enough to hold every option: the desks
- * that exist, the templates that could become one, and the editor.
+ * There is no "new blank workspace" row, and no template rows either.
+ * A workspace is made one way: by setting up the main desk and saving
+ * it. `/save-workspace` is that act as its own command.
  */
 
 import { registerCommand, type CommandContext } from '../commands';
 import { __, sprintf } from '../i18n';
-import { createWorkspace, type WorkspaceDeps } from './manager';
-import { listWorkspacePresets } from './presets';
+import type { WorkspaceDeps } from './manager';
 
-/** Prefix marking a suggestion as "make a desk from this template". */
-const NEW_PREFIX = 'New: ';
+/** The suggestion that clones the main desk into a new workspace. */
+const SAVE_AS_LABEL = __( 'Save desk as new workspace' );
+const SAVE_AS_DESCRIPTION = __(
+	'Copy the main desk — its windows, widgets, apps and look — into a new workspace.',
+);
 
-/** The suggestion that opens the wizard on the current desk. */
-const EDIT_LABEL = __( 'Edit this workspace…' );
-
-/** The suggestion that opens the wizard to make a desk. */
-const NEW_LABEL = __( 'New workspace…' );
+/** The suggestion that opens the Workspaces app. */
+const MANAGE_LABEL = __( 'Manage workspaces…' );
 
 /**
  * "Keep this desk" — save the desk as it is into its workspace.
@@ -42,18 +39,22 @@ const KEEP_DESCRIPTION = __(
 );
 
 /**
- * Register `/workspace`.
+ * Register `/workspace`, `/save-workspace` and `/keep-desk`.
  *
- * @param deps   Bound workspace operations.
- * @param edit   Open the wizard on a desktop.
- * @param create Open the wizard to make a desk.
- * @param save   Save a desk into its workspace.
+ * @param deps        Bound workspace operations.
+ * @param manage      Open the Workspaces app, on a desk when one is named.
+ * @param saveAs      Clone the main desk into a new workspace; `null` when
+ *                    there is nothing to save (a pinned user).
+ * @param save        Save a desk into its workspace.
+ * @param restoreMain Put the main desk back the way a fresh install
+ *                    starts it (asks first).
  */
 export function registerWorkspaceCommand(
 	deps: WorkspaceDeps,
-	edit: ( desktopId: string ) => void,
-	create: () => void = () => undefined,
+	manage: ( desktopId?: string ) => void,
+	saveAs: () => unknown = () => null,
 	save: ( desktopId?: string ) => boolean = () => false,
+	restoreMain: () => void = () => undefined,
 ): void {
 	/** Every row the command can offer, as `{ label, run }`. */
 	const entries = (): Array< {
@@ -83,29 +84,20 @@ export function registerWorkspaceCommand(
 			run: () => deps.manager.switchDesktop( d.id ),
 		} ) );
 
-		for ( const preset of listWorkspacePresets() ) {
-			rows.push( {
-				label: `${ NEW_PREFIX }${ preset.label }`,
-				description: preset.description,
-				icon: preset.icon,
-				run: () => {
-					createWorkspace( deps, { preset: preset.id } );
-				},
-			} );
-		}
-
 		rows.push( {
-			label: NEW_LABEL,
-			description: __( 'Blank, or set up for a job — the wizard asks.' ),
-			icon: 'dashicons-plus-alt2',
-			run: create,
+			label: SAVE_AS_LABEL,
+			description: SAVE_AS_DESCRIPTION,
+			icon: 'dashicons-images-alt2',
+			run: () => {
+				saveAs();
+			},
 		} );
 
 		rows.push( {
-			label: EDIT_LABEL,
-			description: __( 'Name, apps, widgets, look and windows.' ),
+			label: MANAGE_LABEL,
+			description: __( 'Rename, share and delete workspaces, and see who uses them.' ),
 			icon: 'dashicons-admin-generic',
-			run: () => edit( deps.manager.getActiveDesktopId() ),
+			run: () => manage( deps.manager.getActiveDesktopId() ),
 		} );
 
 		rows.push( {
@@ -119,6 +111,32 @@ export function registerWorkspaceCommand(
 
 		return rows;
 	};
+
+	registerCommand( {
+		slug: 'restore-main-desk',
+		label: __( 'Restore main desk' ),
+		description: __(
+			'Put the main desk back the way it was when OpenStation was installed — windows, look, settings and widgets.',
+		),
+		icon: 'dashicons-image-rotate',
+		run( _args: string, ctx: CommandContext ) {
+			ctx.close();
+			restoreMain();
+		},
+	} );
+
+	registerCommand( {
+		slug: 'save-workspace',
+		label: SAVE_AS_LABEL,
+		description: SAVE_AS_DESCRIPTION,
+		icon: 'dashicons-images-alt2',
+		run( _args: string, ctx: CommandContext ) {
+			if ( ! saveAs() ) {
+				return __( 'There is no desk to save.' );
+			}
+			ctx.close();
+		},
+	} );
 
 	// Its own command as well as a row, because it is the one the user
 	// reaches for while LOOKING at the desk they mean — the natural
@@ -140,7 +158,7 @@ export function registerWorkspaceCommand(
 	registerCommand( {
 		slug: 'workspace',
 		label: __( 'Workspace' ),
-		description: __( 'Switch, create or edit a workspace.' ),
+		description: __( 'Switch workspace, save the main desk as one, or manage them.' ),
 		hint: '[name]',
 		icon: 'dashicons-desktop',
 
@@ -161,15 +179,12 @@ export function registerWorkspaceCommand(
 		run( args: string, ctx: CommandContext ) {
 			const q = args.trim();
 			if ( ! q ) {
-				return __(
-					'Type a workspace name to switch to it, or pick a template to create one.',
-				);
+				return __( 'Type a workspace name to switch to it.' );
 			}
 			const ql = q.toLowerCase();
 			const list = entries();
-			// Exact first, then substring — so "/workspace woo" lands on
-			// the Commerce desk rather than on "New: Commerce" when
-			// both exist.
+			// Exact first, then substring — so a desk named exactly what
+			// was typed wins over one that merely contains it.
 			const match =
 				list.find( ( row ) => row.label.toLowerCase() === ql ) ??
 				list.find( ( row ) => row.label.toLowerCase().includes( ql ) );
