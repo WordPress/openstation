@@ -2311,6 +2311,9 @@ function init(): void {
 	);
 	osSettings.apply();
 
+	// Read the current preference whenever a user opens a window.
+	manager.openWindowsAs = () => osSettings.state.openWindowsAs;
+
 	// The responsive mode. Installed before anything places a
 	// window: the phone constraints below hang off the geometry
 	// filter, and session restore fires long before the lazy phone

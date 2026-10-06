@@ -71,10 +71,14 @@ function openstation_living_tree_site_age_days() {
  * filter so analytics plugins with their own counters can feed the
  * real number in.
  *
+ * @param bool $with_jetpack Whether Jetpack Stats may answer. False
+ *                           resolves the ladder from the post-views
+ *                           meta down, for a caller Jetpack withholds
+ *                           its stats from.
  * @return int Recent view sum. >= 0.
  */
-function openstation_living_tree_traffic() {
-	$views = openstation_living_tree_jetpack_visits();
+function openstation_living_tree_traffic( $with_jetpack = true ) {
+	$views = $with_jetpack ? openstation_living_tree_jetpack_visits() : null;
 	if ( null === $views ) {
 		$views = openstation_living_tree_meta_views();
 	}
@@ -95,66 +99,23 @@ function openstation_living_tree_traffic() {
 /**
  * Last-14-days visits from Jetpack Stats, or `null` when unavailable.
  *
- * Reads through `Automattic\Jetpack\Stats\WPCOM_Stats::get_visits()` —
- * the same WPCOM endpoint the `jetpack/v4/stats/visits` REST route
- * (used by the site-views widget's client) proxies, but callable
- * server-side without a per-user capability check, so the snapshot's
- * transient cache holds the same value no matter which user primes it.
- * Any failure — Jetpack absent, no `get_visits` method, WP_Error,
- * unexpected payload — returns `null` and the caller falls back to the
- * post-views meta. A successful `0` is trusted (a quiet site is a
- * valid answer), matching the widget's source-ladder semantics.
+ * Sums the daily rows the site-views widget's `site-views-jetpack`
+ * route serves, read through {@see openstation_site_views_jetpack_days()},
+ * so the two cannot disagree about when Jetpack is the source: Jetpack
+ * absent, the Stats module off, a WP_Error or an unexpected payload
+ * all return `null` and the caller falls back to the post-views meta.
+ * A successful `0` is trusted (a quiet site is a valid answer).
+ *
+ * Not gated on the caller, so the snapshot's transient holds the same
+ * value no matter which user primes it. The gate is applied where the
+ * snapshot is served, see {@see openstation_living_tree_snapshot_for_caller()}.
  *
  * @return int|null Views over the last 14 days, or null when Jetpack
  *                  Stats can't answer.
  */
 function openstation_living_tree_jetpack_visits() {
-	if ( ! class_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats' ) ) {
-		return null;
-	}
-	$wpcom_stats = new \Automattic\Jetpack\Stats\WPCOM_Stats();
-	if ( ! method_exists( $wpcom_stats, 'get_visits' ) ) {
-		return null;
-	}
-
-	try {
-		$stats = $wpcom_stats->get_visits(
-			array(
-				'unit'     => 'day',
-				'quantity' => 14,
-			)
-		);
-	} catch ( \Throwable $e ) {
-		return null;
-	}
-	if ( is_wp_error( $stats ) ) {
-		return null;
-	}
-
-	// Jetpack versions differ on object-vs-assoc-array decoding —
-	// normalise to arrays before reading.
-	$stats = json_decode( wp_json_encode( $stats ), true );
-	if ( ! is_array( $stats ) || empty( $stats['data'] ) || ! is_array( $stats['data'] ) ) {
-		return null;
-	}
-
-	// Rows are positional per the response's `fields` list — usually
-	// array( 'period', 'views' ). Locate 'views' rather than assuming.
-	$views_index = 1;
-	if ( isset( $stats['fields'] ) && is_array( $stats['fields'] ) ) {
-		$idx = array_search( 'views', $stats['fields'], true );
-		if ( false !== $idx ) {
-			$views_index = (int) $idx;
-		}
-	}
-
-	$total = 0;
-	foreach ( $stats['data'] as $row ) {
-		if ( is_array( $row ) && isset( $row[ $views_index ] ) && is_numeric( $row[ $views_index ] ) ) {
-			$total += (int) $row[ $views_index ];
-		}
-	}
-	return $total;
+	$days = openstation_site_views_jetpack_days();
+	return null === $days ? null : (int) array_sum( array_column( $days, 'views' ) );
 }
 
 /**
