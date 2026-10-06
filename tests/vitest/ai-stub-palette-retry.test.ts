@@ -148,4 +148,23 @@ describe( 'AiAssistantStub palette-runtime retry', () => {
 		// One dropped request used to leave ⌘K dead until a reload.
 		expect( scripts() ).toHaveLength( 2 );
 	} );
+
+	it( 'drops a bundle that loaded without registering, so a retry fetches again', async () => {
+		vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+		// For real this time: the tag has to be in the document to be
+		// the one a retry would find there.
+		vi.mocked( document.head.appendChild ).mockRestore();
+		const tag = (): Element | null =>
+			document.querySelector( 'script[data-os-ai="1"]' );
+		const stub = makeStub();
+
+		stub.open();
+		// Executed, threw at the top level, registered nothing.
+		tag()?.dispatchEvent( new Event( 'load' ) );
+		await settle();
+
+		// Left in place, the next ⌘K hooked the `load` of a script that
+		// had already run, and the placeholder kept spinning for good.
+		expect( tag() ).toBeNull();
+	} );
 } );

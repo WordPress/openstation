@@ -61,6 +61,10 @@ function loadImpl( scriptUrl: string ): Promise< AiAssistantFactory > {
 		const finish = (): void => {
 			const factory = window.openStationCreateAiAssistant;
 			if ( ! factory ) {
+				// Out of the document, like a tag that failed to load: a
+				// retry would otherwise hook the `load` of a script that
+				// has already run, and wait on it forever.
+				document.querySelector( 'script[data-os-ai="1"]' )?.remove();
 				reject(
 					new Error(
 						'[openstation] ai-assistant bundle loaded but did not register openStationCreateAiAssistant',
