@@ -238,6 +238,10 @@ export class AiAssistantStub implements AiAssistantApi {
 				hidePalettePlaceholder( true );
 			} )
 			.catch( ( err ) => {
+				// Nothing opened, so nothing is open: left raised, `isOpen`
+				// kept answering true and the next ⌘K closed the panel
+				// that never came instead of trying again.
+				this._intendOpen = false;
 				hidePalettePlaceholder();
 				// eslint-disable-next-line no-console -- a failed impl load would otherwise leave ⌘K silently dead.
 				console.warn( '[openstation] command palette failed to load', err );

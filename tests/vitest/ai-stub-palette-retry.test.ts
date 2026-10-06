@@ -127,16 +127,25 @@ describe( 'AiAssistantStub palette-runtime retry', () => {
 	it( 'retries the panel bundle after a failed load', async () => {
 		vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 		const append = vi.mocked( document.head.appendChild );
+		// The placeholder's spinner puts a `<style>` in the head too,
+		// so pick the bundle's tags out by type.
+		const scripts = (): HTMLScriptElement[] =>
+			append.mock.calls
+				.map( ( [ node ] ) => node )
+				.filter( ( node ): node is HTMLScriptElement => node instanceof HTMLScriptElement );
 		const stub = makeStub();
 
 		stub.open();
-		( append.mock.calls[ 0 ][ 0 ] as HTMLScriptElement ).dispatchEvent(
-			new Event( 'error' ),
-		);
+		expect( scripts() ).toHaveLength( 1 );
+		scripts()[ 0 ].dispatchEvent( new Event( 'error' ) );
 		await settle();
+
+		// Still "open" after the failure, the next ⌘K went to close()
+		// through the palette cycle and did nothing.
+		expect( stub.isOpen ).toBe( false );
 		stub.open();
 
 		// One dropped request used to leave ⌘K dead until a reload.
-		expect( append ).toHaveBeenCalledTimes( 2 );
+		expect( scripts() ).toHaveLength( 2 );
 	} );
 } );

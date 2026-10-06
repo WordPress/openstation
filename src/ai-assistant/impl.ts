@@ -261,16 +261,31 @@ export class AiAssistant implements AiAssistantApi {
 		// panel is a page-lifetime singleton, so we don't capture the
 		// unsubscribe handle — the subscription dies with the page.
 		subscribeCommands( () => {
-			if ( ! this._isOpen ) {
+			if ( ! this._isOpen || this._isShowingOutcome() ) {
 				return;
 			}
 			// Harvested commands (Gutenberg block actions, plugin commands)
 			// arrive asynchronously after the panel opens; refresh the
-			// current surface so they appear live. `_renderForMode` is a
-			// no-op while the user is typing an AI question, so it won't
-			// clobber in-progress results.
+			// current surface so they appear live.
 			this._renderForMode();
 		} );
+	}
+
+	/**
+	 * Whether the panel is showing what a command or a search left
+	 * there: a run still in flight, or the answer or error it ended on.
+	 *
+	 * A registry change must not repaint over it. The harvester registers
+	 * the WordPress commands as the Core palette runtime lands, which on
+	 * a slow connection is tens of seconds after the panel opened, and
+	 * each registration used to swap the result for the command list.
+	 * The list comes back with the next keystroke.
+	 */
+	private _isShowingOutcome(): boolean {
+		return (
+			this._isSearching ||
+			null !== this._resultsEl.querySelector( '.os-ai__bubble, .os-ai__state--error' )
+		);
 	}
 
 	// ------------------------------------------------------------------
