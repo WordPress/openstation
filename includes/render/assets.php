@@ -509,7 +509,12 @@ function openstation_enqueue_assets() {
 	 *     @type bool   $fromPortalIntent Whether the portal redirect resolved from an explicit `?target=…` (user navigation intent) rather than the session's focused window or the default-window fallback. Distinguishes a bare `/openstation/` visit from a portal-redirected admin-bar click so the shell can honour the URL the user actually asked for.
 	 *     @type array  $seenIntros   Slugs of one-time announcements the user has dismissed (e.g. `['openstation-rebrand']`).
 	 *     @type string $seenIntrosUrl REST endpoint for the seen-intros surface — POST `/seen` to mark, DELETE the base to reset.
+	 *     @type bool   $shellTour    Whether this site offers the first-boot shell tour (`openstation_show_shell_tour`). Whether this user already had it is `seenIntros` containing `shell-tour`.
+	 *     @type string $shellTourBundleUrl URL of the lazy shell-tour bundle, injected on first use.
+	 *     @type array  $firstRun     `{ installedAt, firstEnabledAt, enabledAt }`, epoch seconds, 0 when unknown — the first-run stamps, read-only.
 	 *     @type bool   $rebrandNotice Whether to offer this user the one-off announcement explaining the rename from Desktop Mode to OpenStation. True only when migration 5 flagged this user as a Desktop Mode user from before the rename AND they haven't dismissed the `openstation-rebrand` intro. Only ever present in the shell config, so the announcement never reaches the classic admin.
+	 *     @type array|null $usageFeedback What the one-time usage feedback prompt needs (`restUrl`), or `null` when this user is not owed it: the feature is off, they have had OpenStation on for fewer than seven days by the `openstation_enabled_at` stamp, or they already answered or dismissed the `usage-feedback` intro. Carries no user data.
+	 *     @type string $usageFeedbackBundleUrl URL of the lazy `usage-feedback` bundle, the form the prompt opens.
 	 * }
 	 */
 	$config = apply_filters(
@@ -707,6 +712,24 @@ function openstation_enqueue_assets() {
 			// above; the dialog cannot paint without that stylesheet, so
 			// the two must not diverge.
 			'rebrandNotice'                 => $show_rebrand_notice,
+			// The first-boot shell tour: whether this site offers it
+			// (the `openstation_show_shell_tour` filter), and the lazy
+			// bundle that runs it. Whether THIS user already had it is
+			// `seenIntros` containing `shell-tour`; the shell reads that
+			// itself so a reset can replay the tour without a new boot.
+			'shellTour'                     => openstation_should_offer_shell_tour( get_current_user_id() ),
+			'shellTourBundleUrl'            => $lazy_bundle_url( 'shell-tour' ),
+			// The first-run stamps, read-only, epoch seconds (0 when
+			// unknown): when the plugin was installed, when anyone first
+			// enabled it, and when this user did. See
+			// `includes/first-run/stamps.php`.
+			'firstRun'                      => openstation_first_run_config( get_current_user_id() ),
+			// Null for everyone but a user who has had OpenStation on
+			// long enough and has not answered yet; the gate lives in
+			// `includes/feedback/usage.php`. The form is a lazy bundle
+			// fetched only when the user says yes to the prompt.
+			'usageFeedback'                 => function_exists( 'openstation_usage_feedback_config' ) ? openstation_usage_feedback_config() : null,
+			'usageFeedbackBundleUrl'        => $lazy_bundle_url( 'usage-feedback' ),
 			'aiSearchUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			// AI assistant availability + per-user toggle. Drives whether the
 			// Cmd+K palette and admin-bar icon appear, and the setup placeholder.

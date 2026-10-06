@@ -198,30 +198,21 @@ export function commitSnapIfPending(
 	}
 	hideSnapPreview( mgr );
 
-	// Save the pre-snap geometry so a subsequent drag from the
-	// snapped title bar can shrink the window back to its earlier
-	// floating size (mirrors how maximize saves geometry for
-	// un-maximize). Skip the save if `_savedGeometry` already
+	// `snapTo` saves the pre-snap geometry first, so a subsequent drag
+	// from the snapped title bar can shrink the window back to its
+	// earlier floating size (mirrors how maximize saves geometry for
+	// un-maximize), and skips the save when `_savedGeometry` already
 	// represents some prior state — a snap after a maximize would
-	// otherwise overwrite the pre-max bounds with the maximized
-	// ones.
-	if ( win.state === 'normal' ) {
-		win._savedGeometry = {
-			x: win.element.offsetLeft,
-			y: win.element.offsetTop,
-			width: win.element.offsetWidth,
-			height: win.element.offsetHeight,
-		};
-	}
-
-	// Animate to the target bounds. The base window CSS transition
-	// covers left/top/width/height transitions for ~250 ms, so the
-	// inline styles written by `applySnap` trigger the slide. Going
-	// through the shared method (not hand-written inline math) keeps
-	// the live snap + session-restore + ResizeObserver paths pixel-
-	// identical — any future tweak to "what does snapped-left mean"
-	// lives in one place.
-	win.applySnap( zone );
+	// otherwise overwrite the pre-max bounds with the maximized ones.
+	//
+	// It then animates to the target bounds. The base window CSS
+	// transition covers left/top/width/height transitions for ~250 ms,
+	// so the inline styles written by `applySnap` trigger the slide.
+	// Going through the shared method (not hand-written inline math)
+	// keeps the live snap + session-restore + ResizeObserver paths
+	// pixel-identical — any future tweak to "what does snapped-left
+	// mean" lives in one place.
+	win.snapTo( zone );
 
 	doAction( HOOKS.SNAP_ZONE_COMMITTED, {
 		windowId: win.id,

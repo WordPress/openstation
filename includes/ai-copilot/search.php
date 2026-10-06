@@ -593,16 +593,18 @@ function openstation_ai_search_fetch_comments( $query, $offset ) {
 		$parent_title = wp_strip_all_tags( $parent_post->post_title );
 
 		$items[] = array(
-			'id'         => (int) $comment->comment_ID,
-			'type'       => 'comment',
+			'id'          => (int) $comment->comment_ID,
+			'type'        => 'comment',
 			// Comparison data — real comment text + parent post title.
-			'post_title' => $parent_title,
-			'excerpt'    => openstation_ai_search_excerpt( $comment->comment_content ),
+			'post_title'  => $parent_title,
+			// The name the post shows beside the comment, never its email or IP.
+			'author_name' => openstation_plain_text_title( get_comment_author( $comment ) ),
+			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content ),
 			// Links.
-			'url'        => (string) get_comment_link( $comment ),
-			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
-			'post_id'    => (int) $comment->comment_post_ID,
-			'post_url'   => (string) get_permalink( $parent_post ),
+			'url'         => (string) get_comment_link( $comment ),
+			'edit_url'    => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
+			'post_id'     => (int) $comment->comment_post_ID,
+			'post_url'    => (string) get_permalink( $parent_post ),
 		);
 	}
 
@@ -695,13 +697,14 @@ function openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset
 	$items = array();
 	foreach ( $comments as $comment ) {
 		$items[] = array(
-			'id'         => (int) $comment->comment_ID,
-			'type'       => 'comment',
-			'post_id'    => $post_id,
-			'post_title' => $parent_title,
-			'excerpt'    => openstation_ai_search_excerpt( $comment->comment_content ),
-			'url'        => (string) get_comment_link( $comment ),
-			'edit_url'   => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
+			'id'          => (int) $comment->comment_ID,
+			'type'        => 'comment',
+			'post_id'     => $post_id,
+			'post_title'  => $parent_title,
+			'author_name' => openstation_plain_text_title( get_comment_author( $comment ) ),
+			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content ),
+			'url'         => (string) get_comment_link( $comment ),
+			'edit_url'    => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
 		);
 	}
 
@@ -772,7 +775,7 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 		return array(
 			'id'       => $entity_id,
 			'type'     => $post->post_type,
-			'title'    => wp_strip_all_tags( $post->post_title ),
+			'title'    => openstation_plain_text_title( $post->post_title ),
 			'status'   => $post->post_status,
 			'date'     => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
 			'url'      => (string) get_permalink( $post ),
@@ -809,7 +812,7 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 			'type'       => 'comment',
 			'excerpt'    => openstation_ai_search_excerpt( $comment->comment_content ),
 			'post_id'    => (int) $comment->comment_post_ID,
-			'post_title' => wp_strip_all_tags( $parent_post->post_title ),
+			'post_title' => openstation_plain_text_title( $parent_post->post_title ),
 			'post_url'   => (string) get_permalink( $parent_post ),
 			'url'        => (string) get_comment_link( $comment ),
 			'edit_url'   => current_user_can( 'edit_comment', $entity_id )
@@ -1091,7 +1094,7 @@ You are a friendly, conversational assistant embedded in a WordPress site. You h
 Tone: warm, concise, helpful. First person (\"I found this post…\", \"Here's where you'll find that…\"). Not a search engine tone — no \"Match found\" or robot phrasing.
 
 How to work the tools (your actual tool list is authoritative; use any tool that fits the request):
-- Content lookups: stop once a returned title and excerpt clearly match. If nothing matched, page on with the next offset or try broader, simpler keywords before telling the user you found nothing.
+- Content lookups: a search only returns items that contain every word of `query`, so search for one distinctive word at a time (\"autumn\", not \"autumn spiced recipe\"). When the request offers several candidate words, call the tool once per word in the same turn instead of one after another. Stop once a returned title and excerpt clearly match; if nothing matched, try other words or the next offset before telling the user you found nothing.
 - Plugin recommendations: present the best 3-5 as admin_links titled like \"Plugin Name · 5M+ installs · 4.8★\".
 - Error logs: summarise the most important errors first (fatal, then warnings, then notices) instead of copying entries.
 

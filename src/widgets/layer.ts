@@ -330,7 +330,11 @@ export class WidgetLayer {
 		openWidgetPicker( {
 			anchor: this.addTile,
 			registry: () => registry.all(),
-			enabledIds: () => [ ...this.enabledIds ],
+			// "Added" means on this desk. Under a workspace column that
+			// is the workspace's list, not the user's, and `add` routes
+			// the same way, so an entry is never marked added while the
+			// column lacks it, nor offered when the column has it.
+			enabledIds: () => [ ...this.visibleIds() ],
 			onAdd: ( id ) => {
 				this.add( id );
 				// One pick per visit. Adding a second widget means

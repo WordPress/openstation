@@ -552,7 +552,16 @@ export class OsSettings {
 				Object.assign( this.overridePatch, cloneSettingsPatch( edited as Partial< OsSettingsState > ) );
 			}
 		}
-		saveState( this._persistableState(), opts );
+		const persistable = this._persistableState();
+		// What was just saved IS the user's own settings now, so it is
+		// also what the workspace hands back. Keeping the copy taken on
+		// entry instead put the wallpaper they had on the way in back on
+		// screen the moment the desk was left, or its look re-applied,
+		// although the one they picked on the desk was already saved.
+		if ( this.baseState ) {
+			this.baseState = cloneState( persistable );
+		}
+		saveState( persistable, opts );
 		this.notify();
 	}
 

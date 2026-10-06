@@ -814,7 +814,27 @@ document.dispatchEvent( new CustomEvent( 'os-open-ai' ) );
 
 ### `os-intros-reset` — Experimental
 
-Fires after the user resets the one-time announcement flags in **OpenStation Preferences → Features** and the REST delete succeeds. The shell itself does nothing in response — it is dispatched purely so bundles that cache their own dismissed-dialog state can invalidate it and let the dialog appear again without an F5. No detail payload.
+Fires after the user resets the one-time announcement flags in **OpenStation Preferences → Features** and the REST delete succeeds. It is dispatched so bundles that cache their own dismissed-dialog state can invalidate it and let the dialog appear again without an F5; the shell's one built-in listener is the shell tour, which restarts immediately (see `os-shell-tour-start`). No detail payload.
+
+---
+
+### `os-shell-tour-start` — Experimental
+
+Dispatch on `document` to start (or restart) the first-boot shell tour on demand: five `<os-coachmark>` cards. Two orient (the menu rail, and Desktop layout in OpenStation Preferences, which the tour opens and closes again when that card is done, even if it was already open) and step on click; three are gestures — open a window, snap it, press ⌘K — each of which completes when the user actually does the thing (`os.window.opened`, `os.snap.zone-committed`, `os-palette-opened`) and each of which carries a **Do it for me**. **Take the tour** in OpenStation Preferences → Features dispatches exactly this; `os-intros-reset` starts the tour too, and so does a click on the relaunch desktop icon below. No detail payload.
+
+Ending the tour puts the desk back: it closes the windows it opened itself (Preferences for the layout card, the one **Do it for me** opened) and the assistant. A window the user opened by clicking a tile, as the card asks, is theirs and stays, as does one that was already on the desk.
+
+**Not on the phone layer.** The tour is about the desk: a rail, windows side by side, a snap. None of the three routes starts it while the shell is in `mobile` mode, **Take the tour** is not offered in Preferences there, and a tour that is running when the shell flips to `mobile` (`os.mode.changed`) ends without being recorded, so it is still owed on the next desk boot.
+
+Mío walks the tour: the cards are its speech balloons (`speaker-size` on `<os-coachmark>`), and Mío stands beside each card, across from the highlighted control rather than in front of it: to the left or right of a card above or below its control, below a card beside one, on whichever side has more room. It is **summoned**, not switched on: the user's `mioEnabled` preference is never written, a settings save during the tour does not send it away, no window takes it in (Preferences, which hosts Mío, would otherwise have clamped it inside itself), it floats through windows instead of colliding with them (only the dock and the screen edges stay solid), and when the tour ends Mío goes back to whatever the user had chosen. The closing card is a plain card, not a balloon: it sits below the assistant "Find anything" opened, a modal whose backdrop covers the whole shell, Mío included. A user who switches Mío on or off themselves mid-tour has the last word. Not on the phone layer, where Mío never boots.
+
+```javascript
+document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );
+```
+
+The tour lives in its own lazy bundle (`config.shellTourBundleUrl`), injected on first use. On boot it starts by itself, 1.2 s after the desk settles, unless `config.shellTour` is `false` (the `openstation_show_shell_tour` filter said no), `config.seenIntros` already contains `shell-tour`, the shell is painting a solo window, the phone layer is active, or another announcement owns this boot: the rebrand notice, the usage feedback prompt while it is still owed (`config.usageFeedback`), or a core-update notice that actually put its card or toast on screen (a pending update whose notice is already dismissed shows nothing, and does not hold the tour back). Skip, Escape or Done records `shell-tour` in the seen-intros registry once, so the tour never returns on its own; the explicit event and the reset ignore the boot gate. Each also records how the run ended: `shell-tour-skipped` for Skip or Escape, `shell-tour-done` for Done. The two replace each other, so the latest run decides: after a skip the server puts a **Take the tour** icon on the desk (id `openstation-shell-tour`) that starts it again; finishing a run removes it, and right-click → **Hide from desktop** hides it like any other icon. The desk catches up without an F5, through a menu refresh once both writes have landed. Existing users that migration 10 marked as having seen the tour were never recorded as skipping it, so they get no icon.
+
+`config.firstRun` carries the first-run stamps read-only — `{ installedAt, firstEnabledAt, enabledAt }`, epoch seconds, `0` when unknown: when the plugin was installed, when anyone on the site first enabled it, and when this user did. See `includes/first-run/stamps.php`.
 
 ---
 
@@ -944,7 +964,7 @@ manager.getActiveDesktop(): Desktop;
 manager.getActiveDesktopId(): string;
 manager.getPrimaryDesktopId(): string;
 manager.createDesktop(): Desktop;
-manager.switchDesktop( id: string ): void;
+manager.switchDesktop( id: string, opts?: { direction?: 'next' | 'prev'; skipFocus?: boolean } ): void;
 manager.closeDesktop( id: string ): void;
 manager.moveWindowToDesktop( windowId: string, desktopId: string ): boolean;
 ```
@@ -971,6 +991,8 @@ manager.moveWindowToDesktop( windowId: string, desktopId: string ): boolean;
 > **`open()` requires a config object.** Passing a URL string used to silently produce a window stuck on a loading spinner with no error in the console. The manager throws `TypeError` at the call site if `config` isn't an object, or if `id` / `url` / `title` are missing or wrong-typed. Build the config; don't shorthand it.
 
 **`focus()` takes a window or an id.** `focus( 'jorvy' )` and `focus( someWindow )` are equivalent. An id with no open window is a silent no-op — a window closing between the moment you captured its id and the moment you ask for focus is a routine race, not an error. Anything that is neither a window nor a string is refused with a `console.warn` and changes nothing.
+
+**`focus()` on a window that lives on another desktop switches to that desktop first**, so focus never lands on a window the user cannot see. `HOOKS.DESKTOP_SWITCHED` fires before the window's own `WINDOW_FOCUSED`. `open()` never does this: a window opened onto an inactive desktop (session restore, a lazily loaded native window) joins it without taking focus, and the active desktop stays where it is.
 
 #### Child windows — Stable
 
@@ -1086,7 +1108,7 @@ Calling `open()` with an id (or `baseId`) that's already on screen focuses the e
 - **"Open another <Page>"** — only when the window was opened with `multi: true`. Calls `openNew()` with the window's *original* landing URL.
 - **"Open in new window"** — iframe windows only. Opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
 - **"Reload"** — both window types; see below.
-- **"Open in classic wp-admin"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab. A native window has no URL to hand off.
+- **"Open in classic wp-admin"** — iframe windows only. Strips the chromeless flags and hands the page to a classic admin tab, where navigation stays classic until the user switches back to OpenStation. A native window has no URL to hand off.
 
 **Reload is common to both window types.** "Put this back the way it loaded" is the same intent whether the content came from an admin page or from a plugin's render callback, so `Window.reload()` and its ⋯ row work on native windows too.
 
@@ -1818,6 +1840,8 @@ Lifecycle hooks fire on each operation: `HOOKS.DESKTOP_CREATED`, `HOOKS.DESKTOP_
 `renameDesktop()` trims the label and caps it at **64 characters**, matching the session sanitizer, and returns `false` without firing the hook when the id is unknown or the name is blank or unchanged. It persists through the normal session save. Users reach it from the Workspaces top bar by double-clicking a tile's name, which edits it in place (Enter commits, Escape reverts, blur commits). A single click on the name still switches to that desk, one double-click interval later; the rest of the tile switches at once.
 
 Switching desktops shows the new desktop's name over the desk for a beat (`.os-desktop-name-hud`), except when the switch is made from overview — the top bar there already labels every desktop.
+
+Outside overview, `switchDesktop()` also focuses the topmost non-minimized window on the desktop it lands on. Pass `{ skipFocus: true }` when you are about to focus a specific window yourself, so subscribers don't see a focus on some other window first; pass `{ direction: 'next' | 'prev' }` to play the slide animation.
 
 ##### Primary desktop — `getPrimaryDesktopId()`
 
@@ -3147,7 +3171,7 @@ window.wp.os.listDestructiveAdminActions().forEach( ( e ) => console.log( e.id )
 
 Programmatic access to the AI Copilot — same endpoint the built-in overlay talks to. Resolves to an `AskResult`; rejects on network errors, HTTP failures, or abort.
 
-The built-in content tools (`search_posts`, `search_pages`, `search_comments`, `search_comments_by_post`) run WordPress's native keyword search — the model derives a `query` from the user's request and the tools return matching titles + excerpts. (Nothing is pre-analyzed: posts, pages, comments and terms are never analyzed in the background.) When you continue an exhausted search with `resumeTool` / `startOffset`, the original query is reused automatically.
+The built-in content tools (`search_posts`, `search_pages`, `search_comments`, `search_comments_by_post`) run WordPress's native keyword search — the model derives a `query` from the user's request and the tools return matching titles + excerpts, plus the commenter's display name (`author_name`, never an email or IP) on comments. (Nothing is pre-analyzed: posts, pages, comments and terms are never analyzed in the background.) When you continue an exhausted search with `resumeTool` / `startOffset`, the original query is reused automatically.
 
 Results are scoped to what the requesting user may read. The comment tools drop every comment whose parent post the caller cannot access (private, draft, or password-protected parents, and non-viewable post types), and `search_comments_by_post` returns an empty batch — without the parent title — when the target post itself is unreadable. As in Core's comments REST controller, this filtering happens per row after the query, so a batch can carry fewer items than `total` implies; treat `total` / `has_more` as pagination hints, not as an exact count of readable matches. The final `entity` record applies the same readability check to the model-chosen id, resolving unreadable entities to `null` exactly like nonexistent ones.
 
@@ -4670,13 +4694,15 @@ Posted once by the chromeless bridge script when its message listeners are attac
 ```
 
 #### `os-iframe-navigated` — Experimental
-Posted from the **head** of every chromeless document, before the body renders. It says one thing: a navigation landed in this window.
+Posted from the **head** of every chromeless document, before the body renders. It says that a navigation landed in this window, and where.
 
 ```typescript
-{ type: 'os-iframe-navigated' }
+{ type: 'os-iframe-navigated', url: string }
 ```
 
-It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting, and clears the explicit-title flag so a subsequent `adoptPageTitle()` call can adopt the new page's own name.
+It exists because `os-ready` is too late for one job. The bridge bundle is enqueued on `admin_footer`, so it runs after every other admin script in the document — a second or more after the browser painted the content on a page with a heavy plugin set. Fine for "the bridge is wired up", wrong for "your save went through" (see the form-submit note under [`os-iframe-activity`](#os-iframe-activity--experimental)). The parent ignores it unless the window has a submit waiting or a frame it cannot read, and clears the explicit-title flag so a subsequent `adoptPageTitle()` call can adopt the new page's own name.
+
+`url` is the document's own `location.href`, for the frames the parent cannot read: a document sent with `Document-Isolation-Policy` (WordPress sends it on the block editor in Chromium) is cross-origin to the shell, so a Revisions window that restores into the editor hands off from this URL instead (see [Screens that hand off when they're done](bridge-protocol.md#screens-that-hand-off-when-theyre-done)).
 
 #### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).
@@ -4693,7 +4719,7 @@ Posted when a link inside the iframe points off-site; the parent opens an extern
 ```
 
 #### `os-open-user-footprint` — Stable
-Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer app on that user's footprint and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit). The routing is the shared footprint target (`src/open-targets/footprint-target.ts`); see also `bridge-protocol.md`.
+Posted when a `[data-os-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the WP Explorer app on that user's footprint and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `os-iframe-admin-link`, which closes the source on a remap hit unless the link asked for a new context). The routing is the shared footprint target (`src/open-targets/footprint-target.ts`); see also `bridge-protocol.md`.
 
 ```typescript
 { type: 'os-open-user-footprint'; userId: number; userName: string }
@@ -7800,7 +7826,7 @@ shape every route returns:
 interface Agent {
 	id: number;          // wp_users.ID
 	slug: string;        // user_login minus the 'agent-' prefix
-	name: string;
+	name: string;        // display name as plain text (entities decoded); paint it as text
 	description: string;
 	instructions: string; // system prompt
 	role: string;
@@ -8110,6 +8136,8 @@ click, the switcher, a plugin calling `openWindow()` — raises the
 | Key | Type | Notes |
 |---|---|---|
 | `soloWindow` | `string` | Window id when the shell was asked to paint exactly one window (`?openstation_solo=<id>`); `''` otherwise. No dock, taskbar, wallpaper, desk or admin bar, and no session restore. Generic — an embed or a kiosk can use it too. |
+| `usageFeedback` | `object \| null` | The one-time usage feedback prompt (`restUrl`), or `null` when this user is not owed it. Decided server-side in `includes/feedback/usage.php`; the prompt in `src/usage-feedback/index.ts` never appears without it. Carries no user data. |
+| `usageFeedbackBundleUrl` | `string` | URL of the lazy `usage-feedback` bundle, the form the prompt opens. |
 | `multisite` | `object \| null` | Network context for the Network Admin dock tile: whether the shell is on a network-admin screen, and the network admin rows the user may see. `null` on a single-site install and for any user without `manage_network`. Every URL in it is a navigation target, never an iframe source — see [multisite.md](./multisite.md). |
 
 ### `window.openStationChromelessHost` — *Experimental*

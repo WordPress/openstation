@@ -205,7 +205,7 @@ function openstation_notes_prepare( $post ) {
 		'public'      => 'publish' === $post->post_status,
 		'seed'        => (int) get_post_meta( $post->ID, '_wpd_note_seed', true ),
 		'ownerId'     => $owner_id,
-		'ownerName'   => $owner instanceof WP_User ? (string) $owner->display_name : '',
+		'ownerName'   => $owner instanceof WP_User ? openstation_plain_text_title( $owner->display_name ) : '',
 		'ownerAvatar' => (string) get_avatar_url( $owner_id, array( 'size' => 48 ) ),
 		'canEdit'     => get_current_user_id() === $owner_id,
 		'updatedAtMs' => openstation_notes_modified_ms( $post ),

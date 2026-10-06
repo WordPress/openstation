@@ -12,6 +12,7 @@
 
 import { __, html, sprintf } from '@openstation/app';
 import { doAction, HOOKS } from '../../../src/hooks';
+import { isMobileStamped } from '../../../src/mode/stamp';
 import { openAdminUrl, shellConfig, spendMenuRefresh, update } from './store';
 import { pickedChecked, pickedValue, uiOf, type Ctx, type ExtendedOptions, type Section } from './types';
 
@@ -95,6 +96,19 @@ async function resetIntros( ctx: Ctx ): Promise< void > {
 	}
 	ui.resetting = false;
 	ctx.repaint();
+}
+
+/**
+ * "Take the tour": the shell's tour loader listens for this event and
+ * starts (or restarts) the first-boot coachmarks. No state here — the
+ * tour is not the Preferences window's to run, only to ask for.
+ *
+ * The row is not offered on the phone layer: the tour is about the
+ * desk (a rail, windows side by side, a snap), the loader declines to
+ * start it there, and a button that does nothing is worse than none.
+ */
+function startShellTour(): void {
+	document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );
 }
 
 /**
@@ -260,12 +274,24 @@ const featuresSection: Section = ( s, ctx ) => {
 			</div>
 			<div class="os-features__row">
 				<p class="os-features__hint">
-					${ __( 'Brings back the one-time announcements you have dismissed, such as the welcome dialog.' ) }
+					${ isMobileStamped()
+						? __( 'Brings back the one-time announcements you have dismissed.' )
+						: __( 'Brings back the one-time announcements you have dismissed and replays the tour right away.' ) }
 				</p>
 				<os-button variant="secondary" ?disabled=${ ui.resetting } @click=${ () => void resetIntros( ctx ) }>
 					${ ui.resetting ? __( 'Resetting…' ) : __( 'Reset what’s-new dialogs' ) }
 				</os-button>
 			</div>
+			${ isMobileStamped()
+				? ''
+				: html`<div class="os-features__row">
+						<p class="os-features__hint">
+							${ __( 'Replays the first-boot tour: where the menus are, changing the layout, opening a window, snapping it, finding anything.' ) }
+						</p>
+						<os-button variant="secondary" @click=${ startShellTour }>
+							${ __( 'Take the tour' ) }
+						</os-button>
+					</div>` }
 		</os-section>
 	`;
 };

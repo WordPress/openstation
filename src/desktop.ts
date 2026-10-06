@@ -36,6 +36,7 @@ import {
 import type { NativeUrlRemap } from './native-url-remap';
 import { matchesStationHomeUrl } from './open-targets/station-home-url';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
+import { syncOpenWindowSubmenus } from './window/submenu-sync';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
@@ -186,6 +187,8 @@ import {
 	registerPalette,
 	openPaletteOnly,
 	installPaletteShortcut,
+	listPalettes,
+	notifyPaletteVisibility,
 	type Palette,
 } from './palette-registry';
 import { type SharedStore } from './shared-store';
@@ -200,6 +203,7 @@ import { bootPluginPresenceWatch } from './plugin-presence';
 import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
 import { bootAuthRecovery } from './auth-recovery';
+import { findDockTitleForUrl } from './boot/geometry';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
 import { hasRestorableSession, openCurrentPage, restoreSession } from './boot/session';
@@ -285,6 +289,9 @@ import {
 import { toggleFullscreen } from './fullscreen';
 import { openShortcutsWith, SHORTCUTS_WINDOW_ID } from './shortcuts';
 import { maybeShowRebrandNotice } from './rebrand-notice';
+import { installShellTour } from './shell-tour/loader';
+import { spendMenuRefresh } from './settings/spend-menu-refresh';
+import { maybeAskForUsageFeedback } from './usage-feedback/index';
 import { osConfirm } from './os-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { renderIcon } from './icon';
@@ -2612,6 +2619,7 @@ function init(): void {
 		const shellHarvester = new ShellCommandHarvester( {
 			manager,
 			adminUrl: config.adminUrl,
+			titleForUrl: ( url ) => findDockTitleForUrl( url, config ),
 		} );
 		shellHarvester.install();
 		document.addEventListener(
@@ -3837,6 +3845,53 @@ function init(): void {
 		} );
 	}
 
+	/** The Desktop layout section in Preferences, the tour's deep-link target. */
+	const LAYOUT_SECTION_ID = 'os-settings-layout';
+
+	/**
+	 * How long {@link revealSettingsSection} waits for its section. A
+	 * cold Preferences open is two lazy bundles and a request, so the
+	 * wait is the network's, and has to outlast ordinary hosting.
+	 */
+	const SETTINGS_SECTION_WAIT_MS = 8000;
+
+	function visibleSettingsSection( sectionId: string ): HTMLElement | null {
+		const section = document.getElementById( sectionId );
+		return section && ! section.closest( '[hidden]' ) ? section : null;
+	}
+
+	/**
+	 * Scroll a Preferences section into view once the app has painted it.
+	 *
+	 * `openOsSettings()` returns before the window body exists on a fresh
+	 * open, and before the tab strip has revealed the new panel on an
+	 * already-open one, so the target is either absent or still inside a
+	 * `hidden` pane for a while. Poll until it is neither, then give up
+	 * quietly: the page is already right, so the cost of losing the race
+	 * is the user scrolling to the section themselves.
+	 *
+	 * The wait is a deadline rather than a count of frames, which was
+	 * one second on a 60 Hz screen and half that on a 120 Hz one: less
+	 * than the request a cold open makes on an ordinary host.
+	 */
+	function revealSettingsSection(
+		sectionId: string,
+		deadline = performance.now() + SETTINGS_SECTION_WAIT_MS,
+	): void {
+		const section = visibleSettingsSection( sectionId );
+		if ( section ) {
+			// Instant, not smooth: the shell tour anchors a coachmark to
+			// this section, and the coachmark positions once when its
+			// anchor is set rather than following a scroll. The settings
+			// search scrolls its own match the same way.
+			section.scrollIntoView( { block: 'start', behavior: 'instant' } );
+			return;
+		}
+		if ( performance.now() < deadline ) {
+			requestAnimationFrame( () => revealSettingsSection( sectionId, deadline ) );
+		}
+	}
+
 	/**
 	 * Public OS Settings opener. Routes through the same
 	 * `manager.open()` call the system tile uses so a window
@@ -5027,6 +5082,7 @@ function init(): void {
 				} );
 		},
 		syncShortcuts: syncShortcutsNow,
+		syncWindowSubmenus: () => syncOpenWindowSubmenus( manager.getAll(), config ),
 	} );
 
 	// Live desktop-theme repaint.
@@ -5420,8 +5476,9 @@ function init(): void {
 	// per-window update nag (suppressed inside windows server-side).
 	// Async (resolves art from wordpress.org); fire-and-forget. Reuses
 	// the in-shell link open path so "Update now" lands on the update
-	// screen as a window.
-	void maybeShowUpdate( {
+	// screen as a window. The promise is kept for the shell tour, which
+	// stands down for a boot the notice actually took.
+	const updateNoticeShown = maybeShowUpdate( {
 		update: config.coreUpdate,
 		openUrl: ( { url, title } ) => {
 			if ( tryNativeUrlRemap( url ) ) {
@@ -5468,6 +5525,95 @@ function init(): void {
 	// announcement. Fire-and-forget: it sleeps until the desk has
 	// settled before mounting, which boot should not block on.
 	void maybeShowRebrandNotice( { config } );
+	// The first-boot tour: five coachmarks (where the menus are, how to
+	// change the layout, then open a window, snap it, press ⌘K) on a
+	// user's first boot, and on demand after that
+	// ("Take the tour", "Reset what's-new dialogs"). Steps advance on
+	// the real events; the shell only lends the tour its own
+	// entry points so the lazy bundle never reads shell module state.
+	let tourMioSpot: { x: number; y: number } | null = null;
+	installShellTour( {
+		config,
+		windowManager: manager,
+		isMobile: () => modeController.api.isMobile(),
+		updateNoticeShown,
+		openPalette: () => openPaletteOnly( 'desktop-mode-ai-assistant' ),
+		openLayoutSettings: () => {
+			// Asked BEFORE opening: the tour closes what it opened when it
+			// ends, and a Preferences window the user already had is not
+			// the tour's to close.
+			const wasAlreadyOpen = !! manager.getById( OS_SETTINGS_WINDOW_ID );
+			openOsSettings( { tabId: 'appearance' } );
+			revealSettingsSection( LAYOUT_SECTION_ID );
+			return { windowId: OS_SETTINGS_WINDOW_ID, wasAlreadyOpen };
+		},
+		// Where the layout settings are, right now: the Desktop layout
+		// section once Preferences is showing it, and before that the
+		// System tile, which is the dock's route to Preferences. Null
+		// when neither is on screen (a user may hide the tile), and the
+		// tour falls back to the rail.
+		findLayoutTarget: () =>
+			visibleSettingsSection( LAYOUT_SECTION_ID ) ??
+			document.querySelector(
+				`.os-dock__item[data-system-id="${ SYSTEM_TILE_ID }"]`,
+			),
+		closeWindow: ( id: string ) => manager.getById( id )?.close(),
+		closePalette: () => {
+			const palette = listPalettes().find(
+				( p ) => p.id === 'desktop-mode-ai-assistant',
+			);
+			if ( palette?.isOpen() ) {
+				palette.close();
+				notifyPaletteVisibility( palette.id, false );
+			}
+		},
+		// Mío walks the tour, summoned for it: on screen without touching
+		// the user's saved preference, and handed back to that preference
+		// when the tour ends. Not on a phone, where Mío never boots.
+		mio: {
+			size: () =>
+				modeController.api.isMobile() ? 0 : mioApi.getConfig().appearance.radius * 2,
+			summon: () => {
+				// The bundle loads on a first summon, so Mío arrives after
+				// the first card; send it to wherever the tour has asked
+				// for by then.
+				void mio.summon().then( () => mio.setAnchor( tourMioSpot ) );
+			},
+			follow: ( spot ) => {
+				tourMioSpot = spot;
+				mio.setAnchor( spot );
+			},
+			release: () => {
+				tourMioSpot = null;
+				mio.setAnchor( null );
+				mio.dismiss();
+			},
+		},
+		refreshDesktopIcons: spendMenuRefresh,
+		// The assistant is a modal with a full-screen backdrop, so its
+		// root element would be an anchor with no room beside it: the
+		// visible box is the panel inside.
+		findAssistant: () =>
+			document.querySelector(
+				'#desktop-mode-ai-assistant:not([hidden]) .os-ai__panel',
+			),
+		openFallbackWindow: () => {
+			const url = `${ config.adminUrl }edit.php`;
+			const id = deriveWindowId( url, config.adminUrl );
+			void manager.open( {
+				id,
+				baseId: id,
+				url,
+				title: __( 'Posts' ),
+				icon: 'dashicons-admin-post',
+			} );
+		},
+	} );
+	// Ask a user who has had OpenStation on for a while whether they
+	// have two minutes to say how it is going. A small prompt, once,
+	// whatever they answer; no-op unless the server put
+	// `usageFeedback` in the config.
+	void maybeAskForUsageFeedback( { config } );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {
 			baseUrl: config.filesUrl,

@@ -50,6 +50,9 @@ immutable.
 | Move folder to Trash (root placement)        |  ✓    |   -    |   -    |    -    |   -    |
 | Leave shared folder (recipient-side)         |  -    |   ✓    |   ✓    |    -    |   -    |
 
+The icons inside belong to the folder, not to whoever placed them:
+the owner sees what a writer added, the same as every recipient does.
+
 Non-owners — read OR write — cannot move the shared-folder root
 placement to the Trash. The "Move to Trash" affordance is hidden
 and the recycle-bin drop target rejects the drag. The intended

@@ -100,6 +100,8 @@ export interface MenuRefreshDeps {
 	refreshRootPlacements?: () => void;
 	/** See `MenuRefreshDeps.syncShortcuts` in `../menu-refresh-apply`. */
 	syncShortcuts?: () => void;
+	/** See `MenuRefreshDeps.syncWindowSubmenus` in `../menu-refresh-apply`. */
+	syncWindowSubmenus?: () => void;
 }
 
 /**
@@ -128,6 +130,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		renderIcons,
 		refreshRootPlacements,
 		syncShortcuts,
+		syncWindowSubmenus,
 	} = deps;
 
 	const applyPayload = createApplyPayload( {
@@ -155,6 +158,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 			layoutDispatcher?.applyDesktopIcons( icons ),
 		refreshRootPlacements,
 		syncShortcuts,
+		syncWindowSubmenus,
 	} );
 
 	// Fingerprint of the admin menu the dock currently reflects. Seeded

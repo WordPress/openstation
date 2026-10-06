@@ -1,7 +1,12 @@
 <?php
 /**
- * Tests for the first-run stamps: the install / first-enable moments
- * the deactivation feedback payload reads.
+ * Tests for the first-run module: the install / first-enable stamps,
+ * the activation nudge's gates, the plugin row action and migration 9.
+ *
+ * The stamps are the foundation the activation funnel and every
+ * age-based gate read, so they are pinned at the helper level; the
+ * nudge is pinned on its "stop nagging" rules; migration 9 on
+ * "existing users do not get the tour".
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -17,6 +22,10 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
+		if ( is_multisite() ) {
+			// `activate_plugins` belongs to the super admin on a network.
+			grant_super_admin( self::$admin_id );
+		}
 	}
 
 	public function set_up() {
@@ -26,14 +35,44 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 		foreach ( array( self::$admin_id, self::$subscriber_id ) as $user_id ) {
 			delete_user_meta( $user_id, OPENSTATION_ENABLED_AT_META_KEY );
 			delete_user_meta( $user_id, 'desktop_mode_mode' );
+			openstation_clear_seen_intros( $user_id );
 		}
 		wp_set_current_user( 0 );
 	}
 
 	public function tear_down() {
+		set_current_screen( 'front' );
+		remove_all_filters( 'openstation_show_activation_nudge' );
 		remove_all_actions( 'openstation_user_enabled' );
 		parent::tear_down();
 	}
+
+	/** Write an install stamp `$days` ago. */
+	private function install( $days, $via = 'activation' ) {
+		update_option(
+			OPENSTATION_INSTALLED_AT_OPTION,
+			array(
+				'at'  => time() - $days * DAY_IN_SECONDS,
+				'via' => $via,
+			),
+			false
+		);
+	}
+
+	/**
+	 * The state the nudge is for: an admin on the Dashboard of a fresh
+	 * install, who has already dismissed the welcome dialog.
+	 */
+	private function nudge_baseline() {
+		wp_set_current_user( self::$admin_id );
+		set_current_screen( 'dashboard' );
+		$this->install( 1 );
+		openstation_mark_intro_seen( self::$admin_id, OPENSTATION_WELCOME_INTRO_SLUG );
+	}
+
+	// ------------------------------------------------------------------
+	// Stamps
+	// ------------------------------------------------------------------
 
 	/**
 	 * @covers ::openstation_stamp_install_on_activation
@@ -53,36 +92,6 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 		$this->assertNotFalse(
 			has_action( 'activate_' . plugin_basename( OPENSTATION_FILE ), 'openstation_stamp_install_on_activation' )
 		);
-	}
-
-	/**
-	 * A site with prior desktop use predates the stamps whatever hook
-	 * writes them: a reactivation is backfilled, the first enable is
-	 * recorded as unknown, and the payload sends null for both ages.
-	 *
-	 * @covers ::openstation_record_installed
-	 */
-	public function test_reactivation_on_a_site_with_a_past_is_backfilled() {
-		update_user_meta( self::$subscriber_id, 'desktop_mode_mode', '1' );
-
-		$this->assertTrue( openstation_record_installed( 'activation' ) );
-		$this->assertSame( 'backfill', openstation_get_install_stamp()['via'] );
-		$this->assertSame(
-			array(
-				'at'  => 0,
-				'via' => 'backfill',
-			),
-			openstation_get_first_enabled_stamp()
-		);
-		$this->assertNull( openstation_install_age_days() );
-
-		// The next enable is not the site's first, and the stamp stays.
-		$this->assertFalse( openstation_record_user_enabled( self::$admin_id ) );
-		$this->assertSame( 0, openstation_get_first_enabled_stamp()['at'] );
-
-		$payload = openstation_deactivation_feedback_payload( array( 'other' ) );
-		$this->assertNull( $payload['install_age_days'] );
-		$this->assertNull( $payload['first_enable_delay_days'] );
 	}
 
 	/**
@@ -136,5 +145,306 @@ class Tests_OpenStation_FirstRunStamps extends WP_UnitTestCase {
 			),
 			$calls
 		);
+	}
+
+	/**
+	 * A site with prior desktop use predates the stamps whatever hook
+	 * writes them: a reactivation is backfilled, the first enable is
+	 * recorded as unknown, and the payload sends null for both ages.
+	 *
+	 * @covers ::openstation_record_installed
+	 */
+	public function test_reactivation_on_a_site_with_a_past_is_backfilled() {
+		update_user_meta( self::$subscriber_id, 'desktop_mode_mode', '1' );
+
+		$this->assertTrue( openstation_record_installed( 'activation' ) );
+		$this->assertSame( 'backfill', openstation_get_install_stamp()['via'] );
+		$this->assertSame(
+			array(
+				'at'  => 0,
+				'via' => 'backfill',
+			),
+			openstation_get_first_enabled_stamp()
+		);
+		$this->assertNull( openstation_install_age_days() );
+
+		// The next enable is not the site's first, and the stamp stays.
+		$this->assertFalse( openstation_record_user_enabled( self::$admin_id ) );
+		$this->assertSame( 0, openstation_get_first_enabled_stamp()['at'] );
+
+		$payload = openstation_deactivation_feedback_payload( array( 'other' ) );
+		$this->assertNull( $payload['install_age_days'] );
+		$this->assertNull( $payload['first_enable_delay_days'] );
+	}
+
+	/**
+	 * @covers ::openstation_activation_within
+	 */
+	public function test_activation_within_reads_both_stamps() {
+		// Nobody yet, window still open: unknown.
+		$this->install( 2 );
+		$this->assertNull( openstation_activation_within( 7 ) );
+
+		// Nobody, window closed: no.
+		$this->install( 20 );
+		$this->assertFalse( openstation_activation_within( 7 ) );
+
+		// Enabled three days after a ten-day-old install: yes for 7, no for 2.
+		$this->install( 10 );
+		update_option(
+			OPENSTATION_FIRST_ENABLED_AT_OPTION,
+			array(
+				'at'  => time() - 7 * DAY_IN_SECONDS,
+				'via' => 'activation',
+			),
+			false
+		);
+		$this->assertTrue( openstation_activation_within( 7 ) );
+		$this->assertFalse( openstation_activation_within( 2 ) );
+
+		// A backfilled first-enable (migration 9) is unknown.
+		update_option(
+			OPENSTATION_FIRST_ENABLED_AT_OPTION,
+			array(
+				'at'  => 0,
+				'via' => 'backfill',
+			),
+			false
+		);
+		$this->assertNull( openstation_activation_within( 7 ) );
+	}
+
+	// ------------------------------------------------------------------
+	// The nudge
+	// ------------------------------------------------------------------
+
+	/**
+	 * @covers ::openstation_should_show_activation_nudge
+	 */
+	public function test_nudge_shows_for_an_admin_on_the_dashboard_of_a_fresh_install() {
+		$this->nudge_baseline();
+		$this->assertTrue( openstation_should_show_activation_nudge() );
+
+		set_current_screen( 'plugins' );
+		$this->assertTrue( openstation_should_show_activation_nudge() );
+
+		set_current_screen( 'edit' );
+		$this->assertFalse( openstation_should_show_activation_nudge(), 'Only Dashboard and Plugins.' );
+	}
+
+	/**
+	 * The nudge is the second touch. On the first admin load after
+	 * activation the welcome dialog is on screen, and a notice under a
+	 * modal that asks for the same click is one prompt too many.
+	 *
+	 * @covers ::openstation_should_show_activation_nudge
+	 */
+	public function test_nudge_waits_until_the_welcome_dialog_is_out_of_the_way() {
+		$this->nudge_baseline();
+		openstation_clear_seen_intros( self::$admin_id );
+		openstation_record_activator();
+		$this->assertTrue( openstation_should_show_welcome_dialog(), 'The dialog owns this request.' );
+		$this->assertFalse( openstation_should_show_activation_nudge() );
+
+		// A site that filters the dialog off never records its slug; the
+		// nudge must not wait for a dismissal that cannot happen.
+		add_filter( 'openstation_show_welcome_dialog', '__return_false' );
+		$this->assertTrue( openstation_should_show_activation_nudge() );
+		remove_filter( 'openstation_show_welcome_dialog', '__return_false' );
+	}
+
+	/**
+	 * @covers ::openstation_should_show_activation_nudge
+	 */
+	public function test_nudge_never_shows_to_a_subscriber() {
+		$this->nudge_baseline();
+		wp_set_current_user( self::$subscriber_id );
+		$this->assertFalse( openstation_should_show_activation_nudge() );
+	}
+
+	/**
+	 * One enabled user is an activated install: the nudge stops for
+	 * every admin, including the ones who never saw it.
+	 *
+	 * @covers ::openstation_should_show_activation_nudge
+	 */
+	public function test_nudge_stops_once_anyone_on_the_site_enables() {
+		$this->nudge_baseline();
+		openstation_record_user_enabled( self::$subscriber_id );
+		$this->assertFalse( openstation_should_show_activation_nudge() );
+	}
+
+	/**
+	 * @covers ::openstation_should_show_activation_nudge
+	 */
+	public function test_nudge_stops_after_not_now() {
+		$this->nudge_baseline();
+		openstation_mark_intro_seen( self::$admin_id, OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG );
+		$this->assertFalse( openstation_should_show_activation_nudge() );
+	}
+
+	/**
+	 * Old installs are not nagged, and a backfilled stamp IS an old install.
+	 *
+	 * @covers ::openstation_should_show_activation_nudge
+	 */
+	public function test_nudge_stops_when_the_install_is_old_or_backfilled() {
+		$this->nudge_baseline();
+		$this->install( OPENSTATION_ACTIVATION_NUDGE_MAX_AGE_DAYS );
+		$this->assertFalse( openstation_should_show_activation_nudge() );
+
+		$this->install( 1, 'backfill' );
+		$this->assertFalse( openstation_should_show_activation_nudge() );
+
+		delete_option( OPENSTATION_INSTALLED_AT_OPTION );
+		$this->assertFalse( openstation_should_show_activation_nudge() );
+	}
+
+	/**
+	 * @covers ::openstation_should_show_activation_nudge
+	 */
+	public function test_nudge_filter_can_suppress_it() {
+		$this->nudge_baseline();
+		add_filter( 'openstation_show_activation_nudge', '__return_false' );
+		$this->assertFalse( openstation_should_show_activation_nudge() );
+	}
+
+	/**
+	 * @covers ::openstation_render_activation_nudge
+	 */
+	public function test_nudge_markup_carries_the_portal_link_and_the_dismiss_button() {
+		$this->nudge_baseline();
+		ob_start();
+		openstation_render_activation_nudge();
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( 'id="os-activation-nudge"', $html );
+		$this->assertStringContainsString( esc_url( openstation_portal_url() ), $html );
+		$this->assertStringContainsString( 'os-activation-nudge__dismiss', $html );
+		$this->assertStringContainsString( OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG, $html );
+	}
+
+	// ------------------------------------------------------------------
+	// The row action
+	// ------------------------------------------------------------------
+
+	/**
+	 * @covers ::openstation_plugin_row_action_links
+	 */
+	public function test_row_action_offers_turn_on_then_open() {
+		wp_set_current_user( self::$admin_id );
+		$hook = 'plugin_action_links_' . plugin_basename( OPENSTATION_FILE );
+
+		$links = apply_filters( $hook, array( 'deactivate' => '<a href="#">Deactivate</a>' ) );
+		$this->assertSame( array( 'openstation', 'deactivate' ), array_keys( $links ) );
+		$this->assertStringContainsString( esc_url( openstation_portal_url() ), $links['openstation'] );
+		$this->assertStringContainsString( 'Turn on OpenStation', $links['openstation'] );
+
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$links = apply_filters( $hook, array() );
+		$this->assertStringContainsString( 'Open OpenStation', $links['openstation'] );
+		$this->assertStringNotContainsString( openstation_portal_url(), $links['openstation'] );
+
+		// Inside the shell the Plugins screen is a window, and the shell
+		// screen cannot load inside one of its own windows.
+		$_GET['openstation_chromeless'] = '1';
+		$links                          = apply_filters( $hook, array( 'deactivate' => '<a href="#">Deactivate</a>' ) );
+		unset( $_GET['openstation_chromeless'] );
+		$this->assertSame( array( 'deactivate' ), array_keys( $links ) );
+	}
+
+	// ------------------------------------------------------------------
+	// Migration 9
+	// ------------------------------------------------------------------
+
+	/**
+	 * @covers ::openstation_migrate_first_run_stamps
+	 */
+	public function test_migration_marks_the_tour_seen_for_prior_users_only() {
+		$prior = self::factory()->user->create();
+		$fresh = self::factory()->user->create();
+		update_user_meta( $prior, 'desktop_mode_mode', '1' );
+
+		openstation_migrate_first_run_stamps();
+
+		$this->assertTrue( openstation_has_seen_intro( $prior, OPENSTATION_SHELL_TOUR_INTRO_SLUG ) );
+		$this->assertFalse( openstation_has_seen_intro( $fresh, OPENSTATION_SHELL_TOUR_INTRO_SLUG ) );
+
+		$site = openstation_get_first_enabled_stamp();
+		$this->assertSame( 0, $site['at'] );
+		$this->assertSame( 'backfill', $site['via'] );
+		// The install stamp is the lazy backfill's, not the migration's.
+		$this->assertNull( openstation_get_install_stamp() );
+	}
+
+	/**
+	 * A site with no history is a fresh install: nothing to record, and
+	 * the activation hook stamps the real install moment right after.
+	 *
+	 * @covers ::openstation_migrate_first_run_stamps
+	 */
+	public function test_migration_writes_nothing_on_a_site_with_no_history() {
+		openstation_migrate_first_run_stamps();
+
+		$this->assertNull( openstation_get_first_enabled_stamp() );
+		$this->assertNull( openstation_get_install_stamp() );
+	}
+
+	/**
+	 * The relaunch icon is for a user who bailed out of the tour, and
+	 * only until they finish a run. A veteran the migration marked as
+	 * having seen it never skipped anything, so an update must not put
+	 * the icon on their desk.
+	 *
+	 * @covers ::openstation_shell_tour_relaunch_icon
+	 * @covers ::openstation_shell_tour_is_unfinished
+	 */
+	public function test_relaunch_icon_shows_only_while_a_skipped_tour_is_unfinished() {
+		$user = self::factory()->user->create();
+		wp_set_current_user( $user );
+		$icon = static function () {
+			foreach ( openstation_build_desktop_icons_payload() as $entry ) {
+				if ( OPENSTATION_SHELL_TOUR_ICON_ID === $entry['id'] ) {
+					return $entry;
+				}
+			}
+			return null;
+		};
+
+		$this->assertNull( $icon(), 'A user who never ran the tour has no icon.' );
+
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_INTRO_SLUG );
+		$this->assertNull( $icon(), 'Seen is not skipped: a migrated veteran gets no icon.' );
+
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_SKIPPED_SLUG );
+		$entry = $icon();
+		$this->assertNotNull( $entry, 'Skipped and unfinished: the icon is up.' );
+		// No target: the click is the request, caught by the shell.
+		$this->assertSame( '', $entry['window'] );
+		$this->assertSame( '', $entry['url'] );
+		$this->assertFalse( $entry['pinned'], 'Pinned icons refuse "Hide from desktop".' );
+		// The desk paints it from a placement row whose shortcut has to
+		// resolve through the same filter it was injected by. The raw
+		// registry never knew this icon, and a lookup there served the
+		// tile as a missing file: in the payload, but never on the desk.
+		$file = openstation_resolve_file( 'shortcut', OPENSTATION_SHELL_TOUR_ICON_ID );
+		$this->assertNotNull( $file );
+		$this->assertTrue( $file->exists(), 'The shortcut behind the desktop tile resolves.' );
+		$this->assertSame( 'Take the tour', $file->serialize()['title'] );
+
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_DONE_SLUG );
+		$this->assertNull( $icon(), 'Finished a run: the icon goes.' );
+
+		// The latest run is what counts. Kept side by side, one finished
+		// run hid the icon after every skip that came after it.
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_SKIPPED_SLUG );
+		$this->assertNotNull( $icon(), 'Skipped a later run: the icon is back.' );
+		$this->assertNotContains( OPENSTATION_SHELL_TOUR_DONE_SLUG, openstation_get_seen_intros( $user ) );
+
+		openstation_clear_seen_intros( $user );
+		openstation_mark_intro_seen( $user, OPENSTATION_SHELL_TOUR_SKIPPED_SLUG );
+		add_filter( 'openstation_show_shell_tour', '__return_false' );
+		$this->assertNull( $icon(), 'A site that switched the tour off offers no way back into it.' );
+		remove_filter( 'openstation_show_shell_tour', '__return_false' );
 	}
 }

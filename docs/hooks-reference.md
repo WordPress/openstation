@@ -1209,10 +1209,39 @@ The filter only fires after OpenStation has already verified that:
 3. The request is NOT chromeless.
 4. The user has not yet dismissed the `activation-welcome` intro (stored in the `desktop_mode_seen_intros` user meta — the same surface the "Reset what's-new dialogs" button in OpenStation Preferences → Features wipes).
 5. OpenStation is not already enabled for the user — this is a "switch to OpenStation" promo, so it has nothing to say once the user is in the shell.
+6. The user is the one who activated the plugin (the `openstation_activated_by` option). Nobody gets the dialog after an activation without a logged-in user (WP-CLI, a Playground Blueprint), or on a site activated before the option existed.
 
 Dismissal persists through the same `POST /desktop-mode/v1/intros/seen` route the in-shell announcements use, with one wrinkle: because the dialog only appears while OpenStation is **disabled**, that route makes a scoped exception for the `activation-welcome` slug and accepts it from any logged-in `read`-capable account (every other slug still requires OpenStation enabled). Without it the dismissal would `403` and the dialog would re-appear on every classic-admin page load.
 
 Return `false` to suppress the dialog — useful for managed-host onboarding flows that ship their own welcome UX.
+
+---
+
+### `openstation_show_activation_nudge` — Stable
+
+Decides whether the activation nudge — a dismissible admin notice on the Dashboard and Plugins screens (and their network twins) saying "OpenStation is installed but not turned on", with **Turn on OpenStation** (the portal link) and **Not now** — renders for the current user on the current request.
+
+```php
+apply_filters( 'openstation_show_activation_nudge', bool $show, int $user_id );
+```
+
+The filter only fires after every built-in gate has passed: the user can `activate_plugins`, does not have OpenStation on, nobody on the site has ever enabled it (`openstation_first_enabled_at` is absent), the install stamp is real (`via: activation`, never a backfill) and under 14 days old, the screen is one of the four, the request is not chromeless, the user has not clicked **Not now** (the `activation-nudge` slug in `desktop_mode_seen_intros`, wiped by "Reset what's-new dialogs" like every other intro), and the welcome dialog is not rendering on the same request. The welcome dialog is the first touch; this is the second, quieter one, shown only once the dialog is out of the way (dismissed, switched off by `openstation_show_welcome_dialog`, or meant for the admin who activated the plugin rather than this one), and both stop the moment anyone on the site enables.
+
+Return `false` to suppress it, e.g. from a managed-host onboarding flow.
+
+---
+
+### `openstation_show_shell_tour` — Stable
+
+Decides whether the first-boot shell tour — five coachmarks: where the menus are, how to change the layout, then open a window, snap it, press ⌘K — is offered to a user. Shipped to the shell as `config.shellTour`.
+
+```php
+apply_filters( 'openstation_show_shell_tour', bool $offer, int $user_id );
+```
+
+Whether the user already took or skipped it is not this filter's question: that is the `shell-tour` slug in `desktop_mode_seen_intros`, which the shell reads from `config.seenIntros`. Existing users are marked seen by migration 10 on update, so only a genuinely new user boots into the tour; "Reset what's-new dialogs" and the **Take the tour** button in OpenStation Preferences → Features replay it regardless of this filter's boot-time answer — the filter gates the automatic first-boot start, not the explicit request. It does gate the relaunch icon a skipped tour leaves on the desk: a site that switched the tour off offers no way back into it.
+
+Return `false` to switch the automatic tour off site-wide or for a role.
 
 ---
 
@@ -1248,6 +1277,44 @@ The intake URL, `https://openstation.blog/wp-json/openstation-feedback/v1/deacti
 
 ```php
 apply_filters( 'openstation_deactivation_feedback_endpoint', string $url );
+```
+
+---
+
+### `openstation_usage_feedback_enabled` — Experimental
+
+Whether the one-time usage feedback prompt exists on this site. It gates both surfaces at once: the `usageFeedback` key in the shell config (the prompt never appears without it) and the `POST /desktop-mode/v1/feedback/usage` route, which answers `403` when this returns `false`.
+
+```php
+apply_filters( 'openstation_usage_feedback_enabled', bool $enabled );
+```
+
+```php
+add_filter( 'openstation_usage_feedback_enabled', '__return_false' );
+```
+
+The prompt is shown to a user who has had OpenStation on for seven whole days by the `openstation_enabled_at` stamp and has not answered or dismissed the `usage-feedback` intro; the gate is `openstation_usage_feedback_eligible()` in `includes/feedback/usage.php`.
+
+---
+
+### `openstation_usage_feedback_payload` — Experimental
+
+The submission, after it is built and before it is forwarded. The keys are the ones `readme.txt` discloses under "External services" (`id`, `requests`, `use_case`, `blockers`, `email`, `plugin_version`, `wp_version`, `locale`, `days_enabled`). `email` is an empty string unless the user typed one. Return an empty array to suppress the send; the route then answers `502` as if the forward had failed, and the form stays open for the user to retry or close.
+
+```php
+apply_filters( 'openstation_usage_feedback_payload', array $payload );
+```
+
+Do not add anything that identifies the site or the person: the disclosure in `readme.txt` is the contract, and `tests/phpunit/tests/usageFeedback.php` pins the key list.
+
+---
+
+### `openstation_usage_feedback_endpoint` — Experimental
+
+The intake URL, `https://openstation.blog/wp-json/openstation-feedback/v1/usage` by default (the OpenStation Feedback Intake plugin on the plugin's own site). Hosts that run their own intake point this at it; it receives the payload above as a JSON `POST` with a five-second timeout and no redirects. An empty string skips the forward, which the route reports as a failed send.
+
+```php
+apply_filters( 'openstation_usage_feedback_endpoint', string $url );
 ```
 
 ---
@@ -3752,7 +3819,7 @@ The root-level folder a post type belongs to, resolved from the file that called
 
 | Registrant location | Group id | Label |
 |---|---|---|
-| `WP_PLUGIN_DIR/<folder>/…` | `plugin:<folder>` | the plugin's `Plugin Name` header |
+| `WP_PLUGIN_DIR/<folder>/…`, including a folder symlinked there | `plugin:<folder>` | the plugin's `Plugin Name` header |
 | `WPMU_PLUGIN_DIR/…` | `mu-plugin:<slug>` | the mu-plugin's `Plugin Name` header |
 | a theme root | `theme:<stylesheet>` | the theme's `Name` |
 | anything else | `null` | — renders loose at the root |
@@ -4543,6 +4610,8 @@ apply_filters( 'openstation_living_tree_snapshot', array $snapshot ): array
 
 The full snapshot before it is cached and served. Keep the shape intact — the JS client trusts this contract — and keep it aggregates-only (the golden rule: hormones, never geometry).
 
+On a site where Jetpack Stats is on, it runs twice per cache build: once for the snapshot, and once with `traffic` resolved without Jetpack. The `traffic` of that second run is what a caller outside Jetpack's stats gate is served, so a change this filter makes to `traffic` reaches every caller.
+
 ### `openstation_living_tree_seo_health` — Experimental (filter)
 
 ```php
@@ -4565,7 +4634,9 @@ The growth-vigour hormone (0..1). The default is derived from core's own **Site 
 apply_filters( 'openstation_living_tree_traffic', int $views ): int
 ```
 
-The recent-traffic hormone (drives the wind — canopy sway amplitude and frequency). The default value follows the same source ladder as the site-views widget: **Jetpack Stats** (last 14 days of visits via `WPCOM_Stats::get_visits()`) when Jetpack is available, else the sum of the `_post_views_YYYY-MM-DD` post-meta convention over the same window, else `0` (a windless day). Analytics plugins with their own counters should hook this and return their real 14-day view count; the value is clamped non-negative.
+The recent-traffic hormone (drives the wind — canopy sway amplitude and frequency). The default value follows the same source ladder as the site-views widget: **Jetpack Stats** (last 14 days of visits via `WPCOM_Stats::get_visits()`) when Jetpack's Stats module is on and answers, else the sum of the `_post_views_YYYY-MM-DD` post-meta convention over the same window, else `0` (a windless day). Analytics plugins with their own counters should hook this and return their real 14-day view count; the value is clamped non-negative.
+
+The Jetpack number is served only to a caller who passes Jetpack's own stats gate (`manage_options` or `view_stats`, the roles picked in Jetpack's Stats settings). For anyone else on a site where Jetpack Stats is on, the snapshot carries a second value, resolved from the post-meta sum down when the cache is built. So on such a site this filter runs twice per build, and a hooked counter is served to every caller the route admits.
 
 ---
 

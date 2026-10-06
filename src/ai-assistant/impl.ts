@@ -65,6 +65,9 @@ const ICON_SPINNER = `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidde
 	<path d="M10 3 A7 7 0 0 1 17 10" stroke-opacity="1"/>
 </svg>`;
 
+// WordPress.org's plugin asset hosts, where a recommended plugin's icon lives.
+const WPORG_ICON_URL = /^https:\/\/(?:ps|s)\.w\.org\//;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -1916,7 +1919,7 @@ export class AiAssistant implements AiAssistantApi {
 				data-url="${ this._esc( link.url ) }"
 				data-title="${ this._esc( link.title ) }"
 				data-icon="${ this._esc( link.icon ) }">
-				<span class="os-ai__admin-link-icon dashicons ${ this._esc( link.icon ) }" aria-hidden="true"></span>
+				${ this._renderAdminLinkIcon( link.icon ) }
 				<span class="os-ai__admin-link-body">
 					<span class="os-ai__admin-link-title">${ this._esc( link.title ) }</span>
 					<span class="os-ai__admin-link-desc">${ this._esc( link.description ) }</span>
@@ -1926,6 +1929,23 @@ export class AiAssistant implements AiAssistantApi {
 		` ).join( '' );
 
 		return `<div class="os-ai__admin-links">${ items }</div>`;
+	}
+
+	/**
+	 * A card's icon: a Dashicon, or a recommended plugin's icon.
+	 *
+	 * `icon` comes from the model's answer and an image loads without a
+	 * click, so only WordPress.org's hosts are fetched: any other URL could
+	 * carry what the model read to a host that a prompt injection picked.
+	 * Anything else that is not a Dashicon gets a generic one, not an
+	 * empty square.
+	 */
+	private _renderAdminLinkIcon( icon: string ): string {
+		if ( WPORG_ICON_URL.test( icon ) ) {
+			return `<img class="os-ai__admin-link-icon" src="${ this._esc( icon ) }" alt="" draggable="false">`;
+		}
+		const dashicon = icon.startsWith( 'dashicons-' ) ? icon : 'dashicons-admin-generic';
+		return `<span class="os-ai__admin-link-icon dashicons ${ this._esc( dashicon ) }" aria-hidden="true"></span>`;
 	}
 
 	/** Minimal HTML escaping for text interpolated into innerHTML. */

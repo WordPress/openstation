@@ -27,8 +27,9 @@ defined( 'ABSPATH' ) || exit;
  * desktop shell — because the user meta is still `'1'` and the
  * `admin_init` portal redirect kicks in. The JS here re-stamps the flag
  * on every same-origin `/wp-admin/` `<a href>` and `<form action>` so
- * navigations within the tab stay classic. Server-side redirects are
- * covered by {@see openstation_classic_preserve_redirect}.
+ * navigations within the tab stay classic, and keeps it in the address
+ * bar. Server-side redirects are covered by
+ * {@see openstation_classic_preserve_redirect}.
  *
  * Narrowly scoped: only runs when the current request itself carries
  * the classic flag. Skips modifier-clicks (cmd/ctrl/shift/alt), targets
@@ -106,6 +107,22 @@ function openstation_classic_link_interceptor() {
 			form.setAttribute( 'action', rewritten );
 		}
 	}, true );
+
+	// The block editor rewrites the address bar on load, dropping the
+	// flag; the server reads it off the Referer of script navigations.
+	[ 'pushState', 'replaceState' ].forEach( function ( method ) {
+		var original = window.history[ method ];
+		if ( typeof original !== 'function' ) {
+			return;
+		}
+		window.history[ method ] = function ( state, title, url ) {
+			var rewritten = null;
+			if ( typeof url === 'string' || url instanceof URL ) {
+				rewritten = rewriteAdminUrl( String( url ), window.location.href );
+			}
+			return original.call( window.history, state, title, rewritten || url );
+		};
+	} );
 } )();
 ";
 

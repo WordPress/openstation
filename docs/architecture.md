@@ -118,6 +118,12 @@ Before OpenStation is deactivated, one optional question. Three surfaces show it
 
 The browser posts to the site and the site forwards to the intake (`includes/feedback/`): a small WordPress plugin on openstation.blog, the host the About tab already reads, which stores each submission in a table read from that site's wp-admin. Not browser-direct: ad blockers drop third-party telemetry hosts, the intake then sees the server's IP rather than the person's, and the payload is assembled in PHP where a host can filter it or turn the feature off. The forward is synchronous, three seconds at most, and best-effort — the plugin is about to be deactivated, so no cron callback of ours would ever run. Nothing is stored on the site. The payload has no site id and no URL hash; `readme.txt` lists every field, and the PHPUnit suite pins that list.
 
+### Usage feedback
+
+The deactivation dialog only hears from people on their way out; usage feedback asks the people who stayed. Once a user has had OpenStation on for seven whole days by the `openstation_enabled_at` stamp (`includes/first-run/stamps.php`), the shell config carries `usageFeedback`, and a few seconds after boot `src/usage-feedback/index.ts` loads the lazy `usage-feedback` bundle and shows a card in the bottom corner of the work area asking whether they have two minutes to say how it is going (`prompt.ts`). A card and not a dialog on purpose: it blocks nothing and takes no focus. It is not a toast either: it does not time out and has no close button, so it stays until the user picks "No thanks" or "Sure".
+
+"Sure" swaps the card for the form (`form.ts`), an `<os-modal>` with three optional questions and an optional email field that starts empty, so feedback is anonymous unless its author decides otherwise. `POST /desktop-mode/v1/feedback/usage` forwards the answers to the intake's `usage` route the same way the deactivation answer travels, and marks the `usage-feedback` slug in the seen-intros registry in the same request; "No thanks" or leaving the form without sending marks it from the client. Once per user, whatever they answer. `includes/feedback/usage.php` owns the gate, the payload and the route; only an eligible user ever fetches the bundle.
+
 ## Navigation
 
 Everything the shell can put in front of you — WordPress's admin menus, plugin menus, installed apps, OpenStation's own controls — is one flat list of **nav items**, and where each one shows up is a pure function of what it IS plus the user's preference. The model lives in `src/nav/`; `computeNav()` is the whole specification, and every surface renders what it returns.
@@ -615,7 +621,11 @@ path** (walking the backtrace to the first frame inside an extension
 directory, skipping OpenStation's own frames) and resolves it lazily:
 to a plugin file for the dock's attribution, and to a
 plugin / mu-plugin / theme group for the site window
-(`includes/my-wordpress/owner.php`). Recording is gated to admin
+(`includes/my-wordpress/owner.php`). PHP reports a symlinked plugin
+folder by its target (WordPress.com's managed plugins live in
+`/wordpress/plugins/<slug>/<version>/`), so backtrace frames and
+reflected callbacks are first mapped back through Core's
+`$wp_plugin_paths`, the list `plugin_basename()` uses. Recording is gated to admin
 requests (`openstation_should_track_type_registrants`, filterable):
 only admin surfaces read the map, and a front-end page view registers
 the same types — paying a bounded `debug_backtrace()` per registration

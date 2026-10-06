@@ -133,11 +133,12 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 	// One definition of click / double click / right click, shared
 	// with the list view's rows (`parts/rows.ts`).
 	const row = rowInteractions( ctx, section, item, order );
+	// The drag kind is a desktop file type: every post type files as a `post`.
 	return html`
 		<div
 			class="os-mywp__cell ${ isOpen ? 'is-open' : '' }"
 			data-item-id=${ String( item.id ) }
-			data-mywp-drag=${ section.kind === 'user' ? 'user' : section.post_type }
+			data-mywp-drag=${ section.kind === 'post' && ! section.flat ? 'post' : section.post_type || section.kind }
 			role="option"
 			aria-selected=${ isSelected ? 'true' : 'false' }
 			@click=${ row.select }

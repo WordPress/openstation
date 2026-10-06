@@ -92,6 +92,20 @@ const FORBIDDEN_KINDS: ReadonlySet< WallpaperSurface[ 'kind' ] > = new Set( [
 ] );
 
 /**
+ * Only the shell's own chrome: the dock and the edges of the desk.
+ *
+ * What a Mio walking the shell tour collides with. Windows, widgets and
+ * plugin surfaces drop out entirely, so it floats straight to where the
+ * tour asks instead of being magnetised by a window, pushed out from
+ * under one, or hopped clear of one. The dock stays forbidden (a Mio
+ * covering the navigation is a bug, tour or not) and the edges stay
+ * solid, so it cannot float off the screen.
+ */
+export function chromeOnly( obstacles: readonly Obstacle[] ): Obstacle[] {
+	return obstacles.filter( ( o ) => CHROME_KINDS.has( o.kind ) );
+}
+
+/**
  * Convert the shell's viewport-space surfaces into layer-local
  * obstacles, dropping degenerate rects.
  *

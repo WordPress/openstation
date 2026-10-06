@@ -274,7 +274,7 @@ function openstation_content_graph_format_user( $user_id ) {
 	}
 	return array(
 		'id'       => $user_id,
-		'name'     => (string) $user->display_name,
+		'name'     => openstation_plain_text_title( $user->display_name ),
 		'slug'     => (string) $user->user_nicename,
 		'avatar'   => (string) get_avatar_url( $user_id, array( 'size' => 64 ) ),
 		'edit_url' => (string) get_edit_user_link( $user_id ),
@@ -354,10 +354,10 @@ function openstation_content_graph_collect_comments( WP_Post $post ) {
 	foreach ( $comments as $comment ) {
 		$out[] = array(
 			'id'       => (int) $comment->comment_ID,
-			'author'   => (string) $comment->comment_author,
+			'author'   => openstation_plain_text_title( $comment->comment_author ),
 			'user_id'  => (int) $comment->user_id,
 			'date'     => mysql2date( 'c', $comment->comment_date_gmt, false ),
-			'excerpt'  => wp_html_excerpt( wp_strip_all_tags( (string) $comment->comment_content ), 140, '...' ),
+			'excerpt'  => openstation_plain_text_title( wp_html_excerpt( openstation_strip_all_tags( (string) $comment->comment_content ), 140, '...' ) ),
 			'edit_url' => (string) admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
 		);
 	}
@@ -385,7 +385,7 @@ function openstation_content_graph_collect_terms( WP_Post $post ) {
 		foreach ( $terms as $term ) {
 			$out[] = array(
 				'id'        => (int) $term->term_id,
-				'name'      => (string) $term->name,
+				'name'      => openstation_plain_text_title( $term->name ),
 				'slug'      => (string) $term->slug,
 				'taxonomy'  => (string) $term->taxonomy,
 				'tax_label' => (string) $tax->labels->singular_name,
@@ -410,7 +410,7 @@ function openstation_content_graph_collect_attached_media( WP_Post $post ) {
 	foreach ( $attachments as $att ) {
 		$out[] = array(
 			'id'       => (int) $att->ID,
-			'title'    => (string) get_the_title( $att ),
+			'title'    => openstation_plain_text_title( get_the_title( $att ) ),
 			'mime'     => (string) $att->post_mime_type,
 			'thumb'    => (string) wp_get_attachment_image_url( $att->ID, 'thumbnail' ),
 			'edit_url' => (string) get_edit_post_link( $att->ID, 'raw' ),

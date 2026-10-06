@@ -5,10 +5,12 @@
  * Tracks which one-time announcements the current user has already
  * dismissed, so each is shown once and never bothers them again.
  *
- * Two surfaces use it today: the activation welcome dialog
+ * Three surfaces use it today: the activation welcome dialog
  * (`includes/welcome-dialog.php`, slug `activation-welcome`), shown
- * in the classic admin while OpenStation is disabled, and the rebrand
- * notice (`src/rebrand-notice.ts`, slug `openstation-rebrand`). The
+ * in the classic admin while OpenStation is disabled, the rebrand
+ * notice (`src/rebrand-notice.ts`, slug `openstation-rebrand`), and
+ * the usage feedback prompt (`includes/feedback/usage.php`, slug
+ * `usage-feedback`, marked server-side on a successful send). The
  * key is intentionally generic, so anything else that needs
  * show-once semantics registers its own slug and reuses this storage.
  * OpenStation Preferences → Features exposes a "Reset what's-new
@@ -79,7 +81,8 @@ function openstation_has_seen_intro( $user_id, $slug ) {
  * Adds a slug to the user's seen-intros list.
  *
  * Idempotent — re-marking an already-seen intro is a no-op that
- * still returns true.
+ * still returns true. A slug that supersedes others
+ * ({@see openstation_seen_intros_superseded_by()}) removes them first.
  *
  * @param int    $user_id User ID.
  * @param string $slug    Intro slug.
@@ -93,18 +96,42 @@ function openstation_mark_intro_seen( $user_id, $slug ) {
 	}
 
 	$current = openstation_get_seen_intros( $user_id );
-	if ( in_array( $slug, $current, true ) ) {
+	$kept    = array_values( array_diff( $current, openstation_seen_intros_superseded_by( $slug ) ) );
+	if ( in_array( $slug, $kept, true ) && count( $kept ) === count( $current ) ) {
 		return true;
 	}
 
-	$current[] = $slug;
-	$current   = array_slice( $current, 0, OPENSTATION_SEEN_INTROS_MAX );
+	if ( ! in_array( $slug, $kept, true ) ) {
+		$kept[] = $slug;
+	}
+	$kept = array_slice( $kept, 0, OPENSTATION_SEEN_INTROS_MAX );
 
 	return false !== update_user_meta(
 		$user_id,
 		OPENSTATION_SEEN_INTROS_META_KEY,
-		$current
+		$kept
 	);
+}
+
+/**
+ * Slugs a newly recorded one makes obsolete: facts where only the
+ * latest counts, which an append-only list cannot otherwise express.
+ *
+ * The shell tour's two outcomes are the one pair. A run ends skipped
+ * or finished, and the relaunch icon asks about the LATEST run: kept
+ * side by side, one finished run long ago hid the icon after every
+ * skip that came later. The strings mirror the constants in
+ * `includes/first-run/shell-tour.php`, which loads after this file.
+ *
+ * @param string $slug The slug being recorded.
+ * @return string[] Slugs it replaces.
+ */
+function openstation_seen_intros_superseded_by( $slug ) {
+	$pairs = array(
+		'shell-tour-skipped' => array( 'shell-tour-done' ),
+		'shell-tour-done'    => array( 'shell-tour-skipped' ),
+	);
+	return isset( $pairs[ $slug ] ) ? $pairs[ $slug ] : array();
 }
 
 /**
@@ -186,6 +213,29 @@ function openstation_register_seen_intros_routes() {
 add_action( 'rest_api_init', 'openstation_register_seen_intros_routes' );
 
 /**
+ * The intro slugs whose dismissal is accepted from an account that has
+ * NOT enabled OpenStation.
+ *
+ * Exactly the intros that render in the classic admin while the shell
+ * is off: the welcome dialog and the activation nudge. Everything else
+ * is shown inside the shell and keeps the strict gate. Adding a slug
+ * here is adding a classic-admin surface; the allowlist is the review
+ * point, so keep it a literal list.
+ *
+ * @return string[]
+ */
+function openstation_seen_intros_classic_admin_slugs() {
+	$slugs = array();
+	if ( defined( 'OPENSTATION_WELCOME_INTRO_SLUG' ) ) {
+		$slugs[] = OPENSTATION_WELCOME_INTRO_SLUG;
+	}
+	if ( defined( 'OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG' ) ) {
+		$slugs[] = OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG;
+	}
+	return $slugs;
+}
+
+/**
  * Permission gate for the seen-intros routes.
  *
  * In-shell announcements (the rebrand notice, and anything a plugin
@@ -194,15 +244,16 @@ add_action( 'rest_api_init', 'openstation_register_seen_intros_routes' );
  * {@see openstation_rest_require_enabled()} gate — `read` alone is
  * insufficient (every role, Subscriber included, carries `read`).
  *
- * The one exception is the first-run welcome dialog
- * ({@see OPENSTATION_WELCOME_INTRO_SLUG}): it renders in the *classic*
+ * The exceptions are the classic-admin intros
+ * ({@see openstation_seen_intros_classic_admin_slugs()}): the first-run
+ * welcome dialog and the activation nudge both render in the *classic*
  * admin precisely when OpenStation is NOT enabled, which is the only
- * state it ever appears in. Gating its dismissal behind
+ * state they ever appear in. Gating their dismissal behind
  * `openstation_rest_require_enabled()` would make the dismissal POST
  * return 403 every time, so the slug could never be recorded as seen and
- * the dialog re-rendered on every classic-admin page load. We therefore
- * let that single slug through for any logged-in `read`-capable account
- * (the exact audience the dialog is shown to); writing one's own
+ * the dialog / notice re-rendered on every classic-admin page load. We
+ * therefore let those slugs through for any logged-in `read`-capable
+ * account (the exact audience they are shown to); writing one's own
  * dismissal flag carries no privileged surface. The DELETE /intros route
  * ("Reset what's-new dialogs") carries no slug and keeps the strict gate.
  *
@@ -211,7 +262,7 @@ add_action( 'rest_api_init', 'openstation_register_seen_intros_routes' );
  */
 function openstation_rest_seen_intros_permission( WP_REST_Request $request ) {
 	$slug = sanitize_key( (string) $request->get_param( 'slug' ) );
-	if ( defined( 'OPENSTATION_WELCOME_INTRO_SLUG' ) && OPENSTATION_WELCOME_INTRO_SLUG === $slug ) {
+	if ( '' !== $slug && in_array( $slug, openstation_seen_intros_classic_admin_slugs(), true ) ) {
 		if ( ! is_user_logged_in() ) {
 			return new WP_Error(
 				'rest_forbidden',

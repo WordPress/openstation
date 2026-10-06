@@ -475,6 +475,15 @@ class Tests_OpenStation_WorkspaceShares extends WP_UnitTestCase {
 
 		$this->assertFalse( openstation_is_classic_request() );
 
+		$referer = $_SERVER['HTTP_REFERER'] ?? null;
+		$_SERVER['HTTP_REFERER'] = add_query_arg( OPENSTATION_CLASSIC_FLAG, '1', admin_url( 'edit.php' ) );
+		$this->assertFalse( openstation_is_classic_referer() );
+		if ( null === $referer ) {
+			unset( $_SERVER['HTTP_REFERER'] );
+		} else {
+			$_SERVER['HTTP_REFERER'] = $referer;
+		}
+
 		unset( $_GET[ OPENSTATION_CLASSIC_FLAG ] );
 	}
 }

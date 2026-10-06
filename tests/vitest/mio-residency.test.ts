@@ -47,6 +47,26 @@ describe( 'MIO window ownership', () => {
 		expect( layer.parentElement ).toBe( shell );
 		a.dispose();
 	} );
+	test( 'while held, no window takes MIO and it shows on the wallpaper regardless', async () => {
+		// The shell tour holds MIO beside cards that point at the dock and
+		// the desk. The Preferences window it opens registers a residence,
+		// and taking MIO in there clamped it inside the window.
+		const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' );
+		shell.append( layer ); document.body.append( shell );
+		let held = true;
+		const handle = { getPosition: () => ( { x: 240, y: 150 } ), setPosition: vi.fn(), setAnimating: vi.fn(), applyConfig: vi.fn(), destroy: vi.fn() };
+		const residency = new MioResidency( { shell, layer: () => layer, focused: () => 'a', handle: () => handle, enabled: () => true, wallpaperVisible: () => false, held: () => held, ready: async () => undefined } );
+		const lease = residency.register( 'a', makeWindow( 'a' ) ); await flush();
+		expect( residency.getWindowId() ).toBeNull();
+		expect( layer.parentElement ).toBe( shell );
+		// Shown although this user keeps MIO off the wallpaper.
+		expect( layer.dataset.mioVisible ).toBe( 'true' );
+
+		// Let go, and the focused window has it again.
+		held = false; residency.refresh(); await flush();
+		expect( residency.getWindowId() ).toBe( 'a' );
+		lease.dispose();
+	} );
 	test( 'wallpaper visibility updates in place and does not prevent window chat', async () => {
 		const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' );
 		shell.append( layer ); document.body.append( shell );

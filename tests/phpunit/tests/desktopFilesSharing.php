@@ -1483,6 +1483,39 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The other direction: the owner lists what a writer put in
+	 * their shared folder. The placements belong to the folder, not
+	 * to whoever placed them, for the owner as for every recipient.
+	 *
+	 * @covers ::openstation_files_get_for_user_folder
+	 */
+	public function test_owner_lists_what_a_writer_added_to_their_shared_folder() {
+		$folder_id = openstation_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		$share_id  = openstation_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'write'
+		);
+		openstation_folder_share_accept( $share_id, self::$editor_id );
+
+		$link_id = openstation_files_place(
+			self::$editor_id,
+			$folder_id,
+			'link',
+			'https://example.org/',
+			array( 'meta' => array( 'name' => 'Example' ) )
+		);
+		$this->assertNotInstanceOf( WP_Error::class, $link_id );
+
+		$rows = openstation_files_get_for_user_folder( self::$owner_id, $folder_id );
+		$this->assertContains(
+			(int) $link_id,
+			array_map( static fn( $r ) => (int) $r['id'], $rows ),
+			'The owner must see what a writer added to their shared folder.'
+		);
+	}
+
+	/**
 	 * Reproduces the user-reported "shared folder disappears after
 	 * refresh" bug end-to-end. The trigger is the leave → re-accept
 	 * cycle: each leave used to write a tombstone for the

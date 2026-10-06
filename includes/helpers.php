@@ -226,12 +226,19 @@ function openstation_site_title() {
  * `wptexturize()` encodes the characters titles are full of — `&` as
  * `&#038;`, an apostrophe as `&#8217;` — and the shell writes titles
  * into text nodes, where the entity renders as itself. Same reasoning
- * as {@see openstation_site_title()}, one layer down.
+ * as {@see openstation_site_title()}, one layer down. Stored names need
+ * it too: a display name, term name or comment author is saved with
+ * `&` as `&amp;`, and so is a title kses filtered on save.
  *
  * Decode BEFORE the tag strip, never after: `&lt;script&gt;` decodes
  * into a real tag, and stripping second is what removes it.
  *
- * @param string $rendered A title that has been through a display filter.
+ * A `<` opens a tag only before an ASCII letter, `/`, `!` or `?`, the
+ * HTML tokenizer's rule, whether or not a `>` closes it. Any other `<`
+ * is text (`I <3 WordPress`), and `strip_tags()` on its own would drop
+ * it with everything after it.
+ *
+ * @param string $rendered A title or name, rendered or as stored.
  * @return string Plain text, tag-free.
  */
 function openstation_plain_text_title( $rendered ) {
@@ -241,7 +248,35 @@ function openstation_plain_text_title( $rendered ) {
 		get_bloginfo( 'charset' )
 	);
 
-	return trim( wp_strip_all_tags( $decoded ) );
+	// A `<` that opens no tag sits out the strip as `&lt;`. `&` is
+	// escaped first and restored last, so an `&lt;` the decode left as
+	// text (`&amp;lt;` in the source) does not come back as a `<` too.
+	$tag_start = '[a-zA-Z\/!?]';
+	$text      = str_replace( '&', '&amp;', $decoded );
+	$text      = openstation_strip_all_tags( $text );
+	$text      = str_replace( '&lt;', '<', $text );
+	$text      = str_replace( '&amp;', '&', $text );
+
+	// Removing a tag can leave a kept `<` against the text after it
+	// (`<<b>script>`): a space stops the pair from reading as a tag.
+	return trim( preg_replace( "/<(?={$tag_start})/", '< ', $text ) );
+}
+
+/**
+ * Strip the tags from stored HTML, keeping a `<` that opens no tag.
+ *
+ * A `<` opens a tag only before an ASCII letter, `/`, `!` or `?`. Any
+ * other one comes back as `&lt;`, the form kses saves it in, so the
+ * result is still HTML text: `wp_trim_words()` and `wp_html_excerpt()`,
+ * which strip tags themselves, pass it on to whatever decodes last.
+ *
+ * @param string $html Stored HTML.
+ * @return string Tag-free text, entities still encoded.
+ */
+function openstation_strip_all_tags( $html ) {
+	return wp_strip_all_tags(
+		preg_replace( '/<(?![a-zA-Z\/!?])/', '&lt;', (string) $html )
+	);
 }
 
 /**

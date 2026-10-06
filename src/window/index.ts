@@ -223,6 +223,14 @@ export class Window {
 	 */
 	public _hasExplicitTitle = false;
 
+	/**
+	 * The URL the page in the frame reported for itself, and the
+	 * frame's `src` when it did. See {@link getCurrentUrl}.
+	 *
+	 * @internal
+	 */
+	public _reportedLocation: { url: string; src: string } | null = null;
+
 	/** @internal */
 	public _titleBar: HTMLElement;
 	/** @internal */
@@ -1164,6 +1172,10 @@ export class Window {
 	 * falling back to the iframe's src attribute for cases where the
 	 * content document isn't yet reachable (cross-origin edge, early
 	 * load).
+	 *
+	 * A same-origin page sent with `Document-Isolation-Policy` (the
+	 * block editor, Elementor's editor) can't be read either; its own
+	 * report beats `src` until the frame is pointed elsewhere.
 	 */
 	public getCurrentUrl(): string {
 		if ( ! this.iframe ) {
@@ -1179,7 +1191,10 @@ export class Window {
 				return href;
 			}
 		} catch {
-			/* Cross-origin read rejected — fall through. */
+			const reported = this._reportedLocation;
+			if ( reported && reported.src === this.iframe.src ) {
+				return reported.url;
+			}
 		}
 		return this.iframe.src;
 	}
@@ -1833,6 +1848,33 @@ export class Window {
 	}
 
 	/**
+	 * Snap the window to `zone` the way a drag to the edge does:
+	 * remember the floating rect, then {@link applySnap}.
+	 *
+	 * `applySnap` alone is the geometry, which is right for a session
+	 * restore (the floating rect was saved in the session that snapped
+	 * it). A snap that happens NOW, to a floating window, owes the user
+	 * the way back: dragging the window off the edge restores from
+	 * `_savedGeometry`, and without it the window comes back at a
+	 * default size instead of the one they had.
+	 *
+	 * Saved only on the way out of `normal`, the same rule as maximize:
+	 * from any other state the rect on screen is that state's, not the
+	 * user's.
+	 */
+	public snapTo( zone: 'left' | 'right' ): void {
+		if ( this.state === 'normal' ) {
+			this._savedGeometry = {
+				x: this.element.offsetLeft,
+				y: this.element.offsetTop,
+				width: this.element.offsetWidth,
+				height: this.element.offsetHeight,
+			};
+		}
+		this.applySnap( zone );
+	}
+
+	/**
 	 * Apply the snap-zone visuals (state class + inline geometry). Does
 	 * NOT mutate `state`, save geometry, emit a change event, or fire
 	 * any action — callers own all of those side-effects so the same
@@ -1864,6 +1906,48 @@ export class Window {
 		this.element.style.width = `${ halfW }px`;
 		this.element.style.height = `${ area.height }px`;
 		return true;
+	}
+
+	/**
+	 * Float a snapped window: drop the snapped state AND give the window
+	 * a floating rect again.
+	 *
+	 * The inverse of {@link applySnap}, and deliberately more than a
+	 * state reset: a window left sitting at the half-screen geometry
+	 * still looks snapped, so anything meaning to demonstrate a snap
+	 * would have nothing to show. The shell tour calls this before its
+	 * snap card when the window is already against that edge.
+	 *
+	 * Sizes from `_savedGeometry` when the window has a floating rect to
+	 * go back to, else from the same proportions the drag-to-float path
+	 * uses (`pointer.ts`), so a window floated here and one the user
+	 * dragged out of a split land at the same size.
+	 *
+	 * A no-op unless the window is snapped.
+	 */
+	public unsnap(): void {
+		if ( ! this.isSnapped() ) {
+			return;
+		}
+		this.element.classList.remove(
+			'os-window--snapped-left',
+			'os-window--snapped-right',
+		);
+		const parent = this.element.parentElement;
+		if ( parent ) {
+			const area = workAreaRectOf( parent );
+			const saved = this._savedGeometry;
+			const width = saved?.width ?? Math.min( 960, Math.round( area.width * 0.6 ) );
+			const height = saved?.height ?? Math.min( 640, Math.round( area.height * 0.7 ) );
+			const x = saved?.x ?? area.x + Math.round( ( area.width - width ) / 2 );
+			const y = saved?.y ?? area.y + Math.round( ( area.height - height ) / 2 );
+			this.element.style.left = `${ x }px`;
+			this.element.style.top = `${ y }px`;
+			this.element.style.width = `${ width }px`;
+			this.element.style.height = `${ height }px`;
+		}
+		this.state = 'normal';
+		this._emitChange( 'state' );
 	}
 
 	/**
@@ -2742,9 +2826,8 @@ export class Window {
 	 * `desktop_mode_portal` flag, and tags the URL with
 	 * `desktop_mode_classic=1` so the server-side admin_init redirect
 	 * (which otherwise forwards plain admin URLs to `/openstation/`)
-	 * lets the request through. The tag only has to survive the first
-	 * request; once the browser renders the page, the user's in-tab
-	 * navigation returns to normal admin flow.
+	 * lets the request through. Navigations inside that tab keep the
+	 * tag, so the user stays in classic wp-admin.
 	 *
 	 * The desktop window itself stays open — detach is a branch, not
 	 * a move. If the user wants to close it afterwards, they can.
@@ -3245,7 +3328,14 @@ export class Window {
 				}
 				if ( scrollX || scrollY ) {
 					try {
-						buffer.contentWindow?.scrollTo( scrollX, scrollY );
+						// `instant` overrides a theme's `scroll-behavior:
+						// smooth`, which would animate the jump after the
+						// swap.
+						buffer.contentWindow?.scrollTo( {
+							left: scrollX,
+							top: scrollY,
+							behavior: 'instant',
+						} );
 					} catch {
 						/* cross-origin */
 					}
@@ -3309,10 +3399,11 @@ export class Window {
 			{ once: true },
 		);
 
-		// Insert BEFORE assigning src — a detached iframe doesn't
-		// start loading.
-		current.insertAdjacentElement( 'afterend', buffer );
+		// URL first, then insert. An iframe inserted without a URL
+		// fires `load` for its initial about:blank synchronously, which
+		// would run the swap above onto an empty frame.
 		buffer.src = target;
+		current.insertAdjacentElement( 'afterend', buffer );
 	}
 
 	/**

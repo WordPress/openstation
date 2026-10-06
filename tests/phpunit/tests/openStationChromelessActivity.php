@@ -105,58 +105,8 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * The read check has to gate the `begin`, not sit somewhere
-	 * harmlessly beside it.
-	 *
-	 * @covers ::openstation_chromeless_bridge_script
-	 */
-	public function test_the_read_check_gates_the_begin() {
-		$markup = $this->bridge_markup();
-
-		$this->assertStringContainsString(
-			'if ( osIsReadRequest( method ) || osIsBackgroundRequest( url, body ) ) {',
-			$markup
-		);
-	}
-
-	/**
-	 * Heartbeat POSTs to `admin-ajax.php` with the action in the BODY,
-	 * so a URL-only check would miss it and every idle window would
-	 * pulse on a timer.
-	 *
-	 * @covers ::openstation_chromeless_bridge_script
-	 */
-	public function test_heartbeat_is_recognised_from_the_body_as_well_as_the_url() {
-		$markup = $this->bridge_markup();
-
-		$this->assertStringContainsString( "String( url || '' ).indexOf( 'action=heartbeat' )", $markup );
-		$this->assertStringContainsString( "body.indexOf( 'action=heartbeat' )", $markup );
-		// FormData bodies expose the action through `get()` rather than
-		// as a string.
-		$this->assertStringContainsString( "body.get( 'action' ) === 'heartbeat'", $markup );
-	}
-
-	/**
-	 * Both wrappers have to pass the method through, or the read
-	 * exclusion silently applies to nothing.
-	 *
-	 * @covers ::openstation_chromeless_bridge_script
-	 */
-	public function test_both_wrappers_report_their_method() {
-		$markup = $this->bridge_markup();
-
-		// fetch
-		$this->assertStringContainsString(
-			'osActivityBegin( method, url,',
-			$markup
-		);
-		// XHR — method and URL are recorded on `open()`.
-		$this->assertStringContainsString(
-			'osActivityBegin( xhr.__wpdMethod, xhr.__wpdUrl, body )',
-			$markup
-		);
-	}
+	// Request classification and wrapper behavior are exercised in
+	// tests/vitest/media-bridge-lifecycle.test.ts by executing the bridge.
 
 	/**
 	 * An `end` for a request that was never counted would decrement a

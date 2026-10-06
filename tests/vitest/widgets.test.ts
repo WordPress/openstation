@@ -8,6 +8,7 @@
  *   - mount lifecycle hook firings (mounting → mounted)
  *   - async mount rejection fires mount-failed (not mounted)
  *   - rapid add-then-remove discards the stale mount
+ *   - the picker stays inside the work area when neither side fits
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
@@ -1415,6 +1416,20 @@ describe( 'widgets/layer', () => {
 		layer.setVisibleIds( [ 'stats' ] );
 		expect( layer.getMountedIds() ).toEqual( [ 'stats' ] );
 
+		// The picker's "Added" follows the desk, not the user's list:
+		// `clock` is theirs but not on this desk, `stats` is on it.
+		layer.openPicker();
+		const addedLabels = (): string[] =>
+			Array.from(
+				document.querySelectorAll(
+					'.os-widget-picker__entry--added .os-widget-picker__entry-label',
+				),
+			).map( ( el ) => el.textContent ?? '' );
+		expect( addedLabels() ).toEqual( [ 'stats' ] );
+		document.dispatchEvent(
+			new KeyboardEvent( 'keydown', { key: 'Escape' } ),
+		);
+
 		// The × on it. This used to do nothing at all: `remove` looked
 		// for the id in the user's list, found nothing, and returned.
 		layer.remove( 'stats' );
@@ -1491,5 +1506,28 @@ describe( 'widgets/layer', () => {
 		).toHaveLength( 1 );
 
 		layer.disposeAll();
+	} );
+} );
+
+describe( 'widgets/picker placement', () => {
+	test( 'caps the panel to the taller side when neither side fits', async () => {
+		const { placeWidgetPicker } = await import( '../../src/widgets/picker' );
+		// 1280x720 with a bottom dock: the work area ends at 628 once
+		// the margin is taken. The pill sits mid-column, so a 454px
+		// panel fits neither above (360px) nor below (212px). Flipping
+		// below uncapped ran it 150px off the screen, under the dock.
+		const bounds = { top: 8, right: 1272, bottom: 628, left: 8 };
+		const anchor = { top: 374, right: 1170, bottom: 410, left: 1037 };
+		const placed = placeWidgetPicker( anchor, { width: 342, height: 454 }, bounds );
+		expect( placed ).toEqual( { left: 828, top: 8, maxHeight: 360 } );
+
+		// Pill high in the column, room only below: caps there instead,
+		// and a narrow work area pulls the panel back inside its edge.
+		const low = placeWidgetPicker(
+			{ top: 40, right: 400, bottom: 76, left: 270 },
+			{ width: 342, height: 454 },
+			{ top: 8, right: 300, bottom: 400, left: 8 },
+		);
+		expect( low ).toEqual( { left: 8, top: 82, maxHeight: 318 } );
 	} );
 } );

@@ -330,6 +330,10 @@ return App::define( 'desktop-mode-users' )
 				if ( isset( $stats[ $id ] ) ) {
 					$list['items'][ $i ]['openstation_user_stats'] = $stats[ $id ];
 				}
+				// Core's row carries the name as stored (`&amp;`); the view paints text.
+				if ( isset( $row['name'] ) ) {
+					$list['items'][ $i ]['name'] = openstation_plain_text_title( $row['name'] );
+				}
 			}
 			return array( 'list' => $list );
 		}

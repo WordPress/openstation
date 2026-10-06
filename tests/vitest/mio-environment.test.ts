@@ -6,6 +6,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import {
+	chromeOnly,
 	clampOutsideChrome,
 	clampToBounds,
 	closestPointOn,
@@ -60,6 +61,25 @@ function leftRail( over: Partial< WallpaperSurface > = {} ): WallpaperSurface {
 		...over,
 	} );
 }
+
+describe( 'chromeOnly', () => {
+	test( 'keeps the dock and the desk edges, drops windows, widgets and plugin surfaces', () => {
+		// What a Mio walking the shell tour collides with: it floats
+		// through windows, but still never covers the dock or leaves
+		// the screen.
+		const at = ( id: string, kind: WallpaperSurface[ 'kind' ] ) => ( {
+			id, kind, face: 'top' as const, x: 0, y: 0, width: 10, height: 10,
+		} );
+		const kept = chromeOnly( [
+			at( 'window:a', 'window' ),
+			at( 'widget:clock', 'widget' ),
+			at( 'custom:x', 'custom' ),
+			at( 'dock:edge', 'dock' ),
+			at( 'shell:floor', 'shell' ),
+		] ).map( ( o ) => o.id );
+		expect( kept ).toEqual( [ 'dock:edge', 'shell:floor' ] );
+	} );
+} );
 
 describe( 'collectObstacles', () => {
 	test( 'rebases viewport rects into layer coordinates', () => {

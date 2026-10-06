@@ -36,6 +36,8 @@ export { OsUserSearch } from './os-user-search/os-user-search';
 export { OsRolePicker } from './os-role-picker/os-role-picker';
 export { OsFlyout } from './os-flyout/os-flyout';
 export type { OsFlyoutPlacement } from './os-flyout/os-flyout';
+export { OsCoachmark } from './os-coachmark/os-coachmark';
+export type { OsCoachmarkPlacement } from './os-coachmark/os-coachmark';
 export { OsTooltip, attachTooltip, hideTooltip } from './os-tooltip/os-tooltip';
 export type { OsTooltipContent, OsTooltipSource } from './os-tooltip/os-tooltip';
 export { OsTabChip } from './os-tab-chip/os-tab-chip';

@@ -18,7 +18,7 @@
 
 import { MioResidency } from './residency';
 import type { MioWindowContext, MioWindowLease } from './assistant/types';
-import { applyFilters, doAction, HOOKS } from '../hooks';
+import { addAction, applyFilters, doAction, HOOKS } from '../hooks';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { MIO_DEFAULTS, sanitizeMioConfig } from './config';
 import { emptyMioLook, sanitizeMioLook, splitMioLook } from './look';
@@ -209,6 +209,17 @@ export class MioController {
 	private parked: { handle: MioHandle; layer: HTMLElement } | null = null;
 	private config: MioConfig;
 	private enabled: boolean;
+	/** The user's own choice, which {@link enabled} returns to. */
+	private saved: boolean;
+	/**
+	 * Held on screen by the shell tour, whatever the saved preference.
+	 * A settings save re-syncs Mio to that preference, and the tour's
+	 * second card invites exactly such a save, so without this Mio
+	 * would vanish mid-tour the moment the user changed the layout.
+	 */
+	private summoned = false;
+	/** Where the tour last asked Mio to stand; re-applied after a handoff. */
+	private heldSpot: { x: number; y: number } | null = null;
 	/**
 	 * Bumped on every enable/disable. An in-flight mount compares it
 	 * on resolve and self-destructs if the user has since changed
@@ -236,9 +247,15 @@ export class MioController {
 			enabled: () => this.enabled,
 			chatAvailable: options.chatAvailable,
 			wallpaperVisible: options.wallpaperVisible,
+			held: () => this.summoned,
 			ready: () => this.mount(),
 		} );
+		// A residency handoff ends by placing Mio with `setPosition()`,
+		// which drops any anchor. While the tour holds Mio that anchor
+		// is where the tour asked it to stand, so put it back.
+		addAction( 'os.mio.owner-changed', 'openstation/mio-held-spot', () => this.applyHeldSpot() );
 		this.enabled = options.enabled;
+		this.saved = options.enabled;
 		// Before `resolveConfig()`, which layers the look over the
 		// site's Mio and must therefore already have one.
 		this.look = sanitizeMioLook( options.savedLook );
@@ -252,9 +269,51 @@ export class MioController {
 		}
 	}
 
+	/**
+	 * Ease Mio toward a viewport point and keep it there, or let it go.
+	 *
+	 * Shell-internal on purpose, and not on `wp.os.mio`: the shell tour
+	 * uses it to walk Mio alongside each card, the same way a window's
+	 * callout walks it to a control. A no-op while Mio is off or still
+	 * loading; the caller re-asserts once it has arrived.
+	 */
+	public setAnchor( point: { x: number; y: number } | null ): void {
+		this.heldSpot = point;
+		this.handle?.setAnchor?.( point, true );
+	}
+
 	/** Apply saved preferences and rollbacks without writing them back again. */
 	public syncEnabled( enabled: boolean ): void {
-		void this.setEnabled( enabled, false );
+		this.saved = enabled;
+		void this.setEnabled( enabled || this.summoned, false );
+		this.residency.refresh();
+	}
+
+	/**
+	 * Put Mio on screen for the shell tour without touching the user's
+	 * preference. Already on, it simply stays; either way {@link dismiss}
+	 * hands it back to whatever the user chose.
+	 */
+	public async summon(): Promise< void > {
+		this.summoned = true;
+		// Already on screen (the user keeps Mio on): float from now.
+		this.handle?.setFloating?.( true );
+		await this.setEnabled( true, false );
+		// Out of any window it was living in, and onto the desk.
+		this.residency.refresh();
+	}
+
+	/** End a {@link summon}: Mio goes back to the user's own choice. */
+	public dismiss(): void {
+		if ( ! this.summoned ) {
+			return;
+		}
+		this.summoned = false;
+		this.heldSpot = null;
+		// A Mio the user keeps goes back to living among the windows.
+		this.handle?.setFloating?.( false );
+		void this.setEnabled( this.saved, false );
+		// Free to live in a focused window again, if the user keeps it.
 		this.residency.refresh();
 	}
 
@@ -315,11 +374,26 @@ export class MioController {
 	 */
 	public async setEnabled( next: boolean, persist = true ): Promise< void > {
 		if ( next === this.enabled ) {
+			// Mid-summon, Mio is already on screen, but a user choosing
+			// that state still makes it theirs: record it, or the end of
+			// the tour would hide a Mio they had just switched on.
+			if ( persist && this.summoned ) {
+				this.summoned = false;
+				this.handle?.setFloating?.( false );
+				this.saved = next;
+				this.options.persist( next );
+			}
 			return;
 		}
 		this.enabled = next;
 		this.generation++;
 		if ( persist ) {
+			// The user reached for the switch themselves, so it is theirs
+			// again: a summon must not re-show a Mio they just turned
+			// off, nor hide one they just turned on.
+			this.saved = next;
+			this.summoned = false;
+			this.handle?.setFloating?.( false );
 			this.options.persist( next );
 		}
 		doAction( next ? 'os.mio.enabled' : 'os.mio.disabled', {} );
@@ -425,6 +499,7 @@ export class MioController {
 			this.handle = parked.handle;
 			this.layer = parked.layer;
 			this.residency.refresh();
+			this.applyHeldSpot();
 			return;
 		}
 		try {
@@ -479,6 +554,24 @@ export class MioController {
 		}
 		this.handle = handle;
 		this.residency.refresh();
+		this.applyHeldSpot();
+	}
+
+	/**
+	 * Send a summoned Mio to where the tour asked it to stand. Called the
+	 * moment a handle exists, because the tour asks before Mio has
+	 * loaded: its first spot arrives while the bundle is still on the
+	 * wire, and an ask that only waited on the summon's promise raced
+	 * the mount and could leave Mio wherever it last rested.
+	 */
+	private applyHeldSpot(): void {
+		// Floating is part of being held: the tour walks Mio past and
+		// over windows, and a Mio that collided with them was pulled in,
+		// pushed out from under them, or knocked off its spot.
+		this.handle?.setFloating?.( this.summoned );
+		if ( this.summoned && this.heldSpot ) {
+			this.handle?.setAnchor?.( this.heldSpot, true );
+		}
 	}
 
 	/**

@@ -161,6 +161,13 @@ export interface MenuRefreshDeps {
 	 * keep working unchanged.
 	 */
 	syncShortcuts?: () => void;
+	/**
+	 * Re-seed open iframe windows' submenu tabs from the new dock items.
+	 * A window builds its tab strip once, at open; without this a theme
+	 * switch inside the Appearance window leaves it offering Menus and
+	 * Widgets the dock has already dropped.
+	 */
+	syncWindowSubmenus?: () => void;
 }
 
 /**
@@ -259,8 +266,15 @@ export function createApplyPayload(
 		applyDesktopIcons,
 		refreshRootPlacements,
 		syncShortcuts,
+		syncWindowSubmenus,
 		applyMultisite,
 	} = deps;
+
+	// Icons the bridge read off a window's admin menu (a computed
+	// `url( … )`), by dock item URL. The refresh probe renders no menu
+	// and sends the gear again, so a plugin activated live would lose
+	// its icon to the next probe until a full reload.
+	const harvestedIcons = new Map< string, string >();
 
 	/** Order-insensitive fingerprint of an icon list's ids. */
 	const iconIdSet = (
@@ -314,6 +328,16 @@ export function createApplyPayload(
 		if ( ! Array.isArray( dockItems ) || dockItems.length === 0 ) {
 			return;
 		}
+		for ( const item of dockItems as Array< { url?: unknown; icon?: unknown } > ) {
+			if ( ! item || typeof item.url !== 'string' || typeof item.icon !== 'string' ) {
+				continue;
+			}
+			if ( item.icon.startsWith( 'url(' ) ) {
+				harvestedIcons.set( item.url, item.icon );
+			} else if ( item.icon === 'dashicons-admin-generic' && harvestedIcons.has( item.url ) ) {
+				item.icon = harvestedIcons.get( item.url );
+			}
+		}
 		const prevDockItems = config.dockItems;
 		applyDockItems( dockItems as DesktopConfig[ 'dockItems' ] );
 		config.dockItems = dockItems as DesktopConfig[ 'dockItems' ];
@@ -327,6 +351,7 @@ export function createApplyPayload(
 		// deactivation changes which
 		// items exist, without waiting for the next OS Settings change.
 		syncShortcuts?.();
+		syncWindowSubmenus?.();
 
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added

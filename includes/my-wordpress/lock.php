@@ -71,7 +71,7 @@ function openstation_my_wordpress_post_lock_payload( $post_id ) {
 
 	return array(
 		'userId'        => (int) $user->ID,
-		'userName'      => (string) $user->display_name,
+		'userName'      => openstation_plain_text_title( $user->display_name ),
 		'userAvatarUrl' => is_string( $avatar ) ? $avatar : '',
 		'time'          => $timestamp > 0 ? gmdate( 'c', $timestamp ) : '',
 	);

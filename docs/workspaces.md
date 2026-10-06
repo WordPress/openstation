@@ -204,6 +204,8 @@ Three things this has to get right, and each has a test:
 - **Saving while standing on one.** Opening Preferences on a workspace's desk and saving writes the **user's** own values back untouched. Without that, one save would quietly adopt the workspace's wallpaper as their own.
 - **Editing while standing on one.** A change goes to the workspace and stays on its desk; the user's own settings, and the main desk, are untouched. Where no workspace may be written (a pinned user), the change is the user's, and survives a switch.
 
+A profile write to the desk on screen repaints the look only when it changed `appearance`. Recording a widget, provisioning or saving the arrangement re-applies the widget column alone, so a wallpaper picked on the desk survives adding a widget to it.
+
 **Every key is honoured except one**: `appliedThemeRecommendations`, the shell's own ledger of which theme already seeded its recommendations — writing it from a profile would re-arm a theme's one-time seed. Both sides derive the list from the settings defaults (`WORKSPACE_APPEARANCE_KEYS` from `DEFAULTS`, `openstation_workspace_setting_keys()` from `openstation_default_os_settings()`), so a setting added later is overridable the day it ships. A profile is user meta round-tripped through an untrusted client, so the server runs every value through the settings' own sanitizer: a workspace can carry exactly the values a user could have saved, and nothing else.
 
 ### For the people a shared workspace pins

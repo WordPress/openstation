@@ -356,8 +356,8 @@ function openstation_redirect_plain_admin_to_portal() {
 
 	// The "Detach to new tab" button tags its URL with this flag so the
 	// user can view one admin page classically without disabling desktop
-	// mode account-wide. Only affects the single request — subsequent
-	// navigations inside the tab lose the flag and follow normal rules.
+	// mode account-wide. Navigations inside that tab keep it (see the
+	// Referer check below); a pinned user cannot use this escape.
 	if ( openstation_is_classic_request() ) {
 		return;
 	}
@@ -399,6 +399,13 @@ function openstation_redirect_plain_admin_to_portal() {
 	// door out of it, whatever a site-wide opt-out says.
 	if ( ! $redirect && ! ( function_exists( 'openstation_workspace_is_pinned' ) && openstation_workspace_is_pinned() ) ) {
 		return;
+	}
+
+	// A navigation out of a classic tab that lost the flag stays classic,
+	// with the flag back in the URL for the next navigation's Referer.
+	if ( '' !== $target && openstation_is_classic_referer() ) {
+		wp_safe_redirect( add_query_arg( OPENSTATION_CLASSIC_FLAG, '1', $target ) );
+		exit;
 	}
 
 	// Route 1: straight to the shell screen.

@@ -66,7 +66,7 @@ function openstation_build_content_identity() {
 			$identity = array(
 				'type'  => 'comment',
 				'id'    => (int) $comment->comment_ID,
-				'label' => wp_trim_words( $comment->comment_content, 10 ),
+				'label' => wp_trim_words( openstation_strip_all_tags( $comment->comment_content ), 10 ),
 			);
 
 			$post_id   = (int) $comment->comment_post_ID;

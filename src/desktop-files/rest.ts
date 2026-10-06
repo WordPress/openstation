@@ -9,6 +9,7 @@
 import { trackedFetch } from '../tracked-fetch';
 import { createFeatureClient, restErrorFromResponse } from '../core/api-client';
 import { joinRestUrl } from '../rest-url';
+import { createSharedStore } from '../shared-store';
 
 export interface RestPlacementShape {
 	id: number;
@@ -109,14 +110,21 @@ export interface FilesRestDeps {
 	nonce: string;
 }
 
-let deps: FilesRestDeps | null = null;
+// A shared store, not a module-level `let`: the `files-overlays` and
+// `file-drop` bundles compile their own copy of this module, and only
+// the shell bundle installs the deps.
+const depsStore = createSharedStore< { deps: FilesRestDeps | null } >(
+	'desktop-files/rest-deps',
+	() => ( { deps: null } ),
+);
 
 /** Install REST deps. Called once from `desktop.ts` at boot. */
 export function installRestDeps( next: FilesRestDeps ): void {
-	deps = next;
+	depsStore.state.deps = next;
 }
 
 function ensureDeps(): FilesRestDeps {
+	const { deps } = depsStore.state;
 	if ( ! deps ) {
 		throw new Error( '[openstation] files REST client called before installRestDeps().' );
 	}

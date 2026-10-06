@@ -1448,7 +1448,11 @@ body.os-has-fullscreen-window .os-shell {
 
 .os-widget-picker {
 	position: fixed;
-	width: 320px;
+	/* Border-box so the picker script can cap max-height to the
+	 * room it measured, frame included. 342 = the 320px list plus
+	 * the padding and border it always carried. */
+	box-sizing: border-box;
+	width: 342px;
 	max-height: 60vh;
 	overflow-y: auto;
 	padding: 10px;

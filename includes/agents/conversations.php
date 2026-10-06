@@ -291,7 +291,7 @@ function openstation_agent_conversation_prepare( WP_Post $post, $with_messages =
 	$out = array(
 		'id'               => (int) $post->ID,
 		'agentId'          => $agent_id,
-		'agentName'        => $agent ? $agent->display_name : __( 'Deleted agent', 'desktop-mode' ),
+		'agentName'        => $agent ? openstation_plain_text_title( $agent->display_name ) : __( 'Deleted agent', 'desktop-mode' ),
 		'agentDescription' => $agent ? (string) get_user_meta( $agent_id, '_desktop_mode_agent_description', true ) : '',
 		'agentAvatarUrl'   => function_exists( 'openstation_agent_avatar_url' ) ? openstation_agent_avatar_url( $agent_id ) : '',
 		'title'            => (string) $post->post_title,
@@ -403,6 +403,45 @@ function openstation_agents_rest_conversations_list() {
 }
 
 /**
+ * Keep the save filters off a conversation's title and transcript,
+ * the way `WP_Customize_Manager` does for changeset JSON. Hooked only
+ * while one of the handlers below saves.
+ *
+ * Both are text the client paints as text, never HTML that WordPress
+ * echoes, yet `title_save_pre` and `content_save_pre` rewrite them as
+ * HTML. For a user without `unfiltered_html`, kses turns `&` into
+ * `&amp;`, drops whatever sits between a `<` and a `>`, and unescapes
+ * an attribute's quotes. On a site that balances tags, `balanceTags`
+ * appends closing tags for every role. Those last two leave JSON that
+ * no longer decodes.
+ *
+ * @param array $data                Slashed, sanitized post data.
+ * @param array $postarr             Sanitized post data.
+ * @param array $unsanitized_postarr Slashed post data as passed to `wp_insert_post()`.
+ * @return array
+ */
+function openstation_agent_conversation_preserve_text( $data, $postarr, $unsanitized_postarr ) {
+	global $wpdb;
+
+	if ( OPENSTATION_AGENT_CHAT_POST_TYPE !== $data['post_type'] ) {
+		return $data;
+	}
+	foreach ( array( 'post_title', 'post_content' ) as $field ) {
+		if ( ! isset( $unsanitized_postarr[ $field ] ) ) {
+			continue;
+		}
+		$data[ $field ] = $unsanitized_postarr[ $field ];
+		// `wp_insert_post()` has already swapped emoji for entities
+		// where the column is utf8mb3, which rejects them and fails
+		// the save. Redo it on the restored text.
+		if ( in_array( $wpdb->get_col_charset( $wpdb->posts, $field ), array( 'utf8', 'utf8mb3' ), true ) ) {
+			$data[ $field ] = wp_encode_emoji( $data[ $field ] );
+		}
+	}
+	return $data;
+}
+
+/**
  * POST /agents/conversations — create from {agentId, messages}.
  *
  * @param WP_REST_Request $request Request.
@@ -427,17 +466,19 @@ function openstation_agents_rest_conversations_create( WP_REST_Request $request 
 		);
 	}
 
+	add_filter( 'wp_insert_post_data', 'openstation_agent_conversation_preserve_text', 5, 3 );
 	$post_id = wp_insert_post(
 		array(
 			'post_type'    => OPENSTATION_AGENT_CHAT_POST_TYPE,
 			'post_status'  => 'publish',
 			'post_author'  => get_current_user_id(),
-			'post_title'   => openstation_agent_conversation_title( $messages ),
-			// JSON survives the insert-path unslashing only when slashed.
+			// Both survive the insert-path unslashing only when slashed.
+			'post_title'   => wp_slash( openstation_agent_conversation_title( $messages ) ),
 			'post_content' => wp_slash( (string) wp_json_encode( $messages ) ),
 		),
 		true
 	);
+	remove_filter( 'wp_insert_post_data', 'openstation_agent_conversation_preserve_text', 5 );
 	if ( is_wp_error( $post_id ) ) {
 		return $post_id;
 	}
@@ -489,14 +530,16 @@ function openstation_agents_rest_conversations_update( WP_REST_Request $request 
 		);
 	}
 
+	add_filter( 'wp_insert_post_data', 'openstation_agent_conversation_preserve_text', 5, 3 );
 	$updated = wp_update_post(
 		array(
 			'ID'           => $post->ID,
-			'post_title'   => openstation_agent_conversation_title( $messages ),
+			'post_title'   => wp_slash( openstation_agent_conversation_title( $messages ) ),
 			'post_content' => wp_slash( (string) wp_json_encode( $messages ) ),
 		),
 		true
 	);
+	remove_filter( 'wp_insert_post_data', 'openstation_agent_conversation_preserve_text', 5 );
 	if ( is_wp_error( $updated ) ) {
 		return $updated;
 	}

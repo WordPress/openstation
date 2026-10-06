@@ -538,11 +538,12 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 
 	// Active queries always exclude trashed rows. Recycle-bin
 	// callers reach for the dedicated trash store.
-	if ( ! empty( $args['share_view'] ) ) {
-		// Shared sub-folder — return every placement in the folder
-		// regardless of which user originally placed it. The icons
-		// are part of the folder; the owner_id column is audit info,
-		// not a permission gate.
+	if ( ! empty( $args['share_view'] ) || (int) $args['parent_id'] > 0 ) {
+		// A sub-folder, the viewer's own or shared with them: return
+		// every placement in it regardless of which user placed it,
+		// so the owner of a shared folder sees what a writer added.
+		// The icons are part of the folder; the owner_id column is
+		// audit info, not a permission gate.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT * FROM {$tables['placements']}
@@ -575,9 +576,9 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 		$normalized = openstation_files_normalize_placement_row( $row );
 		$file       = openstation_resolve_file( $normalized['file_type'], $normalized['file_ref'] );
 		if ( empty( $args['share_view'] ) ) {
-			// Private folder / desktop root — keep the existing
-			// per-row read filter so stale/inaccessible entities
-			// don't clutter the user's own view.
+			// The viewer's own folder or desktop root: keep the
+			// per-row read filter so stale or inaccessible entities,
+			// a writer's included, don't clutter the user's own view.
 			if ( $file && ! $file->can_read( $user_id ) ) {
 				continue;
 			}

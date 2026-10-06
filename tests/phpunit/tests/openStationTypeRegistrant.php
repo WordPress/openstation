@@ -69,7 +69,7 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 	public function tear_down() {
 		set_current_screen( 'front' );
 		remove_all_filters( 'openstation_track_type_registrants' );
-		foreach ( array( 'dm_tracked', 'dm_selfattr', 'dm_frontonly' ) as $type ) {
+		foreach ( array( 'dm_tracked', 'dm_selfattr', 'dm_frontonly', 'dm_managed' ) as $type ) {
 			if ( post_type_exists( $type ) ) {
 				unregister_post_type( $type );
 			}
@@ -126,6 +126,63 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		$this->assertIsArray( $group );
 		$this->assertSame( 'plugin:dm-registrant-fixture', $group['id'] );
 		$this->assertSame( 'dashicons-admin-plugins', $group['icon'] );
+	}
+
+	/**
+	 * WordPress.com links its managed plugins into `plugins/` from
+	 * `/wordpress/plugins/<slug>/latest`, which points at a version
+	 * folder, and PHP reports their files by the resolved path. The type,
+	 * and a callback the plugin declares, still belong to the plugin
+	 * folder it was loaded through.
+	 *
+	 * @covers ::openstation_registrant_file_from_backtrace
+	 * @covers ::openstation_plugin_file_for_path
+	 * @covers ::openstation_plugin_link_path
+	 */
+	public function test_attributes_a_plugin_linked_in_from_outside_the_plugins_dir() {
+		global $wp_plugin_paths;
+
+		$managed = get_temp_dir() . 'dm-managed-' . wp_generate_password( 8, false );
+		$target  = $managed . '/1.0.0';
+		$link    = WP_PLUGIN_DIR . '/dm-managed-fixture';
+		mkdir( $target, 0777, true );
+		file_put_contents(
+			$target . '/dm-managed-fixture.php',
+			"<?php\n/**\n * Plugin Name: DM Managed Fixture\n */\nfunction dm_managed_fixture_register() {\n\tregister_post_type( 'dm_managed', array( 'public' => true ) );\n}\n"
+		);
+		symlink( $target, $managed . '/latest' );
+		symlink( $managed . '/latest', $link );
+		$saved_paths = $wp_plugin_paths;
+
+		try {
+			// What wp-settings.php does before loading each active plugin.
+			wp_register_plugin_realpath( $link . '/dm-managed-fixture.php' );
+			require_once $link . '/dm-managed-fixture.php';
+			dm_managed_fixture_register();
+
+			$this->assertSame(
+				wp_normalize_path( $link . '/dm-managed-fixture.php' ),
+				openstation_type_registrant_file( 'dm_managed', 'post_type' )
+			);
+			$this->assertSame(
+				'plugin:dm-managed-fixture',
+				openstation_my_wordpress_post_type_group( 'dm_managed' )['id']
+			);
+			// The dock's menu attribution reflects on callbacks instead.
+			wp_cache_delete( 'plugins', 'plugins' );
+			$this->assertSame(
+				'dm-managed-fixture/dm-managed-fixture.php',
+				openstation_plugin_file_for_callback( 'dm_managed_fixture_register' )
+			);
+		} finally {
+			wp_cache_delete( 'plugins', 'plugins' );
+			$wp_plugin_paths = $saved_paths;
+			unlink( $link );
+			unlink( $managed . '/latest' );
+			unlink( $target . '/dm-managed-fixture.php' );
+			rmdir( $target );
+			rmdir( $managed );
+		}
 	}
 
 	/**

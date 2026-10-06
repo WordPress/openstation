@@ -1295,7 +1295,12 @@ export class WindowManager {
 			if ( this._cascadeDepth > 0 ) {
 				return;
 			}
-			const visible = this._stack.filter( ( x ) => x.state !== 'minimized' );
+			const activeDesktopId = this.getActiveDesktopId();
+			const visible = this._stack.filter(
+				( x ) =>
+					( x.config.desktopId || activeDesktopId ) === activeDesktopId &&
+					x.state !== 'minimized',
+			);
 			if ( visible.length > 0 ) {
 				this.focus( visible[ visible.length - 1 ] );
 			}
@@ -1467,7 +1472,27 @@ export class WindowManager {
 		// practice. No-op for iframe windows.
 		win.hydrateNative();
 
-		this.focus( win );
+		// A window opened onto another desktop (session restore, or a
+		// native window whose lazy bundle resolved after the user moved
+		// on) joins the stack without taking focus. Focusing it would
+		// switch desktops, so a restore that recreates windows on every
+		// desktop would hop between them and land wherever the last
+		// window lived. It slots in under the active desktop's windows
+		// so the stack top, which `getFocused()` reads, stays the
+		// window the user is looking at.
+		const onOtherDesktop = ( w: Window ): boolean =>
+			( w.config.desktopId || this._activeDesktopId ) !== this._activeDesktopId;
+		if ( onOtherDesktop( win ) ) {
+			this._stack.splice( this._stack.indexOf( win ), 1 );
+			let slot = this._stack.length;
+			while ( slot > 0 && ! onOtherDesktop( this._stack[ slot - 1 ] ) ) {
+				slot--;
+			}
+			this._stack.splice( slot, 0, win );
+			this._stack.forEach( ( w, i ) => w.setZIndex( BASE_Z_INDEX + i ) );
+		} else {
+			this.focus( win );
+		}
 
 		const openedDetail = {
 			windowId: win.id,
@@ -1534,6 +1559,11 @@ export class WindowManager {
 	 * the call sites so every focus path is covered by construction:
 	 * click-to-focus, dock activation, taskbar, alt-tab, open-reuse.
 	 *
+	 * When the target window belongs to an inactive virtual desktop,
+	 * `focus()` automatically switches to that desktop first so the window
+	 * is revealed and properly focused rather than remaining hidden
+	 * behind `display: none` at 0×0.
+	 *
 	 * @param winOrId Window to focus, or its id.
 	 */
 	public focus( winOrId: Window | string ): void {
@@ -1571,6 +1601,18 @@ export class WindowManager {
 			// Fall through: the child is focused exactly as if it had
 			// been the argument, so it lands on top and fires the
 			// normal blur/focus pair.
+		}
+
+		// Virtual desktop alignment. If the target window belongs to a
+		// different virtual desktop, switch to it so focus never lands on an
+		// invisible (`display: none`, 0×0) window while leaving the visible
+		// desktop unfocused.
+		const targetDesktopId = win.config.desktopId || this._activeDesktopId;
+		if (
+			targetDesktopId !== this._activeDesktopId &&
+			this._desktops.some( ( d ) => d.id === targetDesktopId )
+		) {
+			this.switchDesktop( targetDesktopId, { skipFocus: true } );
 		}
 
 		// Capture the previously-focused window BEFORE the splice/push

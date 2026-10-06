@@ -191,7 +191,11 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		void ensureWindowLinkVisuals().catch( () => undefined );
 
 		const repaint = (): void => ctx.repaint();
+		// The phone layer leaves out what only makes sense on the desk
+		// ("Take the tour"), so a flip either way is a different page.
+		document.addEventListener( 'os-mode-changed', repaint );
 		const offs = [
+			() => document.removeEventListener( 'os-mode-changed', repaint ),
 			mountPreferencesMio( ctx ),
 			// Any settings change, whoever made it — this window, the
 			// right-click menu, `wp.os.updateOsSettings()`, the rollback
