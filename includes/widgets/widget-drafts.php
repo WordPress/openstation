@@ -10,7 +10,8 @@
  * context, scoped to the viewer with `author` — without it an editor
  * or admin would see every draft on the site, not their own).
  * Refresh: every 60 seconds while the tab is visible, plus an
- * immediate refresh when a window closes or blurs.
+ * immediate refresh on every `os.post.changed` broadcast (a block-editor
+ * save, a relayed content change) and when a window closes or blurs.
  * Requires: OpenStation 0.18.0+ (openstation_register_widget).
  *
  * @package OpenStation
