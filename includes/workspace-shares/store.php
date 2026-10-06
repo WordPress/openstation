@@ -277,7 +277,7 @@ function openstation_workspace_share_find_by_token( $token ) {
 			'posts_per_page'   => 1,
 			'fields'           => 'ids',
 			'no_found_rows'    => true,
-			'suppress_filters' => true,
+			'suppress_filters' => false,
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- one indexed meta_key lookup per link visit.
 			'meta_query'       => array(
 				array(
@@ -309,7 +309,7 @@ function openstation_workspace_shares_list( $author = 0 ) {
 		'orderby'          => 'date',
 		'order'            => 'DESC',
 		'no_found_rows'    => true,
-		'suppress_filters' => true,
+		'suppress_filters' => false,
 	);
 	if ( $author > 0 ) {
 		$args['author'] = (int) $author;

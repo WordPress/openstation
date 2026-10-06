@@ -114,6 +114,8 @@ An **XL note** is twice the size of a regular one, with larger type — for a pr
 
 The shell says which with one toast, and takes the status off the address bar.
 
+Share-token lookup and share listing honor WordPress query filters, so plugins can constrain which published shares those queries return.
+
 ### Pinned
 
 A pinned user cannot delete, rename, re-arrange or leave the workspace, and cannot switch OpenStation off. That is enforced on the server, not by hiding buttons:

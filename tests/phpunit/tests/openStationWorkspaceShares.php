@@ -83,6 +83,28 @@ class Tests_OpenStation_WorkspaceShares extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::openstation_workspace_share_find_by_token
+	 * @covers ::openstation_workspace_shares_list
+	 */
+	public function test_share_queries_honor_wordpress_query_filters() {
+		$share = $this->share();
+		$filter = static function ( $where, $query ) {
+			return OPENSTATION_WORKSPACE_SHARE_POST_TYPE === $query->get( 'post_type' )
+				? $where . ' AND 1 = 0'
+				: $where;
+		};
+		add_filter( 'posts_where', $filter, 10, 2 );
+		try {
+			$this->assertNull( openstation_workspace_share_find_by_token( $share['token'] ) );
+			$this->assertSame( array(), openstation_workspace_shares_list( self::$admin_id ) );
+		} finally {
+			remove_filter( 'posts_where', $filter, 10 );
+		}
+		$this->assertSame( $share['id'], openstation_workspace_share_find_by_token( $share['token'] )['id'] );
+		$this->assertCount( 1, openstation_workspace_shares_list( self::$admin_id ) );
+	}
+
+	/**
 	 * @covers ::openstation_workspace_share_sanitize_snapshot
 	 */
 	public function test_the_workspaces_app_never_travels_with_a_share() {
