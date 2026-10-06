@@ -2,6 +2,14 @@
 
 A workspace is a desk of its own: which apps show on the dock, which windows it opens with and where, how windows open, and whether settings are hidden.
 
+## Saving and using a workspace
+
+Arrange the main desk, then **Save as new workspace**. Name the new workspace in its card. The saved-window titles help you choose a desk; **Go to desk** opens it and **Current desk** marks the one you are using.
+
+**Customize** contains the icon, colour, **Hide settings** and **Delete workspace**. **Sharing** contains link and recipient controls. Its summary shows whether the link is on and how many people use it. **Unpublished changes** means your personal copy differs from the shared version; **Publish changes** updates that version.
+
+**Edit on its desk** lets you arrange a workspace in place. **Save changes** keeps its current layout and notes. **Exit editing** keeps the previous saved layout and discards note edits. Preferences changes are saved immediately and are kept either way.
+
 ## Building one with MIO
 
 Describe the desk and MIO builds it. For example: "A workspace for my editors with the posts list on the left half, Add New Post in the top right and Orders in the bottom right."

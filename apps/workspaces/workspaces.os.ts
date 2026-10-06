@@ -19,6 +19,7 @@
 import { __, _n, copyText, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
 import type { ViewContext } from '@openstation/app';
 import type { Desktop } from '../../src/types';
+import { DESKTOP_LABEL_MAX_LENGTH } from '../../src/window-manager/desktops';
 import type { WorkspaceProfile } from '../../src/workspaces/types';
 import type { WorkspacesApi } from '../../src/workspaces/api';
 import type { MioWindowLease } from '../../src/mio/assistant/types';
@@ -35,8 +36,8 @@ interface AppState extends Record< string, unknown > {
 	mio: boolean;
 }
 
-/** Client-only: MIO's lease on this window and whom the chat is about. */
-interface MioUi {
+/** Client-only chat, disclosure and request state for this window. */
+interface AppUi {
 	lease: MioWindowLease | null;
 	/** The workspace MIO is building with the user, shown as a preview. */
 	draft: WorkspaceDraft | null;
@@ -44,10 +45,16 @@ interface MioUi {
 	target: string;
 	/** Whether the open-with-MIO request has been honoured. */
 	asked: boolean;
+	/** Expanded card sections, kept through shell and server repaints. */
+	expanded: Set< string >;
+	/** Desks whose share is being published; prevents duplicate creation. */
+	publishing: Set< string >;
+	/** A newly saved desk whose name should be selected once rendered. */
+	nameFocus: string;
 }
 
-function mioUi( ctx: Ctx ): MioUi {
-	return ctx.ui< MioUi >( () => ( { lease: null, draft: null, target: '', asked: false } ) );
+function appUi( ctx: Ctx ): AppUi {
+	return ctx.ui< AppUi >( () => ( { lease: null, draft: null, target: '', asked: false, expanded: new Set(), publishing: new Set(), nameFocus: '' } ) );
 }
 
 /**
@@ -66,7 +73,7 @@ function mioAvailable(): boolean {
 
 /** Open MIO's chat in this window, about a workspace or a new one. */
 function askMio( ctx: Ctx, target = '' ): void {
-	const ui = mioUi( ctx );
+	const ui = appUi( ctx );
 	ui.target = target;
 	void ui.lease?.openChat();
 }
@@ -207,7 +214,7 @@ function patchProfile( desk: Desktop, patch: Partial< WorkspaceProfile > ): void
 async function copyLink( ctx: Ctx, url: string ): Promise< void > {
 	const ok = await copyText( url );
 	ctx.host.toast?.( {
-		message: ok ? __( 'Link copied. Anyone on this site who opens it gets this workspace.' ) : __( 'Could not copy — select the link and copy it.' ),
+		message: ok ? __( 'Link copied.' ) : __( 'Could not copy — select the link and copy it.' ),
 		type: ok ? 'success' : 'warning',
 	} );
 }
@@ -217,27 +224,38 @@ async function publish( ctx: Ctx, desk: Desktop, first: boolean ): Promise< void
 	if ( ! desk.profile ) {
 		return;
 	}
-	const ok = await ctx.dispatch( 'share', {
-		desktop: desk.id,
-		label: desk.label,
-		profile: JSON.stringify( desk.profile ),
-		hash: profileFingerprint( desk.profile ),
-	} );
-	const share = ok ? ctx.data.shares.find( ( s ) => s.mine && s.desktop === desk.id ) : undefined;
-	if ( ! share ) {
+	const ui = appUi( ctx );
+	if ( ui.publishing.has( desk.id ) ) {
 		return;
 	}
-	if ( first ) {
-		await copyLink( ctx, share.url );
-	} else {
-		ctx.host.toast?.( {
-			message: sprintf(
-				// translators: %s is the workspace name.
-				__( 'Published. Everyone using %s gets the change the next time they load it.' ),
-				desk.label,
-			),
-			type: 'success',
+	ui.publishing.add( desk.id );
+	ctx.repaint();
+	try {
+		const ok = await ctx.dispatch( 'share', {
+			desktop: desk.id,
+			label: desk.label,
+			profile: JSON.stringify( desk.profile ),
+			hash: profileFingerprint( desk.profile ),
 		} );
+		const share = ok ? ctx.data.shares.find( ( s ) => s.mine && s.desktop === desk.id ) : undefined;
+		if ( ! share ) {
+			return;
+		}
+		if ( first ) {
+			await copyLink( ctx, share.url );
+		} else {
+			ctx.host.toast?.( {
+				message: sprintf(
+					// translators: %s is the workspace name.
+					__( 'Published. Everyone using %s gets the change the next time they load it.' ),
+					desk.label,
+				),
+				type: 'success',
+			} );
+		}
+	} finally {
+		ui.publishing.delete( desk.id );
+		ctx.repaint();
 	}
 }
 
@@ -294,7 +312,7 @@ function recipients( share: Share ): TemplateResult {
 function linkControls( ctx: Ctx, share: Share ): TemplateResult {
 	return html`
 		<div class="os-workspaces__link">
-			<os-text-field readonly label=${ __( 'Link' ) } value=${ share.url }></os-text-field>
+			<os-text-field id=${ `${ ctx.windowId }-share-${ share.id }-link` } readonly label=${ __( 'Link' ) } value=${ share.url }></os-text-field>
 			<os-button variant="secondary" @click=${ () => copyLink( ctx, share.url ) }>${ __( 'Copy link' ) }</os-button>
 			<os-button
 				variant="ghost"
@@ -317,38 +335,57 @@ function linkControls( ctx: Ctx, share: Share ): TemplateResult {
 	`;
 }
 
-function shareSection( ctx: Ctx, desk: Desktop, share: Share | undefined ): TemplateResult {
-	if ( ! share ) {
-		return html`
-			<div class="os-workspaces__share">
-				<p class="os-workspaces__hint">
-					${ __( 'Share it with a link. Whoever opens it gets this workspace as their only desk — no questions asked — until you release them.' ) }
-				</p>
-				<os-button variant="primary" @click=${ () => publish( ctx, desk, true ) }>${ __( 'Create link' ) }</os-button>
-			</div>
-		`;
+/** Remember disclosure state without sending it to the server. */
+function rememberSection( ctx: Ctx, key: string, open: boolean ): void {
+	const expanded = appUi( ctx ).expanded;
+	if ( open ) {
+		expanded.add( key );
+	} else {
+		expanded.delete( key );
 	}
-	const changed = !! desk.profile && profileFingerprint( desk.profile ) !== share.hash;
-	const using = share.claimants.filter( ( c ) => c.pinned ).length;
+}
+
+function shareSection( ctx: Ctx, desk: Desktop, share: Share | undefined ): TemplateResult {
+	const key = `${ desk.id }-sharing`;
+	const busy = appUi( ctx ).publishing.has( desk.id );
+	const changed = !! share && !! desk.profile && profileFingerprint( desk.profile ) !== share.hash;
+	const using = share?.claimants.filter( ( c ) => c.pinned ).length ?? 0;
+	const status = share
+		? `${ share.disabled ? __( 'Link off' ) : __( 'Link on' ) } · ${ sprintf(
+			// translators: %d is a number of people using a shared workspace.
+			_n( '%d person using it', '%d people using it', using ), using,
+		) }`
+		: __( 'Not shared' );
 	return html`
 		<div class="os-workspaces__share">
-			${ linkControls( ctx, share ) }
 			${ changed
-				? html`<div class="os-workspaces__changed">
-						<os-badge tone="warning">${ __( 'Changed since you shared it' ) }</os-badge>
-						<os-button variant="primary" @click=${ () => publish( ctx, desk, false ) }>
-							${ using > 0
-								? sprintf(
-									// translators: %d is a number of people.
-									_n( 'Publish to %d person', 'Publish to %d people', using ),
-									using,
-								)
-								: __( 'Publish changes' ) }
+				? html`<div class="os-workspaces__changed" role="status">
+						<os-badge tone="warning">${ __( 'Unpublished changes' ) }</os-badge>
+						<os-button variant="secondary" ?disabled=${ busy } ?busy=${ busy } @click=${ () => publish( ctx, desk, false ) }>
+							${ busy ? __( 'Publishing…' ) : __( 'Publish changes' ) }
 						</os-button>
 					</div>`
 				: '' }
-			<h4 class="os-workspaces__subhead">${ __( 'Who uses it' ) }</h4>
-			${ recipients( share ) }
+			<os-disclosure
+				class="os-workspaces__details"
+				heading=${ __( 'Sharing' ) }
+				hint=${ status }
+				?open=${ appUi( ctx ).expanded.has( key ) }
+				@os-disclosure-toggle=${ ( e: CustomEvent< { open: boolean } > ) => rememberSection( ctx, key, e.detail.open ) }
+			>
+				<div class="os-workspaces__details-body">
+					${ share
+						? html`${ linkControls( ctx, share ) }
+							<h4 class="os-workspaces__subhead">${ __( 'Who uses it' ) }</h4>
+							${ recipients( share ) }`
+						: html`<p class="os-workspaces__hint">
+								${ __( 'Eligible contributors, authors and editors who open the link get this as their only desk until you release them. Their own desks are kept and return when released. Administrators get an ordinary copy.' ) }
+							</p>
+							<os-button variant="secondary" ?disabled=${ busy } ?busy=${ busy } @click=${ () => publish( ctx, desk, true ) }>
+								${ busy ? __( 'Creating link…' ) : __( 'Create link' ) }
+							</os-button>` }
+				</div>
+			</os-disclosure>
 		</div>
 	`;
 }
@@ -356,15 +393,29 @@ function shareSection( ctx: Ctx, desk: Desktop, share: Share | undefined ): Temp
 function card( ctx: Ctx, desk: Desktop ): TemplateResult {
 	const profile = desk.profile as WorkspaceProfile;
 	const share = ctx.data.shares.find( ( s ) => s.mine && s.desktop === desk.id );
-	const onName = ( e: CustomEvent< { value: string } > ): void => {
-		const label = e.detail.value.trim();
-		if ( ! label || label === desk.label || ! api()?.rename( desk.id, label ) ) {
+	const current = api()?.active()?.id === desk.id;
+	const customizeKey = `${ desk.id }-customize`;
+	const commitName = ( field: HTMLElement, value: string ): void => {
+		const label = value.trim().slice( 0, DESKTOP_LABEL_MAX_LENGTH );
+		if ( ! label ) {
+			field.setAttribute( 'value', desk.label );
+			ctx.host.toast?.( { message: __( 'A workspace needs a name. Your previous name was kept.' ), type: 'warning' } );
+			return;
+		}
+		field.setAttribute( 'value', label );
+		if ( label === desk.label ) {
+			return;
+		}
+		if ( ! api()?.rename( desk.id, label ) ) {
+			field.setAttribute( 'value', desk.label );
+			ctx.host.toast?.( { message: __( 'Could not rename this workspace. Your previous name was kept.' ), type: 'warning' } );
 			return;
 		}
 		if ( share ) {
 			void ctx.dispatch( 'rename', { share: share.id, label } );
 		}
 	};
+	const onName = ( e: CustomEvent< { value: string } > ): void => commitName( e.currentTarget as HTMLElement, e.detail.value );
 	const remove = async (): Promise< void > => {
 		const message = share
 			? __( 'Your copy is deleted. The link keeps working, and the people using it keep theirs — you can still manage them here.' )
@@ -383,66 +434,96 @@ function card( ctx: Ctx, desk: Desktop ): TemplateResult {
 	return html`
 		<section
 			class="os-workspaces__card"
+			aria-label=${ desk.label }
 			os-key=${ desk.id }
 			style=${ profile.color ? `--os-workspace-accent: ${ profile.color }` : '' }
 		>
 			<header class="os-workspaces__card-head">
 				<span class="os-workspaces__glyph dashicons ${ profile.icon || 'dashicons-desktop' }" aria-hidden="true"></span>
 				<os-text-field
-					label=${ __( 'Name' ) }
+					id=${ `${ ctx.windowId }-${ desk.id }-name` }
+					label=${ __( 'Workspace name' ) }
+					maxlength=${ String( DESKTOP_LABEL_MAX_LENGTH ) }
 					value=${ desk.label }
 					@os-input-commit=${ onName }
+					@os-submit=${ onName }
+					@focusout=${ ( e: FocusEvent ) => {
+						const field = e.currentTarget as HTMLElement & { value: string };
+						commitName( field, field.value );
+					} }
 				></os-text-field>
+				${ current ? html`<os-badge tone="info">${ __( 'Current desk' ) }</os-badge>` : '' }
 			</header>
 
-			<div class="os-workspaces__looks">
-				<div class="os-workspaces__swatches" role="group" aria-label=${ __( 'Glyph' ) }>
-					${ ICONS.map(
-						( icon ) => html`<button
-							type="button"
-							class="os-workspaces__swatch ${ icon.id === profile.icon ? 'is-selected' : '' }"
-							aria-pressed=${ icon.id === profile.icon ? 'true' : 'false' }
-							title=${ icon.label }
-							aria-label=${ icon.label }
-							@click=${ () => patchProfile( desk, { icon: icon.id } ) }
-						><span class="dashicons ${ icon.id }" aria-hidden="true"></span></button>`,
-					) }
-				</div>
-				<div class="os-workspaces__swatches" role="group" aria-label=${ __( 'Colour' ) }>
-					${ COLORS.map(
-						( color ) => html`<button
-							type="button"
-							class="os-workspaces__swatch os-workspaces__swatch--color ${ color.value === ( profile.color || '' ) ? 'is-selected' : '' }"
-							aria-pressed=${ color.value === ( profile.color || '' ) ? 'true' : 'false' }
-							title=${ color.label }
-							aria-label=${ color.label }
-							style=${ color.value ? `background: ${ color.value }` : '' }
-							@click=${ () => patchProfile( desk, { color: color.value } ) }
-						></button>`,
-					) }
-				</div>
+			<div class="os-workspaces__summary">
+				<p class="os-workspaces__hint">${ sprintf(
+					// translators: %d is a number of saved windows.
+					_n( '%d saved window', '%d saved windows', profile.windows.length ), profile.windows.length,
+				) }</p>
+				${ profile.windows.length
+					? html`<div class="os-workspaces__chips">${ profile.windows.slice( 0, 4 ).map(
+						( win ) => html`<span class="os-workspaces__chip">${ win.title || api()?.apps().find( ( a ) => a.id === win.match )?.title || win.match }</span>`,
+					) }${ profile.windows.length > 4 ? html`<span class="os-workspaces__chip">+${ profile.windows.length - 4 }</span>` : '' }</div>`
+					: html`<p class="os-workspaces__hint">${ __( 'Open apps on this desk, then save its layout to keep them here.' ) }</p>` }
+				${ profile.restricted ? html`<os-badge tone="neutral">${ __( 'Settings hidden' ) }</os-badge>` : '' }
 			</div>
 
-			<os-checkbox
-				block
-				label=${ __( 'Hide settings' ) }
-				?checked=${ !! profile.restricted }
-				@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) =>
-					patchProfile( desk, { restricted: e.detail.checked } ) }
-			></os-checkbox>
-			<p class="os-workspaces__hint os-workspaces__hint--indent">
-				${ __( 'Leaves out Settings, OpenStation Preferences, plugins, themes, the Customizer, tools, users and updates. For people using your link, those screens are blocked, not just hidden.' ) }
-			</p>
-
 			<div class="os-workspaces__actions">
+				<os-button variant="primary" ?disabled=${ current } @click=${ () => api()?.switchTo( desk.id ) }>${ current ? __( 'On this desk' ) : __( 'Go to desk' ) }</os-button>
 				<os-button variant="secondary" @click=${ () => api()?.edit( desk.id ) }>${ __( 'Edit on its desk' ) }</os-button>
 				${ mioAvailable()
 					? html`<os-button variant="secondary" @click=${ () => askMio( ctx, desk.id ) }>✦ ${ __( 'Edit with MIO' ) }</os-button>`
 					: '' }
-				<os-button variant="ghost" @click=${ () => api()?.switchTo( desk.id ) }>${ __( 'Go to desk' ) }</os-button>
-				<span class="os-app__spacer"></span>
-				<os-button variant="danger" @click=${ remove }>${ __( 'Delete' ) }</os-button>
 			</div>
+
+			<os-disclosure
+				class="os-workspaces__details"
+				heading=${ __( 'Customize' ) }
+				hint=${ __( 'Icon, colour and settings access' ) }
+				?open=${ appUi( ctx ).expanded.has( customizeKey ) }
+				@os-disclosure-toggle=${ ( e: CustomEvent< { open: boolean } > ) => rememberSection( ctx, customizeKey, e.detail.open ) }
+			>
+				<div class="os-workspaces__details-body">
+					<div class="os-workspaces__looks">
+						<os-swatch-grid label=${ __( 'Icon' ) } mode="row">
+							${ ICONS.map(
+								( icon ) => html`<os-swatch
+									size="small" variant="accent" value=${ icon.id } label=${ icon.label }
+									?selected=${ icon.id === ( profile.icon || 'dashicons-desktop' ) }
+									preview="var(--os-ui-surface-raised, #f0f0f1)"
+									@os-pick=${ () => patchProfile( desk, { icon: icon.id } ) }
+								><span class="dashicons ${ icon.id }" aria-hidden="true"></span></os-swatch>`,
+							) }
+						</os-swatch-grid>
+						<os-swatch-grid label=${ __( 'Colour' ) } mode="row">
+							${ COLORS.map(
+								( color ) => html`<os-swatch
+									size="small" variant="accent" value=${ color.value } label=${ color.label }
+									?selected=${ color.value === ( profile.color || '' ) }
+									preview=${ color.value || 'var(--os-ui-accent, #f252fc)' }
+									@os-pick=${ () => patchProfile( desk, { color: color.value } ) }
+								></os-swatch>`,
+							) }
+						</os-swatch-grid>
+					</div>
+
+					<os-checkbox
+						id=${ `${ ctx.windowId }-${ desk.id }-restricted` }
+						block
+						label=${ __( 'Hide settings' ) }
+						?checked=${ !! profile.restricted }
+						@os-checkbox-change=${ ( e: CustomEvent< { checked: boolean } > ) =>
+							patchProfile( desk, { restricted: e.detail.checked } ) }
+					></os-checkbox>
+					<p class="os-workspaces__hint os-workspaces__hint--indent">
+						${ __( 'Leaves out Settings, OpenStation Preferences, plugins, themes, the Customizer, tools, users and updates. For people using your link, those screens are blocked, not just hidden.' ) }
+					</p>
+
+					<div class="os-workspaces__actions">
+						<os-button variant="danger" @click=${ remove }>${ __( 'Delete workspace' ) }</os-button>
+					</div>
+				</div>
+			</os-disclosure>
 
 			${ ctx.data.canShare ? shareSection( ctx, desk, share ) : '' }
 		</section>
@@ -479,7 +560,7 @@ function mainDeskWindows( mainId: string ): ShellWindow[] {
  * so pressing Save is never a guess, and the workspace it makes lands
  * right under it.
  */
-function captureCard( main: Desktop ): TemplateResult {
+function captureCard( ctx: Ctx, main: Desktop ): TemplateResult {
 	const windows = mainDeskWindows( main.id );
 	const shown = windows.slice( 0, 4 );
 	const more = windows.length - shown.length;
@@ -505,7 +586,13 @@ function captureCard( main: Desktop ): TemplateResult {
 					: '' }
 			</div>
 			<div class="os-workspaces__capture-actions">
-				<os-button variant="secondary" @click=${ () => api()?.saveAs( main.id ) }>
+				<os-button variant="secondary" @click=${ () => {
+						const created = api()?.saveAs( main.id );
+						if ( created ) {
+							appUi( ctx ).nameFocus = created.id;
+							ctx.repaint();
+						}
+					} }>
 					${ __( 'Save as new workspace' ) }
 				</os-button>
 				<os-button
@@ -534,7 +621,7 @@ function acceptedMessage( step: DraftStep ): string {
 
 /** The draft MIO is building, drawn — or nothing when there is none. */
 function draftCard( ctx: Ctx ): TemplateResult | string {
-	const ui = mioUi( ctx );
+	const ui = appUi( ctx );
 	const draft = ui.draft;
 	if ( ! draft ) {
 		return '';
@@ -634,7 +721,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 						<p class="os-workspaces__hint">
 							${ mioAvailable()
 								? __( 'Save your main desk as one below — or describe the desk you want and MIO builds it.' )
-								: __( 'A workspace is your main desk, kept: arrange it, then save it below. Each one becomes a desk of its own.' ) }
+								: __( 'Save a desk for each job, then switch between them. Each workspace keeps its windows, apps, widgets and appearance.' ) }
 						</p>
 					</div>
 					${ mioAvailable()
@@ -644,7 +731,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 
 				${ draftCard( ctx ) }
 
-				${ main ? captureCard( main ) : '' }
+				${ main ? captureCard( ctx, main ) : '' }
 
 				${ desks.length === 0
 					? html`<p class="os-workspaces__hint os-workspaces__none">
@@ -660,7 +747,19 @@ export default defineApp< AppState, AppData >( APP_ID, {
 	updated: ( ctx ) => {
 		// Opened from the dock's "Build a workspace with MIO…": open the
 		// chat once the window (and so its lease) is up.
-		const ui = mioUi( ctx );
+		const ui = appUi( ctx );
+		if ( ui.nameFocus ) {
+			const id = `${ ctx.windowId }-${ ui.nameFocus }-name`;
+			const field = Array.from( ctx.root.querySelectorAll( 'os-text-field' ) ).find( ( el ) => el.id === id );
+			ui.nameFocus = '';
+			field?.scrollIntoView?.( { block: 'nearest' } );
+			// Kit fields paint on a microtask after the view.
+			queueMicrotask( () => {
+				const input = field?.shadowRoot?.querySelector< HTMLInputElement >( 'input' );
+				input?.focus();
+				input?.select();
+			} );
+		}
 		if ( ctx.state.mio && ! ui.asked && ui.lease ) {
 			ui.asked = true;
 			askMio( ctx, ctx.state.focus );
@@ -668,7 +767,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 	},
 
 	mounted: ( ctx ) => {
-		const ui = mioUi( ctx );
+		const ui = appUi( ctx );
 		ui.lease = mountWorkspacesMio(
 			{
 				host: ctx.root,
@@ -696,6 +795,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			'os.os.created',
 			'os.os.closed',
 			'os.os.renamed',
+			'os.os.switched',
 			'os.workspaces.updated',
 			'os.window.opened',
 			'os.window.closed',

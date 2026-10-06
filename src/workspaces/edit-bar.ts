@@ -5,7 +5,7 @@
  * — so the one thing that must be unmistakable is that the desk in
  * front of the user is being edited, not used. A full-width bar across
  * the top of the shell says so for as long as it lasts, names the
- * workspace, and carries the two ways out: Save changes and Cancel.
+ * workspace, and carries the two ways out: Save changes and Exit editing.
  *
  * It is the first child of the shell, a flex column, so it pushes the
  * desk down rather than covering it: the work area shrinks with it and
@@ -19,9 +19,9 @@ export interface WorkspaceEditBarOptions {
 	label: string;
 	/** Keep the desk as it is now. Return false to keep the bar up. */
 	onSave: () => boolean;
-	/** Leave without saving. */
+	/** End editing without capturing the current layout or note edits. */
 	onCancel: () => void;
-	/** Tools for the desk being edited — "+ Note", "+ XL note" — before Cancel. */
+	/** Tools for the desk being edited — "+ Note", "+ XL note" — before Exit editing. */
 	actions?: Array< { label: string; onClick: () => void } >;
 }
 
@@ -60,12 +60,13 @@ export function showWorkspaceEditBar( opts: WorkspaceEditBarOptions ): () => voi
 		opts.label,
 	);
 	const hint = document.createElement( 'span' );
-	hint.textContent = __( 'Arrange its windows, widgets and apps, then save.' );
+	hint.textContent = __( 'Save keeps this layout and notes. Preferences changes are saved immediately.' );
 	text.append( title, hint );
 
 	const cancel = document.createElement( 'os-button' );
 	cancel.setAttribute( 'variant', 'ghost' );
-	cancel.textContent = __( 'Cancel' );
+	cancel.textContent = __( 'Exit editing' );
+	cancel.setAttribute( 'title', __( 'Keep the saved layout and discard note edits. Preferences changes remain saved.' ) );
 	const save = document.createElement( 'os-button' );
 	save.setAttribute( 'variant', 'primary' );
 	save.textContent = __( 'Save changes' );

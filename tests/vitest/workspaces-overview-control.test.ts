@@ -240,7 +240,7 @@ describe( 'workspaces — overview top bar', () => {
 		expect( created!.profile!.windows.map( ( w ) => w.match ) ).toEqual( [ 'edit-php' ] );
 	} );
 
-	test( 'the edit bar sits across the top of the shell until Save succeeds or Cancel', () => {
+	test( 'the edit bar sits across the top of the shell until Save succeeds or editing ends', () => {
 		const shell = document.createElement( 'div' );
 		shell.id = 'os-shell';
 		shell.append( document.createElement( 'main' ) );
@@ -252,6 +252,8 @@ describe( 'workspaces — overview top bar', () => {
 		const bar = shell.firstElementChild as HTMLElement;
 		expect( bar.className ).toBe( 'os-workspace-editbar' );
 		expect( bar.textContent ).toContain( 'Shop' );
+		expect( bar.textContent ).toContain( 'Preferences changes are saved immediately' );
+		expect( bar.textContent ).toContain( 'Exit editing' );
 		expect( isEditingWorkspace() ).toBe( true );
 		const [ cancel, save ] = bar.querySelectorAll< HTMLElement >( 'os-button' );
 

@@ -167,6 +167,7 @@
 
 .os-workspaces__card-head os-text-field {
 	flex: 1;
+	min-inline-size: 0;
 }
 
 .os-workspaces__glyph {
@@ -187,45 +188,46 @@
 	gap: 12px 24px;
 }
 
-.os-workspaces__swatches {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
+.os-workspaces__looks os-swatch-grid {
+	min-inline-size: 0;
 }
 
-.os-workspaces__swatch {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 28px;
-	height: 28px;
-	padding: 0;
-	border: 1px solid var( --os-ui-border, #33303a );
-	border-radius: 8px;
-	background: var( --os-ui-surface, #1a1721 );
-	color: var( --os-ui-fg, #fffbff );
-	cursor: pointer;
-}
-
-.os-workspaces__swatch .dashicons {
+.os-workspaces__looks .dashicons {
 	font-size: 16px;
-	width: 16px;
-	height: 16px;
+	inline-size: 16px;
+	block-size: 16px;
+	color: var( --os-ui-fg, #1d2327 );
 }
 
-.os-workspaces__swatch--color {
-	border-radius: 50%;
-	background: var( --os-ui-accent, #f252fc );
+.os-workspaces__summary,
+.os-workspaces__details-body {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 10px;
+	min-inline-size: 0;
 }
 
-.os-workspaces__swatch.is-selected {
-	outline: 2px solid var( --os-workspace-accent, var( --os-ui-accent, #f252fc ) );
-	outline-offset: 2px;
+.os-workspaces__details {
+	padding-block-start: 12px;
+	border-block-start: 1px solid var( --os-ui-border, #33303a );
 }
 
-.os-workspaces__swatch:focus-visible {
-	outline: 2px solid transparent;
-	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px var( --os-ui-accent, #f252fc ) );
+.os-workspaces__details::part(heading) {
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.os-workspaces__details::part(summary) {
+	min-block-size: 32px;
+	flex-wrap: wrap;
+}
+
+.os-workspaces__details-body > os-checkbox,
+.os-workspaces__details-body > os-switch,
+.os-workspaces__details-body > .os-workspaces__link,
+.os-workspaces__details-body > .os-workspaces__people {
+	align-self: stretch;
 }
 
 .os-workspaces__actions,
@@ -239,7 +241,7 @@
 
 .os-workspaces__link os-text-field {
 	flex: 1;
-	min-width: 220px;
+	min-inline-size: min( 220px, 100% );
 }
 
 .os-workspaces__changed {
@@ -250,8 +252,6 @@
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
-	padding-block-start: 12px;
-	border-block-start: 1px solid var( --os-ui-border, #33303a );
 }
 
 .os-workspaces__people {
@@ -286,6 +286,18 @@
 
 	.os-workspaces__capture {
 		flex-wrap: wrap;
+	}
+
+	.os-workspaces__capture-actions {
+		flex: 1 1 100%;
+	}
+
+	.os-workspaces__card-head {
+		flex-wrap: wrap;
+	}
+
+	.os-workspaces__card-head os-text-field {
+		flex-basis: calc( 100% - 48px );
 	}
 
 	.os-workspaces__person {

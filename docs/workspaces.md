@@ -68,11 +68,12 @@ Only the main desk. It has no workspace of its own — its look IS the user's se
 
 Everything after saving happens in **Workspaces** — an app (`apps/workspaces/`), opened from **Manage** under a workspace's tile, the Save toast, `/workspace` → *Manage workspaces…*, or `wp.os.workspaces.manage()`. One card per workspace:
 
-- **Name**, **glyph** and **colour**, edited in place.
-- **Hide settings** — see [Hide settings](#hide-settings).
-- **Edit on its desk** — switches to the workspace's desk, moves the Workspaces window out of the way (minimized), and puts a full-width bar across the top of the shell — *Editing workspace "…"* with **+ Note**, **+ XL note**, **Cancel** and **Save changes** — that pushes the desk down rather than covering it. Arrange the desk and save, and the workspace opens that way from then on (the same capture `/keep-desk` makes: every window, where it is — two windows of one app are two windows). Either button ends the edit and brings the same Workspaces window back onto the desk you are on. The desk is the editor.
-- **Go to desk**, and **Delete**.
-- For someone who may share: the **link**, **who uses it**, and the controls for both — see [Sharing a workspace](#sharing-a-workspace).
+- **Workspace name**, edited in place with Enter or when leaving the field. A blank name keeps the previous name and explains why. Saving a new workspace from this window selects its name so it can be renamed immediately.
+- **Saved windows**, with their titles, so the cards can be scanned by the work they contain. **Current desk** identifies the active workspace; its **Go to desk** button becomes **On this desk**.
+- **Customize** folds away the icon, colour, **Hide settings** and deletion controls — see [Hide settings](#hide-settings). Open sections stay open through updates.
+- **Edit on its desk** — switches to the workspace's desk, moves the Workspaces window out of the way (minimized), and puts a full-width bar across the top of the shell — *Editing workspace "…"* with **+ Note**, **+ XL note**, **Exit editing** and **Save changes** — that pushes the desk down rather than covering it. Arrange the desk and save, and the workspace opens that way from then on (the same capture `/keep-desk` makes: every window, where it is — two windows of one app are two windows). Either button ends the edit and brings the same Workspaces window back onto the desk you are on. The desk is the editor. **Exit editing** leaves the saved launch layout unchanged and discards note edits; it does not undo live window movements or Preferences edits, which are saved immediately.
+- **Go to desk** is the primary action. **Delete workspace** is inside **Customize** and asks first.
+- For someone who may share: **Sharing** folds away the link and recipients, with link status and the number using it visible on the summary. **Unpublished changes** and **Publish changes** remain visible even when Sharing is closed. Creating or publishing a link shows progress and prevents duplicate submissions — see [Sharing a workspace](#sharing-a-workspace).
 
 The desks are the shell's, so the app reads and writes them through `wp.os.workspaces` and repaints whenever a desk changes, whoever changed it. Links and recipients are server truth, so they are the app's `data()` and actions.
 
@@ -82,7 +83,7 @@ A workspace can carry **notes** from whoever set it up — *"Orders live bottom 
 
 The author writes them two ways:
 
-- **Edit on its desk** — the edit bar's **+ Note** and **+ XL note** add one in the middle of the desk, ready to type into. While editing, a note is editable, moves by dragging its pin, and its × deletes it. **Save changes** keeps them with the desk; **Cancel** drops what changed.
+- **Edit on its desk** — the edit bar's **+ Note** and **+ XL note** add one in the middle of the desk, ready to type into. While editing, a note is editable, moves by dragging its pin, and its × deletes it. **Save changes** keeps them with the desk; **Exit editing** discards note edits.
 - **MIO** — the Notes step when building or reworking a workspace.
 
 An **XL note** is twice the size of a regular one, with larger type — for a proper welcome or a short how-to. A workspace holds up to 8 notes; a regular note holds 1,000 characters, an XL note 2,000. Notes are plain text. Sharing carries them to every recipient, and republishing updates them.
