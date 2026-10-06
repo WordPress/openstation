@@ -124,7 +124,7 @@ function openstation_stored_file_share_invite( $file_id, $actor_id, $recipient_u
 	if ( ! $user ) {
 		return new WP_Error( 'openstation_files_unknown_user', __( 'Unknown user.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	if ( ! user_can( $user, 'edit_posts' ) ) {
+	if ( ! openstation_files_share_user_is_eligible( $user ) ) {
 		return new WP_Error( 'openstation_files_ineligible_principal', __( 'This user is not eligible.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 

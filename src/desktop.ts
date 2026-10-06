@@ -317,7 +317,11 @@ import {
 	setUserAssociations as setFilesUserAssociations,
 	type FilesApi,
 } from './desktop-files';
-import { isSyntheticPlacement, mountFilesLayer } from './desktop-files/layer';
+import {
+	isSyntheticPlacement,
+	mountFilesLayer,
+	settleArrivedShortcuts,
+} from './desktop-files/layer';
 import { installRecycleBinDropTargets } from './desktop-files/recycle-bin-targets';
 import { installAgentTileDropHandlers } from './desktop-files/agent-drop-targets';
 import { startFilesHeartbeat } from './desktop-files/heartbeat';
@@ -2310,6 +2314,9 @@ function init(): void {
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
 	osSettings.apply();
+
+	// Read the current preference whenever a user opens a window.
+	manager.openWindowsAs = () => osSettings.state.openWindowsAs;
 
 	// The responsive mode. Installed before anything places a
 	// window: the phone constraints below hang off the geometry
@@ -4759,11 +4766,15 @@ function init(): void {
 		// Registered icons surface on files-layer desktops as REAL
 		// placement rows the server mints/hides at read time — one
 		// root refetch per icon-set change is what makes a payload's
-		// new/removed icons visible there without an F5.
-		refreshRootPlacements: () => {
+		// new/removed icons visible there without an F5. The server
+		// picks a new icon's cell without seeing the desktop, so the
+		// ones that just arrived are then seated where the wallpaper
+		// itself would put them.
+		refreshRootPlacements: ( addedIconIds ) => {
 			void listPlacements( 0 )
 				.then( ( res ) => {
 					setFolderPlacements( 0, res.placements );
+					settleArrivedShortcuts( desktopArea, addedIconIds );
 				} )
 				.catch( () => {
 					// Non-fatal — the wallpaper reconciles on the

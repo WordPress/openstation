@@ -109,6 +109,21 @@ class Tests_OpenStation_FilesShares extends WP_UnitTestCase {
 	}
 
 	/**
+	 * An agent's account can hold `edit_posts` but can never log in
+	 * to accept, so it is not a share recipient.
+	 *
+	 * @covers ::openstation_folder_share_invite
+	 */
+	public function test_invite_rejects_agent_user() {
+		$agent_id = self::factory()->user->create( array( 'role' => 'editor' ) );
+		update_user_meta( $agent_id, OPENSTATION_AGENT_USER_MARKER_META, '1' );
+		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'X' ) );
+		$err    = openstation_folder_share_invite( $folder, self::$owner_id, 'user', (string) $agent_id, 'read' );
+		$this->assertWPError( $err );
+		$this->assertSame( 'openstation_files_ineligible_principal', $err->get_error_code() );
+	}
+
+	/**
 	 * @covers ::openstation_folder_share_invite
 	 */
 	public function test_invite_rejects_non_owner_actor() {
