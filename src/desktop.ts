@@ -89,6 +89,7 @@ import { startWindowLinksEngine } from './window-links/engine';
 import { bootRelatedEntities } from './related-entities';
 import { bootEditorPreview } from './editor-preview';
 import { bootRevisions } from './revisions';
+import { bootShareUrl } from './share-url';
 import type {
 	WindowLinkRendererDef,
 	WindowRelationsApi,
@@ -4461,6 +4462,13 @@ function init(): void {
 	// `revisionsUrl` (see `openstation_window_revisions()` in
 	// `includes/window-links.php`).
 	bootRevisions( { manager } );
+
+	// "Share link" title-bar button — on every same-origin iframe
+	// window. Shows the page's own wp-admin URL, minus the shell's
+	// flags and the sender's nonces, ready to copy. The portal turns
+	// that URL back into this window for anyone who opens it, and the
+	// page's own capability checks decide whether they may.
+	bootShareUrl();
 
 	// Dock rail renderer sync — loads plugin renderer scripts on
 	// activation so OS Settings → Dock style surfaces them

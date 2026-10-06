@@ -3666,6 +3666,19 @@ wp.hooks.addFilter(
 
 The PHP-side control point is the `openstation_window_preview_url` filter (rewrite or suppress the URL per post — see [hooks-reference](./hooks-reference.md)). Related: `WindowConfig.ephemeral?: boolean` is a general flag — any window opened with it is excluded from session snapshots and never restored on boot.
 
+### The "Share link" title-bar button — Experimental
+
+Every same-origin iframe window shows a **Share link** button (share icon, right side of the title bar, before Preview; registered through the public `registerTitleBarButton` surface as `desktop-mode/share-url`). Clicking it opens a small popover with the window's current URL in a read-only field, pre-selected, and a **Copy** button that puts it on the clipboard.
+
+The link is the page's own address, read when the popover opens, with the session-bound query args removed: `openstation_chromeless`, `desktop_mode_portal`, `desktop_mode_portal_intent`, `desktop_mode_classic`, `_wpnonce`, `_wp_http_referer` and `preview_nonce`. Core's transient notice args (`message`, `updated`, …) are already gone, because `wp_admin_canonical_url()` strips them from every admin page's address. No token is minted and no route is added:
+
+- a recipient with OpenStation on is forwarded into the desktop with the page open as a window, by the same plain-admin redirect that handles a bookmark;
+- a recipient without it gets the classic admin page;
+- a signed-out recipient goes through the login screen and back;
+- **whether they may see the page is the page's own capability check**, exactly as if they had typed the URL.
+
+Native windows and cross-origin pages get no button: the first have no URL of their own, and the second are not "this window" for anyone else. To hide the button, `wp.os.unregisterTitleBarButton( 'desktop-mode/share-url' )`.
+
 ### The "View revisions" ⋯ menu row — Experimental
 
 Any window whose content identity carries a `revisionsUrl` grows a **"View revisions (N)"** row in its title-bar ⋯ menu (registered through the public `registerWindowAction` surface as `desktop-mode/view-revisions`, `order: 60`). The URL and count are built server-side by `openstation_window_revisions()` for post/page/CPT edit screens — Gutenberg **and** classic, any post type that declares `revisions` support — so the row appears exactly where there is history to browse. A draft with no revisions has no row; the block editor's save-watcher refetches the identity after the first save, so it appears the moment one exists, with no reload. Label and visibility are re-read on every menu open, so the count counts up while the window stays open.
