@@ -45,11 +45,34 @@ describe( 'command-palette loading placeholder', () => {
 		expect( document.querySelectorAll( `#${ ID }` ) ).toHaveLength( 1 );
 	} );
 
-	it( 'is inert to the pointer, so it cannot eat the click that follows', () => {
-		showPalettePlaceholder();
-
+	it( 'a click on the dimmed area cancels, a click on the card does not', () => {
+		// The scrim dims the whole desk, so it behaves the way the
+		// panel's own backdrop will: a layer that let the pointer
+		// through sent a click meant to dismiss it to the dock tile
+		// underneath.
+		let cancelled = 0;
+		showPalettePlaceholder( () => {
+			cancelled += 1;
+		} );
 		const el = document.getElementById( ID ) as HTMLElement;
-		expect( el.style.pointerEvents ).toBe( 'none' );
+
+		( el.lastElementChild as HTMLElement ).click();
+		expect( cancelled ).toBe( 0 );
+		( el.firstElementChild as HTMLElement ).click();
+
+		expect( cancelled ).toBe( 1 );
+		expect( document.getElementById( ID ) ).toBeNull();
+	} );
+
+	it( 'a second handoff does not cut the first one short', () => {
+		// Two opens queued behind one load each hand off to the panel.
+		// The second used to remove the placeholder on the spot, which
+		// is the blink the handoff exists to prevent.
+		showPalettePlaceholder();
+		hidePalettePlaceholder( true );
+		hidePalettePlaceholder( true );
+
+		expect( document.getElementById( ID ) ).not.toBeNull();
 	} );
 
 	it( 'removes cleanly', () => {

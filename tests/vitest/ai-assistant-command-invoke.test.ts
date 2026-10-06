@@ -172,4 +172,29 @@ describe( 'AiAssistant — picking a command', () => {
 		await vi.waitFor( () => expect( expected ).toHaveBeenCalled() );
 		expect( other ).not.toHaveBeenCalled();
 	} );
+
+	test( 'a result stays up when the WordPress commands finish loading', async () => {
+		registerCommand( {
+			slug: 'plugin/say-hi',
+			label: 'SN: Say hi',
+			run: () => ( { message: 'Hello from the command' } ),
+		} );
+
+		assistant = new AiAssistant( CONFIG );
+		assistant.setBaselineLoading( true );
+		assistant.open();
+		typeQuery( 'SN: Say hi' );
+		rows()[ 0 ].click();
+		await vi.waitFor( () =>
+			expect( resultsText() ).toContain( 'Hello from the command' ),
+		);
+
+		// The Core palette runtime settles when it settles: seconds
+		// after the panel opened on a slow connection, and with a
+		// rejection when one of its scripts 404s. It used to repaint
+		// the list over whatever the panel was showing.
+		assistant.setBaselineLoading( false );
+
+		expect( resultsText() ).toContain( 'Hello from the command' );
+	} );
 } );

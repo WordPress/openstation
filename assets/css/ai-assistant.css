@@ -992,6 +992,19 @@ body.os-active .os-ai__settings-link {
 	gap: 20px;
 }
 
+/* The row stays in the list's markup and is shown only while a load
+   runs; .os-ai__state's display would otherwise override [hidden]. */
+.os-ai__state--loading[hidden] {
+	display: none;
+}
+
+/* Under "No commands matching" there is no icon column to line up
+   with, so the row starts where that message does. */
+.os-ai__state--empty + .os-ai__state--loading {
+	padding-inline: 0;
+	gap: 10px;
+}
+
 /* -----------------------------------------------------------------
  * Continue button (budget-exhausted state)
  * ---------------------------------------------------------------- */

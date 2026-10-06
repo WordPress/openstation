@@ -86,9 +86,12 @@ function loadImpl( scriptUrl: string ): Promise< AiAssistantFactory > {
 		s.async = true;
 		s.dataset.osAi = '1';
 		s.addEventListener( 'load', finish );
-		s.addEventListener( 'error', () =>
-			reject( new Error( 'failed to load ai-assistant bundle' ) ),
-		);
+		s.addEventListener( 'error', () => {
+			// Out of the document, so a retry appends a fresh tag
+			// rather than hooking the `load` of one that already failed.
+			s.remove();
+			reject( new Error( 'failed to load ai-assistant bundle' ) );
+		} );
 		document.head.appendChild( s );
 	} );
 }
@@ -108,6 +111,12 @@ export class AiAssistantStub implements AiAssistantApi {
 	private _real: LoadedAi | null = null;
 	private _loadPromise: Promise< LoadedAi > | null = null;
 	private _pendingAsk: AskFn | null = null;
+	/**
+	 * Where the Core palette runtime stands. `idle` covers both "not
+	 * asked for yet" and "the last load failed", which is the state a
+	 * later open retries from.
+	 */
+	private _runtime: 'idle' | 'loading' | 'ready' = 'idle';
 	/**
 	 * Tracks "the user pressed open" before the impl resolved, so
 	 * the impl's first action is to open. Synchronous reads of
@@ -139,13 +148,22 @@ export class AiAssistantStub implements AiAssistantApi {
 		// a boot enqueue — inject it here so the `<link>` fetches in
 		// parallel with the impl bundle below.
 		ensureDeferredStyle( 'desktop-mode-ai-assistant' );
-		this._loadPromise = loadImpl( this._scriptUrl ).then( ( factory ) => {
+		const attempt = loadImpl( this._scriptUrl ).then( ( factory ) => {
 			const real = factory( this._config );
 			if ( this._pendingAsk ) {
 				real.attachAsk( this._pendingAsk );
 			}
 			this._real = real;
 			return real;
+		} );
+		this._loadPromise = attempt;
+		// A failed load is not kept: one dropped request on a flaky
+		// connection would otherwise leave ⌘K dead until a reload,
+		// every later open resolving to the same rejection.
+		attempt.catch( () => {
+			if ( this._loadPromise === attempt ) {
+				this._loadPromise = null;
+			}
 		} );
 		// The Core palette runtime AFTER the impl, never alongside it.
 		// It is ~50 scripts, every one preloaded at once, and started
@@ -167,17 +185,28 @@ export class AiAssistantStub implements AiAssistantApi {
 
 	/**
 	 * Bring in the Core palette runtime, telling the panel while it is
-	 * in flight. Memoised underneath, so calling it on every open is
-	 * free once the chain is in: the flag goes up and comes back down
-	 * in the same task, before anything paints.
+	 * in flight. Called on every open, and a no-op unless there is a
+	 * load to start: the panel's "Loading WordPress commands…" row
+	 * goes up only for a load that is actually running, never for one
+	 * already in or already under way.
 	 */
 	private _loadPaletteRuntime( real: LoadedAi ): void {
+		if ( 'idle' !== this._runtime ) {
+			return;
+		}
+		this._runtime = 'loading';
 		real.setBaselineLoading( true );
 		ensureCommandPaletteAssets()
-			.catch( ( err ) => {
-				// eslint-disable-next-line no-console -- a failed palette-runtime load would otherwise be silent; the palette still works with shell commands only.
-				console.warn( '[openstation] command-palette runtime failed to load', err );
-			} )
+			.then(
+				() => {
+					this._runtime = 'ready';
+				},
+				( err ) => {
+					this._runtime = 'idle';
+					// eslint-disable-next-line no-console -- a failed palette-runtime load would otherwise be silent; the palette still works with shell commands only.
+					console.warn( '[openstation] command-palette runtime failed to load', err );
+				},
+			)
 			.finally( () => real.setBaselineLoading( false ) );
 	}
 

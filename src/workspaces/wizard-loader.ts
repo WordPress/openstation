@@ -59,7 +59,9 @@ function bundleUrl(): string {
  * The declarations mirror `<os-modal size="lg">`
  * (`src/ui/components/os-modal/os-modal.styles.ts`): centred, the same
  * scrim and blur, the same width, surface, edge and radius, so the
- * modal opens in the place the placeholder already held.
+ * modal opens in the place the placeholder already held. The edge
+ * reads the modal's own border token: `<os-modal>` re-points
+ * `--os-ui-border` to it on its host, and this card is not inside one.
  */
 function showPlaceholder(): void {
 	showSurfacePlaceholder( {
@@ -88,7 +90,7 @@ function showPlaceholder(): void {
 			'border-radius:10px',
 			'background-color:var(--os-ui-modal-bg,#1d2327)',
 			'color:var(--os-ui-modal-fg,var(--os-fg,#fff))',
-			'border:1px solid var(--os-ui-border,rgba(255,255,255,0.08))',
+			'border:1px solid var(--os-ui-modal-border,rgba(255,255,255,0.25))',
 			'box-shadow:0 20px 50px rgba(0,0,0,0.6)',
 		],
 	} );

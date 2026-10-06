@@ -24,16 +24,18 @@
  * lands where the placeholder already was.
  *
  * **It is a status, not a dialog.** `role="status"` and a polite live
- * region, and `pointer-events: none` on the whole layer: announcing a
- * dialog would move focus away from wherever the real surface is about
- * to claim it, and a layer that ate pointer events could swallow the
- * click that follows.
+ * region: announcing a dialog would move focus away from wherever the
+ * real surface is about to claim it.
  *
- * **Escape cancels.** During the load nothing else is listening for
- * it: the real surface binds Escape to an element that does not exist
- * yet. So the placeholder listens on `document`, takes itself down and
- * reports the cancel, which the caller uses to drop its pending open,
- * so the surface does not appear afterwards behind the user's back.
+ * **Escape cancels, and so does a click on the dimmed area.** During
+ * the load nothing else is listening: the real surface binds both to
+ * an element that does not exist yet. So the placeholder listens for
+ * Escape on `document` and for a click on its own scrim, takes itself
+ * down and reports the cancel, which the caller uses to drop its
+ * pending open, so the surface does not appear afterwards behind the
+ * user's back. The scrim dims the whole desk, so it has to behave the
+ * way it looks: a layer that let the pointer through would send a
+ * click meant to dismiss it to whichever dock tile sat underneath.
  */
 
 import { buildLoadingSpinner } from './inline-loader';
@@ -55,15 +57,17 @@ export interface SurfacePlaceholderOptions {
 }
 
 /**
- * How long a placeholder stays under the surface replacing it: long
- * enough to cover that surface's entrance fade (the palette's 180 ms,
- * `<os-modal>`'s 220 ms). See {@link hideSurfacePlaceholder}.
+ * How long a placeholder takes to fade out under the surface replacing
+ * it: the length of that surface's own entrance fade (the palette's
+ * 180 ms, `<os-modal>`'s 220 ms). See {@link hideSurfacePlaceholder}.
  */
-export const SURFACE_HANDOFF_MS = 250;
+export const SURFACE_HANDOFF_MS = 200;
 
 interface Painted {
 	el: HTMLElement;
 	onKey: ( e: KeyboardEvent ) => void;
+	/** Timer of a handoff in progress: the element is on its way out. */
+	leaving?: number;
 }
 
 const painted = new Map< string, Painted >();
@@ -76,17 +80,19 @@ const painted = new Map< string, Painted >();
  */
 export function showSurfacePlaceholder( options: SurfacePlaceholderOptions ): void {
 	const current = painted.get( options.id );
-	if ( current && current.el.isConnected ) {
+	if ( current && current.el.isConnected && undefined === current.leaving ) {
 		return;
 	}
 	hideSurfacePlaceholder( options.id );
 
-	const onKey = ( e: KeyboardEvent ): void => {
-		if ( 'Escape' !== e.key ) {
-			return;
-		}
+	const cancel = (): void => {
 		hideSurfacePlaceholder( options.id );
 		options.onCancel?.();
+	};
+	const onKey = ( e: KeyboardEvent ): void => {
+		if ( 'Escape' === e.key ) {
+			cancel();
+		}
 	};
 	document.addEventListener( 'keydown', onKey );
 
@@ -102,7 +108,6 @@ export function showSurfacePlaceholder( options: SurfacePlaceholderOptions ): vo
 		'z-index:9999',
 		'display:flex',
 		'box-sizing:border-box',
-		'pointer-events:none',
 		...options.layerStyle,
 	].join( ';' );
 
@@ -134,6 +139,14 @@ export function showSurfacePlaceholder( options: SurfacePlaceholderOptions ): vo
 	card.appendChild( label );
 	el.appendChild( scrim );
 	el.appendChild( card );
+	// Outside the card only, as on the surfaces this stands in for: a
+	// click on the palette's panel or the modal's dialog dismisses
+	// neither.
+	el.addEventListener( 'click', ( e ) => {
+		if ( ! ( e.target instanceof Node && card.contains( e.target ) ) ) {
+			cancel();
+		}
+	} );
 	document.body.appendChild( el );
 	painted.set( options.id, { el, onKey } );
 }
@@ -142,24 +155,43 @@ export function showSurfacePlaceholder( options: SurfacePlaceholderOptions ): vo
  * Remove the placeholder with this id, if one is up.
  *
  * @param id      The id it was shown with.
- * @param afterMs Keep it painted this long, under the surface that is
+ * @param afterMs Fade it out over this long, under the surface that is
  *                replacing it. The layer sits one step below the
  *                surfaces it stands in for, so the real one covers it;
  *                removing it in the same frame would leave the real
  *                one's scrim fading in from nothing, a flash of the
- *                desk between two dimmed states. It stops listening
- *                for Escape at once either way: the surface owns that
- *                key from here.
+ *                desk between two dimmed states. A fade rather than a
+ *                hold, because two full scrims stacked are darker than
+ *                either: held, the backdrop sank while the real one
+ *                faded in and jumped back when this one was removed.
+ *                Fading out against the fade in keeps the dim level.
+ *                It stops listening for Escape and for the pointer at
+ *                once either way: the surface owns both from here.
  */
 export function hideSurfacePlaceholder( id: string, afterMs = 0 ): void {
 	const current = painted.get( id );
 	if ( current && afterMs > 0 ) {
+		if ( undefined !== current.leaving ) {
+			// Already on its way out. Two opens queued behind one load
+			// both land here, and the second must not cut the fade
+			// short through the sweep below.
+			return;
+		}
 		document.removeEventListener( 'keydown', current.onKey );
-		painted.delete( id );
-		window.setTimeout( () => current.el.remove(), afterMs );
+		const { el } = current;
+		el.style.pointerEvents = 'none';
+		el.style.transition = `opacity ${ afterMs }ms linear`;
+		el.style.opacity = '0';
+		current.leaving = window.setTimeout( () => {
+			el.remove();
+			if ( painted.get( id ) === current ) {
+				painted.delete( id );
+			}
+		}, afterMs );
 		return;
 	}
 	if ( current ) {
+		window.clearTimeout( current.leaving );
 		document.removeEventListener( 'keydown', current.onKey );
 		current.el.remove();
 		painted.delete( id );

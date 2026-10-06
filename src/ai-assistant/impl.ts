@@ -426,14 +426,23 @@ export class AiAssistant implements AiAssistantApi {
 	 * shell commands for as long as that runtime takes, and a search
 	 * for "Add new post" answers "No commands matching", which is
 	 * indistinguishable from a palette that is broken.
+	 *
+	 * The row is toggled where it stands, never through a re-render.
+	 * The list always carries it (see `_renderCommandMode`), so a
+	 * surface that has no row is one this has no business repainting:
+	 * a command still running, or the result or error it left behind,
+	 * which a load settling twenty seconds later would otherwise wipe.
 	 */
 	public setBaselineLoading( loading: boolean ): void {
 		if ( this._baselineLoading === loading ) {
 			return;
 		}
 		this._baselineLoading = loading;
-		if ( this._isOpen ) {
-			this._renderForMode();
+		const row = this._resultsEl.querySelector< HTMLElement >(
+			'.os-ai__state--loading',
+		);
+		if ( row ) {
+			row.hidden = ! loading;
 		}
 	}
 
@@ -1341,10 +1350,12 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Only where the whole registry is listed: AI mode's pinned
 		// contextual commands come from the focused window, not from
-		// the runtime still loading.
+		// the runtime still loading. Always in the markup there, and
+		// hidden unless a load is running, so `setBaselineLoading` can
+		// show and hide it without repainting the list.
 		const loadingRow =
-			this._baselineLoading && ( parsed.isCommand || this._mode === 'commands' )
-				? `<div class="os-ai__state os-ai__state--loading">
+			parsed.isCommand || this._mode === 'commands'
+				? `<div class="os-ai__state os-ai__state--loading"${ this._baselineLoading ? '' : ' hidden' }>
 					${ ICON_SPINNER }
 					<span>${ this._esc( __( 'Loading WordPress commands…' ) ) }</span>
 				</div>`

@@ -83,19 +83,26 @@ describe( 'AiAssistantStub palette-runtime retry', () => {
 		expect( spy ).not.toHaveBeenCalled();
 	} );
 
-	it( 'asks for the palette runtime again on a later open', async () => {
-		implLoaded();
-		const spy = vi
-			.spyOn( paletteAssets, 'ensureCommandPaletteAssets' )
-			.mockResolvedValue( true );
+	it( 'raises the loading row for a running load only, not on every open', async () => {
+		const real = implLoaded();
+		vi.spyOn( paletteAssets, 'ensureCommandPaletteAssets' ).mockResolvedValue(
+			true,
+		);
 		const stub = makeStub();
 
 		stub.open();
 		await settle();
 		stub.close();
 		stub.open();
+		await settle();
 
-		expect( spy.mock.calls.length ).toBeGreaterThanOrEqual( 2 );
+		// Raised again on a later open, the row was painted and taken
+		// straight back down, and a command still running lost its
+		// "Running…" state to the repaint.
+		expect( real.setBaselineLoading.mock.calls ).toEqual( [
+			[ true ],
+			[ false ],
+		] );
 	} );
 
 	it( 'retries after a failed load rather than giving up for the session', async () => {
@@ -115,5 +122,21 @@ describe( 'AiAssistantStub palette-runtime retry', () => {
 		stub.open();
 
 		expect( spy ).toHaveBeenCalledTimes( 2 );
+	} );
+
+	it( 'retries the panel bundle after a failed load', async () => {
+		vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+		const append = vi.mocked( document.head.appendChild );
+		const stub = makeStub();
+
+		stub.open();
+		( append.mock.calls[ 0 ][ 0 ] as HTMLScriptElement ).dispatchEvent(
+			new Event( 'error' ),
+		);
+		await settle();
+		stub.open();
+
+		// One dropped request used to leave ⌘K dead until a reload.
+		expect( append ).toHaveBeenCalledTimes( 2 );
 	} );
 } );
