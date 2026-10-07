@@ -421,6 +421,9 @@ describe( 'shell tour', () => {
 				mio.on = true;
 				hooks.doAction( 'os.mio.enabled', {} );
 			} ),
+			turnOff: vi.fn( () => {
+				mio.on = false;
+			} ),
 			findTile: () => tile,
 		};
 		return { mio, tile };
@@ -453,6 +456,36 @@ describe( 'shell tour', () => {
 		primary().click();
 		expect( mio.turnOn ).toHaveBeenCalledTimes( 1 );
 		expect( mark().getAttribute( 'heading' ) ).toBe( 'Find anything' );
+
+		// Mío was off before the tour, so the tidy-up at the end puts it
+		// away again with the windows the tour opened.
+		document.dispatchEvent( new CustomEvent( 'os-palette-opened', { detail: { id: 'x' } } ) );
+		primary().click();
+		expect( isShellTourRunning() ).toBe( false );
+		expect( mio.turnOff ).toHaveBeenCalledTimes( 1 );
+		expect( mio.on ).toBe( false );
+	} );
+
+	test( 'a skip after Meet Mío puts Mío away too; a Mío the user already kept stays on', async () => {
+		const { mio } = fakeMio();
+		deps.mio = mio;
+		startShellTour( deps );
+		await settle();
+		skipIntroCards();
+		openAndSnap( 'w9' );
+		primary().click();
+		expect( mio.on ).toBe( true );
+		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.secondary' )!.click();
+		expect( mio.turnOff ).toHaveBeenCalledTimes( 1 );
+		mark().remove();
+
+		const kept = fakeMio( true ).mio;
+		deps.mio = kept;
+		startShellTour( deps );
+		await settle();
+		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.secondary' )!.click();
+		expect( kept.turnOff ).not.toHaveBeenCalled();
+		expect( kept.on ).toBe( true );
 	} );
 
 	test( 'no Mío card for someone who keeps Mío on, or turns it on from the dock first', async () => {

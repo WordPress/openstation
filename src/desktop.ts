@@ -5256,13 +5256,15 @@ function init(): void {
 			}
 		},
 		// Mío gets a card of its own, which switches it on the way its dock
-		// tile does: for real, as the user's choice. The tour never runs on
-		// a phone, where Mío never boots.
+		// tile does, and the tour switches it back off at the end unless
+		// the user had it on already. The tour never runs on a phone,
+		// where Mío never boots.
 		mio: {
 			isOn: () => mioApi.isEnabled(),
 			turnOn: () => {
 				void mioApi.enable();
 			},
+			turnOff: () => mioApi.disable(),
 			findTile: () =>
 				document.querySelector(
 					`.os-dock__item[data-system-id="${ MIO_TILE_ID }"]`,

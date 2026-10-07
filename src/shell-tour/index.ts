@@ -18,8 +18,9 @@
  * is selected, and a ring of the same colour around it marked nothing.
  * The only colour the tour brings is Mío, small, peeking over the top
  * of each card and looking at the thing it is about. Mío on the card is
- * a drawing, not the companion: the companion is switched on, for real
- * and for good, by the Meet Mío card.
+ * a drawing, not the companion: the companion is switched on by the
+ * Meet Mío card, and switched back off at the end for a user who did
+ * not have it on before.
  *
  * ## It takes its entry points, not the shell
  *
@@ -148,17 +149,22 @@ export interface ShellTourDeps {
 	 * Mío, on this desk. Optional: without it the cards carry no Mío and
 	 * there is no Meet Mío card.
 	 *
-	 * `isOn` is asked twice: at the start, where a user who already keeps
-	 * Mío is not offered it, and again on arriving at the card, in case
-	 * they switched it on from the dock in the meantime. `turnOn` switches
-	 * the companion on as the user's own choice (the card's "Turn on Mío"
-	 * does exactly what the dock tile does); the card completes on the
+	 * `isOn` is asked at the start, where a user who already keeps Mío
+	 * is not offered it, and again on arriving at the card, in case they
+	 * switched it on from the dock in the meantime. `turnOn` switches the
+	 * companion on the way the dock tile does; the card completes on the
 	 * `os.mio.enabled` action, whichever of the two did it. `findTile` is
 	 * the dock tile the card points at, null when the user has hidden it.
+	 *
+	 * `turnOff` is the tidy-up: a Mío that was off when the tour began is
+	 * off again when it ends, like the windows the tour opened. The card
+	 * is a demonstration, not a decision; the dock tile is where the
+	 * user makes that one.
 	 */
 	mio?: {
 		isOn: () => boolean;
 		turnOn: () => void;
+		turnOff: () => void;
 		findTile: () => Element | null;
 	};
 	/**
@@ -317,6 +323,11 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	mark.setAttribute( 'highlight', 'none' );
 	const mio = deps.mio ?? null;
 	const peek = mio ? mioPeek() : null;
+	// Whether Mío was the user's choice before the tour. The Meet Mío
+	// card switches it on to show it; the tidy-up switches it back off
+	// unless it was on already, so a first run leaves the desk as it
+	// found it.
+	const mioWasOn = mio ? mio.isOn() : true;
 	( deps.host ?? document.body ).appendChild( mark );
 
 	let index = 0;
@@ -482,7 +493,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			heading: __( 'Meet Mío' ),
 			body: () => [
 				paragraph(
-					__( 'Mío is a small companion for your desk. It stays off until you turn it on, and the same tile puts it away again.' ),
+					__( 'Mío is a small companion for your desk. Have a look now; when the tour is over, this dock tile is where you switch it on and off.' ),
 				),
 			],
 			primary: __( 'Turn on Mío' ),
@@ -664,6 +675,16 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			}
 		}
 		openedByTour.clear();
+		// The Meet Mío card put the companion on screen to show it; a
+		// user who did not have it before gets their desk back without
+		// it. Whoever keeps Mío on keeps it.
+		if ( mio && ! mioWasOn && mio.isOn() ) {
+			try {
+				mio.turnOff();
+			} catch {
+				/* same */
+			}
+		}
 	};
 
 	const handle: ShellTourHandle = {
