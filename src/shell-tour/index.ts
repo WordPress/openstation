@@ -8,6 +8,7 @@ import {
 import { __, sprintf } from '../i18n';
 import { addAction, HOOKS, removeAction } from '../hooks';
 import { trackedFetch } from '../tracked-fetch';
+import { MIO_PEEK_SVG } from '../mio/icon';
 
 import {
 	SHELL_TOUR_DONE_SLUG,
@@ -62,12 +63,7 @@ export interface ShellTourDeps {
 
 	closePalette: () => void;
 
-	mio?: {
-		size: () => number;
-		summon: () => void;
-		follow: ( point: { x: number; y: number } | null ) => void;
-		release: () => void;
-	};
+	mio?: boolean;
 
 	refreshDesktopIcons?: () => void;
 
@@ -94,8 +90,6 @@ interface StepDef {
 	primary: string | ( () => string );
 
 	placement?: OsCoachmarkPlacement;
-
-	speaker?: boolean;
 	secondary: string;
 	anchor: () => Element | null;
 
@@ -156,6 +150,18 @@ function paragraph( text: string ): HTMLParagraphElement {
 	return p;
 }
 
+function mioPeek(): HTMLElement {
+	const el = document.createElement( 'span' );
+	el.slot = 'peek';
+	el.className = 'os-shell-tour__mio';
+	el.setAttribute( 'aria-hidden', 'true' );
+	el.style.display = 'block';
+	el.style.width = '36px';
+	el.style.height = '36px';
+	el.innerHTML = MIO_PEEK_SVG;
+	return el;
+}
+
 export function isShellTourRunning(): boolean {
 	return current !== null;
 }
@@ -172,11 +178,8 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	const mark = document.createElement( 'os-coachmark' ) as OsCoachmark;
 	mark.className = 'os-shell-tour';
 
-	const mio = deps.mio && deps.mio.size() > 0 ? deps.mio : null;
-	const speakerSize = mio ? String( mio.size() ) : '';
-	if ( speakerSize ) {
-		mark.setAttribute( 'speaker-size', speakerSize );
-	}
+	mark.setAttribute( 'highlight', 'none' );
+	const peek = deps.mio ? mioPeek() : null;
 	( deps.host ?? document.body ).appendChild( mark );
 
 	let index = 0;
@@ -335,7 +338,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 
 			anchor: () => deps.findAssistant?.() ?? null,
 			placement: 'bottom',
-			speaker: false,
 			doIt: () => true,
 		},
 	];
@@ -367,12 +369,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 		} else {
 			mark.removeAttribute( 'placement' );
 		}
-		if ( speakerSize && false !== step.speaker ) {
-			mark.setAttribute( 'speaker-size', speakerSize );
-		} else {
-			mark.removeAttribute( 'speaker-size' );
-		}
-		mark.replaceChildren( ...step.body() );
+		mark.replaceChildren( ...( peek ? [ peek ] : [] ), ...step.body() );
 		mark.anchor = step.anchor();
 		mark.setAttribute( 'open', '' );
 	};
@@ -450,10 +447,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			if ( current === handle ) {
 				current = null;
 			}
-
-			if ( reason !== 'restart' ) {
-				mio?.release();
-			}
 			if ( reason === 'done' || reason === 'skip' || reason === 'escape' ) {
 				void recordOutcome( deps, reason === 'done' );
 
@@ -519,15 +512,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	);
 	mark.addEventListener( 'os-coachmark-secondary', () => handle.end( 'skip' ), { signal } );
 	mark.addEventListener( 'os-coachmark-dismiss', () => handle.end( 'escape' ), { signal } );
-
-	if ( mio ) {
-		mark.addEventListener(
-			'os-coachmark-speaker',
-			( e ) => mio.follow( ( e as CustomEvent< { x: number; y: number } > ).detail ),
-			{ signal },
-		);
-		mio.summon();
-	}
 
 	paint();
 	return handle;

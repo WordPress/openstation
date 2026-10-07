@@ -37,10 +37,6 @@ const FORBIDDEN_KINDS: ReadonlySet< WallpaperSurface[ 'kind' ] > = new Set( [
 	'dock',
 ] );
 
-export function chromeOnly( obstacles: readonly Obstacle[] ): Obstacle[] {
-	return obstacles.filter( ( o ) => CHROME_KINDS.has( o.kind ) );
-}
-
 export function collectObstacles(
 	surfaces: readonly WallpaperSurface[],
 	origin: LayerOrigin,

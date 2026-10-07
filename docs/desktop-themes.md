@@ -386,6 +386,16 @@ the Posts table, the Trash, file tiles, every dialog — read the
 `--os-ui-*` palette. A theme that sets only the shell tokens produces a
 dark frame around a white page.
 
+One thing to know about `--os-ui-accent` before reading the table: in
+the OpenStation palette it marks **state** and nothing else — a checked
+control, the sidebar row you are on, the dock dividers, icons. Every
+other place a theme might expect the accent (a selected card's ring,
+the segmented control's key, a filter chip, the assistant's chrome, a
+coachmark) reads it through a literal "how much" token listed further
+down, which the OpenStation palette answers with `0%` or `0px` and
+Legacy with the old look. Turn those up to bring the accent back; the
+kit's own stylesheets never hard-wire it to a decorative surface.
+
 | Token | Role |
 |---|---|
 | `--os-ui-surface` | Cards, panels, table rows |
@@ -564,6 +574,7 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 | `--os-ui-cg-chip-accent`, `--os-ui-cg-chip-border-active`, `--os-ui-cg-chip-fill-active` | How much of the accent an on Content Graph filter chip takes (its edge, wash and label, each mixed towards a neutral), the edge it mixes towards, and a flat fill under the wash. The OpenStation palette answers `0%`, a Starlight edge and the darkest fill on the row, so an on chip reads like the selected theme card in Preferences; Legacy answers `100%`, `#8c8f94` and `transparent`. |
 | `--os-ui-cg-chip-border` | The edge of an off chip, the one a user has to find again to undo a filter. It has its own token because the palette's plain border is the toolbar's own colour, so a chip drawn with it has no outline. The OpenStation palette answers its strong border grey; Legacy `#dcdcde`. |
 | `--os-ui-cg-chip-count-bg`, `--os-ui-cg-chip-count-fg`, `--os-ui-cg-chip-count-bg-active`, `--os-ui-cg-chip-count-fg-active` | The count pill and its numerals, on an off chip and on an on chip. The OpenStation palette answers the strong border grey with Starlight numerals on both, because muted numerals on that grey land at 4.0:1, under what 12px text needs; Legacy answers `#fff` off and 70% white on, with numerals that inherit the chip's colour. |
+| `--os-ui-coachmark-ring`, `--os-ui-coachmark-action-bg`, `--os-ui-coachmark-action-fg` | The coachmark's ring around what it points at, and its primary button. Unset, they are neutral (the card's text colour at 45%; the card's text and surface swapped) in every theme, Legacy included: the coachmark arrived after Legacy was collected and has no pre-brand look to return to. `--os-ui-coachmark-peek-reveal` is how much of a `peek` figure shows above the card's top edge, `23px`. |
 | `--os-ui-tab-fill`, `--os-ui-tab-radius`, `--os-ui-tab-inset` | The selected row's own surface and shape: a flat fill under the wash, its corner radius, and how far it sits off the sidebar's edges. The OpenStation palette and Legacy answer `transparent`, 0 and 0, the full-bleed row an edge can sit on; a fill with a radius and an inset makes it a lifted pill. |
 | `--os-ui-swatch-ring-width`, `--os-ui-swatch-lift` | How a chosen `<os-swatch>` tile (and the theme and layout cards in Preferences) is marked: the width of its accent ring, and a lift (stroke plus shadow) drawn with it. The OpenStation palette answers `0px` and a lift; Legacy `2px` and none. |
 | `--os-ui-swatch-badge-bg` | The disc with a tick in the corner of a chosen tile. Starlight by default; `transparent` removes the badge. |

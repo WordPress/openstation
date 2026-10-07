@@ -4,9 +4,12 @@ export const styles = css`
 	:host {
 		display: contents;
 		--_accent: var( --os-ui-accent, #f252fc );
-		--_glow: var( --os-ui-accent-dim, #d846e0 );
 		--_bg: var( --os-ui-surface-elevated, #ffffff );
 		--_fg: var( --os-ui-fg, #1d2327 );
+		--_ring: var( --os-ui-coachmark-ring, color-mix( in srgb, var( --_fg ) 45%, transparent ) );
+		--_action-bg: var( --os-ui-coachmark-action-bg, var( --_fg ) );
+		--_action-fg: var( --os-ui-coachmark-action-fg, var( --_bg ) );
+		--_peek-reveal: var( --os-ui-coachmark-peek-reveal, 23px );
 		--_muted: var( --os-ui-fg-muted, #646970 );
 		--_border: var( --os-ui-border-strong, rgba( 0, 0, 0, 0.12 ) );
 		--_shadow: var( --os-ui-flyout-shadow, 0 16px 48px rgba( 0, 25, 53, 0.4 ) );
@@ -36,23 +39,12 @@ export const styles = css`
 	.outline {
 		position: fixed;
 		box-sizing: border-box;
-		border: 2px solid var( --_accent );
+		border: 1.5px solid var( --_ring );
 		border-radius: 12px;
-		box-shadow: 0 0 0 4px color-mix( in srgb, var( --_glow ) 28%, transparent );
 		pointer-events: none;
-		animation: os-coachmark-pulse 1.6s ease-in-out infinite;
 	}
 	.outline[hidden] {
 		display: none;
-	}
-	@keyframes os-coachmark-pulse {
-		0%,
-		100% {
-			box-shadow: 0 0 0 4px color-mix( in srgb, var( --_glow ) 28%, transparent );
-		}
-		50% {
-			box-shadow: 0 0 0 8px color-mix( in srgb, var( --_glow ) 12%, transparent );
-		}
 	}
 
 	.card {
@@ -177,11 +169,9 @@ export const styles = css`
 	}
 
 	.meta {
-		font-size: 11px;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var( --_accent );
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
+		color: var( --_muted );
 		margin: 0 0 4px;
 	}
 	.meta:empty {
@@ -210,8 +200,47 @@ export const styles = css`
 		display: none;
 	}
 
+	.actions os-button.primary {
+		--os-ui-button-bg: var( --_action-bg );
+		--os-ui-button-fg: var( --_action-fg );
+		--os-ui-holo-glow: 0 0 0 1px color-mix( in srgb, var( --_action-bg ) 30%, transparent );
+	}
+
+	.peek {
+		position: absolute;
+		bottom: 100%;
+		inset-inline-end: 22px;
+		height: var( --_peek-reveal );
+		overflow: hidden;
+		pointer-events: none;
+	}
+	.peek ::slotted( * ) {
+		display: block;
+		animation: os-coachmark-peek 520ms cubic-bezier( 0.3, 1.5, 0.5, 1 ) 120ms both;
+	}
+	.card.swap .peek ::slotted( * ) {
+		animation-name: os-coachmark-peek-again;
+	}
+	@keyframes os-coachmark-peek {
+		from {
+			transform: translateY( 100% );
+		}
+		to {
+			transform: none;
+		}
+	}
+	@keyframes os-coachmark-peek-again {
+		from {
+			transform: translateY( 100% );
+		}
+		to {
+			transform: none;
+		}
+	}
+
 	@media ( prefers-reduced-motion: reduce ) {
-		.outline {
+		.peek ::slotted( * ),
+		.card.swap .peek ::slotted( * ) {
 			animation: none;
 		}
 		.card,

@@ -32,8 +32,6 @@ interface ResidencyOptions {
 	enabled: () => boolean;
 	chatAvailable?: () => boolean;
 	wallpaperVisible?: () => boolean;
-
-	held?: () => boolean;
 	ready: () => Promise<void>;
 }
 
@@ -245,7 +243,7 @@ export class MioResidency {
 			layer.dataset.mioVisible = String(
 				this.owner
 					? !! this.chat || this.owner.calloutVisible
-					: ( this.options.held?.() ?? false ) || ( this.options.wallpaperVisible?.() ?? true ),
+					: ( this.options.wallpaperVisible?.() ?? true ),
 			);
 		}
 	}
@@ -291,7 +289,7 @@ export class MioResidency {
 				resident.frame.hidden = true;
 			}
 		}
-		const id = enabled && ! this.options.held?.() ? this.options.focused() : null;
+		const id = enabled ? this.options.focused() : null;
 		const candidate = id ? ( this.residents.get( id ) ?? null ) : null;
 		const next = candidate?.enabled && candidate.context.host.isConnected ? candidate : null;
 		const layer = this.options.layer();

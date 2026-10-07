@@ -166,8 +166,6 @@ export interface MioHandle {
 
 	setAnchor?: ( position: { x: number; y: number } | null, persistent?: boolean ) => void;
 
-	setFloating?: ( floating: boolean ) => void;
-
 	setAnimating: ( animating: boolean ) => void;
 
 	applyConfig: ( config: MioConfig ) => void;

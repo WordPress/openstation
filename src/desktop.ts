@@ -2665,7 +2665,6 @@ function init(): void {
 
 	void maybeShowRebrandNotice( { config } );
 
-	let tourMioSpot: { x: number; y: number } | null = null;
 	installShellTour( {
 		config,
 		windowManager: manager,
@@ -2695,22 +2694,7 @@ function init(): void {
 			}
 		},
 
-		mio: {
-			size: () =>
-				modeController.api.isMobile() ? 0 : mioApi.getConfig().appearance.radius * 2,
-			summon: () => {
-				void mio.summon().then( () => mio.setAnchor( tourMioSpot ) );
-			},
-			follow: ( spot ) => {
-				tourMioSpot = spot;
-				mio.setAnchor( spot );
-			},
-			release: () => {
-				tourMioSpot = null;
-				mio.setAnchor( null );
-				mio.dismiss();
-			},
-		},
+		mio: true,
 		refreshDesktopIcons: spendMenuRefresh,
 
 		findAssistant: () =>

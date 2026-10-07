@@ -1,6 +1,6 @@
 import { MioResidency } from './residency';
 import type { MioWindowContext, MioWindowLease } from './assistant/types';
-import { addAction, applyFilters, doAction, HOOKS } from '../hooks';
+import { applyFilters, doAction, HOOKS } from '../hooks';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { MIO_DEFAULTS, sanitizeMioConfig } from './config';
 import { emptyMioLook, sanitizeMioLook, splitMioLook } from './look';
@@ -85,12 +85,6 @@ export class MioController {
 	private config: MioConfig;
 	private enabled: boolean;
 
-	private saved: boolean;
-
-	private summoned = false;
-
-	private heldSpot: { x: number; y: number } | null = null;
-
 	private generation = 0;
 	private loading: Promise< void > | null = null;
 
@@ -106,13 +100,9 @@ export class MioController {
 			enabled: () => this.enabled,
 			chatAvailable: options.chatAvailable,
 			wallpaperVisible: options.wallpaperVisible,
-			held: () => this.summoned,
 			ready: () => this.mount(),
 		} );
-
-		addAction( 'os.mio.owner-changed', 'openstation/mio-held-spot', () => this.applyHeldSpot() );
 		this.enabled = options.enabled;
-		this.saved = options.enabled;
 
 		this.look = sanitizeMioLook( options.savedLook );
 		this.config = this.resolveConfig();
@@ -124,36 +114,8 @@ export class MioController {
 		}
 	}
 
-	public setAnchor( point: { x: number; y: number } | null ): void {
-		this.heldSpot = point;
-		this.handle?.setAnchor?.( point, true );
-	}
-
 	public syncEnabled( enabled: boolean ): void {
-		this.saved = enabled;
-		void this.setEnabled( enabled || this.summoned, false );
-		this.residency.refresh();
-	}
-
-	public async summon(): Promise< void > {
-		this.summoned = true;
-
-		this.handle?.setFloating?.( true );
-		await this.setEnabled( true, false );
-
-		this.residency.refresh();
-	}
-
-	public dismiss(): void {
-		if ( ! this.summoned ) {
-			return;
-		}
-		this.summoned = false;
-		this.heldSpot = null;
-
-		this.handle?.setFloating?.( false );
-		void this.setEnabled( this.saved, false );
-
+		void this.setEnabled( enabled, false );
 		this.residency.refresh();
 	}
 
@@ -209,20 +171,11 @@ export class MioController {
 
 	public async setEnabled( next: boolean, persist = true ): Promise< void > {
 		if ( next === this.enabled ) {
-			if ( persist && this.summoned ) {
-				this.summoned = false;
-				this.handle?.setFloating?.( false );
-				this.saved = next;
-				this.options.persist( next );
-			}
 			return;
 		}
 		this.enabled = next;
 		this.generation++;
 		if ( persist ) {
-			this.saved = next;
-			this.summoned = false;
-			this.handle?.setFloating?.( false );
 			this.options.persist( next );
 		}
 		doAction( next ? 'os.mio.enabled' : 'os.mio.disabled', {} );
@@ -307,7 +260,6 @@ export class MioController {
 			this.handle = parked.handle;
 			this.layer = parked.layer;
 			this.residency.refresh();
-			this.applyHeldSpot();
 			return;
 		}
 		try {
@@ -356,14 +308,6 @@ export class MioController {
 		}
 		this.handle = handle;
 		this.residency.refresh();
-		this.applyHeldSpot();
-	}
-
-	private applyHeldSpot(): void {
-		this.handle?.setFloating?.( this.summoned );
-		if ( this.summoned && this.heldSpot ) {
-			this.handle?.setAnchor?.( this.heldSpot, true );
-		}
 	}
 
 	private unmount(): void {

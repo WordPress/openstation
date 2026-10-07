@@ -131,6 +131,10 @@ describe( '<os-coachmark>', () => {
 
 		mark.anchor = null;
 		expect( outline.hidden ).toBe( true );
+
+		mark.setAttribute( 'highlight', 'none' );
+		mark.anchor = target;
+		expect( outline.hidden ).toBe( true );
 	} );
 
 	test( 'an anchor that is hidden or removed lets go of the ring, and takes it back when it returns', async () => {
@@ -180,7 +184,7 @@ describe( '<os-coachmark>', () => {
 		expect( layer.classList.contains( 'stepping' ) ).toBe( false );
 	} );
 
-	test( 'the speaker stands beside the card, never between it and the anchor', async () => {
+	test( 'the tail points at the speaker when there is one, and at the anchor when there is not', async () => {
 		const mark = await mount( 'open speaker-size="100"' );
 		const root = mark.shadowRoot!;
 		const card = root.querySelector< HTMLElement >( '.card' )!;
@@ -215,7 +219,17 @@ describe( '<os-coachmark>', () => {
 		expect( spots[ spots.length - 1 ].y ).toBe( top + 120 + reach );
 
 		mark.removeAttribute( 'speaker-size' );
+		mark.removeAttribute( 'placement' );
 		mark.anchor = anchorAt( 800, 700 );
+		expect( tail.hidden ).toBe( false );
+		expect( tail.dataset.edge ).toBe( 'bottom' );
+		expect( tail.style.getPropertyValue( '--_tail-at' ) ).toBe(
+			`${ 820 - parseFloat( card.style.left ) }px`,
+		);
+		expect( mark.style.getPropertyValue( '--os-coachmark-look-y' ) ).toBe( '1' );
+
+		mark.anchor = null;
 		expect( tail.hidden ).toBe( true );
+		expect( mark.style.getPropertyValue( '--os-coachmark-look-y' ) ).toBe( '0' );
 	} );
 } );

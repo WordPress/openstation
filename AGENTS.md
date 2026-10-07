@@ -41,6 +41,20 @@ Three rules follow from that, and all have tests:
 
 **The failure mode to watch for after a palette change** is a chain that now means something else: a fill resolving to a 10%-alpha wash, or a base and its hover state — declared in two different rules, distinguished only by their fallback literals — collapsing onto the same value once the shared token is declared. `<os-button>`'s ghost/secondary hover did exactly that. When a surface stops reacting to the pointer, check whether both states resolve through the same palette token, and declare the second one.
 
+### The accent marks state; it never decorates
+
+`--os-ui-accent` is Pulse, and the default theme once wore it on almost every surface, so it stopped standing out. It now stays where it marks **the thing you are on**: a checked control, the selected sidebar row's edge, the dock dividers, icons and illustrations. Everywhere else, selection shows through contrast and depth — a lifted fill, a stronger border, inverted ink — and instruction UI (a coachmark, a notice, an empty state) is neutral. So a new surface does not read `--os-ui-accent` for a border, a counter, a ring or a button because "that is the brand colour"; the shell tour shipped a pulsing pink ring, a pink counter and a pink button on top of a dock that already uses the accent to say which window is in front, and the ring marked nothing.
+
+When a surface genuinely needs the accent, it reads it through a literal "how much" token declared in `variables.css` — the pattern of `--os-ui-segmented-selected-accent`, `--os-ui-swatch-ring-width`, `--os-ai-accent`: the OpenStation palette answers `0%` or `0px`, Legacy answers the old look, and a theme can turn it back up. Document the token in the tables in `docs/desktop-themes.md`. Focus rings are the one exception on every surface: focus does not dim and does not go neutral.
+
+`tests/vitest/accent-reach.test.ts` holds the component kit to this. A style file that reads `--os-ui-accent*` must be listed there with the state it marks; a new component that reaches for the accent fails until someone writes that line down. Feature stylesheets under `assets/css/` are not swept and follow the rule by review.
+
+**Long-lived branches re-read this file.** The rule above landed the morning after the shell tour was branched, and the tour merged two weeks later, through three trunk merges, still wearing the look the rule had retired: a merge brings the code in, not the rules. Before asking for review on a branch older than a day, diff the rulebook and the docs against trunk and re-check the branch against anything new:
+
+```bash
+git diff $( git merge-base HEAD origin/trunk )..origin/trunk -- AGENTS.md docs/
+```
+
 ### The holographic layer lives in `src/ui/holo.ts`
 
 **"Holographic" is a moment, not a skin, and there is exactly one module that decides what it means.**

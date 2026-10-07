@@ -3,7 +3,6 @@ import { doAction } from '../hooks';
 import { resizeMioCanvas } from './canvas-resize';
 import { advanceMioThinking, mioThinkingExpression } from './thinking';
 import {
-	chromeOnly,
 	clampOutsideChrome,
 	collectObstacles,
 	findEscape,
@@ -243,8 +242,6 @@ export async function mountMio(
 	let blinkStartedAt = -1;
 	let dragging = false;
 	let anchor: { x: number; y: number } | null = null;
-
-	let floating = false;
 	let persistentAnchor = false;
 
 	let trappedFor = 0;
@@ -498,8 +495,7 @@ export async function mountMio(
 		);
 
 		const bounds = size();
-
-		const solid = floating ? chromeOnly( obstacles ) : obstacles;
+		const solid = obstacles;
 
 		if ( ! dragging ) {
 			const escape = findEscape(
@@ -527,7 +523,7 @@ export async function mountMio(
 			trappedFor = 0;
 		}
 
-		const magnet = dragging || floating
+		const magnet = dragging
 			? null
 			: magnetPull(
 				body.core.x,
@@ -647,9 +643,6 @@ export async function mountMio(
 			);
 			forgetMotion();
 			savePosition( toViewport() );
-		},
-		setFloating: ( next: boolean ) => {
-			floating = next;
 		},
 		setAnchor: ( position, persistent = true ) => {
 			origin = originOf();
