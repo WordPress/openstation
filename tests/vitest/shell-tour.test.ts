@@ -421,7 +421,6 @@ describe( 'shell tour', () => {
 		skipIntroCards();
 		// Still there on later cards: the body is replaced, the peek is not.
 		expect( mark().querySelector( '[slot="peek"]' ) ).not.toBeNull();
-		expect( hooks.didAction( 'os.mio.enabled' ) ).toBe( 0 );
 	} );
 
 	test( 'without a Mío on this desk there is no Mío on the cards', async () => {

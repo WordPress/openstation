@@ -377,7 +377,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			doIt: () => {
 				if ( layoutShown ) {
 					// Done with it: Preferences would otherwise stand in front
-					// of every card after this one, and of Mío beside them.
+					// of every card after this one.
 					// Closed even when the user had it open already, because
 					// that is the common case ("Take the tour" lives inside
 					// it); it applies settings as they change, so nothing is

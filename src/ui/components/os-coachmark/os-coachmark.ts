@@ -263,6 +263,8 @@ export class OsCoachmark extends Component {
 	private _stepTimer = 0;
 	/** Last speaker point reported, so an unchanged one is not re-sent. */
 	private _speakerKey = '';
+	/** Last gaze direction written, so an unchanged one is not re-set. */
+	private _lookKey = '';
 
 	/** The element the card points at and outlines. */
 	get anchor(): Element | null {
@@ -677,6 +679,14 @@ export class OsCoachmark extends Component {
 	private _look( edge: TailEdge | null ): void {
 		// No speaker on this card, so the next one is told where to stand.
 		this._speakerKey = '';
+		// Written only when the direction changes: this runs once per
+		// frame while the anchor moves, and an inline property write
+		// invalidates style on the host and its slotted figure each time.
+		const key = edge ?? '';
+		if ( key === this._lookKey ) {
+			return;
+		}
+		this._lookKey = key;
 		const [ x, y ] = edge ? LOOK[ edge ] : [ 0, 0 ];
 		this.style.setProperty( '--os-coachmark-look-x', String( x ) );
 		this.style.setProperty( '--os-coachmark-look-y', String( y ) );
@@ -704,11 +714,6 @@ export class OsCoachmark extends Component {
 	): void {
 		const tail = this.card?.querySelector< HTMLElement >( '.tail' );
 		if ( ! tail ) {
-			return;
-		}
-		if ( speaker <= 0 ) {
-			tail.hidden = true;
-			this._speakerKey = '';
 			return;
 		}
 		const vw = window.innerWidth;
