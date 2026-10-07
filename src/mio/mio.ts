@@ -28,7 +28,6 @@ import { doAction } from '../hooks';
 import { resizeMioCanvas } from './canvas-resize';
 import { advanceMioThinking, mioThinkingExpression } from './thinking';
 import {
-	chromeOnly,
 	clampOutsideChrome,
 	collectObstacles,
 	findEscape,
@@ -378,8 +377,6 @@ export async function mountMio(
 	let blinkStartedAt = -1;
 	let dragging = false;
 	let anchor: { x: number; y: number } | null = null;
-	/** Held by the shell tour: collide with the shell's chrome only. */
-	let floating = false;
 	let persistentAnchor = false;
 	/** Seconds the body has been continuously buried in a window. */
 	let trappedFor = 0;
@@ -720,10 +717,7 @@ export async function mountMio(
 		);
 
 		const bounds = size();
-		// Floating, only the shell's chrome is solid: windows no longer
-		// pull Mio in, push it out, or make it hop clear. Everything
-		// below reads this list, so all three go at once.
-		const solid = floating ? chromeOnly( obstacles ) : obstacles;
+		const solid = obstacles;
 
 		// Trapped? A window opened, moved, or maximised over the
 		// Mio. The contact solver can't dig its way out of that —
@@ -767,7 +761,7 @@ export async function mountMio(
 		// While dragging, the user's hand overrides the desk: no
 		// magnet, so the blob trails the cursor instead of being
 		// yanked sideways by whatever window it passes over.
-		const magnet = dragging || floating
+		const magnet = dragging
 			? null
 			: magnetPull(
 				body.core.x,
@@ -910,9 +904,6 @@ export async function mountMio(
 			);
 			forgetMotion();
 			savePosition( toViewport() );
-		},
-		setFloating: ( next: boolean ) => {
-			floating = next;
 		},
 		setAnchor: ( position, persistent = true ) => {
 			// A handoff may have just removed its scale transform between ticks.

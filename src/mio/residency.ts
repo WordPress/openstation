@@ -33,14 +33,6 @@ interface ResidencyOptions {
 	enabled: () => boolean;
 	chatAvailable?: () => boolean;
 	wallpaperVisible?: () => boolean;
-	/**
-	 * The shell tour is holding Mio on the desk. No window takes it,
-	 * however focused, and it shows on the wallpaper whatever the
-	 * user's setting says: the tour walks Mio beside its cards, which
-	 * point at the dock and the desk, and a Mio that moved into the
-	 * Preferences window the tour itself opened was clamped inside it.
-	 */
-	held?: () => boolean;
 	ready: () => Promise<void>;
 }
 
@@ -252,7 +244,7 @@ export class MioResidency {
 			layer.dataset.mioVisible = String(
 				this.owner
 					? !! this.chat || this.owner.calloutVisible
-					: ( this.options.held?.() ?? false ) || ( this.options.wallpaperVisible?.() ?? true ),
+					: ( this.options.wallpaperVisible?.() ?? true ),
 			);
 		}
 	}
@@ -298,7 +290,7 @@ export class MioResidency {
 				resident.frame.hidden = true;
 			}
 		}
-		const id = enabled && ! this.options.held?.() ? this.options.focused() : null;
+		const id = enabled ? this.options.focused() : null;
 		const candidate = id ? ( this.residents.get( id ) ?? null ) : null;
 		const next = candidate?.enabled && candidate.context.host.isConnected ? candidate : null;
 		const layer = this.options.layer();

@@ -60,6 +60,8 @@ const LOOK: Record< TailEdge, [ number, number ] > = {
 
 /** Distance between the outline and the card. */
 const GAP = 12;
+/** Room between an anchor and the top of a peek figure on a card below it. */
+const PEEK_CLEARANCE = 4;
 /** Kept between the card and the viewport edge. */
 const MARGIN = 12;
 /** How far the outline sits outside the anchor's own box. */
@@ -572,6 +574,15 @@ export class OsCoachmark extends Component {
 		outline.style.width = `${ ar.width + OUTLINE_INSET * 2 }px`;
 		outline.style.height = `${ ar.height + OUTLINE_INSET * 2 }px`;
 
+		// A peek figure rises above the card's top edge, so a card under
+		// its anchor keeps that much more room: the figure sits in the
+		// gap beside the tail, never over the thing the card points at.
+		const peekSlot = this.shadowRoot?.querySelector< HTMLSlotElement >( 'slot[name="peek"]' );
+		const peekReveal =
+			peekSlot && peekSlot.assignedElements().length > 0
+				? ( this.shadowRoot?.querySelector< HTMLElement >( '.peek' )?.offsetHeight ?? 0 )
+				: 0;
+		const below = Math.max( gap, peekReveal + PEEK_CLEARANCE );
 		const rtl = getComputedStyle( this.ownerDocument.documentElement ).direction === 'rtl';
 		const room: Record< Side, number > = {
 			top: ar.top,
@@ -579,8 +590,12 @@ export class OsCoachmark extends Component {
 			start: rtl ? vw - ar.right : ar.left,
 			end: rtl ? ar.left : vw - ar.right,
 		};
-		const need = ( side: Side ): number =>
-			( side === 'top' || side === 'bottom' ? cr.height : cr.width ) + gap + MARGIN;
+		const need = ( side: Side ): number => {
+			if ( side === 'bottom' ) {
+				return cr.height + below + MARGIN;
+			}
+			return ( side === 'top' ? cr.height : cr.width ) + gap + MARGIN;
+		};
 		const fits = ( side: Side ): boolean => room[ side ] >= need( side );
 
 		const requested = this.getAttribute( 'placement' ) ?? 'auto';
@@ -612,7 +627,7 @@ export class OsCoachmark extends Component {
 				break;
 			case 'bottom':
 				left = centerX;
-				top = ar.bottom + OUTLINE_INSET + gap;
+				top = ar.bottom + OUTLINE_INSET + below;
 				break;
 			default:
 				top = centerY;
