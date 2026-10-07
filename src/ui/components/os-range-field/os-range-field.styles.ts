@@ -1,40 +1,6 @@
 import { css } from '../../core';
 import { holoTokens } from '../../holo';
 
-/**
- * `<os-range-field>` — label, track, readout.
- *
- * ## The elapsed track is the accent
- *
- * Flat accent, not the mesh: sliders sit in settings rows alongside
- * toggles and checkboxes, and the whole family wears the accent so
- * the meshes stay reserved for hero surfaces.
- *
- * `accent-color` still cannot paint this track (it has no notion of
- * an elapsed portion on a custom-height track), so the track is
- * repainted from scratch with two background layers:
- *
- *   1. an opaque wedge of the unlit track colour covering everything
- *      PAST the current value, and
- *   2. the accent underneath, showing through where layer 1 is
- *      transparent.
- *
- * The boundary between them is --_fill, a percentage the component
- * writes on every input event. One custom property, no per-frame
- * layout.
- *
- * RTL flips the wedge by flipping its angle, not its stops:
- * --_range-angle is 90deg in LTR and 270deg in RTL, both written by
- * the component from the computed direction.
- *
- * ## Why every pseudo-element gets its own rule
- *
- * ::-webkit-slider-thumb and ::-moz-range-thumb cannot share a
- * selector list. One unknown pseudo-element invalidates the whole
- * list, so a combined rule applies in NEITHER engine — the classic
- * way a custom range ends up styled in Chrome and native in Firefox.
- * Every rule below is duplicated for that reason. Do not merge them.
- */
 export const styles = css`
 	${ holoTokens }
 
@@ -63,8 +29,6 @@ export const styles = css`
 		opacity: 0.5;
 	}
 
-	/* The track. Two layers, first-on-top: the unfilled wedge, then
-	   the accent. See the file docblock for why it is built this way. */
 	input[ type='range' ]::-webkit-slider-runnable-track {
 		height: 6px;
 		border-radius: 999px;
@@ -101,10 +65,6 @@ export const styles = css`
 		box-shadow: inset 0 0 0 1px var( --_holo-track-edge );
 	}
 
-	/* The thumb. Starlight, so it grips against both the lit and the
-	   unlit half of the track. The negative margin centres it on a
-	   6px track, which WebKit will not do once the track has a
-	   custom height. */
 	input[ type='range' ]::-webkit-slider-thumb {
 		appearance: none;
 		-webkit-appearance: none;
@@ -132,7 +92,6 @@ export const styles = css`
 		transition: transform var( --_holo-t ) ease, box-shadow var( --_holo-t ) ease;
 	}
 
-	/* Grows and picks up the Pulse bloom while it is held. */
 	input[ type='range' ]:active::-webkit-slider-thumb {
 		transform: scale( 1.15 );
 		box-shadow: var( --_holo-glow-strong );
@@ -143,10 +102,6 @@ export const styles = css`
 		box-shadow: var( --_holo-glow-strong );
 	}
 
-	/* Focus lands on the thumb, not on the whole 18px-tall input: a
-	   ring around the input traces a box whose edges the user cannot
-	   see, while a ring on the thumb points at the thing the arrow
-	   keys are about to move. */
 	input[ type='range' ]:focus-visible {
 		outline: none;
 	}
@@ -160,11 +115,7 @@ export const styles = css`
 	}
 
 	.os-range-field__value {
-		/* Fixed, not min-width: the readout shares a row with the
-		   track, so a box that grows with its contents shoves the
-		   slider sideways under the thumb the user is dragging. The
-		   width comes from the range's own bounds — see
-		   readoutWidth() in the component. */
+
 		width: var( --os-ui-range-readout-width, 3ch );
 		flex: none;
 		text-align: end;

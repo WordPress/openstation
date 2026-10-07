@@ -1,7 +1,3 @@
-/**
- * My WordPress — the client half: selection math, page accumulation,
- * preview-action scoping, and one render of the view into jsdom.
- */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -104,9 +100,6 @@ function data( over: Partial< AppData > = {} ): AppData {
 	};
 }
 
-// Page accumulation and selection math live in the framework now —
-// tests/vitest/app-runtime-paged-list.test.ts pins them.
-
 describe( 'resolveActions', () => {
 	const ctx = {
 		entityId: 'cpt-atf-forms',
@@ -165,7 +158,7 @@ describe( 'buildMenuOptions', () => {
 			'Move to Trash',
 			'Export PDF',
 		] );
-		// No shortlink (a non-public type, a Woo order): no entry for it.
+
 		expect( buildMenuOptions( section(), item( {} ), [] ).map( ( o ) => o.id ) ).not.toContain( 'copy-shortlink' );
 	} );
 
@@ -222,7 +215,7 @@ describe( 'view', () => {
 			expect( root.querySelector( '.os-mywp__detail-page' ) ).not.toBeNull();
 			expect( root.querySelector( '.os-mywp__split' ) ).toBeNull();
 			expect( root.querySelector( '.os-mywp__detail-title' )?.textContent ).toBe( 'Beta' );
-			// The trail: site › Posts (a link now) › Beta.
+
 			expect( root.querySelector( '.os-mywp__crumb-current' )?.textContent ).toBe( 'Beta' );
 			const links = Array.from( root.querySelectorAll( '.os-mywp__crumb-link' ) ).map( ( l ) => l.textContent );
 			expect( links ).toContain( 'Posts' );
@@ -283,8 +276,7 @@ describe( 'view', () => {
 		expect( root.textContent ).toContain( '1 selected' );
 		expect( root.textContent ).toContain( '2 of 2 items' );
 		expect( root.textContent ).toContain( 'Page 1 of 1' );
-		// No invented chrome: selection never opens a toolbar — actions
-		// live in the context menu, like WP Explorer.
+
 		expect( root.querySelector( '.os-mywp__bulk' ) ).toBeNull();
 	} );
 
@@ -315,16 +307,14 @@ describe( 'view', () => {
 		expect( open.querySelector( '.os-mywp__tiles' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__detail-pane' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__split--solo' ) ).toBeNull();
-		// A fact's label is an attribute on <os-fact> rendered into its
-		// shadow root, like <os-stat>'s, so it is not in light-DOM text.
+
 		expect(
 			Array.from( open.querySelectorAll( 'os-fact' ) ).map( ( f ) =>
 				f.getAttribute( 'label' ),
 			),
 		).toContain( 'Status' );
 		expect( Array.from( open.querySelectorAll( 'os-button' ) ).some( ( button ) => button.textContent?.trim() === 'Trash' ) ).toBe( true );
-		// The pane carries WP Explorer's full verb row: the door into
-		// the detail folder sits beside the editor button.
+
 		expect( open.textContent ).toContain( 'Explore details' );
 		expect( open.textContent ).toContain( 'Open in editor' );
 		expect( open.querySelector( '[data-mywp-content]' ) ).not.toBeNull();
@@ -351,7 +341,7 @@ describe( 'view', () => {
 		expect( labels ).toEqual( [ 'Author · 1', 'Comments · 3', 'Revisions · 5' ] );
 		expect( root.querySelector( '[data-mywp-content="folder"]' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( '3 folders' );
-		// The trail: Site › Posts are links, the post is current.
+
 		const links = Array.from( root.querySelectorAll( '.os-mywp__crumb-link' ), ( el ) => el.textContent );
 		expect( links ).toEqual( [ 'Test Site', 'Posts' ] );
 		expect( root.querySelector( '.os-mywp__crumb-current' )?.textContent ).toBe( 'Alpha strategy' );
@@ -402,8 +392,7 @@ describe( 'view', () => {
 		);
 		expect( root.querySelector( 'os-tile[selected]' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'View archive' );
-		// The stat tiles are <os-stat> — value/label/caption live on the
-		// element, not in light-DOM text.
+
 		const statText = Array.from( root.querySelectorAll( 'os-stat' ) )
 			.map( ( s ) => `${ s.getAttribute( 'value' ) } ${ s.getAttribute( 'label' ) } ${ s.getAttribute( 'caption' ) ?? '' }` )
 			.join( ' ' );
@@ -443,7 +432,6 @@ describe( 'view', () => {
 		] );
 		expect( grouped.find( ( o ) => o.id === 'send-to-heading' )?.heading ).toBe( true );
 
-		// No agents, or a filter that reordered: hands the list back verbatim.
 		expect( withSendToHeading( base, [ ...base, { id: 'plugin-extra', label: 'Export' } ] ) ).toHaveLength( 3 );
 		const reordered = [ merged[ 2 ], ...base ];
 		expect( withSendToHeading( base, reordered ) ).toBe( reordered );
@@ -484,8 +472,7 @@ describe( 'view', () => {
 			},
 			doAction: ( hook: string, payload: Record< string, unknown > ) => {
 				fired.push( { hook, payload } );
-				// Do what the AllTerrain Work handler does: append DOM
-				// into the slot the moment it fires.
+
 				if ( hook === 'os.my-wordpress.preview-extras' && payload.slot === 'meta' ) {
 					const block = document.createElement( 'div' );
 					block.className = 'atwork-preview';
@@ -519,8 +506,7 @@ describe( 'view', () => {
 				} ),
 				root,
 			} ) );
-			// Bands: declared order, tone class, count chips, and the
-			// unassigned row in an unlabelled grid at the end.
+
 			const heads = Array.from( root.querySelectorAll( '.os-mywp__band-head' ) );
 			expect( heads.map( ( h ) => h.textContent?.trim().replace( /\s+/g, ' ' ) ) ).toEqual( [
 				'Doing 1',
@@ -529,13 +515,12 @@ describe( 'view', () => {
 			expect( heads[ 0 ].classList.contains( 'os-mywp__band-head--warn' ) ).toBe( true );
 			const grids = root.querySelectorAll( '.os-mywp__band-grid' );
 			expect( grids ).toHaveLength( 3 );
-			// list-tile fired once per rendered tile, item attached.
+
 			const tiles = fired.filter( ( f ) => f.hook === 'os.my-wordpress.list-tile' );
 			expect( tiles ).toHaveLength( 3 );
 			expect( tiles.map( ( f ) => ( f.payload.item as ListItem ).id ).sort() ).toEqual( [ 1, 2, 3 ] );
 			expect( tiles[ 0 ].payload.entityId ).toBe( 'posts' );
-			// preview-extras fired once per slot, with the list row's
-			// REST-visible fields merged under the dossier's.
+
 			const extras = fired.filter( ( f ) => f.hook === 'os.my-wordpress.preview-extras' );
 			expect( extras.map( ( f ) => f.payload.slot ).sort() ).toEqual( [ 'footer', 'header', 'meta' ] );
 			const metaSlot = extras.find( ( f ) => f.payload.slot === 'meta' );
@@ -544,8 +529,7 @@ describe( 'view', () => {
 				( ( metaSlot?.payload.item as Record< string, unknown > ).meta as Record< string, string > )._lane,
 			).toBe( 'doing' );
 			expect( ( metaSlot?.payload.container as HTMLElement ).hasAttribute( 'os-preserve' ) ).toBe( true );
-			// One firing per item: a repaint with the same selection
-			// does not re-run the subscribers.
+
 			fired.length = 0;
 			app.render( mockViewContext( {
 				state: state( { section: 'posts', item: 1 } ),
@@ -564,17 +548,13 @@ describe( 'view', () => {
 				root,
 			} ) );
 			expect( fired.filter( ( f ) => f.hook === 'os.my-wordpress.preview-extras' ) ).toHaveLength( 0 );
-			// …and what the subscriber painted SURVIVES the repaint.
+
 			expect( root.querySelector( '.atwork-preview' )?.textContent ).toBe( 'State: Active' );
 		} finally {
 			delete ( window as { wp?: unknown } ).wp;
 		}
 	} );
 
-	/**
-	 * Mounts a one-post section and returns its tile — the hover-card
-	 * tests differ only in what `wp.os.hooks` answers.
-	 */
 	const mountHoverTile = (): { cell: HTMLElement; root: HTMLElement; teardown: () => void } => {
 		const root = document.createElement( 'div' );
 		document.body.appendChild( root );
@@ -591,8 +571,7 @@ describe( 'view', () => {
 			} ),
 			root,
 		} );
-		// jsdom has no IntersectionObserver; mounted() wires one for
-		// the infinite scroll, which this test never exercises.
+
 		( globalThis as { IntersectionObserver?: unknown } ).IntersectionObserver ??= class {
 			observe(): void {}
 			disconnect(): void {}
@@ -645,13 +624,10 @@ describe( 'view', () => {
 			expect( tip?.querySelector( '.os-my-wordpress__tooltip-lock' )?.textContent ).toContain(
 				'Ada is currently editing',
 			);
-			// The filter is asked once per tile entered, not once per
-			// child element the pointer crosses inside it.
+
 			cell.dispatchEvent( new MouseEvent( 'mouseover', { bubbles: true } ) );
 			expect( seen ).toHaveLength( 1 );
-			// A press means a click, a drag-out or the menu — card gone.
-			// (MouseEvent: jsdom has no PointerEvent constructor; listeners
-			// key on the event NAME either way.)
+
 			root.dispatchEvent( new MouseEvent( 'pointerdown', { bubbles: true } ) );
 			expect( document.body.querySelector( '.os-my-wordpress__tooltip' ) ).toBeNull();
 			teardown();
@@ -793,12 +769,11 @@ describe( 'view', () => {
 			tags: [],
 		};
 		app.render( ctx );
-		// The hint the original's bulk modal leads with.
+
 		expect( root.textContent ).toContain(
 			'Only the fields you change are applied. Categories and tags are added to what each entry already has.',
 		);
-		// Chips and tokens, not raw checkboxes and a comma-separated
-		// text input — the same components WP Explorer's modal uses.
+
 		const picker = root.querySelector< HTMLElement & { items: unknown[]; value: number[] } >(
 			'os-category-picker',
 		);
@@ -812,9 +787,6 @@ describe( 'view', () => {
 	} );
 
 	it( 'the agents root tile is a portrait, never a masked disc', () => {
-		// The robot avatar carries its own colours (light circle, dark
-		// robot); through the monochrome mask it rendered as a filled
-		// circle. It paints as the image it is, like WP Explorer's.
 		const root = mount(
 			state(),
 			data( {
@@ -844,7 +816,7 @@ describe( 'view', () => {
 			return true;
 		} );
 		const tile = root.querySelector< HTMLElement >( '.os-mywp__tile' );
-		// A single click never navigates.
+
 		tile?.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		expect( calls ).toEqual( [] );
 		tile?.dispatchEvent( new MouseEvent( 'dblclick', { bubbles: true } ) );
@@ -881,7 +853,6 @@ describe( 'theme tokenization', () => {
 		'utf8',
 	);
 
-	/** The rule body for one selector, or '' when absent. */
 	function ruleOf( selector: string ): string {
 		const at = css.indexOf( selector );
 		if ( at === -1 ) {
@@ -891,9 +862,6 @@ describe( 'theme tokenization', () => {
 	}
 
 	it( 'selection wears the canonical shell tokens, not the raw brand accent', () => {
-		// The divergence this pins: reading `--os-ui-accent` painted the
-		// selection in raw Pulse while WP Explorer's tiles followed the
-		// admin scheme through `--os-tile-selected-bg` / `--os-tile-focus-ring`.
 		const selected = ruleOf( '.os-mywp__tile.is-selected' );
 		expect( selected ).toContain( '--os-tile-selected-bg' );
 		expect( selected ).toContain( '--os-tile-focus-ring' );
@@ -911,20 +879,12 @@ describe( 'theme tokenization', () => {
 		expect( ruleOf( '.os-mywp__crumb-link {' ) ).toContain( '--os-link' );
 		expect( ruleOf( '.os-mywp__recent-title' ) ).toContain( '--os-link' );
 		expect( ruleOf( '.os-mywp__tile:hover' ) ).toContain( '--os-tile-hover-bg' );
-		// The stat tiles are <os-stat> now; the accent chain lives in the
-		// component's own stylesheet and its test.
+
 		expect( ruleOf( '.os-mywp__activity-bar' ) ).toContain( '--wp-admin-theme-color' );
 		expect( ruleOf( '.os-mywp__ghost-visual' ) ).toContain( '--os-skeleton-high' );
 	} );
 
 	it( 'the shared explorer sheet routes every admin-blue through the theme token', () => {
-		// The footprint hero's wash, the avatar well, the role chips
-		// and the calendar intensity ramp all used to hard-code
-		// rgba(34, 113, 177, …) — the pre-brand admin blue with no
-		// token in the chain, so no theme or accent pick could repaint
-		// the header. They resolve through
-		// `color-mix(…, var(--wp-admin-theme-color, #2271b1), …)` now;
-		// a raw occurrence is a regression.
 		const shared = readFileSync(
 			join(
 				dirname( fileURLToPath( import.meta.url ) ),
@@ -988,7 +948,7 @@ describe( 'optimistic Explorer interactions', () => {
 		expect( ctx.root.querySelector( '.os-mywp__detail-title' )?.textContent ).toBe( 'Alpha' );
 		expect( ctx.root.querySelector( '.os-mywp__detail' )?.getAttribute( 'aria-busy' ) ).toBe( 'true' );
 		openPreview( ctx, 2 );
-		// Simulate a queued search resetting item after the newer pick.
+
 		ctx.state.item = 0;
 		ctx.data.detail = { id: 1, kind: 'post', title: 'OLD', content: '<p>Wrong body</p>', facts: [], canEdit: true, canDelete: true };
 		ctx.repaint();

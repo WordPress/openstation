@@ -1,31 +1,3 @@
-/**
- * OpenStation — the phone layer.
- *
- * Every rule is scoped to `html[data-os-mode="mobile"]`, the
- * attribute the PHP head stamp writes before the body parses and the
- * mode controller keeps current. On a desktop this sheet matches
- * nothing; on a phone the first paint is already the phone layer.
- *
- * Three jobs:
- *
- *   1. Retire the desktop chrome — dock, widgets, wallpaper icons,
- *      admin bar, window title bars and resize handles. The
- *      elements stay in the DOM (their listeners and registries keep
- *      working); they just stop painting.
- *   2. Make every window the whole work area, between the top bar
- *      and the tab bar, under the safe areas.
- *   3. Paint the four phone surfaces: top bar, home grid, tab bar,
- *      app switcher.
- *
- * Every colour resolves through a palette token with the pre-brand
- * literal as its floor (see AGENTS.md, "The palette lives in
- * variables.css"). Motion is opt-out under `prefers-reduced-motion`.
- */
-
-/* ------------------------------------------------------------------
- * 1. The desktop chrome steps aside.
- * ---------------------------------------------------------------- */
-
 html[data-os-mode="mobile"] #wpadminbar,
 html[data-os-mode="mobile"] #os-dock,
 html[data-os-mode="mobile"] #os-side-dock,
@@ -40,58 +12,25 @@ html[data-os-mode="mobile"] .os-window__resize-handle {
 	display: none !important;
 }
 
-/* The 32px WordPress reserves for the admin bar. */
 html[data-os-mode="mobile"].wp-toolbar {
 	padding-top: 0 !important;
 }
 
-/*
- * The shell starts at the top edge, and the admin-bar height token
- * says so too: anything that still reads it (a plugin's own chrome)
- * measures against a bar that is not there.
- */
 html[data-os-mode="mobile"] .os-shell {
 	inset-block-start: 0;
 	--wp-admin--admin-bar--height: 0px;
 }
 
-/*
- * No page zoom. `pan-x pan-y` keeps every scroll and hands nothing
- * else to the browser: no pinch, no double-tap. The viewport meta
- * says the same (`maximum-scale=1`, `openstation_mode_viewport_meta()`)
- * and `src/mode/zoom-guard.ts` cancels the gesture where a browser
- * ignores both. `overscroll-behavior: none` is the rubber band at the
- * document's edges — the shell is fixed and has no document to pull.
- */
 html[data-os-mode="mobile"],
 html[data-os-mode="mobile"] body {
 	touch-action: pan-x pan-y;
 	overscroll-behavior: none;
 }
 
-/* The work area is the whole area: no dock band to keep clear of. */
 html[data-os-mode="mobile"] .os-area {
 	padding: 0 !important;
 }
 
-/* ------------------------------------------------------------------
- * Tokens for this layer alone. Private aliases read the palette so a
- * desktop theme that repaints the surfaces repaints the phone too.
- * ---------------------------------------------------------------- */
-
-/*
- * The phone chrome is the DOCK's family, not the window's. The window
- * tokens describe a document surface (white body, dark text under most
- * admin colour schemes) and they are wrong for anything that sits on
- * the wallpaper: a white tile grid with grey labels on a dark desk.
- * The dock tokens describe exactly this situation — translucent dark
- * glass over the wallpaper, light glyphs — so every phone surface
- * reads them, and a desktop theme that reskins the dock reskins the
- * phone with it. Bars and sheets sit on the solid backstop, the same
- * floor the shell paints under everything. What the dock has no word
- * for — the glass a tile is cut from, the shadows, the scrims — is
- * the `--os-mobile-*` family in `variables.css`.
- */
 html[data-os-mode="mobile"] .os-shell {
 	--_m-surface: var( --os-backstop, #0c0b0f );
 	--_m-surface-raised: var( --os-dock-bg, rgba( 12, 11, 15, 0.72 ) );
@@ -119,29 +58,14 @@ html[data-os-mode="mobile"] .os-shell {
 	--_m-safe-bottom: env( safe-area-inset-bottom, 0px );
 	--_m-safe-left: env( safe-area-inset-left, 0px );
 	--_m-safe-right: env( safe-area-inset-right, 0px );
-	/* The tab bar's whole footprint: its items, and the home indicator under them. */
+
 	--_m-tabs-total: calc( var( --_m-tabs-h ) + 8px + var( --_m-safe-bottom ) );
 	--_m-ease: cubic-bezier( 0.2, 0.8, 0.2, 1 );
-	/*
-	 * Every kit field on the phone is 16px: below that, iOS zooms the
-	 * page into a focused control and never zooms back out.
-	 */
+
 	--os-ui-field-font-size: 16px;
 	--os-ui-field-font-size-compact: 16px;
 }
 
-/*
- * The phone surfaces are DARK surfaces, and the kit components they
- * host (`<os-text-field>` in the home search, `<os-button>` in the
- * switcher footer) read the public `--os-ui-*` tokens, which under a
- * light admin scheme describe the window's white body and near-black
- * text. Re-pointing those public names on the surface itself is the
- * sanctioned move (a document-tree rule the component's `var()`
- * resolves through — see AGENTS.md, "Never declare a themeable token
- * on a component's :host"): every kit control inside reads the phone
- * palette, and a theme that recolours the dock recolours them too.
- * `--_m-*` are the private aliases declared on `.os-shell` above.
- */
 html[data-os-mode="mobile"] .os-mobile-home,
 html[data-os-mode="mobile"] .os-mobile-top,
 html[data-os-mode="mobile"] .os-mobile-tabs,
@@ -158,17 +82,6 @@ html[data-os-mode="mobile"] .os-mobile-switcher__sheet {
 	--os-ui-button-border: 1px solid var( --_m-border );
 }
 
-/* ------------------------------------------------------------------
- * 2. Windows: one at a time, a card on the desk.
- *
- * The window is inset from the edges by `--_m-gap`, rounded and
- * shadowed, so the desk shows around it and the app reads as a card
- * sitting on something (the switcher draws it the same way). `inset`
- * with `!important` beats the inline left/top/width/height that
- * `maximize()` writes; the inline values stay what they were, which
- * is what the session hands back to the desktop.
- * ---------------------------------------------------------------- */
-
 html[data-os-mode="mobile"] .os-window {
 	border-radius: var( --_m-radius ) !important;
 	border: 1px solid var( --_m-border ) !important;
@@ -183,20 +96,10 @@ html[data-os-mode="mobile"] .os-window--maximized {
 	height: auto !important;
 }
 
-/*
- * Only the topmost window paints. The rest are still open (their
- * iframes keep their state) but skip layout and paint entirely, so a
- * phone with six apps open composites one.
- */
 html[data-os-mode="mobile"] .os-window:not( .os-window--focused ) {
 	content-visibility: hidden;
 }
 
-/*
- * The tab strip (All Posts / Add New / Categories) stays: on a phone
- * it is the in-app navigation. It scrolls sideways instead of
- * wrapping.
- */
 html[data-os-mode="mobile"] .os-window__tabs {
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -209,7 +112,6 @@ html[data-os-mode="mobile"] .os-window__tabs::-webkit-scrollbar {
 	display: none;
 }
 
-/* A new app slides up from the tab bar. */
 @keyframes os-mobile-app-in {
 	from {
 		opacity: 0;
@@ -225,20 +127,9 @@ html[data-os-mode="mobile"] .os-window.os-mobile-enter {
 	animation: os-mobile-app-in 220ms var( --_m-ease ) both;
 }
 
-/* On the home screen nothing but the wallpaper and the grid paint. */
 html[data-os-mode="mobile"] .os-shell[data-os-mobile-state="home"] .os-window {
 	visibility: hidden;
 }
-
-/* ------------------------------------------------------------------
- * The edge zones: thin strips the shell owns over both edges of the
- * area, so a pointer that starts there never belongs to the iframe.
- * The start edge is the Back gesture; both cancel the browser's
- * history swipe (`bindHistorySwipeGuard` in `gestures.ts`), so they
- * stay up on the home screen too — a swipe that navigated away would
- * navigate away from home as well. Above the windows and the home
- * grid, below the switcher sheet.
- * ---------------------------------------------------------------- */
 
 html[data-os-mode="mobile"] .os-mobile-edge {
 	position: absolute;
@@ -257,16 +148,6 @@ html[data-os-mode="mobile"] .os-mobile-edge--end {
 	inset-inline-end: 0;
 }
 
-/* ------------------------------------------------------------------
- * 3a. The top bar.
- * ---------------------------------------------------------------- */
-
-/*
- * The bar sits on the desk, not on the window: no fill and no rule
- * under it, only a scrim so the title reads over any wallpaper, and
- * the window card starts `--_m-gap` below it. Icon and name above a
- * card is the picture the switcher draws too.
- */
 html[data-os-mode="mobile"] .os-mobile-top {
 	display: flex;
 	align-items: center;
@@ -285,7 +166,6 @@ html[data-os-mode="mobile"] .os-mobile-top[hidden] {
 	display: none;
 }
 
-/* Icon + title, the app's identity. Follows an in-flight back gesture. */
 html[data-os-mode="mobile"] .os-mobile-top__identity {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -300,11 +180,6 @@ html[data-os-mode="mobile"] .os-mobile-top--peeking .os-mobile-top__identity {
 	transform: translateX( calc( var( --os-mobile-back-progress, 0 ) * 14px ) );
 }
 
-/*
- * One control, a round glass ×: the app closes and morphs back into
- * its tile. The bar also answers a flick down by sending the app
- * home, window kept.
- */
 html[data-os-mode="mobile"] .os-mobile-top__controls {
 	display: inline-flex;
 	align-items: center;
@@ -367,10 +242,6 @@ html[data-os-mode="mobile"] .os-mobile-top__title {
 	text-shadow: var( --_m-label-shadow );
 }
 
-/* ------------------------------------------------------------------
- * 3b. Home.
- * ---------------------------------------------------------------- */
-
 html[data-os-mode="mobile"] .os-mobile-home {
 	position: absolute;
 	inset: 0;
@@ -396,11 +267,6 @@ html[data-os-mode="mobile"] .os-mobile-home[hidden] {
 	}
 }
 
-/*
- * The search is a phone's search: a rounded glass field, 16px type
- * (the size under which iOS zooms the page into it), no hairline
- * box. The kit field reads the public tokens re-pointed here.
- */
 html[data-os-mode="mobile"] .os-mobile-home__search {
 	flex: 0 0 auto;
 	padding-block: 4px 8px;
@@ -423,16 +289,6 @@ html[data-os-mode="mobile"] .os-mobile-home__scroll {
 	overscroll-behavior: contain;
 }
 
-/*
- * The grid always scrolls, by at least one pixel. A phone only rubber-
- * bands a surface that CAN scroll, and a home screen that fits — a
- * dozen tiles on a tall phone — was a dead surface under the thumb.
- * The 1px past the frame makes it a scroller, and the platform then
- * gives it the platform's own bounce at both ends, exactly the drag
- * every native home screen has. The bottom padding is here rather than
- * on the scroller so the last row clears the tab bar inside the same
- * measure.
- */
 html[data-os-mode="mobile"] .os-mobile-home__content {
 	box-sizing: border-box;
 	min-block-size: calc( 100% + 1px );
@@ -540,17 +396,11 @@ html[data-os-mode="mobile"] .os-mobile-tabs__badge {
 	box-shadow: 0 0 0 2px var( --_m-surface );
 }
 
-/*
- * The switcher's glyph is the number of open apps inside a rounded
- * square, the browser tab-switcher convention, so it reads as "this
- * many open" and not as a notification (and the accent stays the
- * active tab's alone). With nothing open the windows icon shows.
- */
 html[data-os-mode="mobile"] .os-mobile-tabs__count {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	/* Stroke included: the neighbours' glyphs ink about 19px of their 22px box. */
+
 	box-sizing: border-box;
 	width: 20px;
 	height: 20px;
@@ -580,19 +430,6 @@ html[data-os-mode="mobile"] .os-mobile-tile__label {
 	overflow: hidden;
 	text-shadow: var( --_m-label-shadow );
 }
-
-/* ------------------------------------------------------------------
- * 3c. The tab bar.
- *
- * Anchored to the viewport's bottom edge, not laid out as the last
- * child of the shell. The shell is a viewport-sized fixed box, and a
- * box of that shape is exactly what mobile Safari has, more than
- * once, ended short of the screen's bottom edge (an installed app
- * under one iOS release drew a band of nothing under the bar). A
- * bar fixed to the edge is right whatever the shell's box does; the
- * shell's body keeps the bar's footprint clear below it, so the
- * window card and the home grid end where the bar begins.
- * ---------------------------------------------------------------- */
 
 html[data-os-mode="mobile"] .os-mobile-tabs {
 	position: fixed;
@@ -671,10 +508,6 @@ html[data-os-mode="mobile"] .os-mobile-tabs__label {
 	text-overflow: ellipsis;
 }
 
-/* ------------------------------------------------------------------
- * 3d. The switcher.
- * ---------------------------------------------------------------- */
-
 html[data-os-mode="mobile"] .os-mobile-switcher {
 	position: fixed;
 	inset: 0;
@@ -729,11 +562,6 @@ html[data-os-mode="mobile"] .os-mobile-switcher__header {
 	padding: 10px 8px 6px 16px;
 }
 
-/*
- * Explicit colours on the headings: wp-admin's `common.css` paints
- * every h2/h3 in the admin's heading colour, which is near-black under
- * a light scheme and would sink into the sheet.
- */
 html[data-os-mode="mobile"] .os-mobile-switcher__title {
 	margin: 0;
 	font-size: 15px;
@@ -759,12 +587,6 @@ html[data-os-mode="mobile"] .os-mobile-switcher__close:focus-visible {
 	outline-offset: -2px;
 }
 
-/*
- * The list is laid out bottom-up (`column-reverse`) so the deck sits
- * at the bottom with its front card nearest the thumb, and a scroll
- * container in this direction starts scrolled to the front. The DOM
- * order is unchanged.
- */
 html[data-os-mode="mobile"] .os-mobile-switcher__list {
 	flex: 1 1 auto;
 	min-height: 0;
@@ -782,13 +604,6 @@ html[data-os-mode="mobile"] .os-mobile-deck {
 	flex-direction: column;
 }
 
-/*
- * The pile. Cards are laid out bottom-up too, so the first card in
- * the DOM (the most recent, the one in front) is the lowest; each
- * card that follows is pulled down under the one before it by
- * `--_m-card-peek` less than its height, so only its title bar shows.
- * `switcher.ts` sets the z-order, front card highest.
- */
 html[data-os-mode="mobile"] .os-mobile-deck__cards {
 	display: flex;
 	flex-direction: column-reverse;
@@ -812,12 +627,6 @@ html[data-os-mode="mobile"] .os-mobile-switcher__footer[hidden] {
 	display: none;
 }
 
-/*
- * A card is a small window: an opaque surface (glass over the solid
- * backstop, so the card behind never shows through), a title bar,
- * and a lighter body. The shadow is cast upward, onto the card
- * behind.
- */
 html[data-os-mode="mobile"] .os-mobile-card {
 	--_m-card-h: 132px;
 	--_m-card-peek: 58px;
@@ -847,7 +656,6 @@ html[data-os-mode="mobile"] .os-mobile-card--out {
 	pointer-events: none;
 }
 
-/* The app on screen: outlined in the accent, labelled, not a target. */
 html[data-os-mode="mobile"] .os-mobile-card--active {
 	border-color: var( --_m-accent-dim );
 	box-shadow: 0 0 0 1px var( --_m-accent-dim ), var( --_m-card-shadow );
@@ -882,7 +690,6 @@ html[data-os-mode="mobile"] .os-mobile-card__body {
 	border-radius: inherit;
 }
 
-/* The title bar: exactly the strip that shows when the card is behind another. */
 html[data-os-mode="mobile"] .os-mobile-card__bar {
 	flex: 0 0 auto;
 	height: var( --_m-card-peek );
@@ -893,7 +700,6 @@ html[data-os-mode="mobile"] .os-mobile-card__bar {
 	min-width: 0;
 }
 
-/* The body: a lighter page surface, its bottom under the card in front. */
 html[data-os-mode="mobile"] .os-mobile-card__preview {
 	flex: 1 1 auto;
 	margin-inline: 10px;
@@ -973,18 +779,6 @@ html[data-os-mode="mobile"] .os-mobile-card__close:focus-visible {
 	outline-offset: -2px;
 }
 
-/* ------------------------------------------------------------------
- * View transitions.
- *
- * The layer runs every open, back and switch through
- * `document.startViewTransition()` (`src/mobile/layer.ts`). The thing
- * the user touched and the thing it becomes share one
- * `view-transition-name` (`os-mobile-hero`), so the browser morphs a
- * tile into its full-screen window and the window back into its
- * tile. The top bar and the tab bar carry their own names so they
- * hold still instead of cross-fading with the rest of the root.
- * ---------------------------------------------------------------- */
-
 html[data-os-mode="mobile"] .os-mobile-top {
 	view-transition-name: os-mobile-top;
 }
@@ -1000,8 +794,7 @@ html[data-os-mode="mobile"] .os-mobile-tabs {
 
 ::view-transition-old( os-mobile-hero ),
 ::view-transition-new( os-mobile-hero ) {
-	/* The two boxes are different shapes; stretch each to the group
-	 * box rather than letting the smaller one letterbox. */
+
 	height: 100%;
 	width: 100%;
 	object-fit: cover;
@@ -1021,14 +814,6 @@ html[data-os-mode="mobile"] .os-mobile-tabs {
 	animation-duration: 160ms;
 }
 
-/*
- * The tab bar's membership changing (a pin added, removed or
- * reordered in Preferences → Mobile). Each tab carries a name and
- * the `os-tab` transition class for the duration: a tab that stays
- * glides to its slot, a new one grows in from the bar, a removed one
- * shrinks out. `:only-child` is how a group with no counterpart —
- * an entry or an exit — is told apart from a morph.
- */
 @keyframes os-mobile-tab-in {
 	from {
 		opacity: 0;
@@ -1055,10 +840,6 @@ html[data-os-mode="mobile"] .os-mobile-tabs {
 ::view-transition-old( .os-tab ):only-child {
 	animation: os-mobile-tab-out 200ms cubic-bezier( 0.2, 0.8, 0.2, 1 ) both;
 }
-
-/* ------------------------------------------------------------------
- * Motion opt-out.
- * ---------------------------------------------------------------- */
 
 @media ( prefers-reduced-motion: reduce ) {
 	html[data-os-mode="mobile"] .os-window.os-mobile-enter,

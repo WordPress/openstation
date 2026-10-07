@@ -1,29 +1,7 @@
 <?php
-/**
- * Tests for desktop-theme fonts.
- *
- * `@font-face` is the ONLY at-rule this feature generates, which
- * makes it the one place where the "a theme is data, never code"
- * rule has to be defended by construction rather than by the value
- * grammar. Two author-supplied substrings reach the stylesheet — the
- * family name and the file path — so these tests concentrate on
- * proving that neither can escape:
- *
- *   - the family name is quoted, and nothing that could close the
- *     quote survives sanitization;
- *   - the path went through the FONT extension allowlist, which is
- *     disjoint from the image one;
- *   - every other descriptor is a closed enum or a numeric pattern.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-themes
- */
+
 class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 
-	/** Recursive delete for fixtures outside the themes base dir. */
 	private function rrmdir( $dir ) {
 		foreach ( (array) glob( $dir . '/*' ) as $entry ) {
 			is_dir( $entry ) ? $this->rrmdir( $entry ) : unlink( $entry );
@@ -31,7 +9,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		rmdir( $dir );
 	}
 
-	/** Resolver that accepts anything with a plausible extension. */
 	private function permissive_resolver() {
 		return static function ( $path ) {
 			return (string) $path;
@@ -63,13 +40,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
-	// ------------------------------------------------------------------
-	// Sanitizer.
-	// ------------------------------------------------------------------
-
-	/**
-	 * @covers ::openstation_sanitize_desktop_theme_fonts
-	 */
 	public function test_minimal_face_survives() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -86,31 +56,19 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The `format()` hint is DERIVED from the extension, never read
-	 * from the author — one less free string in the output.
-	 *
-	 * @covers ::openstation_desktop_theme_font_format
-	 */
 	public function test_format_is_derived_from_the_extension() {
 		$this->assertSame( 'woff2', openstation_desktop_theme_font_format( 'a/b.woff2' ) );
 		$this->assertSame( 'woff', openstation_desktop_theme_font_format( 'a/b.WOFF' ) );
 		$this->assertSame( 'truetype', openstation_desktop_theme_font_format( 'a/b.ttf' ) );
 		$this->assertSame( 'opentype', openstation_desktop_theme_font_format( 'a/b.otf' ) );
 		$this->assertSame( '', openstation_desktop_theme_font_format( 'a/b.png' ) );
-		// URL form, query string discarded before the extension read.
+
 		$this->assertSame(
 			'woff2',
 			openstation_desktop_theme_font_format( 'https://x.test/f/n.woff2?ver=7' )
 		);
 	}
 
-	/**
-	 * An author-supplied `format` is ignored rather than trusted — the
-	 * hint always comes from the extension.
-	 *
-	 * @covers ::openstation_sanitize_desktop_theme_fonts
-	 */
 	public function test_author_supplied_format_is_ignored() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -124,9 +82,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( 'woff2', $fonts[0]['src'][0]['format'] );
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_desktop_theme_fonts
-	 */
 	public function test_src_accepts_a_list_in_preference_order() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -139,13 +94,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( 'fonts/neon.woff', $fonts[0]['src'][1]['path'] );
 	}
 
-	/**
-	 * The family name is quoted verbatim by the compiler, so anything
-	 * that could close the quote has to die here.
-	 *
-	 * @dataProvider data_bad_family_names
-	 * @covers ::openstation_sanitize_desktop_theme_fonts
-	 */
 	public function test_bad_family_names_drop_the_face( $family ) {
 		$this->assertSame(
 			array(),
@@ -172,9 +120,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_desktop_theme_fonts
-	 */
 	public function test_face_with_no_usable_source_is_dropped() {
 		$reject = static function () {
 			return false;
@@ -191,9 +136,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_desktop_theme_fonts
-	 */
 	public function test_descriptor_grammar() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -214,12 +156,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( 'U+0000-00FF, U+2000-206F', $fonts[0]['unicodeRange'] );
 	}
 
-	/**
-	 * A bad descriptor drops itself, not the face — same
-	 * drops-and-continues contract as tokens and textures.
-	 *
-	 * @covers ::openstation_sanitize_desktop_theme_fonts
-	 */
 	public function test_bad_descriptors_drop_without_dropping_the_face() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -240,9 +176,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_desktop_theme_fonts
-	 */
 	public function test_face_and_source_caps_are_enforced() {
 		$caps = openstation_desktop_theme_font_caps();
 
@@ -259,9 +192,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertCount( $caps['max_sources'], $fonts[0]['src'] );
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_desktop_theme_manifest
-	 */
 	public function test_fonts_block_is_wired_into_the_manifest() {
 		$manifest = openstation_sanitize_desktop_theme_manifest(
 			array(
@@ -279,12 +209,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( 'Neon', $manifest['fonts'][0]['family'] );
 	}
 
-	/**
-	 * A manifest that declares no fonts still gets the key, so every
-	 * downstream consumer can iterate it unconditionally.
-	 *
-	 * @covers ::openstation_sanitize_desktop_theme_manifest
-	 */
 	public function test_fonts_key_always_exists() {
 		$manifest = openstation_sanitize_desktop_theme_manifest(
 			array( 'manifestVersion' => 1, 'id' => 'acme/neon', 'name' => 'Neon' ),
@@ -294,13 +218,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array(), $manifest['fonts'] );
 	}
 
-	// ------------------------------------------------------------------
-	// Extension allowlists.
-	// ------------------------------------------------------------------
-
-	/**
-	 * @covers ::openstation_desktop_theme_asset_extensions
-	 */
 	public function test_image_and_font_extension_lists_are_disjoint() {
 		$images = openstation_desktop_theme_asset_extensions( 'image' );
 		$fonts  = openstation_desktop_theme_asset_extensions( 'font' );
@@ -315,12 +232,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * A font path must not resolve through the image gate, and an
-	 * image path must not resolve through the font gate.
-	 *
-	 * @covers ::openstation_desktop_theme_staging_asset_resolver
-	 */
 	public function test_staging_resolver_separates_kinds() {
 		$base = get_temp_dir() . 'dm-theme-fonts-' . wp_generate_uuid4();
 		wp_mkdir_p( $base . '/fonts' );
@@ -334,15 +245,12 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertFalse( $resolve( 'fonts/n.woff2', 'image' ), 'Font refused as an image.' );
 		$this->assertSame( 'icons/x.svg', $resolve( 'icons/x.svg', 'image' ) );
 		$this->assertFalse( $resolve( 'icons/x.svg', 'font' ), 'SVG refused as a font.' );
-		// Containment still applies to fonts.
+
 		$this->assertFalse( $resolve( '../n.woff2', 'font' ) );
 
 		$this->rrmdir( $base );
 	}
 
-	/**
-	 * @covers ::openstation_desktop_theme_url_asset_resolver
-	 */
 	public function test_url_resolver_separates_kinds() {
 		$resolve = openstation_desktop_theme_url_asset_resolver();
 
@@ -355,13 +263,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertFalse( $resolve( 'fonts/n.woff2', 'font' ), 'Relative URL refused.' );
 	}
 
-	/**
-	 * The ZIP allowlist has to admit fonts (and the licence file a
-	 * bundled font obliges an author to ship) or the upload path is
-	 * closed to them before the sanitizer ever runs.
-	 *
-	 * @covers ::openstation_desktop_theme_zip_caps
-	 */
 	public function test_zip_caps_admit_fonts_and_licence_files() {
 		$caps = openstation_desktop_theme_zip_caps();
 
@@ -374,13 +275,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// Compiler.
-	// ------------------------------------------------------------------
-
-	/**
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_font_face_is_emitted() {
 		$css = $this->compile( $this->sanitize_fonts( array(
 			array(
@@ -406,12 +300,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * A theme that ships fonts but sets no token still compiles — the
-	 * faces are the whole payload.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_fonts_alone_still_compile() {
 		$css = $this->compile( $this->sanitize_fonts( array(
 			array( 'family' => 'Neon', 'src' => 'fonts/n.woff2' ),
@@ -421,12 +309,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '.os-shell[', $css );
 	}
 
-	/**
-	 * Faces print BEFORE the token rule, so reading the sheet top to
-	 * bottom shows a family defined before it is named.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_font_faces_precede_the_token_rule() {
 		$css = openstation_desktop_theme_compile_css(
 			array(
@@ -451,14 +333,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Re-uploading a theme reuses the same paths by design, so font
-	 * URLs need the same install-timestamp cache-buster the textures
-	 * get — otherwise a re-upload swaps the CSS and keeps the old
-	 * typeface.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_font_urls_carry_the_cache_buster() {
 		$css = $this->compile(
 			$this->sanitize_fonts( array(
@@ -474,12 +348,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Absolute URLs (code-registered themes) pass through untouched —
-	 * that plugin owns its own cache-busting.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_code_theme_font_urls_pass_through() {
 		$css = $this->compile(
 			$this->sanitize_fonts(
@@ -492,14 +360,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'url("https://cdn.test/n.woff2")', $css );
 	}
 
-	/**
-	 * The compiled sheet must contain exactly one at-rule keyword, and
-	 * it must be ours. This is the regression guard for the whole
-	 * "data, never code" posture: if an author string ever managed to
-	 * become an at-rule, it shows up here.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_no_at_rules_other_than_font_face() {
 		$css = $this->compile( $this->sanitize_fonts( array(
 			array(
@@ -513,13 +373,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array( '@font-face' ), array_unique( $matches[0] ) );
 	}
 
-	// ------------------------------------------------------------------
-	// Registration + payload.
-	// ------------------------------------------------------------------
-
-	/**
-	 * @covers ::openstation_register_desktop_theme
-	 */
 	public function test_code_registration_accepts_fonts() {
 		openstation_register_desktop_theme( 'acme/fonted', array(
 			'name'  => 'Fonted',
@@ -528,7 +381,7 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 					'family' => 'Neon Grotesk',
 					'src'    => array( 'https://cdn.test/neon.woff2' ),
 				),
-				// Same family at a second weight — one family, two faces.
+
 				array(
 					'family' => 'Neon Grotesk',
 					'weight' => '700',
@@ -552,10 +405,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		openstation_unregister_desktop_theme( 'acme/fonted' );
 	}
 
-	// ------------------------------------------------------------------
-	// Wallpapers.
-	// ------------------------------------------------------------------
-
 	private function sanitize_wallpapers( $raw, $resolver = null ) {
 		return openstation_sanitize_desktop_theme_wallpapers(
 			$raw,
@@ -563,12 +412,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * All four author shapes have to work, because all four are things
-	 * people reasonably write.
-	 *
-	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
-	 */
 	public function test_every_author_shape_normalizes_to_a_list() {
 		$bare = $this->sanitize_wallpapers( 'textures/desk.png' );
 		$this->assertCount( 1, $bare );
@@ -592,13 +435,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array( 'dusk', 'dawn' ), wp_list_pluck( $map, 'id' ) );
 	}
 
-	/**
-	 * Ids are a STORED USER PREFERENCE. They must come from something
-	 * stable, never the array index, or reordering the list in a
-	 * re-upload would move every user onto a different picture.
-	 *
-	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
-	 */
 	public function test_ids_are_stable_not_positional() {
 		$before = $this->sanitize_wallpapers( array( 'aurora.png', 'dusk.png' ) );
 		$after  = $this->sanitize_wallpapers( array( 'dusk.png', 'aurora.png' ) );
@@ -610,22 +446,17 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 			'Reordering must not renumber ids.'
 		);
 
-		// Explicit id wins over the filename.
 		$explicit = $this->sanitize_wallpapers( array(
 			array( 'path' => 'aurora.png', 'id' => 'keep-me' ),
 		) );
 		$this->assertSame( 'keep-me', $explicit[0]['id'] );
 
-		// A label supplies the id when there is no explicit one.
 		$labelled = $this->sanitize_wallpapers( array(
 			array( 'path' => 'x.png', 'label' => 'Deep Field' ),
 		) );
 		$this->assertSame( 'deep-field', $labelled[0]['id'] );
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
-	 */
 	public function test_duplicate_ids_and_unresolvable_assets_drop() {
 		$dupes = $this->sanitize_wallpapers( array( 'a.png', 'a.png' ) );
 		$this->assertCount( 1, $dupes, 'A duplicate id drops rather than shadowing.' );
@@ -637,9 +468,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array(), $this->sanitize_wallpapers( null ) );
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
-	 */
 	public function test_wallpaper_count_is_capped() {
 		$many = array();
 		for ( $i = 0; $i < 40; $i++ ) {
@@ -655,12 +483,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		remove_filter( 'openstation_desktop_theme_max_wallpapers', $cap );
 	}
 
-	/**
-	 * A wallpaper must resolve through the IMAGE gate — a font path
-	 * must not sneak in through it.
-	 *
-	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
-	 */
 	public function test_wallpapers_use_the_image_extension_gate() {
 		$seen = array();
 		$spy  = static function ( $path, $kind = 'image' ) use ( &$seen ) {
@@ -671,11 +493,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array( 'image' ), $seen );
 	}
 
-	/**
-	 * Both manifest keys are accepted — authors guess either.
-	 *
-	 * @covers ::openstation_sanitize_desktop_theme_manifest
-	 */
 	public function test_singular_and_plural_manifest_keys_both_work() {
 		foreach ( array( 'wallpaper', 'wallpapers' ) as $key ) {
 			$manifest = openstation_sanitize_desktop_theme_manifest(
@@ -691,9 +508,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers ::openstation_desktop_theme_wallpaper_css
-	 */
 	public function test_wallpaper_css_is_a_background_shorthand() {
 		$css = openstation_desktop_theme_wallpaper_css(
 			array( 'path' => 'textures/desk.png' ),
@@ -719,11 +533,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_desktop_theme_wallpaper_css( array(), '' ) );
 	}
 
-	/**
-	 * The label is what tells a user where a wallpaper came from.
-	 *
-	 * @covers ::openstation_desktop_theme_wallpaper_label
-	 */
 	public function test_wallpaper_label_marks_its_origin() {
 		$this->assertSame(
 			'Neon Glass - (theme)',
@@ -745,13 +554,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		remove_filter( 'openstation_desktop_theme_wallpaper_label', $filter );
 	}
 
-	/**
-	 * Every theme in the library contributes every wallpaper it
-	 * declares, active or not — the point of a pick is that it does
-	 * not require wearing the theme it came from.
-	 *
-	 * @covers ::openstation_register_desktop_theme_wallpapers
-	 */
 	public function test_theme_wallpapers_reach_the_picker() {
 		openstation_register_desktop_theme( 'acme/papered', array(
 			'name'       => 'Papered',
@@ -784,17 +586,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		openstation_unregister_desktop_theme( 'acme/papered' );
 	}
 
-	/**
-	 * The install response must carry the REBUILT wallpaper list.
-	 *
-	 * `openstation_register_desktop_theme_wallpapers()` runs on `init`,
-	 * which for the upload request happened before the theme existed.
-	 * Without a rebuild in the response the shell has no way to learn
-	 * about the new wallpapers until the next page load — the "works
-	 * after F5" seam this channel exists to close.
-	 *
-	 * @covers ::openstation_rest_install_desktop_theme
-	 */
 	public function test_install_response_carries_the_rebuilt_wallpaper_list() {
 		$zip = $this->make_theme_zip( array(
 			'manifestVersion' => 1,
@@ -806,7 +597,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$entry = openstation_desktop_theme_install_from_zip( $zip );
 		$this->assertNotWPError( $entry );
 
-		// The registration the REST handler re-runs.
 		openstation_register_desktop_theme_wallpapers();
 		$ids = wp_list_pluck( openstation_build_desktop_wallpapers_payload(), 'id' );
 
@@ -820,15 +610,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		unlink( $zip );
 	}
 
-	/**
-	 * Abandoned staging dirs are collectable, live ones are not.
-	 *
-	 * The age floor is the load-bearing half: a CONCURRENT upload owns a
-	 * staging dir that is seconds old, and collecting it would corrupt a
-	 * live install.
-	 *
-	 * @covers ::openstation_desktop_theme_sweep_staging
-	 */
 	public function test_staging_sweep_collects_only_stale_orphans() {
 		$base = openstation_desktop_themes_ensure_dir();
 		$this->assertNotWPError( $base );
@@ -839,7 +620,7 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		wp_mkdir_p( $stale );
 		wp_mkdir_p( $fresh );
 		wp_mkdir_p( $theme );
-		// Backdate the orphan past the age floor.
+
 		touch( $stale, time() - ( 2 * DAY_IN_SECONDS ) );
 
 		$removed = openstation_desktop_theme_sweep_staging();
@@ -853,19 +634,11 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		openstation_desktop_theme_rmdir( $theme );
 	}
 
-	/**
-	 * A quote in a token value is allowed (font stacks need it) and
-	 * cannot escape the declaration it lands in.
-	 *
-	 * @covers ::openstation_desktop_theme_is_safe_css_value
-	 */
 	public function test_quotes_are_allowed_but_cannot_break_out() {
 		$this->assertTrue(
 			openstation_desktop_theme_is_safe_css_value( '"Segoe UI", sans-serif' )
 		);
-		// The characters that WOULD let a quote matter are all banned,
-		// so no quoted payload can terminate the declaration or the
-		// stylesheet.
+
 		foreach ( array(
 			'"; background: url( evil.png ); x: "',
 			'"} body { display: none } .x{"',
@@ -878,12 +651,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * Wallpaper labels are stripped, not entity-escaped — the shell
-	 * paints them into text nodes, where `&amp;` would render literally.
-	 *
-	 * @covers ::openstation_register_wallpaper
-	 */
 	public function test_wallpaper_label_is_stripped_not_escaped() {
 		openstation_register_wallpaper( 'acme/labelled', array(
 			'label'   => '<b>Bold</b> Black & White',
@@ -908,12 +675,11 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '&amp;', $found['label'] );
 	}
 
-	/** Build a minimal theme ZIP with one 1x1 PNG, for install tests. */
 	private function make_theme_zip( $manifest ) {
 		$dir = get_temp_dir() . 'dm-theme-zip-' . wp_generate_uuid4();
 		wp_mkdir_p( $dir );
 		file_put_contents( $dir . '/theme.json', wp_json_encode( $manifest ) );
-		// 1x1 transparent PNG.
+
 		file_put_contents(
 			$dir . '/desk.png',
 			base64_decode( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' )
@@ -929,11 +695,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		return $zip_path;
 	}
 
-	/**
-	 * A theme with no wallpaper adds nothing to the picker.
-	 *
-	 * @covers ::openstation_register_desktop_theme_wallpapers
-	 */
 	public function test_theme_without_a_wallpaper_adds_no_entry() {
 		openstation_register_desktop_theme( 'acme/bare', array( 'name' => 'Bare' ) );
 		openstation_register_desktop_theme_wallpapers();

@@ -1,7 +1,3 @@
-/**
- * "New note" wallpaper context-menu entry: it appears in the menu,
- * pins a note where the user right-clicked, and never doubles up.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { buildMenuItems } from '../../src/desktop-files/wallpaper-menu';
 import { NotesLayer } from '../../src/notes/layer';
@@ -113,7 +109,7 @@ describe( 'notes wallpaper menu', () => {
 
 		const note = document.querySelector( '.os-pinned-note' );
 		expect( note ).not.toBeNull();
-		// 300/1000 and 250/500 of the host, per the stubbed geometry.
+
 		expect( ( note as HTMLElement ).style.left ).toBe( '30%' );
 		expect( ( note as HTMLElement ).style.top ).toBe( '50%' );
 

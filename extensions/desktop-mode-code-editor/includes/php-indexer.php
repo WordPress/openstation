@@ -1,37 +1,9 @@
 <?php
-/**
- * WordPress core symbol indexer for the Code Editor extension.
- *
- * Builds the catalogue Monaco's PHP completion + hover providers query
- * against. Three layers:
- *
- *   - {@see openstation_code_editor_get_wp_core_index()}
- *   - {@see openstation_code_editor_build_wp_core_index()}
- *   - {@see openstation_code_editor_query_php_symbols()}
- *
- * Plugin authors can extend the index without forking via the
- * `openstation_code_editor_php_index_extra_symbols` filter — return
- * an array shaped like the canonical entries below and they're merged
- * in. The workspace indexer feeds this same filter.
- *
- * @package OpenStationCodeEditor
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Transient TTL — index lives until WP updates. 30 days is generous. */
 const OPENSTATION_CODE_EDITOR_INDEX_TTL = 30 * DAY_IN_SECONDS;
 
-// ---------------------------------------------------------------------------
-// Public reader
-// ---------------------------------------------------------------------------
-
-/**
- * Returns the WP core symbol index. Cached as a transient keyed on
- * the WP version.
- *
- * @return array{ functions: array<string, array>, hooks: array<string, array> }
- */
 function openstation_code_editor_get_wp_core_index() {
 	$cache_key = 'desktop_mode_code_editor_php_index_' . get_bloginfo( 'version' );
 	$cached    = get_transient( $cache_key );
@@ -44,22 +16,10 @@ function openstation_code_editor_get_wp_core_index() {
 	return $index;
 }
 
-/**
- * Drop the cached index.
- */
 function openstation_code_editor_flush_wp_core_index() {
 	delete_transient( 'desktop_mode_code_editor_php_index_' . get_bloginfo( 'version' ) );
 }
 
-// ---------------------------------------------------------------------------
-// Build (cold path)
-// ---------------------------------------------------------------------------
-
-/**
- * Build the index from scratch. Slow — call only via the cached reader.
- *
- * @return array
- */
 function openstation_code_editor_build_wp_core_index() {
 	$functions = openstation_code_editor_index_wp_core_functions();
 	$hooks     = openstation_code_editor_index_wp_core_hooks();
@@ -70,12 +30,6 @@ function openstation_code_editor_build_wp_core_index() {
 	);
 }
 
-/**
- * Index every defined function whose source file lives under
- * `ABSPATH` but outside `WP_CONTENT_DIR`.
- *
- * @return array<string, array>
- */
 function openstation_code_editor_index_wp_core_functions() {
 	$out = array();
 
@@ -138,12 +92,6 @@ function openstation_code_editor_index_wp_core_functions() {
 	return $out;
 }
 
-/**
- * Walk wp-includes / wp-admin and pull out every literal-string
- * `do_action` / `apply_filters` call.
- *
- * @return array<string, array>
- */
 function openstation_code_editor_index_wp_core_hooks() {
 	$out = array();
 
@@ -195,23 +143,14 @@ function openstation_code_editor_index_wp_core_hooks() {
 	return $out;
 }
 
-/**
- * Tokenize a single PHP file and append every literal-string
- * `do_action` / `apply_filters` (and `_ref_array` variants) into `$out`.
- *
- * @internal
- *
- * @param string $path Absolute path to a PHP file.
- * @param array  $out  Accumulator.
- */
 function openstation_code_editor_scan_hooks_in_file( $path, array &$out ) {
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
 	$source = @file_get_contents( $path );
 	if ( false === $source ) {
 		return;
 	}
 
-	$tokens = @token_get_all( $source ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+	$tokens = @token_get_all( $source );
 	if ( ! is_array( $tokens ) ) {
 		return;
 	}
@@ -273,7 +212,6 @@ function openstation_code_editor_scan_hooks_in_file( $path, array &$out ) {
 	}
 }
 
-/** Map a function name to its hook kind, or null if it isn't a hook call. */
 function openstation_code_editor_hook_kind_for_function_name( $name ) {
 	switch ( $name ) {
 		case 'do_action':
@@ -289,12 +227,6 @@ function openstation_code_editor_hook_kind_for_function_name( $name ) {
 	}
 }
 
-/**
- * Walk forward from `$start` skipping whitespace + comments; return
- * the index of the next significant token, or null if EOF.
- *
- * @internal
- */
 function openstation_code_editor_next_significant_token( array $tokens, $start ) {
 	$count = count( $tokens );
 	for ( $i = $start; $i < $count; $i++ ) {
@@ -309,7 +241,6 @@ function openstation_code_editor_next_significant_token( array $tokens, $start )
 	return null;
 }
 
-/** Strip the surrounding quotes from a `T_CONSTANT_ENCAPSED_STRING` token's lexeme. */
 function openstation_code_editor_unquote_string( $lexeme ) {
 	$lexeme = (string) $lexeme;
 	if ( strlen( $lexeme ) < 2 ) {
@@ -322,7 +253,6 @@ function openstation_code_editor_unquote_string( $lexeme ) {
 	return $lexeme;
 }
 
-/** Format a value for display as a default in a parameter list. */
 function openstation_code_editor_format_default( $value ) {
 	if ( is_string( $value ) ) {
 		return "'" . $value . "'";
@@ -339,7 +269,6 @@ function openstation_code_editor_format_default( $value ) {
 	return (string) $value;
 }
 
-/** Compose a human-readable signature line. */
 function openstation_code_editor_format_signature( $name, array $params, $return = null ) {
 	$parts = array();
 	foreach ( $params as $p ) {
@@ -369,16 +298,6 @@ function openstation_code_editor_format_signature( $name, array $params, $return
 	return $sig;
 }
 
-// ---------------------------------------------------------------------------
-// PHPDoc parsing
-// ---------------------------------------------------------------------------
-
-/**
- * Pull the human-readable summary out of a PHPDoc block.
- *
- * @param string $doc Full docblock text including delimiters.
- * @return string
- */
 function openstation_code_editor_phpdoc_summary( $doc ) {
 	$doc = (string) $doc;
 	if ( '' === $doc ) {
@@ -404,13 +323,6 @@ function openstation_code_editor_phpdoc_summary( $doc ) {
 	return trim( (string) $summary );
 }
 
-/**
- * Pull a single `@tag` value out of a PHPDoc block.
- *
- * @param string $doc PHPDoc block.
- * @param string $tag Tag name without `@`.
- * @return string
- */
 function openstation_code_editor_phpdoc_tag( $doc, $tag ) {
 	$doc = (string) $doc;
 	$tag = preg_quote( (string) $tag, '/' );
@@ -423,7 +335,6 @@ function openstation_code_editor_phpdoc_tag( $doc, $tag ) {
 	return '';
 }
 
-/** Strip ABSPATH from a path; emit forward-slashed relative form. */
 function openstation_code_editor_path_relative_to_abspath( $path ) {
 	if ( ! defined( 'ABSPATH' ) ) {
 		return wp_normalize_path( $path );
@@ -436,19 +347,6 @@ function openstation_code_editor_path_relative_to_abspath( $path ) {
 	return $norm;
 }
 
-// ---------------------------------------------------------------------------
-// Read-side query
-// ---------------------------------------------------------------------------
-
-/**
- * Query the index — prefix-match across functions + hooks, optionally
- * filtered by `$kinds`.
- *
- * @param string   $prefix Lower-cased identifier prefix.
- * @param string[] $kinds  Subset of {`function`, `action`, `filter`}.
- * @param int      $limit  Hard cap on returned matches.
- * @return array[] List of symbol entries.
- */
 function openstation_code_editor_query_php_symbols( $prefix, array $kinds = array(), $limit = 50 ) {
 	$prefix = strtolower( (string) $prefix );
 	$limit  = max( 1, (int) $limit );
@@ -476,14 +374,6 @@ function openstation_code_editor_query_php_symbols( $prefix, array $kinds = arra
 		}
 	}
 
-	/**
-	 * Inject extra symbols (workspace functions, framework
-	 * dictionaries, etc.).
-	 *
-	 * @param array  $pool   Symbols collected from WP core.
-	 * @param string $prefix The prefix being queried.
-	 * @param array  $kinds  Kind filter.
-	 */
 	$pool = (array) apply_filters( 'openstation_code_editor_php_index_extra_symbols', $pool, $prefix, $kinds );
 
 	$matches = array();
@@ -511,12 +401,6 @@ function openstation_code_editor_query_php_symbols( $prefix, array $kinds = arra
 	return array_slice( $matches, 0, $limit );
 }
 
-/**
- * Look up a single symbol by exact name.
- *
- * @param string $name
- * @return array|null
- */
 function openstation_code_editor_get_php_symbol( $name ) {
 	$index = openstation_code_editor_get_wp_core_index();
 	$name  = (string) $name;

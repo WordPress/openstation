@@ -67,9 +67,6 @@ describe( '<os-toast>', () => {
 	} );
 
 	test( 'stylesheet actually hides a [hidden] button (author display must not win)', () => {
-		// The close button sets `display`, which would override the UA
-		// `[hidden]{display:none}` unless the stylesheet re-hides it — else
-		// every persistent toast shows a × regardless of `dismissible`.
 		expect( toastStyles.cssText ).toMatch(
 			/button\[\s*hidden\s*\]\s*{[^}]*display:\s*none/,
 		);
@@ -104,9 +101,7 @@ describe( '<os-toast>', () => {
 
 		toast.dispatchEvent( new Event( 'mouseenter' ) );
 		expect( toast.hasAttribute( 'held' ) ).toBe( true );
-		// A second enter without an intervening leave is not a new
-		// transition — re-emitting would reset showToast()'s countdown
-		// on every pointer twitch.
+
 		toast.dispatchEvent( new Event( 'mouseenter' ) );
 		toast.dispatchEvent( new Event( 'mouseleave' ) );
 		expect( toast.hasAttribute( 'held' ) ).toBe( false );
@@ -121,7 +116,7 @@ describe( '<os-toast>', () => {
 		toast.dispatchEvent( new Event( 'mouseenter' ) );
 		toast.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
 		toast.dispatchEvent( new Event( 'mouseleave' ) );
-		// Pointer gone, focus still inside → still held.
+
 		expect( toast.hasAttribute( 'held' ) ).toBe( true );
 
 		toast.dispatchEvent(
@@ -137,8 +132,7 @@ describe( '<os-toast>', () => {
 		const close = toast.shadowRoot!.querySelector( '.os-toast__close' )!;
 
 		toast.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
-		// Both buttons live in the shadow root, where contains() stops
-		// — the check has to walk out through the host.
+
 		toast.dispatchEvent(
 			new FocusEvent( 'focusout', {
 				bubbles: true,

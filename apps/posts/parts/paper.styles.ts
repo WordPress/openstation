@@ -1,6 +1,5 @@
 import { css } from '../../../src/ui/core';
 
-/** Paper cues stay subtle and follow the desktop palette. */
 export const paperStyles = css`
 .desktop-mode-posts .os-app-list__toolbar-right.os-app-list__bulk--footer {
 	flex: 0 0 auto;

@@ -1,35 +1,3 @@
-/**
- * Server-driven window-theme sync.
- *
- * Mirrors `src/commands/server-sync.ts` and the rest of the
- * server-sync family. Plugins opt in server-side via
- * `openstation_register_window_theme_script()` (and optionally
- * `openstation_register_window_theme()` for token-only themes); this
- * module receives the resolved script URL list on every live refresh
- * and:
- *
- *   - Loads each newly-arrived `scriptUrl` via `loadVendorScript`. The
- *     plugin's JS runs and calls `wp.os.registerWindowTheme()`
- *     as normal. The theme registry's `subscribeWindowThemes` fan-out
- *     repaints any open window the theme matches.
- *   - On deactivation (a previously-seen `handle` is missing from the
- *     incoming payload), unregisters every theme attributable to that
- *     handle. Attribution unions:
- *       1. The `owner` field set by the plugin's JS when calling
- *          `registerWindowTheme({ …, owner: 'my-script-handle' })`.
- *       2. The id↔handle mapping captured from the *previous*
- *          `serverWindowThemes` payload — themes declared via
- *          `openstation_register_window_theme()` with a `script` arg
- *          get this for free.
- *
- *     Themes registered via JS without an `owner` survive past
- *     deactivation until the next reload (graceful backwards-compat).
- *
- * Themes pre-registered via PHP metadata (`serverWindowThemes`)
- * register their tokens shell-side too, without waiting for a JS
- * round trip — this is what enables stylesheet-only themes.
- */
-
 import { doAction, HOOKS } from '../../hooks';
 import { loadVendorScript } from '../../wallpapers/vendor-loader';
 import {
@@ -49,12 +17,9 @@ export function createWindowThemeRegistrySync(): (
 ) => Promise< void > {
 	const loadedHandles = new Set< string >();
 	const loadedUrls = new Set< string >();
-	// Snapshot of the previous payload's id↔handle mapping. Used to
-	// look up themes registered by a handle that's about to leave.
+
 	let prevIdsByHandle = new Map< string, Set< string > >();
-	// Themes the SHELL registered from PHP metadata (vs themes registered
-	// by the plugin's JS) — we own these and can re-register / un-register
-	// safely on every payload diff.
+
 	const shellRegistered = new Set< string >();
 
 	const ensureScript = async (
@@ -67,8 +32,7 @@ export function createWindowThemeRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-				// The packages the bundle declares, brought in first; the
-				// document skips what it already ran.
+
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
@@ -110,13 +74,13 @@ export function createWindowThemeRegistrySync(): (
 
 	const collectIdsToRemove = ( handle: string ): Set< string > => {
 		const ids = new Set< string >();
-		// (B) owner-tagged JS registrations.
+
 		for ( const def of listWindowThemes() ) {
 			if ( def.owner === handle ) {
 				ids.add( def.id );
 			}
 		}
-		// (A) PHP-declared metadata from the last known payload.
+
 		const declared = prevIdsByHandle.get( handle );
 		if ( declared ) {
 			for ( const id of declared ) {
@@ -136,10 +100,7 @@ export function createWindowThemeRegistrySync(): (
 			if ( ! entry.id || ! entry.tokens ) {
 				continue;
 			}
-			// Stylesheet-only themes: register a "match every window"
-			// predicate so the theme applies sitewide. Plugins that
-			// want narrower matching ship a script that overrides the
-			// metadata-only registration with a richer `match`.
+
 			try {
 				registerWindowTheme( {
 					id: entry.id,
@@ -168,9 +129,6 @@ export function createWindowThemeRegistrySync(): (
 			}
 		}
 
-		// Deactivation — for handles that left the payload, drop their
-		// attributable themes (owner-tagged JS registrations + PHP-
-		// declared metadata from the previous snapshot).
 		for ( const handle of Array.from( loadedHandles ) ) {
 			if ( incomingHandles.has( handle ) ) {
 				continue;
@@ -180,17 +138,11 @@ export function createWindowThemeRegistrySync(): (
 				unregisterWindowTheme( id );
 				shellRegistered.delete( id );
 			}
-			// Owner-bulk fallback for any owner-tagged JS theme that
-			// declared neither metadata nor an explicit id we know
-			// about. Idempotent with the per-id calls above.
+
 			unregisterWindowThemesByOwner( handle );
 			loadedHandles.delete( handle );
 		}
 
-		// Activation — apply PHP metadata up-front so stylesheet-only
-		// themes work without waiting on JS, then load the per-handle
-		// script (which may overwrite the metadata-only theme with a
-		// richer `match`).
 		applyMetadata( themes );
 
 		for ( const entry of scripts ) {

@@ -1,6 +1,5 @@
 import { css } from '../../../src/ui/core';
 
-/** Scoped to the Plugins table's shadow root; content never determines column width. */
 export const installedTableStyles = css`
 	:host { min-inline-size: 0; min-block-size: 0; }
 	.scroll { block-size: 100%; box-sizing: border-box; scrollbar-gutter: stable; overscroll-behavior: contain; border-radius: 10px; }

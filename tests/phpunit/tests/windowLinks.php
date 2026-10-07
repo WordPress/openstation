@@ -1,19 +1,5 @@
 <?php
-/**
- * Tests for the window content-relations server surface —
- * `openstation_build_content_identity()` and its filter.
- *
- * The builder runs in the chromeless iframe's admin_footer (real
- * admin context) and resolves which object the page shows, including
- * the parent post a comment / attachment belongs to. These tests
- * fake the relevant screen state the same way Core's own screen
- * tests do: `set_current_screen()` + the `pagenow` / `post` globals.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- */
+
 class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -21,10 +7,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
 
-		// On multisite a plain administrator lacks the super-admin-only
-		// capabilities these tests exercise (update_core, edit_users,
-		// activate_plugins and friends). The admin fixture means "the
-		// fully-capable admin", which multisite spells super admin.
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -44,21 +26,12 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Point the builder's screen detection at a post.php edit request
-	 * for the given post.
-	 *
-	 * @param WP_Post $post Post being "edited".
-	 */
 	private function fake_post_edit_screen( $post ) {
 		$GLOBALS['pagenow'] = 'post.php';
 		$GLOBALS['post']    = $post;
 		set_current_screen( 'post' );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_post_edit_screen_yields_root_identity() {
 		$post_id = self::factory()->post->create(
 			array(
@@ -75,9 +48,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'root', $identity, 'A post edit screen IS a root — no root key expected.' );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_page_edit_screen_uses_the_post_type_as_type() {
 		$page_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
 		$this->fake_post_edit_screen( get_post( $page_id ) );
@@ -88,9 +58,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertSame( $page_id, $identity['id'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_comment_edit_screen_roots_at_the_parent_post() {
 		$post_id    = self::factory()->post->create();
 		$comment_id = self::factory()->comment->create(
@@ -119,9 +86,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertNotSame( '', $identity['label'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_comment_screen_with_missing_comment_yields_null() {
 		$GLOBALS['pagenow'] = 'comment.php';
 		$_GET['c']          = '999999';
@@ -130,9 +94,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertNull( openstation_build_content_identity() );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_attached_media_roots_at_its_parent() {
 		$post_id       = self::factory()->post->create();
 		$attachment_id = self::factory()->attachment->create_object(
@@ -158,9 +119,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_unattached_media_is_its_own_root() {
 		$attachment_id = self::factory()->attachment->create_object(
 			'lonely.jpg',
@@ -175,9 +133,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'root', $identity );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_add_new_screen_yields_null() {
 		$post_id = self::factory()->post->create();
 		$this->fake_post_edit_screen( get_post( $post_id ) );
@@ -189,18 +144,12 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_unrelated_screen_yields_null() {
 		set_current_screen( 'dashboard' );
 
 		$this->assertNull( openstation_build_content_identity() );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_filter_can_add_an_identity_for_a_custom_screen() {
 		set_current_screen( 'dashboard' );
 
@@ -227,9 +176,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertSame( 77, $identity['id'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_filter_can_suppress_the_builtin_identity() {
 		$post_id = self::factory()->post->create();
 		$this->fake_post_edit_screen( get_post( $post_id ) );
@@ -239,13 +185,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertNull( openstation_build_content_identity() );
 	}
 
-	/**
-	 * The chromeless bridge must always substitute the identity
-	 * placeholder — `null` included — so a navigation away from an
-	 * identified screen clears stale state in the shell.
-	 *
-	 * @covers ::openstation_chromeless_bridge_script
-	 */
 	public function test_bridge_script_substitutes_the_identity_placeholder() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -255,9 +194,7 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 
 		ob_start();
 		openstation_chromeless_bridge_script();
-		// The bridge ships as a built bundle now: PHP attaches the
-		// per-request data as an inline block and the behaviour lives
-		// in the source that builds into the bundle.
+
 		$inline = wp_scripts()->get_data( 'os-chromeless-bridge', 'before' );
 		$output = (string) ob_get_clean()
 			. ( is_array( $inline ) ? implode( "\n", $inline ) : (string) $inline )
@@ -272,14 +209,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertStringContainsString( '"id":' . $post_id, $output );
 	}
 
-	/**
-	 * A post whose content hyperlinks another post carries that target
-	 * in `links` — the source of the directed reference arrows between
-	 * open post windows.
-	 *
-	 * @covers ::openstation_build_content_identity
-	 * @covers ::openstation_window_links_extract_references
-	 */
 	public function test_post_identity_includes_internal_link_references() {
 		$target_id = self::factory()->post->create( array( 'post_title' => 'Target' ) );
 		$source_id = self::factory()->post->create(
@@ -291,8 +220,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 
 		$identity = openstation_build_content_identity();
 
-		// The hyperlinked post is referenced; the default category
-		// (Uncategorized) rides along as a term ref — filter by type.
 		$this->assertContains(
 			array(
 				'type' => 'post',
@@ -302,14 +229,10 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_window_links_extract_references
-	 */
 	public function test_reference_extraction_skips_self_links() {
 		$post_id = self::factory()->post->create();
 		$post    = get_post( $post_id );
-		// Self-link only — no post refs may survive (term refs from the
-		// default category are expected and fine).
+
 		$post->post_content = '<a href="' . get_permalink( $post_id ) . '">me</a>';
 
 		$post_refs = array_filter(
@@ -321,13 +244,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertSame( array(), $post_refs );
 	}
 
-	/**
-	 * Media EMBEDDED in content (wp-image-{id}) is referenced even when
-	 * unattached — inserting a library image never sets post_parent, so
-	 * this is the path most in-content media relies on.
-	 *
-	 * @covers ::openstation_window_links_extract_references
-	 */
 	public function test_reference_extraction_includes_embedded_media() {
 		$attachment_id = self::factory()->attachment->create_object(
 			'embedded.jpg',
@@ -350,18 +266,12 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 			),
 			$links
 		);
-		// The non-attachment id is dropped.
+
 		foreach ( $links as $ref ) {
 			$this->assertNotSame( 999999, $ref['id'] );
 		}
 	}
 
-	/**
-	 * The featured image never appears in post_content — it must be
-	 * referenced via `_thumbnail_id`.
-	 *
-	 * @covers ::openstation_window_links_extract_references
-	 */
 	public function test_reference_extraction_includes_featured_image() {
 		$attachment_id = self::factory()->attachment->create_object(
 			'featured.jpg',
@@ -383,9 +293,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_window_links_extract_references
-	 */
 	public function test_reference_extraction_includes_assigned_terms() {
 		$term_id = self::factory()->category->create( array( 'name' => 'Consoles' ) );
 		$post_id = self::factory()->post->create();
@@ -402,12 +309,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The Media Library grid path — `upload.php?item=N` — announces the
-	 * media identity, rooted at its parent when attached.
-	 *
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_upload_grid_item_identity() {
 		$post_id       = self::factory()->post->create();
 		$attachment_id = self::factory()->attachment->create_object(
@@ -438,9 +339,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		unset( $_GET['item'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_upload_grid_without_item_yields_null() {
 		$GLOBALS['pagenow'] = 'upload.php';
 		set_current_screen( 'upload' );
@@ -448,12 +346,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertNull( openstation_build_content_identity() );
 	}
 
-	/**
-	 * The term edit screen is its own root — posts assigned to the term
-	 * reference it via their `links`.
-	 *
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_term_edit_screen_identity() {
 		$term_id = self::factory()->category->create( array( 'name' => 'Consoles' ) );
 
@@ -471,16 +363,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		unset( $_GET['tag_ID'] );
 	}
 
-	// ────────────────────────────────────────────────────────────────
-	// Profile screens. A person is a root identity: an order's
-	// customer, a post's author and a comment's writer all point AT
-	// them from their own `links`, so an open profile window ties to
-	// whatever else on the desktop is about that person.
-	// ────────────────────────────────────────────────────────────────
-
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_user_edit_screen_yields_a_user_identity() {
 		$user_id = self::factory()->user->create(
 			array(
@@ -501,11 +383,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'root', $identity );
 	}
 
-	/**
-	 * `profile.php` carries no `user_id` — it is always your own.
-	 *
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_profile_screen_identifies_the_current_user() {
 		$GLOBALS['pagenow'] = 'profile.php';
 		set_current_screen( 'profile' );
@@ -516,13 +393,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertSame( self::$admin_id, $identity['id'] );
 	}
 
-	/**
-	 * No identity for a person the viewer may not edit — announcing
-	 * one would leak the display name of every account on the site to
-	 * anyone who can guess a URL.
-	 *
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_user_edit_screen_respects_the_capability() {
 		$editor_id = self::factory()->user->create( array( 'role' => 'editor' ) );
 		$other_id  = self::factory()->user->create( array( 'role' => 'subscriber' ) );
@@ -535,15 +405,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertNull( openstation_build_content_identity() );
 	}
 
-	// ────────────────────────────────────────────────────────────────
-	// Renderer-script registration — the PHP opt-in that puts a
-	// plugin's JS handle into the live-refresh payload. Mirrors
-	// tests/phpunit/tests/unfocusEffects.php, different registry.
-	// ────────────────────────────────────────────────────────────────
-
-	/**
-	 * @covers ::openstation_register_window_link_renderer_script
-	 */
 	public function test_renderer_script_stores_handle() {
 		$handle = 'wl-a-' . substr( md5( uniqid() ), 0, 8 );
 		$ok     = openstation_register_window_link_renderer_script( $handle );
@@ -551,18 +412,12 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertTrue( openstation_window_link_renderer_script_registry( $handle ) );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_link_renderer_script
-	 */
 	public function test_renderer_script_rejects_empty_handle() {
 		$r = openstation_register_window_link_renderer_script( '' );
 		$this->assertInstanceOf( 'WP_Error', $r );
 		$this->assertSame( 'openstation_missing_handle', $r->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_build_window_link_renderer_scripts_payload
-	 */
 	public function test_renderer_script_payload_resolves_registered_handle() {
 		$handle = 'wl-b-' . substr( md5( uniqid() ), 0, 8 );
 		wp_register_script( $handle, 'https://example.test/links.js', array(), '1.0', true );
@@ -580,9 +435,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'links.js', $entry['scriptUrl'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_window_link_renderer_scripts_payload
-	 */
 	public function test_renderer_script_payload_omits_unresolvable_handles() {
 		$this->setExpectedIncorrectUsage( 'openstation_register_window_link_renderer_script' );
 
@@ -594,9 +446,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers ::openstation_register_window_link_renderer_script
-	 */
 	public function test_renderer_script_registered_action_fires() {
 		$captured = array();
 		add_action( 'openstation_window_link_renderer_script_registered', function ( $h ) use ( &$captured ) {
@@ -607,27 +456,12 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertContains( $h, $captured );
 	}
 
-	/**
-	 * The menu payload advertises the script array so the shell's
-	 * live-refresh applier can lazy-load plugin renderer scripts.
-	 *
-	 * @covers ::openstation_build_menu_payload
-	 */
 	public function test_menu_payload_includes_window_link_renderer_scripts_key() {
 		$payload = openstation_build_menu_payload();
 		$this->assertArrayHasKey( 'serverWindowLinkRendererScripts', $payload );
 		$this->assertIsArray( $payload['serverWindowLinkRendererScripts'] );
 	}
 
-	// ────────────────────────────────────────────────────────────────
-	// Preview URL — the front-end preview link the identity carries
-	// for the shell's "Preview" (eye) title-bar button.
-	// ────────────────────────────────────────────────────────────────
-
-	/**
-	 * @covers ::openstation_build_content_identity
-	 * @covers ::openstation_window_preview_url
-	 */
 	public function test_draft_post_identity_carries_preview_url() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'draft' ) );
 		$this->fake_post_edit_screen( get_post( $post_id ) );
@@ -640,12 +474,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'preview_nonce=', $identity['previewUrl'] );
 	}
 
-	/**
-	 * Published posts preview via an autosave REVISION — the nonce'd
-	 * `preview_id` args are what let `_set_preview()` swap it in.
-	 *
-	 * @covers ::openstation_window_preview_url
-	 */
 	public function test_published_post_identity_carries_nonced_preview_url() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$this->fake_post_edit_screen( get_post( $post_id ) );
@@ -663,12 +491,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Non-viewable post types have no front end to preview — no
-	 * previewUrl, no eye button.
-	 *
-	 * @covers ::openstation_window_preview_url
-	 */
 	public function test_non_viewable_post_type_gets_no_preview_url() {
 		register_post_type(
 			'dm_hidden',
@@ -688,9 +510,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		unregister_post_type( 'dm_hidden' );
 	}
 
-	/**
-	 * @covers ::openstation_window_preview_url
-	 */
 	public function test_preview_url_filter_can_rewrite_the_url() {
 		$post_id = self::factory()->post->create();
 		$this->fake_post_edit_screen( get_post( $post_id ) );
@@ -710,9 +529,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertSame( 'https://headless.example.test/preview/' . $post_id, $identity['previewUrl'] );
 	}
 
-	/**
-	 * @covers ::openstation_window_preview_url
-	 */
 	public function test_preview_url_filter_can_suppress_the_url() {
 		$post_id = self::factory()->post->create();
 		$this->fake_post_edit_screen( get_post( $post_id ) );
@@ -725,14 +541,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'previewUrl', $identity );
 	}
 
-	/**
-	 * The REST recompute (the endpoint the editor save-watcher hits)
-	 * must refresh the previewUrl too — that's how a long-lived editor
-	 * window keeps a live nonce and how draft→publish permalink
-	 * changes reach the open preview.
-	 *
-	 * @covers ::openstation_rest_content_identity
-	 */
 	public function test_rest_content_identity_includes_preview_url() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$post_id = self::factory()->post->create();
@@ -748,16 +556,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'preview_nonce=', $identity['previewUrl'] );
 	}
 
-	// ────────────────────────────────────────────────────────────────
-	// Revision browser — the `revisionsUrl` / `revisionCount` keys
-	// behind the window ⋯ menu's "View revisions" row, and the
-	// `revision.php` identity that ties the browser to its post.
-	// ────────────────────────────────────────────────────────────────
-
-	/**
-	 * @covers ::openstation_build_content_identity
-	 * @covers ::openstation_window_revisions
-	 */
 	public function test_post_identity_carries_revisions_url_and_count() {
 		$post_id = self::factory()->post->create( array( 'post_content' => 'v1' ) );
 		wp_save_post_revision( $post_id );
@@ -770,12 +568,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertSame( 1, $identity['revisionCount'] );
 	}
 
-	/**
-	 * The URL points at the NEWEST revision — that's the one Core's
-	 * browser opens on, and the slider walks back from there.
-	 *
-	 * @covers ::openstation_window_revisions
-	 */
 	public function test_revisions_url_points_at_the_latest_revision() {
 		$post_id = self::factory()->post->create( array( 'post_content' => 'v1' ) );
 		wp_save_post_revision( $post_id );
@@ -799,12 +591,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertSame( count( $revisions ), $identity['revisionCount'] );
 	}
 
-	/**
-	 * A post nobody has saved twice has nothing to browse — no keys,
-	 * no menu row.
-	 *
-	 * @covers ::openstation_window_revisions
-	 */
 	public function test_post_without_revisions_carries_no_revisions_url() {
 		$post_id = self::factory()->post->create();
 		$this->fake_post_edit_screen( get_post( $post_id ) );
@@ -815,9 +601,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'revisionCount', $identity );
 	}
 
-	/**
-	 * @covers ::openstation_window_revisions
-	 */
 	public function test_post_type_without_revisions_support_carries_none() {
 		register_post_type(
 			'dm_norev',
@@ -838,12 +621,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		unregister_post_type( 'dm_norev' );
 	}
 
-	/**
-	 * A CPT that DOES declare `revisions` support gets the row like
-	 * any post or page — the built-in has no post-type allowlist.
-	 *
-	 * @covers ::openstation_window_revisions
-	 */
 	public function test_custom_post_type_with_revisions_support_carries_them() {
 		register_post_type(
 			'dm_rev',
@@ -866,9 +643,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		unregister_post_type( 'dm_rev' );
 	}
 
-	/**
-	 * @covers ::openstation_window_revisions
-	 */
 	public function test_revisions_filter_can_rewrite_the_descriptor() {
 		$post_id = self::factory()->post->create();
 		wp_save_post_revision( $post_id );
@@ -892,9 +666,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertSame( 42, $identity['revisionCount'] );
 	}
 
-	/**
-	 * @covers ::openstation_window_revisions
-	 */
 	public function test_revisions_filter_can_suppress_the_row() {
 		$post_id = self::factory()->post->create();
 		wp_save_post_revision( $post_id );
@@ -915,13 +686,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'revisionsUrl', $identity );
 	}
 
-	/**
-	 * A filter returning nonsense must not put nonsense on the
-	 * identity — the JS engine validates the ref as a unit and would
-	 * discard the whole thing.
-	 *
-	 * @covers ::openstation_window_revisions
-	 */
 	public function test_revisions_filter_output_is_sanitized() {
 		$post_id = self::factory()->post->create();
 		wp_save_post_revision( $post_id );
@@ -954,13 +718,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The browser announces itself as a CHILD of the post whose
-	 * history it shows, which is what draws the spline between the two
-	 * windows.
-	 *
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_revision_browser_roots_at_the_parent_post() {
 		$post_id = self::factory()->post->create( array( 'post_title' => 'Hello Desktop' ) );
 		$revision_id = wp_save_post_revision( $post_id );
@@ -983,12 +740,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Hello Desktop', $identity['label'] );
 	}
 
-	/**
-	 * Core reads `?to=N` when `?revision=` is absent (the
-	 * compare-two-revisions URL) — both forms are the same window.
-	 *
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_revision_browser_falls_back_to_the_to_param() {
 		$post_id     = self::factory()->post->create();
 		$revision_id = wp_save_post_revision( $post_id );
@@ -1003,9 +754,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertSame( $post_id, $identity['id'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_content_identity
-	 */
 	public function test_revision_browser_without_a_revision_yields_null() {
 		$GLOBALS['pagenow'] = 'revision.php';
 		set_current_screen( 'revision' );
@@ -1013,13 +761,6 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertNull( openstation_build_content_identity() );
 	}
 
-	/**
-	 * The FIRST save of a draft is what creates its first revision, and
-	 * a block-editor save never reloads the page — so the recompute
-	 * endpoint is the only path that can make the row appear.
-	 *
-	 * @covers ::openstation_rest_content_identity
-	 */
 	public function test_rest_content_identity_includes_revisions_url() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$post_id = self::factory()->post->create();

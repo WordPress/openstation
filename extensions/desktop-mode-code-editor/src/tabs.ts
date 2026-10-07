@@ -1,53 +1,27 @@
-/**
- * Code Editor — file-tab strip.
- *
- * One row of tabs above the Monaco mount, one tab per open file.
- * Each tab shows the file's icon, basename, a dirty dot when the
- * model has unsaved edits, and a close (×) button. Click the body
- * to activate; click × to close (with a confirm modal if the
- * buffer is dirty).
- *
- * Re-opening an already-open file from the tree focuses the
- * existing tab; no duplicates. Closing the active tab activates
- * the right-neighbour, then the left if there's no right, then
- * goes back to the placeholder if no tabs remain.
- */
-
 import { showConfirm } from './dialog';
 
 export interface OpenFileMeta {
-	/** Canonical relative path; doubles as the tab id. */
+
 	path: string;
-	/** Display label — usually the basename. */
+
 	label: string;
-	/** Dashicon class for the leading icon. */
+
 	icon: string;
 }
 
 export interface TabsStripOptions {
-	/** Element the tab strip mounts into; we own its children. */
+
 	mount: HTMLElement;
-	/** Fired when the user clicks a tab to activate it. */
+
 	onActivate: ( path: string ) => void;
-	/**
-	 * Fired AFTER the tab has been closed. The strip handles dirty
-	 * confirms internally — this hook lets the host dispose models /
-	 * cancel in-flight requests / pick the next active tab.
-	 */
+
 	onClose: ( path: string ) => void;
 }
 
 export interface TabsStripHandle {
-	/**
-	 * Make a tab for `file`, or focus the existing one if the path
-	 * is already open. Sets it active. Returns the active path so
-	 * the host can sync state.
-	 */
+
 	open( file: OpenFileMeta ): string;
-	/**
-	 * Programmatic close (no confirm prompt). Use after a successful
-	 * external save, or for the host to clean up on shell teardown.
-	 */
+
 	closeQuiet( path: string ): void;
 	setActive( path: string ): void;
 	getActive(): string | null;
@@ -89,7 +63,7 @@ export function mountTabsStrip(
 		if ( idx === -1 ) {
 			return null;
 		}
-		// Right neighbour first (matches VS Code), then left.
+
 		if ( order[ idx + 1 ] ) {
 			return order[ idx + 1 ];
 		}
@@ -105,11 +79,6 @@ export function mountTabsStrip(
 			return;
 		}
 
-		// Pick the successor BEFORE removing this tab from `order`.
-		// `pickNeighbour` reads `order.indexOf( path )`, which would
-		// return -1 once we splice — and the closer would always
-		// fall through to the empty state even with siblings still
-		// open.
 		const wasActive = active === path;
 		const successor = wasActive ? pickNeighbour( path ) : null;
 
@@ -177,10 +146,6 @@ export function mountTabsStrip(
 
 		body.append( icon, label );
 
-		// Dirty dot + close button live in the same slot. The CSS
-		// crossfades them on hover so a clean tab shows nothing
-		// until the user reaches for it (cleaner visual rhythm —
-		// VS Code uses the same affordance).
 		const trailing = document.createElement( 'span' );
 		trailing.className = 'osc-tabs__trailing';
 
@@ -202,7 +167,6 @@ export function mountTabsStrip(
 		trailing.append( dirtyEl, closeBtn );
 		li.append( body, trailing );
 
-		// Middle-click closes, matching every browser tab strip.
 		li.addEventListener( 'auxclick', ( e ) => {
 			if ( e.button === 1 ) {
 				e.preventDefault();
@@ -272,12 +236,6 @@ export function mountTabsStrip(
 	};
 }
 
-/**
- * Derive default tab metadata from a file path. The host can pass
- * its own `icon`/`label` to {@link TabsStripHandle.open}, but
- * Phase 2.5's typical case (open via tree click) already has
- * everything the icon-and-basename derivation needs.
- */
 export function tabMetaForPath( path: string ): OpenFileMeta {
 	const slash = path.lastIndexOf( '/' );
 	const label = slash >= 0 ? path.slice( slash + 1 ) : path;

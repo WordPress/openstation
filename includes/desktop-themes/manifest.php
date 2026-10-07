@@ -1,78 +1,7 @@
 <?php
-/**
- * OpenStation — Desktop-theme manifest sanitizer.
- *
- * Pure functions: no filesystem writes, no option reads. The one
- * dependency on the outside world is an injected `$asset_resolver`
- * callable, so the same sanitizer serves both intake paths:
- *
- *   - ZIP uploads pass a resolver that validates a path INSIDE the
- *     staging directory and hands back the theme-relative path.
- *   - Code registrations (`openstation_register_desktop_theme()`)
- *     pass a resolver that validates an absolute http(s) URL.
- *
- * Both resolvers take the same two arguments —
- * `fn( string $path, string $kind ): string|false` — where `$kind`
- * is `'image'` or `'font'` and selects the extension allowlist. A
- * font reference can therefore never resolve through the icon path,
- * or vice versa.
- *
- * Validation posture, in two tiers:
- *
- *   - **Fatal** (returns `WP_Error`): `manifestVersion` (`1` or `2`),
- *     `id`, `name`. Without those there is no theme to speak of.
- *   - **Everything else drops and continues.** A bad token, a
- *     missing icon file, an unknown slot — the offending entry is
- *     removed and the rest of the theme installs. That IS the
- *     fallback contract: whatever the manifest doesn't say, the
- *     system default keeps saying.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Whether a token VALUE is safe to emit into a compiled stylesheet.
- *
- * The compiler writes `key: value;` declarations verbatim, so this
- * is the only thing standing between an author string and the
- * stylesheet. The rules:
- *
- *   - 1–256 characters.
- *   - Charset allowlist. `;` `{` `}` `@` `\` `<` `>` `!` and the
- *     backtick are simply not in it, which kills declaration
- *     escape, at-rule injection, `!important` overrides, and
- *     markup breakout in one stroke.
- *   - **Quotes ARE allowed**, and that is deliberate rather than an
- *     oversight — `font-family: "Segoe UI", sans-serif` needs them.
- *     They are safe because of where a value can end up, which is
- *     only ever one of two places:
- *       1. A custom-property declaration in a compiled stylesheet
- *          (`--x: <value>;`). A quote opens a CSS string; it cannot
- *          end the declaration, because `;` `{` `}` are banned, and
- *          it cannot end the STYLESHEET, because `<` `>` are banned
- *          so `</style>` is unwritable.
- *       2. That same stylesheet handed to the shell as `cssText`,
- *          which `src/desktop-themes/apply.ts` assigns via
- *          `style.textContent` — never `innerHTML`.
- *     An unbalanced quote therefore breaks the author's own
- *     declaration and nothing else. If a future consumer ever
- *     interpolates a token value into an HTML attribute or a JS
- *     string literal, THAT consumer has to escape, and this note is
- *     the reason why.
- *   - No CSS comment sequences (`/*`, `*​/`) — `/` and `*` are
- *     allowed individually because shorthand values need them.
- *   - No `url(`, `image-set(`, `element(`, `attr(`, `var(`, or
- *     `expression`. External references are PHP's job: the compiler
- *     generates every `url()` in the output itself from a resolved,
- *     `rawurlencode`d path. `var()` is banned so an author can't
- *     alias a property we didn't intend them to reach.
- *   - Balanced parentheses.
- *
- * @param mixed $value Candidate value.
- * @return bool
- */
 function openstation_desktop_theme_is_safe_css_value( $value ) {
 	if ( ! is_string( $value ) ) {
 		return false;
@@ -94,7 +23,7 @@ function openstation_desktop_theme_is_safe_css_value( $value ) {
 			return false;
 		}
 	}
-	// Balanced parentheses, never negative.
+
 	$depth = 0;
 	$len   = strlen( $value );
 	for ( $i = 0; $i < $len; $i++ ) {
@@ -110,15 +39,6 @@ function openstation_desktop_theme_is_safe_css_value( $value ) {
 	return 0 === $depth;
 }
 
-/**
- * Sanitize the `tokens` block: a map of custom-property name =>
- * value. Unknown property names and unsafe values drop.
- *
- * @internal
- *
- * @param mixed $raw Raw `tokens` value.
- * @return array<string,string>
- */
 function openstation_sanitize_desktop_theme_tokens( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
@@ -126,14 +46,7 @@ function openstation_sanitize_desktop_theme_tokens( $raw ) {
 	$out   = array();
 	$count = 0;
 	foreach ( $raw as $key => $value ) {
-		/*
-		 * A size guard, not a design budget, and it needs headroom:
-		 * Legacy answers every literal the palette declares, so it
-		 * grows with the palette, and crossing this line is silent
-		 * (a dropped entry falls back to the built-in value). What
-		 * keeps a manifest safe is the namespace filter and the value
-		 * grammar below, both per entry.
-		 */
+
 		if ( $count >= 2048 ) {
 			break;
 		}
@@ -141,23 +54,7 @@ function openstation_sanitize_desktop_theme_tokens( $raw ) {
 			continue;
 		}
 		$key = strtolower( trim( $key ) );
-		// Three namespaces are themable:
-		//
-		// --os-*  the shell's own tokens (chrome, dock,
-		// desktop, window frame).
-		// --os-ui-*           the `<os-*>` component kit. Window
-		// BODIES are built from those components,
-		// and `--os-ui-*` is the kit's documented
-		// theming contract (see
-		// `src/ui/core/tokens.ts`). Without this a
-		// theme could restyle the chrome around a
-		// window but not a single thing inside it.
-		// --wp-admin-theme-color
-		// the one Core property the shell already
-		// writes at runtime (the admin accent).
-		//
-		// Everything else is dropped: a theme must not be able to
-		// reach properties the shell never meant to expose.
+
 		if (
 			'--wp-admin-theme-color' !== $key
 			&& ! preg_match( '/^--os-[a-z0-9-]+$/', $key )
@@ -174,22 +71,6 @@ function openstation_sanitize_desktop_theme_tokens( $raw ) {
 	return $out;
 }
 
-/**
- * Whether a value is usable as a CSS colour.
- *
- * Deliberately narrower than the general value grammar: this one is
- * painted as a fill, so a length or a gradient would be nonsense
- * rather than dangerous. Accepts `currentColor`, hex in all four
- * lengths, the functional notations, and bare keywords.
- *
- * `currentColor` is the interesting one — it means "whatever the
- * surface I land on is already using for text", which is how one
- * silhouette iconset stays legible on a dark dock, a light title bar,
- * and a red danger-hover without the author knowing any of them.
- *
- * @param mixed $value Candidate.
- * @return bool
- */
 function openstation_desktop_theme_is_color_value( $value ) {
 	if ( ! is_string( $value ) ) {
 		return false;
@@ -198,13 +79,12 @@ function openstation_desktop_theme_is_color_value( $value ) {
 	if ( '' === $value || strlen( $value ) > 64 ) {
 		return false;
 	}
-	// The general grammar is still the floor — it is what bans `;`,
-	// `{`, `@`, quotes, comments and `var()`.
+
 	if ( ! openstation_desktop_theme_is_safe_css_value( $value ) ) {
 		return false;
 	}
 	if ( 0 === strcasecmp( 'currentcolor', $value ) ) {
-		// Normalized to the spelling CSS authors expect to read back.
+
 		return true;
 	}
 	if ( preg_match( '/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i', $value ) ) {
@@ -213,40 +93,10 @@ function openstation_desktop_theme_is_color_value( $value ) {
 	if ( preg_match( '/^(rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([0-9a-z%.,\/ +-]+\)$/i', $value ) ) {
 		return true;
 	}
-	// Bare keyword (`transparent`, `rebeccapurple`, …). Letters only,
-	// so nothing else can hide in here.
+
 	return (bool) preg_match( '/^[a-z]{3,24}$/i', $value );
 }
 
-/**
- * Sanitize the `icons` block: a map of slot => icon descriptor.
- *
- * Accepted descriptors:
- *   - `{ "type": "image",    "path": "icons/close.svg" }`
- *   - `{ "type": "dashicon", "name": "dashicons-no-alt" }`
- *
- * Either shape may carry `color`, which decides HOW the glyph is
- * painted, not just what colour it comes out:
- *
- *   - **absent** — today's behaviour. An image paints as an `<img>`
- *     and keeps the colours it was drawn with.
- *   - **present** — the glyph is tinted. A dashicon simply takes the
- *     colour; an image is painted as a `currentColor`-style CSS MASK,
- *     so only its alpha channel is used and the fill comes from here.
- *
- * That distinction is the whole point: a monochrome iconset drawn in
- * black is invisible on a dark dock as an `<img>`, and perfect as a
- * mask.
- *
- * @internal
- *
- * @param mixed    $raw            Raw `icons` value.
- * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
- * @param string   $default_color  Manifest-level `iconColor`, applied
- *                                 to any icon that doesn't set its
- *                                 own. `''` for none.
- * @return array<string,array>
- */
 function openstation_sanitize_desktop_theme_icons( $raw, $asset_resolver, $default_color = '' ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
@@ -262,7 +112,7 @@ function openstation_sanitize_desktop_theme_icons( $raw, $asset_resolver, $defau
 			continue;
 		}
 		$slot = trim( $slot );
-		// Either a known fixed slot, or the `APP:<slug>` pattern.
+
 		$is_app = 0 === strpos( $slot, 'APP:' );
 		if ( $is_app ) {
 			$app_slug = sanitize_key( substr( $slot, 4 ) );
@@ -279,11 +129,6 @@ function openstation_sanitize_desktop_theme_icons( $raw, $asset_resolver, $defau
 		}
 		$type = isset( $descriptor['type'] ) ? (string) $descriptor['type'] : '';
 
-		// `color` falls back to the manifest-wide `iconColor`. The
-		// literal string `none` is the opt-OUT: it lets one icon in an
-		// otherwise-tinted set keep its own colours (a brand mark, a
-		// multi-colour app icon) without the author having to drop the
-		// default for everything else.
 		$color = '';
 		if ( isset( $descriptor['color'] ) && is_string( $descriptor['color'] ) ) {
 			$candidate = trim( $descriptor['color'] );
@@ -337,34 +182,11 @@ function openstation_sanitize_desktop_theme_icons( $raw, $asset_resolver, $defau
 	return $out;
 }
 
-/**
- * Normalize a validated colour to its canonical spelling.
- *
- * Only `currentColor` actually changes: CSS is case-insensitive, but
- * the value is echoed back to theme authors through the payload and
- * the JS API, and `currentcolor` reads like a typo.
- *
- * @internal
- *
- * @param string $value Validated colour.
- * @return string
- */
 function openstation_desktop_theme_normalize_color( $value ) {
 	$value = trim( preg_replace( '/\s+/', ' ', (string) $value ) );
 	return 0 === strcasecmp( 'currentcolor', $value ) ? 'currentColor' : $value;
 }
 
-/**
- * Whether a `background-size`-shaped value is well-formed.
- *
- * Accepts `auto` / `cover` / `contain`, or one-to-two length
- * components (`px`, `%`, `rem`, `em`, or the `auto` keyword).
- *
- * @internal
- *
- * @param string $value Candidate.
- * @return bool
- */
 function openstation_desktop_theme_is_size_value( $value ) {
 	$value = strtolower( trim( (string) $value ) );
 	if ( in_array( $value, array( 'auto', 'cover', 'contain' ), true ) ) {
@@ -385,24 +207,6 @@ function openstation_desktop_theme_is_size_value( $value ) {
 	return true;
 }
 
-/**
- * Whether a `background-position`-shaped value is well-formed.
- *
- * Accepts one or two components, each a keyword (`left`, `center`,
- * `right`, `top`, `bottom`) or a length/percentage — including the
- * negative offsets a bleeding texture needs.
- *
- * `position` is what makes a big detailed texture usable rather than
- * merely present: `size: auto` + `repeat` tiles the artwork at its
- * true resolution, and `position` decides where the tiling grid
- * starts. Without it every texture is pinned to the same origin and
- * a motif can never be aligned to the surface it decorates.
- *
- * @internal
- *
- * @param string $value Candidate.
- * @return bool
- */
 function openstation_desktop_theme_is_position_value( $value ) {
 	$value = strtolower( trim( (string) $value ) );
 	if ( '' === $value || strlen( $value ) > 64 ) {
@@ -417,9 +221,7 @@ function openstation_desktop_theme_is_position_value( $value ) {
 		if ( in_array( $part, $keywords, true ) ) {
 			continue;
 		}
-		// A bare `0` is a valid CSS length and the natural way to write
-		// a flush edge, so it is accepted without a unit. Every other
-		// number needs one.
+
 		if ( preg_match( '/^-?(0|\d+(\.\d+)?(px|%|rem|em))$/', $part ) ) {
 			continue;
 		}
@@ -428,18 +230,6 @@ function openstation_desktop_theme_is_position_value( $value ) {
 	return true;
 }
 
-/**
- * Sanitize the `textures` block: a map of slot => texture
- * descriptor. Each descriptor's `path` runs through the resolver;
- * every presentational property is grammar-checked against a closed
- * enum or a numeric pattern, never a free string.
- *
- * @internal
- *
- * @param mixed    $raw            Raw `textures` value.
- * @param callable $asset_resolver `fn( string $path ): string|false`.
- * @return array<string,array>
- */
 function openstation_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
@@ -470,15 +260,14 @@ function openstation_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 		);
 
 		if ( 'border-image' === $type ) {
-			// `slice` — 1–4 unitless numbers, optional trailing `fill`.
+
 			if ( isset( $descriptor['slice'] ) && is_string( $descriptor['slice'] ) ) {
 				$slice = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['slice'] ) ) );
 				if ( preg_match( '/^\d+( \d+){0,3}( fill)?$/', $slice ) ) {
 					$entry['slice'] = $slice;
 				}
 			}
-			// `width` — 1–4 lengths (unitless allowed: multiples of
-			// the border width, per the border-image-width grammar).
+
 			if ( isset( $descriptor['width'] ) && is_string( $descriptor['width'] ) ) {
 				$width = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['width'] ) ) );
 				$parts = preg_split( '/ /', $width );
@@ -495,7 +284,7 @@ function openstation_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 					}
 				}
 			}
-			// `repeat` — 1–2 of the border-image-repeat keywords.
+
 			if ( isset( $descriptor['repeat'] ) && is_string( $descriptor['repeat'] ) ) {
 				$value = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['repeat'] ) ) );
 				$parts = preg_split( '/ /', $value );
@@ -539,19 +328,6 @@ function openstation_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 	return $out;
 }
 
-/**
- * Map a resolved font reference to its `format()` hint.
- *
- * The hint is DERIVED, never author-supplied: the extension already
- * passed the font allowlist, and deriving it removes one more free
- * string from the compiled output. Works on both a theme-relative
- * path and an absolute URL (whose query string is discarded first).
- *
- * @internal
- *
- * @param string $ref Resolved reference.
- * @return string Format keyword, or `''` when unrecognised.
- */
 function openstation_desktop_theme_font_format( $ref ) {
 	$ref  = (string) $ref;
 	$path = $ref;
@@ -568,36 +344,6 @@ function openstation_desktop_theme_font_format( $ref ) {
 	return isset( $formats[ $ext ] ) ? $formats[ $ext ] : '';
 }
 
-/**
- * Sanitize the `fonts` block: a list of `@font-face` descriptors.
- *
- * ```json
- * "fonts": [
- *   { "family": "Neon Grotesk", "weight": "400", "style": "normal",
- *     "display": "swap", "src": [ "fonts/neon.woff2", "fonts/neon.woff" ] }
- * ]
- * ```
- *
- * **Every field is a closed grammar, and `src` is the only one that
- * reaches the filesystem.** The family name is restricted hard
- * enough that the compiler can wrap it in double quotes and be done:
- * no quote, backslash, semicolon, or brace can appear in it, so
- * there is nothing to escape and no way out of the string. The
- * `format()` hint is derived from the extension rather than read
- * from the author, so a face contributes exactly two author-chosen
- * substrings to the stylesheet — the family name and the file path —
- * and both are constrained before they get there.
- *
- * Sanitization is drop-and-continue at every level: a face with no
- * usable source disappears, a bad `weight` falls back to the CSS
- * initial value, and the rest of the theme installs regardless.
- *
- * @internal
- *
- * @param mixed    $raw            Raw `fonts` value.
- * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
- * @return array<int,array>
- */
 function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
@@ -613,7 +359,6 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			continue;
 		}
 
-		// --- family. Quoted verbatim by the compiler, hence strict. ---
 		$family = isset( $face['family'] ) && is_string( $face['family'] )
 			? trim( preg_replace( '/\s+/', ' ', $face['family'] ) )
 			: '';
@@ -621,7 +366,6 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			continue;
 		}
 
-		// --- src. A string, or a list of strings, in preference order. ---
 		$sources = array();
 		$raw_src = isset( $face['src'] ) ? $face['src'] : null;
 		if ( is_string( $raw_src ) ) {
@@ -634,9 +378,7 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			if ( count( $sources ) >= $caps['max_sources'] ) {
 				break;
 			}
-			// Tolerate the `{ "path": … }` object shape too — it is what
-			// icons and textures use, and authors reasonably assume it
-			// generalizes.
+
 			if ( is_array( $candidate ) && isset( $candidate['path'] ) ) {
 				$candidate = $candidate['path'];
 			}
@@ -657,8 +399,7 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			);
 		}
 		if ( empty( $sources ) ) {
-			// A face with nothing to load is not a partially broken
-			// face — it is no face at all.
+
 			continue;
 		}
 
@@ -667,7 +408,6 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			'src'    => $sources,
 		);
 
-		// --- weight. One or two of `normal` / `bold` / 1–1000. ---
 		if ( isset( $face['weight'] ) && ( is_string( $face['weight'] ) || is_int( $face['weight'] ) ) ) {
 			$weight = strtolower( trim( preg_replace( '/\s+/', ' ', (string) $face['weight'] ) ) );
 			$parts  = '' === $weight ? array() : explode( ' ', $weight );
@@ -689,7 +429,6 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			}
 		}
 
-		// --- style / display / stretch. Closed enums. ---
 		if ( isset( $face['style'] ) && is_string( $face['style'] ) ) {
 			$style = strtolower( trim( $face['style'] ) );
 			if ( in_array( $style, array( 'normal', 'italic', 'oblique' ), true ) ) {
@@ -734,7 +473,6 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			}
 		}
 
-		// --- unicodeRange. Subsetted faces live and die by this one. ---
 		if ( isset( $face['unicodeRange'] ) && is_string( $face['unicodeRange'] ) ) {
 			$range = strtoupper( trim( preg_replace( '/\s+/', ' ', $face['unicodeRange'] ) ) );
 			if (
@@ -751,50 +489,17 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 	return $out;
 }
 
-/**
- * Sanitize the `wallpapers` block: one or more pickable wallpapers.
- *
- * Four author shapes, because all four are things people reasonably
- * write and none is ambiguous:
- *
- *   "wallpaper":  "textures/desk.png"
- *   "wallpaper":  { "path": "textures/desk.png", "size": "cover" }
- *   "wallpapers": [ "a.png", { "path": "b.png", "label": "Dusk" } ]
- *   "wallpapers": { "dusk": { "path": "b.png" } }        <- keys are ids
- *
- * Always returns a LIST of descriptors, so every consumer downstream
- * handles exactly one shape.
- *
- * ## Ids are a stored preference, so they must be stable
- *
- * The user's wallpaper choice persists by id. If ids shifted when an
- * author reordered their list, a re-upload would silently move every
- * user onto a different picture. So an id is taken from, in order:
- * an explicit `id`, the map key, a slug of the `label`, and finally
- * the image's own filename — never the array index.
- *
- * @internal
- *
- * @param mixed    $raw            Raw `wallpaper` / `wallpapers` value.
- * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
- * @return array[] List of sanitized descriptors.
- */
 function openstation_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) {
 	if ( is_string( $raw ) ) {
 		$raw = array( array( 'path' => $raw ) );
 	} elseif ( is_array( $raw ) && isset( $raw['path'] ) ) {
-		// A single descriptor, not a collection.
+
 		$raw = array( $raw );
 	}
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
 
-	/**
-	 * Filters how many wallpapers one desktop theme may contribute.
-	 *
-	 * @param int $max Default 12.
-	 */
 	$max  = max( 1, (int) apply_filters( 'openstation_desktop_theme_max_wallpapers', 12 ) );
 	$out  = array();
 	$seen = array();
@@ -820,8 +525,6 @@ function openstation_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) 
 			? mb_substr( sanitize_text_field( $entry['label'] ), 0, 80 )
 			: '';
 
-		// Id precedence — see the docblock. `sanitize_title` on the
-		// filename keeps a stable, readable id with no author effort.
 		$id = '';
 		if ( isset( $entry['id'] ) && is_string( $entry['id'] ) ) {
 			$id = sanitize_title( $entry['id'] );
@@ -874,38 +577,6 @@ function openstation_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) 
 	return $out;
 }
 
-/**
- * Sanitize the `recommendedOsSettings` block: presentation
- * preferences the theme would LIKE the user to be wearing.
- *
- * ```json
- * "recommendedOsSettings": {
- *   "dockSize":         "large",
- *   "desktopLayout":    "unified",
- *   "dockPlacement":    "left",
- *   "windowRadius":     "default",
- *   "adminBarMode":     "dynamic",
- *   "dockRailRenderer": "default"
- * }
- * ```
- *
- * These are recommendations, not settings. The shell writes them into
- * user meta once — the first time that user activates the theme — and
- * never again; a user who then moves the dock or squares the corners
- * keeps their choice for good. See docs/desktop-themes.md §
- * "Recommended OS settings" for the full contract.
- *
- * Every key is checked against
- * {@see openstation_desktop_theme_recommended_os_settings_schema()},
- * and the same drop-and-continue posture as the rest of the manifest
- * applies: an unknown key or an out-of-enum value disappears and the
- * remaining recommendations survive.
- *
- * @internal
- *
- * @param mixed $raw Raw `recommendedOsSettings` value.
- * @return array<string,string|int>
- */
 function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
@@ -916,9 +587,7 @@ function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 		if ( ! isset( $raw[ $key ] ) ) {
 			continue;
 		}
-		// Numeric grammar — clamped into range rather than dropped, so a
-		// theme asking for something outside what the shell will play
-		// still gets the nearest thing it will.
+
 		if ( isset( $rule['int'] ) ) {
 			if ( ! is_numeric( $raw[ $key ] ) ) {
 				continue;
@@ -942,8 +611,7 @@ function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 			}
 			continue;
 		}
-		// Registry id — charset only. The shell resolves it against the
-		// live registry and skips the key when nothing answers to it.
+
 		$slug = sanitize_key( $value );
 		if ( '' !== $slug ) {
 			$out[ $key ] = $slug;
@@ -952,21 +620,6 @@ function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 	return $out;
 }
 
-/**
- * Sanitize a whole `theme.json` manifest.
- *
- * @param mixed    $raw            Decoded manifest.
- * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
- *                                 Returns the reference the compiler
- *                                 should emit (theme-relative path
- *                                 for uploads, absolute URL for code
- *                                 registrations), or `false` to drop.
- *                                 `$kind` is `'image'` or `'font'`
- *                                 and selects the extension
- *                                 allowlist.
- * @return array|WP_Error Sanitized manifest, or `WP_Error` when a
- *                        structural field is missing/invalid.
- */
 function openstation_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	if ( ! is_array( $raw ) ) {
 		return new WP_Error(
@@ -983,16 +636,6 @@ function openstation_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 		);
 	}
 
-	// --- Fatal fields. ---
-	//
-	// Two versions are current. `2` says nothing about the shape of
-	// the fields below — it exists so an author can DECLARE that
-	// their manifest carries `recommendedOsSettings`, and so a future
-	// reader can tell a deliberate omission from an old file. A `1`
-	// manifest that ships the block still has it honoured: dropping a
-	// valid, individually-sanitized field over a version number would
-	// contradict the drop-and-continue contract everything else here
-	// follows.
 	$version_field = isset( $raw['manifestVersion'] ) ? $raw['manifestVersion'] : null;
 	$version       = is_numeric( $version_field ) ? (int) $version_field : 0;
 	if ( ! in_array( $version, array( 1, 2 ), true ) ) {
@@ -1029,7 +672,6 @@ function openstation_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 		);
 	}
 
-	// --- Everything below drops-and-continues. ---
 	$preview     = '';
 	$preview_raw = isset( $raw['preview'] ) && is_string( $raw['preview'] ) ? $raw['preview'] : '';
 	if ( '' !== $preview_raw ) {
@@ -1039,9 +681,6 @@ function openstation_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 		}
 	}
 
-	// Manifest-wide icon tint. Applied to every icon that doesn't set
-	// its own `color`, so a monochrome iconset is one line rather than
-	// twenty-odd repetitions.
 	$icon_color = '';
 	if ( isset( $raw['iconColor'] ) && openstation_desktop_theme_is_color_value( $raw['iconColor'] ) ) {
 		$icon_color = openstation_desktop_theme_normalize_color( $raw['iconColor'] );
@@ -1079,50 +718,24 @@ function openstation_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 			isset( $raw['fonts'] ) ? $raw['fonts'] : null,
 			$asset_resolver
 		),
-		// `wallpaper` and `wallpapers` are both accepted — authors
-		// guess either — and merge into one list.
+
 		'wallpapers'            => openstation_sanitize_desktop_theme_wallpapers(
 			isset( $raw['wallpapers'] ) ? $raw['wallpapers'] : (
 				isset( $raw['wallpaper'] ) ? $raw['wallpaper'] : null
 			),
 			$asset_resolver
 		),
-		// Presentation preferences the theme would like the user to
-		// wear. Applied once, on first activation — never on load.
+
 		'recommendedOsSettings' => openstation_sanitize_desktop_theme_recommended_os_settings(
 			isset( $raw['recommendedOsSettings'] ) ? $raw['recommendedOsSettings'] : null
 		),
 	);
 
-	/**
-	 * Filters a sanitized desktop-theme manifest just before it is
-	 * compiled and stored.
-	 *
-	 * Runs AFTER every value has been validated. Anything added here
-	 * bypasses the sanitizer, so treat it as trusted-code territory —
-	 * values land in the compiled stylesheet verbatim.
-	 *
-	 * @param array  $manifest Sanitized manifest.
-	 * @param array  $raw      The manifest as the author wrote it.
-	 * @param string $slug     Storage slug derived from `id`.
-	 */
 	$manifest = (array) apply_filters( 'openstation_desktop_theme_manifest', $manifest, $raw, $slug );
 
 	return $manifest;
 }
 
-/**
- * Build an asset resolver that validates paths inside a staging
- * directory and returns the theme-relative path.
- *
- * Rejects absolute paths, traversal, backslashes, NUL bytes, and
- * anything whose extension isn't allowed for the requested asset
- * kind. Uses `realpath()` containment as the final gate so a symlink
- * planted inside the ZIP can't point outward.
- *
- * @param string $staging_dir Absolute path of the extracted ZIP.
- * @return callable `fn( string $path, string $kind = 'image' ): string|false`
- */
 function openstation_desktop_theme_staging_asset_resolver( $staging_dir ) {
 	$base = realpath( $staging_dir );
 	return static function ( $path, $kind = 'image' ) use ( $base ) {
@@ -1159,25 +772,13 @@ function openstation_desktop_theme_staging_asset_resolver( $staging_dir ) {
 	};
 }
 
-/**
- * Build an asset resolver for code-registered themes, whose assets
- * are already-published http(s) URLs rather than files in a ZIP.
- *
- * @return callable `fn( string $url, string $kind = 'image' ): string|false`
- */
 function openstation_desktop_theme_url_asset_resolver() {
 	return static function ( $url, $kind = 'image' ) {
 		if ( ! is_string( $url ) ) {
 			return false;
 		}
 		$url = trim( $url );
-		// Require the scheme on the RAW input, before `esc_url_raw()`
-		// gets a chance to invent one: given `icons/relative.svg` it
-		// helpfully returns `http://icons/relative.svg`, which would
-		// sail through a post-hoc scheme check and compile into a
-		// `url()` pointing at a host called "icons". A code theme's
-		// assets have to be fully qualified — the compiler emits them
-		// verbatim, with no base to join against.
+
 		if ( ! preg_match( '~^https?://~i', $url ) ) {
 			return false;
 		}

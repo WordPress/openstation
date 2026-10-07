@@ -1,23 +1,6 @@
-/**
- * Plugins app — the detail flyout.
- *
- * Part of the `desktop-mode-plugins` client view. Slides in from the
- * inline-end edge over the active tab: a hero (banner + icon + name +
- * author + rating + installs), `<os-tabs>` for Overview / Screenshots
- * / Reviews / Changelog / FAQ, and an action footer pinned to the
- * bottom (Install, or the same verbs the table offers, plus the wp.org
- * link). `plugin_information` fetches on open only (cached per slug
- * for the window); reviews on tab activation. Every open takes a new
- * generation, so a slow fetch for one slug never paints into the
- * next.
- *
- * @public
- */
-
 import { __, formatDate, sprintf } from '@openstation/app';
 import { osIconSvg } from '../../../src/ui/icons';
-// The flyout paints under an `os-preserve` host, outside the runtime's
-// on-demand component loading — the tags it builds register here.
+
 import '../../../src/ui/components/os-tabs/os-tabs';
 import { pluginActionButtons, setBusy } from './actions';
 import { buildStarCluster, pickIcon } from './card';
@@ -28,14 +11,8 @@ import { describeError, type PluginsHost, type WpOrgBrowsePlugin, type WpOrgPlug
 
 type DetailTab = 'overview' | 'screenshots' | 'reviews' | 'changelog' | 'faq';
 
-/** The open the flyout is currently showing; a newer open supersedes it. */
 let generation = 0;
 
-/**
- * Open the flyout for a slug. The `<os-flyout data-os-plugins-flyout>`
- * is in the view; we paint into it. `hint` (a Browse row) paints the
- * hero eagerly so the user sees something immediately.
- */
 export function openDetailFlyout(
 	flyout: HTMLElement,
 	slug: string,
@@ -133,8 +110,6 @@ function buildHeroSkeleton( hint?: WpOrgBrowsePlugin ): HeroParts {
 	inner.append( icon, text );
 	root.appendChild( inner );
 
-	// Circular glass close button, floating over the banner.
-	// `data-flyout-close` is the contract `<os-flyout>` listens for.
 	const close = document.createElement( 'button' );
 	close.type = 'button';
 	close.className = 'os-plugins__flyout-close';
@@ -153,7 +128,7 @@ function buildHeroSkeleton( hint?: WpOrgBrowsePlugin ): HeroParts {
 function paintIdentity( parts: HeroParts, plugin: WpOrgBrowsePlugin ): void {
 	parts.title.textContent = stripHtml( plugin.name );
 	parts.byline.textContent = sprintf(
-		/* translators: %s: plugin author */
+
 		__( 'by %s', 'desktop-mode' ),
 		stripHtml( plugin.author ?? '' ),
 	);
@@ -180,13 +155,13 @@ function paintHero( parts: HeroParts, info: WpOrgPluginInfo ): void {
 	metaRow.className = 'os-plugins__flyout-meta-row';
 	const installs = document.createElement( 'span' );
 	installs.textContent = sprintf(
-		/* translators: %s: comma-grouped active install count */
+
 		__( '%s+ active', 'desktop-mode' ),
 		new Intl.NumberFormat().format( info.active_installs ?? 0 ),
 	);
 	const updated = document.createElement( 'span' );
 	updated.textContent = sprintf(
-		/* translators: %s: date the plugin was last updated */
+
 		__( 'Updated %s', 'desktop-mode' ),
 		info.last_updated ? formatDate( info.last_updated.slice( 0, 10 ), 'long' ) : '—',
 	);
@@ -194,7 +169,7 @@ function paintHero( parts: HeroParts, info: WpOrgPluginInfo ): void {
 	if ( info.tested ) {
 		const tested = document.createElement( 'span' );
 		tested.textContent = sprintf(
-			/* translators: %s: maximum tested WordPress version */
+
 			__( 'Tested up to WordPress %s', 'desktop-mode' ),
 			info.tested,
 		);
@@ -348,8 +323,7 @@ function paintFooter(
 		btn.textContent = __( 'Install', 'desktop-mode' );
 		btn.addEventListener( 'click', () => {
 			setBusy( btn, __( 'Installing…', 'desktop-mode' ) );
-			// Either way the footer repaints: Activate on success, the
-			// Install button back on failure (the toast said why).
+
 			void installBySlug( host, slug, info?.name ?? slug )
 				.catch( ( err ) => host.toast( describeError( err ), 6000 ) )
 				.finally( repaint );

@@ -1,7 +1,3 @@
-/**
- * Unit tests for Inkfall's letter→note mapping
- * (`src/games/inkfall/audio.ts`).
- */
 import { describe, expect, test } from 'vitest';
 import { letterFrequency } from '../../src/games/inkfall/audio';
 
@@ -13,7 +9,7 @@ describe( 'inkfall/audio.ts — letterFrequency', () => {
 			const first = letterFrequency( letter );
 			expect( first ).toBeGreaterThan( 0 );
 			expect( letterFrequency( letter ) ).toBe( first );
-			// Case-insensitive: K sounds like k.
+
 			expect( letterFrequency( letter.toUpperCase() ) ).toBe( first );
 		}
 	} );
@@ -34,9 +30,9 @@ describe( 'inkfall/audio.ts — letterFrequency', () => {
 	} );
 
 	test( 'notes sit on a C-major scale relative to the base', () => {
-		// `h` is one octave above `a` (7 scale degrees).
+
 		expect( letterFrequency( 'h' ) ).toBeCloseTo( 196 * 2 );
-		// `c` is a major third above `a`.
+
 		expect( letterFrequency( 'c' ) ).toBeCloseTo(
 			196 * Math.pow( 2, 4 / 12 ),
 		);

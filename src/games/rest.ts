@@ -1,12 +1,3 @@
-/**
- * OpenStation — Games REST client.
- *
- * Thin typed wrappers over the `desktop-mode/v1/games/*` routes.
- * Works from any bundle: the REST root + nonce are read off
- * `wp.os.config` at call time and every request routes through
- * `trackedFetch` (activity bus + window spinner attribution).
- */
-
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { restErrorFromBody } from '../core/api-client';
@@ -52,7 +43,6 @@ async function call< T >(
 	return body as T;
 }
 
-/** GET a leaderboard page. Pass `userId` to restrict to one player. */
 export function fetchScores(
 	game: string,
 	args: {
@@ -75,7 +65,6 @@ export function fetchScores(
 	return call( `desktop-mode/v1/games/${ game }/scores?${ params }` );
 }
 
-/** POST the current user's finished run to the leaderboard. */
 export function submitScore(
 	game: string,
 	submission: GameScoreSubmission,
@@ -94,12 +83,6 @@ export function submitScore(
 	);
 }
 
-/**
- * GET the current user's play time: lifetime totals
- * (`game id => seconds`), daily buckets
- * (`game id => { 'YYYY-MM-DD' => seconds }`, rolling window), and
- * the server's current day key (site timezone).
- */
 export function fetchPlaytime(): Promise< {
 	playtime: Record< string, number >;
 	daily: Record< string, Record< string, number > >;
@@ -108,11 +91,6 @@ export function fetchPlaytime(): Promise< {
 	return call( 'desktop-mode/v1/games/playtime' );
 }
 
-/**
- * POST a play-time increment (whole seconds) for the current user.
- * Sent `silent` by the tracker's periodic flush so the once-a-minute
- * ping doesn't blink the window spinner.
- */
 export function recordPlaytime(
 	game: string,
 	seconds: number,
@@ -128,7 +106,6 @@ export function recordPlaytime(
 	);
 }
 
-/** GET challenges involving the current user. */
 export function fetchChallenges(
 	args: { box?: 'incoming' | 'outgoing' | 'all'; state?: string } = {},
 ): Promise< { challenges: GameChallengeRow[] } > {
@@ -139,7 +116,6 @@ export function fetchChallenges(
 	return call( `desktop-mode/v1/games/challenges?${ params }` );
 }
 
-/** POST a new score-to-beat challenge. */
 export function createChallenge( args: {
 	game: string;
 	recipientId: number;
@@ -157,7 +133,6 @@ export function createChallenge( args: {
 	} );
 }
 
-/** POST an accept for a pending incoming challenge. */
 export function acceptChallenge(
 	id: number,
 ): Promise< { challenge: GameChallengeRow } > {
@@ -166,7 +141,6 @@ export function acceptChallenge(
 	} );
 }
 
-/** POST a decline for a pending incoming challenge. */
 export function declineChallenge(
 	id: number,
 ): Promise< { challenge: GameChallengeRow } > {
@@ -175,7 +149,6 @@ export function declineChallenge(
 	} );
 }
 
-/** POST the recipient's run result for an accepted challenge. */
 export function completeChallenge(
 	id: number,
 	submission: GameScoreSubmission,

@@ -1,13 +1,3 @@
-/**
- * The in-place loading affordance for non-window lazy mount points.
- *
- * Three behaviours carry the weight and each has a way of quietly
- * regressing: the delay (a spinner that flashes reads as a glitch), the
- * failure state (the blank-forever box this exists to remove), and the
- * `<os-spinner>`-or-fallback choice (the component ships in a lazy
- * bundle, so a widget mounting during boot can beat it to the page).
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SHOW_DELAY_MS, showInlineLoader } from '../../src/ui/inline-loader';
 
@@ -42,7 +32,7 @@ describe( 'showInlineLoader — the show delay', () => {
 	} );
 
 	it( 'never paints for a load that beat the delay', () => {
-		// The whole point of the delay: a fast load must leave no trace.
+
 		const loader = showInlineLoader( host );
 		loader.done();
 		vi.advanceTimersByTime( SHOW_DELAY_MS * 10 );
@@ -64,9 +54,7 @@ describe( 'showInlineLoader — the show delay', () => {
 
 describe( 'showInlineLoader — it appends, never replaces', () => {
 	it( 'keeps markup the caller already painted', () => {
-		// A widget's template and a panel's header are painted before
-		// the bundle is awaited; assigning over innerHTML would wipe
-		// them and the card would flicker back to empty.
+
 		const existing = document.createElement( 'p' );
 		existing.textContent = 'template';
 		host.appendChild( existing );
@@ -82,8 +70,7 @@ describe( 'showInlineLoader — it appends, never replaces', () => {
 
 describe( 'showInlineLoader — failure', () => {
 	it( 'paints the message even when the spinner never showed', () => {
-		// A load that fails in under the delay still has to say so:
-		// silence here is the blank box this module exists to remove.
+
 		const loader = showInlineLoader( host );
 		loader.fail( 'Preferences could not be loaded.' );
 		expect( root()?.textContent ).toContain(
@@ -138,10 +125,7 @@ describe( 'showInlineLoader — failure', () => {
 
 describe( 'showInlineLoader — the spinner it picks', () => {
 	it( 'falls back to inline markup when <os-spinner> would not upgrade', () => {
-		// The component lives in the lazy `shell-overlays` bundle. A
-		// widget can mount before that lands, and an <os-spinner> there
-		// would be an inert unknown element for exactly the window this
-		// module covers.
+
 		vi.spyOn( customElements, 'get' ).mockReturnValue( undefined );
 
 		showInlineLoader( host, { immediate: true } );
@@ -161,8 +145,7 @@ describe( 'showInlineLoader — the spinner it picks', () => {
 
 		const spinner = host.querySelector( 'os-spinner' );
 		expect( spinner ).not.toBeNull();
-		// The wrapper is the live region; a labelled spinner inside it
-		// would have a screen reader read the status twice.
+
 		expect( spinner?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 		expect( spinner?.getAttribute( 'preset' ) ).toBe( 'inline' );
 	} );

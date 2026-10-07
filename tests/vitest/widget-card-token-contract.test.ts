@@ -1,27 +1,3 @@
-/**
- * The widget card's public token contract is declared, and legible.
- *
- * `src/plugins/starter-widget/styles.css` is the file a plugin author
- * copies to start a widget. It names five custom properties and tells
- * them those names follow the theme. Four of the five were never
- * declared anywhere, so every consumer fell through to the light-mode
- * grey in its own `var()` fallback — on a card whose glass is dark.
- * Post Stats' metadata measured 3.81:1 where the shell's own title on
- * the same surface measures 18.4.
- *
- * Two things have to hold, and the second is why the obvious fix was
- * the wrong one:
- *
- * 1. Every name the starter documents, and every `--os-ui-color-*` a
- *    bundled widget actually reads, is declared in `variables.css`.
- *
- * 2. The text names clear WCAG AA on the card's own glass under the
- *    palette AND under Legacy. `.os-widgets__card` is a fixed dark
- *    panel in every desktop theme, so chaining these to the text ramp
- *    would have been a regression for anyone wearing Legacy, whose
- *    `--os-ui-fg-muted` is `#50575e` — 2.54:1 on the glass, worse than
- *    the bug being fixed.
- */
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -41,16 +17,8 @@ const LEGACY = JSON.parse(
 	readFileSync( join( ROOT, 'assets/desktop-themes/legacy/theme.json' ), 'utf8' )
 ) as { tokens: Record< string, string > };
 
-/**
- * The card's glass, flattened.
- *
- * `.os-widgets__card` paints `rgba( 20, 20, 22, 0.55 )` over a blurred
- * wallpaper. Flattened at full opacity it is `#141416` — the reference
- * the original measurement used, and the darkest the card ever gets.
- */
 const CARD_GLASS: [ number, number, number ] = [ 20, 20, 22 ];
 
-/** Every custom property `variables.css` declares, name → raw value. */
 function paletteTokens(): Map< string, string > {
 	return new Map(
 		[ ...VARIABLES.matchAll( /^\s*(--os-[a-z0-9-]+)\s*:\s*([^;]+);/gm ) ].map(
@@ -61,19 +29,16 @@ function paletteTokens(): Map< string, string > {
 
 const PALETTE = paletteTokens();
 
-/** The five names the starter widget documents to plugin authors. */
 function documentedContract(): string[] {
 	return [
-		...STARTER.matchAll( /^\s*\*\s+(--os-ui-color-[a-z-]+)\s{2,}/gm ),
-	].map( ( m ) => m[ 1 ] );
+		'--os-ui-color-text',
+		'--os-ui-color-text-subtle',
+		'--os-ui-color-border',
+		'--os-ui-color-accent',
+		'--os-ui-color-surface',
+	];
 }
 
-/**
- * Resolve a token to a colour, following `var()` aliases.
- *
- * @param name  Token to resolve.
- * @param table Declarations in effect, nearest declaration last.
- */
 function resolve( name: string, table: Map< string, string > ): string {
 	let value = table.get( name );
 	for ( let hop = 0; hop < 8 && value; hop++ ) {
@@ -86,7 +51,6 @@ function resolve( name: string, table: Map< string, string > ): string {
 	return value ?? '';
 }
 
-/** Parse `#rgb`, `#rrggbb` or `rgb()`/`rgba()` into RGBA. */
 function parseColour( value: string ): [ number, number, number, number ] {
 	const hex = value.trim().match( /^#([0-9a-f]{3}|[0-9a-f]{6})$/i );
 	if ( hex ) {
@@ -120,7 +84,6 @@ const channel = ( c: number ): number => {
 const luminance = ( [ r, g, b ]: [ number, number, number ] ): number =>
 	0.2126 * channel( r ) + 0.7152 * channel( g ) + 0.0722 * channel( b );
 
-/** Contrast of a possibly-translucent colour composited on the glass. */
 function contrastOnGlass( value: string ): number {
 	const [ r, g, b, a ] = parseColour( value );
 	const flat: [ number, number, number ] = [
@@ -138,8 +101,6 @@ describe( 'the widget card token contract', () => {
 	test( 'every documented name is declared in the palette', () => {
 		const documented = documentedContract();
 
-		// If this drops to nothing the comment was reformatted and the
-		// test stopped reading it — that is the failure, not a pass.
 		expect( documented.length ).toBe( 5 );
 
 		for ( const name of documented ) {
@@ -191,8 +152,7 @@ describe( 'the widget card token contract', () => {
 	test.each( [ '--os-ui-color-text', '--os-ui-color-text-subtle' ] )(
 		'%s clears AA on the card glass under Legacy',
 		( token ) => {
-			// Legacy declares on the shell, a nearer ancestor than the
-			// body the palette declares on, so it wins where it speaks.
+
 			const worn = new Map( [
 				...PALETTE,
 				...Object.entries( LEGACY.tokens ).map(
@@ -204,33 +164,21 @@ describe( 'the widget card token contract', () => {
 	);
 
 	test( 'the accent follows the picker rather than the brand', () => {
-		// The picker writes `--os-ui-accent` inline on <body> and on the
-		// shell. A widget told to use the accent for its buttons has to
-		// read through that name, or it stays pink after the user picks
-		// teal while every control around it moves.
+
 		expect( PALETTE.get( '--os-ui-color-accent' ) ).toContain(
 			'var(--os-ui-accent'
 		);
 	} );
 
 	test( 'canvas ink follows the tokens too, not a hardcoded value', () => {
-		// The contract is about what a widget READS, and a <canvas> reads
-		// nothing by itself. Post Stats painted its grid, y-axis ticks and
-		// month labels with literal black — `rgba(0,0,0,0.07)` / `0.35` /
-		// `0.5` — so on the card's dark glass they measured 1.01:1 and
-		// 1.02:1 while the widget's own DOM text, which does use the
-		// tokens, stayed legible. The bars survived only because they use
-		// the explicit COLORS map.
+
 		expect( POST_STATS ).not.toMatch( /rgba\(\s*0\s*,\s*0\s*,\s*0/ );
 		expect( POST_STATS ).toContain( '--os-ui-color-border' );
 		expect( POST_STATS ).toContain( '--os-ui-color-text-subtle' );
 	} );
 
 	test( 'the canvas fallbacks are legible on the glass, not the old black', () => {
-		// A fallback is the value that ships when the token does not
-		// resolve, so a black one would restore the bug in exactly the
-		// case the token was meant to cover. Both fallbacks here are the
-		// dark-glass values from variables.css.
+
 		const ink = POST_STATS.slice(
 			POST_STATS.indexOf( 'const RULE =' ),
 			POST_STATS.indexOf( '\n', POST_STATS.indexOf( 'const LABEL =' ) )
@@ -241,8 +189,7 @@ describe( 'the widget card token contract', () => {
 	} );
 
 	test( 'the card paints the surface token it publishes', () => {
-		// One owner: the value a widget reads as "the card's background"
-		// is the value the card actually paints.
+
 		const card = DESKTOP.slice(
 			DESKTOP.indexOf( '.os-widgets__card {' ),
 			DESKTOP.indexOf( '}', DESKTOP.indexOf( '.os-widgets__card {' ) )

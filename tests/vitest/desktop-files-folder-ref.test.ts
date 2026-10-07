@@ -1,19 +1,3 @@
-/**
- * Addressing a folder by id alone — `folderFileById()` and the
- * conflict toast's "View folder" action that depends on it.
- *
- * The toast learns about a folder from a 409 response: an id and a
- * name, no tile, no serialized shape. It still has to open the same
- * folder window a double-click on that folder's tile would open, and
- * it gets there by building a `DesktopFile` and handing it to the
- * ordinary opener registry rather than by reconstructing the window
- * itself.
- *
- * These tests pin the resolution order (server shape > store row >
- * caller fallback) and the dispatch — including that an already-open
- * folder window is reused rather than rebuilt, which comes free from
- * routing through the registered opener.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -51,7 +35,6 @@ async function load(): Promise< {
 	return modules;
 }
 
-/** A server-serialized placement whose file IS the given folder. */
 function folderPlacement( folderId: number, title: string, icon: string ) {
 	return {
 		id: 900 + folderId,
@@ -72,12 +55,6 @@ function folderPlacement( folderId: number, title: string, icon: string ) {
 	};
 }
 
-/**
- * The files store is a `createSharedStore`, so it lives on a global
- * and `vi.resetModules()` does NOT clear it — state would leak from
- * one test into the next and a fallback assertion would read the
- * previous test's placement. Reset it explicitly.
- */
 async function resetStore(): Promise< void > {
 	const store = await import( '../../src/desktop-files/store' );
 	store.__resetFilesStoreForTests();
@@ -96,9 +73,7 @@ describe( 'folderFileById — resolution order', () => {
 
 	test( "prefers the server's own shape from a loaded placement", async () => {
 		const { folderRef, store } = await load();
-		// A plugin's serialize filter renamed it and gave it a custom
-		// icon — the server is authoritative and we must not
-		// second-guess it.
+
 		store.setFolderPlacements( 0, [
 			folderPlacement( 12, 'Q3 Campaign', 'dashicons-megaphone' ),
 		] );
@@ -113,8 +88,7 @@ describe( 'folderFileById — resolution order', () => {
 
 	test( 'finds the placement wherever in the tree it is loaded', async () => {
 		const { folderRef, store } = await load();
-		// Nested, not on the desktop root — the search has to walk
-		// every loaded folder, not just folder 0.
+
 		store.setFolderPlacements( 7, [
 			folderPlacement( 12, 'Nested', 'dashicons-portfolio' ),
 		] );
@@ -161,8 +135,7 @@ describe( 'folderFileById — resolution order', () => {
 
 	test( 'ignores a placement of a different type with the same ref', async () => {
 		const { folderRef, store } = await load();
-		// Post 12 is not folder 12. Matching on ref alone would open a
-		// folder window titled after a post.
+
 		store.setFolderPlacements( 0, [
 			{
 				...folderPlacement( 12, 'A post', 'dashicons-admin-post' ),
@@ -203,7 +176,6 @@ describe( 'conflict toast — "View folder" dispatches through the opener', () =
 		document.body.replaceChildren();
 	} );
 
-	/** Build a 409 the REST client would have thrown. */
 	function conflictError(
 		rest: RestModule,
 		parentId: number,
@@ -219,11 +191,6 @@ describe( 'conflict toast — "View folder" dispatches through the opener', () =
 		} as never );
 	}
 
-	/**
-	 * Capture the toast's action button instead of rendering it —
-	 * `<os-toast>` lives in the lazily loaded overlays bundle, and the
-	 * action's behavior is what these tests are about.
-	 */
 	function captureAction( toast: ToastModule ) {
 		const captured: { label: string; onClick: () => void }[] = [];
 		const spy = vi
@@ -267,9 +234,6 @@ describe( 'conflict toast — "View folder" dispatches through the opener', () =
 		captured[ 0 ].onClick();
 		await vi.waitFor( () => expect( opened ).toHaveBeenCalled() );
 
-		// The opener received a real folder DesktopFile — which is what
-		// lets it build the same window a tile double-click builds,
-		// rather than the toast reconstructing one.
 		const file = opened.mock.calls[ 0 ][ 0 ];
 		expect( file.type() ).toBe( 'folder' );
 		expect( file.ref() ).toBe( '12' );
@@ -282,7 +246,6 @@ describe( 'conflict toast — "View folder" dispatches through the opener', () =
 		const { captured, spy } = captureAction( toast );
 		conflict.showConflictToast( conflictError( rest, 0 ) );
 
-		// Folder 0 is the desktop itself — already on screen.
 		expect( captured ).toHaveLength( 0 );
 		expect( spy ).toHaveBeenCalled();
 	} );
@@ -293,9 +256,6 @@ describe( 'conflict toast — "View folder" dispatches through the opener', () =
 		const { captured } = captureAction( toast );
 		conflict.showConflictToast( conflictError( rest, 12, 'Archive' ) );
 
-		// The regression this replaces: the button was only offered
-		// when that folder's window already happened to be open, so in
-		// the common case the toast had no way to act on itself.
 		expect( captured ).toHaveLength( 1 );
 	} );
 } );

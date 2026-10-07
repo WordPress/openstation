@@ -1,4 +1,3 @@
-/** A button-anchored dropdown over the shared menu kit, outside clipping containers. */
 import { Component, defineComponent, html } from '../../core';
 import '../os-button/os-button';
 import '../os-context-menu/os-context-menu';
@@ -48,7 +47,7 @@ export class OsActionMenu extends Component {
 		this.trigger?.setAttribute( 'aria-haspopup', 'menu' );
 		this.trigger?.setAttribute( 'aria-expanded', String( this.opened ) );
 	}
-	/** Open at the trigger, then focus the first (or last) available option. */
+
 	show( last = false ): void {
 		if ( this.opened || ! this.panel ) {
 			return;
@@ -85,7 +84,7 @@ export class OsActionMenu extends Component {
 		this.addEventListener( 'keydown', this.onKey, { signal } );
 		this.addEventListener( 'os-context-menu-pick', () => this.close(), { capture: true, signal } );
 	}
-	/** Dismiss without changing the card's size; optionally return keyboard focus. */
+
 	close( restore = true ): void {
 		if ( ! this.opened ) {
 			return;

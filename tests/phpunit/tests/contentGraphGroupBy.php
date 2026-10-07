@@ -1,17 +1,5 @@
 <?php
-/**
- * Tests for the Content Graph group-by payload fields.
- *
- * Covers the per-node (author_id, year, category_ids, tag_ids) +
- * top-level (groups: { authors, categories, tags }) extensions
- * landed alongside the toolbar group-by selector.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group content-graph
- */
+
 class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 	protected static $author_a_id;
@@ -34,8 +22,7 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		// Each test starts from a clean transient cache so we exercise
-		// the build path and not a cached payload from a prior test.
+
 		openstation_content_graph_flush_cache();
 	}
 
@@ -73,13 +60,7 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 				'post_type'   => 'post',
 			)
 		);
-		// Insert a revision authored by user B directly. The
-		// `wp_save_post_revision` path WP uses on `wp_update_post`
-		// captures the CURRENT user as the revision author — in unit
-		// tests no current user is set, so we'd get a revision
-		// authored by `0`. Inserting the revision row explicitly
-		// avoids that and matches the shape `openstation_content_
-		// graph_collect_post_contributors` reads from.
+
 		wp_insert_post(
 			array(
 				'post_type'    => 'revision',
@@ -97,13 +78,9 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 		$this->assertSame( self::$author_a_id, $node['author_id'] );
 		$this->assertContains( self::$author_b_id, $node['contributor_ids'] );
-		// Primary author must NOT appear in the contributor list —
-		// the server filters it out so the client can double-weight
-		// the primary without also double-counting them via the
-		// contributors array.
+
 		$this->assertNotContains( self::$author_a_id, $node['contributor_ids'] );
-		// The contributor's display name must be in the catalog so
-		// the client can resolve "Bob Example" without a round-trip.
+
 		$this->assertSame(
 			'Bob Example',
 			$payload['groups']['authors'][ self::$author_b_id ]['name']
@@ -111,8 +88,7 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 	}
 
 	public function test_post_with_no_category_falls_back_to_default_category() {
-		// Pin the option so the test is self-contained regardless of
-		// whatever default_category the test-suite DB was seeded with.
+
 		update_option( 'default_category', 1 );
 
 		$post_id = self::factory()->post->create(
@@ -122,9 +98,7 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 				'post_type'   => 'post',
 			)
 		);
-		// The factory hook auto-assigns "Uncategorized" (term 1); clear
-		// it so we exercise the builder's own fallback rather than
-		// inheriting the factory-side assignment.
+
 		wp_set_object_terms( $post_id, array(), 'category' );
 		wp_set_object_terms( $post_id, array(), 'post_tag' );
 
@@ -153,8 +127,6 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 		$payload = openstation_content_graph_build( array( 'post' ) );
 
-		// The client resolves cluster labels from groups.categories;
-		// the fallback ID must be present there so the label renders.
 		$this->assertArrayHasKey(
 			1,
 			$payload['groups']['categories'],
@@ -163,8 +135,7 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 	}
 
 	public function test_post_type_not_supporting_category_keeps_empty_category_ids() {
-		// Register a minimal public CPT so the graph builder includes it,
-		// and clean it up afterwards so it does not bleed into other tests.
+
 		register_post_type(
 			'dm_test_no_cat',
 			array(
@@ -184,13 +155,9 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 		$payload = openstation_content_graph_build( array( 'dm_test_no_cat' ) );
 		$node    = $this->find_node( $payload, $post_id );
 
-		// Clean up BEFORE asserting so the CPT never leaks into other
-		// tests even when an assertion fails.
 		unregister_post_type( 'dm_test_no_cat' );
 		openstation_content_graph_flush_cache();
 
-		// category is not registered for this type — the default
-		// category fallback must NOT be injected.
 		$this->assertSame(
 			array(),
 			$node['category_ids'],
@@ -285,10 +252,8 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 		);
 		wp_set_object_terms( $post_id, array( $cat_old ), 'category' );
 
-		// Prime the cache.
 		openstation_content_graph_build( array( 'post' ) );
 
-		// Retag without re-saving the post.
 		wp_set_object_terms( $post_id, array( $cat_new ), 'category' );
 
 		$payload = openstation_content_graph_build( array( 'post' ) );
@@ -303,14 +268,12 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 	public function test_post_types_normalizes_legacy_filtered_descriptors() {
 		$filter_callback = function( $types ) {
-			// Use a slug that is NOT in the default list — the built-in
-			// entries already carry `taxonomies`, so asserting on one of
-			// them would pass even without the normalization pass.
+
 			$types[] = array(
 				'slug'  => 'dm_legacy',
 				'label' => 'Legacy',
 				'icon'  => 'dashicons-admin-page',
-				// Omit 'taxonomies' to simulate a legacy filter callback.
+
 			);
 			return $types;
 		};
@@ -333,11 +296,6 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 		$this->assertFalse( $legacy_entry['taxonomies']['post_tag'], 'Unregistered legacy slug must derive post_tag support = false.' );
 	}
 
-	/**
-	 * @param array $payload
-	 * @param int   $post_id
-	 * @return array
-	 */
 	protected function find_node( $payload, $post_id ) {
 		foreach ( $payload['nodes'] as $node ) {
 			if ( (int) $node['id'] === (int) $post_id ) {

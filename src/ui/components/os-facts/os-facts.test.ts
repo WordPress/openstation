@@ -1,10 +1,3 @@
-/**
- * `<os-facts>` + `<os-fact>` — the label/value list.
- *
- * The load-bearing assertion here is the structural one: the list is
- * a real `<dl>` and each row paints its own `<dt>`/`<dd>` pair, with
- * the value left in the light DOM.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-facts';
 
@@ -37,8 +30,7 @@ describe( '<os-facts>', () => {
 		expect(
 			rows[ 0 ].shadowRoot!.querySelector( 'dd' )!.textContent,
 		).toBe( '' );
-		// The value is a slot, not an attribute, so it stays in the
-		// light DOM where an <os-code> or <os-relative-time> can live.
+
 		expect( rows[ 0 ].textContent ).toContain( 'class-foo.php' );
 	} );
 

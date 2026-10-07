@@ -1,13 +1,3 @@
-/**
- * Tests for the shared row-action button.
- *
- * The load-bearing property is the colour chain: the button lives
- * inside `<os-table>`'s shadow root, so its face has to be an inline
- * `var()` that resolves through the palette, with the pre-brand
- * literal as the floor. A face that inherits its text colour over a
- * `#fff` fallback paints white glyphs on a white chip under the dark
- * palette — which is how the Users list lost its action icons once.
- */
 import { describe, expect, it, vi } from 'vitest';
 import { makeRowActionButton } from './row-action-button';
 

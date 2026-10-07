@@ -1,13 +1,3 @@
-/**
- * `announceContentChange()` — the typed envelope every content-change
- * producer shares.
- *
- * The topic (`os.<type>.changed`) and payload (`{ source, action,
- * ids }`) are a load-bearing convention: the Recycle Bin window, its
- * dock icon, and the shell's iframe-reload subscriber all parse this
- * exact shape, and a producer that drifts fails silently — the bin
- * just stops updating. These tests pin the envelope.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { announceContentChange, subscribe } from '../../src/broadcast';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';

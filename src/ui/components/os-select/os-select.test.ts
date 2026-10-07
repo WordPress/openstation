@@ -3,7 +3,6 @@ import './os-select';
 
 const tick = (): Promise< void > => Promise.resolve();
 
-/** The rendered listbox rows, whether the popup is open or not. */
 const rows = ( el: Element ): HTMLElement[] =>
 	Array.from( el.shadowRoot!.querySelectorAll( '[role="option"]' ) );
 
@@ -43,7 +42,7 @@ describe( '<os-select> + <os-option>', () => {
 		expect(
 			opts.map( ( o ) => o.getAttribute( 'aria-selected' ) ),
 		).toEqual( [ 'false', 'true', 'false' ] );
-		// The trigger names the selection.
+
 		expect( trigger( el ).textContent ).toContain( 'US Dollar' );
 	} );
 
@@ -85,8 +84,7 @@ describe( '<os-select> + <os-option>', () => {
 
 		trigger( el ).click();
 		await tick();
-		// jsdom has no Popover API, so the component takes the
-		// fallback path and stamps data-open.
+
 		expect( popup( el ).hasAttribute( 'data-open' ) ).toBe( true );
 		expect( trigger( el ).getAttribute( 'aria-expanded' ) ).toBe( 'true' );
 
@@ -117,11 +115,11 @@ describe( '<os-select> + <os-option>', () => {
 				new KeyboardEvent( 'keydown', { key: k, bubbles: true } ),
 			);
 
-		key( 'ArrowDown' ); // opens, active = current (Euro)
+		key( 'ArrowDown' );
 		await tick();
-		key( 'ArrowDown' ); // active = US Dollar
+		key( 'ArrowDown' );
 		await tick();
-		key( 'Enter' ); // commits
+		key( 'Enter' );
 
 		expect( heard ).toBe( 'usd' );
 		expect( el.getAttribute( 'value' ) ).toBe( 'usd' );
@@ -186,8 +184,6 @@ describe( '<os-select> + <os-option>', () => {
 		o.textContent = 'Canadian Dollar';
 		el.appendChild( o );
 
-		// Two microtasks for: mutation-observer callback → requestUpdate
-		// → queued render.
 		await tick();
 		await tick();
 
@@ -288,18 +284,12 @@ describe( '<os-select> + <os-option>', () => {
 		expect( sel.getAttribute( 'value' ) ).toBe( 'eur' );
 	} );
 
-	// Regression guard mirroring the calculator-plugin path that
-	// triggered the empty-select bug: the element is created
-	// via innerHTML and populated via `.items` IN THE SAME TICK
-	// (template-clone-then-wire), so the connect-time render
-	// microtask hasn't run yet when the setter appends options. The
-	// render must still pick the options up.
 	test( 'same-tick innerHTML + .items populates the listbox', async () => {
 		host.innerHTML = `<os-select label="From"></os-select>`;
 		const sel = host.querySelector( 'os-select' ) as HTMLElement & {
 			items: ReadonlyArray< { value: string; label: string } >;
 		};
-		// No await here — same tick as the innerHTML parse.
+
 		sel.items = [
 			{ value: 'm', label: 'Metres' },
 			{ value: 'km', label: 'Kilometres' },
@@ -348,10 +338,6 @@ describe( '<os-select> + <os-option>', () => {
 		expect( trigger( to ).textContent ).toContain( 'Kilometres' );
 	} );
 
-	// Regression for the missing-chevron report: the earlier build
-	// used a dashicons-classed span, which never paints inside a
-	// shadow root because the global Dashicons font stylesheet can't
-	// cross the boundary. Inline SVG is the fix.
 	test( 'shadow-DOM chevron is rendered as inline SVG (not a dashicons span)', async () => {
 		host.innerHTML = `<os-select value="eur">
 			<os-option value="eur">Euro</os-option>
@@ -362,9 +348,9 @@ describe( '<os-select> + <os-option>', () => {
 		const sel = host.querySelector( 'os-select' )!;
 		const svg = sel.shadowRoot!.querySelector( 'svg.os-select__chevron' );
 		expect( svg ).not.toBeNull();
-		// Path is inside the SVG, not a dashicons font character.
+
 		expect( svg!.querySelector( 'path' ) ).not.toBeNull();
-		// No stray dashicons span that won't render.
+
 		expect( sel.shadowRoot!.querySelector( '.dashicons' ) ).toBeNull();
 	} );
 
@@ -380,19 +366,14 @@ describe( '<os-select> + <os-option>', () => {
 		const checks = rows( el ).map(
 			( o ) => o.querySelector( 'svg.os-select__check' ) !== null,
 		);
-		// Every row reserves the check column so labels align; CSS
-		// shows it only on aria-selected="true".
+
 		expect( checks ).toEqual( [ true, true ] );
 		expect(
 			rows( el ).map( ( o ) => o.getAttribute( 'aria-selected' ) ),
 		).toEqual( [ 'false', 'true' ] );
 	} );
 
-	// Auto-id: deterministic slug derived from window + tab + label
-	// ancestry. Plugin authors that pass `id="…"` keep full control.
 	test( 'auto-id picks up window + tab + label ancestry', async () => {
-		// Simulate a native-window body with a tabpanel, per shell
-		// rendering conventions.
 		host.innerHTML = `
 			<div id="wp-window-calculator">
 				<os-tabpanel for="convert">
@@ -444,29 +425,18 @@ describe( '<os-select> + <os-option>', () => {
 		expect( trigger( sel ).id ).toBe( 'my-custom-id__trigger' );
 	} );
 
-	// Regression guard for the native-window render-before-mount bug:
-	// populating `.items` while the element is still in a detached
-	// subtree used to leave the setter unreached — the class wasn't
-	// on the prototype yet, so the assignment created an own data
-	// property that shadowed the real setter after upgrade. Mounting
-	// the detached tree into the document must cause the upgrade to
-	// pick up the pre-set options and render them into the listbox.
 	test( '.items set on a disconnected os-select still populates on mount', async () => {
 		const detachedHost = document.createElement( 'div' );
 		detachedHost.innerHTML = `<os-select label="From"></os-select>`;
 		const sel = detachedHost.querySelector( 'os-select' ) as HTMLElement & {
 			items: ReadonlyArray< { value: string; label: string } >;
 		};
-		// Element is NOT yet connected to the document, like a
-		// native-window body before mount.
+
 		sel.items = [
 			{ value: 'm', label: 'Metres' },
 			{ value: 'km', label: 'Kilometres' },
 		];
-		// Now mount. HTML spec: custom elements upgrade on
-		// connection. The shell calls the plugin's render AFTER
-		// this point (0.12+), so by the time any plugin code reads
-		// `.items` the element is a real OsSelect instance.
+
 		document.body.appendChild( detachedHost );
 
 		await tick();

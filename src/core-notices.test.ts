@@ -1,9 +1,3 @@
-/**
- * Tests for `maybeShowNotices()` — the shell surfacing of the server's
- * `coreNotices` / `pluginNotices`. `showToast` is mocked so we assert what
- * gets rendered without touching the DOM.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { maybeShowNotices, type ShellNotice } from './core-notices';
 import { showToast, type ToastOptions } from './toast';
@@ -54,7 +48,7 @@ describe( 'maybeShowNotices', () => {
 		} );
 		expect( toastMock ).toHaveBeenCalledTimes( 2 );
 		expect( toastAt( 0 ).message ).toBe( NOTICE.message );
-		// Every shell notice is persistent + dismissible — never permanent.
+
 		expect( toastAt( 0 ).persistent ).toBe( true );
 		expect( toastAt( 0 ).dismissible ).toBe( true );
 		expect( toastAt( 1 ).persistent ).toBe( true );
@@ -69,7 +63,7 @@ describe( 'maybeShowNotices', () => {
 		lastToast().action!.onClick();
 		expect( openUrl ).toHaveBeenCalledWith( {
 			url: '/wp-admin/update-core.php',
-			title: 'WordPress Updates', // window title, not the button label
+			title: 'WordPress Updates',
 		} );
 	} );
 
@@ -108,8 +102,6 @@ describe( 'maybeShowNotices', () => {
 	} );
 
 	test( 'keyPrefix namespaces the dismissal key (core vs plugin)', () => {
-		// A plugin notice dismissed under `plugin-notice:` must not be hidden
-		// by a same-id `core-notice:` dismissal, and vice-versa.
 		markNoticeDismissed( 'desktop-mode/core-notice:shared' );
 		maybeShowNotices( {
 			notices: [ { id: 'shared', message: 'plugin' } ],

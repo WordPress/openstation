@@ -1,10 +1,5 @@
 <?php
-/**
- * Presence upgrade, atomic merge and endpoint regression tests.
- *
- * @package OpenStation
- * @group openstation
- */
+
 class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
@@ -19,7 +14,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		return array( 'last_seen_ms' => $seen, 'last_active_ms' => $active );
 	}
 
-	/** @covers ::openstation_presence_upsert */
 	public function test_delayed_writers_preserve_independent_maximum_timestamps() {
 		openstation_presence_upsert( 1, $this->record( 3000, 1000 ) );
 		openstation_presence_upsert( 2, $this->record( 5000, 5000 ) );
@@ -28,7 +22,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( array( 1 => $this->record( 3000, 2000 ), 2 => $this->record( 5000, 5000 ) ), openstation_presence_get_all() );
 	}
 
-	/** @covers ::openstation_presence_write_record */
 	public function test_away_fences_older_active_requests_but_allows_new_activity() {
 		openstation_presence_write_record( 1, $this->record( 2000, 2000 ) );
 		openstation_presence_write_record( 1, $this->record( 4000, 0 ), true );
@@ -39,7 +32,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( $this->record( 6000, 6000 ), openstation_presence_get_all()[1] );
 	}
 
-	/** @covers ::openstation_presence_migrate_storage */
 	public function test_import_preserves_legacy_option_and_newer_destination_data() {
 		$legacy = array( 1 => $this->record( 1000, 1000 ), 2 => $this->record( 2000, 0 ), -1 => 'bad' );
 		update_option( OPENSTATION_PRESENCE_OPTION, $legacy, false );
@@ -53,10 +45,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( $state, get_option( OPENSTATION_PRESENCE_STORAGE_OPTION ) );
 	}
 
-	/**
-	 * @dataProvider migration_failure_stages
-	 * @covers ::openstation_presence_migrate_storage
-	 */
 	public function test_failed_migration_is_retryable_and_never_marked_ready( $pattern ) {
 		global $wpdb;
 		update_option( OPENSTATION_PRESENCE_OPTION, array( 1 => $this->record( 1000, 1000 ) ), false );
@@ -78,7 +66,7 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertTrue( $hit );
 		$this->assertFalse( $result );
 		$this->assertFalse( get_option( OPENSTATION_PRESENCE_STORAGE_OPTION ) );
-		wp_cache_delete( 'failed:' . openstation_presence_cache_key(), 'openstation_presence_request' ); // Next request.
+		wp_cache_delete( 'failed:' . openstation_presence_cache_key(), 'openstation_presence_request' );
 		$this->assertTrue( openstation_presence_migrate_storage() );
 		$this->assertSame( $this->record( 1000, 1000 ), openstation_presence_get_all()[1] );
 	}
@@ -93,7 +81,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		);
 	}
 
-	/** @covers ::openstation_presence_migration_tick */
 	public function test_bounded_bridge_imports_late_legacy_writes_without_dual_writing() {
 		$cut = (int) round( microtime( true ) * 1000 ) - 1000;
 		update_option( OPENSTATION_PRESENCE_STORAGE_OPTION, array( 'ready' => true, 'completed_at_ms' => $cut ), false );
@@ -109,7 +96,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 3, openstation_presence_get_all() );
 	}
 
-	/** @covers ::openstation_presence_cron_prune */
 	public function test_prune_rechecks_expiry_at_delete_time() {
 		$now = (int) round( microtime( true ) * 1000 );
 		openstation_presence_upsert( 1, $this->record( $now - 30 * DAY_IN_SECONDS * 1000, 0 ) );
@@ -126,7 +112,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( $this->record( $now, $now ), openstation_presence_get_all()[1] );
 	}
 
-	/** @covers ::openstation_presence_rest_post */
 	public function test_rest_away_and_activity_keep_the_public_shape() {
 		$id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $id );
@@ -143,7 +128,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( 'online', openstation_presence_status_for_user( $id ) );
 	}
 
-	/** @covers ::openstation_presence_record */
 	public function test_failed_write_does_not_announce_success_or_mutate_legacy_option() {
 		global $wpdb;
 		$recorded = 0;
@@ -163,7 +147,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertFalse( get_option( OPENSTATION_PRESENCE_OPTION ) );
 	}
 
-	/** @covers ::openstation_presence_write_record */
 	public function test_unavailable_schema_retains_working_legacy_path_until_retry() {
 		global $wpdb;
 		delete_option( OPENSTATION_PRESENCE_STORAGE_OPTION );
@@ -181,12 +164,11 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 			remove_filter( 'query', $filter, 1 );
 			$wpdb->suppress_errors( $suppress );
 		}
-		wp_cache_delete( 'failed:' . openstation_presence_cache_key(), 'openstation_presence_request' ); // Next request.
+		wp_cache_delete( 'failed:' . openstation_presence_cache_key(), 'openstation_presence_request' );
 		$this->assertTrue( openstation_presence_migrate_storage() );
 		$this->assertSame( 'online', openstation_presence_status_for_user( 1 ) );
 	}
 
-	/** @covers ::openstation_presence_rest_post */
 	public function test_tracking_veto_keeps_successful_rest_noop() {
 		$id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $id );
@@ -196,7 +178,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( $id, openstation_presence_get_all() );
 	}
 
-	/** @covers ::openstation_presence_migrate_storage */
 	public function test_stale_negative_option_cache_does_not_reimport_after_cutover() {
 		$state = get_option( OPENSTATION_PRESENCE_STORAGE_OPTION );
 		update_option( OPENSTATION_PRESENCE_OPTION, array( 9 => $this->record( 9999, 9999 ) ), false );
@@ -207,7 +188,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 9, openstation_presence_get_all() );
 	}
 
-	/** @covers ::openstation_presence_table */
 	public function test_multisite_presence_is_site_scoped() {
 		if ( ! is_multisite() ) {
 			$this->markTestSkipped( 'Multisite-only isolation test.' );
@@ -223,7 +203,7 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		} finally { restore_current_blog(); }
 		$this->assertSame( $this->record( 1000, 1000 ), openstation_presence_get_all()[1] );
 	}
-	/** @covers ::openstation_presence_read_records */
+
 	public function test_user_lists_share_one_request_snapshot_and_writes_invalidate_it() {
 		global $wpdb;
 		openstation_presence_upsert( 1, $this->record( 1000, 1000 ) );
@@ -236,7 +216,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( $this->record( 2000, 2000 ), openstation_presence_get_all()[1] );
 	}
 
-	/** @covers ::openstation_presence_migrate_storage */
 	public function test_failed_installation_is_attempted_once_per_request() {
 		delete_option( OPENSTATION_PRESENCE_STORAGE_OPTION );
 		$attempts = 0;
@@ -254,7 +233,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( 1, $attempts );
 	}
 
-	/** @covers ::openstation_presence_migration_tick */
 	public function test_bridge_idle_tick_does_not_fence_new_activity_or_repeat_upserts() {
 		$cut = (int) round( microtime( true ) * 1000 ) - 1000;
 		update_option( OPENSTATION_PRESENCE_STORAGE_OPTION, array( 'ready' => true, 'completed_at_ms' => $cut ), false );
@@ -271,7 +249,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( $this->record( $cut + 200, $cut + 100 ), openstation_presence_get_all()[1] );
 	}
 
-	/** @covers ::openstation_presence_rest_post */
 	public function test_stateful_veto_runs_once_and_remains_a_successful_noop() {
 		wp_set_current_user( self::factory()->user->create() );
 		$calls = 0;
@@ -281,7 +258,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( 1, $calls );
 	}
 
-	/** @covers ::openstation_presence_record_result */
 	public function test_future_away_fence_does_not_announce_online() {
 		$future = (int) round( microtime( true ) * 1000 ) + 60000;
 		openstation_presence_write_record( 1, $this->record( $future, 0 ), true );
@@ -292,7 +268,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		$this->assertSame( array(), $changes );
 	}
 
-	/** @covers ::openstation_presence_migrate_storage */
 	public function test_sqlite_noop_lock_does_not_prevent_idempotent_import() {
 		delete_option( OPENSTATION_PRESENCE_STORAGE_OPTION );
 		$filter = static function ( $sql ) { return false !== strpos( $sql, 'SELECT GET_LOCK' ) ? "SELECT '1=1'" : $sql; };
@@ -300,7 +275,6 @@ class Tests_OpenStation_PresenceStorage extends WP_UnitTestCase {
 		try { $this->assertTrue( openstation_presence_migrate_storage() ); } finally { remove_filter( 'query', $filter ); }
 	}
 
-	/** @covers ::openstation_storage_use_primary */
 	public function test_primary_routing_uses_each_dropins_supported_api() {
 		global $wpdb;
 		$original = $wpdb;

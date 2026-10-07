@@ -1,15 +1,3 @@
-/**
- * OpenStation — Posts app styles.
- *
- * The list layout (toolbar, body, pager, tabs, the phone rules) is the
- * framework's `.os-app-list*` family in `assets/css/app-runtime.css`;
- * this sheet owns what is the Posts window's alone: the term canvas —
- * one chrome (`.os-term-canvas*`) the Categories mind map and the Tags
- * cloud both wear, each with a modifier for its own background — and
- * its phone fold. Cell-content styles are inlined in `parts/cells/`,
- * since <os-table> paints into its own shadow root.
- */
-
 .os-posts__terms-host {
 	display: flex;
 	flex-direction: column;
@@ -18,9 +6,6 @@
 	min-width: 0;
 }
 
-/* The editor embedded in the "Add New" tab — `wp.os.embedAdminPage()`
- * puts a full-size iframe in here, so the host has to be the panel's
- * whole box rather than shrink to a zero-height child. */
 .os-posts__embed-host {
 	display: flex;
 	flex: 1 1 auto;
@@ -28,11 +13,6 @@
 	min-width: 0;
 }
 
-/* ---------------------------------------------------------------
- * The term canvas: a toolbar across the top, the Pixi stage on the
- * left, a fixed-width sidebar editor on the right. The Pixi side
- * paints the terms, the post satellites and the pager into the
- * canvas; this sheet owns the chrome around it. */
 .os-term-canvas {
 	flex: 1 1 auto;
 	min-height: 0;
@@ -42,8 +22,6 @@
 	background: var( --os-ui-surface, #fff );
 }
 
-/* The mind map's surface: a dot grid — the "infinite thinking
- * surface" texture — under two theme-tinted vignettes for depth. */
 .os-term-canvas.os-mindmap {
 	background:
 		radial-gradient(
@@ -72,7 +50,6 @@
 		var( --os-ui-surface, #fff );
 }
 
-/* The tag cloud's surface: faint diagonal pinstripes — a sticker wall. */
 .os-term-canvas.os-tagcloud {
 	background:
 		repeating-linear-gradient(
@@ -102,10 +79,7 @@
 	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	background: var( --os-ui-surface, rgba( 255, 255, 255, 0.6 ) );
 	backdrop-filter: blur( 8px );
-	/* A stacking context, so the search dropdown paints above the
-	 * pixi canvas in the layout sibling below. Without it the canvas
-	 * (later in the DOM, no z-index) wins the paint order and the
-	 * dropdown renders BEHIND the chips — clicks land on the canvas. */
+
 	position: relative;
 	z-index: 2;
 }
@@ -252,10 +226,6 @@
 	white-space: nowrap;
 }
 
-/* Two columns: the Pixi stage on the left, the sidebar on the right.
- * The sidebar always renders — the empty-state copy when nothing is
- * focused, the editor form otherwise — so the editing surface never
- * covers the terms. */
 .os-term-canvas__layout {
 	display: flex;
 	flex: 1 1 auto;
@@ -269,9 +239,7 @@
 	min-height: 0;
 	min-width: 0;
 	overflow: hidden;
-	/* Fades in once the first fit-to-view has run: without it the
-	 * canvas paints its unfitted transform on the frame between mount
-	 * and the first rAF, which reads as a flash. */
+
 	transition: opacity 200ms ease;
 }
 
@@ -325,7 +293,6 @@
 	margin: 0;
 }
 
-/* The cloud's hint runs a line longer. */
 .os-tagcloud .os-term-canvas__sidebar-empty-hint {
 	max-width: 240px;
 }
@@ -438,14 +405,6 @@
 	padding: 0 24px;
 }
 
-/*
- * The canvas keeps a 320px editor beside the stage on a desk. A phone
- * has no beside: the editor folds UNDER the stage as a sheet — at
- * most half the height, its own scroll, clearing the home indicator —
- * and only while a term is focused; while it would only say "select
- * a term" it is not there, and the stage has the whole screen. The
- * same fold under a narrow container, for a desk window pulled in.
- */
 html[data-os-mode="mobile"] .os-term-canvas__layout {
 	flex-direction: column;
 }

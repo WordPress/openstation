@@ -37,9 +37,7 @@ describe( '<os-menu> + <os-menu-item>', () => {
 			'.os-menu-item__check',
 		) as HTMLElement;
 		expect( check.hidden ).toBe( false );
-		// Uncheck: aria-checked flips, check indicator stays (the
-		// component doesn't remove the DOM, just the `checked` attr
-		// drives the visual).
+
 		item.removeAttribute( 'checked' );
 		await tick();
 		expect( item.getAttribute( 'aria-checked' ) ).toBe( 'false' );

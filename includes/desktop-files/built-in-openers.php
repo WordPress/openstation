@@ -1,25 +1,7 @@
 <?php
-/**
- * OpenStation — built-in file-opener registrations.
- *
- * Ships one default opener per built-in file type so the user can
- * double-click any tile and have something happen out of the box.
- * Each entry registers PHP-side metadata; the actual handler that
- * builds the URL or opens the window lives in the JS bundle (see
- * `src/desktop-files/built-in-openers.ts`).
- *
- * Hooked on `init` priority 6 — after the file-type registry
- * (priority 5) and before the shell config is built. Same ordering
- * as the wallpapers / icons modules.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Registers the built-in openers (one per file type).
- */
 function openstation_register_builtin_file_openers() {
 	$openers = array(
 		array(

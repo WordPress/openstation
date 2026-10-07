@@ -1,17 +1,8 @@
-/**
- * `<os-tile>` component tests. The high-level behavior is also
- * covered through `buildTileFromSpec` in
- * `tests/vitest/tile-spec.test.ts`; this file pins the component-
- * specific contract: reactive attributes, keyboard activation,
- * idempotent paint.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from '../../../../tests/vitest/helpers/hooks-stub';
 import './os-tile';
 import { TILE_CLASS } from './os-tile';
 
-// Two microtasks: one for `requestUpdate()` to schedule, another
-// for the render callback to flush.
 const tick = async (): Promise< void > => {
 	await Promise.resolve();
 	await Promise.resolve();

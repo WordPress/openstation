@@ -1,34 +1,3 @@
-/**
- * `<os-steps>` + `<os-step>` — ordered / numbered-steps primitive.
- *
- * Replaces the `<os-cluster>` + `<os-display>` + custom number-chip
- * CSS pattern plugin authors were hand-rolling for onboarding / setup
- * flows. Numbers are auto-assigned via a CSS counter — inserting or
- * removing a step renumbers the rest for free.
- *
- * Usage:
- *
- *   <os-steps>
- *     <os-step title="Install the plugin">
- *       Search the plugin directory for “My Plugin” and click Install.
- *     </os-step>
- *     <os-step title="Open Settings">
- *       Navigate to <os-code>Settings → My Plugin</os-code>.
- *     </os-step>
- *     <os-step title="Enter your API key" done>
- *       Already done earlier in this flow.
- *     </os-step>
- *   </os-steps>
- *
- * Mark a step with `done` to render a ✓ instead of the number, and
- * `current` to mark where the reader is now.
- *
- * Add `horizontal` to the container for a wizard trail: the steps sit
- * on one line with a rule between them, rather than stacked. Add
- * `interactive` to a step to make it a way to jump there — it emits
- * `os-step-click` and takes focus and Enter/Space like a button.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { stepStyles, stepsStyles } from './os-steps.styles';
 
@@ -78,21 +47,6 @@ export class OsSteps extends Component {
 		`,
 	} as const;
 
-	/**
-	 * Mark the children as being on a trail.
-	 *
-	 * `horizontal` is a fact about the container, and a child cannot
-	 * style on its parent's attributes. Stamping it down is the honest
-	 * version of that, and it keeps the layout decision in one place
-	 * rather than asking every caller to repeat it on every step.
-	 *
-	 * Runs on connect, on every re-render, and on `slotchange`. The last
-	 * is for a caller that rebuilds its steps rather than mutating them:
-	 * the Workspaces wizard replaces the whole trail on each step, and a
-	 * step created after the container rendered had never been stamped,
-	 * so its chip sat top-aligned beside a centred label from the moment
-	 * the wizard moved off Start.
-	 */
 	private syncTrail = (): void => {
 		const trail = this.hasAttribute( 'horizontal' );
 		for ( const step of Array.from( this.children ) ) {
@@ -192,7 +146,7 @@ export class OsStep extends Component {
 		if ( ! this.isInteractive() ) {
 			return;
 		}
-		// A control inside the step owns its own activation.
+
 		const path = event.composedPath();
 		for ( const node of path ) {
 			if ( node === this ) {
@@ -217,7 +171,7 @@ export class OsStep extends Component {
 		if ( 'Enter' !== event.key && ' ' !== event.key ) {
 			return;
 		}
-		// Space inside a real button is that button's, not ours.
+
 		const target = event.target;
 		if (
 			target instanceof HTMLElement &&
@@ -234,13 +188,6 @@ export class OsStep extends Component {
 		return this.hasAttribute( 'interactive' );
 	}
 
-	/**
-	 * Keep the host's roles in step with its attributes.
-	 *
-	 * `aria-current` is the whole accessible story for a trail: without
-	 * it a screen reader hears four labels and no indication of which
-	 * one is now.
-	 */
 	private syncRoles(): void {
 		if ( this.hasAttribute( 'current' ) ) {
 			this.setAttribute( 'aria-current', 'step' );

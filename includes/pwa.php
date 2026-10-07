@@ -1,254 +1,46 @@
 <?php
-/**
- * OpenStation — Progressive Web App support.
- *
- * Lets users install the WordPress site as a desktop / mobile app from
- * the openstation shell. Three concerns live here:
- *
- *   1. Web app manifest at `/openstation/manifest.webmanifest` —
- *      served via `parse_request` like the portal URL, no rewrite-rule
- *      registration. Site name, theme color, and icons assembled from
- *      the WordPress Site Icon (when set) with a wp-logo fallback. The
- *      `openstation_pwa_manifest` filter lets plugins mutate any
- *      field before encoding.
- *
- *   2. Service worker at `/openstation/sw.js`, served with the
- *      explicit `Service-Worker-Allowed: /` header so a single SW can
- *      scope across `/openstation/` AND `/wp-admin/` (their common
- *      ancestor is `/`). The plugin lives at
- *      `/wp-content/plugins/desktop-mode/`, which is NOT a parent of
- *      `/wp-admin/`, so wp-content-served SWs cannot reach admin pages.
- *      PHP delivery sidesteps that constraint cleanly.
- *
- *   3. Two REST routes scoped to the current user:
- *        - `GET/POST /desktop-mode/v1/pwa-state` — dismissal pref for
- *          the install hint, plus notification permission record.
- *        - (future) `POST /desktop-mode/v1/push-subscription` — Web
- *          Push subscription storage. Stub left here in a comment as
- *          a hint for the v2 push PR.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * URL fragment for the manifest endpoint, joined onto the portal path.
- *
- * Kept as a constant so the JS-side script localisation and the
- * `parse_request` matcher cannot drift apart.
- */
 const OPENSTATION_PWA_MANIFEST_FRAGMENT = 'manifest.webmanifest';
 
-/**
- * URL fragment for the service worker.
- */
 const OPENSTATION_PWA_SW_FRAGMENT = 'sw.js';
 
-/**
- * Query var for the extensionless service-worker fallback endpoint.
- *
- * Some hosts' nginx (WordPress.com among them) short-circuits paths
- * with a static-file extension straight to the filesystem: a virtual
- * route like `/openstation/sw.js` 404s at the web server and never
- * reaches WordPress, so the pretty SW endpoint is unservable there —
- * while the extensionless manifest route works fine. The fallback
- * serves the same bytes at `/?openstation_sw=1`: no extension, so the
- * request always reaches WordPress, and the script URL's *path* is
- * `/`, which grants root scope without the `Service-Worker-Allowed`
- * header even mattering. `src/pwa/sw-register.ts` retries with this
- * URL when registering the pretty URL fails.
- */
 const OPENSTATION_PWA_SW_QUERY = 'openstation_sw';
 
-/**
- * User-meta key — JSON blob persisting per-user PWA UI state.
- *
- * Today: `installHintDismissed` (bool), `notificationsEnabled` (bool).
- * Future: `pushSubscription` (object) when phase 4 lands.
- *
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
 const OPENSTATION_PWA_USER_META = 'desktop_mode_pwa_state';
 
-/**
- * Builds the absolute manifest URL.
- *
- * @return string
- */
 function openstation_pwa_manifest_url() {
 	return openstation_portal_url() . OPENSTATION_PWA_MANIFEST_FRAGMENT;
 }
 
-/**
- * Builds the absolute service-worker URL.
- *
- * @return string
- */
 function openstation_pwa_sw_url() {
 	return openstation_portal_url() . OPENSTATION_PWA_SW_FRAGMENT;
 }
 
-/**
- * Builds the extensionless service-worker fallback URL.
- *
- * See {@see OPENSTATION_PWA_SW_QUERY} for why this exists. Kept as a
- * home-path URL on purpose: the SW script URL's path determines the
- * default maximum scope, and the home path is exactly the scope we
- * register ({@see openstation_pwa_sw_scope()}).
- *
- * @return string
- */
 function openstation_pwa_sw_fallback_url() {
 	return add_query_arg( OPENSTATION_PWA_SW_QUERY, '1', home_url( '/' ) );
 }
 
-/**
- * The service worker's registration scope: the SITE's home path.
- *
- * `/` everywhere except a subdirectory network's subsites, where it is
- * the site path (`/site2/`). One scope per site is what makes the PWA
- * work across a subdirectory network at all — every site registers its
- * own worker, the browser routes each page to the longest matching
- * scope, and the worker derives its portal and admin prefixes from the
- * scope it was given (see `scopePath` in `src/pwa/sw.ts`) instead of
- * assuming it owns the origin root.
- *
- * @return string Path with a trailing slash.
- */
 function openstation_pwa_sw_scope() {
 	$path = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
 	return is_string( $path ) && '' !== $path ? $path : '/';
 }
 
-/**
- * Resolves whether openstation should usurp another root-scope SW.
- *
- * When `false` (default), `src/pwa/sw-register.ts` bails on registration
- * if another root-scope service worker is already on the origin — polite
- * behaviour for sites that intentionally use a different PWA plugin. When
- * `true`, our registration replaces the existing SW.
- *
- * Operators flip this to recover installability on sites where a foreign
- * SW (Super PWA, Jetpack Boost, etc.) is shadowing the openstation SW
- * and causing the "Install <site> as an app" tile to surface the
- * "another app is handling installs" toast.
- *
- * @return bool
- */
 function openstation_pwa_force_replace_sw() {
-	/**
-	 * Filters whether openstation replaces an existing root-scope SW.
-	 *
-	 * Return `true` to take over from a foreign PWA plugin's service
-	 * worker so openstation's "Install as app" affordance works on
-	 * sites where another plugin's SW is already active.
-	 *
-	 * @param bool $force_replace Defaults to `false` (yield to existing SWs).
-	 */
+
 	return (bool) apply_filters( 'openstation_pwa_force_replace_sw', false );
 }
 
-/**
- * Resolves whether the service worker's shared admin-asset cache is on.
- *
- * When enabled, the root-scope SW serves versioned admin static assets
- * (Core CSS/JS, the `load-scripts.php` / `load-styles.php` concat
- * blobs, plugin/theme assets carrying a `ver` query) from one
- * origin-wide Cache Storage bucket — so an asset fetched by any window
- * (shell or chromeless iframe) is answered locally for every later
- * window, revalidation round-trips included. See `src/pwa/sw-policy.ts`
- * for the exact classification rules.
- *
- * Enabled by default. Administrators can opt out site-wide through
- * OpenStation Preferences → Features → Extended options → Shared asset
- * cache. The filter below can force or veto the site-wide setting.
- *
- * The shell posts the resolved flag to the running worker at boot.
- * Changes apply after reloading OpenStation; the served worker bytes
- * remain identical for logged-in and anonymous requests.
- *
- * @return bool
- */
 function openstation_pwa_admin_asset_cache_enabled() {
 	$settings = openstation_get_os_settings( get_current_user_id() );
 	$enabled  = ! empty( $settings['adminAssetCacheEnabled'] );
 
-	/**
-	 * Filters whether the SW's shared admin-asset cache is enabled.
-	 *
-	 * Return `true` to let the service worker cache versioned admin
-	 * static assets in a shared, origin-wide bucket, or `false` to
-	 * veto it regardless of the Extended option. The value
-	 * reaches the worker as an `os-sw-config` message on the next shell
-	 * boot, so a change takes effect without altering the served script
-	 * — no SW update, no URL change, no re-registration.
-	 *
-	 * @param bool $enabled The site-wide `admin_asset_cache` Extended
-	 *                      option, enabled by default.
-	 */
 	return (bool) apply_filters( 'openstation_pwa_admin_asset_cache', $enabled );
 }
 
-/**
- * Builds the `self.__OS_SW_CONFIG` preamble line injected ahead of the
- * service-worker bundle bytes by {@see openstation_pwa_serve_service_worker()}.
- *
- * The preamble is how per-site PHP state reaches the SW: the script is
- * a static build artifact, but the *served response* is assembled per
- * request, and the browser's byte-equality update check treats any
- * change in these values as a new SW version (`updateViaCache: 'none'`
- * at registration makes that check unconditional). The SW URL never
- * changes, so the foreign-SW `scriptURL` comparison in
- * `src/pwa/sw-register.ts` is unaffected.
- *
- * `pluginUrl` also lets the SW resolve its own asset paths on hosts
- * with a non-default `wp-content` layout (Bedrock, moved
- * `WP_CONTENT_DIR`) instead of hardcoding the conventional path.
- *
- * @return string One line of JavaScript, newline-terminated.
- */
 function openstation_pwa_sw_config_preamble() {
-	/*
-	 * Site-level values ONLY. Nothing here may depend on who is asking.
-	 *
-	 * `adminAssetCache` and `windowPrewarm` are per-user preferences,
-	 * and a service worker is origin-wide. Putting them in the served
-	 * bytes made the body differ between an anonymous and a logged-in
-	 * request, so any in-scope logged-out navigation — the interim-login
-	 * iframe, logging out — served a different script. The browser
-	 * treats different bytes as an update, installs it, activates it,
-	 * and the shell's `controllerchange` handler hard-reloads the
-	 * desktop out from under the user.
-	 *
-	 * The shell pushes both flags to the running worker at boot instead
-	 * (`os-sw-config`), and the toggle pushes changes as they happen.
-	 * The worker starts with both off, so until that message lands it
-	 * simply does less — never more.
-	 *
-	 * `version` is the plugin's, and it is here so that a release is a
-	 * byte change in the served script. The bundle itself is stamped
-	 * with a content hash (see the serving function), so a release that
-	 * touched nothing under `src/pwa/` would otherwise serve the very
-	 * same bytes, and the browser — which only ever installs a worker
-	 * whose bytes differ — would have nothing to install. An installed
-	 * app on a phone rarely navigates; the shell re-checks the script on
-	 * every return to the foreground (`src/pwa/sw-register.ts`), and the
-	 * version in the preamble is what makes that check find a release.
-	 *
-	 * `shellBuild` is the content hash of the shell's own built files
-	 * ({@see openstation_shell_build_stamp()}). It makes a deploy that
-	 * changed the shell a new worker too, and — more importantly — it
-	 * tells the shell, when that worker takes over mid-session, whether
-	 * the shell it is running is the one the server now serves. A new
-	 * worker is never a reason to reload on its own: a release that
-	 * changed nothing under `assets/` produces a worker whose
-	 * `shellBuild` equals the running shell's, and the shell stays put.
-	 */
+
 	$config = array(
 		'pluginUrl'  => OPENSTATION_URL,
 		'version'    => OPENSTATION_VERSION,
@@ -257,34 +49,6 @@ function openstation_pwa_sw_config_preamble() {
 	return sprintf( "self.__OS_SW_CONFIG = %s;\n", wp_json_encode( $config ) );
 }
 
-/**
- * Content hash of the shell's built front-end: every stylesheet under
- * `assets/css/` and every bundle under `assets/js/`.
- *
- * "Did the shell change?" answered from bytes, not clocks. A deploy
- * rewrites every file's mtime whether or not its contents moved, and
- * the plugin version moves on releases that never touched the shell;
- * neither is a reason to disturb a desktop someone is working in. The
- * stamp changes exactly when a shell file's bytes do.
- *
- * Two readers: `openStationConfig.pwa.shellBuild`, which the shell
- * boots with, and the served service worker's preamble, so the worker
- * knows which shell it was served alongside. When a worker takes over
- * a running shell the two are compared, and only a difference — a real
- * change in the shell files — earns the user an offer to reload. See
- * `src/pwa/sw-register.ts`.
- *
- * Hashing a few megabytes of bundles on every shell request would be
- * wasteful, so the stamp is memoised in one transient behind the cheap
- * signature of the same files (path, size, mtime). A deploy changes
- * the signature and the hash is recomputed once; identical bytes come
- * out as the identical stamp, and a touched-but-unchanged file costs a
- * single rehash.
- *
- * @param string|null $dir Plugin directory to read. `OPENSTATION_DIR` by
- *                         default; tests hand in a fixture.
- * @return string Sixteen hex characters, or '' when nothing is built.
- */
 function openstation_shell_build_stamp( $dir = null ) {
 	static $memo = array();
 
@@ -336,19 +100,8 @@ function openstation_shell_build_stamp( $dir = null ) {
 	return $stamp;
 }
 
-/**
- * Detects which PWA endpoint the current request is targeting, if any.
- *
- * Mirrors `openstation_is_portal_request()`'s strategy: read the
- * unparsed REQUEST_URI rather than relying on rewrite-rule resolution.
- *
- * @return string Empty string when not a PWA endpoint, otherwise one
- *                of `'manifest'` | `'sw'`.
- */
 function openstation_pwa_endpoint_kind() {
-	// `esc_url_raw` rather than `sanitize_text_field`: the value is a URL
-	// and the latter strips percent-encoded octets, which would corrupt
-	// the path before it can be compared against the endpoint constants.
+
 	$uri = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 	if ( ! is_string( $uri ) || '' === $uri ) {
 		return '';
@@ -366,19 +119,7 @@ function openstation_pwa_endpoint_kind() {
 	if ( $path === $portal . OPENSTATION_PWA_SW_FRAGMENT ) {
 		return 'sw';
 	}
-	// Extensionless fallback (`/?openstation_sw=1`) for hosts whose web
-	// server 404s virtual `.js` paths before WordPress runs.
-	//
-	// Pinned to the site root — the one URL
-	// {@see openstation_pwa_sw_fallback_url()} builds and the only one
-	// the registration ever requests. Matching the query alone would
-	// have turned *any* path into a service-worker endpoint, which is
-	// harmless in practice (the handler streams a static file from
-	// disk and reflects nothing from the request) but wider than the
-	// contract this function documents, and a service worker's scope
-	// is decided by the path it is served from — so the path is not an
-	// incidental detail here.
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public read-only endpoint selector, same trust level as the path match above.
+
 	if ( isset( $_GET[ OPENSTATION_PWA_SW_QUERY ] ) && '1' === $_GET[ OPENSTATION_PWA_SW_QUERY ] ) {
 		$home_root = '' === $home_path ? '/' : $home_path . '/';
 		if ( $path === $home_root || $path === $home_path ) {
@@ -388,21 +129,6 @@ function openstation_pwa_endpoint_kind() {
 	return '';
 }
 
-/**
- * Intercepts the manifest and SW endpoints, emitting the response body.
- *
- * Hooks at the same `parse_request` priority as the portal handler so
- * we beat 404 logic but the request environment (auth state, options
- * cache, etc.) is fully bootstrapped.
- *
- * Both endpoints are intentionally **public** (no `is_user_logged_in`
- * guard). The manifest is loaded by the browser BEFORE login when a
- * user revisits the install URL; the SW is fetched by the browser
- * with no cookies on update checks. Both reveal only data already
- * surfaced by the front-end (site name, blog icon, plugin version).
- *
- * @param WP $wp Current WordPress environment instance (unused).
- */
 function openstation_pwa_handle_request( $wp ) {
 	unset( $wp );
 
@@ -423,24 +149,9 @@ function openstation_pwa_handle_request( $wp ) {
 }
 add_action( 'parse_request', 'openstation_pwa_handle_request' );
 
-/**
- * Builds the manifest array, applies the `openstation_pwa_manifest`
- * filter, encodes as JSON and prints it.
- */
 function openstation_pwa_serve_manifest() {
 	$manifest = openstation_pwa_build_manifest();
 
-	/**
-	 * Filters the web-app manifest payload before encoding.
-	 *
-	 * Common edits: replace the icon list with site-specific artwork,
-	 * add `shortcuts` so the OS-level app menu offers
-	 * deep-link entries, change `display` to `'fullscreen'`. Returning
-	 * a non-array silently disables the manifest — no PHP warning, but
-	 * the browser will fail the install criterion.
-	 *
-	 * @param array $manifest Manifest associative array.
-	 */
 	$manifest = apply_filters( 'openstation_pwa_manifest', $manifest );
 
 	if ( ! is_array( $manifest ) ) {
@@ -449,17 +160,11 @@ function openstation_pwa_serve_manifest() {
 	}
 
 	header( 'Content-Type: application/manifest+json; charset=utf-8' );
-	// 5-minute browser cache so a site-icon swap propagates quickly,
-	// but the network isn't hit on every shell load.
+
 	header( 'Cache-Control: public, max-age=300' );
 	echo wp_json_encode( $manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 }
 
-/**
- * Assembles the default manifest fields.
- *
- * @return array
- */
 function openstation_pwa_build_manifest() {
 	$site_name = get_bloginfo( 'name' );
 	if ( '' === $site_name ) {
@@ -470,33 +175,6 @@ function openstation_pwa_build_manifest() {
 		$short_name = $site_name;
 	}
 
-	// `start_url` is the actual landing URL after the `/openstation/`
-	// portal redirect — pointing the PWA directly at it lets us narrow
-	// `scope` to `/wp-admin/` without breaking the launch path. The
-	// portal redirect still exists for typed / bookmarked
-	// `/openstation/` visits in regular browser tabs.
-	//
-	// `scope` is `/wp-admin/`, not `/`. The wider `/` scope had two
-	// failure modes that this fixes:
-	//
-	// - Front-end URLs (e.g. `/2026/05/post-123/`) were considered
-	// in-scope, so Chrome's "Open in app" link-capturing redirected
-	// external-link clicks (Comments "In response to" column, etc.)
-	// into the installed PWA window instead of opening a real
-	// browser tab. Excluding the front-end from scope makes those
-	// clicks open in a browser tab as users expect.
-	// - Every same-origin `<a target="_blank">` from inside the PWA
-	// opened a NEW standalone PWA window for the same reason. With
-	// scope narrowed, only `/wp-admin/*` links capture into the
-	// PWA; everything else escapes to the system browser.
-	//
-	// `id` is held at the previous `/openstation/` value so existing
-	// installs aren't treated as a different app and reset by Chrome
-	// after this change ships.
-	// The shell screen, bare: it resolves the entry itself from the
-	// saved session. Installs made when this was
-	// `index.php?desktop_mode_portal=1` still work — that URL is an
-	// alias the admin_init redirect sends here (`includes/portal.php`).
 	$start_url = openstation_shell_url();
 	$scope     = admin_url( '/', 'relative' );
 	if ( '' === $scope ) {
@@ -509,7 +187,7 @@ function openstation_pwa_build_manifest() {
 		'name'                        => $site_name,
 		'short_name'                  => $short_name,
 		'description'                 => sprintf(
-			/* translators: %s: site name */
+
 			__( '%s — installed as a desktop app.', 'desktop-mode' ),
 			$site_name
 		),
@@ -519,25 +197,13 @@ function openstation_pwa_build_manifest() {
 		'display'                     => 'standalone',
 		'display_override'            => array( 'standalone', 'minimal-ui' ),
 		'orientation'                 => 'any',
-		// The shell's backstop (`--os-backstop`): the floor under the
-		// wallpaper, and what the splash and the status bar are painted
-		// with. Filter to override per-site without redefining the
-		// whole manifest.
+
 		'theme_color'                 => OPENSTATION_PWA_THEME_COLOR,
 		'background_color'            => OPENSTATION_PWA_THEME_COLOR,
 		'lang'                        => get_bloginfo( 'language' ),
 		'dir'                         => is_rtl() ? 'rtl' : 'ltr',
 		'icons'                       => openstation_pwa_default_icons(),
-		// Self-reference under `related_applications` so
-		// `navigator.getInstalledRelatedApps()` (Chrome / Edge) returns
-		// a hit when this PWA is installed in the current profile.
-		// `prefer_related_applications: false` keeps the install prompt
-		// pointed at this site itself (not redirected to a related
-		// native app). Without these two fields, a regular browser tab
-		// has no way to detect "already installed in this profile" —
-		// `display-mode: standalone` is only true inside the PWA
-		// window. The detection is what powers the dock-tile click
-		// handler's "X is already installed" toast.
+
 		'related_applications'        => array(
 			array(
 				'platform' => 'webapp',
@@ -549,52 +215,12 @@ function openstation_pwa_build_manifest() {
 	);
 }
 
-/**
- * Resolves the default icon set.
- *
- * Priority:
- *   1. WordPress Site Icon (`Settings → General → Site Icon`) — yields
- *      multiple PNG sizes via `get_site_icon_url()`. Authoritative
- *      when the operator has uploaded a brand mark for their site.
- *   2. Plugin-bundled icons under `assets/pwa/` — the official
- *      openstation brand mark (the same artwork shown on the
- *      WordPress.org plugin directory listing).
- *
- * **The bundled artwork is full-bleed, opaque and square.** Every
- * platform masks a home-screen tile itself, and it fills any
- * transparency first: iOS fills with white, then rounds. Artwork that
- * rounds its own corners therefore installs as a mark floating on a
- * white square, which is exactly how the pre-full-bleed set installed
- * on iOS. Do not re-round these files, and do not reintroduce alpha.
- *
- * Three purposes go out for the bundled set, because the platforms
- * genuinely want three different pictures:
- *
- *   - `any`        the tile as drawn.
- *   - `maskable`   the same tile at 80%, so Android's adaptive masks
- *                  (circle, squircle, teardrop, depending on the
- *                  launcher) crop into margin rather than into the
- *                  mark.
- *   - `monochrome` the silhouette alone, for Android 13+ themed
- *                  icons, which recolour it to the wallpaper palette.
- *
- * A Site Icon gets `any` only. The other two purposes describe how a
- * specific piece of artwork is composed, and we know that about ours
- * and not about theirs — declaring someone's logo maskable when it is
- * not is how you get a cropped logo, and pairing their `any` with our
- * `monochrome` would put the OpenStation mark on their app.
- *
- * @return array<int, array<string, string>>
- */
 function openstation_pwa_default_icons() {
 	$icons = array();
 
 	$site_icon_id = (int) get_option( 'site_icon' );
 	if ( $site_icon_id > 0 ) {
-		// `get_site_icon_url()` resolves to a registered intermediate
-		// size. List the canonical PWA sizes (192/512) explicitly so
-		// Chrome's installability heuristic finds an entry whose
-		// `sizes` field matches the returned image.
+
 		foreach ( array( 192, 512 ) as $size ) {
 			$url = get_site_icon_url( $size );
 			if ( is_string( $url ) && '' !== $url ) {
@@ -632,18 +258,6 @@ function openstation_pwa_default_icons() {
 	return $icons;
 }
 
-/**
- * Builds the URL of one bundled icon file.
- *
- * The three purposes are three different files, and the filenames say
- * which: `icon-192.png`, `icon-maskable-192.png`, `icon-mono-192.png`.
- * Kept in one place so the head tags and the manifest cannot drift
- * apart on a rename.
- *
- * @param int    $size    Square pixel size.
- * @param string $purpose One of `any` | `maskable` | `monochrome`.
- * @return string Absolute URL.
- */
 function openstation_pwa_bundled_icon_url( $size, $purpose = 'any' ) {
 	$infix = '';
 	if ( 'maskable' === $purpose ) {
@@ -655,143 +269,49 @@ function openstation_pwa_bundled_icon_url( $size, $purpose = 'any' ) {
 	return OPENSTATION_URL . "assets/pwa/icon-{$infix}{$size}.png";
 }
 
-/**
- * Serves the service-worker bundle.
- *
- * Reads the built `assets/js/sw[.min].js` from disk and streams it back
- * with the headers a SW needs to be valid:
- *
- *   - `Content-Type: application/javascript`
- *   - `Service-Worker-Allowed: <home path>` — required for a
- *     home-path-scoped registration when the script itself is served
- *     from `<home>/openstation/`. Without this header the browser
- *     rejects the `register()` call with `SecurityError: The path of
- *     the provided scope is not under the max scope allowed`.
- *   - `Cache-Control: no-cache, must-revalidate` — the browser already
- *     re-checks SW scripts on a 24h cycle, but caching the response
- *     defeats the immediate-update guarantee.
- *
- * Falls back to a 503 + log entry when the file is missing (a deploy
- * that didn't run `npm run build`). Logging gives the operator a
- * concrete pointer; 503 (vs. 404) tells the browser the SW genuinely
- * isn't available right now and it should retry later.
- */
 function openstation_pwa_serve_service_worker() {
 	$suffix = openstation_asset_suffix();
 	$path   = OPENSTATION_DIR . 'assets/js/sw' . $suffix . '.js';
 
 	if ( ! file_exists( $path ) ) {
-		// Guard against hosts that disable error_log() via the
-		// `disable_functions` ini directive.
+
 		if ( function_exists( 'error_log' ) ) {
-			error_log( '[openstation] service worker bundle missing at ' . $path . ' — run `npm run build` to generate it.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( '[openstation] service worker bundle missing at ' . $path . ' — run `npm run build` to generate it.' );
 		}
 		status_header( 503 );
 		header( 'Cache-Control: no-cache, must-revalidate' );
 		return;
 	}
 
-	$body = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	$body = file_get_contents( $path );
 	if ( false === $body ) {
 		status_header( 503 );
 		return;
 	}
 
 	header( 'Content-Type: application/javascript; charset=utf-8' );
-	// The site's own home path — root everywhere except a subdirectory
-	// network's subsites, whose workers are scoped to the site path so
-	// every site of the network can register its own.
+
 	header( 'Service-Worker-Allowed: ' . openstation_pwa_sw_scope() );
 	header( 'Cache-Control: no-cache, must-revalidate' );
 	header( 'X-Content-Type-Options: nosniff' );
 
-	// Stamp the SW with a CONTENT HASH so the browser's byte-equality
-	// check on update notices a *real* change.
-	//
-	// Earlier versions stamped with the file's `filemtime()`. Problem:
-	// `npm run build` rewrites `sw.min.js` on every run, bumping its
-	// mtime even when the SW source is byte-identical. Each rebuild
-	// produced a different stamp → different SW response → browser
-	// installed a "new" SW → `controllerchange` fired → the shell of
-	// the day auto-reloaded the page. The user observed a "phantom
-	// reload" 2–3s after every `npm run build`, even when only an
-	// unrelated bundle (e.g. `desktop.min.js`) had changed.
-	//
-	// A content hash collapses identical bodies onto identical stamps
-	// — only a *real* change in `src/pwa/sw.ts` installs a new worker.
-	// (The shell no longer reloads on a new worker at all; see
-	// `src/pwa/sw-register.ts`.) `md5` is plenty for an integrity
-	// stamp here (no security implications) and short enough that the
-	// inline comment stays under one line.
-	$stamp = substr( md5( $body ), 0, 16 );
-	printf( "/* openstation SW build: %s */\n", esc_html( $stamp ) );
-	// Per-request config, injected ahead of the bundle. Deliberately
-	// NOT part of the stamp hash above: the stamp identifies the
-	// *bundle*, while a config change carries itself to the browser's
-	// update check through its own bytes. Don't "fix" the hash to
-	// cover the full response — identical bundles must keep identical
-	// stamps (see the phantom-reload note above).
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JS assembled via wp_json_encode; HTML escaping would corrupt the script.
+
+
 	echo openstation_pwa_sw_config_preamble();
-	// `$body` is the SW JavaScript bundle read off disk — escaping
-	// would corrupt the script. Suppress the sniff with the standard
-	// `--` separator (an em-dash silently fails to satisfy phpcs).
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JS bytes from disk.
+
 	echo $body;
 }
 
-/**
- * The colour the app is painted with outside the page: the manifest's
- * `theme_color` and `background_color`, and the `theme-color` meta.
- * The shell's backstop, `--os-backstop` in `variables.css`.
- */
 const OPENSTATION_PWA_THEME_COLOR = '#0c0b0f';
 
-/**
- * The iOS status-bar styles a home-screen web app may ask for.
- *
- * `black`: an opaque bar above the page, white glyphs; the page
- * starts below it and `env( safe-area-inset-top )` is 0.
- * `black-translucent`: the page runs under the bar and reads
- * `env( safe-area-inset-top )` to keep out of it; on current iOS the
- * bar is drawn as a translucent band over the page's top edge.
- * `default`: the system's own bar for the appearance in force.
- */
 const OPENSTATION_PWA_STATUS_BAR_STYLES = array( 'black', 'black-translucent', 'default' );
 
-/**
- * The iOS status-bar style for the installed app.
- *
- * Defaults to `black`: the shell is near-black to its edges, so an
- * opaque black bar above it is one continuous surface and the page
- * is laid out below it, unambiguously. Under `black-translucent` the
- * page extends under the bar and iOS paints the bar as a translucent
- * band over the shell's top edge — a strip that reads as misplaced
- * chrome rather than as immersion, on a surface that is already the
- * bar's colour.
- *
- * @return string One of `black`, `black-translucent`, `default`.
- */
 function openstation_pwa_status_bar_style() {
-	/**
-	 * Filters the iOS status-bar style for the installed app.
-	 *
-	 * @param string $style One of `black`, `black-translucent`, `default`.
-	 */
+
 	$style = apply_filters( 'openstation_pwa_status_bar_style', 'black' );
 	return in_array( $style, OPENSTATION_PWA_STATUS_BAR_STYLES, true ) ? $style : 'black';
 }
 
-/**
- * Emits the `<link rel="manifest">` tag and the matching theme-color
- * meta into the admin `<head>` — only when openstation is the active
- * surface for this request (no chromeless iframes, no classic admin).
- *
- * Without these tags the browser never discovers the manifest and the
- * "install" criterion silently fails. Putting them in `<head>` (rather
- * than via `wp_localize_script`'s inline script tag) is what the
- * spec requires.
- */
 function openstation_pwa_render_head_tags() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
@@ -808,12 +328,7 @@ function openstation_pwa_render_head_tags() {
 		'<meta name="theme-color" content="%s">' . "\n",
 		esc_attr( OPENSTATION_PWA_THEME_COLOR )
 	);
-	// `mobile-web-app-capable` is the cross-browser standard;
-	// `apple-mobile-web-app-capable` is the legacy iOS-only spelling
-	// (still required by older Safari versions). Chromium logs a
-	// deprecation warning if only the apple-prefixed form is present.
-	// We emit both so iOS keeps treating the home-screen shortcut as
-	// a standalone app while Chromium stops the warning.
+
 	echo '<meta name="mobile-web-app-capable" content="yes">' . "\n";
 	echo '<meta name="apple-mobile-web-app-capable" content="yes">' . "\n";
 	printf(
@@ -831,21 +346,6 @@ function openstation_pwa_render_head_tags() {
 }
 add_action( 'admin_head', 'openstation_pwa_render_head_tags', 1 );
 
-/**
- * Resolves the 180×180 tile iOS uses for a home-screen install.
- *
- * Core does emit an `apple-touch-icon` from the Site Icon, but only on
- * `wp_head` and `login_head` — `wp_site_icon()` is not hooked to
- * `admin_head` at all. So inside wp-admin, which is the only place
- * anyone installs this app from, there is no tile unless we emit one.
- * That is why four bundled PNGs could sit in `assets/pwa/` and still
- * never reach an iPhone.
- *
- * 180 is iPhone @3x and the size iOS downscales from for everything
- * smaller, so one link covers the family.
- *
- * @return string Absolute URL.
- */
 function openstation_pwa_apple_touch_icon_url() {
 	$site_icon_id = (int) get_option( 'site_icon' );
 	if ( $site_icon_id > 0 ) {
@@ -858,12 +358,6 @@ function openstation_pwa_apple_touch_icon_url() {
 	return openstation_pwa_bundled_icon_url( 180 );
 }
 
-/**
- * Reads the per-user PWA UI state.
- *
- * @param int $user_id Defaults to current user.
- * @return array{installHintDismissed: bool, notificationsEnabled: bool}
- */
 function openstation_pwa_get_user_state( $user_id = 0 ) {
 	if ( 0 === $user_id ) {
 		$user_id = get_current_user_id();
@@ -878,13 +372,6 @@ function openstation_pwa_get_user_state( $user_id = 0 ) {
 	);
 }
 
-/**
- * Writes the per-user PWA UI state, merging with the existing blob so
- * partial updates from the JS side don't wipe other keys.
- *
- * @param array $patch   Partial state to merge.
- * @param int   $user_id Defaults to current user.
- */
 function openstation_pwa_update_user_state( array $patch, $user_id = 0 ) {
 	if ( 0 === $user_id ) {
 		$user_id = get_current_user_id();
@@ -894,9 +381,6 @@ function openstation_pwa_update_user_state( array $patch, $user_id = 0 ) {
 	update_user_meta( $user_id, OPENSTATION_PWA_USER_META, $next );
 }
 
-/**
- * Registers the `/desktop-mode/v1/pwa-state` REST routes.
- */
 function openstation_pwa_register_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -925,35 +409,17 @@ function openstation_pwa_register_rest_routes() {
 		)
 	);
 
-	// Future: register POST /pwa-push-subscription here when phase 4
-	// lands. The state route is intentionally orthogonal so the v1
-	// surface stays stable when push arrives.
 }
 add_action( 'rest_api_init', 'openstation_pwa_register_rest_routes' );
 
-/**
- * REST permission gate — same shape as the session routes: logged in
- * with OpenStation enabled. See
- * {@see openstation_rest_require_enabled()}.
- *
- * @return true|WP_Error
- */
 function openstation_pwa_rest_permission() {
 	return openstation_rest_require_enabled();
 }
 
-/**
- * GET handler — returns the current user's PWA state.
- */
 function openstation_pwa_rest_get_state() {
 	return rest_ensure_response( openstation_pwa_get_user_state() );
 }
 
-/**
- * POST handler — merges the supplied keys into the user's state.
- *
- * @param WP_REST_Request $request REST request.
- */
 function openstation_pwa_rest_post_state( $request ) {
 	$patch = array();
 	if ( null !== $request->get_param( 'installHintDismissed' ) ) {

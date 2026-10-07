@@ -1,4 +1,3 @@
-/** The shared title-bar registry gives every consenting window the same control. */
 import { __ } from '../i18n';
 import { registerTitleBarButton, unregisterTitleBarButton } from '../title-bar-buttons/registry';
 import { MIO_ICON_SVG } from './icon';
@@ -36,7 +35,7 @@ export function registerMioWindowToggle(
 		match: ( win ) => win.id === windowId,
 		render: ( host ) => {
 			host.classList.add( 'os-mio-window-toggle' );
-			// The dock portrait remains intact; the slash fades across it when off.
+
 			const svg = host.querySelector( 'svg' );
 			if ( svg ) {
 				const slash = document.createElementNS( 'http://www.w3.org/2000/svg', 'path' );

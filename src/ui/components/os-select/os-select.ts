@@ -1,43 +1,3 @@
-/**
- * `<os-select>` + `<os-option>` — dropdown picker.
- *
- * Mirrors the `<os-segmented>` contract — set `value`, listen for
- * `os-pick` — so callers can swap the tag name when a list grows
- * past the handful of items a pill bar can host comfortably
- * (currencies, timezones, long enumerations).
- *
- * ```html
- * <os-select value="eur" label="Currency">
- *     <os-option value="eur">Euro</os-option>
- *     <os-option value="usd">US Dollar</os-option>
- *     <os-option value="jpy">Japanese Yen</os-option>
- * </os-select>
- * ```
- *
- * ## One visual language, so the popup is ours
- *
- * The closed control used to wrap a native `<select>`, which meant
- * the open popup was the operating system's: a styled OpenStation
- * field that dropped a stock blue macOS menu. Half custom, half
- * native reads as neither, so the whole control is custom now — a
- * combobox button plus a listbox popup rendered in the top layer via
- * the Popover API. The top layer escapes every `overflow: hidden`
- * between here and the viewport AND ignores ancestor transforms,
- * which matters because every OpenStation window is a transformed,
- * clipped container.
- *
- * Where the Popover API is missing (jsdom, older engines) the popup
- * falls back to an absolutely positioned block under the trigger:
- * same DOM, same events, just without top-layer escape.
- *
- * ## Keyboard
- *
- * Focus stays on the trigger the whole time (the APG select-only
- * combobox pattern): ArrowUp/Down/Home/End move the active option
- * via aria-activedescendant, Enter and Space commit, Escape and
- * outside clicks dismiss, printable characters type ahead.
- */
-
 import {
 	Component,
 	defineComponent,
@@ -47,12 +7,6 @@ import {
 import { osIcon } from '../../icons';
 import { optionStyles, selectStyles } from './os-select.styles';
 
-/**
- * Opaque data carrier. The parent `<os-select>` reads its `value`
- * attribute + `textContent` to build the listbox. Rendered
- * `display: none` so the raw light markup doesn't flash before the
- * parent upgrades.
- */
 export class OsOption extends Component {
 	static props = [ 'value', 'disabled' ] as const;
 	static styles = [ optionStyles ];
@@ -77,13 +31,7 @@ export class OsOption extends Component {
 		slots: [
 			{ name: '(default)', description: 'Label text read from textContent.' },
 		],
-		/*
-		 * This component paints nothing — `:host { display: none }`,
-		 * by design. So the example shows the only thing there is to
-		 * see: what the parent builds out of it. A blank Example
-		 * section here would look like a bug rather than like the
-		 * deliberate choice it is.
-		 */
+
 		example: html`
 			<os-select value="md" label="Dock size (built from os-option children)">
 				<os-option value="sm">Small</os-option>
@@ -95,9 +43,6 @@ export class OsOption extends Component {
 	} as const;
 
 	protected render() {
-		// Intentionally empty — the option is a data carrier. Its
-		// label lives in its light-DOM textContent, which the parent
-		// reads directly.
 		return html``;
 	}
 }
@@ -186,22 +131,6 @@ export class OsSelect extends Component {
 		`,
 	} as const;
 
-	/**
-	 * Declarative item-list setter. Replaces the existing
-	 * `<os-option>` children with a fresh set; preserves `value`
-	 * when it still matches, otherwise clears to the first entry.
-	 *
-	 * Same shape as the setter on `<os-segmented>` so callers can
-	 * swap tag names (segmented ↔ select) without touching the
-	 * populate code when an option list outgrows the pill bar.
-	 *
-	 * ```js
-	 * select.items = [
-	 *   { value: 'eur', label: 'Euro' },
-	 *   { value: 'usd', label: 'US Dollar' },
-	 * ];
-	 * ```
-	 */
 	set items( list: ReadonlyArray< { value: string; label: string } > ) {
 		const existing = this.querySelectorAll( ':scope > os-option' );
 		for ( const el of Array.from( existing ) ) {
@@ -213,52 +142,28 @@ export class OsSelect extends Component {
 			opt.textContent = item.label;
 			this.appendChild( opt );
 		}
-		// Fall back to the first entry when the previous value is
-		// no longer in the list so the visible selection doesn't
-		// stay stuck on a removed option.
+
 		const current = ( this as unknown as { value: string | null } ).value;
 		const stillValid =
 			current !== null && list.some( ( i ) => i.value === current );
 		if ( ! stillValid && list.length > 0 ) {
 			( this as unknown as { value: string } ).value = list[ 0 ].value;
 		}
-		// Explicit re-render request. The MutationObserver wired in
-		// connectedCallback() also notices the appendChilds above,
-		// but MO microtasks race the connect-time render in real
-		// browsers — see the note in the old native implementation;
-		// the setter stays the source of truth.
+
 		this.requestUpdate();
 	}
 
 	private _optionObserver: MutationObserver | null = null;
 
-	/** Whether the listbox is showing. */
 	private _open = false;
 
-	/** Index into _readOptions() of the keyboard-active option. */
 	private _activeIndex = -1;
 
-	/** Type-ahead buffer + its reset timer. */
 	private _typed = '';
-	/**
-	 * When the popover last light-dismissed itself, so a click on the
-	 * trigger that was part of the same gesture does not reopen it.
-	 */
+
 	private _dismissedAt = 0;
 	private _typedTimer: ReturnType< typeof setTimeout > | null = null;
 
-	/**
-	 * Bound dismiss handlers, added while open, removed on close.
-	 *
-	 * The scroll listener is on `window` in the CAPTURE phase, because
-	 * a scroll inside some ancestor's own overflow container never
-	 * bubbles to `window` and that is exactly the scroll that moves the
-	 * trigger out from under the panel. Capture sees all of them —
-	 * including the panel's OWN scroll, which is why this one checks.
-	 * The list is capped at `min( 320px, 60vh )` and scrolls itself, so
-	 * without the guard any list past about ten options closed the
-	 * instant the user reached for it.
-	 */
 	private _onWindowScroll = ( e: Event ): void => {
 		const target = e.target;
 		const popup = this._popup();
@@ -275,14 +180,9 @@ export class OsSelect extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-		// Deterministic auto-id based on native-window + tab
-		// ancestry + label. Plugin authors that want a custom id
-		// pass `id="…"` and skip this branch.
+
 		ensureAutoId( this );
-		// Watch for late-added / removed / mutated `<os-option>`
-		// children so a caller that programmatically populates the
-		// list after mount gets an up-to-date listbox. Matches the
-		// `<os-segmented>` late-children contract.
+
 		this._optionObserver = new MutationObserver( () => this.requestUpdate() );
 		this._optionObserver.observe( this, {
 			childList: true,
@@ -297,14 +197,7 @@ export class OsSelect extends Component {
 		this._optionObserver?.disconnect();
 		this._optionObserver = null;
 		this._teardownDismiss();
-		/*
-		 * Leave detached CLOSED. The listeners went with
-		 * `_teardownDismiss()` and the popup left the top layer with the
-		 * node, so a lingering `_open` describes nothing that is still
-		 * on screen — but `_show()` early-returns on it, so the next
-		 * click after a re-attach only got as far as closing something
-		 * already closed. Two clicks to open a select, once.
-		 */
+
 		this._open = false;
 		if ( this._typedTimer ) {
 			clearTimeout( this._typedTimer );
@@ -320,8 +213,6 @@ export class OsSelect extends Component {
 		const disabled =
 			( this as unknown as { disabled: string | null } ).disabled !== null;
 
-		// A11y: `aria-label` on the host lets screen readers announce
-		// the group name when focus reaches the shell.
 		if ( label ) {
 			this.setAttribute( 'aria-label', label );
 		}
@@ -415,10 +306,7 @@ export class OsSelect extends Component {
 
 	private _readOptions(): ReadOption[] {
 		const out: ReadOption[] = [];
-		// Direct-child scope so nested `<os-option>` inside a
-		// plugin's own layout (rare, but possible when plugins wrap
-		// their content) can't pollute the picker. Matches the
-		// `.items` setter's `:scope > os-option` selector.
+
 		const children = this.querySelectorAll( ':scope > os-option' );
 		for ( const child of Array.from( children ) ) {
 			const value = child.getAttribute( 'value' );
@@ -442,18 +330,6 @@ export class OsSelect extends Component {
 		return this.shadowRoot?.querySelector( '.os-select__trigger' ) ?? null;
 	}
 
-	/**
-	 * Trigger click.
-	 *
-	 * The guard is for the light dismiss. `popover="auto"` closes on
-	 * pointerdown, before this click lands, and it reports that through
-	 * a `toggle` event queued as a task — so by the time the click runs
-	 * `_open` may already be `false` and a plain toggle would reopen
-	 * what the user just dismissed, leaving a menu its own trigger
-	 * cannot close. Task ordering is not guaranteed across engines, so
-	 * this does not depend on it: a close that happened within a frame
-	 * of this click was the same gesture, and the click is spent.
-	 */
 	private _toggle(): void {
 		if ( this._open ) {
 			this._hide();
@@ -465,15 +341,6 @@ export class OsSelect extends Component {
 		this._show();
 	}
 
-	/*
-	 * Positioning happens against the viewport because a top-layer
-	 * popover positions against the viewport, full stop: ancestor
-	 * transforms (every dragged window has one) and clipping do not
-	 * reach it, and getBoundingClientRect speaks the same coordinate
-	 * space. Measured at open time; while open, any scroll or resize
-	 * dismisses rather than tracks, which is also what the native
-	 * menu did.
-	 */
 	private _show(): void {
 		const popup = this._popup();
 		const trigger = this._trigger();
@@ -497,9 +364,7 @@ export class OsSelect extends Component {
 			popup.style.left = `${ rect.left }px`;
 			popup.style.top = `${ rect.bottom + 4 }px`;
 			popup.showPopover();
-			// Flip above the trigger when there is no room below.
-			// Measured after showPopover, because a closed popover
-			// has no box to measure.
+
 			const overflow =
 				rect.bottom + 4 + popup.offsetHeight >
 				window.innerHeight - 8;
@@ -510,9 +375,6 @@ export class OsSelect extends Component {
 				) }px`;
 			}
 		} else {
-			// Fallback for engines without the Popover API: an
-			// absolutely positioned block under the trigger. Same
-			// DOM and events, no top-layer escape.
 			popup.setAttribute( 'data-open', '' );
 		}
 		window.addEventListener( 'scroll', this._onWindowScroll, {
@@ -535,7 +397,7 @@ export class OsSelect extends Component {
 				try {
 					popup.hidePopover();
 				} catch {
-					// Already closed by light dismiss: fine.
+
 				}
 			}
 			popup.removeAttribute( 'data-open' );
@@ -551,15 +413,9 @@ export class OsSelect extends Component {
 		window.removeEventListener( 'resize', this._onWindowResize );
 	}
 
-	/**
-	 * Light dismiss (Esc, outside click) closes the popover without
-	 *  going through _hide(); this keeps the component state honest.
-	 */
 	private _onPopoverToggle( e: Event ): void {
 		const state = ( e as unknown as { newState?: string } ).newState;
 		if ( state === 'closed' && this._open ) {
-			// Stamped for `_toggle()`: see the note there about the
-			// light dismiss racing the trigger's own click.
 			this._dismissedAt = performance.now();
 			this._open = false;
 			this._teardownDismiss();
@@ -576,9 +432,7 @@ export class OsSelect extends Component {
 
 	private _commit( next: string ): void {
 		this._hide();
-		// Reflect into `value` so repeated reads + aria state stay
-		// in sync, then emit the public `os-pick` event — same
-		// shape `<os-segmented>` uses so callers can swap tags.
+
 		( this as unknown as { value: string } ).value = next;
 		this.emit( 'os-pick', { value: next } );
 	}
@@ -615,9 +469,6 @@ export class OsSelect extends Component {
 	}
 
 	private _scrollActiveIntoView(): void {
-		// The render that stamps data-active runs on a microtask;
-		// ride the next one so the element exists before scrolling.
-		// The optional CALL is for jsdom, which has no scrollIntoView.
 		queueMicrotask( () => {
 			this.shadowRoot
 				?.querySelector( '.os-select__option[data-active]' )
@@ -715,7 +566,6 @@ export class OsSelect extends Component {
 				break;
 			}
 			case 'Tab': {
-				// Commit-and-move-on, the way a native select behaves.
 				const active = options[ this._activeIndex ];
 				if ( active && ! active.disabled ) {
 					this._commit( active.value );

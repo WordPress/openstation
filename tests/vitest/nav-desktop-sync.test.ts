@@ -1,12 +1,3 @@
-/**
- * Tests for the navigation → files-store reconciler.
- *
- * Two jobs. One is minting a placement for anything on the wallpaper
- * that has no registered icon behind it — a promoted admin menu, a
- * system tile. The other is the user-reported "Also show on desktop"
- * bug: after taking a server-registered icon off the wallpaper, putting
- * it back must re-surface the placement on the SAME tick, without F5.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { NavItem } from '../../src/nav';
@@ -43,7 +34,6 @@ function placement( id: number, ref: string ): RestPlacementShape {
 	};
 }
 
-/** A nav item backed by a registered desktop icon. */
 function iconItem( id: string, title: string ): NavItem {
 	return {
 		id,
@@ -62,7 +52,6 @@ function iconItem( id: string, title: string ): NavItem {
 	};
 }
 
-/** A nav item backed by a system tile — no icon of its own. */
 function tileItem( id: string, title: string ): NavItem {
 	return {
 		id,
@@ -108,20 +97,15 @@ describe( 'syncDesktopShortcuts — registered icons', () => {
 		store.__resetFilesStoreForTests();
 		const item = iconItem( 'desktop-mode-my-wordpress', 'My WordPress' );
 
-		// Seed the store with the icon's placement, as REST hydration
-		// would have done on page load.
 		store.setFolderPlacements( 0, [
 			placement( 42, 'desktop-mode-my-wordpress' ),
 		] );
 
-		// 1) The navigation no longer lists it on the desktop.
 		sync.syncDesktopShortcuts( [], [ item ] );
 		expect(
 			store.getFilesState().placementsByFolder.get( 0 )?.length,
 		).toBe( 0 );
 
-		// 2) It comes back — the reconciler MUST restore the placement
-		//    on the same tick, with its original row id.
 		sync.syncDesktopShortcuts( [ item ], [ item ] );
 		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
 		expect( rows.length ).toBe( 1 );
@@ -173,14 +157,12 @@ describe( 'syncDesktopShortcuts — items with no icon of their own', () => {
 		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
 		expect( rows ).toHaveLength( 1 );
 		expect( rows[ 0 ].file.title ).toBe( 'Mio' );
-		// Not a url and not a window: the opener runs the tile's own
-		// onOpen, which is the only thing a toggle tile has.
+
 		expect(
 			( rows[ 0 ].file as unknown as { shortcutSystemTile?: string } )
 				.shortcutSystemTile,
 		).toBe( 'os-mio-toggle' );
-		// And it keeps its bare id as the ref, which is how the files
-		// layer and the dock recognise the Trash.
+
 		expect( rows[ 0 ].file.ref ).toBe( 'os-mio-toggle' );
 	} );
 

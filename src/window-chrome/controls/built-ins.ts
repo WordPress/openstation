@@ -1,36 +1,6 @@
-/**
- * Built-in window controls — minimize, maximize, fullscreen,
- * close.
- *
- * `core/detach` (Open in classic wp-admin) and `core/reload` used to live
- * here but moved into the title-bar three-dots menu — those
- * actions are infrequent enough that they didn't earn permanent real
- * estate alongside minimize / maximize / close. The wiring lives in
- * `src/window/dom.ts` (menu-item construction) and
- * `src/window/index.ts` (click → `win.detach()` / `win.reload()`).
- *
- * Each built-in registers as a `WindowControlDef` with a stable
- * `core/*` id, the same icon + label the hardcoded title bar used,
- * and an `onClick` that calls the corresponding `Window` method.
- * Plugins can reorder, hide, or replace any of them through the
- * `WindowControlsConfig` per-window appearance, or globally via
- * `unregisterWindowControl( 'core/close' )`.
- *
- * Built-ins do NOT carry an `owner` — server-sync's owner-bulk
- * teardown skips them, so a plugin deactivating can't accidentally
- * blow away the close button.
- */
-
 import { __ } from '../../i18n';
 import { registerWindowControl } from './registry';
 
-/**
- * Register the four built-in title-bar controls. Idempotent — calling
- * it twice replaces the entries with identical definitions.
- *
- * Called once by the shell during boot. Plugins should NOT call this;
- * the `core/*` ids are reserved.
- */
 export function registerBuiltInControls(): void {
 	registerWindowControl( {
 		id: 'core/minimize',

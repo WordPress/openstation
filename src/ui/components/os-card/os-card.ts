@@ -1,50 +1,3 @@
-/**
- * `<os-card>` — generic, hover-aware container card.
- *
- * Same role `<article>` would play, plus:
- *
- *   - `interactive` makes the host focusable + click-emitting (cursor,
- *     tabindex=0, `role="button"`, Enter / Space keyboard fire the
- *     same `os-card-click` event as the mouse). Non-interactive
- *     cards stay inert — read-only digest tiles don't want a hover
- *     lift or a button role.
- *   - `selected` paints the accent ring (current item in a picker).
- *   - `disabled` fades the host and ignores pointer / key events.
- *   - Hover lift, shadow, smooth transition. `prefers-reduced-motion`
- *     disables every transform.
- *   - Three slot rhythms via `::slotted` rules so consumers can
- *     drop a plain `<header>` / `<footer>` and get the standard
- *     header-row / footer-pinned-to-bottom layout for free.
- *
- * The shape stays small — anything richer than "container with the
- * standard look" belongs to a feature-specific layer that wraps
- * `<os-card>` (e.g. the Plugins gallery card factory).
- *
- * Usage:
- *
- *   <os-card interactive @os-card-click="${ ... }">
- *     <header><img/><h3>Title</h3></header>
- *     <p>Description</p>
- *     <footer><span>meta</span><os-button>Action</os-button></footer>
- *   </os-card>
- *
- * Attributes:
- *   - `interactive` — boolean, surfaces hover lift + emits
- *                     `os-card-click`.
- *   - `selected`    — boolean, paints the accent ring.
- *   - `compact`     — boolean, smaller padding + radius.
- *   - `disabled`    — boolean, fades + blocks input.
- *   - `aria-label`  — used by screen readers as the card's name when
- *                     interactive (no inferred label).
- *
- * Events:
- *   - `os-card-click` — `{ originalEvent: MouseEvent | KeyboardEvent }`.
- *     Fired when an interactive card is clicked or Enter / Space is
- *     pressed. Skips clicks on `data-noclick` descendants so action
- *     buttons inside the card don't double-fire (matches
- *     `<os-table>`'s row-click semantics).
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-card.styles';
 
@@ -166,13 +119,8 @@ export class OsCard extends Component {
 	}
 
 	protected render() {
-		// Re-sync the ARIA + tabindex set whenever a prop changes.
-		// `connectedCallback` runs once on first mount; this picks up
-		// `interactive`/`disabled` flips after that.
 		this._syncRoles();
-		// The glint is stamped unconditionally and gated in CSS to
-		// [interactive]: a read-only digest tile that caught the light
-		// on hover would be advertising a click it does not take.
+
 		return html`<span class="os-holo-glint" aria-hidden="true"></span
 			><slot name="header"></slot><slot></slot><slot name="footer"></slot>`;
 	}
@@ -184,7 +132,7 @@ export class OsCard extends Component {
 			if ( ! this.hasAttribute( 'role' ) ) {
 				this.setAttribute( 'role', 'button' );
 			}
-			// Disabled cards are NOT focusable — Tab order skips them.
+
 			this.setAttribute( 'tabindex', disabled ? '-1' : '0' );
 			this.setAttribute( 'aria-disabled', disabled ? 'true' : 'false' );
 		} else {
@@ -216,8 +164,7 @@ export class OsCard extends Component {
 		if ( target && target !== this && target.closest( NOCLICK_SELECTOR ) ) {
 			return;
 		}
-		// Don't double-fire when the user pressed Space INSIDE a button —
-		// the button's own click handler already runs.
+
 		if (
 			target instanceof HTMLElement &&
 			target !== this &&

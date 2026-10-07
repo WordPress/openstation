@@ -1,20 +1,3 @@
-/**
- * The "Share folder" title-bar button, and the folders map it reads.
- *
- * The button is owner-only, and a window gives its match predicate
- * nothing but an id — so ownership has to come from the client's
- * folders map. Nothing on the normal boot path filled that map:
- * placement hydration populates placements, and `listFolders()` only
- * ran after a create, a rename or an untrash. After a plain reload
- * every folder looked ownerless, `folderOwnerId()` returned 0, the
- * gate compared 0 against a real user id, and the owner of a folder
- * lost the control that manages its sharing.
- *
- * The rows now ride the boot config as `filesBootFolders` (see
- * `openstation_files_inject_boot_folders()`), and this pins both
- * halves: the seed applies them, and the gate then answers correctly
- * for owner and recipient.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { RestFolderShape } from '../../src/desktop-files/rest';
@@ -52,7 +35,6 @@ function folderRow( id: number, ownerId: number ): RestFolderShape {
 	};
 }
 
-/** Just enough window for the button registry's match predicate. */
 function folderWindow( folderId: number ): DesktopWindow {
 	return {
 		id: `os-folder-${ folderId }`,
@@ -67,7 +49,6 @@ function setBootFolders( rows: RestFolderShape[] | undefined ): void {
 	};
 }
 
-/** Does the share button match this window? */
 function hasShareButton( win: DesktopWindow ): boolean {
 	const { right } = mods.titleBar.buttonsForWindow( win );
 	return right.some( ( b ) => b.id === 'desktop-mode/folder-share' );
@@ -78,9 +59,7 @@ beforeEach( async () => {
 	installHooksStub();
 	setBootFolders( undefined );
 	mods = await load();
-	// Both registries are `createSharedStore`-backed, which is
-	// deliberately immune to `vi.resetModules()` — reset them by hand
-	// or each test inherits the previous one's folders and buttons.
+
 	mods.store.__resetFilesStoreForTests();
 	mods.titleBar.unregisterTitleBarButton( 'desktop-mode/folder-share' );
 } );
@@ -121,10 +100,7 @@ describe( 'boot-folder seeding', () => {
 	} );
 
 	test( 'the files entry point actually calls it on boot', async () => {
-		// The tests above drive `seedBootFolders()` directly, which
-		// would keep passing if the one line wiring it into boot were
-		// dropped — the exact shape of the bug being fixed. Importing
-		// the entry point is what pins the wiring.
+
 		setBootFolders( [ folderRow( 3, OWNER ) ] );
 		await import( '../../src/desktop-files/index' );
 
@@ -144,8 +120,7 @@ describe( 'Share folder title-bar button', () => {
 	} );
 
 	test( 'without the seed the owner loses it — the reported regression', () => {
-		// Same folder, same viewer; only the seed is missing. This is
-		// what every reload used to look like.
+
 		setBootFolders( undefined );
 		mods.share.installShareMenuItems();
 
@@ -157,7 +132,6 @@ describe( 'Share folder title-bar button', () => {
 		mods.seed.seedBootFolders();
 		mods.share.installShareMenuItems();
 
-		// Viewer is OWNER; folder 3 is owned by someone else.
 		expect( hasShareButton( folderWindow( 3 ) ) ).toBe( false );
 	} );
 

@@ -1,27 +1,7 @@
 <?php
-/**
- * OpenStation — Drafts Widget.
- *
- * A quick list of the current user's most recently edited draft posts,
- * each a click away from reopening in the editor (the shell's admin-link
- * interceptor turns the row into a native window).
- *
- * Data source: WordPress REST API  /wp/v2/posts?status=draft  (edit
- * context, scoped to the viewer with `author` — without it an editor
- * or admin would see every draft on the site, not their own).
- * Refresh: every 60 seconds while the tab is visible, plus an
- * immediate refresh on every `os.post.changed` broadcast (a block-editor
- * save, a relayed content change) and when a window closes or blurs.
- * Requires: OpenStation 0.18.0+ (openstation_register_widget).
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the JS + CSS assets.
- */
 function openstation_register_drafts_widget_assets() {
 	$suffix  = openstation_asset_suffix();
 	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
@@ -46,10 +26,6 @@ function openstation_register_drafts_widget_assets() {
 }
 add_action( 'init', 'openstation_register_drafts_widget_assets', 5 );
 
-/**
- * Eagerly enqueue the CSS on shell pages so there is no flash of
- * unstyled content while the lazy JS bundle loads.
- */
 function openstation_enqueue_drafts_widget_styles() {
 	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
@@ -61,13 +37,6 @@ function openstation_enqueue_drafts_widget_styles() {
 }
 add_action( 'admin_enqueue_scripts', 'openstation_enqueue_drafts_widget_styles', 20 );
 
-/**
- * Register the widget definition.
- *
- * @return true|WP_Error True on success, `WP_Error` when the registry
- *                       rejects the entry (e.g. the viewer lacks
- *                       `edit_posts`), false if the registry is absent.
- */
 function openstation_register_drafts_widget() {
 	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return false;
@@ -85,34 +54,13 @@ function openstation_register_drafts_widget() {
 			'min_height'     => 180,
 			'default_width'  => 300,
 			'default_height' => 320,
-			// The REST query behind the widget needs `edit_posts`. Without
-			// the gate a subscriber can add it from the picker and only
-			// ever sees the error state.
+
 			'capabilities'   => array( 'edit_posts' ),
 		)
 	);
 }
 add_action( 'init', 'openstation_register_drafts_widget', 6 );
 
-
-/**
- * Register the AI writing-suggestions REST route.
- *
- * POST desktop-mode/v1/draft-suggestions { post_id }
- *   → { titles, excerpt, tags, categories, readiness: { summary, missing } }
- *
- * Read-only: it reads the draft and returns AI suggestions; it never writes
- * back to the post. Writing an accepted suggestion is a separate, explicit
- * call to `/draft-apply` below.
- *
- * Gated on the user being able to edit the post AND an AI provider being
- * configured (Settings → Connectors). The capability check runs first so an
- * unauthorized caller can't probe whether the site has AI set up. The 💡
- * button that calls this is hidden unless AI is available, so the provider
- * gate here is defence in depth.
- *
- * @return void
- */
 function openstation_register_drafts_ai_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -133,16 +81,6 @@ function openstation_register_drafts_ai_routes() {
 }
 add_action( 'rest_api_init', 'openstation_register_drafts_ai_routes' );
 
-/**
- * Permission gate: the user can edit the target post, and AI is configured.
- *
- * Capability first, provider second — an unauthorized caller gets the same
- * 403 whether or not the site has a provider, so the response can't be used
- * to fingerprint the site's AI setup.
- *
- * @param WP_REST_Request $request Request.
- * @return true|WP_Error
- */
 function openstation_rest_draft_suggestions_permission( WP_REST_Request $request ) {
 	$post_id = absint( $request['post_id'] );
 	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
@@ -162,14 +100,6 @@ function openstation_rest_draft_suggestions_permission( WP_REST_Request $request
 	return true;
 }
 
-/**
- * The system instruction used for draft suggestions.
- *
- * Split out so the prompt is filterable without copying the whole route.
- *
- * @param WP_Post $post The draft being described.
- * @return string
- */
 function openstation_drafts_ai_instructions( WP_Post $post ) {
 	$instructions = 'You are a writing assistant for a WordPress author. Given a draft post\'s current title and content, help them finish and file it. Provide: exactly 3 concise, compelling title options (about 70 characters max each); one 1-2 sentence excerpt suitable as the post summary; 3 to 6 lowercase topical tags; 1 to 2 categories (prefer the site\'s existing categories, listed in the message; propose a new concise name only if none fit); and a readiness check.
 
@@ -177,21 +107,9 @@ The readiness check judges structure and completeness only: does the draft have 
 
 Write everything in the same language as the draft. Do not invent facts that are not supported by the content.';
 
-	/**
-	 * Filters the system instruction sent with a draft-suggestions request.
-	 *
-	 * @param string  $instructions System instruction text.
-	 * @param WP_Post $post         The draft being described.
-	 */
 	return (string) apply_filters( 'openstation_drafts_ai_instructions', $instructions, $post );
 }
 
-/**
- * JSON schema the model must answer in for draft suggestions.
- *
- * @param WP_Post $post The draft being described.
- * @return array
- */
 function openstation_drafts_ai_schema( WP_Post $post ) {
 	$schema = array(
 		'type'                 => 'object',
@@ -236,37 +154,15 @@ function openstation_drafts_ai_schema( WP_Post $post ) {
 		),
 	);
 
-	/**
-	 * Filters the JSON schema the model answers draft-suggestion requests in.
-	 *
-	 * Changing the shape here changes the REST response shape too — the route
-	 * only normalizes the keys it knows about.
-	 *
-	 * @param array   $schema JSON schema.
-	 * @param WP_Post $post   The draft being described.
-	 */
 	return (array) apply_filters( 'openstation_drafts_ai_schema', $schema, $post );
 }
 
-/**
- * Build the user-facing prompt body: title, trimmed content, existing terms.
- *
- * @param WP_Post $post The draft being described.
- * @return string
- */
 function openstation_drafts_ai_prompt_text( WP_Post $post ) {
 	$title   = (string) $post->post_title;
 	$content = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $post->post_content ) ) );
 
-	/**
-	 * Filters how many characters of the draft are sent to the model.
-	 *
-	 * @param int     $limit Character limit.
-	 * @param WP_Post $post  The draft being described.
-	 */
 	$limit = (int) apply_filters( 'openstation_drafts_ai_content_limit', 4000, $post );
 
-	// mb_substr so a long draft isn't cut mid-multibyte-character.
 	if ( $limit > 0 && mb_strlen( $content ) > $limit ) {
 		$content = mb_substr( $content, 0, $limit ) . '…';
 	}
@@ -274,8 +170,6 @@ function openstation_drafts_ai_prompt_text( WP_Post $post ) {
 	$text  = 'Current title: ' . ( '' !== $title ? $title : '(none)' ) . "\n\n";
 	$text .= "Draft content:\n" . ( '' !== $content ? $content : '(empty)' );
 
-	// Give the model the site's existing categories so it classifies into
-	// them rather than inventing a fresh taxonomy.
 	$existing_cats = get_terms(
 		array(
 			'taxonomy'   => 'category',
@@ -291,12 +185,6 @@ function openstation_drafts_ai_prompt_text( WP_Post $post ) {
 	return $text;
 }
 
-/**
- * Generate title / excerpt / tag / category suggestions for a draft.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_rest_draft_suggestions( WP_REST_Request $request ) {
 	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
 		return new WP_Error(
@@ -315,9 +203,6 @@ function openstation_rest_draft_suggestions( WP_REST_Request $request ) {
 		);
 	}
 
-	// `generate_text()` with a JSON schema — same call shape the comment
-	// scorer uses. The SDK can throw as well as return a WP_Error, so both
-	// paths land on the same 502.
 	try {
 		$builder = wp_ai_client_prompt( openstation_drafts_ai_prompt_text( $post ) )
 			->using_system_instruction( openstation_drafts_ai_instructions( $post ) )
@@ -361,46 +246,11 @@ function openstation_rest_draft_suggestions( WP_REST_Request $request ) {
 		),
 	);
 
-	/**
-	 * Filters the normalized suggestions before they reach the widget.
-	 *
-	 * Runs after tag-stripping and truncation, so a listener can drop,
-	 * reorder or append entries without re-sanitizing.
-	 *
-	 * @param array   $suggestions { titles, excerpt, tags, categories, readiness }.
-	 * @param WP_Post $post        The draft the suggestions describe.
-	 */
 	$suggestions = (array) apply_filters( 'openstation_drafts_ai_suggestions', $suggestions, $post );
 
 	return new WP_REST_Response( $suggestions, 200 );
 }
 
-/**
- * Turn a failed generation into the route's error.
- *
- * The route answers 502 for every provider failure: the failure is the
- * upstream's, not the caller's, and a provider's own 401 or 403 passed
- * through as the REST status would read as "your WordPress session is
- * invalid" to every client on the page. What the caller needs in order to
- * say something useful goes into the error data instead:
- *
- * - `reason`: `quota` (out of credits or rate limited), `auth` (the site's
- *   key was rejected), `unavailable` (the provider could not be reached or
- *   answered 5xx) or `other`.
- * - `provider_status`: the provider's own HTTP status, or null when the
- *   failure never reached the provider.
- * - `detail`: the provider's message, verbatim, for the console and logs.
- *
- * The top-level message says what happened in plain words. The Core AI
- * Client reports a rejected request as `prompt_client_error` /
- * `prompt_upstream_server_error` with the provider's status in
- * `data.status` and a message of the shape "Too Many Requests (429) -
- * <provider text>", which is why the provider text never reached the
- * widget as anything but that string.
- *
- * @param WP_Error $error Failed generation.
- * @return WP_Error
- */
 function openstation_drafts_ai_failure( WP_Error $error ) {
 	$code   = (string) $error->get_error_code();
 	$data   = $error->get_error_data();
@@ -422,8 +272,7 @@ function openstation_drafts_ai_failure( WP_Error $error ) {
 		$reason  = 'auth';
 		$message = __( 'The AI provider rejected this site’s API key. Check the key in Settings → Connectors.', 'desktop-mode' );
 	} elseif ( null === $provider_status && preg_match( '/quota|credits?\b|billing|rate limit/i', $detail ) ) {
-		// A provider that failed without a status (the SDK threw instead of
-		// answering) can still say it was the account, not the request.
+
 		$reason  = 'quota';
 		$message = __( 'The AI provider has no credits left or is rate limiting this site. Check its plan and billing, or try again later.', 'desktop-mode' );
 	} else {
@@ -443,13 +292,6 @@ function openstation_drafts_ai_failure( WP_Error $error ) {
 	);
 }
 
-/**
- * Trim, tag-strip and cap a list of model-supplied strings.
- *
- * @param mixed $list Raw list from the model.
- * @param int   $max  Maximum entries to keep.
- * @return string[]
- */
 function openstation_drafts_clean_list( $list, $max ) {
 	$out = array();
 	foreach ( (array) $list as $item ) {
@@ -464,18 +306,6 @@ function openstation_drafts_clean_list( $list, $max ) {
 	return array_slice( $out, 0, (int) $max );
 }
 
-/**
- * Register the "apply a suggestion to the draft" REST route.
- *
- * POST desktop-mode/v1/draft-apply { post_id, title?, excerpt?, tags?, categories? }
- * writes the chosen suggestion straight onto the draft, so the user can
- * accept a title / excerpt / tag / category from the widget without
- * opening the editor. New categories are only created for users who can
- * manage categories; otherwise unknown categories are skipped. Not
- * AI-gated — this is a plain edit of the user's own draft.
- *
- * @return void
- */
 function openstation_register_drafts_apply_route() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -506,12 +336,6 @@ function openstation_register_drafts_apply_route() {
 }
 add_action( 'rest_api_init', 'openstation_register_drafts_apply_route' );
 
-/**
- * Permission gate: the user can edit the target post.
- *
- * @param WP_REST_Request $request Request.
- * @return true|WP_Error
- */
 function openstation_rest_draft_apply_permission( WP_REST_Request $request ) {
 	$post_id = absint( $request['post_id'] );
 	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
@@ -524,12 +348,6 @@ function openstation_rest_draft_apply_permission( WP_REST_Request $request ) {
 	return true;
 }
 
-/**
- * Apply a title / excerpt / tag / category suggestion to a draft.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_rest_draft_apply( WP_REST_Request $request ) {
 	$post_id = absint( $request['post_id'] );
 	$post    = get_post( $post_id );
@@ -578,7 +396,7 @@ function openstation_rest_draft_apply( WP_REST_Request $request ) {
 			}
 		}
 		if ( ! empty( $clean ) ) {
-			// Append (true) — never clobber existing tags. Creates terms as needed.
+
 			wp_set_post_tags( $post_id, $clean, true );
 			$applied['tags'] = $clean;
 		}
@@ -599,35 +417,22 @@ function openstation_rest_draft_apply( WP_REST_Request $request ) {
 				$cat_ids[]  = (int) $term->term_id;
 				$assigned[] = $cat;
 			} elseif ( $can_create ) {
-				// Only users who can manage categories may create new ones —
-				// mirrors Core, where Authors can assign but not create.
+
 				$new = wp_insert_term( $cat, 'category' );
 				if ( ! is_wp_error( $new ) && isset( $new['term_id'] ) ) {
 					$cat_ids[]  = (int) $new['term_id'];
 					$assigned[] = $cat;
 				}
 			}
-			// Otherwise the category doesn't exist and the user can't create
-			// it — skip it silently rather than assigning nothing.
+
 		}
 		if ( ! empty( $cat_ids ) ) {
-			// Append (true) — keep any categories already on the post.
+
 			wp_set_post_categories( $post_id, $cat_ids, true );
 			$applied['categories'] = $assigned;
 		}
 	}
 
-	/**
-	 * Fires after a draft suggestion has been written onto a post.
-	 *
-	 * `$applied` holds only the fields that actually changed — an empty
-	 * array means the request was a no-op (e.g. an unknown category the
-	 * user could not create).
-	 *
-	 * @param int     $post_id Post that was updated.
-	 * @param array   $applied Fields written: { title?, excerpt?, tags?, categories? }.
-	 * @param WP_Post $post    The post as it was before the update.
-	 */
 	do_action( 'openstation_drafts_suggestion_applied', $post_id, $applied, $post );
 
 	return new WP_REST_Response( array( 'applied' => $applied ), 200 );

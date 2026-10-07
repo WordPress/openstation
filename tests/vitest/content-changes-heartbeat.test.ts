@@ -1,8 +1,3 @@
-/**
- * Tests for the content-changes Heartbeat catch-all: handshake
- * semantics, re-broadcast fan-out, high-water-mark advance, and
- * malformed-entry hygiene.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	bootHeartbeatBus,
@@ -128,7 +123,6 @@ describe( 'content-changes heartbeat', () => {
 		tick( handlers, block );
 		expect( seen ).toHaveBeenCalledTimes( 1 );
 
-		// The same block on the next tick is stale — seenTs advanced.
 		tick( handlers, block );
 		expect( seen ).toHaveBeenCalledTimes( 1 );
 		expect( sentSeenTs( handlers ) ).toBe( 3000 );

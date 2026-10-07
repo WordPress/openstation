@@ -1,60 +1,11 @@
 <?php
-/**
- * OpenStation — stored-files store (real per-user file storage).
- *
- * Backs the `upload` file type. One row per uploaded file in
- * `{$wpdb->prefix}desktop_mode_stored_files`; the bytes live flat on
- * disk under `uploads/desktop-mode-files/<owner_id>/<disk_name>`.
- *
- * Layout invariants (the security model depends on all three):
- *
- *   1. `disk_name` is a server-generated UUID with NO extension —
- *      user input never composes a disk path, and a direct hit on
- *      an unprotected server yields opaque bytes, not something a
- *      PHP handler would execute.
- *   2. The storage base is protected by `.htaccess` (both Apache
- *      2.2 and 2.4 syntaxes) + an empty `index.php`. nginx ignores
- *      `.htaccess`; the documented `deny all` location snippet plus
- *      invariants 1 and 3 are the floor there.
- *   3. Bytes are only ever served through the authenticated
- *      download endpoint (`includes/desktop-files/downloads.php`)
- *      with `Content-Disposition: attachment` + nosniff.
- *
- * Deletion contract — the deliberate exception to the desktop-files
- * "references, not copies" rule: for `upload` placements the
- * placement OWNS the entity. Soft-trash keeps the bytes; when the
- * owner's last placement of a file is permanently removed, the row,
- * the bytes, and every recipient placement are purged (see
- * {@see openstation_stored_files_handle_unplaced()}).
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Absolute path of the storage base dir (no trailing slash), or of
- * a user's subdirectory when `$user_id` is given. Purely a path
- * computation — nothing is created; see
- * {@see openstation_stored_files_ensure_dir()}.
- *
- * The `desktop-mode-files` segment is the pre-rebrand spelling and is
- * frozen: users' uploaded bytes already live there. Renaming it points
- * the plugin at an empty directory while every stored file stays on
- * disk, unreachable. The mismatch with the function name is deliberate.
- *
- * @param int $user_id Optional. Owner whose subdirectory to return.
- * @return string
- */
 function openstation_stored_files_dir( $user_id = 0 ) {
 	$uploads = wp_get_upload_dir();
 	$base    = trailingslashit( $uploads['basedir'] ) . 'desktop-mode-files';
-	/**
-	 * Filters the storage base directory. Sites that can write
-	 * outside the webroot can point this somewhere safer entirely.
-	 *
-	 * @param string $base Absolute path, no trailing slash.
-	 */
+
 	$base = (string) apply_filters( 'openstation_stored_files_base_dir', $base );
 	if ( (int) $user_id > 0 ) {
 		return $base . '/' . (int) $user_id;
@@ -62,14 +13,6 @@ function openstation_stored_files_dir( $user_id = 0 ) {
 	return $base;
 }
 
-/**
- * Create (idempotently) the storage base + per-user dir and drop
- * the protection files into the base. Returns the user dir path or
- * a `WP_Error` when the filesystem refuses.
- *
- * @param int $user_id Owner.
- * @return string|WP_Error
- */
 function openstation_stored_files_ensure_dir( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
@@ -81,12 +24,6 @@ function openstation_stored_files_ensure_dir( $user_id ) {
 		return new WP_Error( 'openstation_stored_files_mkdir_failed', __( 'Could not create the storage directory.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
-	// Protection files in the base. `Require all denied` alone 500s
-	// on Apache 2.2 and `Deny from all` alone is ignored on pure
-	// 2.4 — the IfModule guards make one file serve both. nginx
-	// ignores all of this; extensionless UUID names + PHP-gated
-	// serving are the floor there (documented in
-	// docs/files-on-desktop.md along with a `deny all` snippet).
 	$htaccess = $base . '/.htaccess';
 	if ( ! file_exists( $htaccess ) ) {
 		$rules = "Options -Indexes\n"
@@ -97,39 +34,22 @@ function openstation_stored_files_ensure_dir( $user_id ) {
 			. "\tOrder deny,allow\n"
 			. "\tDeny from all\n"
 			. "</IfModule>\n";
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
 		file_put_contents( $htaccess, $rules );
 	}
 	foreach ( array( $base . '/index.php', $dir . '/index.php' ) as $index ) {
 		if ( ! file_exists( $index ) ) {
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
 			file_put_contents( $index, "<?php // Silence is golden.\n" );
 		}
 	}
 	return $dir;
 }
 
-/**
- * Whether `$disk_name` is a well-formed server-generated name
- * (UUID v4, dashes allowed, no dots or separators — nothing a
- * traversal could ride on).
- *
- * @param string $disk_name Candidate.
- * @return bool
- */
 function openstation_stored_files_valid_disk_name( $disk_name ) {
 	return (bool) preg_match( '/^[a-f0-9-]{16,64}$/', (string) $disk_name );
 }
 
-/**
- * Absolute path of a stored file's bytes, with containment guard.
- * Returns `null` when the row/disk name is malformed or the
- * resolved path escapes the storage base (defense in depth — the
- * disk-name regex should already make escape impossible).
- *
- * @param array $row Normalized stored-file row.
- * @return string|null
- */
 function openstation_stored_file_path( $row ) {
 	if ( ! is_array( $row ) || empty( $row['owner_id'] ) || empty( $row['disk_name'] ) ) {
 		return null;
@@ -140,13 +60,10 @@ function openstation_stored_file_path( $row ) {
 	$base = openstation_stored_files_dir();
 	$path = openstation_stored_files_dir( (int) $row['owner_id'] ) . '/' . $row['disk_name'];
 
-	// realpath() fails on not-yet-existing leaves; canonicalize the
-	// parent instead and re-attach the (regex-validated) leaf.
 	$real_parent = realpath( dirname( $path ) );
 	$real_base   = realpath( $base );
 	if ( false === $real_parent || false === $real_base ) {
-		// Parent doesn't exist yet (nothing uploaded) — path is
-		// structurally safe per the regex; return as computed.
+
 		return $path;
 	}
 	if ( 0 !== strpos( $real_parent . '/', $real_base . '/' ) ) {
@@ -155,14 +72,6 @@ function openstation_stored_file_path( $row ) {
 	return $real_parent . '/' . $row['disk_name'];
 }
 
-/**
- * Insert a stored-file row for bytes ALREADY on disk (the REST
- * intake moves them there via `wp_handle_upload()` first).
- *
- * @param int   $owner_id Owner.
- * @param array $args     `display_name`, `disk_name`, `size_bytes`, `mime`.
- * @return int|WP_Error Row id.
- */
 function openstation_stored_files_create( $owner_id, $args ) {
 	$id = openstation_stored_files_locked(
 		static function () use ( $owner_id, $args ) {
@@ -170,27 +79,13 @@ function openstation_stored_files_create( $owner_id, $args ) {
 		}
 	);
 	if ( ! is_wp_error( $id ) ) {
-		/**
-		 * Fires after a stored-file row is created (bytes are already
-		 * on disk at this point).
-		 *
-		 * @param int $id       Stored-file id.
-		 * @param int $owner_id Owner.
-		 */
+
 		do_action( 'openstation_stored_file_created', $id, (int) $owner_id );
 
 	}
 	return $id;
 }
 
-/**
- * Insert a stored-file row while holding the reconciliation lock.
- *
- * @internal
- * @param int   $owner_id Owner.
- * @param array $args Stored-file attributes.
- * @return int|WP_Error
- */
 function openstation_stored_files_create_locked( $owner_id, $args ) {
 	global $wpdb;
 	$owner_id = (int) $owner_id;
@@ -237,12 +132,6 @@ function openstation_stored_files_create_locked( $owner_id, $args ) {
 	return $id;
 }
 
-/**
- * Read one stored-file row.
- *
- * @param int $file_id Row id.
- * @return array|null
- */
 function openstation_stored_files_get( $file_id ) {
 	global $wpdb;
 	$file_id = (int) $file_id;
@@ -260,14 +149,6 @@ function openstation_stored_files_get( $file_id ) {
 	return openstation_stored_files_normalize_row( $row );
 }
 
-/**
- * Coerce wpdb's stringly-typed row. Internal helper.
- *
- * @internal
- *
- * @param array $row Raw wpdb row.
- * @return array
- */
 function openstation_stored_files_normalize_row( $row ) {
 	return array(
 		'id'            => (int) $row['id'],
@@ -281,15 +162,6 @@ function openstation_stored_files_normalize_row( $row ) {
 	);
 }
 
-/**
- * Rename the display name. The caller enforces WHO may rename
- * (owner-only — see the store gate in `store.php`); this only
- * validates and writes.
- *
- * @param int    $file_id Row id.
- * @param string $name    New display name.
- * @return true|WP_Error
- */
 function openstation_stored_files_rename( $file_id, $name ) {
 	global $wpdb;
 	$row = openstation_stored_files_get( $file_id );
@@ -313,10 +185,6 @@ function openstation_stored_files_rename( $file_id, $name ) {
 		array( '%d' )
 	);
 
-	// Bump every placement pointing at the file so the heartbeat
-	// re-delivers each with a fresh `file.title` — same lock-step
-	// rule the folder rename uses (tile titles are captured on the
-	// placement shape, not read live).
 	$wpdb->query(
 		$wpdb->prepare(
 			"UPDATE {$tables['placements']} SET updated_at_ms = %d
@@ -327,50 +195,23 @@ function openstation_stored_files_rename( $file_id, $name ) {
 		)
 	);
 
-	/**
-	 * Fires after a stored file is renamed.
-	 *
-	 * @param int    $file_id  Stored-file id.
-	 * @param string $new_name New display name.
-	 * @param string $old_name Previous display name.
-	 */
 	do_action( 'openstation_stored_file_renamed', (int) $row['id'], $name, (string) $row['display_name'] );
 
 	return true;
 }
 
-/**
- * Trash-gate filter (priority 20 — after the folder-share gate):
- * an `upload` placement is trashable ONLY by the stored file's
- * owner. Folder write-collaborators are read + download on
- * uploads; the `canTrash` shape flag, the trash flow, and the
- * recycle-bin drop target all consult this same filter.
- *
- * @param bool  $can     Decision so far.
- * @param int   $user_id Acting user.
- * @param array $row     Placement row.
- * @return bool
- */
 function openstation_stored_files_gate_trash( $can, $user_id, $row ) {
 	if ( ! is_array( $row ) || 'upload' !== (string) ( $row['file_type'] ?? '' ) ) {
 		return $can;
 	}
 	$stored = openstation_stored_files_get( (int) $row['file_ref'] );
 	if ( ! $stored ) {
-		return $can; // Dangling tile — normal rules, so it stays cleanable.
+		return $can;
 	}
 	return (int) $stored['owner_id'] === (int) $user_id;
 }
 add_filter( 'openstation_files_user_can_trash_placement', 'openstation_stored_files_gate_trash', 20, 3 );
 
-/**
- * Delete a stored file: bytes first, then the row. Does NOT touch
- * placements — callers that need the full cascade go through
- * {@see openstation_stored_files_purge()}.
- *
- * @param int $file_id Row id.
- * @return true|WP_Error
- */
 function openstation_stored_files_delete( $file_id ) {
 	global $wpdb;
 	$row = openstation_stored_files_get( $file_id );
@@ -384,25 +225,11 @@ function openstation_stored_files_delete( $file_id ) {
 	$tables = openstation_files_table_names();
 	$wpdb->delete( $tables['stored_files'], array( 'id' => (int) $row['id'] ), array( '%d' ) );
 
-	/**
-	 * Fires after a stored file (row + bytes) is deleted.
-	 *
-	 * @param int   $file_id Stored-file id.
-	 * @param array $row     The row as it was before deletion.
-	 */
 	do_action( 'openstation_stored_file_deleted', (int) $row['id'], $row );
 
 	return true;
 }
 
-/**
- * Full purge: delete the bytes, the row, every remaining placement
- * of the file (each with a tombstone so heartbeat scrubs recipient
- * tiles live), and every `target_type='file'` share row.
- *
- * @param int $file_id Row id.
- * @return true|WP_Error
- */
 function openstation_stored_files_purge( $file_id ) {
 	global $wpdb;
 	$file_id = (int) $file_id;
@@ -412,9 +239,6 @@ function openstation_stored_files_purge( $file_id ) {
 	}
 	$tables = openstation_files_table_names();
 
-	// Remaining placements (trashed included — the file is going
-	// away for good, a recycle-bin restore must not resurrect a
-	// tile pointing at deleted bytes).
 	$placement_ids = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['placements']}
@@ -428,8 +252,6 @@ function openstation_stored_files_purge( $file_id ) {
 		openstation_files_write_tombstone( 'placement', (int) $pid );
 	}
 
-	// File shares (target_type='file'). The shares table keys the
-	// target id on the historically-named `folder_id` column.
 	$wpdb->delete(
 		$tables['shares'],
 		array(
@@ -442,12 +264,6 @@ function openstation_stored_files_purge( $file_id ) {
 	return openstation_stored_files_delete( $file_id );
 }
 
-/**
- * Sum of stored bytes for one owner.
- *
- * @param int $owner_id Owner.
- * @return int
- */
 function openstation_stored_files_total_bytes( $owner_id ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
@@ -459,55 +275,16 @@ function openstation_stored_files_total_bytes( $owner_id ) {
 	);
 }
 
-/**
- * Per-user quota in bytes. 0 = unlimited (the default). Sites
- * enforce a cap via the filter; the REST intake consults this
- * before accepting a new file.
- *
- * @param int $user_id User.
- * @return int
- */
 function openstation_stored_files_user_quota_bytes( $user_id ) {
-	/**
-	 * Filters the per-user storage quota in bytes. Return 0 for
-	 * unlimited.
-	 *
-	 * @param int $quota   Quota in bytes. Default 0 (unlimited).
-	 * @param int $user_id User being checked.
-	 */
+
 	return max( 0, (int) apply_filters( 'openstation_stored_files_user_quota_bytes', 0, (int) $user_id ) );
 }
 
-/**
- * Capability required to upload. Defaults to WordPress's own
- * `upload_files`; sites that want desktop storage for lower-cap
- * roles loosen via the filter.
- *
- * @return string
- */
 function openstation_stored_files_upload_capability() {
-	/**
-	 * Filters the capability required to upload desktop files.
-	 *
-	 * @param string $capability Default 'upload_files'.
-	 */
+
 	return (string) apply_filters( 'openstation_stored_files_upload_capability', 'upload_files' );
 }
 
-/**
- * Access resolver: can `$user_id` read (view / download) this
- * stored file?
- *
- *   - The owner always can.
- *   - A user with an accepted `target_type='file'` share can.
- *   - A user with at least read capability on any folder that
- *     contains a live placement of the file can (shared-folder
- *     contents are visible to the folder's audience).
- *
- * @param int $file_id Stored-file id.
- * @param int $user_id Viewer.
- * @return bool
- */
 function openstation_stored_file_user_can_read( $file_id, $user_id ) {
 	global $wpdb;
 	$file_id = (int) $file_id;
@@ -523,14 +300,12 @@ function openstation_stored_file_user_can_read( $file_id, $user_id ) {
 		return true;
 	}
 
-	// Accepted direct file share.
 	if ( function_exists( 'openstation_stored_file_share_state' ) ) {
 		if ( 'accepted' === openstation_stored_file_share_state( $file_id, $user_id ) ) {
 			return true;
 		}
 	}
 
-	// Read+ capability on a folder containing a live placement.
 	$tables  = openstation_files_table_names();
 	$parents = $wpdb->get_col(
 		$wpdb->prepare(
@@ -550,32 +325,9 @@ function openstation_stored_file_user_can_read( $file_id, $user_id ) {
 		}
 	}
 
-	/**
-	 * Last-mile override for stored-file read access. Plugins with
-	 * their own sharing concepts can widen (or veto) here.
-	 *
-	 * @param bool  $can     Resolved decision so far (false).
-	 * @param int   $file_id Stored-file id.
-	 * @param int   $user_id Viewer.
-	 * @param array $row     Stored-file row.
-	 */
 	return (bool) apply_filters( 'openstation_stored_file_can_read', false, $file_id, $user_id, $row );
 }
 
-/**
- * Placement-removal listener — the deletion contract.
- *
- * When an `upload` placement is PERMANENTLY removed and the row's
- * owner is the stored file's owner, check whether the owner has any
- * placement of the file left (trashed ones count — they can be
- * restored). If none remain, the file is unreachable for its owner:
- * purge bytes, row, shares, and every recipient placement.
- *
- * Recipient placements going away never delete bytes.
- *
- * @param int   $placement_id Removed placement id.
- * @param array $row          The removed row.
- */
 function openstation_stored_files_handle_unplaced( $placement_id, $row ) {
 	global $wpdb;
 	if ( ! is_array( $row ) || 'upload' !== (string) ( $row['file_type'] ?? '' ) ) {
@@ -587,7 +339,7 @@ function openstation_stored_files_handle_unplaced( $placement_id, $row ) {
 		return;
 	}
 	if ( (int) $row['owner_id'] !== (int) $file['owner_id'] ) {
-		return; // A recipient's tile went away; bytes stay.
+		return;
 	}
 	$tables    = openstation_files_table_names();
 	$remaining = (int) $wpdb->get_var(
@@ -606,14 +358,6 @@ function openstation_stored_files_handle_unplaced( $placement_id, $row ) {
 }
 add_action( 'openstation_file_unplaced', 'openstation_stored_files_handle_unplaced', 10, 2 );
 
-
-
-/**
- * When a WordPress user is deleted, purge their stored files (rows,
- * bytes, shares, recipient placements) and remove their directory.
- *
- * @param int $user_id Deleted user id.
- */
 function openstation_stored_files_handle_deleted_user( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
@@ -633,8 +377,8 @@ function openstation_stored_files_handle_deleted_user( $user_id ) {
 		if ( file_exists( $index ) ) {
 			wp_delete_file( $index );
 		}
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
-		@rmdir( $dir ); // Only succeeds when empty — leftovers are the sweep's job.
+
+		@rmdir( $dir );
 	}
 }
 add_action( 'deleted_user', 'openstation_stored_files_handle_deleted_user' );

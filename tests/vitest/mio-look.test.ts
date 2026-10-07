@@ -1,17 +1,3 @@
-/**
- * The stored Mio look — the shape check every boundary calls.
- *
- * A look crosses four of them (style panel → controller → OS Settings
- * blob → REST → user meta) and can arrive from a hand-edited
- * preference, an older release, or another plugin. What is defended
- * here is the *key set*: nothing outside the whitelist may reach user
- * meta, and in particular nothing that could set a spring constant.
- *
- * Ranges are deliberately NOT defended here — that is
- * `sanitizeMioConfig`'s job, and it runs on everything headed for the
- * simulation whatever route it arrived by. Two validators with
- * overlapping opinions about ranges is how ranges drift apart.
- */
 import { describe, expect, test } from 'vitest';
 import { MIO_DEFAULTS } from '../../src/mio/config';
 import {
@@ -24,8 +10,7 @@ import {
 
 describe( 'sanitizeMioLook', () => {
 	test( 'anything unreadable becomes an empty look', () => {
-		// An empty look means "show me the site's Mio", which is always
-		// a perfectly good Mio. Nothing here may throw.
+
 		for ( const raw of [
 			undefined,
 			null,
@@ -54,8 +39,7 @@ describe( 'sanitizeMioLook', () => {
 	test( 'drops every key outside the whitelist', () => {
 		const look = sanitizeMioLook( {
 			appearance: { glow: 1, notAThing: 5 },
-			// The one that matters: a stored look must never be a route
-			// into the spring constants.
+
 			physics: { shapePreset: 'heart', radialStiffness: 9, pressure: 0 },
 		} );
 		expect( Object.keys( look.appearance ) ).toEqual( [ 'glow' ] );
@@ -77,18 +61,14 @@ describe( 'sanitizeMioLook', () => {
 	} );
 
 	test( 'a partial look stays partial', () => {
-		// Only the keys the user moved are stored, so a site that later
-		// changes its shipped Mio still shows through everywhere they
-		// had no opinion.
+
 		const look = sanitizeMioLook( { appearance: { glow: 1 }, physics: {} } );
 		expect( Object.keys( look.appearance ) ).toHaveLength( 1 );
 		expect( look.appearance ).not.toHaveProperty( 'hueStart' );
 	} );
 
 	test( 'the whitelists match the config they mirror', () => {
-		// A key added to `MioLookPhysics` without being added here would
-		// be a control the panel can move and the account never
-		// remembers.
+
 		for ( const key of LOOK_PHYSICS_KEYS ) {
 			expect( MIO_DEFAULTS.physics ).toHaveProperty( key );
 		}
@@ -111,9 +91,7 @@ describe( 'sanitizeMioLook', () => {
 
 describe( 'splitMioLook', () => {
 	test( 'routes a flat bag to the group each key belongs to', () => {
-		// The panel thinks in one bag of "things I may change"; the
-		// simulation is organised as appearance versus physics. The two
-		// share no key names, so the split is unambiguous.
+
 		expect(
 			splitMioLook( {
 				glow: 2,

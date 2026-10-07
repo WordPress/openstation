@@ -1,19 +1,20 @@
 <?php
-/**
- * Plugin Name:       OpenStation — Code Editor
- * Description:       Adds a Monaco-backed Code editor native window to OpenStation for browsing and editing files inside wp-content (capability- and DISALLOW_FILE_EDIT-gated).
- * Version:           0.22.11
- * Requires at least: 6.5
- * Requires PHP:      7.4
- * Requires Plugins:  desktop-mode
- * Author:            OpenStation Contributors
- * License:           GPL-2.0-or-later
- * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       desktop-mode-code-editor
- * Domain Path:       /languages
- *
- * @package OpenStationCodeEditor
- */
+
+<<<'OPENSTATION_PLUGIN_METADATA'
+Plugin Name:       OpenStation — Code Editor
+Description:       Adds a Monaco-backed Code editor native window to OpenStation for browsing and editing files inside wp-content (capability- and DISALLOW_FILE_EDIT-gated).
+Version:           0.22.11
+Requires at least: 6.5
+Requires PHP:      7.4
+Requires Plugins:  desktop-mode
+Author:            OpenStation Contributors
+License:           GPL-2.0-or-later
+License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain:       desktop-mode-code-editor
+Domain Path:       /languages
+
+@package OpenStationCodeEditor
+OPENSTATION_PLUGIN_METADATA;
 
 defined( 'ABSPATH' ) || exit;
 

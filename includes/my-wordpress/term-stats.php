@@ -1,41 +1,7 @@
 <?php
-/**
- * OpenStation — My WordPress: per-term stats endpoint.
- *
- * `GET /desktop-mode/v1/term-stats/<taxonomy>/<id>` returns an
- * aggregated profile for a single category or tag — counts, recent
- * posts in the term, top authors, co-occurring terms, 12-month
- * activity sparkline, milestones. Powers the right preview pane in
- * the My WordPress folder when a term is selected.
- *
- * Permissions: the My WordPress module's gate,
- * `openstation_my_wordpress_user_can_use()` (`edit_posts` unless a site
- * filters it), so a site that narrows WP Explorer narrows this data
- * with it. Terms are public-facing data and author archives are
- * public, so the term row and its top authors are no new disclosure to
- * anyone past that gate.
- *
- * That reasoning covers the term row and the aggregates over its
- * *published* posts; it does not carry to the unpublished posts inside
- * the term, nor to terms of a non-viewable taxonomy. So hidden
- * taxonomies answer 400 unless the caller can manage their terms,
- * every post-level query is scoped to the statuses the caller may
- * read — resolved from each status's registered visibility flags and
- * the post type's cap map, plus the caller's own posts — and the
- * recent list is gated per row with `read_post`. Otherwise a
- * subscriber could read an administrator's private and draft post
- * titles, authors and dates, and the per-status counts would leak how
- * many hidden posts a term holds. The readable-status clause is built
- * in the callback, right above the queries that splice it in.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the route.
- */
 function openstation_my_wordpress_register_term_stats_route() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -44,9 +10,7 @@ function openstation_my_wordpress_register_term_stats_route() {
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_my_wordpress_term_stats_callback',
 			'permission_callback' => static function () {
-				// The module's gate, so a site that narrows WP Explorer
-				// narrows this data with it. The per-viewer scoping lives
-				// in the callback, which in-process callers invoke directly.
+
 				return openstation_my_wordpress_user_can_use();
 			},
 			'args'                => array(
@@ -66,23 +30,13 @@ function openstation_my_wordpress_register_term_stats_route() {
 }
 add_action( 'rest_api_init', 'openstation_my_wordpress_register_term_stats_route' );
 
-/**
- * Aggregator callback. See file docblock for return shape.
- *
- * @param WP_REST_Request $request REST request.
- * @return array|WP_Error
- */
 function openstation_my_wordpress_term_stats_callback( $request ) {
 	global $wpdb;
 	$taxonomy = sanitize_key( (string) $request->get_param( 'taxonomy' ) );
 	$term_id  = (int) $request->get_param( 'id' );
 
 	$tax_obj = get_taxonomy( $taxonomy );
-	// A registered-but-hidden taxonomy (nav_menu, link_category, a
-	// plugin's internal one) is not public-facing data the way
-	// categories and tags are, so the file docblock's `read` reasoning
-	// does not cover it: answer exactly as if it were unregistered
-	// unless the caller can manage its terms.
+
 	if ( ! $tax_obj || ( ! is_taxonomy_viewable( $tax_obj ) && ! current_user_can( $tax_obj->cap->manage_terms ) ) ) {
 		return new WP_Error(
 			'openstation_invalid_taxonomy',
@@ -100,7 +54,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		);
 	}
 
-	// ----- Profile -----------------------------------------------------
 	$profile = array(
 		'id'            => (int) $term->term_id,
 		'name'          => openstation_plain_text_title( $term->name ),
@@ -114,7 +67,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 			? ''
 			: (string) get_term_link( $term ),
 		'parent'        => (int) $term->parent,
-		'storedCount'   => (int) $term->count, // core's published-only count
+		'storedCount'   => (int) $term->count,
 	);
 	if ( $term->parent > 0 ) {
 		$parent = get_term( $term->parent, $taxonomy );
@@ -125,29 +78,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 
 	$tt_id = (int) $term->term_taxonomy_id;
 
-	// Every query below that can touch unpublished posts is scoped to
-	// the statuses the caller may read (the remaining aggregates are
-	// publish-only). The endpoint gates on the term (public), but the
-	// posts inside it are not: without this, a subscriber gets the
-	// titles, authors and dates of administrator-owned drafts/private
-	// posts, and the per-status counts become an oracle for content
-	// they cannot see.
-	//
-	// The sets come from the registered status objects, so a plugin's
-	// custom status follows its own visibility flags: public statuses
-	// for everyone; private-flagged ones with the post type's
-	// read_private_posts; the remaining non-internal statuses (draft,
-	// pending, future and any registered workflow status — trash and
-	// auto-draft are internal) with edit_others_posts, because core
-	// maps reading them to editing them, plus edit_published_posts for
-	// a scheduled post, mirroring map_meta_cap(); and the caller's own
-	// posts in any of those statuses, since core grants an author read
-	// on their own post whatever its status. The clause is a close
-	// approximation of read_post used where a per-row gate is
-	// impossible (the counts); the recent list re-checks read_post per
-	// row as the authoritative gate. It is built inline, from literal
-	// %s/%d placeholder lists only, so its values are visibly bound
-	// through prepare() at both use sites.
 	$type          = get_post_type_object( 'post' );
 	$statuses      = array_values( get_post_stati( array( 'public' => true ) ) );
 	$private_stati = array_values( get_post_stati( array( 'private' => true ) ) );
@@ -184,9 +114,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		$status_args   = array_merge( $status_args, array( $user_id ), $own );
 	}
 
-	// ----- Counts ------------------------------------------------------
-	// Post-status breakdown, restricted to the readable set so the
-	// counts never reveal how many hidden posts a term holds.
 	$status_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT p.post_status, COUNT(DISTINCT p.ID) AS n
@@ -217,7 +144,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		}
 	}
 
-	// Comments on posts in this term (approved only).
 	$comments_received = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(c.comment_ID)
@@ -231,7 +157,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		)
 	);
 
-	// Distinct authors using this term.
 	$distinct_authors = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT( DISTINCT p.post_author )
@@ -249,12 +174,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		'distinctAuthors'  => $distinct_authors,
 	);
 
-	// ----- Recent posts (5 most recent the caller may read) ------------
-	// The clause narrows the pool to readable statuses; the per-row
-	// read_post gate below is authoritative (it resolves the exact meta
-	// cap per post, and it is the hook where membership plugins restrict
-	// even published posts). Fetch headroom past 5 because the gate may
-	// drop rows the coarse clause admitted.
 	$recent_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DISTINCT p.ID, p.post_title, p.post_date_gmt, p.post_status, p.post_type, p.post_author
@@ -271,8 +190,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	);
 	$recent      = array();
 	if ( $recent_rows ) {
-		// Bulk-warm the post cache — the read_post checks,
-		// get_the_title() and get_permalink() below all read from it.
+
 		_prime_post_caches( array_map( 'intval', wp_list_pluck( $recent_rows, 'ID' ) ), false, false );
 	}
 	foreach ( (array) $recent_rows as $row ) {
@@ -303,7 +221,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		}
 	}
 
-	// ----- Top authors (most posts in this term) -----------------------
 	$top_author_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT p.post_author, COUNT( DISTINCT p.ID ) AS n
@@ -334,7 +251,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		);
 	}
 
-	// ----- Co-occurring terms (most frequent siblings in same tax) -----
 	$co_term_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT t.term_id, t.name, t.slug, COUNT(*) AS n
@@ -366,7 +282,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		);
 	}
 
-	// ----- 12-month activity sparkline ---------------------------------
 	$activity_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE_FORMAT( p.post_date_gmt, '%%Y-%%m' ) AS ym, COUNT( DISTINCT p.ID ) AS n
@@ -390,7 +305,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		);
 	}
 
-	// ----- First & last post in this term ------------------------------
 	$first_post_date = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MIN( p.post_date_gmt )
@@ -428,14 +342,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		'milestones' => $milestones,
 	);
 
-	/**
-	 * Filter the per-term stats payload before it returns to the
-	 * My WordPress folder window.
-	 *
-	 * @param array  $payload  Stats payload.
-	 * @param string $taxonomy Taxonomy slug.
-	 * @param int    $term_id  Term id.
-	 */
 	return apply_filters(
 		'openstation_my_wordpress_term_stats',
 		$payload,

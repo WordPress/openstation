@@ -1,9 +1,3 @@
-/**
- * Pins the contract for `joinRestUrl`.
- *
- * Both permalink shapes must round-trip through the helper without
- * dropping or doubling query separators.
- */
 import { describe, expect, test } from 'vitest';
 import { joinRestUrl } from '../../src/rest-url';
 

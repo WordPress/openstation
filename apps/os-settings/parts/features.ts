@@ -1,41 +1,15 @@
-/**
- * Features — the per-user opt-ins, the betas, and (for an admin) the
- * site-wide Extended Options.
- *
- * Per-user switches write the store. The three surfaces that are
- * SERVER truth rather than a preference — Extended Options, the intro
- * reset, the folder-sharing purge — are app actions: PHP does the
- * write, `data()` comes back with the new facts, and the ones that
- * gated a server-side registration spend the `refresh_menu` effect so
- * the shell learns what the server would now register without an F5.
- */
-
 import { __, html, sprintf } from '@openstation/app';
 import { doAction, HOOKS } from '../../../src/hooks';
 import { isMobileStamped } from '../../../src/mode/stamp';
 import { openAdminUrl, shellConfig, spendMenuRefresh, update } from './store';
 import { pickedChecked, pickedValue, uiOf, type Ctx, type ExtendedOptions, type Section } from './types';
 
-/** Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere. */
 const SHORTCUT_KEY =
 	typeof navigator !== 'undefined' &&
 	/Mac|iPhone|iPad|iPod/i.test( navigator.platform || navigator.userAgent || '' )
 		? '⌘K'
 		: 'Ctrl+K';
 
-/**
- * Developer mode gates SERVER-side registrations (Code Blue's native
- * window + desktop icon), which the shell only learns about from a
- * fresh menu payload. Wait for the debounced settings sync to actually
- * persist (the `saved` lifecycle phase — the refresh probe rebuilds
- * the payload from saved user meta, so firing earlier would harvest
- * the old state), then spend one refresh. On `failed` the store has
- * already rolled the toggle back; nothing to refresh.
- *
- * One permanent listener + a pending flag rather than a self-removing
- * listener per toggle: the sync debounce collapses rapid flips into
- * ONE `saved` event, and the flag collapses them into ONE probe.
- */
 let pendingRegistrationRefresh = false;
 
 document.addEventListener( 'os-settings-save-lifecycle', ( event ) => {
@@ -52,7 +26,6 @@ document.addEventListener( 'os-settings-save-lifecycle', ( event ) => {
 	}
 } );
 
-/** A checkbox row: the label, the switch, and the sentence under it. */
 const item = ( label: string, checked: boolean, onToggle: ( e: Event ) => void, hint: string, disabled = false, extra: unknown = '' ) => html`
 	<div class="os-features__item">
 		<os-checkbox-label
@@ -66,7 +39,6 @@ const item = ( label: string, checked: boolean, onToggle: ( e: Event ) => void, 
 	</div>
 `;
 
-/** The "needs a provider" notice, linking to Settings → Connectors. */
 const providerNotice = ( connectorsUrl: string ) => html`
 	<os-notice tone="warning" not-dismissible>
 		${ __( 'This feature requires an AI provider configured in' ) }
@@ -90,35 +62,16 @@ async function resetIntros( ctx: Ctx ): Promise< void > {
 	ui.resetting = true;
 	ctx.repaint();
 	if ( await ctx.dispatch( 'reset-intros' ) ) {
-		// Broadcast so already-loaded bundles that cache their own
-		// dismissed-dialog state can invalidate it without an F5.
 		document.dispatchEvent( new CustomEvent( 'os-intros-reset' ) );
 	}
 	ui.resetting = false;
 	ctx.repaint();
 }
 
-/**
- * "Take the tour": the shell's tour loader listens for this event and
- * starts (or restarts) the first-boot coachmarks. No state here — the
- * tour is not the Preferences window's to run, only to ask for.
- *
- * The row is not offered on the phone layer: the tour is about the
- * desk (a rail, windows side by side, a snap), the loader declines to
- * start it there, and a button that does nothing is worse than none.
- */
 function startShellTour(): void {
 	document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );
 }
 
-/**
- * Keep the page config's AI mirrors in step with the server facts
- * `data()` carries — after every paint, because the `focus` lifecycle
- * action re-probes them whenever the window regains focus, which is
- * how the toggle un-gates after the user connects a provider in
- * Settings → Connectors without a reload. A change lets the shell
- * re-gate the ⌘K palette and its admin-bar icon.
- */
 export function syncShellMirrors( ctx: Ctx ): void {
 	const cfg = shellConfig();
 	const ai = ctx.data.aiAssistant;
@@ -133,8 +86,6 @@ export function syncShellMirrors( ctx: Ctx ): void {
 	}
 }
 
-// ---------------------------------------------------------- sections
-
 const featuresSection: Section = ( s, ctx ) => {
 	const { aiAssistant, isAdmin } = ctx.data;
 	const ui = uiOf( ctx ).features;
@@ -144,22 +95,17 @@ const featuresSection: Section = ( s, ctx ) => {
 			return;
 		}
 		update( { heartbeatRate: next as 15 | 30 | 45 | 60 } );
-		// Tell WordPress to use the closest matching speed bucket right
-		// now — Core only accepts 'standard' / 'slow' (15 / 60). Exact
-		// 30 / 45 take effect on the next page load via the
-		// `heartbeat_settings` PHP filter.
+
 		try {
 			const wp = ( window as unknown as {
 				wp?: { heartbeat?: { interval?: ( speed: string ) => void } };
 			} ).wp;
 			wp?.heartbeat?.interval?.( next >= 60 ? 'slow' : 'standard' );
 		} catch {
-			// Non-fatal — the server filter still applies on reload.
+
 		}
 	};
-	// No heading. The page title above already says "Features", and
-	// its description already covers the per-account,
-	// takes-effect-immediately point that used to open this section.
+
 	return html`
 		<os-section
 			heading=""
@@ -171,7 +117,7 @@ const featuresSection: Section = ( s, ctx ) => {
 					s.ai.enabled,
 					( e ) => update( { ai: { ...s.ai, enabled: pickedChecked( e ) } } ),
 					sprintf(
-						/* translators: %s: keyboard shortcut, e.g. ⌘K or Ctrl+K */
+
 						__( 'Adds an AI mode to the %s command palette: find content and ask about your site.' ),
 						SHORTCUT_KEY,
 					),
@@ -296,13 +242,7 @@ const featuresSection: Section = ( s, ctx ) => {
 	`;
 };
 
-/** The beta switches: one row per opt-in native window. */
 const betaSection: Section = ( s ) => {
-	// A native window can put rows in its menu that wp-admin has no
-	// screen for — Pages' atlas — so flipping one of these changes
-	// what the server would register, and the payload the save
-	// request was built from already said otherwise. Spend a refresh,
-	// the way the developer-mode toggle does.
 	const beta = ( key: keyof typeof s & string, label: string, hint: string ) =>
 		item(
 			label,
@@ -353,15 +293,6 @@ const betaSection: Section = ( s ) => {
 	`;
 };
 
-/**
- * Save the site-wide options through the `extended` action. The
- * server merges over the stored set, spends a menu refresh (every
- * registration option gates server-side features — `games` decides
- * whether the games module loads at all), and comes back with the
- * saved set; the announcement lets every window already on screen
- * reconcile against it.
- */
-/** Active save count to keep the saving state accurate across overlapping dispatches. */
 let inFlightExtendedSaves = 0;
 
 async function saveExtended( ctx: Ctx, options: ExtendedOptions ): Promise< void > {
@@ -379,8 +310,7 @@ async function saveExtended( ctx: Ctx, options: ExtendedOptions ): Promise< void
 			try {
 				doAction( HOOKS.EXTENDED_OPTIONS_CHANGED, { options: ctx.data.extendedOptions } );
 			} catch {
-				// A surface that fails to reconcile is its own problem; the
-				// option is saved either way.
+
 			}
 		} else if ( ! ok ) {
 			ui.extendedError = __( 'The options could not be saved.' );
@@ -392,7 +322,6 @@ async function saveExtended( ctx: Ctx, options: ExtendedOptions ): Promise< void
 	}
 }
 
-/** Admin-only, platform-wide toggles — stored in `wp_options`. */
 const extendedSection: Section = ( _s, ctx ) => {
 	const options = ctx.data.extendedOptions;
 	if ( ! options ) {
@@ -447,7 +376,6 @@ const extendedSection: Section = ( _s, ctx ) => {
 	`;
 };
 
-/** The Features page, top to bottom. */
 export const renderFeatures: Section = ( s, ctx ) => html`
 	${ featuresSection( s, ctx ) }
 	${ betaSection( s, ctx ) }

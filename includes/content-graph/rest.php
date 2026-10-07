@@ -1,41 +1,11 @@
 <?php
-/**
- * OpenStation — Content Graph: REST routes.
- *
- * Three endpoints under `desktop-mode/v1/content-graph`:
- *
- *   GET /post-types
- *     Lists the types eligible for the graph (`slug`, `label`, `icon`,
- *     `count`, `taxonomies`).
- *
- *   GET /nodes?types=post,page,...
- *     Returns the full `{ nodes, edges, groups, stats }` tuple. Cached
- *     server-side, see graph-builder.php. `types` omitted means every
- *     registered type; `types=` (present but empty) means none — the
- *     shell sends the latter when every toolbar chip is off.
- *
- *   GET /post/<id>
- *     Returns the side-panel detail bundle for one post:
- *       { post: {...}, author, contributors, comments, categories,
- *         attached_media, revisions }.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Capability check shared across every endpoint.
- *
- * @return bool
- */
 function openstation_content_graph_rest_permission() {
 	return openstation_content_graph_user_can_use();
 }
 
-/**
- * Register the routes.
- */
 function openstation_content_graph_register_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -54,12 +24,7 @@ function openstation_content_graph_register_routes() {
 			'callback'            => 'openstation_content_graph_rest_nodes',
 			'permission_callback' => 'openstation_content_graph_rest_permission',
 			'args'                => array(
-				// Deliberately no `default`: the dispatcher copies a
-				// registered default into the request before the
-				// callback runs, and `WP_REST_Request::has_param()`
-				// sees it, so a default here would make an omitted
-				// parameter indistinguishable from an explicitly empty
-				// one — and the callback tells those two apart.
+
 				'types' => array(
 					'description' => 'Comma-separated list of post type slugs to include. Omit for every registered type; pass an empty value for none.',
 					'type'        => 'string',
@@ -85,20 +50,12 @@ function openstation_content_graph_register_routes() {
 }
 add_action( 'rest_api_init', 'openstation_content_graph_register_routes' );
 
-/**
- * GET /post-types
- *
- * @return WP_REST_Response
- */
 function openstation_content_graph_rest_post_types() {
 	$types = openstation_content_graph_post_types();
 	$out   = array();
 	foreach ( $types as $entry ) {
 		$slug = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
-		// 'readable' scopes the private bucket to posts the current
-		// user can actually read (others' private posts require the
-		// type's read_private_posts capability), keeping the filter-bar
-		// counts consistent with the rows /nodes returns.
+
 		$counts = $slug ? wp_count_posts( $slug, 'readable' ) : null;
 		$count  = 0;
 		if ( $counts && isset( $counts->publish ) ) {
@@ -118,17 +75,6 @@ function openstation_content_graph_rest_post_types() {
 	return rest_ensure_response( $out );
 }
 
-/**
- * GET /nodes
- *
- * An omitted `types` parameter selects every registered type; a
- * present-but-empty one selects none. The route registers no default
- * for the parameter so the two stay distinguishable through a real
- * dispatch (see the route registration above).
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response
- */
 function openstation_content_graph_rest_nodes( WP_REST_Request $request ) {
 	$raw   = $request->get_param( 'types' );
 	$types = $request->has_param( 'types' )
@@ -138,28 +84,11 @@ function openstation_content_graph_rest_nodes( WP_REST_Request $request ) {
 	return rest_ensure_response( openstation_content_graph_filter_payload_for_user( $payload ) );
 }
 
-/**
- * Strip revision-derived data the current user may not see from a
- * graph payload before it goes out.
- *
- * Revision authorship is edit-level data in core (wp/v2 exposes a
- * post's revisions only behind `edit_post`), so each node's
- * `contributor_ids` — distinct revision authors — are emptied for
- * posts the user cannot `edit_post`. Authors-catalog entries that
- * were referenced only via stripped contributor ids are removed too.
- * This runs at response time, not build time, because the cached
- * payload is shared across users of the same privilege tier.
- *
- * @param array $payload Payload from `openstation_content_graph_build()`.
- * @return array
- */
 function openstation_content_graph_filter_payload_for_user( array $payload ) {
 	if ( empty( $payload['nodes'] ) || ! is_array( $payload['nodes'] ) ) {
 		return $payload;
 	}
 
-	// Bulk-warm the post cache for the cap checks — only nodes that
-	// actually carry contributor ids need an edit_post decision.
 	$check_ids = array();
 	foreach ( $payload['nodes'] as $node ) {
 		if ( ! empty( $node['contributor_ids'] ) && ! empty( $node['id'] ) ) {
@@ -198,12 +127,6 @@ function openstation_content_graph_filter_payload_for_user( array $payload ) {
 	return $payload;
 }
 
-/**
- * GET /post/<id>
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response|WP_Error
- */
 function openstation_content_graph_rest_post_detail( WP_REST_Request $request ) {
 	$id   = (int) $request['id'];
 	$post = $id > 0 ? get_post( $id ) : null;
@@ -222,10 +145,6 @@ function openstation_content_graph_rest_post_detail( WP_REST_Request $request ) 
 		);
 	}
 
-	// Revision history (and the identities of who edited the post) is
-	// edit-level data in core — wp/v2 only exposes revisions behind
-	// edit_post. Mirror that: readers get comment-author contributors
-	// only, no revision list.
 	$can_edit     = current_user_can( 'edit_post', $post->ID );
 	$author       = openstation_content_graph_format_user( (int) $post->post_author );
 	$contributors = openstation_content_graph_collect_contributors( $post, $can_edit );
@@ -257,12 +176,6 @@ function openstation_content_graph_rest_post_detail( WP_REST_Request $request ) 
 	);
 }
 
-/**
- * Format a user record for the side panel.
- *
- * @param int $user_id
- * @return array|null
- */
 function openstation_content_graph_format_user( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
@@ -281,18 +194,6 @@ function openstation_content_graph_format_user( $user_id ) {
 	);
 }
 
-/**
- * Collect contributors: distinct revision authors (excluding the
- * current author) plus distinct comment authors who have a
- * registered user account.
- *
- * @param WP_Post $post
- * @param bool    $include_revision_authors Whether to include revision
- *                authors. Pass false for users who cannot `edit_post`
- *                the post — revision authorship is edit-level data;
- *                approved comment authors are public either way.
- * @return array[]
- */
 function openstation_content_graph_collect_contributors( WP_Post $post, $include_revision_authors = true ) {
 	$author_id = (int) $post->post_author;
 	$ids       = array();
@@ -334,12 +235,6 @@ function openstation_content_graph_collect_contributors( WP_Post $post, $include
 	return $out;
 }
 
-/**
- * Collect approved comments (most recent first, capped at 50).
- *
- * @param WP_Post $post
- * @return array[]
- */
 function openstation_content_graph_collect_comments( WP_Post $post ) {
 	$comments = get_comments(
 		array(
@@ -364,13 +259,6 @@ function openstation_content_graph_collect_comments( WP_Post $post ) {
 	return $out;
 }
 
-/**
- * Collect every taxonomy term attached to the post (categories, tags,
- * and any custom taxonomy registered for the post type).
- *
- * @param WP_Post $post
- * @return array[]
- */
 function openstation_content_graph_collect_terms( WP_Post $post ) {
 	$taxes = get_object_taxonomies( $post->post_type, 'objects' );
 	$out   = array();
@@ -397,13 +285,6 @@ function openstation_content_graph_collect_terms( WP_Post $post ) {
 	return $out;
 }
 
-/**
- * Collect attached media (anything with this post as its `post_parent`)
- * plus any media referenced from a `wp:image` block. Returns up to 50.
- *
- * @param WP_Post $post
- * @return array[]
- */
 function openstation_content_graph_collect_attached_media( WP_Post $post ) {
 	$attachments = get_attached_media( '', $post );
 	$out         = array();
@@ -422,12 +303,6 @@ function openstation_content_graph_collect_attached_media( WP_Post $post ) {
 	return $out;
 }
 
-/**
- * Collect post revisions (most recent first, capped at 30).
- *
- * @param WP_Post $post
- * @return array[]
- */
 function openstation_content_graph_collect_revisions( WP_Post $post ) {
 	$revs = wp_get_post_revisions(
 		$post->ID,

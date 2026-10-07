@@ -1,14 +1,3 @@
-/**
- * `<os-token-field>` — insertion lands at the caret, and the preview
- * is honest about what it doesn't know.
- *
- * The caret is the whole reason this is a component. By the time a
- * token is picked, the field has lost focus to the catalogue and
- * `selectionStart` reads 0, so the naive implementation inserts
- * every token at the very beginning of the value. The tests below
- * pin the remembered-caret behaviour, and the substitution rule that
- * leaves sample-less tokens visible rather than blanking them.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import './os-token-field';
 import type { OsTokenField } from './os-token-field';
@@ -31,7 +20,7 @@ const TOKENS = [
 		token: '{field:2}',
 		sample: 'ada@example.com',
 	},
-	// No sample: resolves somewhere this component can't see.
+
 	{ group: 'Form', label: 'All answers', token: '{all_fields}' },
 ];
 
@@ -84,7 +73,6 @@ describe( '<os-token-field>', () => {
 		el.value = 'Hi , thanks';
 		await tick();
 
-		// Put the caret after "Hi " — where a user would.
 		const input = field( el );
 		input.focus();
 		input.setSelectionRange( 3, 3 );
@@ -172,9 +160,7 @@ describe( '<os-token-field>', () => {
 		const preview = el.shadowRoot!.querySelector(
 			'.os-token-field__preview-body',
 		)!;
-		// The token stays visible — which reads correctly as "this
-		// one resolves somewhere I can't show you", rather than
-		// vanishing and implying it resolves to nothing.
+
 		expect( preview.textContent?.trim() ).toBe(
 			'All of it: {all_fields} for Ada Lovelace',
 		);
@@ -188,7 +174,6 @@ describe( '<os-token-field>', () => {
 			el.shadowRoot!.querySelector( '.os-token-field__preview' ),
 		).toBeNull();
 
-		// Same when the only token present has no sample to show.
 		el.value = 'Only {all_fields}';
 		await tick();
 		expect(
@@ -233,9 +218,7 @@ describe( '<os-token-field>', () => {
 		const el = await mount( 'readonly' );
 		openCatalogue( el );
 		await tick();
-		// The trigger is disabled, so the click is inert — but assert
-		// the state rather than the attribute, since that is what a
-		// user would experience.
+
 		expect( el.hasAttribute( 'open' ) ).toBe( false );
 	} );
 } );

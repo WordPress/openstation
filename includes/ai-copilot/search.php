@@ -1,62 +1,11 @@
 <?php
-/**
- * OpenStation — AI Copilot content search via the provider tool use.
- *
- * Agentic search loop: the user describes something in natural language and
- * the agent calls focused tools, choosing the right one based on query
- * semantics. Built-in tools: four content-search tools — search_posts,
- * search_pages, search_comments, search_comments_by_post — plus
- * list_admin_pages (admin navigation catalog), search_wporg_plugins
- * (WordPress.org plugin directory), and get_php_error_log (error-log
- * tail). Each content-search tool runs WordPress's native search
- * (WP_Query `s=` / get_comments `search=`) for the keywords the model
- * distils from the request, then returns up to 10 matching entities with
- * their real title + content excerpt for the model to compare to the
- * user's description. No AI pre-analysis is required — every published
- * post/page/comment is findable. The built-in tools are WordPress Abilities
- * (see abilities.php); client command tools are advertised alongside them and
- * dispatched by the same loop.
- *
- * Focused tools instead of one routing parameter:
- *   - "I remember a comment where someone said congratulations…" → agent
- *     calls search_comments without needing a routing parameter.
- *   - "I wrote a post about paella in Canarias" → agent calls search_posts.
- *   - "Our About page mentions…" → agent calls search_pages.
- *   - Ambiguous queries → agent tries in priority order (posts → pages →
- *     comments) following the system-prompt guidance.
- *
- * Budget: max OPENSTATION_AI_SEARCH_MAX_ITERATIONS (10) tool-call rounds per
- * request × OPENSTATION_AI_SEARCH_BATCH_SIZE (10) items = up to 100 entities.
- * When the budget is exhausted the response includes a `continue` object
- * the client uses to resume from the exact offset that was last searched.
- *
- * REST endpoint: POST /desktop-mode/v1/ai/search
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Maximum agentic tool-call iterations per search request. */
 const OPENSTATION_AI_SEARCH_MAX_ITERATIONS = 10;
 
-/** Entities fetched per tool-call round. */
 const OPENSTATION_AI_SEARCH_BATCH_SIZE = 10;
 
-/**
- * Returns the catalog of common WordPress admin destinations.
- *
- * Used by the `list_admin_pages` tool. Each entry has a human title, the
- * wp-admin URL (rendered through admin_url() so it respects the site's
- * real admin path), a short description, and a Dashicons icon class the
- * UI can use when opening the URL in a legacy iframe window.
- *
- * Filterable via `openstation_ai_admin_page_catalog` so third-party
- * plugins can contribute their own admin destinations (e.g. a plugin
- * adding a top-level menu can surface its settings page here).
- *
- * @return array[]
- */
 function openstation_ai_get_admin_page_catalog() {
 	$catalog = array(
 		array(
@@ -241,23 +190,9 @@ function openstation_ai_get_admin_page_catalog() {
 		),
 	);
 
-	/**
-	 * Filters the wp-admin page catalog surfaced by the AI assistant.
-	 *
-	 * @param array[] $catalog Array of entries, each with title/url/icon/description.
-	 */
 	return (array) apply_filters( 'openstation_ai_admin_page_catalog', $catalog );
 }
 
-// ---------------------------------------------------------------------------
-// Final-answer JSON Schema
-// ---------------------------------------------------------------------------
-
-/**
- * JSON Schema for the agent's final structured answer.
- *
- * @return array
- */
 function openstation_ai_search_answer_schema() {
 	return array(
 		'type'                 => 'object',
@@ -314,23 +249,6 @@ function openstation_ai_search_answer_schema() {
 	);
 }
 
-// ---------------------------------------------------------------------------
-// DB queries — tool execution
-// ---------------------------------------------------------------------------
-
-/**
- * Routes a tool call to the correct DB query by function name.
- *
- * The content-search tools (`search_posts`, `search_pages`,
- * `search_comments`, `search_comments_by_post`) take a keyword `query`
- * matched with WordPress's native search; `search_comments_by_post`
- * needs an additional `post_id`. The caller passes the full decoded
- * arguments array so this function can extract whatever it needs.
- *
- * @param string $tool_name Tool function name.
- * @param array  $args      Decoded arguments from the model's tool call.
- * @return array Tool result payload.
- */
 function openstation_ai_search_dispatch_tool( $tool_name, array $args ) {
 	$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
 	$query  = isset( $args['query'] ) ? sanitize_text_field( (string) $args['query'] ) : '';
@@ -377,24 +295,6 @@ function openstation_ai_search_dispatch_tool( $tool_name, array $args ) {
 	);
 }
 
-/**
- * Keyword-searches published posts or pages with WordPress's native search
- * (`WP_Query` `s=`), returning data rich enough for the agent to compare
- * AND for the UI to render links.
- *
- * No AI analysis is required — every published, non-password-protected post/page is searchable.
- *
- * Password-protected posts are excluded (`has_password => false`): `publish`
- * is also the status of a password-protected post, and this tool emits the
- * stored body as an excerpt without ever passing through `post_password_required()`.
- * Filtering at the query level keeps them out of both `items` and `found_posts`,
- * so the `total` counter cannot become an oracle for their contents either.
- *
- * @param string $post_type 'post' | 'page'.
- * @param string $query     Keyword search terms (may be empty to list newest).
- * @param int    $offset
- * @return array
- */
 function openstation_ai_search_fetch_posts( $post_type, $query, $offset ) {
 	$wp_query = new WP_Query(
 		array(
@@ -413,15 +313,14 @@ function openstation_ai_search_fetch_posts( $post_type, $query, $offset ) {
 	$items = array();
 	foreach ( $wp_query->posts as $post ) {
 		$items[] = array(
-			// Identity — used to build the final entity detail.
+
 			'id'       => $post->ID,
 			'type'     => $post->post_type,
-			// Comparison data for the model — real title + content excerpt.
+
 			'title'    => wp_strip_all_tags( $post->post_title ),
 			'excerpt'  => openstation_ai_search_excerpt( $post->post_content ),
 			'date'     => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
-			// Links — passed through so the UI can link to the entity
-			// once the agent identifies a match.
+
 			'url'      => (string) get_permalink( $post ),
 			'edit_url' => (string) get_edit_post_link( $post->ID, 'raw' ),
 		);
@@ -441,50 +340,14 @@ function openstation_ai_search_fetch_posts( $post_type, $query, $offset ) {
 	);
 }
 
-/**
- * Trims raw post/comment content into a plain-text excerpt for the model.
- *
- * @param string $content Raw post/comment content.
- * @return string
- */
 function openstation_ai_search_excerpt( $content ) {
 	$text = wp_strip_all_tags( (string) $content );
 	$text = preg_replace( '/\s+/', ' ', trim( $text ) );
 	return (string) mb_substr( $text, 0, 300 );
 }
 
-/**
- * Whether the current user may read a post the comment tools are about to
- * surface.
- *
- * A comment being `approved` is a moderation decision — it says nothing about
- * who may see the discussion. An approved comment can hang on a private,
- * draft, or password-protected post the caller cannot reach, so the comment
- * search tools must gate on the PARENT POST's visibility before returning the
- * comment text or the parent title. Mirrors Core's
- * `WP_REST_Comments_Controller::check_read_post_permission()`:
- *
- * - a password-protected parent needs the password satisfied or `edit_post`.
- *   `post_password_required()` honours the `wp-postpass` cookie Core's
- *   password form sets, and that is deliberate Core parity, not a gap: the
- *   cookie only exists because the caller already entered the correct
- *   password, and Core's comments controller reads the same cookie. The
- *   ability itself has no password input, so a caller who never unlocked
- *   the post front-end is refused;
- * - a publicly viewable parent (public status AND viewable post type) is
- *   readable by anyone the ability admits;
- * - a parent whose post TYPE is not viewable (an internal/admin-only CPT)
- *   needs `edit_post` — `read_post` cannot stand in, because a public status
- *   resolves it to plain `read` whatever the type's visibility, which is how
- *   Core's REST layer needs its own post-type gate too;
- * - any other parent (private, draft, pending, …) needs `read_post`.
- *
- * @param int|WP_Post $post Post ID or object.
- * @return bool
- */
 function openstation_ai_can_read_post( $post ) {
-	// An id of 0 must stay unreadable: get_post( 0 ) falls back to the global
-	// $post, which would judge an orphaned comment against an unrelated post.
+
 	if ( is_numeric( $post ) && (int) $post <= 0 ) {
 		return false;
 	}
@@ -510,15 +373,6 @@ function openstation_ai_can_read_post( $post ) {
 	return current_user_can( 'read_post', $post->ID );
 }
 
-/**
- * Whether the current user may read the post a comment is attached to.
- *
- * Used to drop comments on posts the caller cannot see from the comment
- * search results. See {@see openstation_ai_can_read_post()}.
- *
- * @param int|WP_Comment $comment Comment ID or object.
- * @return bool
- */
 function openstation_ai_can_read_comment_parent( $comment ) {
 	$comment = get_comment( $comment );
 	if ( ! $comment instanceof WP_Comment ) {
@@ -527,16 +381,6 @@ function openstation_ai_can_read_comment_parent( $comment ) {
 	return openstation_ai_can_read_post( (int) $comment->comment_post_ID );
 }
 
-/**
- * Keyword-searches approved comments across all posts with WordPress's
- * native comment search (`get_comments` `search=`).
- *
- * No AI analysis is required — every approved comment is searchable.
- *
- * @param string $query Keyword search terms (may be empty to list newest).
- * @param int    $offset
- * @return array
- */
 function openstation_ai_search_fetch_comments( $query, $offset ) {
 	$base_args = array(
 		'status' => 'approve',
@@ -557,8 +401,6 @@ function openstation_ai_search_fetch_comments( $query, $offset ) {
 
 	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
 
-	// Prime the parent posts in a single query so the per-comment
-	// get_post() calls below are cache hits, not N+1 round-trips.
 	$parent_ids = array_unique(
 		array_map(
 			static function ( $c ) {
@@ -571,36 +413,23 @@ function openstation_ai_search_fetch_comments( $query, $offset ) {
 		_prime_post_caches( $parent_ids, false, false );
 	}
 
-	// "Approved" is a moderation decision, not a visibility one: drop comments
-	// whose parent post the caller cannot read (private / draft / password /
-	// internal CPT), so the comment text and the parent title never leak. See
-	// openstation_ai_can_read_comment_parent().
-	//
-	// This runs per row, after the batch, and that is the price of gating on
-	// per-caller readability: an Administrator reads comments on private
-	// posts and a reader who entered a post password reads that post's
-	// discussion, neither of which a single `post_status` or `has_password`
-	// query var can express. `total` therefore counts rows this caller does
-	// not get, and a batch can come back short. The alternative — a blanket
-	// publish-only, no-password query — would be exact and would also hide
-	// those discussions from the people entitled to them.
 	$comments = array_values( array_filter( $comments, 'openstation_ai_can_read_comment_parent' ) );
 
 	$items = array();
 	foreach ( $comments as $comment ) {
-		// Readable, per the filter above.
+
 		$parent_post  = get_post( $comment->comment_post_ID );
 		$parent_title = wp_strip_all_tags( $parent_post->post_title );
 
 		$items[] = array(
 			'id'          => (int) $comment->comment_ID,
 			'type'        => 'comment',
-			// Comparison data — real comment text + parent post title.
+
 			'post_title'  => $parent_title,
-			// The name the post shows beside the comment, never its email or IP.
+
 			'author_name' => openstation_plain_text_title( get_comment_author( $comment ) ),
 			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content ),
-			// Links.
+
 			'url'         => (string) get_comment_link( $comment ),
 			'edit_url'    => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
 			'post_id'     => (int) $comment->comment_post_ID,
@@ -620,23 +449,6 @@ function openstation_ai_search_fetch_comments( $query, $offset ) {
 	);
 }
 
-// ---------------------------------------------------------------------------
-// Entity detail builder — final REST response
-// ---------------------------------------------------------------------------
-
-/**
- * Keyword-searches approved comments on a specific post.
- *
- * Used by the `search_comments_by_post` tool — the model calls this after
- * identifying a post via `search_posts`, giving it a scoped, precise set of
- * comments to compare against the user's description. An empty `$query`
- * lists the post's comments without keyword filtering.
- *
- * @param int    $post_id The WordPress post ID.
- * @param string $query   Keyword search terms (may be empty).
- * @param int    $offset
- * @return array Tool result payload.
- */
 function openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset ) {
 	$post_id = (int) $post_id;
 
@@ -653,10 +465,6 @@ function openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset
 		);
 	}
 
-	// The model picks the post id, so it is untrusted the same way an entity
-	// id is. Comments inherit their parent's reach: a thread on a private,
-	// draft, password-protected or internal-CPT post is not this user's to
-	// read, and the envelope below would otherwise echo its title back.
 	if ( ! openstation_ai_can_read_post( $post_id ) ) {
 		return array(
 			'tool'     => 'search_comments_by_post',
@@ -690,7 +498,6 @@ function openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset
 
 	$total = (int) get_comments( array_merge( $base_args, array( 'count' => true ) ) );
 
-	// Readable, per the gate above.
 	$parent_post  = get_post( $post_id );
 	$parent_title = wp_strip_all_tags( $parent_post->post_title );
 
@@ -722,48 +529,12 @@ function openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset
 	);
 }
 
-// ---------------------------------------------------------------------------
-// Entity detail builder — final REST response
-// ---------------------------------------------------------------------------
-
-/**
- * Returns the full entity record used in the `entity` field of the REST
- * response. All URLs are included so the UI can render direct links.
- *
- * Built entirely from core post/comment fields — no AI analysis meta is
- * required. Comments opportunistically surface the `spam` / `harmful`
- * verdict when the comment-moderation analysis happens to have run, but
- * its absence never blocks the entity from being returned.
- *
- * The id arrives from the MODEL's final answer, and model output is
- * untrusted — a search turn can be driven by attacker-controlled content, so
- * an injected instruction could name an entity the search tools never
- * surfaced. Hydration therefore re-checks readability itself instead of
- * trusting that the id came out of a filtered tool result: posts/pages go
- * through {@see openstation_ai_can_read_post()}, and so does a comment's
- * PARENT, because the comment record carries that post's title and permalink
- * — approval is a moderation decision, not a visibility one, and an approved
- * comment outlives its post being switched to private or back to draft.
- * Reading an unapproved comment needs `edit_comment`, mirroring Core's
- * `WP_REST_Comments_Controller::check_read_permission()`; the AI moderation
- * verdicts and the wp-admin edit link are narrower still. Unreadable ids
- * resolve to null, indistinguishable from nonexistent ones.
- *
- * @param string $entity_type 'post' | 'page' | 'comment'.
- * @param int    $entity_id
- * @return array|null
- */
 function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 	$entity_id = (int) $entity_id;
 
 	if ( in_array( $entity_type, array( 'post', 'page' ), true ) ) {
 		$post = get_post( $entity_id );
 
-		// The id must resolve to an actual post or page. The gate below answers
-		// type visibility on its own, so this is the contract rather than the
-		// lock: the record's `type` is what the client renders the card from,
-		// and post/page is what the search tools surface. A viewable CPT row
-		// would pass the gate and still have no card to land in.
 		if ( ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
 			return null;
 		}
@@ -787,22 +558,14 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 	if ( 'comment' === $entity_type ) {
 		$comment = get_comment( $entity_id );
 
-		// The parent's reach bounds the comment's: approval is a moderation
-		// decision, not a visibility one, and this record carries the parent's
-		// title and permalink — so without this check, naming a comment id
-		// would walk straight around the post branch's gate above.
 		if ( ! $comment instanceof WP_Comment || ! openstation_ai_can_read_comment_parent( $comment ) ) {
 			return null;
 		}
 
-		// Reading an unapproved comment is an editor's business, per Core's
-		// WP_REST_Comments_Controller::check_read_permission().
 		if ( '1' !== (string) $comment->comment_approved && ! current_user_can( 'edit_comment', $entity_id ) ) {
 			return null;
 		}
 
-		// The AI verdicts are the moderation queue's data, so they follow the
-		// moderation capability rather than the per-comment edit one.
 		$can_moderate = current_user_can( 'moderate_comments' );
 		$parent_post  = get_post( (int) $comment->comment_post_ID );
 
@@ -820,7 +583,6 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 				: '',
 		);
 
-		// Moderation verdicts are for moderators only.
 		if ( $can_moderate ) {
 			$entity['harmful'] = $meta ? (bool) ( $meta['harmful'] ?? false ) : false;
 			$entity['spam']    = $meta ? (bool) ( $meta['spam'] ?? false ) : false;
@@ -832,78 +594,24 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 	return null;
 }
 
-// ---------------------------------------------------------------------------
-// Agentic search loop
-// ---------------------------------------------------------------------------
-
-/**
- * Returns the label for the "keep looking" button on an exhausted search.
- *
- * One full sentence per resumable tool: a noun interpolated into a shared
- * template cannot be translated.
- *
- * @param string $resume_tool Tool the client would resume from.
- * @param int    $from_item   1-based index of the next item to search.
- * @return string
- */
 function openstation_ai_continue_label( $resume_tool, $from_item ) {
 	switch ( $resume_tool ) {
 		case 'search_pages':
-			/* translators: %d: 1-based index of the next page to search. */
+
 			return sprintf( __( 'Continue searching in pages (from item %d)', 'desktop-mode' ), $from_item );
 		case 'search_comments':
-			/* translators: %d: 1-based index of the next comment to search. */
+
 			return sprintf( __( 'Continue searching in comments (from item %d)', 'desktop-mode' ), $from_item );
 		default:
-			/* translators: %d: 1-based index of the next post to search. */
+
 			return sprintf( __( 'Continue searching in posts (from item %d)', 'desktop-mode' ), $from_item );
 	}
 }
 
-/**
- * Returns the tools a client may resume an exhausted search from.
- *
- * Single source of truth for every `resume_tool` allowlist: the REST
- * arg sanitizer and the `$initial_tool` validation inside
- * `openstation_ai_run_search()`. `search_comments_by_post` is
- * deliberately absent: the `continue` payload carries no `post_id`, so
- * it cannot truly resume — exhausted runs map it to `search_comments`
- * when building the `continue` object.
- *
- * @return string[] Tool names.
- */
 function openstation_ai_search_resumable_tools() {
 	return array( 'search_posts', 'search_pages', 'search_comments' );
 }
 
-/**
- * Projects a tool's `parameters` schema onto the provider-supported subset.
- *
- * The Abilities API (and plugin-supplied tools) may use the full breadth of JSON
- * Schema, but the provider's tool-schema validator does not — and it rejects the
- * whole request, not just the offending tool, so ONE tool with a
- * legal-but-unsupported schema makes the entire assistant return a 400 before the
- * model runs. Three shapes that are valid JSON Schema, but rejected here, have
- * been seen in the wild (see the linked issue):
- *
- *   1. `type` as an array, e.g. ['object','null'] — an ability's GET/null
- *      run-path. The provider wants the literal string "object" at the top level.
- *   2. A top-level `oneOf` / `anyOf` / `allOf`, e.g. "post_id OR slug". Rejected
- *      with "does not support oneOf, allOf, or anyOf at the top level".
- *   3. `properties` as an empty PHP array, which encodes to JSON as `[]` where an
- *      object schema needs `{}`.
- *
- * This reshapes only the copy advertised to the model. The ability itself is
- * untouched: `WP_Ability::execute()` still validates arguments against the real
- * schema and `permission_callback` still gates execution, so nothing loses
- * enforcement — the model is simply told the constraint in prose (the tool
- * description) instead of in a schema construct the provider can't parse. Only
- * the TOP level is constrained; a combinator nested inside a property is a real
- * constraint the provider accepts, so it is left intact.
- *
- * @param mixed $schema A tool parameters schema (array), or empty/non-array.
- * @return array A provider-safe object schema for a tool `parameters` block.
- */
 function openstation_ai_normalize_tool_schema( $schema ) {
 	if ( ! is_array( $schema ) || empty( $schema ) ) {
 		return array(
@@ -912,21 +620,12 @@ function openstation_ai_normalize_tool_schema( $schema ) {
 		);
 	}
 
-	// Recursively drop the WordPress-only arg-schema keys
-	// (`sanitize_callback` / `validate_callback` / `arg_options`) —
-	// see the helper's docblock for why this must run at every depth.
 	$schema = openstation_ai_strip_wp_schema_keys( $schema );
 
-	// Top-level tool parameters must be the literal "object", never a union.
 	$schema['type'] = 'object';
 
-	// Strip top-level combinators — the provider rejects them outright, and one
-	// such tool 400s the whole request. Nested combinators are left alone.
 	unset( $schema['oneOf'], $schema['allOf'], $schema['anyOf'] );
 
-	// An empty PHP array encodes as `[]`; an object schema's properties need `{}`.
-	// A schema with no `properties` at all (e.g. one whose only content was a
-	// stripped top-level combinator) gets an empty object for the same reason.
 	if ( ! isset( $schema['properties'] ) || array() === $schema['properties'] ) {
 		$schema['properties'] = (object) array();
 	}
@@ -934,27 +633,6 @@ function openstation_ai_normalize_tool_schema( $schema ) {
 	return $schema;
 }
 
-/**
- * Recursively removes the WordPress-only arg-schema keys from a tool schema.
- *
- * WordPress arg schemas legally extend JSON Schema with PHP-callable keys —
- * `sanitize_callback`, `validate_callback`, and (on meta args) `arg_options`.
- * Abilities registered from REST arg definitions carry them at every property
- * level, and providers that validate tool schemas strictly reject any unknown
- * field ("Invalid JSON payload received. Unknown name \"sanitize_callback\""),
- * 400-ing the whole request over one property.
- *
- * The walk is structure-aware, not a blind key sweep: maps under `properties` /
- * `patternProperties` are keyed by PROPERTY NAME, so a property that happens to
- * be called `sanitize_callback` is preserved — only its schema value is
- * cleaned. Recursion covers every position a subschema can occupy: property
- * values, `items` (single schema or tuple list), array-shaped
- * `additionalProperties`, and nested `oneOf` / `allOf` / `anyOf` branches
- * (which are kept — only the TOP level of the tool schema strips combinators).
- *
- * @param array $schema A tool parameters (sub)schema.
- * @return array The schema without WP-only keys, at any depth.
- */
 function openstation_ai_strip_wp_schema_keys( array $schema ) {
 	unset( $schema['sanitize_callback'], $schema['validate_callback'], $schema['arg_options'] );
 
@@ -972,7 +650,7 @@ function openstation_ai_strip_wp_schema_keys( array $schema ) {
 		$items   = $schema['items'];
 		$is_list = array_keys( $items ) === range( 0, count( $items ) - 1 );
 		if ( $is_list && array() !== $items ) {
-			// Tuple form — a list of schemas.
+
 			foreach ( $items as $i => $sub ) {
 				if ( is_array( $sub ) ) {
 					$items[ $i ] = openstation_ai_strip_wp_schema_keys( $sub );
@@ -1001,26 +679,6 @@ function openstation_ai_strip_wp_schema_keys( array $schema ) {
 	return $schema;
 }
 
-/**
- * Runs the agentic content-search loop.
- *
- * The model receives focused tools — search_posts, search_pages,
- * search_comments, search_comments_by_post — and a system prompt that
- * guides it to choose the right one based on query semantics and pass the
- * distilled keywords as `query`. "Someone said congratulations" → it calls
- * search_comments. "I wrote about paella" → it calls search_posts. No
- * entity_type routing from the caller is needed for a fresh search.
- *
- * For continuation runs ($initial_tool + $start_offset > 0), the system
- * message primes the agent to resume from the last searched position with
- * the same keywords.
- *
- * @param string      $query        User's natural-language search.
- * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
- * @param int         $start_offset Offset to resume from (0 for fresh).
- * @param array       $extra        Extensibility context (command tools, prompt overrides, …).
- * @return array|WP_Error
- */
 function openstation_ai_run_search( $query, $initial_tool = null, $start_offset = 0, array $extra = array() ) {
 	$start_offset = max( 0, (int) $start_offset );
 	$search_tools = array( 'search_posts', 'search_pages', 'search_comments', 'search_comments_by_post' );
@@ -1029,11 +687,6 @@ function openstation_ai_run_search( $query, $initial_tool = null, $start_offset 
 		array( 'list_admin_pages', 'search_wporg_plugins', 'get_php_error_log' )
 	);
 
-	// -----------------------------------------------------------------------
-	// Extensibility context — command tools from the client, PHP-registered
-	// tools from the server-side registry, system-prompt overrides, and a
-	// per-call request_id for observability fanout.
-	// -----------------------------------------------------------------------
 	$user_id            = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
 	$request_id         = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && '' !== $extra['request_id']
 		? (string) $extra['request_id']
@@ -1044,18 +697,6 @@ function openstation_ai_run_search( $query, $initial_tool = null, $start_offset 
 		? (string) $extra['system_prompt_mode']
 		: 'append';
 
-	/**
-	 * Fires once per `/ai/search` invocation, after validation and
-	 * before any the provider call. First anchor in the observability trio
-	 * (`openstation_ai_search_started` / `openstation_ai_tool_called`
-	 * / `openstation_ai_search_completed`).
-	 *
-	 * @param array $context {
-	 *     @type string $query      User query.
-	 *     @type int    $user_id
-	 *     @type string $request_id UUID correlating the whole run.
-	 * }
-	 */
 	do_action(
 		'openstation_ai_search_started',
 		array(
@@ -1069,9 +710,6 @@ function openstation_ai_run_search( $query, $initial_tool = null, $start_offset 
 		$initial_tool = null;
 	}
 
-	// When resuming a previous exhausted run, prime the model with the
-	// starting position so it doesn't waste iterations on already-searched
-	// content.
 	$continuation_note = '';
 	if ( null !== $initial_tool && ( $start_offset > 0 || 'search_posts' !== $initial_tool ) ) {
 		$continuation_note = sprintf(
@@ -1118,15 +756,6 @@ The message field is always a friendly sentence or two shown directly to the use
 		$instructions .= $continuation_note;
 	}
 
-	// -----------------------------------------------------------------------
-	// System-prompt extensibility. All three layers — appendix filter,
-	// client override (append/replace with capability gate), and final
-	// transform — live in `openstation_ai_compose_instructions()` so the
-	// primary run and the follow-up leg stay in lockstep. See the
-	// helper for the order of application; the filter docblocks at its
-	// `apply_filters()` call sites carry the public contract on each
-	// extension point.
-	// -----------------------------------------------------------------------
 	$prompt_context = array(
 		'query'      => $query,
 		'user_id'    => $user_id,
@@ -1142,16 +771,6 @@ The message field is always a friendly sentence or two shown directly to the use
 		)
 	);
 
-	// -----------------------------------------------------------------------
-	// Tool assembly — built-in search/navigation abilities + client-supplied
-	// command tools.
-	//
-	// Built-in tools are WordPress Abilities API abilities. Each is advertised
-	// to the model as a function declaration named after the ability (namespace
-	// stripped), and $ability_by_tool maps that name back to the ability so the
-	// agent loop can resolve + execute() it (permission + input/output
-	// validation happen inside execute()).
-	// -----------------------------------------------------------------------
 	$ability_by_tool = array();
 	$builtin_tools   = array();
 
@@ -1179,10 +798,6 @@ The message field is always a friendly sentence or two shown directly to the use
 		);
 	}
 
-	// Command tools — namespaced as `command_<slug>` on the server so
-	// they can't collide with built-in tool names. Each takes a single
-	// optional `args` string arg (matches the slash-command contract
-	// where args are a single string the plugin's `run()` parses).
 	$command_tools_by_name = array();
 	$command_defs          = array();
 
@@ -1194,16 +809,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		if ( '' === $slug || ! preg_match( '/^[a-z0-9_\-]+$/', $slug ) ) {
 			continue;
 		}
-		/**
-		 * Per-tool filter on the client-supplied command list. Return
-		 * `false` to drop a command entirely before it reaches the
-		 * model — the right hook for per-role / per-command gating.
-		 *
-		 * @param bool|array $allowed Either the (possibly mutated) command
-		 *                            tool entry, or `false` to drop it.
-		 * @param string     $slug    Command slug.
-		 * @param array      $context { user_id, request_id }.
-		 */
+
 		$allowed = apply_filters(
 			'openstation_ai_command_allowed',
 			$cmd,
@@ -1242,14 +848,6 @@ The message field is always a friendly sentence or two shown directly to the use
 		);
 	}
 
-	/**
-	 * Transform the command-tool subset before merging with the
-	 * built-in + registered tools. Useful for bulk gating, renaming,
-	 * or injecting synthetic command tools.
-	 *
-	 * @param array $command_defs Command tool definitions.
-	 * @param array $context      { user_id, request_id }.
-	 */
 	$command_defs = (array) apply_filters(
 		'openstation_ai_command_tools',
 		$command_defs,
@@ -1261,14 +859,6 @@ The message field is always a friendly sentence or two shown directly to the use
 
 	$tools = array_merge( $builtin_tools, $command_defs );
 
-	/**
-	 * Transform the full tool list (built-in abilities + command tools) just
-	 * before it goes to the provider. Fires once per run — changes apply to
-	 * every iteration in the agent loop.
-	 *
-	 * @param array $tools   Full the provider tool definitions array.
-	 * @param array $context { user_id, request_id, query }.
-	 */
 	$tools = (array) apply_filters(
 		'openstation_ai_tools',
 		$tools,
@@ -1279,22 +869,12 @@ The message field is always a friendly sentence or two shown directly to the use
 		)
 	);
 
-	// Normalize every tool's schema onto the provider-supported subset, AFTER the
-	// filter so it covers the complete list the provider will receive — built-in
-	// abilities, command tools, and anything a plugin injected. One tool with a
-	// legal-but-unsupported schema otherwise 400s the entire request, not just its
-	// own tool. Only the model-facing copy is reshaped; abilities still validate
-	// arguments against their real schema in execute(). Idempotent, so a plugin
-	// that already normalizes on the filter above is unaffected.
 	foreach ( $tools as $ti => $tool ) {
 		if ( is_array( $tool ) && isset( $tool['parameters'] ) ) {
 			$tools[ $ti ]['parameters'] = openstation_ai_normalize_tool_schema( $tool['parameters'] );
 		}
 	}
 
-	// Widen the permitted-tools list with the command tools — the agent loop
-	// rejects any `function_call` whose name isn't in here (built-in ability
-	// names were added above).
 	foreach ( $command_defs as $def ) {
 		if ( isset( $def['name'] ) ) {
 			$valid_tools[] = (string) $def['name'];
@@ -1303,12 +883,6 @@ The message field is always a friendly sentence or two shown directly to the use
 
 	$answer_schema = openstation_ai_search_answer_schema();
 
-	// -----------------------------------------------------------------------
-	// First call — user query as the sole message, instructions as system
-	// guidance. Generation routes through the WordPress AI Client; the tools
-	// are advertised as function declarations and dispatched by this loop.
-	// The full ordered conversation is rebuilt and re-sent each turn.
-	// -----------------------------------------------------------------------
 	$messages = array( openstation_ai_user_text_message( $query ) );
 
 	$generation_context = array(
@@ -1327,8 +901,6 @@ The message field is always a friendly sentence or two shown directly to the use
 	$last_has_more = true;
 	$iterations    = 0;
 
-	// Accumulate token usage across every turn and remember the last model the
-	// AI Client resolved, for the `openstation_ai_search_completed` payload.
 	$total_usage  = array(
 		'prompt'     => 0,
 		'completion' => 0,
@@ -1350,20 +922,11 @@ The message field is always a friendly sentence or two shown directly to the use
 	};
 	$accrue_usage( $turn );
 
-	// -----------------------------------------------------------------------
-	// Agentic loop — each iteration either executes tool calls or returns
-	// the final answer. The full ordered conversation (user query, assistant
-	// turns, tool results) is accumulated in $messages and re-sent each turn.
-	// -----------------------------------------------------------------------
 	for ( $i = 0; $i < OPENSTATION_AI_SEARCH_MAX_ITERATIONS; $i++ ) {
 		$function_calls = is_array( $turn['function_calls'] ?? null ) ? $turn['function_calls'] : array();
 
-		// No tool calls in this response → final answer.
 		if ( empty( $function_calls ) ) {
-			// A toolless turn with no extractable text never reaches here:
-			// openstation_ai_client_generate() returns
-			// `openstation_ai_empty_answer` for that case, handled with the
-			// other generation errors above.
+
 			$text = (string) ( $turn['text'] ?? '' );
 
 			$answer = json_decode( $text, true );
@@ -1398,14 +961,6 @@ The message field is always a friendly sentence or two shown directly to the use
 				'request_id'  => $request_id,
 			);
 
-			/**
-			 * Final transform hook — fires right before the HTTP
-			 * response is returned. Plugins can rewrite `message`,
-			 * inject `admin_links`, coerce `answer_type`, etc.
-			 *
-			 * @param array $answer  Final answer payload.
-			 * @param array $context { query, user_id, request_id }.
-			 */
 			$final = (array) apply_filters(
 				'openstation_ai_answer',
 				$final,
@@ -1432,15 +987,6 @@ The message field is always a friendly sentence or two shown directly to the use
 			return $final;
 		}
 
-		// -------------------------------------------------------------------
-		// Command-tool short-circuit.
-		//
-		// If the model emitted `command_<slug>`, we return immediately with
-		// `answer_type: 'tool_call'` — the client owns the command's `run()`
-		// function (lives in plugin JS) and executes it locally. We do NOT
-		// send anything else back to the provider this turn — would burn tokens
-		// for a no-op second response.
-		// -------------------------------------------------------------------
 		$command_tool_call = null;
 		foreach ( $function_calls as $fc ) {
 			$name = (string) ( $fc['name'] ?? '' );
@@ -1503,9 +1049,6 @@ The message field is always a friendly sentence or two shown directly to the use
 			return $final;
 		}
 
-		// Execute each tool call and collect results as
-		// `{ call_id, name, response }` — turned into FunctionResponse parts
-		// for the next turn by openstation_ai_tool_result_message().
 		$tool_outputs = array();
 		foreach ( $function_calls as $fc ) {
 			$tool_name = $fc['name'] ?? '';
@@ -1534,15 +1077,9 @@ The message field is always a friendly sentence or two shown directly to the use
 				)
 			);
 
-			// Resolve + run the ability. execute() runs the permission_callback
-			// and validates input/output; a denial or bad input comes back as a
-			// WP_Error, which we surface to the model as a clean tool error
-			// (never a fatal) and report on the observability channel.
 			$ability = isset( $ability_by_tool[ $tool_name ] ) ? wp_get_ability( $ability_by_tool[ $tool_name ] ) : null;
 			if ( $ability instanceof WP_Ability ) {
-				// Abilities that declare no input schema (e.g. Core's
-				// get-*-info) reject any non-null input, so pass null when
-				// there's no schema; otherwise hand over the decoded args.
+
 				$input  = empty( $ability->get_input_schema() ) ? null : $args;
 				$result = $ability->execute( $input );
 			} else {
@@ -1573,16 +1110,6 @@ The message field is always a friendly sentence or two shown directly to the use
 			$last_offset   = $offset;
 			$last_has_more = (bool) ( $batch['has_more'] ?? false );
 
-			/**
-			 * Transform a tool result before it goes back to the model.
-			 * Fires for every ability-dispatched tool (including error
-			 * envelopes from a failed execute()).
-			 *
-			 * @param array  $batch     Tool result payload.
-			 * @param string $tool_name Tool function name.
-			 * @param array  $args      Decoded args from the call.
-			 * @param array  $context   { user_id, request_id }.
-			 */
 			$batch = (array) apply_filters(
 				'openstation_ai_tool_result',
 				$batch,
@@ -1603,8 +1130,6 @@ The message field is always a friendly sentence or two shown directly to the use
 
 		++$iterations;
 
-		// Next turn — append the assistant's tool-call turn and our tool
-		// results to the conversation, then regenerate with the full history.
 		$messages[] = $turn['message'];
 		$messages[] = openstation_ai_tool_result_message( $tool_outputs );
 
@@ -1616,15 +1141,10 @@ The message field is always a friendly sentence or two shown directly to the use
 		$accrue_usage( $turn );
 	}
 
-	// -----------------------------------------------------------------------
-	// Budget exhausted before a final answer.
-	// -----------------------------------------------------------------------
 	$continue = null;
 	if ( $last_has_more ) {
 		$next_offset = $last_offset + OPENSTATION_AI_SEARCH_BATCH_SIZE;
-		// `search_comments_by_post` cannot resume — the continue payload
-		// carries no post_id — so fall back to plain comment search,
-		// keeping `tool` inside openstation_ai_search_resumable_tools().
+
 		$resume_tool = 'search_comments_by_post' === $last_tool ? 'search_comments' : $last_tool;
 		$continue    = array(
 			'tool'        => $resume_tool,
@@ -1671,32 +1191,6 @@ The message field is always a friendly sentence or two shown directly to the use
 	return $final;
 }
 
-/**
- * Compose the final system-prompt string for an `/ai/search` call.
- *
- * One code path used by both the primary run and the follow-up leg —
- * keeps the voice consistent across legs and removes a class of drift
- * bug where the two paths's prompt-assembly drifts apart.
- *
- * Applies three layers in order:
- *   1. `openstation_ai_system_prompt_appendix` — stacking filter;
- *      every plugin's return is concatenated.
- *   2. Client override — `system_prompt_text` + `system_prompt_mode`.
- *      `append` always allowed; `replace` gated on
- *      `openstation_ai_system_prompt_replace_capability`. Non-permitted
- *      `replace` downgrades to `append` so the caller's text is
- *      preserved rather than dropped.
- *   3. `openstation_ai_system_prompt` — final transform pass.
- *
- * @internal
- *
- * @param string $core    Built-in instructions for this phase
- *                        (agent loop / follow-up summariser).
- * @param array  $context { query, user_id, request_id, phase? }.
- * @param array  $client  { text, mode } client override; either field
- *                        empty means no override.
- * @return string Composed system prompt.
- */
 function openstation_ai_compose_instructions( $core, array $context, array $client = array() ) {
 	$instructions = (string) $core;
 	$user_id      = isset( $context['user_id'] ) ? (int) $context['user_id'] : 0;
@@ -1709,16 +1203,6 @@ function openstation_ai_compose_instructions( $core, array $context, array $clie
 	$ctx_for_filter                    = $context;
 	$ctx_for_filter['client_override'] = '' !== $client_text ? $client_mode : null;
 
-	/**
-	 * Short-circuit extension — appended to the built-in instructions
-	 * verbatim. Use this when a plugin just wants to add domain
-	 * context (room list, product catalogue, company jargon) without
-	 * restructuring the core rules. Fires for both the primary
-	 * `/ai/search` run and the follow-up composed-reply leg.
-	 *
-	 * @param string $appendix Accumulated appendix. Default empty.
-	 * @param array  $context  { query, user_id, request_id, client_override, phase? }.
-	 */
 	$server_appendix = (string) apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter );
 	if ( '' !== $server_appendix ) {
 		$instructions .= "\n\n" . $server_appendix;
@@ -1726,15 +1210,7 @@ function openstation_ai_compose_instructions( $core, array $context, array $clie
 
 	if ( '' !== $client_text ) {
 		if ( 'replace' === $client_mode ) {
-			/**
-			 * Capability required for a client to send
-			 * `system_prompt: { mode: 'replace' }`. Defaults to `manage_options`
-			 * — replacing the whole prompt can effectively hijack the
-			 * assistant, so it's admin-only out of the box.
-			 *
-			 * @param string $capability Default `manage_options`.
-			 * @param array  $context
-			 */
+
 			$required_cap = (string) apply_filters(
 				'openstation_ai_system_prompt_replace_capability',
 				'manage_options',
@@ -1743,8 +1219,7 @@ function openstation_ai_compose_instructions( $core, array $context, array $clie
 			if ( '' === $required_cap || ( $user_id > 0 && user_can( $user_id, $required_cap ) ) ) {
 				$instructions = $client_text;
 			} else {
-				// Silently downgrade to append — preserves the caller's
-				// text rather than dropping it when the cap check fails.
+
 				$instructions .= "\n\n" . $client_text;
 			}
 		} else {
@@ -1752,41 +1227,9 @@ function openstation_ai_compose_instructions( $core, array $context, array $clie
 		}
 	}
 
-	/**
-	 * Final transform pass. Fires after the built-in instructions,
-	 * server appendix, and client override have all been composed.
-	 *
-	 * @param string $instructions Composed system prompt.
-	 * @param array  $context
-	 */
 	return (string) apply_filters( 'openstation_ai_system_prompt', $instructions, $ctx_for_filter );
 }
 
-/**
- * Compose a natural-language reply describing the outcome of a
- * client-dispatched command invocation.
- *
- * Called by the REST endpoint when the client sends `follow_up` —
- * the second leg of the opt-in agentic flow triggered by
- * `wp.os.ai.ask( q, { tools: 'aiCallable', followUp: true } )`.
- *
- * Single-turn, no tools, no structured-output schema — the model
- * sees the original query + a summary of what happened and writes a
- * one/two-sentence reply in the voice of the system prompt. We reuse
- * the same system-prompt pipeline as the main search so plugins
- * appending instructions via `openstation_ai_system_prompt_appendix`
- * see consistent voice across the two legs.
- *
- * @param string $query     Original user query.
- * @param array  $tool      { slug, args } — what ran.
- * @param array  $outcome   Tool result payload. Opaque — JSON-encoded
- *                          into the model's context so it can reason
- *                          about whatever shape the plugin returned.
- * @param array  $extra     Same shape as `openstation_ai_run_search`'s
- *                          `$extra` — carries user_id, request_id,
- *                          system-prompt overrides.
- * @return array|WP_Error   `{ answer_type: 'chat', message, … }` or error.
- */
 function openstation_ai_run_followup( $query, array $tool, array $outcome, array $extra = array() ) {
 	$user_id    = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
 	$request_id = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && '' !== $extra['request_id']
@@ -1803,9 +1246,6 @@ function openstation_ai_run_followup( $query, array $tool, array $outcome, array
 		)
 	);
 
-	// Mirror the main search's system-prompt layering so voice stays
-	// consistent between the two legs. We build a simpler core-
-	// instructions block — no tool guidance, since this run has none.
 	$instructions = '
 You are the same friendly WordPress assistant that just dispatched a command on behalf of the user. You now have the result of that command.
 
@@ -1844,17 +1284,6 @@ Rules:
 		$outcome_json = '""';
 	}
 
-	// Bound the outcome payload so a malicious or buggy plugin that
-	// returns a 5MB blob can't inflate the provider token usage without
-	// bound. 4 KB is enough for a status string, a small result list,
-	// or a short error envelope — anything bigger gets truncated with
-	// a marker so the model knows the tail was dropped.
-	//
-	// `mb_*` variants so truncation on a multibyte boundary
-	// (Japanese / emoji / accented UTF-8) can't produce invalid JSON
-	// that the provider would reject. Falls back to byte-level substr when
-	// mbstring is unavailable (rare but possible on minimal PHP
-	// builds).
 	$max_outcome_len = (int) apply_filters( 'openstation_ai_followup_outcome_max_chars', 4000 );
 	if ( $max_outcome_len > 0 ) {
 		$has_mbstring = function_exists( 'mb_strlen' ) && function_exists( 'mb_substr' );
@@ -1893,8 +1322,8 @@ Rules:
 	$turn = openstation_ai_client_generate(
 		$user_id,
 		array( openstation_ai_user_text_message( $user_message ) ),
-		array(), // no tools — we want a plain reply
-		null,    // no JSON schema — free-form text
+		array(),
+		null,
 		$instructions,
 		array(
 			'source'     => 'ai-copilot/followup',
@@ -1902,10 +1331,6 @@ Rules:
 		)
 	);
 
-	// `openstation_ai_empty_answer` is the one generation error this path
-	// deliberately absorbs: the command DID run, so a text-less summary turn
-	// degrades to the generic confirmation below instead of surfacing as a
-	// failure of the command itself.
 	$empty_answer = is_wp_error( $turn ) && 'openstation_ai_empty_answer' === $turn->get_error_code();
 
 	if ( is_wp_error( $turn ) && ! $empty_answer ) {
@@ -1926,12 +1351,7 @@ Rules:
 	$text     = $empty_answer ? null : ( $turn['text'] ?? null );
 	$fallback = false;
 	if ( ! is_string( $text ) || '' === trim( $text ) ) {
-		// Graceful degrade — if the provider returned nothing usable, fall
-		// back to a generic confirmation so the caller always has a
-		// message to show. Better than returning an error and losing
-		// the fact that the command *did* run. We flag the degrade so
-		// observability subscribers can distinguish a deliberate
-		// "Done." from a silently-degraded one.
+
 		$text     = 'Done.';
 		$fallback = true;
 	}
@@ -1979,13 +1399,6 @@ Rules:
 	return $final;
 }
 
-// ---------------------------------------------------------------------------
-// REST endpoint
-// ---------------------------------------------------------------------------
-
-/**
- * Registers the AI search REST route.
- */
 function openstation_register_ai_search_rest_route() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -2003,10 +1416,7 @@ function openstation_register_ai_search_rest_route() {
 						return is_string( $v ) && trim( $v ) !== '';
 					},
 				),
-				// `resume_tool` + `start_offset` are only set when the
-				// client is continuing a previous search from the `continue`
-				// object returned by an exhausted run. Fresh searches leave
-				// both unset — the agent picks tools from query semantics.
+
 				'resume_tool'        => array(
 					'required'          => false,
 					'type'              => array( 'string', 'null' ),
@@ -2022,11 +1432,7 @@ function openstation_register_ai_search_rest_route() {
 					'default'           => 0,
 					'sanitize_callback' => 'absint',
 				),
-				// Client-harvested slash-commands the user's plugins have
-				// opted in as AI tools. Each entry: { slug, label, description?, hint? }.
-				// The slug is namespaced server-side as `command_<slug>`
-				// and any tool_call the model emits with that name short-
-				// circuits back to the client for local dispatch.
+
 				'command_tools'      => array(
 					'required' => false,
 					'type'     => 'array',
@@ -2041,11 +1447,7 @@ function openstation_register_ai_search_rest_route() {
 						),
 					),
 				),
-				// Free-form system-prompt override.
-				// mode: 'append' → concatenated onto the built-in prompt (safe for everyone)
-				// mode: 'replace' → replaces the built-in prompt entirely, gated on
-				// `openstation_ai_system_prompt_replace_capability`
-				// (default `manage_options`).
+
 				'system_prompt_text' => array(
 					'required' => false,
 					'type'     => 'string',
@@ -2059,11 +1461,7 @@ function openstation_register_ai_search_rest_route() {
 						return in_array( $v, array( 'append', 'replace' ), true ) ? $v : 'append';
 					},
 				),
-				// Follow-up leg of the agentic command-dispatch flow.
-				// When present, the endpoint SKIPS the agent loop entirely
-				// and runs a single-turn "summarise this outcome" call
-				// through the provider instead. The client sends this on the
-				// second leg of `ask( q, { tools: 'aiCallable', followUp: true } )`.
+
 				'follow_up'          => array(
 					'required' => false,
 					'type'     => array( 'object', 'null' ),
@@ -2075,11 +1473,6 @@ function openstation_register_ai_search_rest_route() {
 }
 add_action( 'rest_api_init', 'openstation_register_ai_search_rest_route' );
 
-/**
- * Permission callback.
- *
- * @return bool|WP_Error
- */
 function openstation_rest_ai_search_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
 		return new WP_Error(
@@ -2096,9 +1489,7 @@ function openstation_rest_ai_search_permission() {
 		);
 	}
 	if ( ! openstation_ai_is_enabled( get_current_user_id() ) ) {
-		// The message names the tab for consumers that only get text (a REST
-		// client, `wp.os.ai.ask()`). `settings_tab` names it again as data,
-		// so the overlay can offer a one-click link without parsing prose.
+
 		return new WP_Error(
 			'openstation_ai_disabled',
 			__(
@@ -2114,18 +1505,9 @@ function openstation_rest_ai_search_permission() {
 	return true;
 }
 
-/**
- * POST /desktop-mode/v1/ai/search
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response|WP_Error
- */
 function openstation_rest_ai_search( WP_REST_Request $request ) {
-	// The agent loop runs up to OPENSTATION_AI_SEARCH_MAX_ITERATIONS model
-	// round-trips, each with a tool call, which overruns a default 30s
-	// max_execution_time. The streaming endpoint used to raise this; it is
-	// the only path now, so it carries the limit.
-	@set_time_limit( 120 ); // phpcs:ignore
+
+	@set_time_limit( 120 );
 
 	$user_id      = get_current_user_id();
 	$query        = $request->get_param( 'query' );
@@ -2145,14 +1527,6 @@ function openstation_rest_ai_search( WP_REST_Request $request ) {
 		'system_prompt_mode' => (string) $request->get_param( 'system_prompt_mode' ),
 	);
 
-	/**
-	 * Last-mile filter on the whole `/ai/search` request bundle.
-	 * Plugins get one hook to rewrite query, swap tools, or inject
-	 * metadata before the agent loop starts.
-	 *
-	 * @param array $extra Extended context (mutable).
-	 * @param array $core  Core request params { query, resume_tool, start_offset }.
-	 */
 	$extra = (array) apply_filters(
 		'openstation_ai_request',
 		$extra,
@@ -2163,7 +1537,6 @@ function openstation_rest_ai_search( WP_REST_Request $request ) {
 		)
 	);
 
-	// Follow-up leg — skip the agent loop, summarise the tool outcome.
 	$follow_up = $request->get_param( 'follow_up' );
 	if ( is_array( $follow_up ) && isset( $follow_up['tool'] ) && is_array( $follow_up['tool'] ) ) {
 		$tool    = $follow_up['tool'];
@@ -2193,18 +1566,6 @@ function openstation_rest_ai_search( WP_REST_Request $request ) {
 	return rest_ensure_response( $result );
 }
 
-// ---------------------------------------------------------------------------
-// Tool: search_wporg_plugins — uses core's plugins_api() which queries
-// the official WordPress.org repository. Results are cached in a
-// 10-minute transient per query so repeated asks don't hammer w.org.
-// ---------------------------------------------------------------------------
-
-/**
- * Search the WordPress.org plugin directory.
- *
- * @param string $query Search terms.
- * @return array Tool result payload ready for the model.
- */
 function openstation_ai_fetch_wporg_plugins( $query ) {
 	$query = trim( (string) $query );
 	if ( '' === $query ) {
@@ -2217,8 +1578,6 @@ function openstation_ai_fetch_wporg_plugins( $query ) {
 		);
 	}
 
-	// Transient cache to protect the w.org API from repeated queries
-	// within the same conversation.
 	$cache_key = 'openstation_ai_plugins_' . md5( strtolower( $query ) );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
@@ -2274,7 +1633,7 @@ function openstation_ai_fetch_wporg_plugins( $query ) {
 	$results = array();
 	$plugins = isset( $api->plugins ) && is_array( $api->plugins ) ? $api->plugins : array();
 	foreach ( $plugins as $p ) {
-		// Normalise — plugins_api sometimes returns arrays, sometimes objects.
+
 		$p = (array) $p;
 
 		$slug = isset( $p['slug'] ) ? (string) $p['slug'] : '';
@@ -2292,9 +1651,6 @@ function openstation_ai_fetch_wporg_plugins( $query ) {
 			$icon = (string) $icons['svg'];
 		}
 
-		// Admin URL that opens the plugin-information thickbox. Includes
-		// both &plugin=slug and the TB_iframe params so clicking it in
-		// wp-admin behaves like a native "More details" link.
 		$install_admin_url = admin_url(
 			'plugin-install.php?tab=plugin-information&plugin=' . rawurlencode( $slug )
 			. '&TB_iframe=true&width=772&height=745'
@@ -2306,8 +1662,8 @@ function openstation_ai_fetch_wporg_plugins( $query ) {
 			'short_description' => wp_strip_all_tags( $p['short_description'] ?? '' ),
 			'version'           => (string) ( $p['version'] ?? '' ),
 			'author'            => wp_strip_all_tags( $p['author'] ?? '' ),
-			'rating'            => (int) ( $p['rating'] ?? 0 ),         // 0-100
-			'stars'             => round( ( (int) ( $p['rating'] ?? 0 ) ) / 20, 1 ), // 0-5, as wordpress.org shows it
+			'rating'            => (int) ( $p['rating'] ?? 0 ),
+			'stars'             => round( ( (int) ( $p['rating'] ?? 0 ) ) / 20, 1 ),
 			'num_ratings'       => (int) ( $p['num_ratings'] ?? 0 ),
 			'active_installs'   => (int) ( $p['active_installs'] ?? 0 ),
 			'last_updated'      => (string) ( $p['last_updated'] ?? '' ),
@@ -2332,24 +1688,6 @@ function openstation_ai_fetch_wporg_plugins( $query ) {
 	return $payload;
 }
 
-// ---------------------------------------------------------------------------
-// Tool: get_php_error_log — reads the tail of the site's error log.
-// Admin-only; the capability check is performed in the dispatcher
-// BEFORE this function runs, so by the time we get here the caller is
-// known to hold manage_options.
-// ---------------------------------------------------------------------------
-
-/**
- * Read and parse the tail of the site's PHP error log.
- *
- * Tries WP_CONTENT_DIR/debug.log first (populated by WP_DEBUG_LOG), then
- * falls back to the PHP ini `error_log` directive. If neither points at
- * a readable file the tool reports log_available=false rather than
- * throwing.
- *
- * @param int $lines Number of lines to return (clamped 1-500 by caller).
- * @return array
- */
 function openstation_ai_fetch_error_log( $lines = 50 ) {
 	$candidates = array();
 	if ( defined( 'WP_CONTENT_DIR' ) ) {
@@ -2360,12 +1698,6 @@ function openstation_ai_fetch_error_log( $lines = 50 ) {
 		$candidates[] = $ini_log;
 	}
 
-	/**
-	 * Filter the list of log-file paths to probe in order. Plugins that
-	 * redirect errors somewhere non-standard can add their path here.
-	 *
-	 * @param string[] $candidates File paths, in probe order.
-	 */
 	$candidates = (array) apply_filters( 'openstation_ai_error_log_candidates', $candidates );
 
 	$log_path = '';
@@ -2407,19 +1739,8 @@ function openstation_ai_fetch_error_log( $lines = 50 ) {
 	);
 }
 
-/**
- * Parse a PHP error_log line into { timestamp, level, message }.
- *
- * PHP's default format is `[<date>] <prefix>: <message>` where the
- * prefix is usually "PHP Fatal error", "PHP Warning", etc. Falls back
- * to a raw line when the format doesn't match.
- *
- * @param string $line
- * @return array
- */
 function openstation_ai_parse_log_line( $line ) {
-	// Cap individual messages so a runaway stack trace doesn't balloon
-	// the payload sent to the provider.
+
 	$line = mb_substr( $line, 0, 600 );
 
 	$entry = array(
@@ -2428,7 +1749,6 @@ function openstation_ai_parse_log_line( $line ) {
 		'message'   => $line,
 	);
 
-	// [21-Apr-2026 10:30:22 UTC] PHP Fatal error:  Uncaught Error: …
 	if ( preg_match( '/^\[([^\]]+)\]\s*(.*)$/', $line, $m ) ) {
 		$entry['timestamp'] = $m[1];
 		$entry['message']   = $m[2];
@@ -2442,17 +1762,6 @@ function openstation_ai_parse_log_line( $line ) {
 	return $entry;
 }
 
-/**
- * Return the last $lines of a file. Loads the file via WP_Filesystem
- * (the only file-read API allowed for wp.org-hosted plugins) and
- * slices off the trailing N+1 entries. Realistic error logs sit
- * in the kilobyte range when admins look at them; if a site routinely
- * lets logs grow into tens of MB, that's the symptom, not this read.
- *
- * @param string $path Absolute path to the file.
- * @param int    $lines
- * @return string[] Lines in original order (oldest first).
- */
 function openstation_ai_tail_file( $path, $lines ) {
 	if ( ! function_exists( 'WP_Filesystem' ) ) {
 		require_once ABSPATH . 'wp-admin/includes/file.php';

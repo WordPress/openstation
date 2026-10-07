@@ -1,10 +1,3 @@
-/**
- * Tests for the title-bar-button registry.
- *
- * Verifies validation rules, predicate filtering, owner-scoped
- * unregistration, and that registry changes notify subscribers
- * exactly once per write.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	registerTitleBarButton,
@@ -26,7 +19,7 @@ function fakeWindow( id: string, overrides: Partial< DesktopWindow > = {} ): Des
 
 describe( 'title-bar-buttons registry', () => {
 	beforeEach( () => {
-		// Drain any state left by earlier tests.
+
 		for ( const def of listTitleBarButtons() ) {
 			unregisterTitleBarButton( def.id );
 		}

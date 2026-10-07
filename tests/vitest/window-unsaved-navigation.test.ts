@@ -1,20 +1,3 @@
-/**
- * A window that cannot leave, and the paint it must not make.
- *
- * Re-pointing a window's iframe is optimistic — the spinner goes up
- * and the destination tab lights before the frame has moved. When the
- * page inside is holding unsaved changes the browser raises its own
- * "Leave site?" prompt over the top, and a user who answers **Cancel**
- * produces no `load`, no `os-ready`, and no other event: the optimism
- * is never corrected and the window keeps a spinner nothing will ever
- * clear.
- *
- * So the shell asks first, and on a guarded page withholds the paint
- * until the frame reports a real unload. These tests pin that
- * withholding on the live `Window` class — the timer that expires an
- * unclaimed paint included, because without it a "Stay" leaves a
- * callback armed to fire on some unrelated navigation later.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Window } from '../../src/window';
 import type { WindowConfig } from '../../src/types';
@@ -25,11 +8,6 @@ import {
 	installWindowLoadingTransitions,
 } from '../../src/window/loading';
 
-/**
- * Same-origin on purpose: `withChromelessParam()` is the shell's
- * same-origin gate, and a foreign host would have `navigateTo()`
- * refuse before the guard ever ran.
- */
 const ADMIN = window.location.origin + '/wp-admin/';
 
 function baseConfig( overrides: Partial< WindowConfig > = {} ): WindowConfig {
@@ -48,14 +26,9 @@ function baseConfig( overrides: Partial< WindowConfig > = {} ): WindowConfig {
 
 let win: Window;
 let parent: HTMLElement;
-/** Everything the shell posted into the frame. */
+
 let asked: { type?: string; requestId?: string }[];
 
-/**
- * Replace the frame's content window with a recorder, so the guard's
- * query is observable and answerable. jsdom gives the iframe a real
- * `about:blank` window otherwise, which would swallow the message.
- */
 function stubContentWindow(): void {
 	asked = [];
 	Object.defineProperty( win.iframe as HTMLIFrameElement, 'contentWindow', {
@@ -68,7 +41,6 @@ function stubContentWindow(): void {
 	} );
 }
 
-/** Answer the guard's most recent query as the bridge would. */
 function answerGuard( prevent: boolean ): void {
 	window.dispatchEvent(
 		new MessageEvent( 'message', {
@@ -86,10 +58,7 @@ describe( 'a navigation the page inside can refuse', () => {
 	beforeEach( () => {
 		installHooksStub();
 		_resetWindowChannelsForTests();
-		// The loading modifier is written straight onto the body at
-		// construction; without the transitions subscribed to the
-		// fresh hook stub nothing ever takes it off, and `reload()`
-		// stops at its own re-entrancy guard.
+
 		_resetWindowLoadingTransitionsForTests();
 		installWindowLoadingTransitions();
 		parent = document.createElement( 'div' );
@@ -97,12 +66,9 @@ describe( 'a navigation the page inside can refuse', () => {
 		win = new Window( baseConfig() );
 		parent.appendChild( win.element );
 		stubContentWindow();
-		// The guard only asks a frame whose bridge has announced
-		// itself; everything else keeps the pre-guard behaviour.
+
 		win._iframeBridgeReady = true;
-		// Settle the construction-time load. The loading modifier is
-		// `reload()`'s own re-entrancy guard, so a window still wearing
-		// it never reaches the code under test.
+
 		win.markContentLoaded();
 	} );
 
@@ -122,8 +88,6 @@ describe( 'a navigation the page inside can refuse', () => {
 		win._commitDeferredNavigation();
 		expect( commit ).toHaveBeenCalledTimes( 1 );
 
-		// A second unload — the user navigating again minutes later —
-		// finds nothing left to claim.
 		win._commitDeferredNavigation();
 		expect( commit ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -136,8 +100,6 @@ describe( 'a navigation the page inside can refuse', () => {
 		vi.advanceTimersByTime( 15001 );
 		win._commitDeferredNavigation();
 
-		// The user answered "Stay". The next unload belongs to
-		// whatever they did after that, not to this navigation.
 		expect( commit ).not.toHaveBeenCalled();
 	} );
 
@@ -167,9 +129,6 @@ describe( 'a navigation the page inside can refuse', () => {
 			expect( win._deferredNavigationCommit ).not.toBeNull(),
 		);
 
-		// The prompt is up. Cancelling it leaves the window as it was —
-		// which matters twice for reload, because the overlay it would
-		// otherwise have armed is also its own re-entrancy guard.
 		expect( loading ).not.toHaveBeenCalled();
 
 		win._commitDeferredNavigation();
@@ -191,8 +150,6 @@ describe( 'a navigation the page inside can refuse', () => {
 		win.reload();
 		await vi.waitFor( () => expect( asked ).toHaveLength( 1 ) );
 
-		// The loading class is the usual re-entrancy guard, and the
-		// query now arms it a task later than the click.
 		win.reload();
 		expect( asked ).toHaveLength( 1 );
 	} );

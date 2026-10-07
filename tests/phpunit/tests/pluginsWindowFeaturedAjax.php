@@ -1,24 +1,5 @@
 <?php
-/**
- * Tests for the Plugins app's Featured tab AJAX endpoint + curated
- * slug helper (`apps/plugins/parts/featured.php`).
- *
- * The Featured tab is the third tab in the Plugins app. It
- * surfaces plugins that depend on OpenStation — manually curated for
- * now (wp.org's plugins_api has no usable `requires_plugins` filter)
- * and topped up at runtime by scanning the popular-plugins feed for
- * rows whose `requires_plugins` array contains `desktop-mode`.
- *
- * Tests stub `plugins_api` via the `plugins_api` filter so we don't
- * make real wp.org HTTPS calls from the suite.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-plugins-window
- * @group ajax
- */
+
 require_once ABSPATH . 'wp-admin/includes/ajax-actions.php';
 
 class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
@@ -30,21 +11,13 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		parent::set_up();
 		$this->admin_id      = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
-		// The admin persona means "the user who may install plugins
-		// here"; multisite spells that super admin.
+
 		if ( is_multisite() ) {
 			grant_super_admin( $this->admin_id );
 		}
 		delete_transient( 'dm_pwfeatured_v1' );
 	}
 
-	/**
-	 * The marketplace surfaces don't exist on a multisite site admin —
-	 * the guard denies before any cap check. The happy-path tests
-	 * below skip themselves through this helper, and
-	 * `test_multisite_denies_marketplace_even_for_super_admin` pins
-	 * the deny.
-	 */
 	private function skip_on_multisite() {
 		if ( is_multisite() ) {
 			$this->markTestSkipped( 'Marketplace surfaces are network-managed on multisite.' );
@@ -59,17 +32,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		parent::tear_down();
 	}
 
-	// ────────────────────────────────────────────────────────────────
-	// Curated slugs helper.
-	// ────────────────────────────────────────────────────────────────
-
-	/**
-	 * The seed list must include the manually curated entry — the wp.org
-	 * author of the plugin omitted the `Requires Plugins` header, so
-	 * without this seed users would never discover it from the tab.
-	 *
-	 * @covers ::openstation_plugins_window_featured_slugs
-	 */
 	public function test_curated_slugs_contains_default_seed() {
 		$slugs = openstation_plugins_window_featured_slugs();
 		$this->assertContains( 'allterrain-forms', $slugs );
@@ -81,12 +43,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		);
 	}
 
-	/**
-	 * `openstation_plugins_featured_slugs` must be filterable so
-	 * downstream plugins can append their own recommendations.
-	 *
-	 * @covers ::openstation_plugins_window_featured_slugs
-	 */
 	public function test_curated_slugs_filter_can_append() {
 		add_filter(
 			'openstation_plugins_featured_slugs',
@@ -99,22 +55,15 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$this->assertContains( 'my-companion-plugin', $slugs );
 	}
 
-	/**
-	 * Filter output is sanitized + deduped. A garbled or repeated entry
-	 * mustn't leak into the AJAX payload (and the slug must be safe to
-	 * concatenate into a wp.org URL).
-	 *
-	 * @covers ::openstation_plugins_window_featured_slugs
-	 */
 	public function test_curated_slugs_filter_output_is_sanitized_and_deduped() {
 		add_filter(
 			'openstation_plugins_featured_slugs',
 			static function () {
 				return array(
 					'odd-outlandish-desktop-decorator',
-					'odd-outlandish-desktop-decorator', // duplicate
-					'BAD SLUG WITH SPACES',             // sanitize_key strips spaces/uppercase
-					'',                                 // empty filtered out
+					'odd-outlandish-desktop-decorator',
+					'BAD SLUG WITH SPACES',
+					'',
 					'fine-plugin',
 				);
 			}
@@ -126,13 +75,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		);
 	}
 
-	// ────────────────────────────────────────────────────────────────
-	// AJAX endpoint.
-	// ────────────────────────────────────────────────────────────────
-
-	/**
-	 * Helper: dispatch the featured AJAX action and return decoded body.
-	 */
 	private function dispatch_featured( $with_nonce = true ) {
 		$_POST = array();
 		if ( $with_nonce ) {
@@ -141,38 +83,24 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		try {
 			$this->_handleAjax( 'openstation_plugins_featured' );
 		} catch ( WPAjaxDieContinueException $e ) {
-			// Expected — wp_send_json_* throws this in tests.
+
 		} catch ( WPAjaxDieStopException $e ) {
-			// Some Core paths throw this variant instead.
+
 		}
 		return json_decode( $this->_last_response, true );
 	}
 
-	/**
-	 * Subscribers (no `install_plugins`) must be rejected — the AJAX
-	 * guard re-validates the cap server-side.
-	 *
-	 * @covers ::openstation_plugins_window_ajax_featured
-	 */
 	public function test_subscriber_rejected_with_403() {
 		wp_set_current_user( $this->subscriber_id );
 		$response = $this->dispatch_featured();
 		$this->assertFalse( $response['success'] );
-		// On multisite the network-managed deny fires before the cap
-		// check, so the code differs while the outcome stands.
+
 		$this->assertSame(
 			is_multisite() ? 'openstation_plugins_network_managed' : 'openstation_plugins_forbidden',
 			$response['data']['code']
 		);
 	}
 
-	/**
-	 * On multisite the marketplace is network-managed: even a super
-	 * admin, who holds every plugin capability, is refused — the
-	 * server half of the gate that hides the Browse tab.
-	 *
-	 * @covers ::openstation_plugins_window_ajax_featured
-	 */
 	public function test_multisite_denies_marketplace_even_for_super_admin() {
 		if ( ! is_multisite() ) {
 			$this->markTestSkipped( 'Multisite-only behavior.' );
@@ -183,13 +111,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$this->assertSame( 'openstation_plugins_network_managed', $response['data']['code'] );
 	}
 
-	/**
-	 * Missing nonce is a 403, not a 200. Plugin Check + WordPress
-	 * security guidance both expect every admin-ajax handler to refuse
-	 * unauthenticated callers.
-	 *
-	 * @covers ::openstation_plugins_window_ajax_featured
-	 */
 	public function test_missing_nonce_rejected() {
 		wp_set_current_user( $this->admin_id );
 		$response = $this->dispatch_featured( false );
@@ -197,13 +118,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$this->assertSame( 'openstation_plugins_bad_nonce', $response['data']['code'] );
 	}
 
-	/**
-	 * Happy path: an admin gets the curated rows in the response, with
-	 * `featured: true`, and the discovery feed's row that declares
-	 * `requires_plugins => [desktop-mode]` is appended.
-	 *
-	 * @covers ::openstation_plugins_window_ajax_featured
-	 */
 	public function test_admin_receives_curated_plus_discovered_payload() {
 		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
@@ -215,13 +129,9 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$plugins = $response['data']['plugins'];
 		$this->assertNotEmpty( $plugins );
 
-		// First row must be the curated seed, flagged featured: true.
 		$this->assertSame( 'odd-outlandish-desktop-decorator', $plugins[0]['slug'] );
 		$this->assertTrue( $plugins[0]['featured'] );
 
-		// The discovery feed includes one row that declares the
-		// openstation dependency — it should land in the payload too,
-		// with featured: false. Unrelated rows must be filtered out.
 		$slugs = array_column( $plugins, 'slug' );
 		$this->assertContains( 'allterrain-forms', $slugs );
 		$this->assertContains( 'allterrain-photo-editor', $slugs );
@@ -238,23 +148,14 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$this->assertNotNull( $dependent );
 		$this->assertFalse( $dependent['featured'] );
 
-		// Info block carries counts the JS uses for headers / empty states.
 		$this->assertSame( count( $plugins ), $response['data']['info']['results'] );
 	}
 
-	/**
-	 * Discovery dedupes against curated slugs. If wp.org's popular feed
-	 * happens to return a curated entry too, we must not emit it twice
-	 * (and the curated `featured: true` flag wins).
-	 *
-	 * @covers ::openstation_plugins_window_ajax_featured
-	 */
 	public function test_discovery_dedupes_against_curated() {
 		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
 		$this->mock_plugins_api( array(
-			// Same slug appears in both the discovery feed AND the
-			// curated list — the AJAX must only emit it once.
+
 			'discovery' => array(
 				array(
 					'slug'             => 'odd-outlandish-desktop-decorator',
@@ -273,14 +174,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Second call within the cache window returns the same payload —
-	 * proves the transient stuck, and that the helper isn't re-hitting
-	 * `plugins_api` on every tab open. Important because each call is
-	 * an outbound wp.org HTTPS round-trip when uncached.
-	 *
-	 * @covers ::openstation_plugins_window_ajax_featured
-	 */
 	public function test_response_is_cached_for_subsequent_calls() {
 		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
@@ -288,9 +181,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 
 		$first = $this->dispatch_featured();
 
-		// Reset the response buffer + swap the mock so a fresh call
-		// would surface different data — if the cache works, we get the
-		// FIRST response back unchanged.
 		$this->_last_response = '';
 		remove_all_filters( 'plugins_api' );
 		$this->mock_plugins_api( array( 'curated_name' => 'DIFFERENT' ) );
@@ -304,13 +194,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		);
 	}
 
-	/**
-	 * `openstation_plugins_featured_response` filter must run before
-	 * the payload is cached + sent. Lets host plugins inject premium
-	 * rows or enforce a cap.
-	 *
-	 * @covers ::openstation_plugins_window_ajax_featured
-	 */
 	public function test_response_filter_can_inject_extra_rows() {
 		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
@@ -333,19 +216,10 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$this->assertContains( 'private-premium-companion', $slugs );
 	}
 
-	// ────────────────────────────────────────────────────────────────
-	// Test helpers.
-	// ────────────────────────────────────────────────────────────────
-
-	/**
-	 * Stub `plugins_api` so the test never makes a real wp.org call.
-	 * Returns a curated info object for the `plugin_information` action
-	 * and a small discovery feed for `query_plugins`.
-	 */
 	private function mock_plugins_api( array $overrides = array() ) {
 		$curated_name = $overrides['curated_name'] ?? 'ODD — Outlandish Desktop Decorator';
 		$discovery    = $overrides['discovery'] ?? array(
-			// Row that explicitly depends on openstation — should appear.
+
 			array(
 				'slug'             => 'fake-dependent-plugin',
 				'name'             => 'Fake Dependent',
@@ -353,7 +227,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 				'rating'           => 80,
 				'short_description' => 'Depends on openstation.',
 			),
-			// Row without the dependency — must be filtered out.
+
 			array(
 				'slug'             => 'unrelated-plugin',
 				'name'             => 'Unrelated',

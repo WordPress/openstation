@@ -1,12 +1,3 @@
-/**
- * Posts app — the Tags cloud's sidebar: the empty state, the draft
- * form for a new tag (name + description in one Create), and the
- * editor for the focused chip (name, slug, description, Save, the
- * two-click Delete).
- *
- * @public
- */
-
 import { __, _n, sprintf } from '@openstation/app';
 import {
 	armedDeleteButton,
@@ -44,9 +35,9 @@ export interface CloudSidebarHost {
 	setFocus: ( id: number | null ) => void;
 	draft: () => boolean;
 	setDraft: ( on: boolean ) => void;
-	/** A tag was renamed / re-slugged: refresh its chip. */
+
 	applyTagUpdate: ( id: number, patch: { name: string; description: string; slug: string } ) => void;
-	/** A tag is gone: drop it from the cloud and its persisted position. */
+
 	forgetTag: ( id: number ) => void;
 	buildCloud: () => void;
 	clearPosts: () => void;
@@ -86,8 +77,7 @@ function paintDraft( host: CloudSidebarHost ): void {
 			if ( ! host.terms().some( ( t ) => t.id === next.id ) ) {
 				host.setTerms( host.terms().concat( next ) );
 			}
-			// `createTag` only takes the name; a description rides a
-			// second call so one Create does both.
+
 			const desc = descInput.value.trim();
 			if ( desc ) {
 				try {
@@ -126,7 +116,7 @@ function paintEditor( host: CloudSidebarHost, box: TagInfo ): void {
 	sidebarMeta(
 		sidebar,
 		sprintf(
-			/* translators: %d: post count. */
+
 			_n( '%d post tagged with this.', '%d posts tagged with this.', box.count ),
 			box.count,
 		),

@@ -1,7 +1,3 @@
-/**
- * Drop-target registry behavior — deepest-match wins, the
- * `.os-window` claim boundary, idempotent re-registration.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { DropTargetRegistry } from '../../src/drag/drop-target-registry';
@@ -48,15 +44,7 @@ describe( 'DropTargetRegistry', () => {
 	} );
 
 	test( '.os-window stops the walk and returns null', () => {
-		// Layout:
-		//   <div id="wallpaper">
-		//     <div class="os-window">
-		//       <iframe />
-		//     </div>
-		//   </div>
-		// Wallpaper is registered, the window is NOT. Hit-testing on
-		// the iframe should NOT find the wallpaper — the window
-		// boundary blocks the walk.
+
 		const reg = new DropTargetRegistry();
 		const wallpaper = document.createElement( 'div' );
 		wallpaper.id = 'wallpaper';
@@ -71,18 +59,13 @@ describe( 'DropTargetRegistry', () => {
 			id: 'wallpaper', element: wallpaper, accept: () => true, onDrop: () => undefined,
 		} );
 
-		// Cursor over iframe → hit-test walks up → hits .os-window
-		// before reaching wallpaper → returns null.
 		expect( reg.hitTest( iframe ) ).toBeNull();
-		// But hitting the wallpaper itself directly still works.
+
 		expect( reg.hitTest( wallpaper )?.id ).toBe( 'wallpaper' );
 	} );
 
 	test( 'a target registered INSIDE the window claims its own region', () => {
-		// When a window opts into accepting drops by registering a
-		// target on its body (e.g. recycle bin), hit-testing over that
-		// body returns the bin target — the window class boundary only
-		// kicks in when no inner registration is found.
+
 		const reg = new DropTargetRegistry();
 		const wallpaper = document.createElement( 'div' );
 		const win = document.createElement( 'div' );
@@ -132,7 +115,7 @@ describe( 'DropTargetRegistry', () => {
 		expect( reg.list().length ).toBe( 1 );
 		deregister();
 		expect( reg.list().length ).toBe( 0 );
-		// Second deregister is a no-op.
+
 		expect( () => deregister() ).not.toThrow();
 	} );
 
@@ -143,11 +126,9 @@ describe( 'DropTargetRegistry', () => {
 			id: 'x', element: el, accept: () => true, onDrop: () => undefined,
 		} );
 		const snapshot = reg.list() as Array< unknown >;
-		// Snapshot is a frozen array per `Array.from()` — mutations
-		// shouldn't propagate. (Some implementations return a live
-		// view; the registry uses Array.from so this is safe.)
+
 		expect( snapshot.length ).toBe( 1 );
-		// Adding to snapshot doesn't affect registry.
+
 		snapshot.push( 'extra' );
 		expect( reg.list().length ).toBe( 1 );
 	} );

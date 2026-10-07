@@ -1,13 +1,3 @@
-/**
- * `<os-repeater>` — the contract is that it reports intent and never
- * mutates its own `keys`.
- *
- * The consumer owns the data the rows are a view of, so a component
- * that removed a row on its own would be right exactly until the
- * removal failed to persist. Every test here checks both halves: the
- * event carries the already-applied list, and `keys` is unchanged
- * until the consumer assigns it.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import './os-repeater';
 import type { OsRepeater } from './os-repeater';
@@ -62,8 +52,7 @@ describe( '<os-repeater>', () => {
 			index: 1,
 			keys: [ 'a', 'c' ],
 		} );
-		// The component is a view. Until the consumer assigns, nothing
-		// has happened.
+
 		expect( el.keys ).toEqual( [ 'a', 'b', 'c' ] );
 	} );
 
@@ -77,7 +66,7 @@ describe( '<os-repeater>', () => {
 		const handles = rows( el )[ 2 ].querySelectorAll< HTMLButtonElement >(
 			'.os-repeater__handle',
 		);
-		handles[ 0 ].click(); // up
+		handles[ 0 ].click();
 
 		expect( seen ).toHaveBeenCalledWith( {
 			key: 'c',

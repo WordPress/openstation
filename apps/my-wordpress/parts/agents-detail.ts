@@ -1,17 +1,3 @@
-/**
- * My WordPress — the Agents section: the detail view and its panes.
- *
- * Part of the `my-wordpress` client view: imported by the
- * `my-wordpress.os.ts` entry. One open agent: the identity header,
- * the verb row (profile, contributions, desktop, chat, delete), and
- * the Define / Tools / Triggers panes. The ability checklist and the
- * trigger door cards are shared with the wizard's Powers and Summon
- * steps — one implementation, two surfaces, exactly as WP Explorer
- * built them.
- *
- * @public
- */
-
 import { __, html, sprintf, type TemplateResult } from '@openstation/app';
 import { openUserFootprintWindow } from '../../../src/open-targets/footprint-target';
 import type {
@@ -39,14 +25,6 @@ import {
 	sendAgentToDesktop,
 } from './agents';
 
-/**
- * The ability checklist: a filter, then collapsible groups. One
- * implementation for both surfaces that show it — the Tools pane and
- * the wizard's Powers step. The filter searches the description and
- * the slug as well as the label: plugin authors name abilities for
- * themselves, and "the one that reads custom fields" is easier to
- * remember than whatever it is called.
- */
 export function agentsAbilityChecklist(
 	ctx: Ctx,
 	payload: AgentsPayload,
@@ -69,10 +47,6 @@ export function agentsAbilityChecklist(
 		groups.set( key, [ ...( groups.get( key ) ?? [] ), ability ] );
 	}
 
-	// A group opens by default when there is little to hide, or when it
-	// holds something already ticked — a checked box folded out of
-	// sight is how someone loses track of what they granted. While
-	// filtering, everything that survived is shown.
 	const long = all.length > ABILITY_COLLAPSE_THRESHOLD;
 	const isOpen = ( category: string, list: Ability[] ): boolean => {
 		if ( query !== '' ) {
@@ -103,7 +77,7 @@ export function agentsAbilityChecklist(
 		${ groups.size === 0
 			? html`<p class="dm-agents__hint">
 					${ sprintf(
-						/* translators: %s: the text typed into the ability filter. */
+
 						__( 'No ability matches "%s".' ),
 						ui.abilityQuery.trim(),
 					) }
@@ -111,12 +85,11 @@ export function agentsAbilityChecklist(
 			: '' }
 		${ [ ...groups.entries() ].map( ( [ category, abilities ] ) => {
 			const chosen = abilities.filter( ( a ) => picked.includes( a.slug ) ).length;
-			// "3 of 12" when some are ticked, otherwise just the size of
-			// the group: the count keeps a closed group informative.
+
 			const count =
 				chosen > 0
 					? sprintf(
-						/* translators: 1: ticked abilities in this group, 2: abilities in the group. */
+
 						__( '%1$d of %2$d' ),
 						chosen,
 						abilities.length,
@@ -127,9 +100,6 @@ export function agentsAbilityChecklist(
 					class="dm-agents__ability-group"
 					?open=${ isOpen( category, abilities ) }
 					@toggle=${ ( e: Event ) => {
-						// Remembered, not repainted: the disclosure has
-						// already opened itself, and this is only so the
-						// next paint agrees with it.
 						ui.abilityOpen.set(
 							category,
 							( e.target as HTMLDetailsElement ).open,
@@ -163,17 +133,10 @@ export function agentsAbilityChecklist(
 	`;
 }
 
-/** Where a kind's row sits in the list, or -1. */
 function triggerRowIndex( triggers: Trigger[], slug: string ): number {
 	return triggers.findIndex( ( t ) => t.kind === slug );
 }
 
-/**
- * Whether a kind is one of the entity-kind doors. Send to and Drag &
- * drop configure the same thing, and the catalogue says so through the
- * schema rather than the slug, so a plugin kind shaped the same way
- * gets the same card.
- */
 function takesEntityKinds( kind: TriggerKindDescriptor ): boolean {
 	const schema = kind.config_schema as
 		| { properties?: Record< string, unknown > }
@@ -181,10 +144,6 @@ function takesEntityKinds( kind: TriggerKindDescriptor ): boolean {
 	return !! schema?.properties && 'entityKinds' in schema.properties;
 }
 
-/**
- * Commit with the one invariant the cards promise: chat is always on.
- * Rows for kinds the cards do not draw ride through untouched.
- */
 function commitTriggers(
 	commit: ( rows: Trigger[] ) => void,
 	next: Trigger[],
@@ -196,11 +155,6 @@ function commitTriggers(
 	);
 }
 
-/**
- * Extra configuration for a door that is open. Only kinds with
- * something beyond "on" reach here: hook wants a hook name, endpoint a
- * capability — rendered for a plugin that wires one through the filter.
- */
 function agentsTriggerEditor(
 	payload: AgentsPayload,
 	triggers: Trigger[],
@@ -230,7 +184,7 @@ function agentsTriggerEditor(
 				${ names.length > 0
 					? html`<p class="dm-agents__hint">
 							${ sprintf(
-								/* translators: %s: comma-separated list of WordPress hook names. */
+
 								__( 'Suggestions: %s' ),
 								names.join( ', ' ),
 							) }
@@ -255,12 +209,6 @@ function agentsTriggerEditor(
 	return '';
 }
 
-/**
- * One door, as a fixed card. Chat is always on and says so. An
- * entity-kind door is the row of kinds to tick, and nothing ticked is
- * the door closed. Any other wired kind gets an On switch and, once
- * on, its editor.
- */
 function agentsTriggerCard(
 	ctx: Ctx,
 	payload: AgentsPayload,
@@ -343,11 +291,6 @@ function agentsTriggerCard(
 	`;
 }
 
-/**
- * The doors, as fixed cards, one per wired kind. Shared by the detail
- * pane's Triggers tab and the wizard's Summon step — agnostic about
- * where the rows live.
- */
 export function agentsTriggersList(
 	ctx: Ctx,
 	payload: AgentsPayload,
@@ -367,7 +310,6 @@ export function agentsTriggersList(
 	`;
 }
 
-/** The Define pane's draft, rebuilt whenever another agent opens. */
 function agentsDefineDraft( ui: UiState, agent: Agent ): NonNullable< UiState[ 'agentDraft' ] > {
 	if ( ! ui.agentDraft || ui.agentDraftFor !== agent.id ) {
 		ui.agentDraft = {

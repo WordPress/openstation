@@ -1,10 +1,3 @@
-/**
- * The first ⌘K of a session waits on three things at once — the impl
- * bundle, its deferred stylesheet, and the Core palette runtime — and
- * used to show nothing at all while they loaded. These pin the
- * placeholder that covers that gap.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	hidePalettePlaceholder,
@@ -29,8 +22,7 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'announces politely rather than posing as a dialog', () => {
-		// A `role="dialog"` here would pull focus away from wherever
-		// the real panel is about to claim it.
+
 		showPalettePlaceholder();
 
 		const el = document.getElementById( ID );
@@ -46,10 +38,7 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'a click on the dimmed area cancels, a click on the card does not', () => {
-		// The scrim dims the whole desk, so it behaves the way the
-		// panel's own backdrop will: a layer that let the pointer
-		// through sent a click meant to dismiss it to the dock tile
-		// underneath.
+
 		let cancelled = 0;
 		showPalettePlaceholder( () => {
 			cancelled += 1;
@@ -65,9 +54,7 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'a second handoff does not cut the first one short', () => {
-		// Two opens queued behind one load each hand off to the panel.
-		// The second used to remove the placeholder on the spot, which
-		// is the blink the handoff exists to prevent.
+
 		showPalettePlaceholder();
 		hidePalettePlaceholder( true );
 		hidePalettePlaceholder( true );
@@ -87,9 +74,7 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'Escape takes it down and reports the cancel', () => {
-		// Nothing else is listening for Escape during this window: the
-		// panel binds its handler to an element that does not exist
-		// yet, and the palette cycle never listens for Escape at all.
+
 		let cancelled = 0;
 		showPalettePlaceholder( () => {
 			cancelled += 1;
@@ -130,7 +115,7 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'sweeps up a stray copy it does not own', () => {
-		// e.g. one left behind by an earlier bundle version.
+
 		const stray = document.createElement( 'div' );
 		stray.id = ID;
 		document.body.appendChild( stray );

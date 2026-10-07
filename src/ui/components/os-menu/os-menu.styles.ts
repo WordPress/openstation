@@ -1,18 +1,6 @@
 import { css } from '../../core';
 import { holoTokens, holoEnter } from '../../holo';
 
-/**
- * Menu / menu-item share a frame (padding, font, radius) but each
- * controls its own shadow root. Two exported stylesheets;
- * co-located so the visual language stays in one file.
- *
- * The menu arrives rather than appears: `holoEnter` scales it from 96%
- * on the spring curve. The origin is the top inline-start corner
- * rather than the centre, because a menu is anchored — growing from
- * the middle makes it look like it came from nowhere, growing from the
- * corner makes it look like it came from the thing that opened it.
- */
-
 export const menuStyles = css`
 	${ holoTokens }
 	${ holoEnter }
@@ -24,7 +12,7 @@ export const menuStyles = css`
 		min-width: 220px;
 		padding: 4px;
 		background: var( --os-window-bg, #fff );
-		/* Desktop-theme texture slot: unset resolves to none. */
+
 		background-image: var( --os-ui-menu-bg-image, none );
 		background-repeat: var( --os-ui-menu-bg-image-repeat, repeat );
 		background-size: var( --os-ui-menu-bg-image-size, auto );
@@ -78,13 +66,7 @@ export const menuItemStyles = css`
 		color: var( --os-ui-fg, #000 );
 		outline: none;
 	}
-	/*
-	 * Inset, not the kit's outer ring. A menu item is flush against
-	 * the popover's padding edge, so an outward ring is clipped on one
-	 * side and reads as a broken box; an inset ring traces the item
-	 * itself and is the only one that survives at the top and bottom
-	 * of the list.
-	 */
+
 	button:focus-visible {
 		outline: none;
 		box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
@@ -106,10 +88,7 @@ export const menuItemStyles = css`
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	/*
-	 * Check indicator for role="menuitemcheckbox" variants. Small
-	 * 16 px square so unchecked items align with icon-bearing items.
-	 */
+
 	.os-menu-item__check {
 		flex-shrink: 0;
 		width: 16px;
@@ -123,13 +102,7 @@ export const menuItemStyles = css`
 	.os-menu-item__check[ hidden ] {
 		display: none;
 	}
-	/*
-	 * A checked menu item's box is the same identity moment as a
-	 * checked <os-checkbox>, and now wears the same mesh — through
-	 * --os-ui-holo-fill, so the two cannot drift apart. The tick
-	 * turns Void with it: every mesh in the brand is a light surface
-	 * and the white tick that used to sit here would vanish.
-	 */
+
 	:host( [ checked ] ) .os-menu-item__check {
 		background-color: transparent;
 		background-image: var(

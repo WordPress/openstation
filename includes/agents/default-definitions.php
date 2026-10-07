@@ -1,49 +1,7 @@
 <?php
-/**
- * OpenStation — Agents: the default roster, as data.
- *
- * Split from `defaults.php` so it can be read without the seeder. The
- * seeder needs the whole agents module (it creates users); this file
- * needs nothing, which is what lets the WP Explorer section show the
- * crew on a site where Agents has never been switched on. Seeing who
- * you would get is a better argument for turning a feature on than a
- * paragraph about it.
- *
- * Keep this file free of hooks and of anything that assumes the module
- * is loaded. `defaults.php` requires it; so does `my-wordpress.php`,
- * which loads unconditionally.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Why the five carry a written-out face rather than only a seed.
- *
- * A face is a Mio look, and `randomMioLook()` can roll one from a seed,
- * which is how an agent someone creates gets its portrait. The shipped
- * five are different: they are a designed cast, not a rolled one. Five
- * silhouettes, five hues spread around the wheel, chosen so you can
- * tell tl;dr from the Localizer at a glance in a grid.
- *
- * Writing the look out pins that. If the randomizer's ranges are
- * retuned later — and they are taste, so they will be — the five
- * characters this plugin ships do not silently become five different
- * ones. The seed is kept alongside as provenance: it is the seed these
- * looks came from, and it is what a future migration would re-roll from
- * if the cast were ever meant to move with the randomizer.
- *
- * Only the keys that differ from the shipped Mio are listed, so a
- * change to the default companion still shows through everywhere the
- * cast has no opinion.
- */
-
-/**
- * The default agent roster.
- *
- * @return array<int, array<string, mixed>>
- */
 function openstation_agents_default_definitions() {
 	return array(
 		array(

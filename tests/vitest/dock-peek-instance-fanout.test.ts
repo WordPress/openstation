@@ -1,14 +1,3 @@
-/**
- * Regression: the dock-peek `getInstances` callback used to gate
- * "return all baseId-matching windows" on `item.multi`. Synthesized
- * dock tiles produced by `applyDockPlacement` for a wallpaper icon
- * promoted to the dock never carry `multi: true`, so even after the
- * Ghost Card spawned a real second native-window instance the next
- * hover only showed one thumbnail card. The fix routes both menu
- * tiles and system tiles through `getAllByBaseId(baseId)`.
- *
- * @group dock
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import * as DockPeek from '../../src/dock-peek';
 import { Dock, type DockItem } from '../../src/dock';
@@ -31,9 +20,7 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 	} );
 
 	test( 'getInstances returns every window sharing the resolved baseId even when multi is false', () => {
-		// Two open windows: the original and a duplicate spawned via
-		// the Ghost Card. The duplicate's id is `<baseId>-2` and its
-		// config.baseId matches the original.
+
 		const windows = [
 			makeWindowStub( 'desktop-mode-my-wordpress', 'desktop-mode-my-wordpress' ),
 			makeWindowStub(
@@ -62,9 +49,6 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 				return () => undefined;
 			} );
 
-		// An app launcher on the rail whose target is a native window
-		// rather than an admin URL. `multi` is intentionally falsy —
-		// the bug repro depends on it.
 		const item: DockItem = {
 			id: 'desktop-mode-my-wordpress',
 			title: 'My WordPress',
@@ -82,7 +66,7 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 		new Dock( container, manager, [ item ], 'http://localhost/wp-admin/', 'left' );
 
 		expect( spy ).toHaveBeenCalled();
-		// `peekDeps[ 0 ]` is the peek registration for our tile.
+
 		const instances = peekDeps[ 0 ].getInstances();
 		expect( instances.map( ( w ) => w.id ) ).toEqual( [
 			'desktop-mode-my-wordpress',

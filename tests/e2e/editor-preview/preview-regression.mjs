@@ -1,23 +1,3 @@
-/**
- * Editor-preview regression, against the live dev site at :8889 with
- * real WordPress autosave, real TinyMCE and the real shell.
- *
- * Two cases, and BOTH matter — a fix that silences the spurious refresh
- * by never refreshing at all would pass case A and fail case B.
- *
- *   A. Eye clicked with nothing to save  -> the companion must NOT be
- *      refreshed. Core declines to autosave, so there is nothing the
- *      companion's first load does not already show.
- *   B. Eye clicked after a real edit     -> the companion MUST be
- *      refreshed, because its first load raced the save.
- *
- * In both cases the user's gesture (into the preview, back to the
- * editor) is performed on the real timeline, since the reported symptom
- * was a refresh that lands between those two clicks.
- *
- * Usage:  node preview-regression.mjs
- * Exit 0 = both cases behave.
- */
 import { launch, login, until, sleep, BASE, PRODUCT_ID } from './lib.mjs';
 
 const EDITOR_WIN = `post-php-post-${ PRODUCT_ID }`;
@@ -61,8 +41,7 @@ async function run( { dirty } ) {
 			);
 			await page.keyboard.type( ' EDIT-' + Date.now().toString().slice( -5 ) );
 			await sleep( 1500 );
-			// The edit must actually have registered, or case B proves
-			// nothing.
+
 			const isDirty = await ef().evaluate(
 				() => !! window.tinymce?.get?.( 'content' )?.isDirty?.()
 			);
@@ -127,8 +106,7 @@ async function run( { dirty } ) {
 		await clickIn( previewId, 'PREVIEW' );
 		await sleep( 3000 );
 		await clickIn( EDITOR_WIN, 'EDITOR' );
-		// Past the 5 s backstop + the 400 ms schedule debounce, with room
-		// to spare: the spurious refresh landed at ~T+5.4 s.
+
 		await sleep( 20000 );
 
 		const { ev, refresh } = await page.evaluate( () => ( {

@@ -1,37 +1,10 @@
-/**
- * Trash — the client view of the Recycle Bin app.
- *
- * The 1:1 rebuild of the legacy bin window's body, which it replaced
- * whole: same toolbar, same `<os-table>` painted through the cell
- * renderers (`parts/table-visuals.ts`), same empty state, same
- * confirm copy, same real-time channels. What the
- * framework absorbed from the old implementation: the REST client
- * and its config blob (actions + `data()` + `ctx.fetch`), the
- * fingerprint/cache/sequence choreography (data rides every dispatch
- * response), the loading skeleton (the first paint already has
- * data), the broadcast subscriptions (`watch( '*' )`), and the
- * hand-built toolbar wiring (the view is a function of state).
- *
- * The chunked Empty Trash loop is `parts/empty-loop.ts` over
- * `ctx.fetch` against the store's REST route, and the
- * chromeless-postMessage + Heartbeat real-time channels are
- * `parts/realtime.ts`. The one piece of the bin that is NOT the
- * app's is the closed tile's art — `src/desktop-files/
- * recycle-bin-icon-state.ts` — because it has to paint from the
- * always-on shell bundle before this script ever loads.
- *
- * @public
- */
-
 import { __, _n, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
 import { restErrorFromResponse } from '../../src/core/api-client';
 import { toastRestFailure } from '../../src/core/rest-failure';
 import { beginTrashChange, projectTrash, trashKey, watchTrashChanges } from '../../src/desktop-files/trash-optimistic';
 import { isMobileStamped } from '../../src/mode/stamp';
 import { stackOnPhone } from '../../src/ui/components/os-table/stack-on-phone';
-// Register before updated() assigns data and columns. A type-only import
-// leaves own properties on an unupgraded element, shadowing the table's
-// setters when the lazy component kit eventually loads.
+
 import '../../src/ui/components/os-table/os-table';
 import { runEmptyLoop } from './parts/empty-loop';
 import * as realtime from './parts/realtime';
@@ -48,11 +21,6 @@ import type {
 import type { OsTable } from '../../src/ui/components/os-table/os-table';
 import type { ViewContext } from '@openstation/app';
 
-/**
- * The app id — the legacy native window's FROZEN identifier (see
- * AGENTS.md), claimed by the app so shortcuts, dock placements,
- * drag-to-trash targets and theme slots keep working unchanged.
- */
 const APP_ID = 'desktop-mode-recycle-bin';
 
 interface AppState extends Record< string, unknown > {
@@ -68,21 +36,20 @@ interface AppData {
 
 type Ctx = ViewContext< AppState, AppData >;
 
-/** Client-only per-window state — none of it may reach the server. */
 interface UiState {
-	/** The selected rows, resolved to typed refs on every change. */
+
 	selected: RecycleBinItemRef[];
-	/** filter|search identity — a change clears the selection. */
+
 	listKey: string;
-	/** Change-detection key so identical data skips the table repaint. */
+
 	fingerprint: string;
-	/** Empty Trash progress, painted into the button label. */
+
 	empty: { mode: 'idle' | 'starting' | 'progress'; purged: number; total: number };
-	/** External-change debounce timer. */
+
 	refreshTimer: number | null;
-	/** The tile art last pushed to the rails — swap only on change. */
+
 	lastArt: string;
-	/** Whether the columns were last built for a phone (`null`: not yet). */
+
 	phoneColumns: boolean | null;
 }
 
@@ -96,11 +63,6 @@ const freshUi = (): UiState => ( {
 	phoneColumns: null,
 } );
 
-/**
- * Stable key for change detection — identical state across two
- * fetches yields the same key, so the `<os-table>` body repaint can
- * be skipped. Same shape as the legacy fingerprint.
- */
 function fingerprint( items: RecycleBinItem[] ): string {
 	if ( items.length === 0 ) {
 		return '';
@@ -111,12 +73,6 @@ function fingerprint( items: RecycleBinItem[] ): string {
 		.join( '|' );
 }
 
-/**
- * Notify parity listeners that a bin operation finished — the same
- * document CustomEvent + hook the legacy bin emits. The cross-window
- * `os.<type>.changed` broadcasts are the SERVER action's job
- * (`$os->announce()`), so they are not re-emitted here.
- */
 function emitChanged( kind: 'restore' | 'purge' | 'empty', ok: number ): void {
 	const detail = { kind, ok, errors: [], source: 'local' as const };
 	document.dispatchEvent( new CustomEvent( 'os-recycle-bin-changed', { detail } ) );
@@ -129,7 +85,6 @@ function emitChanged( kind: 'restore' | 'purge' | 'empty', ok: number ): void {
 const table = ( ctx: Ctx ): OsTable< RecycleBinItem > | null =>
 	ctx.root.querySelector< OsTable< RecycleBinItem > >( '[data-os-trash-table]' );
 
-/** Resolve the table's selection to typed refs against VISIBLE rows. */
 function collectSelected( ctx: Ctx ): RecycleBinItemRef[] {
 	const el = table( ctx );
 	if ( ! el ) {
@@ -150,7 +105,6 @@ function clearSelection( ctx: Ctx ): void {
 	ctx.ui( freshUi ).selected = [];
 }
 
-/** Remove rows immediately; the dispatch response restores any failed refs. */
 async function removeRefs( ctx: Ctx, refs: RecycleBinItemRef[], action: 'restore' | 'purge' ): Promise< void > {
 	const operations = refs.flatMap( ( ref ) => {
 		const row = ctx.data.items.find( ( item ) => trashKey( item ) === trashKey( ref ) );
@@ -173,21 +127,19 @@ async function removeRefs( ctx: Ctx, refs: RecycleBinItemRef[], action: 'restore
 		if ( changed > 0 ) {
 			emitChanged( action, changed );
 		}
-		// A refused dispatch already toasted from the runtime. A dispatch
-		// that went through but left rows behind is the server skipping
-		// items it would not touch; the rows slid back, say why.
+
 		const kept = ok ? operations.length - changed : 0;
 		if ( kept > 0 ) {
 			ctx.host.toast?.( {
 				message:
 					action === 'restore'
 						? sprintf(
-							/* translators: %d: number of items. */
+
 							_n( '%d item could not be restored.', '%d items could not be restored.', kept ),
 							kept,
 						)
 						: sprintf(
-							/* translators: %d: number of items. */
+
 							_n( '%d item could not be deleted.', '%d items could not be deleted.', kept ),
 							kept,
 						),
@@ -218,7 +170,7 @@ async function purgeRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void >
 	const confirmed = await ctx.host.confirm?.( {
 		title: __( 'Delete forever?' ),
 		message: sprintf(
-			/* translators: %d: row count. */
+
 			__( 'Permanently delete %d item(s)? This cannot be undone.' ),
 			refs.length,
 		),
@@ -230,12 +182,6 @@ async function purgeRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void >
 	}
 }
 
-/**
- * Restore first (per ref, so a mixed post-#5 + comment-#5 selection
- * keeps its success signals unambiguous — same reasoning as the
- * legacy bin), then place each on the desktop at staggered
- * coordinates matching `src/desktop-files/grid.ts`.
- */
 async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 	if ( refs.length === 0 ) {
 		return;
@@ -266,7 +212,6 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 			}
 			result = ( await response.json() ) as BulkResponse;
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( '[trash] pin-to-desktop restore failed', err );
 			failedRestores += 1;
 			firstFailure ??= err;
@@ -288,7 +233,6 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 				y: 16 + Math.floor( placed / 5 ) * 110,
 			} );
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( '[trash] pin-to-desktop placement failed', err );
 		}
 		placed += 1;
@@ -297,7 +241,7 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 	if ( failedRestores > 0 ) {
 		toastRestFailure( ctx.host.toast, firstFailure, {
 			fallback: sprintf(
-				/* translators: %d: number of items. */
+
 				_n( '%d item could not be restored.', '%d items could not be restored.', failedRestores ),
 				failedRestores,
 			),
@@ -310,12 +254,6 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 	}
 }
 
-/**
- * Empty the whole bin: the same chunk-loop driver the legacy bin
- * runs (the server purges one chunk per call to dodge PHP timeouts),
- * over `ctx.fetch` against the legacy REST route, with the progress
- * painted into the button label declaratively.
- */
 async function emptyAll( ctx: Ctx ): Promise< void > {
 	const confirmed = await ctx.host.confirm?.( {
 		title: __( 'Empty Trash?' ),
@@ -357,14 +295,13 @@ async function emptyAll( ctx: Ctx ): Promise< void > {
 		if ( loop.skipped > 0 ) {
 			ctx.host.toast?.( {
 				message: sprintf(
-					/* translators: %d: skipped count. */
+
 					__( '%d item(s) skipped (insufficient permissions).' ),
 					loop.skipped,
 				),
 			} );
 		}
 	} catch ( err ) {
-		// eslint-disable-next-line no-console
 		console.error( '[trash] empty failed', err );
 		toastRestFailure( ctx.host.toast, err, { fallback: __( 'Could not empty the Recycle Bin.' ) } );
 	} finally {
@@ -387,24 +324,17 @@ function emptyButtonLabel( ui: UiState ): string {
 		return __( 'Emptying…' );
 	}
 	return sprintf(
-		/* translators: 1: items purged so far, 2: items in bin when emptying began. */
+
 		__( 'Emptying… %1$d of %2$d' ),
 		ui.empty.purged,
 		ui.empty.total,
 	);
 }
 
-/**
- * The selection's actions: the count, Restore, Pin to desktop and
- * Delete forever. In the toolbar on a desk; on a phone the same
- * controls are a bar along the bottom of the window, where the
- * thumb is, and Pin to desktop is not offered — a phone has no
- * desktop to pin to.
- */
 function bulkActions( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 	return html`
 		<span class="os-recycle-bin__count">${ sprintf(
-			/* translators: %d: selected row count. */
+
 			__( '%d selected' ),
 			ui.selected.length,
 		) }</span>
@@ -503,15 +433,8 @@ export default defineApp< AppState, AppData >( APP_ID, {
 	},
 
 	mounted: ( ctx ) => {
-		// The chromeless-postMessage fast path + the Heartbeat
-		// catch-all — the SAME channels the legacy bin subscribes,
-		// reused wholesale. `watch( '*' )` covers the in-shell
-		// broadcasts; these cover trash actions inside chromeless
-		// iframes and other tabs.
 		realtime.start();
-		// The first mount may be a hover-prewarmed snapshot from before
-		// a deletion. Reconcile after subscribing so that snapshot cannot
-		// leave a newly opened bin empty until the next notification.
+
 		void ctx.dispatch( 'refresh' );
 		let refreshing: Promise< unknown > | null = null;
 		const unwatch = watchTrashChanges( () => ctx.repaint(), () => {
@@ -524,9 +447,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		const ui = ctx.ui( freshUi );
 		const onExternalChange = ( e: Event ): void => {
 			const detail = ( e as CustomEvent< { source?: string } > ).detail;
-			// Local operations already refresh through their own
-			// dispatch; only external sources re-fetch, debounced so a
-			// bulk trash of 50 items lands as one repaint.
+
 			if ( ! detail?.source || detail.source === 'local' ) {
 				return;
 			}
@@ -539,9 +460,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			}, 200 );
 		};
 		document.addEventListener( 'os-recycle-bin-changed', onExternalChange );
-		// The view reads the shell's mode stamp (the bulk bar's place,
-		// the cards); a crossing between the desk and the phone band
-		// is the one change that repaints nothing on its own.
+
 		const onModeChange = (): void => ctx.repaint();
 		document.addEventListener( 'os-mode-changed', onModeChange );
 		return () => {
@@ -561,9 +480,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			return;
 		}
 		const ui = ctx.ui( freshUi );
-		// A card per row on a phone (`stack-on-phone.ts`), and the
-		// columns built for it: labelled row buttons, a title that may
-		// take two lines. Rebuilt only when the answer changes.
+
 		const phone = stackOnPhone( el );
 		if ( phone !== ui.phoneColumns ) {
 			ui.phoneColumns = phone;
@@ -575,9 +492,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 				{ phone },
 			);
 		}
-		// One-time wiring: composite row identity (post #5 and comment
-		// #5 coexist), default sort, and the selection listener that
-		// repaints the bulk bar.
+
 		if ( ! el.hasAttribute( 'data-os-trash-wired' ) ) {
 			el.setAttribute( 'data-os-trash-wired', '' );
 			el.getRowId = ( row ) => `${ row.type }:${ row.id }`;
@@ -587,8 +502,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 				ctx.repaint();
 			} );
 		}
-		// A filter/search change replaces the result set wholesale —
-		// ids picked under the previous view must not linger invisibly.
+
 		const listKey = `${ ctx.state.filter }|${ ctx.state.search }`;
 		if ( listKey !== ui.listKey ) {
 			ui.listKey = listKey;
@@ -597,15 +511,13 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			}
 			ui.selected = [];
 		}
-		// Assign the data only when it actually changed — same
-		// fingerprint guard the legacy bin uses to skip body repaints.
+
 		const projected = projectTrash( ctx.data.items, ctx.data.total, ctx.state.filter, ctx.state.search );
 		const next = fingerprint( projected.items );
 		if ( next !== ui.fingerprint ) {
 			ui.fingerprint = next;
 			el.data = projected.items;
-			// Prune selection keys whose row left the visible list, so
-			// the bulk bar's count stays truthful.
+
 			const visible = new Set(
 				( el.visibleRows ?? [] ).map( ( row ) => `${ row.type }:${ row.id }` ),
 			);
@@ -617,12 +529,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 				ui.selected = collectSelected( ctx );
 			}
 		}
-		// State-driven tile art, the legacy bin's signature move: the
-		// tile draws the FULL bin while the trash holds anything, the
-		// empty one otherwise. Both drawings shipped in the config
-		// extra (App::config()), so crossing zero is a local swap.
-		// Deliberately no count badge — a number on the tile reads as
-		// update notifications.
+
 		const art = String( ctx.extra[ projected.total > 0 ? 'full' : 'empty' ] ?? '' );
 		if ( art && art !== ui.lastArt ) {
 			ui.lastArt = art;

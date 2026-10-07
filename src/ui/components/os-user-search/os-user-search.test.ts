@@ -1,6 +1,3 @@
-/**
- * `<os-user-search>` tests.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 async function load() {
@@ -46,7 +43,7 @@ describe( 'os-user-search', () => {
 				{ headers: { 'Content-Type': 'application/json' } },
 			),
 		);
-		// eslint-disable-next-line no-restricted-syntax -- test mock
+
 		( globalThis as unknown as { fetch: typeof fetch } ).fetch = fetchSpy as unknown as typeof fetch;
 
 		const el = document.createElement( 'os-user-search' );
@@ -57,7 +54,6 @@ describe( 'os-user-search', () => {
 		input.value = 'ali';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
 
-		// Wait for debounce + fetch.
 		await new Promise( ( r ) => setTimeout( r, 250 ) );
 		await new Promise( ( r ) => queueMicrotask( () => r( null ) ) );
 
@@ -78,7 +74,7 @@ describe( 'os-user-search', () => {
 				{ headers: { 'Content-Type': 'application/json' } },
 			),
 		);
-		// eslint-disable-next-line no-restricted-syntax -- test mock
+
 		( globalThis as unknown as { fetch: typeof fetch } ).fetch = fetchSpy as unknown as typeof fetch;
 
 		const el = document.createElement( 'os-user-search' );

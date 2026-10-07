@@ -1,6 +1,3 @@
-/**
- * `<os-modal>` tests.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 async function load() {

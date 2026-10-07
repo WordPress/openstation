@@ -23,8 +23,7 @@ describe( '<os-row>', () => {
 		const row = host.querySelector( 'os-row' )!;
 		expect( row.shadowRoot ).not.toBeNull();
 		expect( row.shadowRoot!.querySelector( 'slot' ) ).not.toBeNull();
-		// Light children are still in the light DOM — the shadow slot
-		// just projects them visually.
+
 		expect( row.querySelectorAll( 'div' ).length ).toBe( 2 );
 	} );
 
@@ -41,7 +40,7 @@ describe( '<os-row>', () => {
 		await tick();
 
 		const row = host.querySelector( 'os-row' ) as HTMLElement;
-		// Non-matching /^\d+$/ → no custom property written → empty string.
+
 		expect( row.style.getPropertyValue( '--os-ui-row-gap' ) ).toBe( '' );
 	} );
 
@@ -56,9 +55,6 @@ describe( '<os-row>', () => {
 	} );
 
 	test( 'children without col attribute still appear inside the row', async () => {
-		// The grid layout is CSS-only; we verify the structural
-		// contract (slotting works, light children stay queryable)
-		// rather than the computed layout (jsdom has no real grid).
 		host.innerHTML = `
 			<os-row>
 				<os-panel>one</os-panel>
@@ -70,8 +66,7 @@ describe( '<os-row>', () => {
 		const row = host.querySelector( 'os-row' )!;
 		const panels = row.querySelectorAll( 'os-panel' );
 		expect( panels.length ).toBe( 2 );
-		// Any element type participates — the col attribute lives on
-		// the child, so os-panel and a bare <div> both work.
+
 		expect( panels[ 1 ].getAttribute( 'col' ) ).toBe( '6' );
 	} );
 } );

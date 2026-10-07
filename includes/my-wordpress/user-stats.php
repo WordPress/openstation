@@ -1,43 +1,7 @@
 <?php
-/**
- * OpenStation — My WordPress: per-user stats endpoint.
- *
- * `GET /desktop-mode/v1/user-stats/<id>` returns an aggregated
- * profile + activity blob for the requested user. The right
- * preview pane in the My WordPress folder uses it to paint a rich
- * dossier (post / page / comment counts, recent posts, top
- * categories, role + member-since) without forcing the client to
- * make N parallel REST calls.
- *
- * Permissions: the My WordPress module's gate,
- * `openstation_my_wordpress_user_can_use()` (`edit_posts` unless a site
- * filters it), so a site that narrows WP Explorer narrows this data
- * with it. Past that gate, anyone with `list_users` (or the subject
- * user viewing their own dossier) sees full data; everyone else sees
- * the public subset (display name, avatar, post archive link,
- * published-only counts and recent posts). Sensitive fields (email,
- * registered date, role) are gated on the cap.
- *
- * For the unprivileged subset, `publish` alone is not the test for
- * the counts that reach beyond the subject's own posts and pages
- * (`cpt`, `commentsReceived`, `commentsLeft`): a type with no readable
- * front end holds `publish` rows a visitor could never open, so those
- * counts ask `is_post_type_viewable()` as well. The comment counts also
- * skip password-protected and deleted parents, and ask the comment
- * dossier's gate of every parent they count, so a plugin that filters
- * `read_post` for a single published post takes its comments out of
- * them. For every viewer, `cpt` leaves out the post types Core
- * registers (`_builtin`). The payload is viewer-dependent: never cache
- * it under a subject-only key.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the route.
- */
 function openstation_my_wordpress_register_user_stats_route() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -46,9 +10,7 @@ function openstation_my_wordpress_register_user_stats_route() {
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_my_wordpress_user_stats_callback',
 			'permission_callback' => static function () {
-				// The module's gate, so a site that narrows WP Explorer
-				// narrows this data with it. The per-viewer scoping lives
-				// in the callback, which in-process callers invoke directly.
+
 				return openstation_my_wordpress_user_can_use();
 			},
 			'args'                => array(
@@ -63,23 +25,6 @@ function openstation_my_wordpress_register_user_stats_route() {
 }
 add_action( 'rest_api_init', 'openstation_my_wordpress_register_user_stats_route' );
 
-/**
- * Sum per-parent comment counts over the parents the viewer may read.
- *
- * The query behind the rows has already kept only published, unsealed
- * parents of a viewable type. That settles the parent's status, type
- * and password, but not the post itself: `read_post` is filterable per
- * post, and the comment dossier asks it of a published parent too, so a
- * plugin can withhold one post and `/comment-stats` then refuses its
- * comments. Every parent goes through that same gate,
- * openstation_my_wordpress_can_read_comment_post(), so a count never
- * reports comments the dossier withholds. The parents are loaded in one
- * query, and each is decided once per request.
- *
- * @param array[]|null $rows     Rows carrying the parent's `post_id` and its comment count `n`.
- * @param bool[]       $verdicts Gate answers already reached in this request, keyed by post id.
- * @return int
- */
 function openstation_my_wordpress_user_stats_readable_comment_count( $rows, array &$verdicts ) {
 	$rows   = (array) $rows;
 	$unseen = array();
@@ -106,13 +51,6 @@ function openstation_my_wordpress_user_stats_readable_comment_count( $rows, arra
 	return $total;
 }
 
-/**
- * Aggregator callback. Returns the dossier shape (see file
- * docblock above for fields).
- *
- * @param WP_REST_Request $request REST request.
- * @return array|WP_Error
- */
 function openstation_my_wordpress_user_stats_callback( $request ) {
 	global $wpdb;
 	$user_id = (int) $request->get_param( 'id' );
@@ -128,7 +66,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	$can_see_private = current_user_can( 'list_users' )
 		|| ( get_current_user_id() === $user_id );
 
-	// ----- Profile -----------------------------------------------------
 	$profile = array(
 		'id'          => (int) $user->ID,
 		'name'        => openstation_plain_text_title( $user->display_name ),
@@ -154,8 +91,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		$profile['roleLabels'] = $role_labels;
 	}
 
-	// ----- Counts ------------------------------------------------------
-	// Posts (the post type) by status.
 	$post_status_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT post_status, COUNT(*) AS n
@@ -185,7 +120,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		}
 	}
 
-	// Pages by status.
 	$page_status_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT post_status, COUNT(*) AS n
@@ -213,9 +147,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	}
 
 	if ( ! $can_see_private ) {
-		// Viewers without `list_users` (and who aren't the subject)
-		// only get published counts — see the permissions note in
-		// the file docblock.
+
 		$post_counts = array(
 			'publish' => $post_counts['publish'],
 			'total'   => $post_counts['publish'],
@@ -226,29 +158,11 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		);
 	}
 
-	// ----- Counts beyond the subject's own posts and pages -------------
-	// For a viewer without `list_users`, each count below takes two gates,
-	// because `publish` is not visibility on its own: the row has to be
-	// published, AND its post type has to be one a visitor could actually
-	// open. A plugin's internal type (an order, a submission log, an
-	// internal note) registers rows with a `publish` status and no front
-	// end at all, so the type list comes from `is_post_type_viewable()`,
-	// the question the comment tools and the term-stats endpoint settled
-	// on. A comment count also skips a password-protected parent, whose
-	// comments are sealed along with it, and a parent that no longer
-	// exists. Those three settle the parent's status, type and password,
-	// but not the post itself: `read_post` is filterable per post, so each
-	// comment count also asks the comment dossier's gate of every parent
-	// it counts, through
-	// openstation_my_wordpress_user_stats_readable_comment_count().
-	// Privileged viewers keep every count whole.
 	$viewable_types = array_values( array_filter( get_post_types(), 'is_post_type_viewable' ) );
 	$viewable_list  = implode( ', ', array_fill( 0, count( $viewable_types ), '%s' ) );
 
-	// Gate answers per parent post, shared by both comment counts.
 	$comment_verdicts = array();
 
-	// Comments received on posts authored by this user, approved only.
 	if ( $can_see_private ) {
 		$comments_received = (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -282,7 +196,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		$comments_received = 0;
 	}
 
-	// Comments left BY this user (regardless of post author).
 	if ( $can_see_private ) {
 		$comments_left = (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -314,13 +227,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		$comments_left = 0;
 	}
 
-	// Total content in custom post types. Every type Core registers is
-	// left out (`_builtin`): posts and pages because they are counted
-	// above, and the rest (attachments, revisions, menu items, synced
-	// patterns, templates, navigation menus, global styles, changesets,
-	// oEmbed caches, ...) because none of it is a custom post type. An
-	// exclusion list naming a handful of them counted every one it did
-	// not name.
 	$builtin_types = array_values( get_post_types( array( '_builtin' => true ) ) );
 	if ( $can_see_private ) {
 		$builtin_list = implode( ', ', array_fill( 0, count( $builtin_types ), '%s' ) );
@@ -361,9 +267,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		'cpt'              => $cpt_count,
 	);
 
-	// ----- Recent posts (latest 5) -------------------------------------
-	// Privileged viewers also see private/scheduled/draft/pending;
-	// everyone else gets published posts only.
 	$recent_posts = get_posts(
 		array(
 			'author'           => $user_id,
@@ -392,7 +295,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		);
 	}
 
-	// ----- Top categories (most used by this author) -------------------
 	$top_term_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT t.term_id, t.name, t.slug, tt.taxonomy, COUNT(*) AS n
@@ -422,9 +324,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		);
 	}
 
-	// ----- Activity (posts published per month, last 12 months) --------
-	// Lightweight sparkline source. Exclude trash + auto-draft, group by
-	// year-month so the JS can fill gaps.
 	$activity_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE_FORMAT( post_date_gmt, '%%Y-%%m' ) AS ym, COUNT(*) AS n
@@ -447,8 +346,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		);
 	}
 
-	// ----- First & last published --------------------------------------
-	// (Streak math lives in the separate user-footprint endpoint.)
 	$first_post = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MIN(post_date_gmt) FROM {$wpdb->posts}
@@ -477,14 +374,5 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 		'milestones' => $milestones,
 	);
 
-	/**
-	 * Filter the per-user stats payload before it's returned to
-	 * the My WordPress folder window. Plugins can drop additional
-	 * stat sections (badges, milestones, contribution streaks)
-	 * here without forking the JS render.
-	 *
-	 * @param array $payload Stats payload.
-	 * @param int   $user_id Subject user id.
-	 */
 	return apply_filters( 'openstation_my_wordpress_user_stats', $payload, $user_id );
 }

@@ -1,17 +1,3 @@
-/**
- * The Living Tree — wallpaper plugin entry.
- *
- * A canvas wallpaper that renders the site as a living plant organism —
- * a tree whose shape is the visual fingerprint of the site's life (posts,
- * comments, tags, online users, traffic). See
- * `docs/living-tree-algorithm.md` for the full algorithm.
- *
- * Publishing pattern (same as animated-logo): the bundle's only side
- * effect is writing `window.openStationWallpapers['wp-living-tree']`; the
- * shell's wallpaper `server-sync` reads that global after the script
- * loads. Server registration lives in `includes/living-tree/wallpaper.php`.
- */
-
 import type {
 	WallpaperContext,
 	WallpaperDef,
@@ -22,18 +8,11 @@ import { trackedFetch } from '../../tracked-fetch';
 import { mountScene } from './scene';
 import type { TreeSnapshot } from './types';
 
-/** Stable id — persisted to localStorage as the user's selected wallpaper. */
 const WALLPAPER_ID = 'wp-living-tree';
 
-/**
- * Swatch preview — pure CSS, shown in OS Settings before PixiJS loads.
- * A dusk gradient matching the scene backdrop so selecting feels
- * continuous.
- */
 const PREVIEW =
 	'linear-gradient(180deg, #24304a 0%, #6b4a63 70%, #b5744f 100%)';
 
-/** REST root, falling back to the default when `wpApiSettings` is absent. */
 function restRoot(): string {
 	const settings = ( window as unknown as {
 		wpApiSettings?: { root?: string };
@@ -41,11 +20,6 @@ function restRoot(): string {
 	return settings?.root ?? '/wp-json/';
 }
 
-/**
- * Fetch the site DNA. Routes through the framework fetch so the request
- * feeds the activity bus; `silent` because the user didn't initiate it.
- * Returns `null` on any failure — the scene renders a sprout.
- */
 async function fetchSnapshot(): Promise< TreeSnapshot | null > {
 	try {
 		const res = await trackedFetch(
@@ -62,13 +36,6 @@ async function fetchSnapshot(): Promise< TreeSnapshot | null > {
 	}
 }
 
-/**
- * Default preview parameters — a site in its prime, so the OS Settings
- * tile shows what the wallpaper can become rather than the sprout a
- * day-old site would render. Every key is overridable through the
- * `os.wallpaper.preview-params` filter; non-numeric
- * overrides fall back to these values.
- */
 const PREVIEW_PARAMS: Record< string, number > = {
 	siteAgeDays: 540,
 	totalPosts: 120,
@@ -82,7 +49,6 @@ const PREVIEW_PARAMS: Record< string, number > = {
 	performance: 0.9,
 };
 
-/** Read a numeric param, falling back to the showcase default. */
 function numParam( params: Record< string, unknown >, key: string ): number {
 	const value = params[ key ];
 	return typeof value === 'number' && Number.isFinite( value )
@@ -90,13 +56,6 @@ function numParam( params: Record< string, unknown >, key: string ): number {
 		: PREVIEW_PARAMS[ key ];
 }
 
-/**
- * Build the synthetic snapshot the preview grows from. No REST fetch —
- * the preview must work offline, instantly, and identically on every
- * site regardless of its real age. The seed (`siteUrl` + `siteName` +
- * `installEpoch`) is held constant so the preview individual is stable
- * across opens; the metrics come from params.
- */
 function showcaseSnapshot(
 	params: Record< string, unknown >,
 ): TreeSnapshot {
@@ -127,13 +86,7 @@ const def: WallpaperDef = {
 	type: 'canvas',
 	preview: PREVIEW,
 	previewParams: PREVIEW_PARAMS,
-	/**
-	 * Live tile preview for the OS Settings picker. Grows a showcase
-	 * tree from {@link showcaseSnapshot} — never the real site DNA, so
-	 * a brand-new site still previews the wallpaper at full glory. The
-	 * reveal animation plays at normal speed (a mature tree grows in a
-	 * couple of seconds), which doubles as the preview's motion.
-	 */
+
 	renderPreview: async (
 		container: HTMLElement,
 		ctx: WallpaperPreviewContext,
@@ -157,9 +110,6 @@ const def: WallpaperDef = {
 			prefersReducedMotion: ctx.prefersReducedMotion,
 		} );
 
-		// Pause/resume the ticker when the wallpaper is hidden (a window
-		// covers the whole desktop, tab backgrounded). Same public hook
-		// surface the animated-logo wallpaper uses.
 		const NAMESPACE = 'desktop-mode/living-tree';
 		const HOOK = 'os.wallpaper.visibility';
 		const api = window.wp?.os;

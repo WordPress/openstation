@@ -1,17 +1,7 @@
 <?php
-/**
- * MIO window conversations: stateless generation, private client tools.
- *
- * No ability is registered or executed on the server. The window owns
- * validation and dispatch; existing write endpoints retain their permissions.
- * This route never stores transcripts or emits them on search logging hooks.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Register the authenticated, uncached single-turn transport. */
 function openstation_register_mio_rest_route() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -25,11 +15,6 @@ function openstation_register_mio_rest_route() {
 }
 add_action( 'rest_api_init', 'openstation_register_mio_rest_route' );
 
-/**
- * Enforce the MIO window preference and existing AI permission/connector gates.
- *
- * @return true|WP_Error Whether this account can start a window conversation.
- */
 function openstation_rest_mio_permission() {
 	if ( is_user_logged_in() && ! openstation_get_os_settings( get_current_user_id() )['mioApiEnabled'] ) {
 		return new WP_Error(
@@ -52,12 +37,6 @@ function openstation_rest_mio_permission() {
 	return true;
 }
 
-/**
- * Validate the bounded window-authored turn before contacting a provider.
- *
- * @param mixed $input JSON request body.
- * @return bool Whether the request is a supported turn.
- */
 function openstation_mio_valid_turn( $input ) {
 	if ( ! is_array( $input ) || array_diff( array_keys( $input ), array( 'prompt', 'transcript', 'tools' ) ) ) {
 		return false;
@@ -86,26 +65,10 @@ function openstation_mio_valid_turn( $input ) {
 	return true;
 }
 
-/**
- * Preserve object arguments for parameterless tools across the AI Client adapter.
- *
- * The shared adapter serializes the SDK's empty PHP argument array as [].
- * Only a schema with no properties permits treating that value as {}.
- *
- * @param string $arguments Encoded provider arguments.
- * @param array  $schema Advertised object schema.
- * @return string Arguments for strict client validation.
- */
 function openstation_mio_normalize_arguments( $arguments, $schema ) {
 	return '[]' === trim( $arguments ) && empty( $schema['properties'] ) ? '{}' : $arguments;
 }
 
-/**
- * Generate one round; return intents, never execute them here.
- *
- * @param WP_REST_Request $request Authenticated window request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_rest_mio_turn( WP_REST_Request $request ) {
 	if ( strlen( $request->get_body() ) > 220000 ) {
 		return new WP_Error( 'openstation_mio_too_large', __( 'The conversation is too large.', 'desktop-mode' ), array( 'status' => 413 ) );

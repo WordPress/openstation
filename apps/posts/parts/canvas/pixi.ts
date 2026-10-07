@@ -1,15 +1,3 @@
-/**
- * Posts app — the PixiJS surface the term canvases draw on.
- *
- * The narrow structural types the Categories mind map and the Tags
- * cloud use (PixiJS is loaded through the shell's module registry, so
- * there is no package to import types from), the loader, the
- * application bootstrap, and the colour / text helpers both canvases
- * share.
- *
- * @public
- */
-
 import { __ } from '@openstation/app';
 
 export interface PixiPoint {
@@ -54,12 +42,7 @@ export interface PixiApp {
 	ticker?: { stop(): void };
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-	/**
-	 * First arg is Pixi's `RendererDestroyOptions`. Pass an options
-	 * object, never a literal `true` — `true` triggers
-	 * `releaseGlobalResources()` and corrupts every other live
-	 * Application on the page (the Content Graph's batcher crash-looped).
-	 */
+
 	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 export interface PixiText extends PixiContainer {
@@ -85,7 +68,6 @@ export interface PixiNamespace {
 	Circle: new ( x: number, y: number, r: number ) => unknown;
 }
 
-/** A Pixi pointer event, as far as the canvases read it. */
 export interface PixiPointerEvent {
 	global: PixiPoint;
 	stopPropagation?: () => void;
@@ -93,22 +75,12 @@ export interface PixiPointerEvent {
 
 export const FONT_FAMILY = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 
-/**
- * Chip text rasterisation resolution: every glyph at 4× detail, crisp
- * through the world's full zoom range and on HiDPI displays.
- */
 export const CHIP_TEXT_RES = 4;
 
-/** Cut a label to `max` characters with an ellipsis. */
 export function truncate( text: string, max: number ): string {
 	return text.length > max ? text.slice( 0, max - 1 ) + '…' : text;
 }
 
-/**
- * Load PixiJS through the shell's module registry. On failure the
- * host says so and `null` comes back — the canvas simply does not
- * mount.
- */
 export async function loadPixi( host: HTMLElement, unavailable: string ): Promise< PixiNamespace | null > {
 	const api = window.wp?.os;
 	if ( ! api || typeof api.loadModules !== 'function' ) {
@@ -128,7 +100,6 @@ export async function loadPixi( host: HTMLElement, unavailable: string ): Promis
 	return pixi ?? null;
 }
 
-/** A transparent, antialiased Application sized to the stage, with the world container. */
 export async function createPixiApp(
 	pixi: PixiNamespace,
 	stage: HTMLElement,
@@ -153,20 +124,16 @@ export async function createPixiApp(
 	return { app, world };
 }
 
-/**
- * Destroy an Application without touching Pixi's page-global pools
- * (see the note on `PixiApp.destroy`), and empty the host.
- */
 export function destroyPixiApp( app: PixiApp, host: HTMLElement, hostClasses: string[] ): void {
 	try {
 		app.ticker?.stop();
 	} catch {
-		// Best-effort.
+
 	}
 	try {
 		app.destroy( { removeView: true }, { children: true } );
 	} catch {
-		// Best-effort — Pixi sometimes throws on teardown races.
+
 	}
 	host.replaceChildren();
 	host.classList.remove( ...hostClasses );
@@ -251,11 +218,6 @@ export function hslToInt( h: number, s: number, l: number ): number {
 	return Math.round( ( r + m ) * 255 ) * 0x10000 + Math.round( ( g + m ) * 255 ) * 0x100 + Math.round( ( b + m ) * 255 );
 }
 
-/**
- * Lighten or darken a 0xRRGGBB colour. `delta` in (-1, +1): negative
- * darkens, positive lightens. No bitwise ops — the lint rule bans
- * them, so channel extraction goes through Math.floor + modulo.
- */
 export function shadeColor( color: number, delta: number ): number {
 	const r = Math.floor( color / 0x10000 ) % 256;
 	const g = Math.floor( color / 0x100 ) % 256;
@@ -265,12 +227,10 @@ export function shadeColor( color: number, delta: number ): number {
 	return adj( r ) * 0x10000 + adj( g ) * 0x100 + adj( b );
 }
 
-/** `#rrggbb` for a 0xRRGGBB colour. */
 export function hexOf( color: number ): string {
 	return `#${ color.toString( 16 ).padStart( 6, '0' ) }`;
 }
 
-/** The text of an HTML fragment (a rendered post title). */
 export function stripTags( html: string ): string {
 	const tmp = document.createElement( 'div' );
 	tmp.innerHTML = html;

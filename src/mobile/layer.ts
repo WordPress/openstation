@@ -1,24 +1,3 @@
-/**
- * OpenStation — phone layer: the orchestrator.
- *
- * Mounts the four surfaces (top bar, home, tab bar, switcher) around
- * the window manager and keeps them in step with it. The layer holds
- * no window state of its own: its `state` is DERIVED from the
- * manager on every change —
- *
- *   `switcher`  the sheet is open
- *   `app`       some window on the active desktop is not minimized
- *   `home`      otherwise
- *
- * — so "home" is exactly `minimizeAll()`, a tap on a tile is exactly
- * what a dock click does, and the switcher lists exactly
- * `manager.getAll()`. Whatever a plugin does to a window through the
- * public API, the phone reflects it, because there is nothing else
- * to reflect.
- *
- * Runs in `mobile[.min].js`; everything it needs from the shell
- * arrives through {@link MobileLayerDeps}.
- */
 import { addAction, HOOKS, removeAction } from '../hooks';
 import { __ } from '../i18n';
 import type { NavItem } from '../nav/types';
@@ -35,31 +14,14 @@ const NS = 'openstation/mobile-layer';
 const WALLPAPER_REASON = 'openstation/mobile';
 const ENTER_CLASS = 'os-mobile-enter';
 
-/**
- * The `view-transition-name` shared by the thing that opens and the
- * thing it opens into — a home tile and its window, a switcher card
- * and its window — so the View Transitions API morphs one into the
- * other instead of cross-fading two screens. Assigned to exactly one
- * element per snapshot: the old one before capture, the new one
- * after the DOM update. Two elements carrying it at once would make
- * the browser skip the transition.
- */
 const HERO_NAME = 'os-mobile-hero';
 
-/**
- * The desktop's Overview system tile — `OVERVIEW_TILE_ID` in
- * `src/dock-shell-tiles.ts`, repeated here so the phone bundle does
- * not carry the dock's tile module for one string.
- */
 const OVERVIEW_TILE_ID = 'os-overview';
 
-/** The window manager asks for the switcher when Overview is requested on a phone. */
 const OPEN_SWITCHER_EVENT = 'os-mobile-open-switcher';
 
-/** How long a tap waits for its window before the transition gives up on the morph. */
 const OPEN_SETTLE_MS = 800;
 
-/** Attribute-value escape for a selector; `CSS.escape` when the host has it (jsdom does not). */
 function escapeAttr( value: string ): string {
 	const css = ( globalThis as { CSS?: { escape?: ( v: string ) => string } } ).CSS;
 	return typeof css?.escape === 'function' ? css.escape( value ) : value.replace( /["\\]/g, '\\$&' );
@@ -71,7 +33,6 @@ type ViewTransitionDocument = Document & {
 	};
 };
 
-/** A history entry the layer pushed so the hardware Back goes home. */
 const HISTORY_MARK = { osMobile: 'app' } as const;
 
 function subtitleFor( win: DesktopWindow ): string {
@@ -104,7 +65,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	shell.classList.add( 'os-mobile' );
 	deps.wallpaper.suspend( WALLPAPER_REASON );
 
-	// ---- surfaces ---------------------------------------------------
 	const topBar = createTopBar( shell, {
 		renderIcon: deps.renderIcon,
 		onClose: () => closeApp(),
@@ -138,10 +98,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		onDismiss: () => closeSwitcher(),
 	} );
 
-	// Two edge zones. The start edge is the Back gesture; both cancel
-	// the browser's own history swipe (`bindHistorySwipeGuard`), which
-	// is why there is an end zone at all, and why both stay on the home
-	// screen: a swipe that left the page would leave it from home too.
 	const edge = document.createElement( 'div' );
 	edge.className = 'os-mobile-edge os-mobile-edge--start';
 	edge.setAttribute( 'aria-hidden', 'true' );
@@ -151,7 +107,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	edgeEnd.setAttribute( 'aria-hidden', 'true' );
 	area.appendChild( edgeEnd );
 
-	// ---- derived state ----------------------------------------------
 	const onActiveDesktop = ( win: DesktopWindow ): boolean => {
 		const active = manager.getActiveDesktopId();
 		return ( win.config.desktopId ?? active ) === active;
@@ -197,12 +152,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 
 	const sync = (): void => {
 		syncScheduled = false;
-		// The switcher emptied itself: the last card was closed (or the
-		// window went away underneath it). A sheet that says "Nothing
-		// open" over a hidden home is a dead end — the user would have
-		// to dismiss it by hand to reach the tiles — so it steps aside
-		// and home shows. Opening the switcher from an empty home still
-		// shows the empty message: nothing emptied there.
+
 		const openCount = openWindows().length;
 		if ( switcher.isOpen() && lastState === 'switcher' && openCount === 0 && lastOpenCount > 0 ) {
 			switcher.close();
@@ -219,9 +169,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		if ( current === 'home' && lastState !== 'home' ) {
 			home.reset();
 		}
-		// The CSS slide-up is the fallback for browsers without the
-		// View Transitions API; under a running transition the morph
-		// IS the entrance.
+
 		if ( app && app.id !== lastAppId && ! reducedMotion && ! heroTransition ) {
 			app.element.classList.add( ENTER_CLASS );
 			app.element.addEventListener(
@@ -235,8 +183,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 				history.pushState( HISTORY_MARK, '' );
 				historyPushed = true;
 			} catch {
-				// Sandboxed or file: origin — the hardware Back simply
-				// leaves the page, as it would without the layer.
+
 			}
 		}
 		if ( switcher.isOpen() ) {
@@ -257,14 +204,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		}
 	};
 
-	/**
-	 * Repaint the tab bar as a view transition when its membership
-	 * changed: every tab carries a stable transition name for the
-	 * duration, so a surviving tab glides to its new slot, a new one
-	 * scales in and a removed one scales out (`mobile.css`, the
-	 * `os-tab` transition class). A repaint with the same tabs — a
-	 * badge count, a title — is a plain render.
-	 */
 	const tabIds = (): string[] =>
 		Array.from( tabBar.el.querySelectorAll< HTMLElement >( '.os-mobile-tabs__item' ) ).map(
 			( b ) => b.dataset.tab ?? '',
@@ -318,13 +257,11 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		paintTabBar( pinned );
 	};
 
-	// ---- transitions ------------------------------------------------
-	/** The home tile's icon for a navigation item, when it is painted. */
 	const tileIconForItem = ( id: string ): HTMLElement | null =>
 		home.el.querySelector< HTMLElement >(
 			`.os-mobile-tile[data-nav-id="${ escapeAttr( id ) }"] .os-mobile-tile__icon`,
 		);
-	/** The home tile a window came from, by the id a tap would derive. */
+
 	const tileIconFor = ( win: DesktopWindow ): HTMLElement | null => {
 		const baseId = win.config.baseId || win.id;
 		const nav = deps.getNav();
@@ -337,7 +274,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		);
 		return item ? tileIconForItem( item.id ) : null;
 	};
-	/** Resolves on the first of the named window events — or on the deadline. */
+
 	const nextWindowEvent = (
 		names: readonly string[] = [ 'os-window-opened', 'os-window-reopened', 'os-window-focused' ],
 	): Promise< void > =>
@@ -355,14 +292,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 			}
 			timer = window.setTimeout( done, OPEN_SETTLE_MS );
 		} );
-	/**
-	 * Run a state change as a view transition: `oldHero` is what the
-	 * user touched (a tile, a card, the app itself), `newHero()` is
-	 * what it becomes once `update` has landed. The browser morphs one
-	 * box into the other; the top bar and the tab bar, named in
-	 * `mobile.css`, hold still. Without the API, or under reduced
-	 * motion, the update simply runs.
-	 */
+
 	const transition = (
 		oldHero: HTMLElement | null,
 		update: () => Promise< void > | void,
@@ -391,11 +321,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 			} );
 	};
 
-	// ---- actions ----------------------------------------------------
 	const openItem = ( item: NavItem ): void => {
-		// The desktop's Overview tile: on a phone the switcher IS the
-		// overview, so the tile opens it directly rather than morphing
-		// into a window that never comes.
 		if ( item.id === OVERVIEW_TILE_ID ) {
 			openSwitcher();
 			return;
@@ -429,18 +355,12 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 			return;
 		}
 		if ( historyPushed && history.state && ( history.state as { osMobile?: string } ).osMobile === 'app' ) {
-			// Pop our own entry; the popstate handler goes home.
 			history.back();
 			return;
 		}
 		goHome();
 	};
-	/**
-	 * What the switcher lists: the windows open on this phone, most
-	 * recent first. Windows a phone boot parked (the session diet in
-	 * `constraints.ts`) are not listed: they belong to the desktop and
-	 * go back to it untouched.
-	 */
+
 	const cards = (): SwitcherCard[] => {
 		const current = appWindow();
 		return openWindows()
@@ -470,7 +390,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		}
 	};
 	const pickCard = ( card: SwitcherCard ): void => {
-		// The app already on screen: nothing to go to, nothing to morph.
 		if ( card.active ) {
 			closeSwitcher();
 			return;
@@ -495,8 +414,7 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	};
 	const closeCard = ( card: SwitcherCard ): void => {
 		manager.getById( card.id )?.close();
-		// `close()` may be vetoed (unsaved changes); repaint from truth
-		// on the next frame either way.
+
 		scheduleSync();
 	};
 	const closeAll = async (): Promise< void > => {
@@ -518,14 +436,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		scheduleSync();
 	};
 
-	/**
-	 * The × on the top bar: the app leaves the screen NOW — it is
-	 * minimized in the same frame, which is what the transition
-	 * morphs — and the close itself runs behind that. `close()` first
-	 * asks an iframe page about unsaved changes (up to half a second)
-	 * and may be vetoed; either way the user is already home, and a
-	 * vetoed window is simply waiting in the switcher.
-	 */
 	const closeApp = (): void => {
 		const app = appWindow();
 		if ( ! app ) {
@@ -541,7 +451,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		);
 	};
 
-	// ---- wiring -----------------------------------------------------
 	const docEvents = [
 		'os-window-opened',
 		'os-window-closed',
@@ -585,12 +494,10 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	} );
 	const unbindGuards = [ bindHistorySwipeGuard( edge ), bindHistorySwipeGuard( edgeEnd ) ];
 	const unbindSwipeUp = bindSwipeUp( tabBar.el, { onCommit: () => openSwitcher() } );
-	// A flick down on the top bar sends the app home, the way a sheet
-	// is dismissed on a phone.
+
 	const unbindSwipeDown = bindSwipeDown( topBar.el, { onCommit: () => goHome() } );
 	const unsubscribeNav = deps.subscribeNav( refreshNav );
-	// A tile's art changing on a rail (the bin filling or emptying)
-	// repaints the grid, which reads it through `getArt`.
+
 	const unsubscribeArt = deps.subscribeArt?.( refreshNav ) ?? ( () => undefined );
 
 	refreshNav();

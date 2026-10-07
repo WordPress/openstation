@@ -1,66 +1,14 @@
 <?php
-/**
- * OpenStation — Games bootstrap.
- *
- * Loads the game system: schema (scores + challenges tables), the
- * framework config (shared dictionary URL), the server-side
- * game registry, the score/challenge store, the play-time store,
- * REST routes, the Heartbeat challenge channel, the Games window +
- * desktop icon, and the built-in game registrations (Inkfall,
- * Alphabet Soup).
- *
- * The whole module is gated on the site-wide `games` extended option
- * (OS Settings → Features → Extended options, admins only), which is
- * OFF by default — games are opt-in. While the option is off, none of
- * the module files load — no tables check on `init`, no REST routes,
- * no Heartbeat channel, no window/icon — so the games framework costs
- * nothing beyond the option read below.
- * For third-party plugins the disabled state is indistinguishable from
- * OpenStation not being active: `openstation_register_game()` is
- * undefined, which the documented `function_exists()` guard already
- * handles (see docs/examples/register-game.md).
- *
- * Loading is deferred to `plugins_loaded` (priority 5) so any regular
- * plugin can hook the `openstation_games_enabled` filter in time to
- * influence the decision.
- *
- * New `require_once` lines belong in the loader below so the rest of
- * the codebase keeps loading the feature through one entry point.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Whether the games framework is enabled site-wide.
- *
- * Backed by the `games` key of the extended options bundle
- * (`openstation_get_extended_options()`), default off — opt-in.
- *
- * @return bool
- */
 function openstation_games_enabled() {
 	$options = openstation_get_extended_options();
 	$enabled = ! empty( $options['games'] );
 
-	/**
-	 * Filters whether the games framework is enabled site-wide.
-	 *
-	 * Runs on `plugins_loaded` (priority 5) to decide whether the
-	 * games module loads at all, and again at runtime wherever the
-	 * enabled state is consulted (payload build, shell config).
-	 *
-	 * @param bool $enabled Whether the games framework is enabled.
-	 */
 	return (bool) apply_filters( 'openstation_games_enabled', $enabled );
 }
 
-/**
- * Loads the games module when the framework is enabled.
- *
- * @access private
- */
 function openstation_games_load() {
 	if ( ! openstation_games_enabled() ) {
 		return;

@@ -1,18 +1,3 @@
-/**
- * Tests for the dock's minimized-window visual indicators:
- *
- *   - per-tile `--all-minimized` class when every open instance of a
- *     dock item is in the `minimized` state.
- *   - global `body.os-show-desktop-active` body class when
- *     every live window on the active desktop is minimized.
- *
- * The dock previously surfaced "active" (≥1 window open) and "focused"
- * (the focused window belongs to this tile) but had no cue for the
- * canonical Show Desktop / minimized-all state — every window vanished
- * from the desktop and the dock told the user nothing.
- *
- * @group dock
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { Dock, type DockItem } from '../../src/dock';
 import { HOOKS } from '../../src/hooks';
@@ -33,13 +18,6 @@ function makeWin( id: string, baseId: string, state: WinStub[ 'state' ] = 'norma
 	};
 }
 
-/**
- * Hand-rolled manager stub. Real WindowManager carries far more
- * surface than the dock touches, so a fixture-driven stub keeps the
- * test focused — the dock reads `getAll`, `getAllByBaseId`,
- * `getById`, `getFocused`, `getActiveDesktopId`. Anything else means
- * the dock grew a dependency we should re-read here.
- */
 function makeManager( windows: WinStub[], focused: WinStub | null = null ) {
 	return {
 		getFocused: () => focused,
@@ -98,8 +76,7 @@ describe( 'Dock — minimized window indicator', () => {
 		const win = makeWin( 'edit-php', 'edit-php', 'normal' );
 		const manager = makeManager( [ win ] );
 		const { container } = mount( manager );
-		// Trigger a refresh — boot doesn't auto-paint active classes,
-		// the first window-opened event does. Synthesize one.
+
 		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
@@ -204,8 +181,7 @@ describe( 'Dock — minimized window indicator', () => {
 		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
-		// `--focused` would otherwise paint a pill that says "this is
-		// the visible window" — misleading while the window is hidden.
+
 		expect( tile.classList.contains( 'os-dock__item--focused' ) ).toBe( false );
 	} );
 
@@ -253,7 +229,6 @@ describe( 'Dock — minimized window indicator', () => {
 			document.body.classList.contains( 'os-show-desktop-active' ),
 		).toBe( true );
 
-		// Simulate the user restoring one of the two minimized windows.
 		wins[ 0 ].state = 'normal';
 		window.wp?.hooks?.doAction?.( HOOKS.WINDOW_RESTORED, { windowId: 'edit-php' } );
 		expect(
@@ -266,20 +241,13 @@ describe( 'Dock — minimized window indicator', () => {
 		mount( manager );
 		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
-		// Show Desktop is meaningless with nothing to hide — the body
-		// class would be a lie on an empty desktop.
 		expect(
 			document.body.classList.contains( 'os-show-desktop-active' ),
 		).toBe( false );
 	} );
 
 	test( 'dock listens to WINDOW_MINIMIZED via the hook bus, not just DOM events', () => {
-		// Reproduces the original bug: the dock only subscribed to
-		// `os-window-opened/closed/focused` DOM events.
-		// `WINDOW_MINIMIZED` rides the hook bus exclusively, so a
-		// minimize without an accompanying focus change left the dock
-		// stale. This assertion fails if a regression drops that hook
-		// subscription.
+
 		const win = makeWin( 'edit-php', 'edit-php', 'normal' );
 		const manager = makeManager( [ win ] );
 		const { container } = mount( manager );
@@ -290,8 +258,6 @@ describe( 'Dock — minimized window indicator', () => {
 			tile.classList.contains( 'os-dock__item--all-minimized' ),
 		).toBe( false );
 
-		// Minimize via the hook bus (the only channel the framework
-		// publishes minimize on).
 		win.state = 'minimized';
 		window.wp?.hooks?.doAction?.( HOOKS.WINDOW_MINIMIZED, { windowId: 'edit-php' } );
 
@@ -301,10 +267,7 @@ describe( 'Dock — minimized window indicator', () => {
 	} );
 
 	test( 'a tile whose target is a window lights up from windowId, not from its url', () => {
-		// An app launcher the user put on the rail. It has no admin
-		// URL, so without `windowId` the lookup would derive an id from
-		// the empty string and the dot would stay dark while the window
-		// is plainly open.
+
 		const win = makeWin( 'os-settings', 'os-settings', 'normal' );
 		const manager = makeManager( [ win ] );
 		const item: DockItem = {

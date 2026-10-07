@@ -1,11 +1,3 @@
-/**
- * Content Graph — the full-canvas loader only paints for a long wait.
- *
- * Same shape as the window shell's own threshold test
- * (`window-loading.test.ts`): arm, advance to one tick short of the
- * delay, assert nothing painted, advance one more, assert it did.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	createLoadingOverlay,
@@ -75,13 +67,12 @@ describe( 'createLoadingOverlay', () => {
 
 	test( 're-arms cleanly after a hide (the per-chip-toggle sequence)', () => {
 		const overlay = createLoadingOverlay( el );
-		// First fetch: long enough to paint.
+
 		overlay.show();
 		vi.advanceTimersByTime( LOADING_OVERLAY_DELAY_MS );
 		expect( overlay.isVisible() ).toBe( true );
 		overlay.hide();
-		// Second fetch: the clock restarts from zero, not from the
-		// first arm, and paints again once the full delay elapses.
+
 		overlay.show();
 		vi.advanceTimersByTime( LOADING_OVERLAY_DELAY_MS - 1 );
 		expect( overlay.isVisible() ).toBe( false );

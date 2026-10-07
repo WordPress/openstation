@@ -1,35 +1,12 @@
-/**
- * The Living Tree — falling leaves.
- *
- * Every few seconds a leaf lets go of the canopy, tumbles down through
- * the wind, and fades into the grass. It's the cheapest realism trick in
- * the book: a static-canopied tree reads as a decoration; one that sheds
- * a leaf now and then reads as ALIVE. Deliberately sparse — a handful of
- * concurrent leaves, spawned from real canopy positions with real canopy
- * tints, so a drifting leaf always matches the tuft it left.
- *
- * IMPORTANT: fallers are COPIES. The canopy sprite it "detached" from is
- * never removed or hidden — stare at the tree for a year and it stays as
- * leafy as its DNA says. The illusion holds because a canopy tuft has
- * many overlapping leaves; one more drifting away implies no hole.
- *
- * Ambient motion, not DNA — like the fireflies, spawn timing uses
- * `Math.random()`; the skeleton's determinism is untouched. Under
- * reduced motion the ticker never runs, so nothing ever falls.
- */
-
 import { buildLeafTexture } from './leaves';
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';
 import type { WindField } from '../wind';
 
-/** Max leaves airborne at once — a shed, not a storm. */
 const MAX_CONCURRENT = 5;
 
-/** Seconds between release attempts (min + random spread). */
 const SPAWN_EVERY_MIN = 2.5;
 const SPAWN_EVERY_SPREAD = 5;
 
-/** Leaf texture raster size (matches the canopy blade). */
 const LEAF_TEX_SIZE = 48;
 
 interface LeafSource {
@@ -59,33 +36,15 @@ export class FallingLeaves {
 	private sources: LeafSource[] = [];
 	private nextSpawn = SPAWN_EVERY_MIN;
 
-	/**
-	 * @param layer The lit-leaf layer (a falling leaf is still a leaf).
-	 * @param pixi  The vendor Pixi namespace.
-	 */
 	constructor( layer: PixiContainer, pixi: PixiNamespace ) {
 		this.layer = layer;
 		this.pixi = pixi;
 	}
 
-	/**
-	 * Point the shedder at the current canopy. An empty array (used
-	 * while a new tree grows) stops new releases and lets airborne
-	 * leaves finish their fall.
-	 *
-	 * @param sources Real canopy leaf samples from `LeafGenerator.sources()`.
-	 */
 	public setSources( sources: LeafSource[] ): void {
 		this.sources = sources;
 	}
 
-	/**
-	 * Advance the shed: release on schedule, tumble, land, recycle.
-	 *
-	 * @param dt   Delta time (seconds).
-	 * @param wind The active wind field (fallers drift with it).
-	 * @param t    Elapsed scene time (seconds).
-	 */
 	public update( dt: number, wind: WindField, t: number ): void {
 		this.nextSpawn -= dt;
 		if ( this.nextSpawn <= 0 && this.sources.length > 0 ) {
@@ -104,7 +63,6 @@ export class FallingLeaves {
 			leaf.sprite.y = leaf.y;
 			leaf.sprite.rotation += leaf.rotSpeed * dt;
 
-			// Touch-down: settle just above the ground line, then fade.
 			if ( leaf.y >= -4 ) {
 				leaf.fade -= dt * 1.1;
 				leaf.sprite.alpha = Math.max( 0, leaf.fade * 0.9 );
@@ -116,7 +74,6 @@ export class FallingLeaves {
 		}
 	}
 
-	/** Detach one canopy leaf copy and let it go. */
 	private release(): void {
 		const source = this.sources[ Math.floor( Math.random() * this.sources.length ) ];
 		if ( ! source ) {
@@ -162,7 +119,6 @@ export class FallingLeaves {
 		leaf.sprite.y = leaf.y;
 	}
 
-	/** Release sprites + the shared texture. */
 	public destroy(): void {
 		for ( const leaf of this.pool ) {
 			this.layer.removeChild( leaf.sprite );

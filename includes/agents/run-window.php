@@ -1,37 +1,11 @@
 <?php
-/**
- * OpenStation — Agents: "Agent chat" native window.
- *
- * Lazy-loaded native window the Agents section opens to talk to an
- * agent (the chat trigger). The window is a shell — the dedicated
- * `agent-run-window` bundle registers the render callback on
- * `window.openStationNativeWindows['desktop-mode-agent-run']`,
- * subscribes to the cross-bundle `desktop-mode/agents-run` shared
- * store, and paints the conversation for whichever agent the opener
- * selected.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Inline SVG bot icon — byte-identical to the agent avatar so the
- * motif is consistent everywhere agents appear.
- *
- * @return string Data URI.
- */
 function openstation_agent_run_window_icon() {
 	return openstation_agent_avatar_url();
 }
 
-/**
- * Register the bundle script + style handles. Lazy-loaded by the
- * native-window sync the first time the window opens, same as the
- * recycle-bin and posts-window modules.
- *
- * @return void
- */
 function openstation_agent_run_register_assets() {
 	$version = OPENSTATION_VERSION;
 	$suffix  = openstation_asset_suffix();
@@ -60,12 +34,6 @@ function openstation_agent_run_register_assets() {
 }
 add_action( 'init', 'openstation_agent_run_register_assets', 5 );
 
-/**
- * Static template rendered into the window body — the bundle mounts
- * its UI into `[data-os-agent-run-root]`.
- *
- * @return void
- */
 function openstation_agent_run_render_template() {
 	?>
 	<div class="desktop-mode-agent-run" data-os-agent-run-root>
@@ -76,12 +44,6 @@ function openstation_agent_run_render_template() {
 	<?php
 }
 
-/**
- * Register the native window on `init` priority 25 — after the
- * registries boot.
- *
- * @return void
- */
 function openstation_agent_run_window_register() {
 	if ( ! function_exists( 'openstation_register_window' ) ) {
 		return;
@@ -103,15 +65,13 @@ function openstation_agent_run_window_register() {
 			'min_width'  => 540,
 			'min_height' => 380,
 			'placement'  => 'none',
-			// Chat invocations should always surface a visible window,
-			// not race a focused window into the background.
+
 			'autofocus'  => true,
 			'config'     => array(
 				'restRoot'    => esc_url_raw( rest_url() ),
 				'restNonce'   => wp_create_nonce( 'wp_rest' ),
 				'canManage'   => openstation_agents_user_can_manage(),
-				// The viewer — the chat paints their avatar next to
-				// their own messages, WhatsApp-style.
+
 				'currentUser' => array(
 					'id'        => (int) get_current_user_id(),
 					'name'      => openstation_plain_text_title( wp_get_current_user()->display_name ),
@@ -121,7 +81,7 @@ function openstation_agent_run_window_register() {
 		)
 	);
 	if ( is_wp_error( $registered ) ) {
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
 		error_log( '[openstation] Agent chat window registration failed: ' . $registered->get_error_message() );
 	}
 }

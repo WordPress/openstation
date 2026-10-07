@@ -1,19 +1,5 @@
 <?php
-/**
- * Tests for the desktop-theme CSS compiler.
- *
- * The compiler is the second half of the security boundary: whatever
- * the sanitizer let through lands in a stylesheet here. The load-
- * bearing assertions are that it emits ONLY custom-property
- * declarations, that it generates every `url()` itself, and that its
- * output is deterministic.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-themes
- */
+
 class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 
 	private function manifest( $overrides = array() ) {
@@ -31,9 +17,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_empty_manifest_compiles_to_nothing() {
 		$this->assertSame(
 			'',
@@ -41,13 +24,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Both selectors are required: the shell root covers the desktop
-	 * and windows, the body class covers toasts / dialogs / tooltips /
-	 * context menus, which mount outside `#os-shell`.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_output_is_double_scoped() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array( 'tokens' => array( '--os-window-radius' => '14px' ) ) ),
@@ -61,9 +37,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'body.os-desktop-theme-acme-neon', $css );
 	}
 
-	/**
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_tokens_become_declarations() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -79,13 +52,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '--wp-admin-theme-color: #7c5cff;', $css );
 	}
 
-	/**
-	 * Same input must always produce byte-identical output — the
-	 * compiled file is written on every install and an unstable
-	 * ordering would churn it for no reason.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_output_is_deterministic_regardless_of_authoring_order() {
 		$a = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -104,9 +70,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertSame( $a, $b );
 	}
 
-	/**
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_textures_become_url_declarations() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -130,9 +93,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '--os-titlebar-image-size: auto 100%;', $css );
 	}
 
-	/**
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_border_image_textures() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -155,12 +115,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '--os-window-border-image-repeat: round;', $css );
 	}
 
-	/**
-	 * The four corner slots share one size token; the first declared
-	 * (in key-sorted order) wins.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_corner_slots_share_one_size_token() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -181,13 +135,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Path segments are `rawurlencode`d, which is also what makes the
-	 * `url("…")` wrapper unbreakable: no quote, paren, or whitespace
-	 * can survive the encoding.
-	 *
-	 * @covers ::openstation_desktop_theme_asset_url
-	 */
 	public function test_asset_paths_are_url_encoded() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -203,12 +150,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '%22', $css );
 	}
 
-	/**
-	 * Code-registered themes carry absolute URLs already; the compiler
-	 * must pass those through instead of joining them to a base.
-	 *
-	 * @covers ::openstation_desktop_theme_asset_url
-	 */
 	public function test_absolute_asset_urls_pass_through() {
 		$this->assertSame(
 			'https://cdn.test/x.png',
@@ -216,13 +157,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Nothing an author wrote may become a selector, a property name,
-	 * an at-rule, or an unescaped string. This is the "no author
-	 * string escapes its declaration" regression test.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_only_custom_property_declarations_are_emitted() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -237,7 +171,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '</style', $css );
 		$this->assertStringNotContainsString( '@', $css );
 
-		// Every line inside the block is `\t--prop: value;`.
 		$lines = explode( "\n", $css );
 		foreach ( $lines as $line ) {
 			if ( '' === trim( $line ) || 0 === strpos( $line, '/*' ) ) {
@@ -260,14 +193,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * Every slot the registry declares must land on the property the
-	 * registry names. This is the parity test for the table-driven
-	 * compiler: add a slot, and it either works end to end or fails
-	 * here.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_every_registered_slot_emits_its_property() {
 		$slots = openstation_desktop_theme_texture_slots();
 
@@ -291,13 +216,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * The registry is the compiler's only input, so a plugin can
-	 * texture a surface the framework has never heard of by adding one
-	 * entry and shipping one CSS rule.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_a_filter_added_slot_compiles() {
 		$add = static function ( $slots ) {
 			$slots['ACME_SIDEBAR'] = array(
@@ -333,13 +251,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '--acme-sidebar-image-repeat: repeat-y;', $css );
 	}
 
-	/**
-	 * A slot the allowlist accepts but gives no property to write is a
-	 * bug in whoever added it — it must not emit a malformed
-	 * declaration.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_slot_without_a_prop_emits_nothing() {
 		$add = static function ( $slots ) {
 			$slots['ACME_PROPLESS'] = array( 'type' => 'image' );
@@ -362,13 +273,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertSame( '', $css );
 	}
 
-	/**
-	 * TITLEBAR_FOCUSED is a variant slot: it contributes an image and
-	 * inherits the base slot's repeat + size, so it must not emit
-	 * companions of its own.
-	 *
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_variant_slot_emits_no_companions() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -390,9 +294,6 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '-focused-size:', $css );
 	}
 
-	/**
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_empty_slug_compiles_to_nothing() {
 		$this->assertSame(
 			'',

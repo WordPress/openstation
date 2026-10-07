@@ -1,17 +1,3 @@
-/**
- * Clicking a tile whose target is a window rather than an admin page.
- *
- * Two of these on the rail: an app launcher the user pinned, and a
- * window with no launcher at all that is on the rail only because it
- * is open. Both carry `windowId` and an empty `url`, so deriving an id
- * from the url would find nothing and the click would silently no-op.
- *
- * Focus comes first. The native-window registry can only open windows
- * it registered, and a window that arrived some other way — the
- * Preferences panel, a plugin's own `windowManager.open()` — is
- * exactly the kind whose tile exists because it is already open.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type DockItem } from '../../src/dock';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
@@ -104,8 +90,7 @@ describe( 'a tile whose target is a window', () => {
 			} ),
 		);
 		click();
-		// Not a focus call: an admin page opens through the window
-		// manager's own open path, which handles reuse itself.
+
 		expect( focus ).not.toHaveBeenCalled();
 		expect( openWindow ).not.toHaveBeenCalled();
 		expect( managerOpen ).toHaveBeenCalledWith(

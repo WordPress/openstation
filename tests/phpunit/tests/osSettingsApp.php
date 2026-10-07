@@ -1,16 +1,4 @@
 <?php
-/**
- * Tests for the OpenStation Preferences app — the App Framework port
- * of the settings window: the manifest, the gate, the deep-link
- * mount, the data payload, the admin-only actions, and the line
- * budget against the panel bundle it replaced.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-settings-app
- */
 
 class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 
@@ -36,15 +24,6 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Run one dispatch against the registered app.
-	 *
-	 * @param string $action Action name.
-	 * @param array  $state  Client state.
-	 * @param array  $args   Action args.
-	 * @param array  $params Open-time params.
-	 * @return array Runtime response.
-	 */
 	protected function dispatch( $action, array $state = array(), array $args = array(), array $params = array() ) {
 		return openstation_apps_runtime()->dispatch(
 			self::APP_ID,
@@ -58,9 +37,6 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers \OpenStation\App::manifest
-	 */
 	public function test_manifest_mirrors_the_legacy_windows_registration() {
 		$app = openstation_apps_registry()->get( self::APP_ID );
 		$this->assertNotNull( $app );
@@ -70,44 +46,33 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertSame( 720, $manifest['height'] );
 		$this->assertSame( 560, $manifest['min_width'] );
 		$this->assertSame( 480, $manifest['min_height'] );
-		// No launcher of its own: the System tile answers for it.
+
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertNull( $manifest['desktop_icon'] );
-		// The System tile opens it on the network admin's shell too.
+
 		$this->assertSame( 'any', $manifest['admin'] );
-		// The gear, drawn in currentColor.
+
 		$this->assertStringStartsWith( 'data:image/svg+xml', (string) $manifest['icon'] );
 		$this->assertStringContainsString( 'currentColor', (string) $manifest['icon_svg'] );
-		// The page is the whole state.
+
 		$this->assertSame( array( 'tab' => 'appearance' ), $manifest['state'] );
-		// The server surface: the three site-truth writes, plus focus.
+
 		$this->assertSame(
 			array( 'extended', 'reset-intros', 'purge-shares', 'focus' ),
 			$manifest['actions']
 		);
 		$this->assertSame( array( 'focus' ), $manifest['lifecycle'] );
-		// The static facts ride the config; the caps ride data().
+
 		foreach ( array( 'mediaUrl', 'desktopThemesUrl', 'aboutFeedUrl', 'pluginUrl', 'pluginVersion' ) as $key ) {
 			$this->assertArrayHasKey( $key, $manifest['config'] );
 		}
 		$this->assertStringContainsString( 'openstation_about_feed', $manifest['config']['aboutFeedUrl'] );
-		// The client view beside the definition, and the sheet beside
-		// both — the one the shell used to register as `os-settings`
-		// and now rides the app as a companion style, stamped with its
-		// own filemtime by the App Framework.
+
 		$this->assertStringEndsWith( 'os-settings.os.ts', $manifest['client_source'] );
 		$this->assertStringEndsWith( 'apps/os-settings/os-settings.css', (string) $manifest['style'] );
 		$this->assertFileExists( (string) $manifest['style'] );
 	}
 
-	/**
-	 * The pages paint the moment the window opens: `data()` is
-	 * prefetched into the window config, so the client view does not
-	 * wait behind a spinner for the `mount` round trip — the beat in
-	 * which the legacy panel's first click used to land.
-	 *
-	 * @covers ::openstation_apps_client_config
-	 */
 	public function test_data_is_prefetched_into_the_window_config() {
 		$app      = openstation_apps_registry()->get( self::APP_ID );
 		$manifest = $app->manifest();
@@ -118,13 +83,9 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertTrue( $config['data']['isAdmin'] );
 		$this->assertArrayHasKey( 'aiAssistant', $config['data'] );
 
-		// No built client bundle, nothing to paint eagerly — no data.
 		$this->assertArrayNotHasKey( 'data', openstation_apps_client_config( $manifest, '', $app ) );
 	}
 
-	/**
-	 * @covers \OpenStation\App::allows
-	 */
 	public function test_every_shell_user_may_open_it_but_not_an_anonymous_visitor() {
 		$app = openstation_apps_registry()->get( self::APP_ID );
 		$this->assertTrue( $app->allows( openstation_apps_os() ) );
@@ -134,9 +95,6 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertFalse( $app->allows( openstation_apps_os() ) );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_mount_lands_on_the_deep_linked_tab() {
 		$response = $this->dispatch( 'mount', array(), array(), array( 'tab' => 'features' ) );
 		$this->assertTrue( $response['ok'] );
@@ -146,9 +104,6 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertSame( 'appearance', $plain['state']['tab'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_data_carries_the_caps_and_the_admin_facts() {
 		$data = $this->dispatch( 'mount' )['data'];
 		$this->assertTrue( $data['isAdmin'] );
@@ -160,14 +115,10 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		wp_set_current_user( self::$editor_id );
 		$data = $this->dispatch( 'mount' )['data'];
 		$this->assertFalse( $data['isAdmin'] );
-		// The admin-only sections are never painted for an editor —
-		// their facts do not even travel.
+
 		$this->assertNull( $data['extendedOptions'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_extended_saves_the_site_options_and_spends_a_menu_refresh() {
 		$response = $this->dispatch(
 			'extended',
@@ -177,14 +128,11 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertTrue( $response['ok'] );
 		$this->assertTrue( $response['data']['extendedOptions']['games'] );
 		$this->assertTrue( openstation_get_extended_options()['games'] );
-		// A key the payload omits keeps its stored value.
+
 		$this->assertTrue( openstation_get_extended_options()['media_library_enhanced'] );
 		$this->assertContains( 'refresh_menu', wp_list_pluck( $response['effects'], 'type' ) );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_site_truth_actions_refuse_a_non_admin() {
 		wp_set_current_user( self::$editor_id );
 		foreach ( array( 'extended', 'purge-shares' ) as $action ) {
@@ -195,9 +143,6 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertFalse( openstation_get_extended_options()['games'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_reset_intros_clears_the_users_seen_list() {
 		openstation_mark_intro_seen( self::$admin_id, 'welcome' );
 		$this->assertContains( 'welcome', openstation_get_seen_intros( self::$admin_id ) );
@@ -207,9 +152,6 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_get_seen_intros( self::$admin_id ) );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_focus_only_recomputes_the_facts() {
 		$response = $this->dispatch( 'focus', array( 'tab' => 'windows' ) );
 		$this->assertTrue( $response['ok'] );
@@ -217,11 +159,6 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'aiAssistant', $response['data'] );
 	}
 
-	/**
-	 * The port's reason to exist, pinned: the app is under half the
-	 * lines of the panel bundle it replaced, and every source file
-	 * stays under the 1,000-line ceiling the lint twins nudge at.
-	 */
 	public function test_the_app_stays_under_its_line_budget() {
 		$dir   = OPENSTATION_DIR . 'apps/os-settings';
 		$files = array_merge(
@@ -246,21 +183,10 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 				sprintf( '%s outgrew the 1,000-line ceiling — split it along its seams (see docs/app-framework.md, "Splitting a large app").', basename( $file ) )
 			);
 		}
-		// The panel bundle it replaced — `src/settings/panel.ts`,
-		// `panel-entry.ts`, sixteen section builders, the two REST
-		// clients, the labels and the glyphs — measured 7,136 lines
-		// across 22 files, before the ~800 lines of shell glue it also
-		// retired (the lazy-bundle loader, the hand-kept snapshot type,
-		// the facade's per-key write whitelist). 784 of the app's lines
-		// are the previews manager, the glyphs and the labels, moved
-		// verbatim.
-		// The private companion is additional functionality, with its own bounded
-		// module family; it must not consume the existing UI port's budget.
+
 		$this->assertLessThan( 850, $mio_lines, 'Keep the MIO Preferences adapter focused; generic conversation machinery belongs in src/mio.' );
 		$this->assertLessThan( 5000, $lines, sprintf( 'OpenStation Preferences is %d lines; the budget is under 5,000 — two thirds of the panel bundle it replaced.', $lines ) );
-		// And exactly one script: the client view. Free-form JS in an
-		// app dir is what the runtime and the component kit exist to
-		// make unnecessary.
+
 		$this->assertCount( 1, glob( $dir . '/*.os.ts' ) );
 		$this->assertSame( array(), glob( $dir . '/*.js' ) );
 	}

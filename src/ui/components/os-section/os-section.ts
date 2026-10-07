@@ -1,17 +1,3 @@
-/**
- * `<os-section>` — titled panel used throughout OpenStation Preferences.
- *
- * Usage:
- *
- *   <os-section heading="Wallpaper" description="The backdrop …">
- *     <os-swatch-grid>…</os-swatch-grid>
- *   </os-section>
- *
- * The `<slot>` receives whatever the caller puts inside; heading +
- * description are attribute-driven so plain HTML calls can reach
- * them without JS scaffolding.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-section.styles';
 
@@ -69,17 +55,6 @@ export class OsSection extends Component {
 		`,
 	} as const;
 
-	/*
-	 * Both the heading and the description are omitted entirely when
-	 * they are empty, rather than rendered blank.
-	 *
-	 * An empty `<h3>` is not a cosmetic issue: it is a heading with no
-	 * accessible name, which screen readers announce as an unlabelled
-	 * level-3 heading and which every automated audit flags. It also
-	 * takes up its margin, so a section that deliberately has no title
-	 * (because the page it sits on already carries that word) opened
-	 * with a blank line where the title would be.
-	 */
 	protected render() {
 		const heading = ( this as unknown as { heading: string | null } ).heading || '';
 		const description =

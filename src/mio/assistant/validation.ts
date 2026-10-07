@@ -1,4 +1,3 @@
-/** Only identified, offered tools may receive recoverable argument feedback. */
 import { mioBytes } from './budget';
 import { MioValidationError } from './operations';
 import type { MioAbility, MioArgumentError, MioCallContext, MioValidationResult } from './types';
@@ -7,7 +6,6 @@ export function argumentError( code: string, message: string ): MioValidationErr
 	return new MioValidationError( [ { code, path: '$', message } ] );
 }
 
-/** Keep feedback bounded; an invalid validator response is terminal. */
 export function validationErrors( value: unknown ): MioArgumentError[] {
 	if ( ! Array.isArray( value ) || ! value.length || value.length > 20 ) {
 		throw new Error( 'Invalid MIO validation feedback.' );
@@ -46,7 +44,6 @@ export function parseMioArguments( json: string, ability: MioAbility, context: M
 	return args as Record<string, unknown>;
 }
 
-/** Sort object keys so property order cannot bypass duplicate-write protection. */
 export function mioArgumentKey( value: unknown ): string {
 	if ( Array.isArray( value ) ) {
 		return `[${ value.map( mioArgumentKey ).join( ',' ) }]`;

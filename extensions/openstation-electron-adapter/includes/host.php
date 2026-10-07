@@ -1,106 +1,25 @@
 <?php
-/**
- * Electron Adapter — the host contract.
- *
- * The server's half of an optional extra: when the user is looking at
- * OpenStation through the desktop app rather than a browser tab, the
- * app introduces itself here and keeps a slow liveness pulse going.
- *
- * ## What a server-side record buys
- *
- * Deliberately little — the *shell* detects the host directly, through
- * a JavaScript global the app injects, which is instant, free, and
- * cannot get out of sync. What the server adds is what one page's
- * JavaScript cannot see:
- *
- *   - other requests (a plugin rendering an admin screen, a
- *     notification decision) can ask whether this user has a desktop
- *     attached;
- *   - the record survives a shell reload, so a native window that
- *     outlives the page that created it is still attributable;
- *   - `openstation_electron_host_connected` / `_heartbeat` /
- *     `_disconnected` give other plugins something to react to.
- *
- * Note what is NOT claimed anywhere: that a host is attached *right
- * now*. The same user can have the site open in a browser tab at the
- * same moment, so only the client's probe can answer that honestly.
- *
- * ## Being cheap on cheap hosting
- *
- * Every beat is a real PHP request, and plenty of WordPress sites run
- * on shared hosting where that matters. Three choices keep it near
- * free:
- *
- *   1. **The interval is the server's to set.** The handshake and
- *      every heartbeat response carry it, so a busy site can widen the
- *      pulse to ten minutes via
- *      `openstation_electron_heartbeat_interval` and the change takes
- *      effect within one beat — no new build of the app.
- *   2. **One user-meta row.** No custom table, no autoloaded option,
- *      no post type. A beat is a single `update_user_meta()` on a row
- *      already in the object cache for a logged-in request.
- *   3. **Expiry is read-time, not cron.** A stale record simply reads
- *      as disconnected; nothing is scheduled to clean it up.
- *
- * @package OpenStationElectronAdapter
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** User-meta key holding the current host record. */
 const OPENSTATION_ELECTRON_HOST_META = 'openstation_electron_host';
 
-/** REST namespace. Separate from core's — this is a separate plugin. */
 const OPENSTATION_ELECTRON_REST_NS = 'openstation-electron/v1';
 
-/** Default seconds between liveness beats. */
 const OPENSTATION_ELECTRON_INTERVAL = 120;
 
-/**
- * Seconds a record stays valid without a beat.
- *
- * Deliberately several intervals wide. A host that misses one beat
- * because a laptop lid closed for ninety seconds has not gone away,
- * and flapping the connection state costs more — in hook noise, in UI
- * repaints — than carrying a slightly stale record does.
- */
 const OPENSTATION_ELECTRON_TTL = 600;
 
-/** Highest protocol version this plugin knows how to talk. */
 const OPENSTATION_ELECTRON_PROTOCOL = 1;
 
-/**
- * Whether this user may attach a native desktop host at all.
- *
- * @param int $user_id User ID. Falls back to the current user when 0.
- * @return bool True when the user may register a host.
- */
 function openstation_electron_enabled( $user_id = 0 ) {
 	$user_id = $user_id ? (int) $user_id : get_current_user_id();
 
-	/**
-	 * Filter whether a user may attach a native desktop host.
-	 *
-	 * @param bool $enabled Default — true for any logged-in user.
-	 * @param int  $user_id The user in question.
-	 */
 	return (bool) apply_filters( 'openstation_electron_enabled', $user_id > 0, $user_id );
 }
 
-/**
- * Seconds the desktop host should wait between liveness beats.
- *
- * @return int Interval in seconds. Never below 30.
- */
 function openstation_electron_interval() {
-	/**
-	 * Filter the liveness-beat interval handed to the desktop host.
-	 *
-	 * Raise this on constrained hosting — the app re-reads it from
-	 * every response, so a change lands within one beat.
-	 *
-	 * @param int $seconds Default 120.
-	 */
+
 	$seconds = (int) apply_filters(
 		'openstation_electron_heartbeat_interval',
 		OPENSTATION_ELECTRON_INTERVAL
@@ -109,35 +28,13 @@ function openstation_electron_interval() {
 	return max( 30, $seconds );
 }
 
-/**
- * Seconds a host record survives without a beat.
- *
- * @return int TTL in seconds. Always at least two intervals wide, so a
- *             filter that widens the interval cannot accidentally make
- *             every host look permanently disconnected.
- */
 function openstation_electron_ttl() {
-	/**
-	 * Filter how long a host record stays valid without a beat.
-	 *
-	 * @param int $seconds Default 600.
-	 */
+
 	$seconds = (int) apply_filters( 'openstation_electron_ttl', OPENSTATION_ELECTRON_TTL );
 
 	return max( 2 * openstation_electron_interval(), $seconds );
 }
 
-/**
- * Human-readable name for a host platform.
- *
- * Mirrors `osLabelFor()` in the app's `lib/protocol.js`. Both sides
- * need it: the app to label its menus before any handshake, the server
- * so a stored record is self-describing to a plugin that has never
- * heard of Electron's platform strings.
- *
- * @param string $platform Normalized `process.platform` value.
- * @return string Display name.
- */
 function openstation_electron_os_label( $platform ) {
 	switch ( $platform ) {
 		case 'darwin':
@@ -149,25 +46,6 @@ function openstation_electron_os_label( $platform ) {
 	}
 }
 
-/**
- * Read the user's host record.
- *
- * Expiry is evaluated here rather than by a scheduled job: a record
- * whose last beat is older than the TTL reads as disconnected, and the
- * stale row is left alone for the next handshake to overwrite.
- *
- * @param int $user_id User ID. Falls back to the current user when 0.
- * @return array{
- *     connected: bool,
- *     hostId: string,
- *     platform: string,
- *     osLabel: string,
- *     appVersion: string,
- *     protocol: int,
- *     lastSeen: int,
- *     connectedAt: int
- * } Every key always present; `connected` is false when nothing is attached.
- */
 function openstation_electron_get_host( $user_id = 0 ) {
 	$user_id = $user_id ? (int) $user_id : get_current_user_id();
 	$empty   = array(
@@ -209,17 +87,6 @@ function openstation_electron_get_host( $user_id = 0 ) {
 	);
 }
 
-/**
- * Whether a URL is a loopback address this site may hand to a browser.
- *
- * The agent URL arrives from the app and is later printed into an admin
- * page for the browser to call, so it is validated on the way in rather
- * than trusted on the way out. Loopback only, http only, no path: the
- * one shape the local agent ever advertises.
- *
- * @param string $url Candidate agent URL.
- * @return string The normalized URL, or '' when it is not one.
- */
 function openstation_electron_sanitize_agent_url( $url ) {
 	$url = trim( (string) $url );
 	if ( '' === $url ) {
@@ -248,21 +115,6 @@ function openstation_electron_sanitize_agent_url( $url ) {
 	return 'http://' . $parts['host'] . ':' . $port;
 }
 
-/**
- * Write (or refresh) the user's host record.
- *
- * @param int   $user_id User ID.
- * @param array $args    {
- *     Host description. Everything optional except `hostId`.
- *
- *     @type string $hostId     Stable per-installation id generated by the app.
- *     @type string $platform   'darwin' | 'win32' | 'linux' | …
- *     @type string $appVersion Host app version.
- *     @type int    $protocol   Host protocol version.
- * }
- * @return array The record as `openstation_electron_get_host()` would return it,
- *               or the empty record when the write was rejected.
- */
 function openstation_electron_set_host( $user_id, $args ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 || ! is_array( $args ) ) {
@@ -284,16 +136,7 @@ function openstation_electron_set_host( $user_id, $args ) {
 		'osLabel'     => openstation_electron_os_label( $platform ),
 		'appVersion'  => isset( $args['appVersion'] ) ? substr( sanitize_text_field( (string) $args['appVersion'] ), 0, 32 ) : '',
 		'protocol'    => isset( $args['protocol'] ) ? (int) $args['protocol'] : 0,
-		/*
-		 * Loopback coordinates a browser tab uses to reach the machine.
-		 * Validated here rather than at print time — this is the edge
-		 * where they arrive from outside.
-		 *
-		 * Absent means "not mentioned", not "cleared": a heartbeat
-		 * carries nothing but an id, and wiping the pairing on every
-		 * beat would leave the browser able to free windows for exactly
-		 * one interval after each handshake.
-		 */
+
 		'agentUrl'    => array_key_exists( 'agentUrl', $args )
 			? openstation_electron_sanitize_agent_url( $args['agentUrl'] )
 			: ( is_array( $existing ) && isset( $existing['agentUrl'] ) ? (string) $existing['agentUrl'] : '' ),
@@ -301,9 +144,7 @@ function openstation_electron_set_host( $user_id, $args ) {
 			? (string) preg_replace( '/[^a-f0-9]/', '', (string) $args['agentToken'] )
 			: ( is_array( $existing ) && isset( $existing['agentToken'] ) ? (string) $existing['agentToken'] : '' ),
 		'lastSeen'    => $now,
-		// A reconnect from the same installation keeps its original
-		// connection timestamp, so "how long has this desktop been
-		// attached" survives a shell reload.
+
 		'connectedAt' => ( is_array( $existing ) && ! empty( $existing['connectedAt'] ) && ! empty( $existing['hostId'] ) && $existing['hostId'] === $host_id )
 			? (int) $existing['connectedAt']
 			: $now,
@@ -314,12 +155,6 @@ function openstation_electron_set_host( $user_id, $args ) {
 	return openstation_electron_get_host( $user_id );
 }
 
-/**
- * Drop the user's host record.
- *
- * @param int $user_id User ID.
- * @return bool True when a record was removed.
- */
 function openstation_electron_clear_host( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
@@ -328,23 +163,6 @@ function openstation_electron_clear_host( $user_id ) {
 	return (bool) delete_user_meta( $user_id, OPENSTATION_ELECTRON_HOST_META );
 }
 
-/**
- * The config blob handed to the adapter's shell bundle.
- *
- * @return array Config.
- */
-/**
- * The pairing a browser tab needs to reach the user's machine.
- *
- * Split out of the config blob because a page bakes this in once, at
- * load, and the app's port is ephemeral — start the app after the page
- * loaded, or restart it, and the baked value points at nothing. The
- * REST surface hands out the current one so a tab can catch up without
- * a refresh.
- *
- * @param int $user_id User the host belongs to.
- * @return array{url: string, hasAgent: bool, token?: string, osLabel?: string, platform?: string}
- */
 function openstation_electron_agent_pairing( $user_id ) {
 	$record = openstation_electron_get_host( $user_id );
 
@@ -368,19 +186,6 @@ function openstation_electron_config() {
 	$user_id = get_current_user_id();
 	$record  = openstation_electron_get_host( $user_id );
 
-	/*
-	 * The pairing a browser tab needs to reach the user's machine.
-	 *
-	 * Only ever handed to the user the host belongs to, on their own
-	 * admin page, and only while the record is live — a host that
-	 * stopped beating stops being reachable here at the same moment.
-	 * The token is a capability, so it is emitted at all only when
-	 * there is something to authorise.
-	 *
-	 * The record itself is echoed back WITHOUT the token: `last` is
-	 * descriptive ("your Mac was here two minutes ago") and read by UI
-	 * that has no business holding a credential.
-	 */
 	$agent = openstation_electron_agent_pairing( $user_id );
 
 	unset( $record['agentToken'] );
@@ -397,25 +202,9 @@ function openstation_electron_config() {
 		'last'      => $record,
 	);
 
-	/**
-	 * Filter the adapter's shell config blob.
-	 *
-	 * @param array $config  Config.
-	 * @param int   $user_id Current user.
-	 */
 	return (array) apply_filters( 'openstation_electron_config', $config, $user_id );
 }
 
-/**
- * Permission gate for every route below.
- *
- * Mirrors core's `openstation_rest_require_enabled` when it exists —
- * logged in AND OpenStation on — and falls back to a logged-in check
- * if core ever renames it, which fails closed on the part that
- * matters.
- *
- * @return bool|WP_Error True when allowed.
- */
 function openstation_electron_rest_permission() {
 	if ( function_exists( 'openstation_rest_require_enabled' ) ) {
 		return openstation_rest_require_enabled();
@@ -423,9 +212,6 @@ function openstation_electron_rest_permission() {
 	return is_user_logged_in();
 }
 
-/**
- * Register the host routes.
- */
 function openstation_electron_register_routes() {
 	register_rest_route(
 		OPENSTATION_ELECTRON_REST_NS,
@@ -509,18 +295,10 @@ function openstation_electron_register_routes() {
 }
 add_action( 'rest_api_init', 'openstation_electron_register_routes' );
 
-/**
- * REST handler — `GET /host`.
- *
- * @return WP_REST_Response Current record plus the interval a host should use.
- */
 function openstation_electron_rest_get_host() {
 	$user_id = get_current_user_id();
 	$record  = openstation_electron_get_host( $user_id );
 
-	// The pairing lives in its own key, and the record is echoed back
-	// without the token — same split as the shell config, for the same
-	// reason: the record is descriptive, the pairing is a capability.
 	$agent = openstation_electron_agent_pairing( $user_id );
 	unset( $record['agentToken'] );
 
@@ -536,12 +314,6 @@ function openstation_electron_rest_get_host() {
 	);
 }
 
-/**
- * REST handler — `POST /host/handshake`.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_electron_rest_handshake( $request ) {
 	$user_id = get_current_user_id();
 
@@ -555,10 +327,7 @@ function openstation_electron_rest_handshake( $request ) {
 
 	$protocol = (int) $request->get_param( 'protocol' );
 	if ( $protocol > OPENSTATION_ELECTRON_PROTOCOL ) {
-		// The app speaks a newer dialect than this plugin version. Say
-		// so plainly rather than half-accepting a payload we may be
-		// mis-reading; the app degrades to "no server record" and every
-		// client-side feature keeps working.
+
 		return new WP_Error(
 			'openstation_electron_protocol',
 			__( 'This site does not understand that version of the desktop app yet. Update the adapter.', 'openstation-electron-adapter' ),
@@ -589,12 +358,6 @@ function openstation_electron_rest_handshake( $request ) {
 		);
 	}
 
-	/**
-	 * Fires when a native desktop host attaches to this site.
-	 *
-	 * @param array $record  Normalized host record.
-	 * @param int   $user_id The user the host is attached to.
-	 */
 	do_action( 'openstation_electron_host_connected', $record, $user_id );
 
 	$user = wp_get_current_user();
@@ -612,18 +375,6 @@ function openstation_electron_rest_handshake( $request ) {
 	);
 }
 
-/**
- * REST handler — `POST /host/heartbeat`.
- *
- * The cheapest route here, and intentionally so: it touches one
- * user-meta row and answers with the interval. A host that beats
- * without ever having handshaked (the plugin was reactivated under it,
- * say) is upgraded to a full record rather than rejected — refusing
- * would make the app re-handshake, which costs strictly more.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_electron_rest_heartbeat( $request ) {
 	$user_id = get_current_user_id();
 
@@ -656,14 +407,6 @@ function openstation_electron_rest_heartbeat( $request ) {
 		);
 	}
 
-	/**
-	 * Fires on every desktop-host liveness beat.
-	 *
-	 * Runs as often as the interval allows — keep listeners cheap.
-	 *
-	 * @param array $record  Normalized host record.
-	 * @param int   $user_id The user the host is attached to.
-	 */
 	do_action( 'openstation_electron_host_heartbeat', $record, $user_id );
 
 	return rest_ensure_response(
@@ -674,17 +417,6 @@ function openstation_electron_rest_heartbeat( $request ) {
 	);
 }
 
-/**
- * REST handler — `DELETE /host` and `POST /host/disconnect`.
- *
- * Both spellings exist because the two callers are different animals:
- * the shell speaks REST verbs, and the app's main process sends its
- * farewell through the same tiny POST helper it uses for everything
- * else, on a code path that runs while the app is quitting and must
- * not grow a second request shape.
- *
- * @return WP_REST_Response
- */
 function openstation_electron_rest_disconnect() {
 	$user_id = get_current_user_id();
 	$record  = openstation_electron_get_host( $user_id );
@@ -692,12 +424,7 @@ function openstation_electron_rest_disconnect() {
 	openstation_electron_clear_host( $user_id );
 
 	if ( ! empty( $record['connected'] ) ) {
-		/**
-		 * Fires when a native desktop host detaches.
-		 *
-		 * @param array $record  The record as it was before removal.
-		 * @param int   $user_id The user the host was attached to.
-		 */
+
 		do_action( 'openstation_electron_host_disconnected', $record, $user_id );
 	}
 

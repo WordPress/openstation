@@ -1,28 +1,3 @@
-/**
- * OpenStation — Pinned notes motion.
- *
- * The WAAPI sequences + pendulum physics behind the pushpin feel:
- *
- *   - `playPinInsertion()` — the "thunk": pin falls in from above,
- *     the paper takes a one-frame squash on impact, spring-settles
- *     with a decaying paper shiver, and a ripple ring expands from
- *     the pin anchor.
- *   - `playPinPullOut()` — pin tilts back out and lifts as its
- *     shadow diverges; the paper sags, held by one point.
- *   - `startPendulum()` — while a note is carried by its pin, the
- *     paper swings from the needle tip driven by the drag's
- *     horizontal velocity (under-damped spring, ~one visible swing).
- *   - `playSnapBack()` — cancel: a flyback clone overshoots home,
- *     then a shortened insertion re-seats the pin.
- *   - `playCrumpleIntoBin()` — commit-to-trash: the pin pops out
- *     first, then the paper shrinks and roughens toward the bin.
- *
- * Everything routes through `prefersReducedMotion()` — reduced-motion
- * users get instant state changes / short fades, never transforms.
- * No dependencies; springs are explicit keyframe arrays.
- */
-
-/** House curves (mirrored in assets/css/notes.css). */
 const EASE_GLIDE = 'cubic-bezier(0.2, 0.7, 0.2, 1)';
 const EASE_FALL = 'cubic-bezier(0.5, 0, 0.9, 0.4)';
 const EASE_OVERSHOOT = 'cubic-bezier(0.2, 0.7, 0.3, 1.15)';
@@ -39,7 +14,6 @@ function animate(
 	keyframes: Keyframe[],
 	options: KeyframeAnimationOptions,
 ): Promise< void > {
-	// jsdom (vitest) has no WAAPI; treat it as "finished instantly".
 	if ( typeof el.animate !== 'function' ) {
 		return Promise.resolve();
 	}
@@ -50,34 +24,29 @@ function animate(
 }
 
 export interface PinInsertionParts {
-	/** The pin wrapper (button or ghost pin container). */
+
 	pin: Element;
-	/** The paper element that recoils. */
+
 	paper: Element;
-	/** Element the ripple ring is appended to (positioned parent). */
+
 	rippleHost: HTMLElement;
-	/** Resting pin rotation, deg (per-note jitter). */
+
 	restRotation?: number;
-	/** Fall distance in px — 30 for a first pinning, ~12 for a move. */
+
 	fallDistance?: number;
-	/** Scale the whole timeline (1 = the ceremonial 540 ms thunk). */
+
 	tempo?: number;
 }
 
-/**
- * The thunk. Resolves when the paper has settled.
- */
 export async function playPinInsertion( parts: PinInsertionParts ): Promise< void > {
 	const rot = parts.restRotation ?? 0;
 	if ( prefersReducedMotion() ) {
-		// Static substitute: one accent ring, no motion.
 		spawnRipple( parts.rippleHost, 400 );
 		return;
 	}
 	const tempo = parts.tempo ?? 1;
 	const fall = parts.fallDistance ?? 30;
 
-	// Phase 1 — the fall (gravity easing).
 	await animate(
 		parts.pin,
 		[
@@ -94,7 +63,6 @@ export async function playPinInsertion( parts: PinInsertionParts ): Promise< voi
 		{ duration: 170 * tempo, easing: EASE_FALL, fill: 'forwards' },
 	);
 
-	// Phase 2 — strike + settle, in parallel on paper and pin.
 	spawnRipple( parts.rippleHost, 420 * tempo );
 	const paperSettle = animate(
 		parts.paper,
@@ -129,10 +97,6 @@ export async function playPinInsertion( parts: PinInsertionParts ): Promise< voi
 	await Promise.all( [ paperSettle, pinSettle ] );
 }
 
-/**
- * Pull the pin out (played on the REAL note just before the ghost
- * takes over; the note then drops to its "imprint" look via CSS).
- */
 export function playPinPullOut( pin: Element, restRotation = 0 ): Promise< void > {
 	if ( prefersReducedMotion() ) {
 		return Promise.resolve();
@@ -149,7 +113,6 @@ export function playPinPullOut( pin: Element, restRotation = 0 ): Promise< void 
 	);
 }
 
-/** One-shot expanding "thunk" ripple at the pin anchor. */
 function spawnRipple( host: HTMLElement, duration: number ): void {
 	const ripple = document.createElement( 'span' );
 	ripple.className = 'os-pinned-note__ripple';
@@ -163,23 +126,18 @@ function spawnRipple( host: HTMLElement, duration: number ): void {
 		],
 		{ duration, easing: 'ease-out' },
 	).then( () => ripple.remove() );
-	// Belt-and-braces removal for engines without WAAPI.
+
 	window.setTimeout( () => ripple.remove(), duration + 100 );
 }
 
 export interface PendulumHandle {
-	/** Feed the pointer's clientX each move. */
+
 	onPointerMove( clientX: number ): void;
-	/** Bias the swing (deg) — e.g. lean toward the recycle bin. */
+
 	setBias( deg: number ): void;
 	stop(): void;
 }
 
-/**
- * Under-damped pendulum on the ghost's swing wrapper. The wrapper's
- * `transform-origin` must sit at the pin tip (CSS). Spring constants
- * tuned for ~one visible swing: K = 120 /s², C = 14 /s.
- */
 export function startPendulum( swingEl: HTMLElement ): PendulumHandle {
 	if ( prefersReducedMotion() ) {
 		return {
@@ -208,7 +166,7 @@ export function startPendulum( swingEl: HTMLElement ): PendulumHandle {
 		}
 		const dt = Math.min( 0.05, lastFrame ? ( now - lastFrame ) / 1000 : 0.016 );
 		lastFrame = now;
-		// Velocity decays toward zero when the pointer stops moving.
+
 		if ( now - lastMoveTime > 80 ) {
 			emaVx *= 0.85;
 		}
@@ -242,19 +200,15 @@ export function startPendulum( swingEl: HTMLElement ): PendulumHandle {
 }
 
 export interface SnapBackParts {
-	/** Visual clone to fly home (already positioned at the release point, fixed). */
+
 	flyback: HTMLElement;
-	/** Inner swing wrapper of the clone (elastic-yank rotation). */
+
 	swing: HTMLElement | null;
-	/** Viewport-space destination of the clone's top-left. */
+
 	homeX: number;
 	homeY: number;
 }
 
-/**
- * Fly a cancelled drag home with one overshoot. Caller removes the
- * clone and restores the real note when the promise resolves.
- */
 export async function playSnapBack( parts: SnapBackParts ): Promise< void > {
 	if ( prefersReducedMotion() ) {
 		await animate( parts.flyback, [ { opacity: 1 }, { opacity: 0 } ], {
@@ -291,21 +245,17 @@ export async function playSnapBack( parts: SnapBackParts ): Promise< void > {
 }
 
 export interface CrumpleParts {
-	/** Commit-animation clone at the release point (fixed positioning). */
+
 	clone: HTMLElement;
-	/** The pin element inside the clone (discarded first). */
+
 	pin: Element | null;
-	/** The paper element inside the clone (crumples). */
+
 	paper: HTMLElement;
-	/** Viewport-space center of the recycle bin. */
+
 	binX: number;
 	binY: number;
 }
 
-/**
- * Crumple the paper into the bin. Caller removes the clone when the
- * promise resolves.
- */
 export async function playCrumpleIntoBin( parts: CrumpleParts ): Promise< void > {
 	if ( prefersReducedMotion() ) {
 		await animate( parts.clone, [ { opacity: 1 }, { opacity: 0 } ], {
@@ -362,38 +312,22 @@ export async function playCrumpleIntoBin( parts: CrumpleParts ): Promise< void >
 	);
 }
 
-/**
- * FNV-1a over a string, as a positive 31-bit integer. This is the
- * note's jitter SEED: computed once from the note's text at creation
- * time (never re-derived on edits) and persisted server-side, so a
- * note keeps its exact tilt for life.
- */
 export function hashNoteSeed( text: string ): number {
-	/* eslint-disable no-bitwise -- FNV-1a is defined in terms of XOR
-	   and unsigned shifts; a non-bitwise rewrite would obscure the
-	   reference algorithm. */
 	let hash = 0x811c9dc5;
 	for ( let i = 0; i < text.length; i++ ) {
 		hash ^= text.charCodeAt( i );
 		hash = Math.imul( hash, 0x01000193 ) >>> 0;
 	}
 	const seed = ( hash >>> 1 ) || 1;
-	/* eslint-enable no-bitwise */
+
 	return seed;
 }
 
-/**
- * Deterministic per-note jitter so the wall feels hand-placed and
- * never re-shuffles between reloads. Derived from the note's
- * creation-time seed (see `hashNoteSeed`).
- */
 export function noteJitter( seed: number ): {
 	rotation: number;
 	pinOffsetX: number;
 	pinRotation: number;
 } {
-	/* eslint-disable no-bitwise -- decorrelate the three knobs with
-	   unsigned shifts of the same seed. */
 	let hash = 0x811c9dc5;
 	const key = `os-note-${ seed }`;
 	for ( let i = 0; i < key.length; i++ ) {
@@ -402,10 +336,10 @@ export function noteJitter( seed: number ): {
 	}
 	const shifted3 = hash >>> 3;
 	const shifted5 = hash >>> 5;
-	/* eslint-enable no-bitwise */
+
 	return {
-		rotation: ( ( hash % 45 ) - 22 ) / 10, // ±2.2°
-		pinOffsetX: ( shifted3 % 21 ) - 10, // ±10 px
-		pinRotation: ( shifted5 % 17 ) - 8, // ±8°
+		rotation: ( ( hash % 45 ) - 22 ) / 10,
+		pinOffsetX: ( shifted3 % 21 ) - 10,
+		pinRotation: ( shifted5 % 17 ) - 8,
 	};
 }

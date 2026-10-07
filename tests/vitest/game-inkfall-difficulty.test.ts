@@ -1,7 +1,3 @@
-/**
- * Unit tests for Inkfall's difficulty curve
- * (`src/games/inkfall/difficulty.ts`).
- */
 import { describe, expect, test } from 'vitest';
 import {
 	MAX_RAMP_SECONDS,

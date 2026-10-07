@@ -1,34 +1,13 @@
 <?php
-/**
- * My WordPress — navigate-into: the detail folder and its sub-lists.
- *
- * Part of the `my-wordpress` app: required by `my-wordpress.os.php`,
- * same namespace, plain `.php` on purpose — only `*.os.php` files are
- * app entries to the framework loader. This part owns what a post
- * OPENS INTO: the relation folders with live counts, each relation's
- * rows, the right-pane dossier behind a selected row (rendered
- * through WP Explorer's own stats callbacks), the Edit… modal's
- * choice lists, and the shared preview-action descriptors.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\Apps\MyWordPress;
 
 use OpenStation\App\Os;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/**
- * The ids "Attached media" lists and counts: the post's attachments
- * plus its featured image, each once.
- *
- * @param \WP_Post $post Post.
- * @return int[]
- */
 function media_ids( \WP_Post $post ) {
 	$ids = get_children(
 		array(
@@ -44,17 +23,6 @@ function media_ids( \WP_Post $post ) {
 	return array_unique( $ids );
 }
 
-/**
- * The detail FOLDER a post navigates into: the rendered article plus
- * one folder tile per related surface — Author, Contributors,
- * Comments, Categories, Tags, Attached media, Revisions — with live
- * counts. WP Explorer's detail view, as data.
- *
- * @param Os                  $os      Host handle.
- * @param array<string,mixed> $section Section descriptor.
- * @param int                 $id      Post id.
- * @return array<string,mixed>|null Null when the post vanished.
- */
 function folder( Os $os, array $section, $id ) {
 	$post = get_post( $id );
 	if ( ! $post || $post->post_type !== $section['post_type'] ) {
@@ -127,22 +95,12 @@ function folder( Os $os, array $section, $id ) {
 		'id'      => $id,
 		'title'   => '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' ),
 		'status'  => (string) $post->post_status,
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Applying Core's own content pipeline, not declaring a hook.
+
 		'content' => (string) apply_filters( 'the_content', (string) $post->post_content ),
 		'folders' => $folders,
 	);
 }
 
-/**
- * The rows inside one relation sub-folder. Uniform shape: `id`,
- * `title`, `subtitle`, `icon` | `thumb`, `editUrl`.
- *
- * @param Os                  $os       Host handle.
- * @param array<string,mixed> $section  Section descriptor.
- * @param int                 $id       Post id.
- * @param string              $relation Relation slug.
- * @return array{label:string,rows:array[]}|null
- */
 function sub( Os $os, array $section, $id, $relation ) {
 	$post = get_post( $id );
 	if ( ! $post || $post->post_type !== $section['post_type'] ) {
@@ -206,7 +164,7 @@ function sub( Os $os, array $section, $id, $relation ) {
 					'id'       => (int) $term->term_id,
 					'title'    => openstation_plain_text_title( $term->name ),
 					'subtitle' => sprintf(
-						/* translators: %s: entry count. */
+
 						_n( '%s entry', '%s entries', (int) $term->count, 'desktop-mode' ),
 						number_format_i18n( (int) $term->count )
 					),
@@ -241,7 +199,7 @@ function sub( Os $os, array $section, $id, $relation ) {
 			foreach ( wp_get_post_revisions( $id ) as $revision ) {
 				$rows[] = array(
 					'id'       => (int) $revision->ID,
-					'title'    => openstation_plain_text_title( wp_post_revision_title_expanded( $revision, false ) ), // Core leads with an avatar <img>; the client prints a title as text.
+					'title'    => openstation_plain_text_title( wp_post_revision_title_expanded( $revision, false ) ),
 					'subtitle' => openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $revision->post_author ) ),
 					'icon'     => 'dashicons-backup',
 					'editUrl'  => current_user_can( 'edit_post', $id )
@@ -260,16 +218,6 @@ function sub( Os $os, array $section, $id, $relation ) {
 	);
 }
 
-/**
- * Invoke one of WP Explorer's stats REST callbacks in-process, with a
- * synthetic request — the panes render the SAME payloads WP Explorer
- * renders, filters (`openstation_my_wordpress_term_stats` and
- * friends) included.
- *
- * @param string              $callback Function name.
- * @param array<string,mixed> $params   Request params.
- * @return array<string,mixed>|null Null when unavailable or refused.
- */
 function stats_payload( $callback, array $params ) {
 	if ( ! function_exists( $callback ) || ! class_exists( '\WP_REST_Request' ) ) {
 		return null;
@@ -282,20 +230,6 @@ function stats_payload( $callback, array $params ) {
 	return is_array( $payload ) ? $payload : null;
 }
 
-/**
- * The right-pane dossier for one SELECTED sub-list row, per relation:
- * the term-stats card for a category or tag (stat tiles, 12-month
- * activity, first/last post, recent posts), the user dossier + stats
- * for author/contributors, the comment dossier, the media dossier
- * with its usage scan, a revision preview.
- *
- * @param Os                  $os       Host handle.
- * @param array<string,mixed> $section  Section descriptor.
- * @param int                 $post_id  Post navigated into.
- * @param string              $relation Relation slug.
- * @param int                 $row_id   Selected row id.
- * @return array<string,mixed>|null
- */
 function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
 	switch ( $relation ) {
 		case 'categories':
@@ -354,23 +288,15 @@ function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
 			}
 			return array(
 				'kind'    => 'revision',
-				'title'   => openstation_plain_text_title( wp_post_revision_title_expanded( $revision, false ) ), // Same as the row title: no avatar <img>.
+				'title'   => openstation_plain_text_title( wp_post_revision_title_expanded( $revision, false ) ),
 				'author'  => openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $revision->post_author ) ),
 				'date'    => (string) get_the_date( '', $revision ) . ' ' . get_the_time( '', $revision ),
-				'content' => wp_kses_post( (string) apply_filters( 'the_content', (string) $revision->post_content ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own content pipeline.
+				'content' => wp_kses_post( (string) apply_filters( 'the_content', (string) $revision->post_content ) ),
 			);
 	}
 	return null;
 }
 
-/**
- * The choices the Edit… modal offers: the site's authors, the
- * category tree (in `<os-category-picker>`'s item shape, `parent`
- * included) and the tag terms the token field suggests from. Only
- * computed while a post-kind section is open.
- *
- * @return array{authors:array[],categories:array[],tags:array[]}
- */
 function edit_choices() {
 	$authors = array();
 	foreach ( get_users(
@@ -424,14 +350,6 @@ function edit_choices() {
 	);
 }
 
-/**
- * The preview-action descriptors the acting user may see — the same
- * `openstation_my_wordpress_preview_actions` pipeline WP Explorer
- * collects, minus the fields the client does not need.
- *
- * @param Os $os Host handle.
- * @return array<int,array<string,mixed>>
- */
 function preview_actions( Os $os ) {
 	if ( ! function_exists( 'openstation_my_wordpress_collect_preview_actions' ) ) {
 		return array();

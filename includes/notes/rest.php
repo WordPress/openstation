@@ -1,40 +1,7 @@
 <?php
-/**
- * OpenStation — Pinned notes REST routes.
- *
- * Routes under `/desktop-mode/v1/notes`:
- *
- *   GET    /notes                     List the viewer's own notes
- *                                     (private + publish) plus every
- *                                     other user's public notes.
- *   POST   /notes                     Create a note (author = viewer).
- *   PATCH  /notes/(?P<id>\d+)         Partial update — owner only.
- *   DELETE /notes/(?P<id>\d+)         Soft-trash — owner only.
- *   POST   /notes/(?P<id>\d+)/restore Untrash (Undo toast) — owner only.
- *   POST   /notes/(?P<id>\d+)/convert Spawn a draft post from the note,
- *                                     then trash the note — owner only,
- *                                     requires the `edit_posts` cap.
- *
- * Ownership model: a note belongs to its `post_author`, and ONLY the
- * owner may mutate it — deliberately including administrators. Public
- * notes are a read-only broadcast surface; "manage other users'
- * notes" is not a supported operation through this controller.
- *
- * Optimistic concurrency: PATCH accepts an `updatedAtMs` field
- * carrying the client's last-seen modified timestamp; a mismatch
- * returns 409 `openstation_notes_conflict` with the server copy in
- * `data.current` so the client can re-render instead of clobbering.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Base permission: logged-in + OpenStation enabled.
- *
- * @return true|WP_Error
- */
 function openstation_notes_rest_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error( 'openstation_notes_unauthenticated', __( 'You must be logged in.', 'desktop-mode' ), array( 'status' => 401 ) );
@@ -45,9 +12,6 @@ function openstation_notes_rest_permission() {
 	return true;
 }
 
-/**
- * Register the routes.
- */
 function openstation_notes_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
 
@@ -136,13 +100,6 @@ function openstation_notes_register_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_notes_register_rest_routes' );
 
-/**
- * Fetch a note post, or a WP_Error when it doesn't exist / isn't a note.
- *
- * @param int  $id          Post ID.
- * @param bool $allow_trash Whether a trashed note is acceptable (restore path).
- * @return WP_Post|WP_Error
- */
 function openstation_notes_get_note( $id, $allow_trash = false ) {
 	$post = get_post( (int) $id );
 	if ( ! $post instanceof WP_Post || OPENSTATION_NOTES_POST_TYPE !== $post->post_type ) {
@@ -155,16 +112,6 @@ function openstation_notes_get_note( $id, $allow_trash = false ) {
 	return $post;
 }
 
-/**
- * Owner gate. Only the note's author may mutate it — including admins.
- *
- * Returning 404 (not 403) for other users' PRIVATE notes would leak
- * less, but the id namespace is shared with public notes anyway and
- * a mutation attempt on a visible public note deserves an honest 403.
- *
- * @param WP_Post $post Note post.
- * @return true|WP_Error
- */
 function openstation_notes_require_owner( $post ) {
 	if ( get_current_user_id() !== (int) $post->post_author ) {
 		return new WP_Error( 'openstation_notes_forbidden', __( 'Only the note owner can change it.', 'desktop-mode' ), array( 'status' => 403 ) );
@@ -172,25 +119,10 @@ function openstation_notes_require_owner( $post ) {
 	return true;
 }
 
-/**
- * Modified timestamp in milliseconds (GMT).
- *
- * Second precision (WordPress stores no sub-second post dates) — the
- * client treats the value as an opaque token and echoes it back.
- *
- * @param WP_Post $post Post.
- * @return int
- */
 function openstation_notes_modified_ms( $post ) {
 	return (int) get_post_modified_time( 'U', true, $post ) * 1000;
 }
 
-/**
- * Serialize a note for the wire.
- *
- * @param WP_Post $post Note post.
- * @return array
- */
 function openstation_notes_prepare( $post ) {
 	$owner_id = (int) $post->post_author;
 	$owner    = get_userdata( $owner_id );
@@ -212,14 +144,6 @@ function openstation_notes_prepare( $post ) {
 	);
 }
 
-/**
- * Derive the post title from the note text (first non-empty line).
- *
- * Only used for admin-side lists / exports — the shell never shows it.
- *
- * @param string $text Note text.
- * @return string
- */
 function openstation_notes_derive_title( $text ) {
 	foreach ( preg_split( '/\r\n|\r|\n/', (string) $text ) as $line ) {
 		$line = trim( $line );
@@ -230,19 +154,9 @@ function openstation_notes_derive_title( $text ) {
 	return __( 'Note', 'desktop-mode' );
 }
 
-/**
- * GET /notes — own notes (private + publish) ∪ others' publish.
- *
- * @return WP_REST_Response
- */
 function openstation_notes_rest_list() {
 	$user_id = get_current_user_id();
 
-	// Newest first: the per-half cap exists as a runaway guard, and
-	// when it ever bites it must drop the OLDEST notes — capping an
-	// ascending list would silently hide every recently pinned note
-	// (and the boot high-water would stop the Heartbeat delta from
-	// ever backfilling them).
 	$own = new WP_Query(
 		array(
 			'post_type'      => OPENSTATION_NOTES_POST_TYPE,
@@ -276,25 +190,8 @@ function openstation_notes_rest_list() {
 	return rest_ensure_response( array( 'notes' => $notes ) );
 }
 
-/**
- * POST /notes.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_notes_rest_create( $request ) {
-	/**
-	 * Filters whether the current user may create a note.
-	 *
-	 * Notes default to any logged-in openstation user — including
-	 * publishing PUBLIC notes onto every other user's wallpaper.
-	 * Sites that want to restrict that (by role, capability, or the
-	 * request's `public` flag) hook here.
-	 *
-	 * @param bool            $can_create Whether creation is allowed. Default true.
-	 * @param int             $user_id    Current user id.
-	 * @param WP_REST_Request $request    The create request (inspect `public`, `text`, ...).
-	 */
+
 	$can_create = apply_filters( 'openstation_notes_user_can_create', true, get_current_user_id(), $request );
 	if ( ! $can_create ) {
 		return new WP_Error( 'openstation_notes_forbidden', __( 'You are not allowed to create notes.', 'desktop-mode' ), array( 'status' => 403 ) );
@@ -321,10 +218,7 @@ function openstation_notes_rest_create( $request ) {
 	update_post_meta( $post_id, '_wpd_note_x', openstation_notes_sanitize_fraction( $request['x'] ) );
 	update_post_meta( $post_id, '_wpd_note_y', openstation_notes_sanitize_fraction( $request['y'] ) );
 	update_post_meta( $post_id, '_wpd_note_z', openstation_notes_next_z() );
-	// The jitter seed is written ONCE, here — PATCH never touches it,
-	// so editing a note's text never re-tilts its paper. The client
-	// sends its own text hash (keeps the optimistic render identical);
-	// fall back to a server-side hash when absent.
+
 	$seed = absint( $request['seed'] );
 	if ( 0 === $seed ) {
 		$seed = absint( crc32( $text ) ) % 2147483647;
@@ -335,16 +229,6 @@ function openstation_notes_rest_create( $request ) {
 	return rest_ensure_response( openstation_notes_prepare( get_post( $post_id ) ) );
 }
 
-/**
- * Next z-order value across all live (non-trashed) notes.
- *
- * Deliberately site-wide, not per-owner: public notes from different
- * owners stack on the same wall, so a fresh note must land above
- * everyone's papers. Cheap max-of-meta walk — note counts are tiny
- * (a wall of paper, not a database of record).
- *
- * @return int
- */
 function openstation_notes_next_z() {
 	global $wpdb;
 	$max = $wpdb->get_var(
@@ -360,12 +244,6 @@ function openstation_notes_next_z() {
 	return (int) $max + 1;
 }
 
-/**
- * PATCH /notes/:id — partial update, owner only.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_notes_rest_update( $request ) {
 	$post = openstation_notes_get_note( $request['id'] );
 	if ( is_wp_error( $post ) ) {
@@ -376,8 +254,6 @@ function openstation_notes_rest_update( $request ) {
 		return $owner;
 	}
 
-	// Optimistic concurrency — a stale token means another session
-	// (or device) changed the note since this client last saw it.
 	$client_ms = $request['updatedAtMs'];
 	if ( null !== $client_ms && openstation_notes_modified_ms( $post ) !== (int) $client_ms ) {
 		return new WP_Error(
@@ -414,9 +290,6 @@ function openstation_notes_rest_update( $request ) {
 		update_post_meta( $post->ID, '_wpd_note_z', absint( $request['z'] ) );
 	}
 
-	// Always run the post update — even a meta-only PATCH must bump
-	// `post_modified` so the concurrency token advances and the
-	// Heartbeat delta query sees the move.
 	$result = wp_update_post( $update, true );
 	if ( is_wp_error( $result ) ) {
 		$result->add_data( array( 'status' => 500 ) );
@@ -426,12 +299,6 @@ function openstation_notes_rest_update( $request ) {
 	return rest_ensure_response( openstation_notes_prepare( get_post( $post->ID ) ) );
 }
 
-/**
- * DELETE /notes/:id — soft-trash, owner only.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_notes_rest_delete( $request ) {
 	$post = openstation_notes_get_note( $request['id'] );
 	if ( is_wp_error( $post ) ) {
@@ -454,12 +321,6 @@ function openstation_notes_rest_delete( $request ) {
 	);
 }
 
-/**
- * POST /notes/:id/restore — untrash (Undo), owner only.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_notes_rest_restore( $request ) {
 	$post = openstation_notes_get_note( $request['id'], true );
 	if ( is_wp_error( $post ) ) {
@@ -477,12 +338,6 @@ function openstation_notes_rest_restore( $request ) {
 		return new WP_Error( 'openstation_notes_restore_failed', __( 'Could not restore the note.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
-	// If this note was trashed by a "convert to post" action, undoing
-	// the conversion must also discard the draft it spawned — otherwise
-	// Undo would leave the note back on the wall AND a stray draft. The
-	// link is written by the convert route (`_wpd_note_converted_post`)
-	// and consumed once here. Only a still-present draft is trashed; a
-	// draft the user already published or trashed themselves is left be.
 	$converted_post_id = (int) get_post_meta( $post->ID, '_wpd_note_converted_post', true );
 	if ( $converted_post_id > 0 ) {
 		delete_post_meta( $post->ID, '_wpd_note_converted_post' );
@@ -495,16 +350,6 @@ function openstation_notes_rest_restore( $request ) {
 	return rest_ensure_response( openstation_notes_prepare( get_post( $post->ID ) ) );
 }
 
-/**
- * Convert a note's plain text into Gutenberg paragraph-block markup.
- *
- * Blank lines split paragraphs; single newlines within a paragraph
- * become `<br>`. The result lands clean in the block editor rather
- * than as one classic-HTML blob.
- *
- * @param string $text Note text.
- * @return string Serialized block markup (empty string for empty text).
- */
 function openstation_notes_text_to_blocks( $text ) {
 	$text       = str_replace( array( "\r\n", "\r" ), "\n", (string) $text );
 	$paragraphs = preg_split( '/\n{2,}/', trim( $text ) );
@@ -520,17 +365,6 @@ function openstation_notes_text_to_blocks( $text ) {
 	return implode( "\n\n", $blocks );
 }
 
-/**
- * POST /notes/:id/convert — spawn a draft post from a note, then trash
- * the note. Owner only, and the owner must be able to author posts.
- *
- * The note is trashed (not hard-deleted) and linked to its new draft
- * via `_wpd_note_converted_post` so the standard restore route can undo
- * both sides of the conversion (see `openstation_notes_rest_restore`).
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_notes_rest_convert( $request ) {
 	$post = openstation_notes_get_note( $request['id'] );
 	if ( is_wp_error( $post ) ) {
@@ -547,16 +381,6 @@ function openstation_notes_rest_convert( $request ) {
 	$text  = (string) get_post_field( 'post_content', $post, 'raw' );
 	$title = openstation_notes_derive_title( $text );
 
-	/**
-	 * Filters the arguments used to create the draft post from a note.
-	 *
-	 * Hook here to change the post type/status, assign a category or
-	 * author, or wrap the body in different block markup.
-	 *
-	 * @param array           $post_args Args passed to `wp_insert_post()`.
-	 * @param WP_Post         $post      The source note.
-	 * @param WP_REST_Request $request   The convert request.
-	 */
 	$post_args = apply_filters(
 		'openstation_notes_convert_post_args',
 		array(
@@ -576,9 +400,6 @@ function openstation_notes_rest_convert( $request ) {
 		return $new_post_id;
 	}
 
-	// Link the note to its draft BEFORE trashing so restore can reverse
-	// both sides. If the trash fails, roll the draft back so a failed
-	// conversion never leaves an orphan draft behind.
 	update_post_meta( $post->ID, '_wpd_note_converted_post', (int) $new_post_id );
 	if ( ! wp_trash_post( $post->ID ) ) {
 		wp_delete_post( $new_post_id, true );
@@ -586,13 +407,6 @@ function openstation_notes_rest_convert( $request ) {
 		return new WP_Error( 'openstation_notes_convert_failed', __( 'Could not convert the note to a post.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
-	/**
-	 * Fires after a note has been converted to a draft post.
-	 *
-	 * @param int             $new_post_id The draft post id.
-	 * @param WP_Post         $post        The source note (now trashed).
-	 * @param WP_REST_Request $request     The convert request.
-	 */
 	do_action( 'openstation_notes_converted', (int) $new_post_id, $post, $request );
 
 	return rest_ensure_response(
@@ -604,19 +418,6 @@ function openstation_notes_rest_convert( $request ) {
 	);
 }
 
-/**
- * The admin edit URL for the draft a note became.
- *
- * `get_edit_post_link()` is the canonical answer, and it is filterable:
- * a host can point it off-site (WordPress.com routes post edit links to
- * its own editor) or a capability filter can blank it, and the client
- * opens the URL inside a window that can only ever show THIS site's
- * wp-admin. So this always answers with the on-site `post.php` URL the
- * post type registers, whatever a filter made of the pretty one.
- *
- * @param int $post_id The draft post id.
- * @return string Absolute admin URL, or '' when the post is gone.
- */
 function openstation_notes_draft_edit_url( $post_id ) {
 	$draft = get_post( $post_id );
 	if ( ! $draft instanceof WP_Post ) {
@@ -627,27 +428,6 @@ function openstation_notes_draft_edit_url( $post_id ) {
 	return admin_url( sprintf( $edit_link, $draft->ID ) . '&action=edit' );
 }
 
-/**
- * Whether the current user's desktop would show any pinned notes.
- *
- * The presence hint the boot config ships as `hasNotes`: the notes
- * bundle is presence-gated client-side (`src/notes/sentinel.ts`), so
- * a user with no notes never downloads it — and never fires the
- * boot-time list request the layer used to make unconditionally.
- *
- * **Steady-state cost: zero queries.** The computed answer is cached
- * in user meta, stamped with a revision the site bumps whenever any
- * note changes (`openstation_notes_bump_rev()` below). The revision
- * lives in an autoloaded option and the user's meta cache is already
- * primed on every admin request, so a boot between note changes
- * reads two warm caches and touches the database not at all. Only
- * the first boot after a note is created / deleted / re-scoped runs
- * the probes again — two `fields => ids`, one-row queries at most:
- * anyone's public note first, the user's own private ones second,
- * mirroring the visibility rule the list route enforces.
- *
- * @return bool
- */
 function openstation_notes_user_has_any() {
 	$rev     = (string) get_option( 'desktop_mode_notes_rev', '0' );
 	$user_id = get_current_user_id();
@@ -687,19 +467,6 @@ function openstation_notes_user_has_any() {
 	return $has;
 }
 
-/**
- * Invalidate every user's cached `hasNotes` answer.
- *
- * One autoloaded revision counter instead of per-user cache deletes:
- * a public note's existence changes the answer for EVERY user, and
- * enumerating users to clear meta would be the expensive thing this
- * cache exists to avoid. Bumping the rev makes all stamped answers
- * stale at the cost of one option write per note change — and note
- * changes are rare next to boots.
- *
- * @param int|WP_Post $post Post id or object being changed.
- * @return void
- */
 function openstation_notes_bump_rev( $post ) {
 	$post = get_post( $post );
 	if ( ! $post instanceof WP_Post || OPENSTATION_NOTES_POST_TYPE !== $post->post_type ) {
@@ -708,16 +475,6 @@ function openstation_notes_bump_rev( $post ) {
 	update_option( 'desktop_mode_notes_rev', (string) time() . '.' . wp_rand( 0, 999 ), true );
 }
 
-/**
- * Every path a note can change through: status moves (create,
- * publish/private flips, trash, restore) fire
- * `transition_post_status`; hard deletes fire `deleted_post`.
- *
- * @param string  $new_status New status.
- * @param string  $old_status Old status.
- * @param WP_Post $post       The post.
- * @return void
- */
 function openstation_notes_bump_rev_on_transition( $new_status, $old_status, $post ) {
 	if ( $new_status === $old_status ) {
 		return;

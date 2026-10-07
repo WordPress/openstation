@@ -1,29 +1,6 @@
-/**
- * Snow — wallpaper plugin entry.
- *
- * A PixiJS canvas wallpaper: snowflakes fall, accumulate on the top
- * edge of every visible window (and widget card, taskbar, and the
- * shell floor), then melt away. The simulation lives in `scene.ts`;
- * this file owns the wallpaper def, the shell hook wiring, the OS
- * Settings tile preview, and the settings dialog (`renderConfig`).
- *
- * Publishing pattern (same as animated-logo / living-tree): the
- * bundle's only side effect is writing
- * `window.openStationWallpapers['wp-snow']`; the shell's wallpaper
- * `server-sync` reads that global after the script loads. Server
- * registration lives in `includes/wallpapers.php`.
- *
- * First built-in consumer of the per-wallpaper settings surface: the
- * "Wallpaper settings" dialog edits wind, particle count, flake size,
- * and backdrop colour; a mounted instance live-applies them through
- * the `os.wallpaper.settings-changed` action.
- */
-
 import { __ } from '../../i18n';
 import { addAction, removeAction, HOOKS } from '../../hooks';
-// Register the tags the config dialog creates — `defineComponent` is
-// idempotent, so double-registration with the OS Settings panel
-// bundle (which ships the same components) is safe.
+
 import '../../ui/components/os-range-field/os-range-field';
 import '../../ui/components/os-color-field/os-color-field';
 import '../../ui/components/os-button/os-button';
@@ -45,30 +22,14 @@ import {
 	type SnowSettings,
 } from './settings';
 
-/** Stable id — persisted to localStorage as the user's selected wallpaper. */
 const WALLPAPER_ID = 'wp-snow';
 
-/** Hook-namespace prefix for every listener this wallpaper registers. */
 const NAMESPACE = 'desktop-mode/snow';
 
-/**
- * Swatch preview — pure CSS, shown in OS Settings before PixiJS
- * loads. The same midnight-to-dusk gradient the scene paints behind
- * the transparent canvas (at default settings), so selecting feels
- * continuous.
- */
 const PREVIEW = backdropCss( SNOW_DEFAULTS.background );
 
-/**
- * Tile-preview particle count. The full field would read as a
- * blizzard at swatch scale — a few dozen flakes over the same
- * backdrop communicates the wallpaper honestly and keeps the tile's
- * frame cost negligible. Overridable through `previewParams` /
- * the `os.wallpaper.preview-params` filter.
- */
 const PREVIEW_PARTICLES = 140;
 
-/** Read `wp.os.getWallpaperSurfaces` off the public API. */
 function surfacesSupplier(): ( () => WallpaperSurface[] ) | null {
 	const api = window.wp?.os as
 		| { getWallpaperSurfaces?: () => WallpaperSurface[] }
@@ -79,14 +40,7 @@ function surfacesSupplier(): ( () => WallpaperSurface[] ) | null {
 	return () => ( api.getWallpaperSurfaces as () => WallpaperSurface[] )();
 }
 
-/**
- * Wire the shell hooks a mounted scene needs and return the matching
- * un-wire function. Kept out of `scene.ts` so the simulation stays a
- * pure function of its inputs.
- */
 function wireSceneHooks( scene: SnowScene ): () => void {
-	// Pause when the document is hidden or the user switched
-	// wallpapers (the shell still has us mounted briefly).
 	const visibilityHandler = ( ...args: unknown[] ): void => {
 		const detail = args[ 0 ] as
 			| { id?: string; state?: 'visible' | 'hidden' }
@@ -102,14 +56,6 @@ function wireSceneHooks( scene: SnowScene ): () => void {
 		visibilityHandler,
 	);
 
-	// WINDOW_CLOSING fires *before* the shell detaches the window
-	// element, and hands us the live DOM node — so stuck flakes match
-	// by identity instead of reverse-engineering the id → selector
-	// mapping. Every matching flake detaches back into the falling
-	// state: the surface under it is physically disappearing, so the
-	// realistic behavior is gravity — not melting in place. Flakes
-	// then continue through the normal collision path and may land on
-	// whatever window (or the shell floor) sits beneath.
 	const detachHandler = ( ...args: unknown[] ): void => {
 		const detail = args[ 0 ] as { element?: HTMLElement } | undefined;
 		if ( ! detail || ! detail.element ) {
@@ -123,36 +69,12 @@ function wireSceneHooks( scene: SnowScene ): () => void {
 		detachHandler,
 	);
 
-	// WINDOW_MINIMIZED — the shell hides the window via opacity 0 +
-	// transform, NOT display: none, so `offsetParent` stays non-null
-	// and the per-frame "start melt if anchor is hidden" heuristic
-	// never trips. Without an explicit listener, stuck flakes track
-	// the minimize transform off-screen and hang in mid-air for the
-	// full stuck lifetime before melting on their natural schedule —
-	// visually "snow floating."
-	//
-	// Detach to FALLING — not melt — because from the user's
-	// perspective the window has vanished. Melting in place would
-	// freeze flakes at the (now invisible) minimize-transformed
-	// coordinates. Falling lets snowfall continue past where the
-	// window used to be, naturally re-colliding against whatever
-	// surface sits beneath. `detachFlakesAnchoredTo` also flips the
-	// surface cache dirty so NEW flakes falling toward the
-	// disappeared window's y-coordinate pass through to the next
-	// surface beneath instead of landing on nothing.
 	addAction(
 		HOOKS.WINDOW_MINIMIZED,
 		`${ NAMESPACE }/window-minimized`,
 		detachHandler,
 	);
 
-	// WINDOW_BOUNDS_CHANGED is rAF-coalesced by the shell and fires
-	// on drag, resize, snap — anything pointer-driven that moves a
-	// window edge. Flipping the dirty bit here short-circuits the
-	// scene's 20Hz refresh cadence so the next tick rebuilds the
-	// surface cache against the current rects; stuck flakes following
-	// the anchor still read DOM rects directly, but *new* collisions
-	// get a fresh edge list within one frame.
 	const dirtyHandler = (): void => {
 		scene.markSurfacesDirty();
 	};
@@ -162,13 +84,6 @@ function wireSceneHooks( scene: SnowScene ): () => void {
 		dirtyHandler,
 	);
 
-	// Geometry changes that don't ride WINDOW_BOUNDS_CHANGED — it is
-	// pointer-driven, so programmatic state transitions (restore,
-	// maximize, unmaximize, fullscreen enter/exit) change a window's
-	// solid-surface rect without signaling the cache. Without these,
-	// the cache stays stale for up to the 50ms timed refresh, and
-	// flakes spawned during that window collide against the OLD edge
-	// (e.g. the pre-maximize floating rect).
 	addAction(
 		HOOKS.WINDOW_RESTORED,
 		`${ NAMESPACE }/window-restored`,
@@ -195,14 +110,6 @@ function wireSceneHooks( scene: SnowScene ): () => void {
 		dirtyHandler,
 	);
 
-	// WIDGET_UNMOUNTING fires *before* the widget layer runs the
-	// widget's teardown, so the card element is still in the DOM and
-	// reachable via `[data-widget-id="…"]` — every stuck flake on it
-	// drops into the falling state. Same reasoning as WINDOW_CLOSING.
-	// The payload is `{ id }` only (no element), so we query by
-	// attribute; if the widget was never actually rendered (fast
-	// add/remove) the selector misses and nothing happens — safe
-	// no-op.
 	const widgetUnmountingHandler = ( ...args: unknown[] ): void => {
 		const detail = args[ 0 ] as { id?: string } | undefined;
 		if ( ! detail || ! detail.id ) {
@@ -226,8 +133,6 @@ function wireSceneHooks( scene: SnowScene ): () => void {
 		widgetUnmountingHandler,
 	);
 
-	// Live settings — the config dialog publishes through the shell,
-	// which fires this action with the full post-merge object.
 	const settingsHandler = ( ...args: unknown[] ): void => {
 		const detail = args[ 0 ] as
 			| { id?: string; settings?: Record< string, unknown > }
@@ -276,12 +181,6 @@ function wireSceneHooks( scene: SnowScene ): () => void {
 	};
 }
 
-/**
- * Build one labelled `<os-range-field>` wired to a settings key.
- * Imperative DOM (no templating import) — the dialog is four fields
- * and a reset button; pulling `ui/core` into this bundle for that
- * would be pure weight.
- */
 function rangeField(
 	label: string,
 	limits: { min: number; max: number },
@@ -301,14 +200,6 @@ function rangeField(
 	return field;
 }
 
-/**
- * `renderConfig` — the "Wallpaper settings" dialog body. Four
- * controls (wind, particle count, flake size, backdrop colour) that
- * write through `ctx.setSettings` on every edit; the mounted scene
- * live-applies via the settings-changed action, so the dialog acts
- * as a live tuning panel. "Reset to defaults" writes the canonical
- * values back in one shot.
- */
 function renderSnowConfig(
 	container: HTMLElement,
 	ctx: WallpaperConfigContext,
@@ -352,9 +243,7 @@ function renderSnowConfig(
 
 	const reset = document.createElement( 'os-button' );
 	reset.setAttribute( 'variant', 'ghost' );
-	// The dialog body is a stretch-aligned flex column — left-align
-	// the button and add a hair of separation so it reads as a footer
-	// action, not another form field.
+
 	reset.style.alignSelf = 'flex-start';
 	reset.style.marginTop = '4px';
 	reset.textContent = __( 'Reset to defaults' );
@@ -375,9 +264,8 @@ function renderSnowConfig(
 	container.appendChild( colorField );
 	container.appendChild( reset );
 
-	// No long-lived resources — listeners die with the dialog DOM.
 	return (): void => {
-		/* noop */
+
 	};
 }
 
@@ -387,12 +275,7 @@ const def: WallpaperDef = {
 	type: 'canvas',
 	preview: PREVIEW,
 	previewParams: { particleCount: PREVIEW_PARTICLES },
-	/**
-	 * Live tile preview for the OS Settings picker — the real
-	 * simulation at tile scale, minus surface collision (surface
-	 * rects are viewport-space and meaningless inside a tile) and at
-	 * a fraction of the field density.
-	 */
+
 	renderPreview: async (
 		container: HTMLElement,
 		ctx: WallpaperPreviewContext,
@@ -400,7 +283,7 @@ const def: WallpaperDef = {
 		const pixi = getPixi();
 		if ( ! pixi ) {
 			return (): void => {
-				/* noop */
+
 			};
 		}
 		const settings = sanitizeSnowSettings( ctx.settings );
@@ -426,11 +309,10 @@ const def: WallpaperDef = {
 		container: HTMLElement,
 		ctx: WallpaperContext,
 	): Promise< WallpaperTeardown > => {
-		// `needs: ['pixijs']` guarantees `window.PIXI` is set.
 		const pixi = getPixi();
 		if ( ! pixi ) {
 			return (): void => {
-				/* noop */
+
 			};
 		}
 		const scene = await mountSnowScene( {

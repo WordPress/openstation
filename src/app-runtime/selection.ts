@@ -1,19 +1,3 @@
-/**
- * App Framework — selection math.
- *
- * Finder-style multi-selection over a visual order: plain click
- * replaces, Ctrl/Cmd toggles, Shift extends from the anchor. Pure
- * functions of their inputs, shared so every list window answers a
- * modified click the same way.
- *
- * @public
- */
-
-/**
- * The next selection after a row click. Plain click replaces, Ctrl/Cmd
- * toggles, Shift extends from the anchor (the last selected id) across
- * the current visual order.
- */
 export function applySelection(
 	selected: number[],
 	order: number[],
@@ -36,27 +20,14 @@ export function applySelection(
 	return [ id ];
 }
 
-/**
- * Drawn marquee selection over a list canvas.
- *
- * A press on empty canvas (never on a row — that is a click or a
- * drag-out) starts a fixed-position selection box on `document.body`;
- * every pointer move reports the ids of the rows the box intersects.
- * A plain press reports an empty selection first; a Ctrl/Cmd/Shift
- * press keeps the existing one, matching {@link applySelection}'s
- * modifier semantics. Returns the teardown.
- *
- * The box carries `os-app__marquee` (styled by the runtime sheet);
- * pass `className` to keep an app-specific class instead.
- */
 export function createMarquee( opts: {
-	/** The mount root the row query runs under. */
+
 	root: HTMLElement;
-	/** Selector for the canvas a marquee may start on. */
+
 	canvas: string;
-	/** Selector for selectable rows; must carry `data-item-id`. */
+
 	item?: string;
-	/** Receives the intersected ids on every pointer move (and `[]` on a plain start). */
+
 	select: ( ids: number[] ) => void;
 	className?: string;
 } ): () => void {

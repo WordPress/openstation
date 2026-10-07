@@ -1,16 +1,3 @@
-/**
- * Session restore must recover a window's dock identity — and with it
- * the submenu tab strip — even when the saved URL matches no menu
- * entry.
- *
- * The MailPoet shape: until its welcome wizard is done, every
- * MailPoet page redirects to `?page=mailpoet-landingpage`, a slug no
- * dock item or submenu lists. The session saves the window's CURRENT
- * URL (the landing page), so resolving the owning dock entry from the
- * URL alone comes up empty and the window used to restore with no tab
- * strip at all. The saved `baseId` still carries the open-time
- * identity, and the restore path now falls back to it.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { restoreSession } from '../../src/boot/session';
 import {
@@ -146,8 +133,7 @@ describe( 'restoreSession — dock identity fallback', () => {
 
 	test( 'a window parked on an off-menu URL keeps its submenu', async () => {
 		const win = mailpoetWindow();
-		// Sanity: the URL alone resolves nothing — this scenario is
-		// exactly the one the baseId fallback exists for.
+
 		const config = desktopConfig( [ win ] );
 		expect( findDockEntryForUrl( win.url, config ) ).toBeUndefined();
 
@@ -164,8 +150,7 @@ describe( 'restoreSession — dock identity fallback', () => {
 	} );
 
 	test( 'a URL that matches another dock entry wins over baseId', async () => {
-		// The window was opened as MailPoet but navigated onto the
-		// Pages screen before the reload — it belongs to Pages now.
+
 		const win = mailpoetWindow( { url: PAGES_URL } );
 		const config = desktopConfig( [ win ] );
 
@@ -194,8 +179,7 @@ describe( 'restoreSession — window titles follow the current menu', () => {
 	} );
 
 	test( 'a saved title in another language is replaced by the menu label', async () => {
-		// Opened while the admin language was Spanish, restored after
-		// the user switched back to English: the dock says "Pages".
+
 		const win = mailpoetWindow( { url: PAGES_URL, title: 'Páginas' } );
 		const config = desktopConfig( [ win ] );
 
@@ -207,7 +191,7 @@ describe( 'restoreSession — window titles follow the current menu', () => {
 	test( 'a submenu page keeps its own name rather than the parent menu', () => {
 		const config = desktopConfig( [] );
 		expect( findDockTitleForUrl( MP_EMAILS, config ) ).toBe( 'Emails' );
-		// The self-link shares the parent URL: the dock's name wins.
+
 		expect( findDockTitleForUrl( PAGES_URL, config ) ).toBe( 'Pages' );
 	} );
 

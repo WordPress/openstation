@@ -1,17 +1,11 @@
 <?php
-/**
- * Complete activity snapshots with bounded profile hydration.
- * @group openstation
- * @group users-activity-summary
- */
+
 class Tests_OpenStation_UsersActivitySummary extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 	}
-	/** @covers ::openstation_users_window_activity_summary
-	 * @covers ::openstation_users_activity_sample
-	 */
+
 	public function test_complete_population_totals_and_bounded_leaders() {
 		$before = openstation_users_window_activity_summary();
 		$ids = self::factory()->user->create_many( 25, array( 'role' => 'author' ) );
@@ -42,9 +36,7 @@ class Tests_OpenStation_UsersActivitySummary extends WP_UnitTestCase {
 			$this->assertArrayNotHasKey( '_score', $person );
 		}
 	}
-	/** @covers ::openstation_users_window_activity_summary
-	 * @covers ::openstation_users_window_register_activity_summary_route
-	 */
+
 	public function test_capabilities_and_extensibility() {
 		$called = false;
 		$filter = static function ( $summary ) use ( &$called ) { $called = true; return $summary; };
@@ -60,7 +52,7 @@ class Tests_OpenStation_UsersActivitySummary extends WP_UnitTestCase {
 			$this->assertContains( $response->get_status(), array( 401, 403 ) );
 		}
 	}
-	/** @covers ::openstation_users_window_activity_summary */
+
 	public function test_other_site_members_are_excluded() {
 		if ( ! is_multisite() ) { $this->markTestSkipped( 'Multisite only.' ); }
 		$before = openstation_users_window_activity_summary();

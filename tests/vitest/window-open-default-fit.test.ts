@@ -1,14 +1,3 @@
-/**
- * Default placement never opens a window under the dock.
- *
- * `WindowManager.open()` fits a window nobody positioned into the
- * WORK area: a registered size taller than the reachable height is
- * shrunk (down to the window's minimum), and the cascade origin is
- * pulled up so the bottom edge lands inside. Caller-pinned x / y and
- * a size the user saved by resizing are left alone — those are
- * deliberate placement, not a default. Maximize and snap use the
- * measured work area and follow dock changes live.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { snapZoneBounds } from '../../src/window-manager/snap-zones';
@@ -22,7 +11,7 @@ import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 const AREA_W = 1600;
 const AREA_H = 700;
-/** The bottom pill: 64px tall, 12px above the floor → 84px inset. */
+
 const INSET = 12 + 64 + 8;
 
 function fakeRect( left: number, top: number, width: number, height: number ): DOMRect {
@@ -93,11 +82,11 @@ describe( 'WindowManager.open() — default placement fits the work area', () =>
 	} );
 
 	test( 'a registered size taller than the reachable height is fitted, and lands above the dock', async () => {
-		// The Corkboard's registered 1080×720 on a 700px-tall desktop.
+
 		const win = await manager.open( openConfig( 'corkboard', { width: 1080, height: 720, minHeight: 480 } ) );
-		const reachable = AREA_H - INSET; // 616
+		const reachable = AREA_H - INSET;
 		expect( win.config.width ).toBe( 1080 );
-		expect( win.config.height ).toBe( reachable - 24 ); // 592
+		expect( win.config.height ).toBe( reachable - 24 );
 		expect( win.config.y ).toBe( 12 );
 		expect( win.config.y! + win.config.height! ).toBeLessThanOrEqual( reachable - 12 );
 	} );
@@ -109,7 +98,7 @@ describe( 'WindowManager.open() — default placement fits the work area', () =>
 
 	test( 'the default size is derived from the work area, not the whole desktop', async () => {
 		const win = await manager.open( openConfig( 'edit-php' ) );
-		// min( round( 616 * 0.8 ), 800 ) = 493
+
 		expect( win.config.height ).toBe( Math.round( ( AREA_H - INSET ) * 0.8 ) );
 		expect( win.config.y ).toBe( 40 );
 	} );
@@ -127,7 +116,6 @@ describe( 'WindowManager.open() — default placement fits the work area', () =>
 		expect( win.element.style.height ).toBe( `${ AREA_H - INSET }px` );
 		expect( win.element.style.width ).toBe( `${ expectedWidth }px` );
 
-		// Only the dock changes: the desktop's client size is unchanged.
 		dock.getBoundingClientRect = () => fakeRect( 500, AREA_H - 12 - 96, 600, 96 );
 		workArea.refresh();
 		expect( win.element.style.height ).toBe( `${ AREA_H - 12 - 96 - 8 }px` );

@@ -1,20 +1,3 @@
-/**
- * `<os-badge>` — colored-dot status pill.
- *
- * Tiny, recurring need across devtools and shell affordances. A
- * leading dot in the tone color, a label slot, a pill background
- * derived from the tone. Five built-in tones — `success`, `warning`,
- * `danger`, `info`, `neutral` — match common UI semantics; plugins
- * that need a custom color can override the underlying CSS variables
- * without touching the host's tone attribute.
- *
- * Usage:
- *
- *   <os-badge tone="success">Attached</os-badge>
- *   <os-badge tone="danger">Errored</os-badge>
- *   <os-badge tone="info" no-dot>v0.6.0</os-badge>
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-badge.styles';
 

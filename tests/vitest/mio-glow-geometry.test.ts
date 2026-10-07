@@ -1,29 +1,3 @@
-/**
- * Mio's glow passes never fold inside-out.
- *
- * **The bug this pins.** Both glow passes used to be drawn by
- * `fillBand`, which places a boundary by offsetting each ribbon sample
- * along its own outward normal. A normal offset is only simple while
- * it stays inside the local radius of curvature; past that, the points
- * on the inside of a bend cross over each other and the cell between
- * them is emitted as a bowtie, which fills as two long thin triangles
- * meeting at the crossing.
- *
- * On the shipped `star` at its default radius that happens at **7 px**,
- * and the glow passes ask for many times that — a quarter of the halo's
- * cells were inside-out at ordinary settings, and the spikes radiating
- * out of every notch were those triangles. Blur cannot repair it: a
- * blurred inverted cell is a soft spike.
- *
- * `fillGlowBand` dilates the silhouette about the body centre instead.
- * Scaling is a similarity transform, so the boundary stays simple at
- * any factor and there is no reach at which it folds.
- *
- * The test measures the geometry directly rather than trusting the
- * call site: it walks each boundary and asks whether consecutive
- * points still run the same way round the shape as the outline they
- * came from. A reversal is a fold.
- */
 import { describe, expect, test } from 'vitest';
 import {
 	buildRibbon,
@@ -34,7 +8,6 @@ import {
 
 const TAU = Math.PI * 2;
 
-/** The shipped `star` deviation, from `soft-body.ts`. */
 function starDeviation( phase: number ): number {
 	return 0.58 * ( Math.pow( Math.max( 0, Math.cos( 5 * phase ) ), 3 ) - 0.3125 );
 }
@@ -54,10 +27,6 @@ function starSamples( radius = 56 ): RibbonSample[] {
 	return buildRibbon( rim as never, CENTRE, 144 );
 }
 
-/**
- * Fraction of steps along a boundary that run backwards relative to
- * the outline — i.e. the fraction of cells that fill as bowties.
- */
 function foldedFraction(
 	samples: readonly RibbonSample[],
 	place: ( s: RibbonSample ) => { x: number; y: number },
@@ -77,12 +46,10 @@ function foldedFraction(
 	return bad / samples.length;
 }
 
-/** The boundary `fillBand` would place — offset along the normal. */
 const byNormal =
 	( px: number ) =>
 	( s: RibbonSample ) => ( { x: s.x + s.nx * px, y: s.y + s.ny * px } );
 
-/** The boundary `fillGlowBand` places — dilated about the centre. */
 function byDilation( samples: readonly RibbonSample[], px: number ) {
 	let sum = 0;
 	for ( const s of samples ) {
@@ -95,7 +62,6 @@ function byDilation( samples: readonly RibbonSample[], px: number ) {
 	} );
 }
 
-/** Every `(outlineWidth, glow)` pair the panel's sliders can produce. */
 const SETTINGS = [
 	{ w: 3, glow: 1 },
 	{ w: 3, glow: 3 },
@@ -107,9 +73,7 @@ const SETTINGS = [
 
 describe( 'Mio glow geometry', () => {
 	test( 'a normal offset really does fold on the shipped star', () => {
-		// The premise. If this ever stops holding — a smoother star, a
-		// denser ribbon — the dilation is no longer load-bearing and the
-		// tests below are measuring nothing.
+
 		const samples = starSamples();
 		expect( foldedFraction( samples, byNormal( 6 ) ) ).toBe( 0 );
 		expect( foldedFraction( samples, byNormal( 42 ) ) ).toBeGreaterThan(
@@ -130,8 +94,7 @@ describe( 'Mio glow geometry', () => {
 	} );
 
 	test( 'the inner bleed does not fold either', () => {
-		// Dilating inward is the same transform with a factor below 1,
-		// and is clamped at the centre so it can never invert.
+
 		const samples = starSamples();
 		for ( const w of [ 3, 8, 14, 24 ] ) {
 			const bleed = Math.max( 1, w * 0.4 );
@@ -143,9 +106,7 @@ describe( 'Mio glow geometry', () => {
 	} );
 
 	test( 'a dilated boundary holds up on a squashed body too', () => {
-		// The reach is derived from the *measured* mean radius, not the
-		// rest radius, so a body mid-squash still gets a halo sized to
-		// the shape it currently is.
+
 		const samples = starSamples( 20 );
 		expect(
 			foldedFraction( samples, byDilation( samples, 24 * 3 * 3 ) ),
@@ -153,10 +114,6 @@ describe( 'Mio glow geometry', () => {
 	} );
 } );
 
-/**
- * Records the slice of `Graphics` a glow pass touches, keeping the
- * alpha of every fill and the anchors of every cell.
- */
 function recorder() {
 	const alphas: number[] = [];
 	const anchors: { outer: number[]; inner: number[] }[] = [];
@@ -172,7 +129,7 @@ function recorder() {
 		},
 		lineTo: () => g,
 		closePath: () => {
-			// moveTo(outerA) … curve→outerB, line→innerB, curve→innerA.
+
 			anchors.push( {
 				outer: pending[ 0 ] ?? [],
 				inner: pending[ 2 ] ?? [],
@@ -189,11 +146,7 @@ function recorder() {
 }
 
 describe( 'Mio glow falloff', () => {
-	// Everything the panel's sliders can reach, at the ends and through
-	// the middle. `outlineWidth` is in here only to prove it no longer
-	// moves the glow: reach is a multiple of the radius and a function
-	// of `glow` alone, so the same `glow` at 0.5 px and 24 px of ring
-	// has to produce the same ramp.
+
 	const SLIDER: { w: number; glow: number; radius: number }[] = [];
 	for ( const w of [ 0.5, 3, 24 ] ) {
 		for ( const glow of [ 0.1, 1, 6, 20 ] ) {
@@ -203,7 +156,6 @@ describe( 'Mio glow falloff', () => {
 		}
 	}
 
-	/** Draw one halo pass and hand back what Pixi would have been given. */
 	function halo( w: number, glow: number, radius = 56 ) {
 		const samples = starSamples( radius );
 		const colors = samples.map( () => 0xffffff );
@@ -213,23 +165,19 @@ describe( 'Mio glow falloff', () => {
 			samples,
 			CENTRE,
 			colors,
-			// `GLOW_REACH.halo` per unit glow — a multiple of the body
-			// radius, with no `outlineWidth` in it.
+
 			0.16 * glow,
 			Math.max( 1, w * 0.4 ),
 			0.2,
 			10,
 			12,
 		);
-		// One alpha per cell; every cell in a shell shares one.
+
 		return [ ...new Set( rec.alphas ) ];
 	}
 
 	test( 'the ramp does not depend on the outline width', () => {
-		// The bug this pins: the two sliders used to multiply. Reach was
-		// a multiple of `outlineWidth`, so thickening the ring inflated
-		// the glow eightfold on its way from 0.5 px to 24 px, and there
-		// was no way to ask for a fat ring with a tight glow.
+
 		for ( const glow of [ 0.1, 1, 6, 20 ] ) {
 			const hairline = halo( 0.5, glow );
 			for ( const w of [ 3, 8, 14, 24 ] ) {
@@ -241,12 +189,7 @@ describe( 'Mio glow falloff', () => {
 	} );
 
 	test( 'the wash reaches the same multiple of the body at every size', () => {
-		// Reach is scale-free, so a 16 px Mio and a 220 px one wear the
-		// same glow in proportion to themselves. Only the shell count
-		// moves with size, because how fine the ramp has to be is a
-		// question about pixels, not about proportion — which is why
-		// this asserts the geometry rather than the alphas.
-		/** How far the drawn wash gets, as a multiple of the body. */
+
 		function spread( reach: number, radius: number ): number {
 			const samples = starSamples( radius );
 			const colors = samples.map( () => 0xffffff );
@@ -273,18 +216,14 @@ describe( 'Mio glow falloff', () => {
 					`reach=${ reach } r=${ radius }`,
 				).toBeCloseTo( reference, 6 );
 			}
-			// And the reach itself is what moves it: more `glow`, more
-			// spread, in proportion.
+
 			expect( reference ).toBeGreaterThan( 1 );
 		}
 		expect( spread( 3.2, 56 ) ).toBeGreaterThan( spread( 0.16, 56 ) * 3 );
 	} );
 
 	test( 'the alpha falls monotonically, never flat', () => {
-		// A single flat band is what the halo used to be, and it is the
-		// whole defect: flat right across, then a cliff at the edge —
-		// which reads as a coloured shape behind Mio rather than as
-		// light coming off her.
+
 		for ( const { w, glow, radius } of SLIDER ) {
 			const steps = halo( w, glow, radius );
 			const at = `w=${ w } glow=${ glow } r=${ radius }`;
@@ -298,11 +237,7 @@ describe( 'Mio glow falloff', () => {
 	} );
 
 	test( 'the ramp reaches its edge at nothing, at every setting', () => {
-		// The invariant that makes it a glow. A ramp truncated while
-		// still visible has a cliff at the truncation, which is the
-		// thing the falloff exists to remove — so the faintest shell
-		// drawn has to be a small fraction of the peak, including where
-		// `MIN_VISIBLE_ALPHA` cuts the tail short.
+
 		for ( const { w, glow, radius } of SLIDER ) {
 			const steps = halo( w, glow, radius );
 			const faintest = steps[ steps.length - 1 ];
@@ -314,15 +249,12 @@ describe( 'Mio glow falloff', () => {
 	} );
 
 	test( 'shells tile exactly — no seam between steps', () => {
-		// Each shell's inner boundary is its neighbour's outer one.
-		// Computed independently, so this is the same anti-seam
-		// invariant one band relies on: a mismatch is a hairline of
-		// wallpaper showing through the middle of the glow.
+
 		const samples = starSamples();
 		const colors = samples.map( () => 0xffffff );
 		const rec = recorder();
 		const stride = 12;
-		// Two radii of reach — enough to be drawn in many shells.
+
 		fillGlow( rec.g as never, samples, CENTRE, colors, 2, 5, 0.2, 10, stride );
 
 		const perShell = Math.ceil( samples.length / stride );
@@ -339,23 +271,18 @@ describe( 'Mio glow falloff', () => {
 	} );
 
 	test( 'the blur is sized off each pass, not off the outline', () => {
-		// Tying it to `outlineWidth` gave the widest halo the same few
-		// pixels of softening as the narrowest — no softening at all at
-		// that size. It grows with the reach, and the reach is a
-		// function of the radius and `glow`, so the signature no longer
-		// has an outline width in it to get this wrong with.
+
 		const narrow = glowBlurStrength( 56, 1 );
 		const wide = glowBlurStrength( 56, 20 );
 		expect( wide.halo ).toBeGreaterThan( narrow.halo * 3 );
-		// Both passes are blurred: the bloom is a ramp too, and flat
-		// shells left crisp draw contour rings inside the halo.
+
 		expect( narrow.bloom ).toBeGreaterThan( 0 );
 		expect( wide.bloom ).toBeGreaterThan( narrow.bloom * 3 );
-		// A bigger Mio wears a proportionally bigger blur.
+
 		expect( glowBlurStrength( 220, 6 ).halo ).toBeGreaterThan(
 			glowBlurStrength( 16, 6 ).halo,
 		);
-		// Never zero, however tight the look.
+
 		expect( glowBlurStrength( 16, 0.1 ).halo ).toBeGreaterThanOrEqual( 2 );
 	} );
 } );

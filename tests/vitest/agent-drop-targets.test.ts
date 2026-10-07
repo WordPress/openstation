@@ -1,10 +1,3 @@
-/**
- * Unit tests for `src/desktop-files/agent-drop-targets.ts` — the
- * wallpaper agent-tile payload handlers: gating from the inlined
- * `agentDragKinds`, and the invoke URL built from the shell's
- * `restUrl` (NOT the files layer's `baseUrl`, which already ends in
- * `desktop-mode/v1/files` — the double-prefix 404 regression).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	installAgentTileDropHandlers,

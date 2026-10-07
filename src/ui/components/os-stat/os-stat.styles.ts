@@ -1,12 +1,3 @@
-/**
- * `<os-stat>` — one stat tile.
- *
- * A bordered box: big value, small uppercase label, optional
- * footnote. Every colour and size resolves through a public token
- * read into a private alias, so desktop themes and host stylesheets
- * can restyle a stat without forking the component (and the palette
- * stays reachable — see the token-reachability rule).
- */
 import { css } from '../../core';
 
 export const styles = css`
@@ -52,9 +43,6 @@ export const styles = css`
 		color: var( --_label-color );
 	}
 
-	/* The severity swatch reads the app runtime's tone contract: the
-	   host sits in the light DOM, where data-tone on it resolves
-	   --os-app-tone, and the value inherits in here. */
 	.swatch {
 		display: inline-block;
 		inline-size: 10px;

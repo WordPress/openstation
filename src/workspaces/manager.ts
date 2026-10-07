@@ -1,16 +1,3 @@
-/**
- * Workspace operations — create, edit, provision.
- *
- * The window manager owns desktops; this module owns the profile a
- * desktop carries. It reaches into `WindowManager` for the desktop
- * list and for opening windows, and it fires the hooks the session
- * saver listens on, but it holds no state of its own — the workspace
- * IS the desktop, and there is nowhere else for it to live.
- *
- * Provisioning is the one piece with real ordering to it, and
- * {@link provisionWorkspace} explains why.
- */
-
 import { applyFilters, doAction, HOOKS } from '../hooks';
 import type { Desktop } from '../types';
 import type { NavItem } from '../nav/types';
@@ -33,37 +20,24 @@ import {
 } from './types';
 import { workspaceAppearance, workspaceWidgetIds } from './visibility';
 
-/** External wiring the workspace operations need from the shell. */
 export interface WorkspaceDeps {
 	manager: WindowManager;
-	/** Every navigable thing, for resolving a preset's tokens. */
+
 	getNavItems: () => NavItem[];
-	/** Absolute wp-admin URL, for resolving a launch entry's relative URL. */
+
 	adminUrl: string;
-	/** The window-manager key an admin URL opens under. */
+
 	deriveWindowId: ( url: string ) => string;
-	/** Open a native window by id. */
+
 	openNative: ( id: string ) => void;
-	/** Repaint the rails — a profile change moves apps on and off them. */
+
 	refreshLayout: () => void;
-	/**
-	 * Show exactly these widgets, or `null` for the user's own column.
-	 *
-	 * A push rather than a pull, unlike the rails: the navigation is
-	 * recomputed from scratch on every window event and can simply read
-	 * the active profile each time, but the widget column is mounted
-	 * state that only changes when something tells it to.
-	 */
+
 	setVisibleWidgets?: ( ids: readonly string[] | null ) => void;
-	/**
-	 * Paint the desk with this appearance patch, or `null` to hand the
-	 * user's own settings back. A view, never a write — see
-	 * `OsSettings.setWorkspaceAppearance()`.
-	 */
+
 	setAppearance?: ( patch: Record< string, unknown > | null ) => void;
 }
 
-/** The profile on a desktop, or `null` for a plain Space. */
 export function getWorkspaceProfile(
 	mgr: WindowManager,
 	desktopId: string,
@@ -73,21 +47,12 @@ export function getWorkspaceProfile(
 	);
 }
 
-/** The active desktop's profile, or `null`. */
 export function getActiveWorkspaceProfile(
 	mgr: WindowManager,
 ): WorkspaceProfile | null {
 	return getWorkspaceProfile( mgr, mgr.getActiveDesktopId() );
 }
 
-/**
- * Replace a desktop's profile.
- *
- * Writes through the live desktop object rather than the copy
- * `getDesktops()` hands out — that method returns a shallow clone of
- * the array, so mutating an entry from it would update nothing.
- * Reaching for `_desktops` is the same access `desktops.ts` uses.
- */
 export function setWorkspaceProfile(
 	deps: WorkspaceDeps,
 	desktopId: string,
@@ -105,20 +70,9 @@ export function setWorkspaceProfile(
 	} else {
 		delete desktop.profile;
 	}
-	// The rails answer to the profile, so a write that did not repaint
-	// would leave the desk showing the apps of the workspace it used to
-	// be until some unrelated event happened along.
+
 	deps.refreshLayout();
-	// Same for the widget column — but only when the desk being written
-	// is the one on screen. Editing a workspace from another desk (the
-	// editor can be opened on any of them) must not repaint the column
-	// in front of the user with the widgets of a desk they are not on.
-	//
-	// The look is painted again only when the write changed it. Most
-	// writes do not (a widget recorded on the desk, provisioning, a
-	// saved arrangement), and re-applying the patch from one of them
-	// threw away what the user had picked in Preferences on this desk:
-	// adding a widget put the workspace's wallpaper back over theirs.
+
 	if ( desktopId === deps.manager.getActiveDesktopId() ) {
 		if ( JSON.stringify( workspaceAppearance( profile ) ) === previousLook ) {
 			applyWorkspaceWidgets( deps, desktopId );
@@ -130,13 +84,6 @@ export function setWorkspaceProfile(
 	return true;
 }
 
-/**
- * Bring the widget column in line with a desk's profile.
- *
- * Silent when the shell has not wired a widget layer — the column is
- * optional chrome, and a shell without one should not be a shell that
- * throws.
- */
 export function applyWorkspaceWidgets(
 	deps: WorkspaceDeps,
 	desktopId: string,
@@ -146,11 +93,6 @@ export function applyWorkspaceWidgets(
 	);
 }
 
-/**
- * Bring the desk's look in line with its profile — wallpaper, accent,
- * theme, dock. A view over the user's settings, restored on the way
- * out; see `OsSettings.setWorkspaceAppearance()`.
- */
 export function applyWorkspaceAppearance(
 	deps: WorkspaceDeps,
 	desktopId: string,
@@ -160,16 +102,6 @@ export function applyWorkspaceAppearance(
 	);
 }
 
-/**
- * Everything about a desk that is a VIEW rather than a window: its
- * look and its widget column.
- *
- * One call because the two always move together — every switch, and
- * every profile write to the desk on screen. Appearance first: the
- * widget column reads the accent and the dock placement the appearance
- * just set, and doing it the other way round paints the column once in
- * the old look and again in the new one.
- */
 export function applyWorkspaceView(
 	deps: WorkspaceDeps,
 	desktopId: string,
@@ -178,34 +110,19 @@ export function applyWorkspaceView(
 	applyWorkspaceWidgets( deps, desktopId );
 }
 
-/** What {@link createWorkspace} needs to know. */
 export interface CreateWorkspaceOptions {
-	/** Preset id to read the profile from. Omit for a blank desk. */
+
 	preset?: string;
-	/** Name. Falls back to the preset's, then to the auto-numbered one. */
+
 	label?: string;
-	/** Explicit profile, overriding whatever the preset would produce. */
+
 	profile?: WorkspaceProfile;
-	/** Switch to the new workspace once it exists. Default true. */
+
 	activate?: boolean;
-	/**
-	 * Dress this existing desk instead of making one.
-	 *
-	 * The `+` creates its desk and lands on it before the wizard
-	 * opens, so the user configures the canvas in front of them; the
-	 * wizard's Create then has a desk to fill in, not one to make.
-	 */
+
 	desktopId?: string;
 }
 
-/**
- * Create a desktop carrying a workspace profile.
- *
- * Order matters: the desktop is created first so the profile write and
- * the switch both have something to name, and the switch comes last so
- * provisioning — which the switch triggers — runs against a desk that
- * already knows what it is.
- */
 export function createWorkspace(
 	deps: WorkspaceDeps,
 	options: CreateWorkspaceOptions = {},
@@ -238,7 +155,6 @@ export function createWorkspace(
 	return desktop;
 }
 
-/** The manager method each layout id maps to. `free` maps to nothing. */
 export function applyWorkspaceLayout(
 	mgr: WindowManager,
 	layout: WorkspaceLayoutId,
@@ -262,13 +178,6 @@ export function applyWorkspaceLayout(
 	}
 }
 
-/**
- * The base id a launch entry's window lives under: the native window
- * when one claims the URL, else the MENU's id, which is what
- * {@link openLaunchUrl} opens it with. Reading it off the child page
- * instead is how a `post-new.php` entry failed to recognise its own
- * window and opened another on every Restore.
- */
 function launchBaseId(
 	deps: WorkspaceDeps,
 	url: string,
@@ -283,23 +192,6 @@ function launchBaseId(
 	);
 }
 
-/**
- * The window each launch entry already has on this desk.
- *
- * A desk's list declares N windows, so each entry gets its own: two
- * entries resolving to one window (the Publishing template's two) are
- * two windows, and a desk that has them keeps them instead of growing
- * a pair on every Restore.
- *
- * Closest match first: the window opened under the entry's own id,
- * which holds across in-window navigation and session restore; then
- * one opened on the entry's page, because a second desk's windows
- * carry suffixed ids; then any window of the menu. Each kind of match
- * runs over every entry before the next, so an entry falling back
- * never takes a window a later entry matches more closely. The
- * Publishing draft would otherwise take the Posts list, and Restore on
- * a desk missing its draft would open a second list.
- */
 function claimOpenWindows(
 	deps: WorkspaceDeps,
 	launches: readonly ResolvedLaunch[],
@@ -336,13 +228,6 @@ function claimOpenWindows(
 	return found;
 }
 
-/**
- * Open one launch entry's URL the way a menu pick opens it: the
- * native-window remap first, else the iframe window built from the
- * menu's own metadata, so it comes up with its tab strip. Always a
- * fresh instance — the entry is here only because
- * {@link claimOpenWindows} found nothing to reuse.
- */
 function openLaunchUrl(
 	deps: WorkspaceDeps,
 	url: string,
@@ -352,12 +237,6 @@ function openLaunchUrl(
 ): Promise< Window | null > {
 	const nativeId = resolveNativeUrlRemap( url );
 	if ( nativeId ) {
-		// An extra instance lands on a suffixed id, so wait for
-		// whatever the open produced rather than one we can name.
-		// `claimed` is read at resolve time, not captured here: two
-		// entries opening the same window in one pass would otherwise
-		// both settle on whichever instance appeared first, and the
-		// second entry's placement would land on the first's window.
 		const before = new Set(
 			deps.manager.getAllByBaseId( nativeId ).map( ( w ) => w.id ),
 		);
@@ -372,14 +251,10 @@ function openLaunchUrl(
 	const menu = launch.item.menu;
 	return deps.manager.openNew( {
 		id: deps.deriveWindowId( url ),
-		// The MENU's window, not the child page's, and resolved the
-		// same way the id is: a relative menu URL and an absolute one
-		// have to name one window, or the entry cannot recognise the
-		// window it opened last time.
+
 		baseId: launchBaseId( deps, url, launch ),
 		url,
-		// The menu's landing page, so the tab strip offers the way
-		// back the dock's own windows have.
+
 		parentUrl: menu?.url ?? url,
 		title: launch.title ?? launch.item.title,
 		icon: launch.item.icon,
@@ -390,43 +265,24 @@ function openLaunchUrl(
 	} );
 }
 
-/**
- * Open a workspace's launch list and arrange the result.
- *
- * Runs once per workspace, guarded by `profile.provisioned`. That flag
- * is set BEFORE the windows open, not after: opening a window is
- * asynchronous (an iframe window resolves its own load), and a second
- * switch landing while the first pass is still opening would otherwise
- * run the whole list again and leave the desk with two of everything.
- *
- * The layout is applied on the next frame rather than inline. Every
- * arrangement reads the work area and the windows' own boxes, and a
- * window created in this tick has neither until the browser has laid
- * it out — arranging inline puts every window at the same coordinates.
- */
 export function provisionWorkspace(
 	deps: WorkspaceDeps,
 	desktopId: string,
 	opts: { force?: boolean } = {},
 ): void {
 	const profile = getWorkspaceProfile( deps.manager, desktopId );
-	// `force` is the editor's "Open these windows" button — the user
-	// asking on purpose, which is a different question from the shell
-	// deciding on its own. Every automatic caller leaves it off.
+
 	if ( ! profile || ( profile.provisioned && ! opts.force ) ) {
 		return;
 	}
 
-	// Claim it first — see above.
 	setWorkspaceProfile( deps, desktopId, { ...profile, provisioned: true } );
 
 	const launches = resolveLaunches( deps.getNavItems(), profile.windows );
-	// One window per entry, and an entry takes a window this desk
-	// already has before it opens another — otherwise Restore on an
-	// intact desk would double everything on it.
+
 	const claimed = new Set< string >();
 	const onDesk = claimOpenWindows( deps, launches, desktopId, claimed );
-	// The window each entry landed on, by its place in the list.
+
 	const landed: string[] = [];
 	let opened = 0;
 	for ( const [ index, launch ] of launches.entries() ) {
@@ -439,11 +295,7 @@ export function provisionWorkspace(
 				placeLaunchedWindow( deps.manager, existing, launch );
 				continue;
 			}
-			// Not awaited: an iframe window resolves when its document
-			// loads, and a workspace with three windows would otherwise
-			// open them one page-load apart. A rejection is a window that
-			// did not open, which is exactly what a missing plugin looks
-			// like — the rest of the desk still comes up.
+
 			void openLaunchUrl( deps, url, launch, desktopId, claimed )
 				.then( ( win ) => {
 					if ( win ) {
@@ -453,7 +305,7 @@ export function provisionWorkspace(
 					}
 				} )
 				.catch( () => {
-					/* One window short is not a failed workspace. */
+
 				} );
 			continue;
 		}
@@ -482,15 +334,6 @@ export function provisionWorkspace(
 	afterLayout( settle );
 }
 
-/**
- * Apply a desk's layout, led by its first entry's window.
- *
- * `focus` leads with the focused window, and each window takes focus as
- * it opens, so the LAST one opened would lead. The desk leads with its
- * first entry instead: the Publishing template's blank draft, not the
- * Posts list beside it. `landed` holds each entry's window id by its
- * place in the list.
- */
 function arrangeDesk(
 	mgr: WindowManager,
 	layout: WorkspaceLayoutId,
@@ -503,7 +346,6 @@ function arrangeDesk(
 	applyWorkspaceLayout( mgr, layout );
 }
 
-/** Run `fn` once the browser has laid out the windows this tick created. */
 function afterLayout( fn: () => void ): void {
 	if ( 'undefined' !== typeof requestAnimationFrame ) {
 		requestAnimationFrame( () => requestAnimationFrame( fn ) );
@@ -512,33 +354,6 @@ function afterLayout( fn: () => void ): void {
 	}
 }
 
-/**
- * Reopen the launch-list windows that are not currently open.
- *
- * The counterpart to {@link provisionWorkspace} for a desk that has
- * ALREADY been provisioned once. Provisioning is a one-time act — it
- * opens the desk's windows the first time you enter it and then leaves
- * your arrangement alone. But a launch-list window is part of what the
- * desk IS, so closing one and reloading should bring it back: on boot
- * this runs after session restore and opens any launch entry whose
- * window the restore did not already reopen.
- *
- * Unlike provisioning it does three things differently, all so it can
- * run on every reload without fighting the user:
- *
- *   - It leaves a desk that came back whole exactly as it is: no focus
- *     stealing, no duplicate, and no re-tiling, which would undo any
- *     window you had repositioned by hand.
- *   - It re-runs the layout only once it has reopened something. A
- *     window it brings back has no place of its own and would land on
- *     top of the others, so the desk gets its arrangement back along
- *     with its windows.
- *   - It does not re-stamp `provisioned`, which is already true.
- *
- * A no-op on a plain Space, on a never-provisioned desk (that is
- * {@link provisionWorkspace}'s job), and on a desk whose every launch
- * window is already open.
- */
 export function reopenWorkspaceWindows(
 	deps: WorkspaceDeps,
 	desktopId: string,
@@ -556,11 +371,7 @@ export function reopenWorkspaceWindows(
 	for ( const [ index, launch ] of launches.entries() ) {
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
-			// Already on screen — session restore reopened it, or it
-			// never closed. Leave it exactly where it is, and let no
-			// other entry claim it: a desk whose list names two tabs of
-			// one window is two windows, and this pass fills whichever
-			// of them the restore did not bring back.
+
 			const existing = onDesk.get( launch );
 			if ( existing ) {
 				landed[ index ] = existing.id;
@@ -576,7 +387,7 @@ export function reopenWorkspaceWindows(
 						}
 					} )
 					.catch( () => {
-						/* One window short is not a failed workspace. */
+
 					} ),
 			);
 			continue;
@@ -603,8 +414,6 @@ export function reopenWorkspaceWindows(
 	if ( reopened.length > 0 ) {
 		void Promise.all( reopened ).then( () =>
 			afterLayout( () => {
-				// An arrangement moves the windows of the desk on screen,
-				// and the user may have left this one while they opened.
 				if ( deps.manager.getActiveDesktopId() === desktopId ) {
 					arrangeDesk( deps.manager, profile.layout, landed );
 				}
@@ -613,20 +422,6 @@ export function reopenWorkspaceWindows(
 	}
 }
 
-/**
- * The windows open on a desktop, as a launch list.
- *
- * "Open with what I have now" — the desktop-OS gesture of saving an
- * arrangement you arrived at by working rather than by planning. Far
- * more useful than a repeater the user has to fill in by hand, and it
- * is the only way to capture a window opened from somewhere the
- * navigation cannot name.
- *
- * `match` is the item's own id: a captured list is about THIS install,
- * so there is nothing to degrade gracefully against and an id is the
- * exact answer. Native windows carry no URL, which is what tells
- * `provisionWorkspace` to reopen them through the registry.
- */
 export function captureWorkspaceWindows(
 	mgr: WindowManager,
 	desktopId: string,
@@ -647,17 +442,11 @@ export function captureWorkspaceWindows(
 			match: id,
 			title: win.config.title || id,
 		};
-		// A native window's `url` is a `#slug` marker, never something
-		// to navigate to.
+
 		if ( true !== win.config.native && win.config.url ) {
 			entry.url = win.config.url;
 		}
-		// Where it is — and it is where it is in a form that survives
-		// the desk changing size. A grid-snapped window keeps its
-		// cells; a free one becomes fractions of the work area. Only a
-		// window that owns its geometry: a maximized or snapped one is
-		// where its state put it, and restoring the state is the
-		// arrangement's job, not a rectangle's.
+
 		if ( win._gridSpan ) {
 			entry.gridSpan = { ...win._gridSpan };
 		} else if ( win.state === 'normal' && area.width > 0 && area.height > 0 ) {
@@ -670,9 +459,7 @@ export function captureWorkspaceWindows(
 			} );
 		}
 		out.push( entry );
-		// The server drops entries past its cap. Stopping here keeps
-		// what the desk is told it kept honest — and stack order is
-		// bottom-up, so the windows dropped are the ones underneath.
+
 		if ( out.length >= WORKSPACE_MAX_WINDOWS ) {
 			break;
 		}
@@ -680,7 +467,6 @@ export function captureWorkspaceWindows(
 	return out;
 }
 
-/** Fractions stay in `[0, 1]`: a window half off the desk is saved at the edge. */
 function clampPlace( p: NonNullable< WorkspaceLaunch[ 'place' ] > ): NonNullable< WorkspaceLaunch[ 'place' ] > {
 	const unit = ( v: number ): number =>
 		Number.isFinite( v ) ? Math.min( 1, Math.max( 0, v ) ) : 0;
@@ -692,14 +478,6 @@ function clampPlace( p: NonNullable< WorkspaceLaunch[ 'place' ] > ): NonNullable
 	};
 }
 
-/**
- * Put a freshly opened window where its launch entry says.
- *
- * Cells first, fractions second, and nothing when the entry carries
- * neither — the arrangement decides then. Both forms are resolved
- * against the live work area, which is the whole reason they were
- * stored that way.
- */
 function placeLaunchedWindow(
 	mgr: WindowManager,
 	win: Window,
@@ -727,18 +505,6 @@ function placeLaunchedWindow(
 	}
 }
 
-/**
- * Resolve with a window once it exists, or `null` if it never does.
- *
- * A native window opens through its registry, which may first have to
- * fetch the window's script; there is no promise to await, only the
- * `os-window-opened` event when it lands. Bounded, because a plugin
- * that was deactivated between save and restore never lands at all.
- *
- * `id` is the window's own id, or the base id of a family when
- * `accept` decides which instance this caller is waiting for — an
- * extra instance lands on a suffixed id nobody can name in advance.
- */
 function whenWindowOpens(
 	mgr: WindowManager,
 	id: string,
@@ -773,27 +539,13 @@ function whenWindowOpens(
 	} );
 }
 
-/** What {@link saveDeskToWorkspace} needs beyond the deps. */
 export interface SaveDeskOptions {
-	/** The nav ids on the rails and wallpaper right now. */
+
 	visibleAppIds?: readonly string[];
-	/** The widgets mounted right now. */
+
 	mountedWidgetIds?: readonly string[];
 }
 
-/**
- * Make the workspace open the way the desk is now.
- *
- * The launch list becomes the open windows, each with where it is; the
- * widget column becomes what is mounted; the visible set becomes what
- * is on the rails. The arrangement becomes `free`, because the
- * positions ARE the arrangement now and an algorithm re-laying them
- * out would undo the thing just saved. A plain Space becomes a
- * workspace by being saved — that is the cheapest way to make one.
- *
- * Marks the desk provisioned: what it would open is already open.
- * Returns the profile written, or `null` when the desk does not exist.
- */
 export function saveDeskToWorkspace(
 	deps: WorkspaceDeps,
 	desktopId: string,
@@ -811,8 +563,6 @@ export function saveDeskToWorkspace(
 		provisioned: true,
 	};
 	if ( opts.visibleAppIds ) {
-		// Controls are never named — the narrowing cannot hide them,
-		// and listing them would put "Exit" in a checklist as a choice.
 		const controls = new Set(
 			deps.getNavItems()
 				.filter( ( item ) => 'control' === item.kind || item.locked )
@@ -830,15 +580,6 @@ export function saveDeskToWorkspace(
 	return next;
 }
 
-/**
- * Resolve a launch entry's URL against wp-admin.
- *
- * Entries are written relative (`edit.php?post_type=product`) so a
- * preset is portable across installs, subdirectory ones included. An
- * entry that already carries a scheme is passed through — a plugin's
- * preset is allowed to name a full URL — and anything that fails to
- * parse falls back to the admin root rather than throwing mid-launch.
- */
 export function absoluteAdminUrl( url: string, adminUrl: string ): string {
 	if ( /^https?:\/\//i.test( url ) ) {
 		return url;

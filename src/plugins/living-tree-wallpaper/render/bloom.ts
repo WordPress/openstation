@@ -1,19 +1,8 @@
-/**
- * The Living Tree — flowers (comments).
- *
- * A fraction of leaves (`bloom01`) is promoted to flowers — five petals
- * around a warm centre, drawn once into a shared texture and tinted per
- * flower. Flowers breathe: a slow scale pulse phased per flower. See
- * `docs/living-tree-algorithm.md` §A.8.
- */
-
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';
 import type { Vec2 } from '../types';
 
-/** Flower texture raster size. */
 const FLOWER_TEX_SIZE = 40;
 
-/** Petal tints flowers cycle through — blossom whites and pinks. */
 const FLOWER_TINTS = [ 0xfff1f5, 0xffd9e8, 0xffe9c9, 0xf7d4ff ];
 
 interface Flower {
@@ -24,7 +13,6 @@ interface Flower {
 	scale: number;
 }
 
-/** Rasterize a five-petal blossom once; sprites tint it. */
 function buildFlowerTexture( pixi: PixiNamespace ): PixiTexture {
 	const size = FLOWER_TEX_SIZE;
 	const canvas = document.createElement( 'canvas' );
@@ -57,24 +45,11 @@ export class BloomEngine {
 	private readonly layer: PixiContainer;
 	private readonly pixi: PixiNamespace;
 
-	/**
-	 * @param layer The flower layer (back→front: after leaves).
-	 * @param pixi  The vendor Pixi namespace.
-	 */
 	constructor( layer: PixiContainer, pixi: PixiNamespace ) {
 		this.layer = layer;
 		this.pixi = pixi;
 	}
 
-	/**
-	 * Promote a `bloom01` fraction of the canopy to flowers. Blossom
-	 * scatters WITHIN each cluster's radius so flowers nest in foliage
-	 * instead of floating beside it.
-	 *
-	 * @param bloom01    Fraction of the canopy that flowers, 0..1.
-	 * @param placements Cluster placements from `LeafGenerator.placements()`.
-	 * @param rng        Seeded PRNG so the same site blooms the same way.
-	 */
 	public apply(
 		bloom01: number,
 		placements: Array< { pos: Vec2; compliance: number; radius?: number } >,
@@ -87,15 +62,9 @@ export class BloomEngine {
 		}
 		this.texture = this.texture ?? buildFlowerTexture( this.pixi );
 
-		// Blossom per cluster, capped globally — flowers are an ACCENT on
-		// the canopy; a fully-commented site froths but never turns solid
-		// pink or outshouts its own leaves.
 		const perCluster = 1 + Math.round( fraction * 2 );
 		const count = Math.min( 140, Math.round( placements.length * fraction * perCluster ) );
-		// Poisson-ish spacing: anchor density peaks at branch crotches,
-		// and unspaced random picks stacked flowers there into a pink
-		// pom-pom. Reject candidates that land too close to a placed
-		// flower (few attempts each; giving up just drops one blossom).
+
 		const placed: Vec2[] = [];
 		const MIN_GAP = 26;
 		const MIN_GAP_SQ = MIN_GAP * MIN_GAP;
@@ -121,8 +90,7 @@ export class BloomEngine {
 					sprite.anchor.set( 0.5 );
 					sprite.tint =
 						FLOWER_TINTS[ Math.floor( rng() * FLOWER_TINTS.length ) ];
-					// Blossom scales with its tuft so flowers stay
-					// proportionate on a sapling and a mature tree alike.
+
 					const scale =
 						( candidate.radius * ( 0.32 + rng() * 0.22 ) ) / FLOWER_TEX_SIZE;
 					sprite.scale.set( scale );
@@ -141,14 +109,6 @@ export class BloomEngine {
 		}
 	}
 
-	/**
-	 * Breathe: fade in and pulse gently, riding the same wind offset the
-	 * scene applies to leaves via the shared displacement callback.
-	 *
-	 * @param dt       Delta time (seconds).
-	 * @param t        Elapsed scene time (seconds).
-	 * @param displace Wind displacement at a point (already unscaled).
-	 */
 	public update(
 		dt: number,
 		t: number,
@@ -172,7 +132,6 @@ export class BloomEngine {
 		this.flowers.length = 0;
 	}
 
-	/** Release sprites + the shared texture. */
 	public destroy(): void {
 		this.clear();
 		if ( this.texture ) {

@@ -1,22 +1,5 @@
-/**
- * Plugins app — the Installed library's detail inspector.
- *
- * Part of the `desktop-mode-plugins` client view. Rendered inside
- * the library inspector's shadow root: a hero band (icon + title + author +
- * status chips), a tab strip (Overview / Details / Changelog / FAQ /
- * Reviews), and the wp.org `plugin_information` payload lazy-loaded
- * the first time a row is expanded (cached per slug for the window),
- * so directory plugins get rich content inline. Composed from `<os-*>`
- * primitives so it picks up the framework's theming for free; the
- * Changelog / FAQ parsers are `wporg-sections.ts`, the Reviews section
- * `reviews.ts`.
- *
- * @public
- */
-
 import { __, formatBytes, formatDate, sprintf } from '@openstation/app';
-// The panel paints inside the inspector's shadow root, outside the
-// runtime's on-demand component loading — the tags it builds register here.
+
 import '../../../src/ui/components/os-badge/os-badge';
 import '../../../src/ui/components/os-card/os-card';
 import '../../../src/ui/components/os-chip/os-chip';
@@ -33,15 +16,10 @@ import { renderChangelog, renderFaq } from './wporg-sections';
 
 type DetailTab = 'overview' | 'details' | 'changelog' | 'faq' | 'reviews';
 
-/**
- * Build the detail panel for one installed plugin. Returns
- * synchronously; wp.org-dependent tabs hydrate once the lazy fetch
- * lands.
- */
 export function buildInstalledDetail( row: InstalledPlugin, host: PluginsHost ): HTMLElement {
 	const root = document.createElement( 'div' );
 	root.className = 'os-plugins__detail';
-	// A click inside the panel must not bubble to the row-click toggle.
+
 	root.setAttribute( 'data-noclick', '' );
 
 	const slug = deriveSlug( row );
@@ -94,7 +72,7 @@ export function buildInstalledDetail( row: InstalledPlugin, host: PluginsHost ):
 				info = await host.rest.fetchPluginInfo( slug );
 				host.caches.info.set( slug, info );
 			} catch {
-				// The active section shows its own error state.
+
 			} finally {
 				infoFetching = false;
 				if ( root.isConnected ) {
@@ -117,16 +95,12 @@ export function buildInstalledDetail( row: InstalledPlugin, host: PluginsHost ):
 	return root;
 }
 
-// ─── Hero ──────────────────────────────────────────────────────────
-
 function buildHero( row: InstalledPlugin ): HTMLElement {
 	const hero = document.createElement( 'div' );
 	hero.className = 'os-plugins__detail-hero';
 	const inner = document.createElement( 'div' );
 	inner.className = 'os-plugins__detail-hero-inner';
 
-	// The icon alone gives identity — wp.org banners are often the icon
-	// stretched, which would make the expanded row a billboard.
 	const iconTile = document.createElement( 'div' );
 	iconTile.className = 'os-plugins__detail-hero-icon';
 	const iconUrl = row.openstation_icon_url;
@@ -159,7 +133,7 @@ function buildHero( row: InstalledPlugin ): HTMLElement {
 		ver.setAttribute( 'tone', 'neutral' );
 		ver.setAttribute( 'no-dot', '' );
 		ver.textContent = sprintf(
-			/* translators: %s: version number */
+
 			__( 'v%s', 'desktop-mode' ),
 			row.version,
 		);
@@ -171,7 +145,7 @@ function buildHero( row: InstalledPlugin ): HTMLElement {
 		const upd = document.createElement( 'os-badge' );
 		upd.setAttribute( 'tone', 'warning' );
 		upd.textContent = sprintf(
-			/* translators: %s: new version available */
+
 			__( 'Update to %s', 'desktop-mode' ),
 			update.new_version,
 		);
@@ -186,7 +160,7 @@ function buildHero( row: InstalledPlugin ): HTMLElement {
 		byline.append( __( 'by', 'desktop-mode' ) + ' ', externalLink( row.author_uri, authorText ) );
 	} else {
 		byline.textContent = sprintf(
-			/* translators: %s: plugin author */
+
 			__( 'by %s', 'desktop-mode' ),
 			authorText,
 		);
@@ -198,7 +172,6 @@ function buildHero( row: InstalledPlugin ): HTMLElement {
 	return hero;
 }
 
-/** The Active / Inactive badge — the same `<os-badge>` in the library and the panel. */
 export function statusBadge( row: InstalledPlugin ): HTMLElement {
 	const isActive = isActiveStatus( row.status );
 	const badge = document.createElement( 'os-badge' );
@@ -206,8 +179,6 @@ export function statusBadge( row: InstalledPlugin ): HTMLElement {
 	badge.textContent = isActive ? __( 'Active', 'desktop-mode' ) : __( 'Inactive', 'desktop-mode' );
 	return badge;
 }
-
-// ─── Tab bodies ────────────────────────────────────────────────────
 
 function renderTab(
 	tab: DetailTab,
@@ -290,7 +261,7 @@ function buildOverviewChips( row: InstalledPlugin, info: WpOrgPluginInfo | null 
 				chip(
 					'admin-users',
 					sprintf(
-						/* translators: %s: comma-grouped active install count */
+
 						__( '%s+ active installs', 'desktop-mode' ),
 						new Intl.NumberFormat().format( info.active_installs ),
 					),
@@ -302,7 +273,7 @@ function buildOverviewChips( row: InstalledPlugin, info: WpOrgPluginInfo | null 
 				chip(
 					'update',
 					sprintf(
-						/* translators: %s: date the plugin was last updated */
+
 						__( 'Updated %s', 'desktop-mode' ),
 						formatDate( info.last_updated.slice( 0, 10 ), 'long' ),
 					),
@@ -314,7 +285,7 @@ function buildOverviewChips( row: InstalledPlugin, info: WpOrgPluginInfo | null 
 				chip(
 					'wordpress-alt',
 					sprintf(
-						/* translators: %s: maximum tested WordPress version */
+
 						__( 'Tested up to WP %s', 'desktop-mode' ),
 						info.tested,
 					),
@@ -327,7 +298,7 @@ function buildOverviewChips( row: InstalledPlugin, info: WpOrgPluginInfo | null 
 			chip(
 				'wordpress',
 				sprintf(
-					/* translators: %s: minimum WordPress version */
+
 					__( 'Requires WP %s+', 'desktop-mode' ),
 					row.requires_wp,
 				),
@@ -339,7 +310,7 @@ function buildOverviewChips( row: InstalledPlugin, info: WpOrgPluginInfo | null 
 			chip(
 				'editor-code',
 				sprintf(
-					/* translators: %s: minimum PHP version */
+
 					__( 'Requires PHP %s+', 'desktop-mode' ),
 					row.requires_php,
 				),
@@ -371,7 +342,7 @@ function renderDetails( row: InstalledPlugin ): HTMLElement {
 			grid,
 			'wordpress-alt',
 			__( 'Requires WordPress', 'desktop-mode' ),
-			sprintf( /* translators: %s: version */ __( '%s+', 'desktop-mode' ), row.requires_wp ),
+			sprintf( __( '%s+', 'desktop-mode' ), row.requires_wp ),
 		);
 	}
 	if ( row.requires_php ) {
@@ -379,7 +350,7 @@ function renderDetails( row: InstalledPlugin ): HTMLElement {
 			grid,
 			'editor-code',
 			__( 'Requires PHP', 'desktop-mode' ),
-			sprintf( /* translators: %s: version */ __( '%s+', 'desktop-mode' ), row.requires_php ),
+			sprintf( __( '%s+', 'desktop-mode' ), row.requires_php ),
 		);
 	}
 	if ( row.textdomain ) {
@@ -428,8 +399,6 @@ function pushFactCard( parent: HTMLElement, icon: string, label: string, value: 
 	parent.appendChild( card );
 }
 
-// ─── Small helpers ─────────────────────────────────────────────────
-
 function chip( icon: string, label: string ): HTMLElement {
 	const c = document.createElement( 'os-chip' );
 	c.setAttribute( 'label', label );
@@ -448,11 +417,6 @@ function codeNode( text: string ): HTMLElement {
 	return code;
 }
 
-/**
- * The plugin's wp.org directory slug, or `''` when it isn't listed —
- * only the server's affirmative answer counts, never the folder name
- * (a private plugin got a 404 "View on WordPress.org" that way).
- */
 export function deriveSlug( row: InstalledPlugin ): string {
 	const slug = row.openstation_wporg_slug;
 	return typeof slug === 'string' ? slug : '';

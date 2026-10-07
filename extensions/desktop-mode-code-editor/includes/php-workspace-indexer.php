@@ -1,31 +1,13 @@
 <?php
-/**
- * Workspace PHP symbol indexer for the Code Editor extension.
- *
- * Phase 5a indexed WP core. This module covers the user's own
- * plugins / themes — functions, classes, interfaces, traits, and
- * locally-declared hooks. The two indexes merge through the
- * `openstation_code_editor_php_index_extra_symbols` filter seam, so
- * Monaco's existing completion + hover providers light up workspace
- * symbols with zero changes to the JS layer.
- *
- * @package OpenStationCodeEditor
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Storage version — bump to force a full rebuild after schema changes. */
 const OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_VERSION = 2;
 
-/** Transient key for the workspace index. */
 const OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_KEY = 'desktop_mode_code_editor_workspace_index';
 
-/** TTL — long, but not forever. Stale entries get refreshed on demand. */
 const OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_TTL = 30 * DAY_IN_SECONDS;
 
-/**
- * Directory + file-name patterns the workspace walker skips.
- */
 const OPENSTATION_CODE_EDITOR_WORKSPACE_DEFAULT_SKIP_DIRS = array(
 	'uploads',
 	'cache',
@@ -36,15 +18,6 @@ const OPENSTATION_CODE_EDITOR_WORKSPACE_DEFAULT_SKIP_DIRS = array(
 	'.svn',
 );
 
-// ---------------------------------------------------------------------------
-// Storage helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Read the cached index.
- *
- * @return array{ version: int, files: array<string, array> }
- */
 function openstation_code_editor_get_workspace_index() {
 	$cached = get_transient( OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_KEY );
 	if (
@@ -60,7 +33,6 @@ function openstation_code_editor_get_workspace_index() {
 	);
 }
 
-/** Persist the index back to its transient. */
 function openstation_code_editor_save_workspace_index( array $index ) {
 	$index['version'] = OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_VERSION;
 	set_transient(
@@ -70,54 +42,29 @@ function openstation_code_editor_save_workspace_index( array $index ) {
 	);
 }
 
-/** Drop the cache; next read rebuilds. */
 function openstation_code_editor_flush_workspace_index() {
 	delete_transient( OPENSTATION_CODE_EDITOR_WORKSPACE_INDEX_KEY );
 }
 
-// ---------------------------------------------------------------------------
-// Walker — discovers files to index.
-// ---------------------------------------------------------------------------
-
-/**
- * Yield every PHP file under the workspace root that's eligible
- * for indexing.
- *
- * @internal
- *
- * @return Generator<string> Absolute paths.
- */
 function openstation_code_editor_iter_workspace_php_files() {
 	$root = openstation_code_editor_workspace_root();
 	if ( '' === $root ) {
 		return;
 	}
 
-	/**
-	 * Filter the list of subdirectory names that the workspace
-	 * walker skips. Comparison is by exact basename.
-	 *
-	 * @param string[] $dirs
-	 */
 	$skip_dirs = (array) apply_filters(
 		'openstation_code_editor_workspace_index_skip_dirs',
 		OPENSTATION_CODE_EDITOR_WORKSPACE_DEFAULT_SKIP_DIRS
 	);
 	$skip_dirs = array_map( 'strval', $skip_dirs );
 
-	/**
-	 * Optional regex run against each filename — return non-empty
-	 * to provide a custom skip pattern.
-	 *
-	 * @param string $regex
-	 */
 	$skip_re = (string) apply_filters( 'openstation_code_editor_workspace_index_skip_filename_re', '' );
 
 	$dir_iter    = new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS );
 	$filter_iter = new RecursiveCallbackFilterIterator(
 		$dir_iter,
 		static function ( $entry ) use ( $skip_dirs ) {
-			/** @var SplFileInfo $entry */
+
 			$name = $entry->getFilename();
 			if ( '' === $name || '.' === $name[0] ) {
 				return false;
@@ -131,7 +78,7 @@ function openstation_code_editor_iter_workspace_php_files() {
 	$it = new RecursiveIteratorIterator( $filter_iter );
 
 	foreach ( $it as $file ) {
-		/** @var SplFileInfo $file */
+
 		if ( ! $file->isFile() ) {
 			continue;
 		}
@@ -139,7 +86,7 @@ function openstation_code_editor_iter_workspace_php_files() {
 			continue;
 		}
 		$path = $file->getPathname();
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors
+
 		if ( '' !== $skip_re && @preg_match( $skip_re, $file->getFilename() ) ) {
 			continue;
 		}
@@ -147,23 +94,13 @@ function openstation_code_editor_iter_workspace_php_files() {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Tokenizer-driven file scan
-// ---------------------------------------------------------------------------
-
-/**
- * Scan a single PHP file, return its symbols.
- *
- * @param string $absolute_path File to scan.
- * @return array[] List of symbol entries.
- */
 function openstation_code_editor_scan_workspace_file( $absolute_path ) {
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
 	$source = @file_get_contents( $absolute_path );
 	if ( false === $source ) {
 		return array();
 	}
-	$tokens = @token_get_all( $source ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+	$tokens = @token_get_all( $source );
 	if ( ! is_array( $tokens ) ) {
 		return array();
 	}
@@ -303,11 +240,6 @@ function openstation_code_editor_scan_workspace_file( $absolute_path ) {
 	return $symbols;
 }
 
-/**
- * Walk forward from `$start` accumulating namespace name parts.
- *
- * @internal
- */
 function openstation_code_editor_collect_namespace_name( array $tokens, $start ) {
 	$count = count( $tokens );
 	$parts = array();
@@ -338,16 +270,6 @@ function openstation_code_editor_collect_namespace_name( array $tokens, $start )
 	return implode( '\\', $parts );
 }
 
-// ---------------------------------------------------------------------------
-// Build / refresh
-// ---------------------------------------------------------------------------
-
-/**
- * Walk the workspace and refresh the index.
- *
- * @param int $file_budget Max files to fully scan in this call.
- * @return array Updated index (also persisted).
- */
 function openstation_code_editor_refresh_workspace_index( $file_budget = 200 ) {
 	$index = openstation_code_editor_get_workspace_index();
 	$files = is_array( $index['files'] ) ? $index['files'] : array();
@@ -359,7 +281,6 @@ function openstation_code_editor_refresh_workspace_index( $file_budget = 200 ) {
 		$rel          = openstation_code_editor_path_to_relative( $abs );
 		$seen[ $rel ] = true;
 
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors
 		$mtime        = (int) @filemtime( $abs );
 		$cached_mtime = isset( $files[ $rel ]['mtime'] ) ? (int) $files[ $rel ]['mtime'] : 0;
 
@@ -389,11 +310,6 @@ function openstation_code_editor_refresh_workspace_index( $file_budget = 200 ) {
 	return $index;
 }
 
-/**
- * Refresh a single file's entry in the workspace index.
- *
- * @param string $absolute_path
- */
 function openstation_code_editor_refresh_workspace_file( $absolute_path ) {
 	$rel = openstation_code_editor_path_to_relative( $absolute_path );
 	if ( '' === $rel ) {
@@ -406,7 +322,7 @@ function openstation_code_editor_refresh_workspace_file( $absolute_path ) {
 		unset( $files[ $rel ] );
 	} else {
 		$files[ $rel ] = array(
-			// phpcs:ignore WordPress.PHP.NoSilencedErrors
+
 			'mtime'   => (int) @filemtime( $absolute_path ),
 			'symbols' => openstation_code_editor_scan_workspace_file( $absolute_path ),
 		);
@@ -416,27 +332,11 @@ function openstation_code_editor_refresh_workspace_file( $absolute_path ) {
 	openstation_code_editor_save_workspace_index( $index );
 }
 
-/**
- * Hook into the save flow so the workspace index stays fresh on
- * every successful write.
- *
- * @param string $abs Absolute path the user just saved.
- */
 function openstation_code_editor_workspace_index_on_save( $abs ) {
 	openstation_code_editor_refresh_workspace_file( $abs );
 }
 add_action( 'openstation_code_editor_after_save', 'openstation_code_editor_workspace_index_on_save', 10, 1 );
 
-// ---------------------------------------------------------------------------
-// Read-side: feed workspace symbols into the merged php-symbols pool.
-// ---------------------------------------------------------------------------
-
-/**
- * Merge workspace symbols into the WP-core symbol pool.
- *
- * @param array $pool Existing pool (from WP core).
- * @return array
- */
 function openstation_code_editor_workspace_extend_symbols( $pool ) {
 	$index = openstation_code_editor_get_workspace_index();
 
@@ -461,12 +361,6 @@ function openstation_code_editor_workspace_extend_symbols( $pool ) {
 }
 add_filter( 'openstation_code_editor_php_index_extra_symbols', 'openstation_code_editor_workspace_extend_symbols', 10 );
 
-/**
- * Look up a workspace symbol by exact name.
- *
- * @param string $name
- * @return array|null
- */
 function openstation_code_editor_get_workspace_symbol( $name ) {
 	$index = openstation_code_editor_get_workspace_index();
 	$name  = (string) $name;

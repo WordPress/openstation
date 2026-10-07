@@ -1,4 +1,3 @@
-/** Locate the best matching setting in the rendered Preferences pages. */
 import { buildSearchIndex, pageRows } from './pages';
 import { uiOf, type Ctx } from './types';
 
@@ -17,14 +16,12 @@ interface SearchMatch {
 	section: HTMLElement | null;
 }
 
-/** Search text includes component labels that render inside shadow DOM. */
 function textOf( el: Element ): string {
 	const elements = [ el, ...el.querySelectorAll( '[label],[aria-label],[placeholder],[description]' ) ];
 	return [ el.textContent ?? '', ...elements.flatMap( ( node ) => TEXT_ATTRIBUTES.map( ( name ) => node.getAttribute( name ) ?? '' ) ) ]
 		.join( ' ' ).replace( /\s+/g, ' ' ).trim().toLowerCase();
 }
 
-/** Exact text outranks a prefix, which outranks a substring. */
 function textScore( text: string, query: string ): number {
 	text = text.replace( /\s+/g, ' ' ).trim().toLowerCase();
 	if ( text === query ) {
@@ -33,11 +30,6 @@ function textScore( text: string, query: string ): number {
 	return text.startsWith( query ) ? 2 : Number( text.includes( query ) );
 }
 
-/**
- * Rank control labels above option text, section headings and descriptions.
- * Keep the first control in page order on ties, so there is only one winner.
- * Hidden tab panels are searchable, but hidden controls within them are not.
- */
 export function bestSearchMatch( root: HTMLElement, query: string ): SearchMatch | null {
 	query = query.replace( /\s+/g, ' ' ).trim().toLowerCase();
 	if ( ! query ) {
@@ -47,7 +39,6 @@ export function bestSearchMatch( root: HTMLElement, query: string ): SearchMatch
 	let bestScore = 0;
 	for ( const pane of root.querySelectorAll< HTMLElement >( '.os-settings > os-tabpanel' ) ) {
 		for ( const control of pane.querySelectorAll< HTMLElement >( CONTROLS ) ) {
-			// Composite controls (checkbox labels, pickers) are one setting.
 			if ( control.parentElement?.closest( CONTROLS ) || control.closest( '[os-preserve]' ) ) {
 				continue;
 			}
@@ -82,10 +73,7 @@ export function bestSearchMatch( root: HTMLElement, query: string ): SearchMatch
 	return match;
 }
 
-/** Refresh the page index and navigate to the single best setting. */
 export function searchSettings( ctx: Ctx, query: string ): void {
-	// MIO uses the same entry point as typing. Keep its query visible,
-	// without resetting the caret when the field itself triggered this call.
 	const field = ctx.root.querySelector< HTMLInputElement >( '.os-settings__search-input' );
 	if ( field && field.value !== query ) {
 		field.value = query;
@@ -101,7 +89,6 @@ export function searchSettings( ctx: Ctx, query: string ): void {
 	}
 }
 
-/** Reapply markers after a paint without stealing focus from the search. */
 export function highlightSearchMatch( ctx: Ctx ): void {
 	const previous = ctx.root.querySelector( '[data-settings-search-control]' );
 	for ( const attr of MARKERS ) {
@@ -119,8 +106,6 @@ export function highlightSearchMatch( ctx: Ctx ): void {
 			}
 		}
 		if ( previous !== match.control ) {
-			// The tab strip reveals its panel in a queued component render.
-			// Wait for layout, and abandon a result cleared before that frame.
 			requestAnimationFrame( () => {
 				if ( match.control.isConnected && match.control.hasAttribute( MARKERS[ 0 ] ) && ! match.control.closest( '[hidden]' ) ) {
 					match.control.scrollIntoView?.( { block: 'nearest', inline: 'nearest', behavior: 'instant' } );

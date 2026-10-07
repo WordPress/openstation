@@ -108,7 +108,7 @@ describe( 'createReactiveRegistry', () => {
 		r.register( { id: 'a', label: 'A' } );
 		r.reset();
 		r.register( { id: 'b', label: 'B' } );
-		// First call from initial register; subscribe was cleared before the second register.
+
 		expect( cb ).toHaveBeenCalledTimes( 1 );
 		expect( r.all().map( ( e ) => e.id ) ).toEqual( [ 'b' ] );
 	} );

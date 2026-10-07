@@ -1,8 +1,3 @@
-/**
- * Unit tests for `apps/my-wordpress/parts/agents-send-to.ts` — the "Send to
- * <agent>" tile-context-menu intake: kind mapping, entityKinds gating,
- * and the dispatch a pick performs.
- */
 import {
 	afterEach,
 	beforeAll,
@@ -16,8 +11,6 @@ import { applyFilters } from '../../src/hooks';
 import { agentsChatStore } from '../../src/agents-chat-store';
 import { installHooksStub } from './helpers/hooks-stub';
 
-// The module registers its filter at import time, which requires a
-// live `window.wp.hooks` bus — install the stub first, then import.
 let sendTo: typeof import( '../../apps/my-wordpress/parts/agents-send-to' );
 
 beforeAll( async () => {
@@ -73,9 +66,7 @@ const AGENTS = [
 ];
 
 function installConfig( overrides: Record< string, unknown > = {} ): void {
-	// The intake reads the SHELL config (`wp.os.config`) for its REST
-	// root + nonce; whether the agents routes exist arrives from the
-	// explorer app's payload via `setSendToEnabled()`.
+
 	const w = window as unknown as { wp?: { os?: Record< string, unknown > } };
 	w.wp = w.wp ?? {};
 	( w.wp as { os?: Record< string, unknown > } ).os = {
@@ -146,9 +137,7 @@ afterEach( () => {
 
 describe( 'agents send-to menu', () => {
 	test( 'does not warm while the framework is off', async () => {
-		// The section config now ships even with the `agents` extended
-		// option off, so the tile stays visible — `enabled` is what
-		// says the REST routes exist.
+
 		installConfig( { enabled: false } );
 		const fetchMock = stubListFetch();
 		sendTo.refreshSendToAgents();
@@ -181,16 +170,14 @@ describe( 'agents send-to menu', () => {
 		expect( sendTo.sendToTargetsFor( 'post' ).map( ( a ) => a.id ) ).toEqual( [
 			11, 12,
 		] );
-		// Empty entityKinds = every kind; agents without a send-to
-		// trigger never appear.
+
 		expect( sendTo.sendToTargetsFor( 'media' ).map( ( a ) => a.id ) ).toEqual( [
 			12,
 		] );
 	} );
 
 	test( 'registering twice never duplicates menu entries', () => {
-		// The bundle IIFE can execute twice (boot enqueue + lazy window
-		// loader) — registration must be idempotent on the hooks bus.
+
 		sendTo.registerSendToMenuFilter();
 		const options = runFilter( {
 			entityId: 'posts',

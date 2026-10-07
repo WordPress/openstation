@@ -1,10 +1,3 @@
-/**
- * Tests for the pointer stream a cross-frame drag sends into the
- * hovered iframe window: `os-drag-move` once per animation frame,
- * in the iframe's own coordinates, only while the pointer is over
- * that window, on both the DragManager path and the native bridge
- * intercept.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	installIframeDropTargets,
@@ -35,7 +28,6 @@ function stubWpHooks(): void {
 	};
 }
 
-/** Run animation-frame callbacks synchronously. */
 function installSyncRaf(): void {
 	window.requestAnimationFrame = ( cb: FrameRequestCallback ) => {
 		cb( 0 );
@@ -92,14 +84,13 @@ describe( 'os-drag-move stream', () => {
 		document.dispatchEvent( new CustomEvent( DRAG_EVENTS.START, { detail: { payload } } ) );
 		expect( targets ).toHaveLength( 1 );
 
-		// Not over the window yet: moves are not forwarded.
 		document.dispatchEvent( new CustomEvent( DRAG_EVENTS.MOVE, { detail: { payload, clientX: 10, clientY: 10 } } ) );
 		expect( posted.some( ( m ) => m.type === 'os-drag-move' ) ).toBe( false );
 
 		targets[ 0 ].onEnter?.( { payload } as never );
 		document.dispatchEvent( new CustomEvent( DRAG_EVENTS.MOVE, { detail: { payload, clientX: 340, clientY: 250 } } ) );
 		const move = posted.find( ( m ) => m.type === 'os-drag-move' );
-		// In the iframe's coordinates: minus its 100/50 offset.
+
 		expect( move ).toEqual( { type: 'os-drag-move', position: { x: 240, y: 200 } } );
 
 		targets[ 0 ].onLeave?.( { payload } as never );

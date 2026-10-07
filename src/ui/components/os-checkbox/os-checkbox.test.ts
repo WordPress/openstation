@@ -100,11 +100,6 @@ describe( '<os-checkbox>', () => {
 	} );
 
 	test( 'the default host is shrink-to-fit; [block] makes it a full-width row', () => {
-		// Two callers depend on opposite answers here: a table cell wants
-		// the box to take exactly its own width, a settings stack wants
-		// the row to reach the panel edge like the sliders around it. The
-		// default has to stay the first one — flipping it silently widens
-		// every existing call site.
 		expect( styles.cssText ).toMatch(
 			/:host\s*{[^}]*display:\s*inline-flex/,
 		);
@@ -114,10 +109,6 @@ describe( '<os-checkbox>', () => {
 	} );
 
 	test( '[block] keeps the hit area on the label, not the whole row', () => {
-		// The host spans the row; the <label> does not. If the pointer
-		// cursor stayed on the host it would advertise a hit area that
-		// isn't there — and a row that toggles from a click near the
-		// panel margin is the failure this whole opt-in avoids.
 		expect( styles.cssText ).toMatch(
 			/:host\(\s*\[\s*block\s*\]\s*\)\s*{[^}]*cursor:\s*default/,
 		);

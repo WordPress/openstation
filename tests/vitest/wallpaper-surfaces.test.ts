@@ -1,20 +1,3 @@
-/**
- * Tests for the four wallpaper-plugin-facing additions:
- *
- *   1. `WindowManager.getVisibleRects()` — public geometry accessor.
- *   2. `os.window.closing` action — pre-detach hook carrying
- *      the live element.
- *   3. `os.window.bounds-changed` — rAF-coalesced live
- *      geometry action during drag/resize.
- *   4. `collectWallpaperSurfaces()` + `os.wallpaper.surfaces`
- *      filter.
- *
- * Exercises the shell's public contracts that a canvas wallpaper
- * plugin (snow, rain, leaves, particles) would hook against. No
- * mocking — a real `Window` / `WindowManager` runs against jsdom;
- * bounding-rect / layout values are stubbed inline where jsdom
- * doesn't compute them.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { collectWallpaperSurfaces } from '../../src/wallpapers/surfaces';
@@ -112,7 +95,6 @@ describe( 'WindowManager.getVisibleRects', async () => {
 		expect( ids ).toContain( 'b' );
 	} );
 
-	// Suppress an unused-variable lint in the beforeEach above.
 	test( 'hooks stub is reachable', async () => {
 		expect( typeof hooks.doAction ).toBe( 'function' );
 	} );
@@ -187,8 +169,6 @@ describe( 'os.wallpaper.surfaces', async () => {
 	beforeEach( async () => {
 		hooks = installHooksStub();
 
-		// Fake shell — lets collectWallpaperSurfaces find the expected
-		// ids for shell, dock, taskbar, area.
 		shell = document.createElement( 'div' );
 		shell.id = 'os-shell';
 		stubRect( shell, { left: 0, top: 0, width: 1600, height: 900 } );
@@ -221,8 +201,7 @@ describe( 'os.wallpaper.surfaces', async () => {
 	test( 'seeds window tops + shell floor + dock edge', async () => {
 		const w = await manager.open( openConfig( 'w1' ) );
 		stubRect( w.element, { left: 200, top: 100, width: 800, height: 600 } );
-		// Non-null offsetParent so the surface collector doesn't treat
-		// the window as hidden.
+
 		Object.defineProperty( w.element, 'offsetParent', {
 			configurable: true,
 			get: () => desktop,
@@ -257,20 +236,17 @@ describe( 'os.wallpaper.surfaces', async () => {
 	test( 'dock edge face flips with placement attribute', async () => {
 		const dockEl = document.getElementById( 'os-dock' )!;
 
-		// Default (no attribute → bottom placement): face 'top'.
 		const bottomFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',
 		)?.face;
 		expect( bottomFace ).toBe( 'top' );
 
-		// Left placement: face 'right' (inside-edge of left rail).
 		dockEl.setAttribute( 'data-os-dock-placement', 'left' );
 		const leftFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',
 		)?.face;
 		expect( leftFace ).toBe( 'right' );
 
-		// Right placement: face 'left' (inside-edge of right rail).
 		dockEl.setAttribute( 'data-os-dock-placement', 'right' );
 		const rightFace = collectWallpaperSurfaces( manager ).find(
 			( s ) => s.id === 'dock:edge',

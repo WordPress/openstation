@@ -1,4 +1,3 @@
-/** A caller-authored MIO moment, anchored to a live control in its own window. */
 import { __ } from '../i18n';
 import type { MioCallout } from './assistant/types';
 import type { MioHandle } from './types';
@@ -82,7 +81,7 @@ export class MioCalloutController {
 		if ( visible && rect ) {
 			const clamp = ( n: number, min: number, max: number ): number => Math.max( min, Math.min( n, max ) );
 			const rtl = getComputedStyle( this.frame ).direction === 'rtl';
-			// Use the trailing edge, leaving the target’s leading text unobscured.
+
 			const point = {
 				x: clamp( rtl ? rect.left + 60 : rect.right - 60, bounds.left + 60, bounds.right - 60 ),
 				y: clamp( rect.bottom + 65, bounds.top + 65, bounds.bottom - 65 ),
@@ -101,8 +100,7 @@ export class MioCalloutController {
 			}
 			this.visibility( visible );
 		}
-		// Poll geometry only while this caller's window can present a tip. This also
-		// follows scrolling, window movement and targets hidden by a layout change.
+
 		if ( this.active && request && ! this.dismissed.has( request.id ) ) {
 			this.raf = requestAnimationFrame( () => this.update() );
 		}

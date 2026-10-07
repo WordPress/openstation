@@ -1,11 +1,3 @@
-/**
- * My WordPress — the content explorer app.
- *
- * Injected on the window's first open, after the runtime's own sheet.
- * Every colour resolves through the palette tokens with the pre-brand
- * literal as the floor, per the variables.css contract.
- */
-
 .os-mywp {
 	display: flex;
 	flex-direction: column;
@@ -14,23 +6,13 @@
 		--os-font,
 		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
 	);
-	/* The SAME window-token family WP Explorer wears
-	 * (`--os-my-wordpress-*`), so a desktop theme that repaints one
-	 * explorer repaints both — with the palette chain underneath and
-	 * the pre-brand literal as the floor. */
+
 	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 	background: var(
 		--os-my-wordpress-bg,
 		var( --os-window-bg, #fff )
 	);
-	/*
-	 * Tile token re-scope — the same recipe as WP Explorer. The
-	 * shared `.os-file-tile` is born on the WALLPAPER, where its
-	 * label is white over a dark gradient; inside a window those
-	 * defaults are invisible on a light surface. Re-pointing the
-	 * `--os-tile-*` tokens here retones the one shared element for
-	 * in-window reading, and keeps it on the theme chain.
-	 */
+
 	--os-tile-fg: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 	--os-tile-fg-muted: var(
 		--os-my-wordpress-fg-muted,
@@ -42,8 +24,6 @@
 	--os-tile-label-smoothing: antialiased;
 	--os-tile-label-color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 }
-
-/* ------------------------------------------------------------ header */
 
 .os-mywp__header {
 	display: flex;
@@ -72,8 +52,7 @@
 
 .os-mywp__back:hover,
 .os-mywp__back:focus-visible {
-	/* The shared breadcrumb back-button hover chain
-	 * (`.os-breadcrumbs__back` in desktop-files.css). */
+
 	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 	color: inherit;
 }
@@ -92,8 +71,7 @@
 	padding: 0;
 	background: transparent;
 	font: inherit;
-	/* WP Explorer's link chain: the palette's link colour first, the
-	 * accent next, the pre-brand admin blue as the floor. */
+
 	color: var( --os-link, var( --os-ui-accent, #2271b1 ) );
 	cursor: pointer;
 }
@@ -111,8 +89,6 @@
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* Search row — its own band under the header, WP Explorer style.
- * The view switch sits at its far end. */
 .os-mywp__add-user {
 	flex: 0 0 auto;
 }
@@ -144,14 +120,11 @@
 	vertical-align: -3px;
 }
 
-/* Under ~560px the switch keeps its glyphs and drops the words. */
 @container ( max-width: 560px ) {
 	.os-mywp__view-label {
 		display: none;
 	}
 }
-
-/* -------------------------------------------------------------- body */
 
 .os-mywp__body {
 	flex: 1 1 auto;
@@ -160,14 +133,6 @@
 	flex-direction: column;
 }
 
-/* -------------------------------------------------------------- root */
-
-/*
- * The group-extras seam's container — a plugin panel above a folder's
- * tiles (Woo's Store totals). The panel inside brings its own chrome;
- * this only gives it the folder grid's gutter, and only when a
- * subscriber actually painted something.
- */
 .os-mywp__body > .os-my-wordpress__group-extras:not( :empty ) {
 	padding: 16px 16px 0;
 }
@@ -201,24 +166,12 @@
 	background: var( --os-tile-hover-bg, rgba( 0, 0, 0, 0.06 ) );
 }
 
-/* The CANONICAL selection pair every tile in the shell wears
- * (`.os-file-tile--selected` in desktop-files.css): the
- * `--os-tile-selected-bg` fill under an inset `--os-tile-focus-ring`
- * ring whose width the palette decides (0 on OpenStation's, 1px on
- * Legacy). The root folder tiles are plain buttons rather than
- * `<os-tile>`s, so they restate the same chains — reading
- * `--os-ui-accent` here painted the raw brand Pulse instead of the
- * theme's selection, which is exactly the divergence the shared
- * tokens exist to prevent. */
 .os-mywp__tile.is-selected {
 	background: var( --os-tile-selected-bg, rgba( 34, 113, 177, 0.14 ) );
 	box-shadow: inset 0 0 0 var( --os-tile-selected-ring-width, 1px )
 		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 
-/* The icon well matches WP Explorer's `.os-file-tile__icon` /
- * `__preview` pair (48px box, 32px glyph), so the two windows' root
- * grids — the Agents portrait included — read at the same size. */
 .os-mywp__tile-icon.dashicons {
 	inline-size: 48px;
 	block-size: 48px;
@@ -239,34 +192,21 @@
 	overflow-wrap: anywhere;
 }
 
-/* ------------------------------------------------------------- split */
-
 .os-mywp__split {
 	display: grid;
-	/*
-	 * WP Explorer's two-pane ratio: the list leads, the preview takes
-	 * roughly the remaining 40% and grows with the window — but never
-	 * below 430px while the window can afford it, because under that
-	 * the pane's fact tables and the Woo merchant panels wrap every
-	 * row. When the window truly can't (both floors exceed it), the
-	 * list keeps its 240px and the pane takes what is left.
-	 */
+
 	grid-template-columns: minmax( 240px, 1fr ) minmax( min( 430px, calc( 100% - 240px ) ), 40% );
 	flex: 1 1 auto;
 	min-block-size: 0;
 }
 
-/* Nothing open, no pane: the list has the whole window until a
- * click needs the preview beside it (`splitView()` in
- * `parts/dossier-views.ts` leaves the aside out entirely). */
 .os-mywp__split--solo {
 	grid-template-columns: minmax( 0, 1fr );
 }
 
 .os-mywp__list-pane {
 	min-inline-size: 0;
-	/* Grid items default to min-size auto; without the 0 the row
-	   grows with a tall list instead of letting the canvas scroll. */
+
 	min-block-size: 0;
 	display: flex;
 	flex-direction: column;
@@ -279,15 +219,6 @@
 	overflow-y: auto;
 }
 
-/*
- * A narrow window — a phone, or a desktop window pulled in under
- * the two floors above (240px list + 430px pane). The panes stack:
- * the list takes the window and the preview becomes a sheet along
- * the bottom, at most 45% tall and scrolling on its own. It is only
- * rendered while something is selected, so the list alone fills the
- * single row the rest of the time. The container is the app root
- * (`.os-app`, `app-runtime.css`).
- */
 @container ( max-width: 640px ) {
 	.os-mywp__split {
 		grid-template-columns: minmax( 0, 1fr );
@@ -301,13 +232,6 @@
 	}
 }
 
-/*
- * The phone's item page (`renderBody` in `my-wordpress.os.ts`): the
- * opened item takes the whole body, pushed over the list, with Back
- * in the header and the trail one step longer. The pane's own ✕ is
- * redundant beside Back and goes; the action row stacks so every
- * button is a full-width finger's target.
- */
 .os-mywp__detail-page {
 	flex: 1 1 auto;
 	min-block-size: 0;
@@ -333,8 +257,6 @@
 	inline-size: 100%;
 }
 
-/* -------------------------------------------------- quick-edit modal */
-
 .os-mywp__qe {
 	display: flex;
 	flex-direction: column;
@@ -349,10 +271,6 @@
 	font-size: 12px;
 }
 
-/* The hint above the fields — the same info notice the original's
- * bulk modal leads with. Ink contrast on the dark dialog is owned by
- * os-modal itself (it re-points --os-ui-notice-color through
- * --os-ui-modal-text); this rule is spacing only. */
 .os-mywp__qe-notice {
 	margin-block-end: 12px;
 }
@@ -361,16 +279,6 @@
 	opacity: 0.5;
 }
 
-/* --------------------------------------------------------- tile grid */
-
-/*
- * The same tile element the wallpaper and WP Explorer paint
- * (`os-tile` → `.os-file-tile`), flowed as a grid: in-window lists
- * are not a free canvas here, so the wallpaper's absolute
- * positioning is switched off and the grid owns the layout.
- */
-/* Fixed pitch, like the original canvas: resizing the window changes
- * how many tiles fit per row, never how wide a tile is. */
 .os-mywp__tiles {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, 104px );
@@ -387,13 +295,6 @@
 	justify-content: center;
 }
 
-/*
- * `relative`, not `static`: the tile must join normal flow (the grid
- * owns layout here, not the wallpaper's absolute canvas) but it must
- * REMAIN the containing block of its own `<os-ribbon>` — flattened to
- * static, the DRAFT ribbon anchors to the grid cell and floats off
- * the tile's corner.
- */
 .os-mywp__cell os-tile,
 .os-mywp__cell .os-file-tile {
 	position: relative;
@@ -420,8 +321,6 @@
 	pointer-events: none;
 }
 
-/* Skeletons for the page being fetched — WP Explorer's loading
- * placeholders: same cell footprint, shimmering blocks. */
 .os-mywp__cell--ghost {
 	pointer-events: none;
 }
@@ -435,9 +334,6 @@
 	gap: 6px;
 }
 
-/* The shell's skeleton fill chain (`--os-skeleton-*`, see WP
- * Explorer's loading placeholders), so the ghosts follow the theme
- * instead of guessing at a raised surface. */
 .os-mywp__ghost-visual {
 	inline-size: 48px;
 	block-size: 48px;
@@ -467,15 +363,6 @@
 	}
 }
 
-/* --------------------------------------------------------- list view */
-
-/*
- * The table: the same rows as the tile canvas, in columns. The
- * wrapper is the scrolling canvas (both axes — a narrow window scrolls
- * the columns sideways rather than crushing them), the header sticks,
- * and every colour resolves through the same chains the tiles read so
- * a desktop theme repaints both views at once.
- */
 .os-mywp__table-wrap {
 	flex: 1 1 auto;
 	min-block-size: 0;
@@ -483,16 +370,6 @@
 	position: relative;
 }
 
-/*
- * Auto layout with ONE stretching column: every other column is
- * declared 1px wide, which in an auto table means "as wide as your
- * (nowrap) content"; the title column takes what is left. Its
- * `max-inline-size: 0` is what lets the ellipsis work — an auto
- * layout would otherwise size the column to its longest title. No
- * percentage widths and no `max-content` minimum on the table: a
- * 100% column against a max-content floor resolves to an unbounded
- * width and the wrapper scrolls forever.
- */
 .os-mywp__table {
 	inline-size: 100%;
 	border-collapse: separate;
@@ -526,8 +403,7 @@
 	text-transform: uppercase;
 	white-space: nowrap;
 	color: var( --os-ui-fg-muted, #646970 );
-	/* The band-head recipe: near-opaque frost, so rows scrolling under
-	 * the header stay behind it. */
+
 	background: color-mix( in srgb, var( --os-ui-bg, #fff ) 94%, transparent );
 	backdrop-filter: blur( 14px ) saturate( 180% );
 	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
@@ -549,8 +425,6 @@
 	vertical-align: middle;
 }
 
-/* The column-chooser button sits on the header's centre line, not on
- * its baseline. */
 .os-mywp__th--actions {
 	inline-size: 1px;
 	line-height: 0;
@@ -560,7 +434,6 @@
 	vertical-align: middle;
 }
 
-/* A sortable heading is a button wearing the heading's costume. */
 .os-mywp__sort {
 	display: inline-flex;
 	align-items: center;
@@ -610,8 +483,6 @@
 	font-size: 12px;
 }
 
-/* Hover, selection and the open row read the tile canvas's tokens —
- * one selection colour in the whole window, whichever view. */
 .os-mywp__row:hover .os-mywp__td {
 	background: var( --os-tile-hover-bg, rgba( 0, 0, 0, 0.06 ) );
 }
@@ -633,7 +504,6 @@
 	box-shadow: inset 0 0 0 1px var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 
-/* The id copies itself; it looks like a chip so the affordance reads. */
 .os-mywp__cell-id--copy {
 	margin: 0;
 	padding: 2px 6px;
@@ -707,8 +577,6 @@
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* The action cluster: icon-only ghost buttons, visible on hover, on
- * the selected row, and whenever one of them holds focus. */
 .os-mywp__row-actions {
 	display: inline-flex;
 	gap: 2px;
@@ -745,7 +613,6 @@
 	opacity: 1;
 }
 
-/* Skeleton rows for the page being fetched — the tile ghosts' fill. */
 .os-mywp__row--ghost td {
 	padding: 10px;
 	border-block-end: 1px solid
@@ -774,13 +641,6 @@
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* ------------------------------------------------------- list bands */
-
-/* Banded layout — the `os.my-wordpress.list-bands` filter's canvas.
- * The scroller becomes a column of band sections, each with its own
- * grid at the same pitch as the flat canvas; headings mirror WP
- * Explorer's band bars (sticky, frosted, tone-tintable). */
-
 .os-mywp__tiles--banded {
 	display: flex;
 	flex-direction: column;
@@ -796,8 +656,7 @@
 	align-items: center;
 	gap: 8px;
 	position: sticky;
-	/* Keeps the band label visible while scrolling a long band —
-	 * the whole point of banding is knowing what you're looking at. */
+
 	inset-block-start: 0;
 	z-index: 3;
 	margin: 0;
@@ -807,9 +666,7 @@
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var( --os-ui-fg-muted, #787c82 );
-	/* Near-opaque frosted bar, WP Explorer's recipe: at 94% the tiles
-	 * scrolling beneath stay behind the bar instead of resolving into
-	 * ghostly shapes through it. */
+
 	background: color-mix(
 		in srgb,
 		var( --os-ui-bg, #fff ) 94%,
@@ -825,8 +682,6 @@
 	}
 }
 
-/* Attention-carrying bands tint their bar so the eye lands there
- * first instead of having to read every heading. */
 .os-mywp__band-head--warn {
 	color: var( --os-ui-warning, #8a6116 );
 	background: color-mix(
@@ -873,8 +728,6 @@
 	padding: 12px;
 }
 
-/* ------------------------------------------------------------ detail */
-
 .os-mywp__detail {
 	position: relative;
 	padding: 16px;
@@ -890,10 +743,6 @@
 	inset-inline-end: 8px;
 }
 
-/* Plugin slots on the article (`os.my-wordpress.preview-extras`).
- * The article is a gap-spaced column, so a slot nobody painted into
- * must not spend a gap step. Scoped to OUR pane — WP Explorer's own
- * slots keep their stylesheet's rules. */
 .os-mywp__detail .os-my-wordpress__article-slot {
 	align-self: stretch;
 }
@@ -915,7 +764,6 @@
 	padding-inline-end: 32px;
 }
 
-/* The identity line under a person's name: role badge + archive link. */
 .os-mywp__user-meta {
 	display: flex;
 	align-items: center;
@@ -962,17 +810,6 @@
 	block-size: 1px;
 }
 
-/* The hover card (.os-my-wordpress__tooltip and friends) is painted
- * by the SHARED explorer stylesheet, which rides this window as a
- * companion style (includes/my-wordpress/assets.php) — one set of
- * rules for both explorers' cards, not a copy here. */
-
-/* ---------------------------------------------------- marquee + menu */
-
-/* The SAME token pair the shell's rubber band wears
- * (desktop-files.css): a ring on the admin scheme colour over the
- * shared marquee wash — a WASH, so you can see what it is about to
- * catch. */
 .os-mywp__marquee {
 	position: fixed;
 	z-index: 100000;
@@ -996,8 +833,6 @@
 	z-index: 99999;
 }
 
-/* -------------------------------------------------------------- zoom */
-
 .os-mywp__zoom {
 	position: fixed;
 	inset: 0;
@@ -1013,8 +848,6 @@
 	max-block-size: 92vh;
 	object-fit: contain;
 }
-
-/* -------------------------------------------- sub-list stats panes */
 
 .os-mywp__icon-mask {
 	inline-size: 48px;
@@ -1038,8 +871,6 @@
 	gap: 4px;
 }
 
-/* WP Explorer's taxonomy medallion, tokens and shadow included
- * (`.os-my-wordpress__term-icon--category`). */
 .os-mywp__term-swatch {
 	inline-size: 48px;
 	block-size: 48px;
@@ -1059,10 +890,6 @@
 	gap: 8px;
 	inline-size: 100%;
 }
-
-/* The stat tiles are the kit's <os-stat>, on its defaults — the
-   accent-coloured value is the same --wp-admin-theme-color chain WP
-   Explorer's stat values read, declared in the component. */
 
 .os-mywp__activity {
 	display: flex;
@@ -1087,7 +914,7 @@
 	inline-size: 100%;
 	min-block-size: 1px;
 	border-radius: 3px 3px 0 0;
-	/* WP Explorer's sparkline gradient, verbatim. */
+
 	background: linear-gradient(
 		180deg,
 		var( --wp-admin-theme-color, #2271b1 ) 0%,
@@ -1175,13 +1002,10 @@
 	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 }
 
-/* The user dossier's top-terms chips are facts, not doors — no hover. */
 .os-mywp__chip--static:hover {
 	background: transparent;
 	cursor: default;
 }
-
-/* ------------------------------------------------------------ status */
 
 .os-mywp__status {
 	display: flex;
@@ -1194,12 +1018,6 @@
 	border-block-start: 1px solid var( --os-ui-border, #dcdcde );
 	flex: 0 0 auto;
 }
-
-/* ------------------------------------------------------------------ */
-/* Agents section — WP Explorer's `dm-agents` design, ported 1:1      */
-/* (assets/css/my-wordpress.css is the original; same class names,    */
-/* same tokens, so a desktop theme that repaints one repaints both).  */
-/* ------------------------------------------------------------------ */
 
 .dm-agents {
 	display: flex;
@@ -1221,12 +1039,6 @@
 	gap: 10px;
 }
 
-/* `<os-empty-state>` owns the icon + copy and centres them within
-   itself; the host is still a flex item that shrinks to its content,
-   so without this it sits at the top of a pane that is mostly empty
-   space. Auto margins on both axes absorb the slack — placement only,
-   same as the comments window. Covers the framework-off state and
-   "No agents yet" alike. */
 .dm-agents__detail > os-empty-state {
 	margin: auto;
 }
@@ -1241,8 +1053,7 @@
 	width: 48px;
 	height: 48px;
 	border-radius: 50%;
-	/* Placeholder behind the avatar image while it loads — follows the
-	   palette so it isn't a white disc on a dark station. */
+
 	background: var( --os-ui-surface-elevated, #fff );
 	flex: none;
 }
@@ -1262,16 +1073,11 @@
 	opacity: 0.6;
 }
 
-/* Verbs get their own row under the identity block: the set grows
-   (profile, contributions, desktop, chat, delete) and squeezing them
-   beside the name truncated it first. */
 .dm-agents__detail-actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
 }
-
-/* The pane strip is the kit's own <os-tabs>; nothing to restyle. */
 
 .dm-agents__pane {
 	display: flex;
@@ -1286,25 +1092,16 @@
 	opacity: 0.7;
 }
 
-/* Role first: least privilege is the decision, so the control holds
-   the mockup's width instead of stretching into a landing strip. */
 .dm-agents__role-select {
 	max-width: 280px;
 }
 
-/* The ability filter. Sized like the role select rather than the
-   full pane: it sits above a list of rules, and a search box as wide
-   as the rules reads as another one of them. */
 .dm-agents__ability-search {
 	display: block;
 	max-width: 320px;
 	margin: 12px 0 4px;
 }
 
-/* Each category is a native disclosure. `<details>` because the
-   behaviour is exactly what it is for: keyboard, screen-reader
-   semantics and the open/closed state all arrive for free, and the
-   only thing left to write is the costume. */
 .dm-agents__ability-group {
 	border-bottom: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
 }
@@ -1323,9 +1120,6 @@
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* A `<summary>` is a button, so it gets a button's affordances: a
-   pointer, a hover, and a focus ring that is visible on the dark
-   surface the section is drawn on. */
 summary.dm-agents__category {
 	display: flex;
 	align-items: center;
@@ -1341,10 +1135,6 @@ summary.dm-agents__category::-webkit-details-marker {
 	display: none;
 }
 
-/* The marker is drawn here rather than left to the UA so it can be
-   the same triangle in every browser and turn with the disclosure.
-   Rotation only: a transform, so opening a group of forty rows
-   costs no layout. */
 summary.dm-agents__category::before {
 	content: '';
 	flex: none;
@@ -1379,19 +1169,12 @@ summary.dm-agents__category:focus-visible {
 	flex: 1 1 auto;
 }
 
-/* "3 of 12" when some are ticked, otherwise just the size of the
-   group. The count is why a closed group is still informative:
-   collapsing must not hide the fact that something in there is
-   switched on. */
 .dm-agents__category-count {
 	flex: none;
 	font-variant-numeric: tabular-nums;
 	opacity: 0.75;
 }
 
-/* One ability per row, ruled like the mockup: tick and name on the
-   left, badge on the right, the description indented under the name
-   (the checkbox column is the control's own 26px). */
 .dm-agents__ability {
 	display: grid;
 	grid-template-columns: 1fr auto;
@@ -1413,9 +1196,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* Access badges in the instrument voice. The palette's own warning
-   tokens carry the pale-yellow "can modify"; all this changes is the
-   costume: mono, uppercase, an outline instead of a wash. */
 .dm-agents__ability os-badge {
 	--os-ui-badge-font: 500 10px/1.6 var( --os-ui-font-mono, ui-monospace, monospace );
 	--os-ui-badge-dot-size: 0;
@@ -1469,14 +1249,6 @@ summary.dm-agents__category:focus-visible {
 	margin-block-start: 12px;
 }
 
-/* ---------------------------------------------------------------------
-   The cast
-   ------------------------------------------------------------------ */
-
-/* One view at a time: the grid, an agent, or the wizard. A sidebar of
-   faces next to a detail form would leave neither enough room, and the
-   whole point of the grid is that the faces are big enough to tell
-   apart. */
 .dm-agents__view {
 	display: flex;
 	flex-direction: column;
@@ -1509,10 +1281,6 @@ summary.dm-agents__category:focus-visible {
 	align-content: start;
 }
 
-/* The card reacts like the mockup's: a lift and a brighter edge.
-   Transform and border-color only — both cheap, and the same pair the
-   mockup transitions. Document styles win over the component's own
-   :host rules, which is the sanctioned way to restyle a host. */
 .dm-agents__cast-card,
 .dm-agents__cast-new {
 	--os-ui-card-padding: 20px 18px 16px;
@@ -1525,14 +1293,11 @@ summary.dm-agents__category:focus-visible {
 	transform: translateY( -2px );
 }
 
-/* The dashed door, same as the mockup's crew-new card. */
 .dm-agents__cast-new {
 	border-style: dashed;
 	--os-ui-card-bg: var( --os-ui-surface-subtle, transparent );
 }
 
-/* The crew breathes. Transform only, staggered so five faces do not
-   bob in lockstep, and gone entirely under reduced motion. */
 @media ( prefers-reduced-motion: no-preference ) {
 	.dm-agents__cast-card .dm-agents__cast-face {
 		animation: dm-agents-bob 6s ease-in-out infinite;
@@ -1557,10 +1322,6 @@ summary.dm-agents__category:focus-visible {
 	}
 }
 
-/* The column lives on a wrapper we own, not on the host: the slotted
-   children sit inside the card's own container, so a flex rule on the
-   host never reaches them and the role badges land wherever the
-   description's line count leaves them. */
 .dm-agents__cast-inner {
 	display: flex;
 	flex-direction: column;
@@ -1570,10 +1331,6 @@ summary.dm-agents__category:focus-visible {
 	height: 100%;
 }
 
-/* The faces are the loud part of this surface, and deliberately so:
-   agent identity is the one place the station spends the mesh budget
-   on something other than a hero CTA. A cast has to be legible at a
-   glance, which is exactly what a flat accent cannot do. */
 .dm-agents__cast-face {
 	width: 118px;
 	height: 118px;
@@ -1587,8 +1344,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg, #1d2327 );
 }
 
-/* The voice line, in the instrument register: this is metadata about
-   the agent, not prose from it. */
 .dm-agents__cast-vibes {
 	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
 	font-size: 11.5px;
@@ -1602,10 +1357,6 @@ summary.dm-agents__category:focus-visible {
 	flex: 1;
 }
 
-/* The role pill in the instrument voice: mono, uppercase, no status
-   dot — this is a fact about the agent, not a state to monitor. The
-   custom properties are the component's own theming hooks; the
-   inherited text properties flow into its shadow label. */
 .dm-agents__cast-card os-badge {
 	--os-ui-badge-font: 500 11px/1.6 var( --os-ui-font-mono, ui-monospace, monospace );
 	--os-ui-badge-dot-size: 0;
@@ -1615,13 +1366,6 @@ summary.dm-agents__category:focus-visible {
 	letter-spacing: 0.08em;
 }
 
-/* The framework-off bar: the section's status and its one action, on
-   one line above the crew it would hire. It is deliberately not an
-   `os-empty-state` — that block is centred, icon-led and paragraph-
-   shaped, which is exactly the wall of text the cast replaced, and at
-   five cards tall it would push the button that undoes the situation
-   off the bottom of the window. `flex: none` because `.dm-agents__view`
-   is a scrolling flex column and the bar must not absorb the slack. */
 .dm-agents__off-head {
 	display: flex;
 	align-items: center;
@@ -1649,15 +1393,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* The cast the site would get, drawn while the framework is off.
-   Dimmed as a whole rather than desaturated: the five hues ARE the
-   argument this state is making, and a greyscale filter would flatten
-   the crew into five identical blobs on the way to saying "not yet".
-   Opacity says inactive and leaves the faces telling each other apart.
-
-   `pointer-events` is belt and braces — the cards are rendered without
-   `interactive` and without a click handler, so there is nothing to
-   press. It exists so a hover state cannot promise otherwise. */
 .dm-agents__cast--preview {
 	opacity: 0.6;
 	pointer-events: none;
@@ -1677,10 +1412,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* ---------------------------------------------------------------------
-   The wizard
-   ------------------------------------------------------------------ */
-
 .dm-agents__wizard {
 	display: flex;
 	flex-direction: column;
@@ -1699,10 +1430,6 @@ summary.dm-agents__category:focus-visible {
 	margin: 0;
 }
 
-/* The trail wears the instrument voice: mono uppercase labels, 22px
-   dots, a thin rule between stations. All of it goes through the
-   component's own theming hooks; the host elements live in this light
-   DOM, so the per-state overrides below can select them directly. */
 .dm-agents__trail {
 	margin-block: 6px 14px;
 	--os-ui-steps-gap: 10px;
@@ -1716,17 +1443,12 @@ summary.dm-agents__category:focus-visible {
 	--os-ui-step-title-spacing: 0.08em;
 }
 
-/* A station you have not reached is an outline, not a filled dot: the
-   mesh chip is where you ARE, and it only reads that way if it is the
-   only one lit. */
 .dm-agents__trail os-step:not( [ done ] ):not( [ current ] ) {
 	--os-ui-step-chip-bg: transparent;
 	--os-ui-step-chip-border: 1px solid var( --os-ui-border-strong, #8c8f94 );
 	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
 }
 
-/* Done is quiet: a filled tick on the elevated surface, muted like its
-   label. It reads as history, not as a second highlight. */
 .dm-agents__trail os-step[ done ] {
 	--os-ui-step-chip-done-bg: var( --os-ui-surface-elevated, #f0f0f1 );
 	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
@@ -1739,8 +1461,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg, #1d2327 );
 }
 
-/* The door. Five complete agents already ship with the plugin, and
-   until now the create flow showed them to nobody. */
 .dm-agents__starters {
 	display: grid;
 	gap: 12px;
@@ -1784,8 +1504,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* Meet: the portrait beside the fields, so the thing being named is
-   visible while it is being named. */
 .dm-agents__meet {
 	display: grid;
 	gap: 20px;
@@ -1793,9 +1511,6 @@ summary.dm-agents__category:focus-visible {
 	align-items: start;
 }
 
-/* The character card. Sunken rather than subtle: the portrait is the
-   hero of this step, and the mockup floats it on the darkest surface
-   so the face's own glow does the framing. */
 .dm-agents__portrait {
 	display: flex;
 	flex-direction: column;
@@ -1814,7 +1529,6 @@ summary.dm-agents__category:focus-visible {
 	margin-top: -12px;
 }
 
-/* What this face is, in two words. */
 .dm-agents__portrait-chips {
 	display: flex;
 	gap: 6px;
@@ -1865,8 +1579,6 @@ summary.dm-agents__category:focus-visible {
 	min-width: 0;
 }
 
-/* Launch: one card, the brand's card radius, floating on the darkest
-   surface like the portrait it echoes. */
 .dm-agents__summary {
 	display: grid;
 	grid-template-columns: 106px 1fr;
@@ -1908,8 +1620,6 @@ summary.dm-agents__category:focus-visible {
 	margin-block-start: 10px;
 }
 
-/* What the agent will actually be told, under the chips. Clamped: a
-   summary card quotes the instructions, it does not host them. */
 .dm-agents__summary-instr {
 	margin: 10px 0 0;
 	font-size: 13px;
@@ -1920,9 +1630,6 @@ summary.dm-agents__category:focus-visible {
 	overflow: hidden;
 }
 
-/* Identity chips — role, abilities, silhouette, hue — all wear the
-   instrument voice: these are facts about the character, stamped
-   rather than said. */
 .dm-agents__chips os-chip,
 .dm-agents__portrait-chips os-chip {
 	--os-ui-chip-font-size: 10.5px;
@@ -1946,20 +1653,11 @@ summary.dm-agents__category:focus-visible {
 	}
 }
 
-/* The way back to the grid. The window's own breadcrumb goes UP to the
-   folder, which is a different journey: this one returns to the cast. */
 .dm-agents__back {
 	align-self: flex-start;
 	margin-block-end: 4px;
 }
 
-/*
- * Long press is the touch right-click (`parts/long-press.ts`). What
- * the browser would do with a held finger — iOS's callout, a text
- * selection creeping across a label — is turned off on the pressable
- * surfaces, and only where a finger is the pointer: on a desk the
- * labels stay selectable.
- */
 @media ( pointer: coarse ) {
 	.os-mywp__tile,
 	.os-mywp__cell,

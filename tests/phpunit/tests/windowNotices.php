@@ -1,25 +1,5 @@
 <?php
-/**
- * Tests for the window-notice registry — declarative top-of-window
- * banners shipped from PHP and rendered as `<os-notice>` inside the
- * `after-titlebar` slot. Coverage:
- *
- *   - storage + validation of `openstation_register_window_notice()`
- *   - payload shape + ordering of
- *     `openstation_build_window_notices_payload()`
- *   - the `openstation_window_notices` request-time filter
- *   - that the notices land in the menu payload under
- *     `serverWindowNotices`
- *
- * Module-level state is flushed in `set_up` so cross-test pollution
- * stays bounded.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-window-notices
- */
+
 class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 
 	public function set_up() {
@@ -27,9 +7,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		openstation_flush_window_notice_registry();
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_register_stores_entry() {
 		$result = openstation_register_window_notice(
 			array(
@@ -46,9 +23,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertTrue( $registry['plugin/welcome']['dismissible'] );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_register_rejects_empty_id() {
 		$result = openstation_register_window_notice(
 			array(
@@ -60,9 +34,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_id', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_register_rejects_empty_message() {
 		$result = openstation_register_window_notice(
 			array(
@@ -74,9 +45,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_message', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_register_rejects_invalid_tone() {
 		$result = openstation_register_window_notice(
 			array(
@@ -89,9 +57,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_tone', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_register_rejects_invalid_id_chars() {
 		$result = openstation_register_window_notice(
 			array(
@@ -103,9 +68,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_id', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_message_passes_through_wp_kses_post() {
 		openstation_register_window_notice(
 			array(
@@ -118,9 +80,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '<script>', $entry['message'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_window_notices_payload
-	 */
 	public function test_payload_returns_entries_in_order() {
 		openstation_register_window_notice(
 			array(
@@ -151,9 +110,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertSame( 'plugin/b', $payload[2]['id'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_window_notices_payload
-	 */
 	public function test_filter_can_append_request_time_notices() {
 		openstation_register_window_notice(
 			array(
@@ -180,9 +136,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_window_notices' );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_register_fires_action() {
 		$captured = null;
 		add_action(
@@ -209,9 +162,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		remove_all_actions( 'openstation_window_notice_registered' );
 	}
 
-	/**
-	 * @covers ::openstation_build_menu_payload
-	 */
 	public function test_menu_payload_includes_server_window_notices() {
 		openstation_register_window_notice(
 			array(
@@ -225,9 +175,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertContains( 'plugin/menu-payload', $ids );
 	}
 
-	/**
-	 * @covers ::openstation_build_window_notices_payload
-	 */
 	public function test_payload_round_trips_match_icon_and_order() {
 		openstation_register_window_notice(
 			array(
@@ -260,9 +207,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertSame( 'wc-admin', $entry['match']['urlContains'] );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_icon_must_match_dashicons_pattern() {
 		openstation_register_window_notice(
 			array(
@@ -275,9 +219,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-info', $entry['icon'] );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_icon_drops_garbage_silently() {
 		openstation_register_window_notice(
 			array(
@@ -290,9 +231,6 @@ class Tests_OpenStation_WindowNotices extends WP_UnitTestCase {
 		$this->assertSame( '', $entry['icon'] );
 	}
 
-	/**
-	 * @covers ::openstation_register_window_notice
-	 */
 	public function test_icon_drops_non_dashicons_prefix() {
 		openstation_register_window_notice(
 			array(

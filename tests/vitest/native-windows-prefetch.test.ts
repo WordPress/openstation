@@ -1,19 +1,3 @@
-/**
- * A deferred native window's bundles are prefetched once the shell is
- * idle — so the first open is served from the HTTP cache — and never
- * executed early.
- *
- * What these tests pin:
- *
- *   - After a sync settles, every deferred window's companion scripts,
- *     own script and companion styles get a `<link rel="prefetch">`,
- *     in that order, and nothing is loaded.
- *   - A `preloadScript` window, or one opened before the idle tick,
- *     is already in the tab and gets no hint.
- *   - One hint per URL, however many windows share it or how many
- *     syncs arrive.
- *   - Save-Data and a 2G link skip the whole thing.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock } from '../../src/dock';
 import { createNativeWindowSync } from '../../src/native-windows';
@@ -108,7 +92,7 @@ describe( 'native-windows — prefetching the deferred bundles', () => {
 		vi.spyOn( vendorLoader, 'loadVendorScript' ).mockImplementation( async ( url: string ) => {
 			loaded.push( url );
 		} );
-		// jsdom has no idle callback; pin the timer fallback either way.
+
 		idle = ( window as unknown as { requestIdleCallback?: unknown } ).requestIdleCallback;
 		( window as unknown as { requestIdleCallback?: unknown } ).requestIdleCallback = undefined;
 		( window as unknown as { openStationNativeWindows?: unknown } ).openStationNativeWindows = {};

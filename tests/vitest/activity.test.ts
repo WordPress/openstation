@@ -1,6 +1,3 @@
-/**
- * Unit tests for the cross-plugin activity channel API.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { activity } from '../../src/activity';
 import { addFilter, doAction, removeFilter } from '../../src/hooks';
@@ -52,8 +49,6 @@ describe( 'wp.os.activity', () => {
 		expect( b ).not.toHaveBeenCalled();
 	} );
 
-	// A plugin reaching the bus through raw `wp.hooks` has to spell
-	// the hook name the way the channel maps onto it.
 	test( 'filter mutates the value through registered filters', () => {
 		addFilter(
 			'os.activity.plugin-x.redact',
@@ -71,13 +66,10 @@ describe( 'wp.os.activity', () => {
 	} );
 
 	test( 'a channel maps onto a hook name @wordpress/hooks accepts', () => {
-		// The regression that made every `subscribe()` a silent no-op
-		// in a browser: `addAction` bails on an invalid name, and
-		// `doAction` still "succeeds" against zero handlers.
+
 		const cb = vi.fn();
 		activity.subscribe( 'os/game-score-recorded', cb );
-		// Reaching the same channel by its raw hook name proves the
-		// mapping, not just that publish/subscribe agree with itself.
+
 		doAction( 'os.activity.os.game-score-recorded', {
 			game: 'inkfall',
 		} );

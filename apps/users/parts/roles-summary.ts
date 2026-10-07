@@ -1,4 +1,3 @@
-/** One bounded server snapshot for every role, independent of the people feed. */
 import type { ViewContext } from '@openstation/app';
 import type { UserListItem, UsersState, UsersData } from './types';
 export interface RoleGroup { role: string; label: string; total: number; members: UserListItem[] }
@@ -13,7 +12,6 @@ export class RolesSummary {
 	private request: AbortController | null = null;
 	private disposed = false;
 
-	/** Entering Roles or receiving a user-change refresh renews its snapshot. */
 	update( ctx: Ctx ): void {
 		const active = ctx.state.tab === 'roles';
 		const refresh = active && ( ! this.active || this.previous !== ctx.data );

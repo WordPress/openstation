@@ -1,31 +1,3 @@
-/**
- * OpenStation — Window state visuals.
- *
- * Every rule that keys off a `--state` modifier class: the resize
- * handle + its overlay shield (drag/resize iframe-interception),
- * maximize, fullscreen, the opening animation, minimize + closing
- * fade-outs, reduced-motion scoped overrides, and the RTL cursor
- * flip on the resize corner.
- *
- * Base chrome lives in window-chrome.css; the zoom-out grid lives
- * in window-overview.css.
- *
- * @since 6.9.0
- */
-
-/*
- * Resize handles — one per corner (NE / NW / SE / SW). Each is an
- * invisible square hit-target whose cursor telegraphs the resize
- * axis. SE keeps the legacy grip-lines glyph so the affordance is
- * visible even without hover; the other three remain transparent
- * (discoverable by cursor change only) to keep the window chrome
- * clean.
- *
- * Hit-area is `--os-resize-size` (20 px by default). The
- * handles extend a few pixels OUTSIDE the window edge so a cursor
- * landing just past the border still activates them — matches how
- * native OS windows forgive edge-grabs.
- */
 .os-window__resize-handle {
 	position: absolute;
 	width: var(--os-resize-size);
@@ -33,63 +5,20 @@
 	z-index: 999;
 }
 
-/*
- * Desktop-theme corner ornaments (WINDOW_CORNER_{NE,NW,SE,SW}
- * texture slots).
- *
- * ## Why they are INSET rather than centred on the handle
- *
- * The obvious placement — centre the ornament on the resize handle —
- * is wrong, and looks it. `.os-window` sets
- * `overflow: hidden` (it clips iframe content to the rounded
- * corners), and the handles deliberately sit 3px OUTSIDE the window
- * box so an edge-grab still lands. So a handle-centred ornament gets
- * clipped twice: the part past the window edge is cut, and then
- * `border-radius` shaves what remains. The result reads as if the
- * artwork were painted behind the window.
- *
- * Escaping the clip is not an option worth its cost: the ornaments
- * would have to leave `.os-window` entirely — a wrapper
- * element, or an overlay in `.os-area` whose geometry is
- * re-tracked on every drag/resize frame. A theme that genuinely
- * wants artwork OUTSIDE the frame already has the right tool in the
- * `WINDOW_FRAME` slot: `border-image` paints in the border area,
- * which `overflow` does not clip.
- *
- * So the ornament is anchored inside the window's rounded corner
- * instead. The default inset clears the handle's 3px overhang plus a
- * share of the corner radius, which is what keeps the arc from
- * cutting it at larger radii. Themes that want it tighter or looser
- * override `--os-window-corner-inset`.
- *
- * Physical `top`/`left`/`right`/`bottom` rather than logical
- * properties here, deliberately: these track the resize handles,
- * which are physical corners by nature (the NW handle is top-left in
- * both LTR and RTL) and are themselves positioned physically.
- *
- * With no theme active every `--os-window-corner-*-image`
- * is unset, the shorthand resolves to `none`, and the pseudo-element
- * paints nothing — zero visual change and no image request.
- *
- * NOTE the BEM modifiers are `--ne` / `--nw` / `--se` / `--sw` on
- * `.os-window__resize-handle`, not bare `.--ne`.
- */
 .os-window__resize-handle--ne::after,
 .os-window__resize-handle--nw::after,
 .os-window__resize-handle--se::after,
 .os-window__resize-handle--sw::after {
 	content: "";
 	position: absolute;
-	/* 3px = the handle's overhang past the window edge (see the
-	 * `--nw` / `--ne` / `--sw` / `--se` rules above). The radius
-	 * share keeps the ornament clear of the corner arc. */
+
 	--_dm-corner-inset: var(
 		--os-window-corner-inset,
 		calc( 3px + var( --os-window-radius, 8px ) * 0.4 )
 	);
 	width: var( --os-window-corner-size, 16px );
 	height: var( --os-window-corner-size, 16px );
-	/* Ornaments are decoration; the handle keeps the drag affordance. */
+
 	pointer-events: none;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -157,10 +86,6 @@
 	cursor: nwse-resize;
 }
 
-/*
- * During drag/resize, overlay the iframe to prevent it from
- * capturing pointer events and breaking the drag.
- */
 .os-window--dragging .os-window__body::after,
 .os-window--resizing .os-window__body::after {
 	content: "";
@@ -169,11 +94,6 @@
 	z-index: 10;
 }
 
-/*
- * Maximized state: the pixel geometry is applied inline from JS
- * (matching the desktop area) so left/top/width/height can animate.
- * Only cosmetic overrides here.
- */
 .os-window--maximized {
 	border-radius: 0;
 }
@@ -182,14 +102,6 @@
 	display: none;
 }
 
-/*
- * Fullscreen ("focus") state — the window escapes the desktop area and
- * covers the entire viewport, hiding the admin bar and dock behind
- * it. Uses position: fixed so no ancestor overflow clips it, and
- * a z-index above the admin bar (--os-z-adminbar). Inline
- * geometry set by toggleMaximize() is overridden with !important because
- * we never want fullscreen to respect a saved x/y/width/height.
- */
 .os-window--fullscreen {
 	position: fixed !important;
 	left: 0 !important;
@@ -205,10 +117,6 @@
 	display: none;
 }
 
-/*
- * Opening animation — subtle scale-up + fade-in.
- * The class is added on creation and removed after the animation ends.
- */
 @keyframes os-window-open {
 	from {
 		opacity: 0;
@@ -224,17 +132,6 @@
 	animation: os-window-open 0.2s ease forwards;
 }
 
-/*
- * Shake animation — used by `Window.shake()` for nudge / attention-
- * grab affordances. The window briefly jiggles horizontally while
- * keeping its position. Composes via CSS variable so the inline
- * `left`/`top` written by the window manager keeps wining; the
- * shake is a translate ON TOP of that.
- *
- * Reduced-motion fallback: a static accent ring for the same
- * duration so users with prefers-reduced-motion still see the
- * affordance without movement.
- */
 @keyframes os-window-shake {
 	0%, 100% { transform: translateX( 0 ); }
 	8%       { transform: translateX( -10px ); }
@@ -260,29 +157,6 @@
 	}
 }
 
-/*
- * Desktop-switch slide — applied to `.os-area` (the windows
- * + widgets container) when the user moves between virtual desktops
- * via arrow keys or any other directional caller. The wallpaper lives
- * OUTSIDE this element (sibling under `.os-shell`), so the
- * slide reveals the wallpaper as a backdrop — no black flash, no
- * awkward gap on the leading edge.
- *
- * `--sliding-from-right` plays when moving to the next desktop (the
- * rightward arrow press): the new desktop's content rushes in from
- * the right and settles to centre. `--sliding-from-left` mirrors it
- * for the previous-desktop direction. Wrap-around presses (rightmost
- * → first via ArrowRight) keep the direction the user perceived,
- * not the index delta.
- *
- * Opacity tapers from 0.35 → 1 so the moving content visibly arrives
- * rather than just sliding in at full strength, but the wallpaper
- * stays at full opacity behind it for an anchored sense of place.
- * Cubic-bezier ease-out lands cleanly without overshoot.
- *
- * `forwards` isn't needed — the JS strips the class on `animationend`
- * so the element returns to its natural transform / opacity state.
- */
 @keyframes os-area-slide-from-right {
 	from {
 		transform: translateX(64px);
@@ -320,11 +194,6 @@
 	}
 }
 
-/*
- * Desktop-name HUD. `pointer-events: none` is required, not cosmetic:
- * it sits over the wallpaper's click surface, which minimizes every
- * window.
- */
 .os-desktop-name-hud {
 	position: absolute;
 	top: 50%;
@@ -363,53 +232,22 @@
 	}
 }
 
-/*
- * Minimized state — window is hidden and non-interactive at the dock.
- * Uses opacity + pointer-events + transition: none so neither state
- * changes nor WAAPI animation teardown trigger accidental transitions.
- */
 .os-window--minimized {
 	opacity: 0;
 	pointer-events: none;
 	transition: none !important;
 }
 
-/*
- * Genie helpers — active only during the WAAPI flight to/from the
- * dock. Disable the base `left/top/width/height/transform/opacity`
- * transition so the CSS transition doesn't fight the WAAPI
- * `element.animate()` that drives the scale-to-dock motion. The
- * minimized class is applied AFTER the minimizing flight lands, and
- * the restoring class is removed AFTER the restoring flight lands.
- */
 .os-window--minimizing,
 .os-window--restoring {
 	transition: none !important;
 }
 
-/*
- * `pointer-events: none` on the window root above is not enough on
- * its own: a number of descendants (most notably `.os-
- * file-tile`, but also other tile renderers) explicitly set
- * `pointer-events: auto` so the wallpaper / folder layer doesn't
- * eat their clicks. That `auto` overrides the parent's `none`, and
- * after "Show Desktop" minimizes every window, hovering the empty
- * space where a tile used to sit would still trigger its tooltip
- * / dock peek — the invisible-but-still-interactive bug.
- *
- * The universal selector is scoped INSIDE the minimized window so
- * it doesn't touch anything else, and `!important` is required to
- * win over the per-tile `pointer-events: auto`.
- */
 .os-window--minimized *,
 .os-window--closing * {
 	pointer-events: none !important;
 }
 
-/*
- * Closing animation — fade out + slight scale down.
- * The JS waits for transitionend then removes the element.
- */
 .os-window--closing {
 	opacity: 0;
 	transform: scale(0.95);
@@ -417,11 +255,6 @@
 	will-change: transform, opacity;
 }
 
-/*
- * Respect prefers-reduced-motion: collapse all durations to near-zero
- * so state changes are instant but still technically transition
- * (avoids layout jumps from display: none).
- */
 @media ( prefers-reduced-motion: reduce ) {
 	.os-window {
 		transition-duration: 0.01ms !important;
@@ -436,23 +269,6 @@
 	}
 }
 
-/*
- * RTL note: resize handles use physical `left` / `right` anchors
- * (not logical `inset-inline-*`) so the four corners stay in the
- * same physical positions under RTL. Each handle already has the
- * correct cursor for its physical diagonal (SE + NW use
- * `nwse-resize`, NE + SW use `nesw-resize`); no RTL override
- * needed.
- */
-
-/* ---------------------------------------------------------------
- * Snap zones — edge-snap preview rectangle + snapped-state chrome.
- *
- * Preview appears while the drag cursor is within SNAP_EDGE_THRESHOLD
- * of the left/right edge (see window-manager/snap-zones.ts). It's a
- * translucent accent-colored rectangle covering the target half, with
- * a bright border so the user sees exactly where the window will land.
- * --------------------------------------------------------------- */
 .os-snap-preview {
 	position: absolute;
 	background: color-mix(
@@ -466,8 +282,8 @@
 		0 0 0 1px rgba( 255, 255, 255, 0.15 ) inset,
 		0 12px 36px rgba( 0, 0, 0, 0.22 );
 	pointer-events: none;
-	z-index: 99; /* Just under windows (which start at 100) so a */
-	             /* still-dragging window renders on top. */
+	z-index: 99;
+
 	opacity: 0;
 	transition:
 		opacity 0.15s ease,
@@ -481,21 +297,9 @@
 	opacity: 1;
 }
 
-/* ---------------------------------------------------------------
- * Grid snap — the 6×6 desk shown while Option / Alt is held during a
- * drag (see window-manager/grid-snap.ts).
- *
- * The overlay is the work area; the lines are one repeating gradient
- * sized to a cell, and a cell is a fraction of the overlay — so the
- * same rule draws the grid at any dimensions, on any display, and
- * follows the work area if the dock folds away mid-drag. The target
- * is the span the window will land on, in the same accent as the
- * edge-snap preview so both previews read as one vocabulary.
- * --------------------------------------------------------------- */
 .os-grid-snap {
 	position: absolute;
-	/* Same layer as the edge-snap preview: under the windows, so the
-	   one being dragged stays on top of its own landing zone. */
+
 	z-index: 99;
 	pointer-events: none;
 	opacity: 0;
@@ -513,8 +317,7 @@
 	background-size:
 		calc( 100% / var( --os-grid-snap-cols ) ) 100%,
 		100% calc( 100% / var( --os-grid-snap-rows ) );
-	/* The gradient draws a line at the START of every cell; the
-	   inset ring supplies the far edges so the grid is closed. */
+
 	box-shadow: inset 0 0 0 1px var( --os-grid-snap-line );
 }
 
@@ -534,8 +337,7 @@
 	box-shadow:
 		0 0 0 1px rgba( 255, 255, 255, 0.15 ) inset,
 		0 12px 36px rgba( 0, 0, 0, 0.22 );
-	/* Geometry animates so a cell-to-cell change slides rather than
-	   jumps; short, so it never lags the pointer by a cell. */
+
 	transition:
 		left 0.12s cubic-bezier( 0.2, 0, 0.2, 1 ),
 		top 0.12s cubic-bezier( 0.2, 0, 0.2, 1 ),
@@ -543,20 +345,6 @@
 		height 0.12s cubic-bezier( 0.2, 0, 0.2, 1 );
 }
 
-/*
- * The span, as "cols × rows", in the MIDDLE of the target. A user
- * picking a 3×2 wants to know it is 3×2 before letting go; the count
- * is what makes the grid a tool rather than a decoration, but only
- * if it is read, and in the corner it was not. The pointer is
- * somewhere inside the target by definition, so the centre is the
- * shortest average trip for the eye; on a 2×5 the corner could be
- * several hundred pixels from the hand.
- *
- * Centred rather than pinned to the pointer on purpose: a badge that
- * tracked the cursor would rewrite its position every move, and a
- * number that slides while you read it is harder to read than one
- * that waits. It only moves when the span does.
- */
 .os-grid-snap__target::after {
 	content: attr( data-cols ) ' × ' attr( data-rows );
 	position: absolute;
@@ -573,26 +361,11 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/*
- * The desk in grid mode. Every OTHER window recedes so the grid and
- * the landing zone read through them; the one in hand stays solid —
- * it is the thing being placed, and the user needs to see it, not
- * through it. Translucent enough that the grid shows, opaque enough
- * that the other windows are still recognisably where they are,
- * because "will this land on top of Posts?" is the question the grid
- * is there to answer.
- *
- * Opacity only: a blur or a desaturate on a live iframe is a
- * per-frame filter on a large surface, and the drag has to stay
- * pixel-accurate at 120Hz. Minimized windows are already hidden and
- * need no rule.
- */
 .os-area--grid-snapping .os-window:not( .os-window--grid-snapping ) {
 	opacity: 0.45;
 	transition: opacity 0.16s ease;
 }
 
-/* A shake moved the anchor: one pulse so the reset is seen, not inferred. */
 .os-grid-snap__target--reset {
 	animation: os-grid-snap-reset 0.32s ease;
 }
@@ -625,39 +398,18 @@
 	}
 }
 
-/*
- * Snapped window state — `--snapped-left` / `--snapped-right` carry
- * cosmetic tweaks only. Resize handles stay visible and functional:
- * the user can grab any corner to shrink the window back to floating
- * (the pointer layer drops the snapped-* class on first resize so
- * geometry stops pretending to be half-screen).
- *
- * Rounded-corner profile flattens the INNER edges (the ones that
- * butt against the partner window) to match macOS split-view
- * aesthetic.
- *
- * Shadows are dropped on both snapped variants. The default window
- * drop shadow would render inside the opposite half — a dark vertical
- * ghost line at the seam — and compete visually with the partner
- * window. Flat edges + no shadow gives the two-up feel of a native
- * split view: windows adjacent, no separator.
- */
 .os-window--snapped-left,
 .os-window--snapped-right {
 	box-shadow: none;
 }
 
-/* Override the elevated shadow applied to `--focused` windows too —
-   the focused selector runs at equal specificity, so without this
-   rule the focus shadow would re-introduce the seam once the snapped
-   window is active. */
 .os-window--focused.os-window--snapped-left,
 .os-window--focused.os-window--snapped-right {
 	box-shadow: none;
 }
 
 .os-window--snapped-left {
-	/* Inner (right) edge flush; outer corners keep the radius. */
+
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
 }
@@ -667,18 +419,7 @@
 	border-bottom-left-radius: 0;
 }
 
-/*
- * Split overview — a constrained variant of the full overview,
- * scoped to the half opposite a just-snapped window. Uses the same
- * thumbnail visuals as the main overview; only the backdrop tint is
- * lighter (the anchor window still takes the other half, so we want
- * the picker to feel "peripheral" not "modal").
- */
 .os-area--split-overview {
 	background-color: rgba( 0, 0, 0, 0.28 );
 	transition: background-color 0.24s ease;
 }
-
-/* Toast styling moved into `<os-toast-container>` and `<os-toast>`
- * (src/ui/components/os-toast/). The components own their shadow
- * DOM styling; nothing at host level needs to reach inside. */

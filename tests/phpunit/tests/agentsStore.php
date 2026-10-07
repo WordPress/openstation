@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the agents definition store — user-meta CRUD, sanitizers,
- * catalogues, and the create/update orchestrators with their audit
- * actions.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-agents
- */
+
 class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -40,9 +30,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		return $user;
 	}
 
-	/**
-	 * @covers ::openstation_agent_create
-	 */
 	public function test_create_writes_definition_meta() {
 		$user = $this->create_agent();
 
@@ -59,11 +46,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Abilities land on disk as a JSON string, not a PHP-serialized array.
-	 *
-	 * @covers ::openstation_agent_create
-	 */
 	public function test_abilities_meta_is_json_encoded() {
 		$user = $this->create_agent();
 		$raw  = get_user_meta( $user->ID, OPENSTATION_AGENT_ABILITIES_META, true );
@@ -71,9 +53,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		$this->assertSame( array( 'desktop-mode/get-post' ), json_decode( $raw, true ) );
 	}
 
-	/**
-	 * @covers ::openstation_agent_create
-	 */
 	public function test_create_fires_created_action() {
 		$captured = array();
 		add_action(
@@ -93,9 +72,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		$this->assertSame( self::$admin_id, $captured[2] );
 	}
 
-	/**
-	 * @covers ::openstation_agent_create
-	 */
 	public function test_create_rejects_role_outside_whitelist() {
 		$result = openstation_agent_create(
 			array(
@@ -107,9 +83,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_invalid_role', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_agent_update
-	 */
 	public function test_update_applies_fields_and_fires_audit_action() {
 		$user = $this->create_agent();
 
@@ -148,11 +121,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'rateLimit', $changed );
 	}
 
-	/**
-	 * A no-op update (same values) must not fire the audit action.
-	 *
-	 * @covers ::openstation_agent_update
-	 */
 	public function test_noop_update_fires_no_action() {
 		$user  = $this->create_agent();
 		$fired = 0;
@@ -167,18 +135,12 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		$this->assertSame( 0, $fired );
 	}
 
-	/**
-	 * @covers ::openstation_agent_update
-	 */
 	public function test_update_rejects_non_agent_user() {
 		$result = openstation_agent_update( self::$admin_id, array( 'name' => 'Nope' ) );
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_agent_not_found', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_agent_sanitize_triggers
-	 */
 	public function test_sanitize_triggers_drops_unknown_kinds_and_keeps_camel_case() {
 		$clean = openstation_agent_sanitize_triggers(
 			array(
@@ -199,9 +161,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		$this->assertSame( array( 'post', 'media' ), $clean[0]['config']['entityKinds'] );
 	}
 
-	/**
-	 * @covers ::openstation_agent_get_triggers
-	 */
 	public function test_triggers_round_trip_through_update() {
 		$user = $this->create_agent();
 		openstation_agent_update(
@@ -222,9 +181,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		$this->assertSame( 'edit_posts', $triggers[0]['config']['capability'] );
 	}
 
-	/**
-	 * @covers ::openstation_agents_sanitize_ability_slugs
-	 */
 	public function test_ability_slugs_are_deduped_and_stripped() {
 		$this->assertSame(
 			array( 'a/b', 'c/d' ),
@@ -232,9 +188,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_agent_allowed_roles
-	 */
 	public function test_allowed_roles_whitelist() {
 		$roles = openstation_agent_allowed_roles();
 		$this->assertContains( 'author', $roles );
@@ -242,9 +195,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		$this->assertNotContains( 'subscriber', $roles );
 	}
 
-	/**
-	 * @covers ::openstation_agent_get_agents
-	 */
 	public function test_get_agents_lists_only_agents() {
 		$a = $this->create_agent( array( 'name' => 'Alpha' ) );
 		$b = $this->create_agent( array( 'name' => 'Beta' ) );
@@ -255,9 +205,6 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 		$this->assertNotContains( self::$admin_id, $ids );
 	}
 
-	/**
-	 * @covers ::openstation_agents_enabled
-	 */
 	public function test_enabled_reads_extended_option() {
 		remove_filter( 'openstation_agents_enabled', '__return_true' );
 		$this->assertFalse( openstation_agents_enabled() );

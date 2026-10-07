@@ -1,54 +1,7 @@
 <?php
-/**
- * Window-chrome customization framework — server-side registration APIs.
- *
- * Mirrors the commands / settings-tabs / title-bar-buttons registration
- * pattern across four surfaces:
- *
- *   - **Themes** (Layer 1) — per-window CSS-variable maps.
- *     `openstation_register_window_theme_script()` /
- *     `openstation_register_window_theme()`.
- *
- *   - **Controls** (Layer 2) — title-bar buttons (close / minimize /
- *     maximize plus plugin custom controls).
- *     `openstation_register_window_control_script()` /
- *     `openstation_register_window_control()`.
- *
- *   - **Slots** (Layer 3) — named title-bar regions plugins can
- *     replace (icon, title, before-controls, …).
- *     `openstation_register_window_slot_script()` /
- *     `openstation_register_window_slot()`.
- *
- *   - **Chrome** (Layer 4, Experimental) — full title-bar render
- *     replacement.
- *     `openstation_register_window_chrome_script()` /
- *     `openstation_register_window_chrome()`.
- *
- * Each surface contributes a `serverWindow*Scripts` and (optionally)
- * `serverWindow*` array to the shell payload, consumed by the matching
- * sync module under `src/window-chrome/{themes,controls,slots,chrome}/server-sync.ts`.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/*
-============================================================
- * Layer 1 — Themes
- * ============================================================
- */
-
-/**
- * Declare a WP-registered script handle as a window-theme provider.
- *
- * The script's JS calls `wp.os.registerWindowTheme( { id, tokens,
- * match, owner } )` as usual. Plugins that pass `owner` matching this
- * handle get live unregister on deactivation.
- *
- * @param string $handle WP-registered script handle.
- * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
- */
 function openstation_register_window_theme_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
@@ -60,31 +13,11 @@ function openstation_register_window_theme_script( $handle ) {
 
 	openstation_window_theme_script_registry( $handle, true );
 
-	/**
-	 * Fires after a desktop window-theme script handle is registered.
-	 *
-	 * @param string $handle The registered script handle.
-	 */
 	do_action( 'openstation_window_theme_script_registered', $handle );
 
 	return true;
 }
 
-/**
- * Declare a window theme server-side. Optional companion to
- * `openstation_register_window_theme_script()` for plugins that want
- * to ship a tokens map without writing JS — designers can hand off
- * a single PHP-array of CSS variables and call it done.
- *
- * @param array $args {
- *     @type string $id       Unique theme id (`vendor/sub-id`). Required.
- *     @type string $label    Human-readable label. Default empty.
- *     @type array  $tokens   CSS-variable map (keys must start with `--`). Required.
- *     @type int    $priority Override priority (higher wins). Default 100.
- *     @type string $script   Optional script handle (also registers it).
- * }
- * @return true|WP_Error
- */
 function openstation_register_window_theme( $args = array() ) {
 	$defaults = array(
 		'id'       => '',
@@ -138,26 +71,11 @@ function openstation_register_window_theme( $args = array() ) {
 		openstation_window_theme_script_registry( $entry['script'], true );
 	}
 
-	/**
-	 * Fires after a desktop window-theme is successfully registered.
-	 *
-	 * @param string $id    The theme id.
-	 * @param array  $entry The stored registry entry.
-	 */
 	do_action( 'openstation_window_theme_registered', $id, $entry );
 
 	return true;
 }
 
-/**
- * Internal module-level registry for theme script handles.
- *
- * @internal
- *
- * @param string    $handle Script handle to read or write.
- * @param bool|null $value  Pass `true` to register; `null` to read only.
- * @return array|bool When called with no args returns the full store.
- */
 function openstation_window_theme_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
@@ -174,20 +92,10 @@ function openstation_window_theme_script_registry( $handle = '', $value = null )
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
 }
 
-/** Flush the theme-script registry. Tests only. */
 function openstation_flush_window_theme_script_registry() {
 	openstation_window_theme_script_registry( '__flush__' );
 }
 
-/**
- * Internal module-level registry for window themes.
- *
- * @internal
- *
- * @param string     $id    Theme id to read or write.
- * @param array|null $entry Entry to store, or `null` to read.
- * @return array|null
- */
 function openstation_window_theme_registry( $id = '', $entry = null ) {
 	static $store = array();
 
@@ -204,17 +112,10 @@ function openstation_window_theme_registry( $id = '', $entry = null ) {
 	return isset( $store[ (string) $id ] ) ? $store[ (string) $id ] : null;
 }
 
-/** Flush the theme registry. Tests only. */
 function openstation_flush_window_theme_registry() {
 	openstation_window_theme_registry( '__flush__' );
 }
 
-/**
- * Build the theme-script payload. Same shape as
- * `openstation_build_desktop_command_scripts_payload()`.
- *
- * @return array[] List of `{ handle, scriptUrl }` entries.
- */
 function openstation_build_window_theme_scripts_payload() {
 	$registry = openstation_window_theme_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
@@ -243,8 +144,7 @@ function openstation_build_window_theme_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-			// The handle's dependency closure, replayed before the bundle
-			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
@@ -252,12 +152,6 @@ function openstation_build_window_theme_scripts_payload() {
 	return $out;
 }
 
-/**
- * Build the theme-metadata payload. Resolves the optional companion
- * script handle for each entry.
- *
- * @return array[]
- */
 function openstation_build_window_themes_payload() {
 	$registry = openstation_window_theme_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
@@ -287,26 +181,13 @@ function openstation_build_window_themes_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-			// The handle's dependency closure, replayed before the bundle
-			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}
 	return $out;
 }
 
-/*
-============================================================
- * Layer 2 — Controls
- * ============================================================
- */
-
-/**
- * Declare a WP-registered script handle as a window-control provider.
- *
- * @param string $handle WP-registered script handle.
- * @return true|WP_Error
- */
 function openstation_register_window_control_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
@@ -318,30 +199,11 @@ function openstation_register_window_control_script( $handle ) {
 
 	openstation_window_control_script_registry( $handle, true );
 
-	/**
-	 * Fires after a window-control script handle is registered.
-	 *
-	 * @param string $handle The registered script handle.
-	 */
 	do_action( 'openstation_window_control_script_registered', $handle );
 
 	return true;
 }
 
-/**
- * Declare a window control server-side. The control's `onClick` /
- * `render` callback always lives JS-side.
- *
- * @param array $args {
- *     @type string $id        Required, `vendor/sub-id`.
- *     @type string $label     Required.
- *     @type string $icon      Dashicons class / built-in key / SVG.
- *     @type string $placement `'left' | 'right' | 'controls'`. Default `'left'`.
- *     @type int    $order     Sort within placement. Default 100.
- *     @type string $script    Optional companion script handle.
- * }
- * @return true|WP_Error
- */
 function openstation_register_window_control( $args = array() ) {
 	$defaults = array(
 		'id'        => '',
@@ -393,18 +255,11 @@ function openstation_register_window_control( $args = array() ) {
 		openstation_window_control_script_registry( $entry['script'], true );
 	}
 
-	/**
-	 * Fires after a window-control is successfully registered.
-	 *
-	 * @param string $id    The control id.
-	 * @param array  $entry The stored registry entry.
-	 */
 	do_action( 'openstation_window_control_registered', $id, $entry );
 
 	return true;
 }
 
-/** @internal */
 function openstation_window_control_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
@@ -421,12 +276,10 @@ function openstation_window_control_script_registry( $handle = '', $value = null
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
 }
 
-/** Tests only. */
 function openstation_flush_window_control_script_registry() {
 	openstation_window_control_script_registry( '__flush__' );
 }
 
-/** @internal */
 function openstation_window_control_registry( $id = '', $entry = null ) {
 	static $store = array();
 
@@ -443,14 +296,10 @@ function openstation_window_control_registry( $id = '', $entry = null ) {
 	return isset( $store[ (string) $id ] ) ? $store[ (string) $id ] : null;
 }
 
-/** Tests only. */
 function openstation_flush_window_control_registry() {
 	openstation_window_control_registry( '__flush__' );
 }
 
-/**
- * @return array[] List of `{ handle, scriptUrl }` entries.
- */
 function openstation_build_window_control_scripts_payload() {
 	$registry = openstation_window_control_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
@@ -479,8 +328,7 @@ function openstation_build_window_control_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-			// The handle's dependency closure, replayed before the bundle
-			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
@@ -488,9 +336,6 @@ function openstation_build_window_control_scripts_payload() {
 	return $out;
 }
 
-/**
- * @return array[]
- */
 function openstation_build_window_controls_payload() {
 	$registry = openstation_window_control_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
@@ -521,26 +366,13 @@ function openstation_build_window_controls_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-			// The handle's dependency closure, replayed before the bundle
-			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}
 	return $out;
 }
 
-/*
-============================================================
- * Layer 3 — Slots
- * ============================================================
- */
-
-/**
- * Canonical slot names. Mirrors the `WindowSlotName` TypeScript
- * union in `src/types.ts`.
- *
- * @return string[]
- */
 function openstation_window_slot_names() {
 	return array(
 		'before-titlebar',
@@ -555,10 +387,6 @@ function openstation_window_slot_names() {
 	);
 }
 
-/**
- * @param string $handle WP-registered script handle.
- * @return true|WP_Error
- */
 function openstation_register_window_slot_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
@@ -570,25 +398,11 @@ function openstation_register_window_slot_script( $handle ) {
 
 	openstation_window_slot_script_registry( $handle, true );
 
-	/**
-	 * Fires after a window-slot script handle is registered.
-	 *
-	 * @param string $handle The registered script handle.
-	 */
 	do_action( 'openstation_window_slot_script_registered', $handle );
 
 	return true;
 }
 
-/**
- * @param array $args {
- *     @type string $id     Required.
- *     @type string $slot   Required, one of {@see openstation_window_slot_names()}.
- *     @type int    $order  Default 100.
- *     @type string $script Optional script handle.
- * }
- * @return true|WP_Error
- */
 function openstation_register_window_slot( $args = array() ) {
 	$defaults = array(
 		'id'     => '',
@@ -629,18 +443,11 @@ function openstation_register_window_slot( $args = array() ) {
 		openstation_window_slot_script_registry( $entry['script'], true );
 	}
 
-	/**
-	 * Fires after a window-slot is successfully registered.
-	 *
-	 * @param string $id    The slot-renderer id.
-	 * @param array  $entry The stored registry entry.
-	 */
 	do_action( 'openstation_window_slot_registered', $id, $entry );
 
 	return true;
 }
 
-/** @internal */
 function openstation_window_slot_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
@@ -657,12 +464,10 @@ function openstation_window_slot_script_registry( $handle = '', $value = null ) 
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
 }
 
-/** Tests only. */
 function openstation_flush_window_slot_script_registry() {
 	openstation_window_slot_script_registry( '__flush__' );
 }
 
-/** @internal */
 function openstation_window_slot_registry( $id = '', $entry = null ) {
 	static $store = array();
 
@@ -679,14 +484,10 @@ function openstation_window_slot_registry( $id = '', $entry = null ) {
 	return isset( $store[ (string) $id ] ) ? $store[ (string) $id ] : null;
 }
 
-/** Tests only. */
 function openstation_flush_window_slot_registry() {
 	openstation_window_slot_registry( '__flush__' );
 }
 
-/**
- * @return array[] List of `{ handle, scriptUrl }` entries.
- */
 function openstation_build_window_slot_scripts_payload() {
 	$registry = openstation_window_slot_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
@@ -715,8 +516,7 @@ function openstation_build_window_slot_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-			// The handle's dependency closure, replayed before the bundle
-			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
@@ -724,9 +524,6 @@ function openstation_build_window_slot_scripts_payload() {
 	return $out;
 }
 
-/**
- * @return array[]
- */
 function openstation_build_window_slots_payload() {
 	$registry = openstation_window_slot_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
@@ -755,28 +552,13 @@ function openstation_build_window_slots_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-			// The handle's dependency closure, replayed before the bundle
-			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}
 	return $out;
 }
 
-/*
-============================================================
- * Layer 4 — Custom chrome (Experimental)
- * ============================================================
- */
-
-/**
- * Declare a WP-registered script handle as a window-chrome provider.
- *
- * **Experimental** — chrome render contract may change.
- *
- * @param string $handle WP-registered script handle.
- * @return true|WP_Error
- */
 function openstation_register_window_chrome_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
@@ -788,27 +570,11 @@ function openstation_register_window_chrome_script( $handle ) {
 
 	openstation_window_chrome_script_registry( $handle, true );
 
-	/**
-	 * Fires after a window-chrome script handle is registered.
-	 *
-	 * @param string $handle The registered script handle.
-	 */
 	do_action( 'openstation_window_chrome_script_registered', $handle );
 
 	return true;
 }
 
-/**
- * Declare a custom chrome server-side. **Experimental** — chrome
- * render contract may change.
- *
- * @param array $args {
- *     @type string $id     Required.
- *     @type string $label  Default empty.
- *     @type string $script Optional script handle.
- * }
- * @return true|WP_Error
- */
 function openstation_register_window_chrome( $args = array() ) {
 	$defaults = array(
 		'id'     => '',
@@ -836,18 +602,11 @@ function openstation_register_window_chrome( $args = array() ) {
 		openstation_window_chrome_script_registry( $entry['script'], true );
 	}
 
-	/**
-	 * Fires after a window-chrome is successfully registered.
-	 *
-	 * @param string $id    The chrome id.
-	 * @param array  $entry The stored registry entry.
-	 */
 	do_action( 'openstation_window_chrome_registered', $id, $entry );
 
 	return true;
 }
 
-/** @internal */
 function openstation_window_chrome_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
@@ -864,12 +623,10 @@ function openstation_window_chrome_script_registry( $handle = '', $value = null 
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
 }
 
-/** Tests only. */
 function openstation_flush_window_chrome_script_registry() {
 	openstation_window_chrome_script_registry( '__flush__' );
 }
 
-/** @internal */
 function openstation_window_chrome_registry( $id = '', $entry = null ) {
 	static $store = array();
 
@@ -886,14 +643,10 @@ function openstation_window_chrome_registry( $id = '', $entry = null ) {
 	return isset( $store[ (string) $id ] ) ? $store[ (string) $id ] : null;
 }
 
-/** Tests only. */
 function openstation_flush_window_chrome_registry() {
 	openstation_window_chrome_registry( '__flush__' );
 }
 
-/**
- * @return array[] List of `{ handle, scriptUrl }` entries.
- */
 function openstation_build_window_chrome_scripts_payload() {
 	$registry = openstation_window_chrome_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
@@ -922,8 +675,7 @@ function openstation_build_window_chrome_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-			// The handle's dependency closure, replayed before the bundle
-			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
@@ -931,9 +683,6 @@ function openstation_build_window_chrome_scripts_payload() {
 	return $out;
 }
 
-/**
- * @return array[]
- */
 function openstation_build_window_chromes_payload() {
 	$registry = openstation_window_chrome_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
@@ -961,8 +710,7 @@ function openstation_build_window_chromes_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-			// The handle's dependency closure, replayed before the bundle
-			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}

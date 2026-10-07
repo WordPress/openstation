@@ -1,16 +1,5 @@
 <?php
-/**
- * Tests for the Station Home plugin-card registry — the public PHP
- * API (`openstation_register_station_home_card()` and friends) that
- * outlived the legacy window and now feeds the Station Home app.
- * The window itself is covered by `stationHomeApp.php`.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group station-home
- */
+
 class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 
 	private $admin_id;
@@ -30,11 +19,6 @@ class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_register_station_home_card
-	 * @covers ::openstation_station_home_build_cards
-	 * @covers ::openstation_station_home_card_is_enabled
-	 */
 	public function test_contributed_cards_are_user_controlled_and_lazy() {
 		$calls  = 0;
 		$result = openstation_register_station_home_card(
@@ -79,10 +63,6 @@ class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 		$this->assertSame( array(), $built['cards'] );
 	}
 
-	/**
-	 * @covers ::openstation_station_home_set_card_preference
-	 * @covers ::openstation_station_home_get_card_preferences
-	 */
 	public function test_setting_a_preference_stores_it_and_fires_the_action() {
 		openstation_register_station_home_card(
 			'my-plugin-health',
@@ -112,17 +92,11 @@ class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 		$this->assertFalse( openstation_station_home_get_card_preferences( $this->admin_id )['my-plugin-health'] );
 	}
 
-	/**
-	 * @covers ::openstation_station_home_set_card_preference
-	 */
 	public function test_setting_a_preference_rejects_unknown_cards() {
 		$this->assertFalse( openstation_station_home_set_card_preference( $this->admin_id, 'missing-card', true ) );
 		$this->assertSame( array(), openstation_station_home_get_card_preferences( $this->admin_id ) );
 	}
 
-	/**
-	 * @covers ::openstation_register_station_home_card
-	 */
 	public function test_card_registration_honors_capabilities() {
 		wp_set_current_user( $this->subscriber_id );
 		$result = openstation_register_station_home_card(
@@ -139,9 +113,6 @@ class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 		$this->assertNull( openstation_station_home_card_registry( 'admin-only-card' ) );
 	}
 
-	/**
-	 * @covers ::openstation_station_home_build_cards
-	 */
 	public function test_card_callback_failure_does_not_break_the_build() {
 		openstation_register_station_home_card(
 			'broken-card',
@@ -159,11 +130,6 @@ class Tests_OpenStation_StationHome extends WP_UnitTestCase {
 		$this->assertTrue( $built['preferences'][0]['enabled'] );
 	}
 
-	/**
-	 * Build the cards for the current user, the way the app does.
-	 *
-	 * @return array{cards: array[], preferences: array[]}
-	 */
 	private function build() {
 		return openstation_station_home_build_cards(
 			openstation_station_home_get_registered_cards(),

@@ -1,4 +1,3 @@
-/** The same live choices offered by Preferences, projected for MIO. */
 import { getAccents } from '../../../src/settings/constants';
 import { listDesktopThemes, ensureFullDesktopThemes } from '../../../src/desktop-themes/registry';
 import { listDockRailRenderers } from '../../../src/dock-rail';
@@ -54,7 +53,6 @@ export function mioSettingChoices(): Record<string, readonly ( string | number )
 	};
 }
 
-/** Matches Navigation's placement gate; locked and transient items never enter it. */
 export function mioNavItems() {
 	return readNavItems().filter(
 		( item ) =>
@@ -86,7 +84,7 @@ export async function mioSettingsCatalog() {
 				id: theme.slug,
 				name: theme.name,
 				description: theme.description,
-				// Surface values are evidence for colour choices, not a guessed "dark" tag.
+
 				surfaces: Object.fromEntries(
 					Object.entries( theme.tokens )
 						.filter( ( [ key ] ) => /(?:surface|bg|backstop)$/.test( key ) )

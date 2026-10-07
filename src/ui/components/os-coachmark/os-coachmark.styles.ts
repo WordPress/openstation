@@ -1,17 +1,5 @@
 import { css } from '../../core';
 
-/**
- * `<os-coachmark>` — an anchored callout with a step counter.
- *
- * Two pieces in one top-layer overlay: an outline that traces the
- * anchor, and the card that points at it. The overlay itself passes
- * every pointer through (the user has to be able to drag a window
- * while step 2 of the shell tour is up); only the card takes events.
- *
- * Every colour is read through a private alias so the palette and a
- * desktop theme both reach it. The accent is the flat brand accent,
- * not the mesh: a coachmark is instruction, not a hero moment.
- */
 export const styles = css`
 	:host {
 		display: contents;
@@ -26,9 +14,6 @@ export const styles = css`
 		--_step: 360ms;
 	}
 
-	/* The top-layer overlay. Manual popover so nothing light-dismisses
-	   it; fixed + inset 0 so the outline and the card share viewport
-	   coordinates; pointer-events none so the desk stays usable. */
 	.layer {
 		position: fixed;
 		inset: 0;
@@ -106,11 +91,6 @@ export const styles = css`
 		}
 	}
 
-	/* A step change glides the card and the outline to the next anchor
-	   instead of jumping there. Only while the layer carries the
-	   stepping class: the same two elements are re-positioned every
-	   frame while an anchor moves on its own (a window being dragged),
-	   and a transition there would leave the ring trailing the drag. */
 	.layer.stepping .card,
 	.layer.stepping .outline {
 		transition:
@@ -119,8 +99,7 @@ export const styles = css`
 			width var( --_step ) var( --_ease ),
 			height var( --_step ) var( --_ease );
 	}
-	/* The words change at the same moment, so they dip and settle
-	   rather than snapping to the new text mid-glide. */
+
 	.card.swap {
 		animation: os-coachmark-swap 300ms var( --_ease );
 	}
@@ -134,8 +113,7 @@ export const styles = css`
 			transform: none;
 		}
 	}
-	/* Closing fades the card and the ring before the popover leaves
-	   the top layer. */
+
 	.layer.leaving .card,
 	.layer.leaving .outline {
 		animation: os-coachmark-out 180ms ease forwards;
@@ -160,10 +138,6 @@ export const styles = css`
 		}
 	}
 
-	/* The balloon tail, on the edge facing the speaker: a square turned
-	   45 degrees in the card's own surface and border, its inner half
-	   tucked under the card so the edge and the tail read as one line.
-	   Only the two outward borders are drawn. */
 	.tail {
 		position: absolute;
 		width: 14px;
@@ -236,8 +210,6 @@ export const styles = css`
 		display: none;
 	}
 
-	/* A fade is not motion: the card still appears and leaves, but
-	   every slide, scale and glide goes. */
 	@media ( prefers-reduced-motion: reduce ) {
 		.outline {
 			animation: none;

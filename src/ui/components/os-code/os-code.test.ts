@@ -1,9 +1,3 @@
-/**
- * `<os-code>` — smoke test. Verifies the shadow-DOM `<code>` host
- * renders, slotted text reaches light DOM, and the `block` attribute
- * toggles the block variant (CSS is the source of truth for the
- * visual; here we just verify the attribute plumbs through).
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { OsCode } from './os-code';
 
@@ -41,10 +35,6 @@ describe( '<os-code>', () => {
 	} );
 
 	test( 'does not install global keypress listeners', async () => {
-		// The whole point vs <os-key>: `<os-code>c</os-code>` must
-		// not swallow the `c` key. We verify by watching whether the
-		// host emits or cancels a synthetic keydown — it should
-		// absolutely do neither.
 		host.innerHTML = `<os-code>c</os-code>`;
 		await tick();
 		const ev = new KeyboardEvent( 'keydown', {

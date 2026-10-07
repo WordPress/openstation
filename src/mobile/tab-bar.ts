@@ -1,29 +1,11 @@
-/**
- * OpenStation — phone layer: the bottom tab bar.
- *
- * Five slots, thumb-reachable: Home, up to three pinned apps, and the
- * app switcher. The pins come from the user's `mobileTabs` setting,
- * else from the server's `openstation_mobile_tab_bar` filter; empty
- * slots fill from the navigation's own order so the bar is never
- * half-empty. `resolveTabBarItems()` is the pure rule.
- *
- * The bar also owns one gesture: a flick up opens the switcher
- * (`bindSwipeUp`, wired by the layer).
- */
 import { __, sprintf } from '../i18n';
 import type { NavItem, NavResult } from '../nav/types';
 import { osIcon } from '../ui/icons';
 import { deriveWindowId } from '../utils';
 import { isOpenable } from './home';
 
-/** Pins the bar can hold beside Home and the switcher. */
 export const TAB_BAR_MAX_PINS = 3;
 
-/**
- * The window id a navigation item opens, so the bar can mark the
- * tab of the focused window. `null` for a tile with only an
- * `onOpen` — the bar cannot know what that opens.
- */
 export function navItemWindowId( item: NavItem, adminUrl: string ): string | null {
 	if ( item.windowId ) {
 		return item.windowId;
@@ -39,16 +21,6 @@ export function navItemWindowId( item: NavItem, adminUrl: string ): string | nul
 	}
 }
 
-/**
- * Which items sit in the pinned slots. Pinned ids, in their order,
- * when they exist, are openable and are not locked (Exit OpenStation
- * is never a tab). A pin the user (or the server default) chose is
- * the whole answer: one pin means one tab, never one pin plus two
- * the bar picked on its own — that is how ticking Posts once made
- * Dashboard appear. Only when NO pin resolves at all does the
- * navigation's own order — core menus, sidebar, apps — fill the bar,
- * so a site whose defaults are all missing still gets one.
- */
 export function resolveTabBarItems(
 	nav: NavResult | null,
 	pinnedIds: readonly string[],
@@ -103,7 +75,7 @@ export interface TabBarDeps {
 }
 
 export interface TabBarState {
-	/** `'home'`, `'switcher'`, a pinned item's id, or `null`. */
+
 	active: string | null;
 	openCount: number;
 }
@@ -153,15 +125,13 @@ export function createTabBar( host: HTMLElement, deps: TabBarDeps ): TabBarSurfa
 			countEl.hidden = state.openCount === 0;
 			countEl.textContent = countEl.hidden ? '' : String( Math.min( state.openCount, 99 ) );
 		}
-		// With something open the glyph IS the count, in a rounded
-		// square (the browser tab-switcher convention); with nothing
-		// open the windows icon stands in for it.
+
 		switcherIcon?.classList.toggle( 'os-mobile-tabs__icon--counted', state.openCount > 0 );
 		if ( switcherButton ) {
 			switcherButton.setAttribute(
 				'aria-label',
 				sprintf(
-					/* translators: %d: number of open apps. */
+
 					__( 'Open apps (%d)' ),
 					state.openCount,
 				),
@@ -198,9 +168,6 @@ export function createTabBar( host: HTMLElement, deps: TabBarDeps ): TabBarSurfa
 				buttons.push( b );
 			}
 
-			// "Open apps", the same words as the sheet it opens: the Home
-			// grid already has a section called Apps, and one word for
-			// both was what made the switcher hard to find.
 			switcherButton = button( 'switcher', __( 'Open apps' ), osIcon( 'windows', { size: 22 } ) );
 			switcherIcon = switcherButton.querySelector< HTMLElement >( '.os-mobile-tabs__icon' );
 			countEl = document.createElement( 'span' );

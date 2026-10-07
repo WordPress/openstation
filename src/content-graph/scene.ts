@@ -1,45 +1,3 @@
-/**
- * Content Graph — Pixi scene.
- *
- * Owns the `pixi.Application`, the `world` container (pan + zoom
- * transform), and the four child layers:
- *
- *   1. `edgeLayer`      — line per `GraphEdge` (very thin, low alpha).
- *   2. `nodeLayer`      — per `GraphNode`: a `Graphics` halo, a
- *      `Graphics` disc, and a dashicon glyph, sized by degree. Which
- *      of the last two is the visible body depends on the node style
- *      (see {@link NodeStyle}); the halo is state-only.
- *   3. `labelLayer`     — text label per node, culled when zoomed out.
- *   4. `satelliteLayer` — `SatelliteLayer` instance fanning out
- *      relationship satellites around the focused node (see
- *      `satellites.ts`).
- *
- * Camera model: smooth target-then-ease, mirroring the `categories-
- * mindmap` reference. Wheel events update `targetScale` / `targetX` /
- * `targetY` exponentially with a sensitivity of 0.0008 per pixel; the
- * tick loop eases the live `world.scale` / `world.x` / `world.y`
- * toward the targets each frame so zoom and recenter feel continuous
- * rather than stepped.
- *
- * Visual policy: disc nodes coloured by post type (the same palette
- * the satellite bubbles use, so a focused post and its relationships
- * read as one system), dot-grid background (CSS), Obsidian-style
- * sparse mid-zoom layout. Dashicon-glyph nodes remain available via
- * `setNodeStyle( 'icon' )`. Focused node + 1-hop neighbourhood pop;
- * the focused node is *pinned* during focus so it doesn't drift
- * around under the camera.
- *
- * Interactions:
- *   - **Wheel** smoothly zooms with the cursor as the focal point.
- *   - **Drag empty canvas** pans the world.
- *   - **Drag a node** pins it to the cursor and reheats the sim.
- *   - **Click a node** emits `onNodeClick`. The host fetches detail and
- *     calls `setFocusedDetail()`, which paints the satellites.
- *   - **Click background** clears focus + satellites.
- *
- * @public
- */
-
 import { __ } from '../i18n';
 import { decodeHTML } from '../utils';
 import {
@@ -88,141 +46,35 @@ const NODE_FILL_NEIGHBOUR = 0x4f8bf3;
 const EDGE_BASE = 0x9aa6b6;
 const EDGE_HOT = 0x2c6be5;
 
-/**
- * Supersample factor applied on top of the display's device-pixel
- * ratio. `1` renders at native density (what the scene did before);
- * `1.5` renders 2.25× the pixels and lets the browser resolve them
- * down on composite.
- *
- * MSAA alone is not enough for this scene, and the discs are why.
- * `antialias: true` gives the renderer multisampling on the default
- * framebuffer, which cleans up a *large* shape's silhouette nicely —
- * but a node is 8–16 world units across and wears a keyline 1.5 units
- * wide, and the camera routinely sits at 0.5× in the overview. At
- * that zoom the keyline is under a device pixel: MSAA has nothing to
- * average and the ring breaks into a dotted shimmer, which is exactly
- * the artefact the ring exists to prevent (it is what keeps two
- * overlapping nodes reading as two nodes). Supersampling gives the
- * subpixel ring real samples to be resolved from.
- */
 const RENDER_SUPERSAMPLE = 1.5;
 
-/**
- * Backing-store density for the canvas and for every `Text` in it.
- *
- * Clamped at 3 because the cost is quadratic in this number and the
- * canvas is full-window: a 1400×800 stage is 10M pixels at 3 and 18M
- * at 4, and past 3 nobody can see the difference on the one detail
- * that motivated it.
- *
- * Read once at module load rather than per node — `Text` objects pin
- * their raster at construction, and a glyph left at a lower density
- * than the canvas around it is *upscaled*, which would make the
- * focus/hover glyph reveal the softest thing on a screen that just
- * got sharper everywhere else.
- */
 const RENDER_RESOLUTION = Math.min(
 	( ( typeof window !== 'undefined' && window.devicePixelRatio ) || 1 ) *
 		RENDER_SUPERSAMPLE,
 	3,
 );
 
-/**
- * Node body colours, assigned to post types in the order the window
- * config lists them (so `post` — always first — is stable at the
- * leading blue, and a site's CPTs get consistent colours across
- * sessions without anyone having to configure anything).
- *
- * Deliberately the same five hues the satellite bubbles use in
- * `satellites.ts`, extended by two, so a focused post and the
- * relationship bubbles fanned around it read as one palette rather
- * than two systems sharing a canvas. Wraps by modulo past the end —
- * a site with eight public post types repeats a colour rather than
- * inventing an unvetted one.
- */
 const TYPE_PALETTE = [
-	0x3a6df0, // blue
-	0x2ca97a, // green
-	0xe8893a, // orange
-	0xa05ed4, // purple
-	0x2fa5b8, // teal
-	0xd4508f, // pink
-	0x6b7785, // slate
+	0x3a6df0,
+	0x2ca97a,
+	0xe8893a,
+	0xa05ed4,
+	0x2fa5b8,
+	0xd4508f,
+	0x6b7785,
 ];
 
-/**
- * Ring drawn around every disc node, matching the satellite discs'
- * white keyline. It is what keeps two overlapping nodes readable as
- * two nodes — without it a cluster at low zoom fuses into one blob.
- */
 const DISC_RING = 0xffffff;
 
-/**
- * How the node body is drawn.
- *
- *   - `'disc'`  — filled circle + keyline, coloured by post type. The
- *     default: at overview zoom a canvas of discs reads as a
- *     constellation, which is what the graph *is*.
- *   - `'icon'`  — the post type's Dashicon glyph IS the node (the
- *     original look). Kept because the glyph carries type identity at
- *     a glance in a way colour alone can't for someone who can't
- *     separate the hues, and because on a small graph the pushpin is
- *     genuinely charming. Reachable from the window's ⋯ menu.
- *
- * The focused node reveals its glyph in either style — inside the
- * disc for `'disc'`, at full size for `'icon'` — so focus never costs
- * the user the type information.
- */
 export type NodeStyle = 'disc' | 'icon';
 
-/**
- * Focused discs scale up by this factor. Enough to read as "this
- * one", small enough that the layout around it doesn't feel shoved.
- */
 const FOCUS_DISC_SCALE = 1.3;
 
-/**
- * Per-dashicon visual-centre nudge applied on top of the
- * `(0.5, 0.5)` text anchor — same idea as satellites'
- * `KIND_ICON_NUDGE`, but stored as a fraction of the live fontSize
- * because the node icon's size scales with `2 * node.radius`. Values
- * are bbox-centre → visible-centre offsets:
- *
- *   - `Y_ASCENT` is a universal baseline correction (the dashicons
- *     font's bbox is `ascent + descent` and the descent below the
- *     baseline is unused space, so bbox-centred always parks the
- *     visible glyph slightly above world-y=0).
- *   - Per-icon entries override the baseline when the glyph is also
- *     visually off-balance left-right (e.g. `admin-post`'s pushpin
- *     head sits in the upper-left of its bbox, so the visible glyph
- *     reads as top-left unless we nudge it down + right).
- *
- * Values are tuned against rendered output; pushing further without
- * re-checking at multiple zoom levels usually over-shoots.
- */
 const ICON_NUDGE_Y_ASCENT = 0;
 const ICON_NUDGE: Record< string, { x: number; y: number } > = {
 	'admin-post': { x: 0.06, y: 0.06 },
 };
 
-/**
- * Per-facet tint for cluster label pills. Picked so each facet
- * reads as its own "kind" at a glance and so cluster labels
- * cannot be confused with node titles (which are dark text on
- * a white pill). White text on a saturated background gives
- * the visual contrast.
- *
- * The year + year-month facets share the orange tint — both are
- * date buckets, so visually grouping them is correct.
- *
- * CSS strings (not Pixi colour ints) because cluster labels
- * render as DOM elements over the canvas, not as Pixi children.
- * Earlier they were Pixi `Graphics + Text`, but Pixi v8's batched
- * renderer would intermittently crash with "Cannot read properties
- * of null (reading 'clear')" when an external event (e.g. opening
- * another openstation window in an iframe) perturbed the canvas's
- * GL context. DOM labels sidestep the Pixi renderer entirely.
- */
 const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
 	category: '#2c6be5',
 	tag: '#2ca97a',
@@ -233,10 +85,7 @@ const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
 
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 4;
-/**
- * Fit never zooms past this, however small the board: a lone node at
- * 4× is a poster, not a board. Wheel zoom still reaches `ZOOM_MAX`.
- */
+
 const FIT_ZOOM_MAX = 1.5;
 const FIT_OPTIONS = {
 	padding: 100,
@@ -244,15 +93,10 @@ const FIT_OPTIONS = {
 	maxScale: FIT_ZOOM_MAX,
 };
 const ZOOM_SENSITIVITY = 0.0008;
-/**
- * How long after the last pinch move a pointer release is still part of
- * the pinch. Two fingers rarely lift in the same frame; the second one
- * up would otherwise read as a tap on whatever it was resting on.
- */
+
 const PINCH_CLICK_GRACE_MS = 300;
 const CAMERA_EASE = 0.18;
-// A tiny snap distance below which we skip easing (avoids the camera
-// "buzzing" around the target by sub-pixel amounts forever).
+
 const CAMERA_EPSILON = 0.001;
 const RESIZE_RECENTER_THRESHOLD = 24;
 
@@ -272,17 +116,9 @@ interface NodeView {
 	label: PixiText;
 	iconCharCode: string | null;
 	iconName: string;
-	/** Post-type body colour — see {@link TYPE_PALETTE}. */
+
 	typeColor: number;
-	/**
-	 * Signature of the last disc paint. The per-frame loop repaints a
-	 * disc only when this changes, which in steady state means never:
-	 * a `Graphics` fill + stroke per node per frame is affordable for
-	 * a demo graph and is not for a real site's few hundred posts.
-	 * (The halo above gets away with an unconditional `clear()`
-	 * because it draws nothing at all for the ~all-but-two nodes that
-	 * are neither focused nor hovered.)
-	 */
+
 	discKey: string;
 }
 
@@ -291,15 +127,6 @@ interface EdgeView {
 	gfx: PixiGraphics;
 }
 
-/**
- * One label marker per non-empty cluster. Rendered as a DOM
- * element overlaid on the Pixi canvas (see `GROUP_LABEL_COLOR`
- * for why DOM, not Pixi). Repositioned each tick at the centroid
- * of its member nodes, projected from world coords to canvas-local
- * screen coords. `members` is the node-id list captured at grouping
- * time so the per-frame centroid recompute is O(memberCount)
- * instead of O(all nodes).
- */
 interface GroupView {
 	key: string;
 	label: string;
@@ -312,65 +139,34 @@ export class GraphScene {
 	private pixi!: PixiNamespace;
 	private world!: PixiContainer;
 	private edgeLayer!: PixiContainer;
-	// Connector spokes from focused node to its satellites — rendered
-	// between edges and nodes so the spoke endpoints sit BEHIND the
-	// focused node disc instead of being painted across it.
+
 	private spokeLayer!: PixiContainer;
 	private nodeLayer!: PixiContainer;
 	private labelLayer!: PixiContainer;
-	// Per-cluster label DOM overlay — see the `GROUP_LABEL_COLOR`
-	// comment for why these are DOM elements, not Pixi children.
-	// The overlay sits absolutely positioned inside `host`, above
-	// the Pixi canvas, with `pointer-events: none` so it never
-	// steals interaction from the node layer.
+
 	private groupLabelOverlay: HTMLDivElement | null = null;
 	private satellites: SatelliteLayer | null = null;
 	private nodeViews = new Map< number, NodeView >();
 	private edgeViews: EdgeView[] = [];
 	private groupViews = new Map< string, GroupView >();
 	private currentGrouping: GroupFacet | null = null;
-	// Captured at setData() time; consulted by setGrouping() to
-	// resolve display labels for cluster markers (e.g. category names,
-	// author display names) without re-fetching.
+
 	private groupCatalogs: GraphGroupCatalogs = {
 		authors: {},
 		categories: {},
 		tags: {},
 	};
-	/**
-	 * Active grouping-change tween, or `null` when no transition is in
-	 * flight. While set, the per-frame tick lerps each non-pinned
-	 * node's position from its `start` to its `target` (ease-out
-	 * cubic) and SKIPS the sim integration so the two layout
-	 * mechanisms don't fight. When complete, the sim resumes and the
-	 * cluster force refines the final positions.
-	 *
-	 * Lets the user see a smooth flow to clusters instead of the
-	 * earlier hard snap, while still arriving at the well-separated
-	 * end state from the first frame (no need to drag a node to
-	 * trigger the "good" layout).
-	 */
+
 	private groupingTween: {
 		startTime: number;
 		duration: number;
 		starts: Map< number, { x: number; y: number } >;
 		targets: Map< number, { x: number; y: number } >;
 	} | null = null;
-	// Auto-fit-follow loop. After grouping is applied, the initial
-	// `fitToViewOfTargets` frames the seed positions; the cluster
-	// force then refines and members can drift past the framed
-	// viewport. While the layout is still moving, refit every tick;
-	// once peak velocity falls below the threshold, stop chasing.
-	// Hard-capped at `fitFollowMaxDurationMs` so a stuck high-motion
-	// situation (e.g. user drags a node mid-settle) never grabs the
-	// camera forever.
+
 	private fitFollowActive = false;
 	private fitFollowStartedAt = 0;
-	// Has any peak-velocity sample since arming been above the threshold?
-	// Without this gate, the first `advanceFitFollow` after the tween
-	// ends finds velocities at exactly 0 (the tween zeroes them every
-	// frame by design) and disarms before the cluster force has a
-	// chance to inject any motion at all.
+
 	private fitFollowSawMotion = false;
 	private readonly fitFollowMaxDurationMs = 3000;
 	private readonly fitFollowVelocityThreshold = 1.0;
@@ -379,46 +175,26 @@ export class GraphScene {
 	private sim: ForceSim | null = null;
 	private focusedId: number | null = null;
 	private hoveredId: number | null = null;
-	// Node the pointer is currently interacting with (set on
-	// pointerdown, cleared on pointerup/upoutside). Used by every
-	// node's `globalpointermove` handler — which fires regardless of
-	// which node the user pressed — to early-return if this isn't
-	// the press target.
+
 	private pressedNode: GraphNode | null = null;
 	private dragOffset = { x: 0, y: 0 };
 	private isPanning = false;
 	private panStart = { x: 0, y: 0, wx: 0, wy: 0 };
 	private nodeClickActive = false;
-	/**
-	 * Every pointer currently down on the canvas, in canvas pixels.
-	 * Two of them are a pinch (`bindStageInput`); while one is, panning
-	 * and node dragging stand down, and a release inside
-	 * `PINCH_CLICK_GRACE_MS` of the last pinch move is not a click.
-	 */
+
 	private pointers = new Map< number, Point >();
 	private pinchUntil = 0;
 	private destroyed = false;
 	private tickerCb: ( ( t: { deltaTime: number } ) => void ) | null = null;
 	private resizeObserver: ResizeObserver | null = null;
-	/**
-	 * How far the host hangs outside the desktop's work area, per
-	 * edge, in host px — what {@link frameBounds} subtracts before
-	 * centring. Cached rather than measured per call: the fit-follow
-	 * loop re-frames every tick for up to three seconds, and a
-	 * `getBoundingClientRect()` inside it would force layout each
-	 * frame. Refreshed on every host resize, on every work-area
-	 * change, and at the start of each user-initiated fit.
-	 */
+
 	private fitInsets: WorkAreaInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 	private unsubscribeWorkArea: ( () => void ) | null = null;
 	private lastResizeWidth = 0;
 	private lastResizeHeight = 0;
-	// A fit asked for while the host had no size yet (window still
-	// laying out). Honoured by the resize observer once it does.
+
 	private fitPending = false;
-	// Camera target system — wheel + focus + fitToView write here, the
-	// tick loop eases the actual world.x / world.y / world.scale toward
-	// these targets each frame.
+
 	private targetScale = 1;
 	private targetX = 0;
 	private targetY = 0;
@@ -428,7 +204,7 @@ export class GraphScene {
 	private postTypeIcon: PostTypeIconLookup;
 	private postTypeBySlug: Map< string, PostTypeDescriptor >;
 	private postTypeColor = new Map< string, number >();
-	/** Active node body style. See {@link NodeStyle}. */
+
 	private nodeStyle: NodeStyle = 'disc';
 
 	constructor(
@@ -448,18 +224,14 @@ export class GraphScene {
 			map.set( t.slug, normalizeDashiconName( t.icon ) );
 			this.postTypeBySlug.set( t.slug, t );
 		}
-		// Colour by declaration order, wrapping past the palette's
-		// end. Assigned once here rather than at paint time so a
-		// type's colour can't shift when the filter chips change
-		// which types are on screen.
+
 		postTypes.forEach( ( t, i ) => {
 			this.postTypeColor.set(
 				t.slug,
 				TYPE_PALETTE[ i % TYPE_PALETTE.length ],
 			);
 		} );
-		// Always seeded so unknown CPTs without a registered menu_icon
-		// still pick up a sensible default.
+
 		this.postTypeIcon = ( slug ) =>
 			map.get( slug ) ?? defaultIconForPostType( slug );
 	}
@@ -474,17 +246,11 @@ export class GraphScene {
 		}
 		this.pixi = pixi;
 
-		// Pre-load the dashicons font so Pixi.Text nodes render as
-		// glyphs instead of empty boxes on first paint. The font is
-		// already declared in WP admin via `dashicons.css`'s @font-face;
-		// we just need to force the browser to actually fetch it before
-		// we ask Pixi to rasterize text against it.
 		if ( typeof document !== 'undefined' && document.fonts ) {
 			try {
 				await document.fonts.load( '16px dashicons' );
 			} catch {
-				// Best-effort; if it fails, glyphs may render as boxes
-				// momentarily — they pop in once the font lands.
+
 			}
 		}
 
@@ -494,20 +260,9 @@ export class GraphScene {
 			backgroundAlpha: 0,
 			antialias: true,
 			autoDensity: true,
-			// Above the display's own density on purpose — see
-			// `RENDER_SUPERSAMPLE`. `autoDensity` keeps the canvas at
-			// its CSS size, so the extra pixels are resolved down on
-			// composite rather than making the stage bigger.
+
 			resolution: RENDER_RESOLUTION,
-			// Dedicated ticker, NOT the shared one. Other openstation
-			// bundles (posts-window, recycle-bin, …) also load Pixi via
-			// `loadModules('pixijs')` — sharing `Ticker.shared` across
-			// independent Application instances has bitten us: a render
-			// triggered by another bundle's app would also drive our
-			// renderer, sometimes while the browser had perturbed our
-			// canvas (iframe mount, layout shift) and our pipes weren't
-			// ready, producing the "Cannot read properties of null
-			// (reading 'clear')" crash inside `Batcher.break()`.
+
 			sharedTicker: false,
 		} );
 		this.app = app;
@@ -533,22 +288,12 @@ export class GraphScene {
 			this.nodeLayer,
 			this.labelLayer,
 		);
-		// DOM overlay for cluster labels, layered above the Pixi
-		// canvas. Pointer-events disabled so clicks pass through to
-		// the canvas.
+
 		this.groupLabelOverlay = document.createElement( 'div' );
 		this.groupLabelOverlay.className =
 			'os-content-graph__group-labels';
 		this.host.appendChild( this.groupLabelOverlay );
 
-		// Pixi v8's WebGL context can be lost when the browser shuffles
-		// canvases around (e.g. when another openstation window opens
-		// in an iframe and forces a reflow). Without this guard the
-		// ticker keeps trying to render against a dead GL context and
-		// floods the console with "Cannot read properties of null"
-		// crashes. We stop the ticker on loss; the user can reload to
-		// recover. Restoration would require rebuilding all GPU pipes
-		// — deferred.
 		app.canvas.addEventListener(
 			'webglcontextlost',
 			( ev ) => {
@@ -556,21 +301,12 @@ export class GraphScene {
 				try {
 					this.app?.ticker?.stop();
 				} catch {
-					// Ignore — best-effort.
+
 				}
 			},
 			false,
 		);
 
-		// Belt-and-braces: wrap the renderer's `render()` method so any
-		// internal Pixi crash (e.g., the `Batcher.break()` "Cannot read
-		// properties of null (reading 'clear')" race triggered when
-		// another Pixi.Application on the page destroys shared state)
-		// catches the throw, stops our ticker, and prevents the
-		// infinite-rAF console spam the user reported. The Pixi auto-
-		// render runs on the same ticker our `tickerCb` is on, so an
-		// unhandled throw inside it would otherwise keep firing every
-		// frame forever.
 		const renderer = app.renderer as { render: ( ...a: unknown[] ) => unknown };
 		const origRender = renderer.render.bind( renderer );
 		renderer.render = ( ...a: unknown[] ) => {
@@ -580,9 +316,9 @@ export class GraphScene {
 				try {
 					this.app?.ticker?.stop();
 				} catch {
-					// Ignore.
+
 				}
-				// eslint-disable-next-line no-console
+
 				console.warn(
 					'[content-graph] Pixi render threw, stopping ticker:',
 					err,
@@ -615,21 +351,13 @@ export class GraphScene {
 		for ( const n of this.nodes ) {
 			prev.set( n.id, n );
 		}
-		// Capture the group catalog up-front so subsequent setGrouping()
-		// calls (including the auto-re-apply at the end of this method
-		// when the user had a facet active across a refetch) can
-		// resolve display labels without a round-trip.
+
 		this.groupCatalogs = payload.groups ?? {
 			authors: {},
 			categories: {},
 			tags: {},
 		};
 
-		// A board laid out from scratch (first load, or a filter change
-		// that replaced every node) is seeded with its centroid on the
-		// world origin — see `layout.ts` for why that is the property
-		// the camera depends on. Nodes joining an existing layout keep
-		// the random periphery seed and get pulled in by gravity.
 		const fromScratch = payload.nodes.every( ( p ) => ! prev.has( p.id ) );
 		const seeds = fromScratch
 			? seedPositions( payload.nodes.length )
@@ -674,29 +402,14 @@ export class GraphScene {
 		this.rebuildSprites();
 		this.sim = new ForceSim( nodes, edges );
 		this.sim.reheat( 0.12, false );
-		// Warm-start: spin the integrator before the first frame so
-		// the user opens the window onto a near-settled layout rather
-		// than watching the cluster fly into place. Drawing hasn't
-		// happened yet (no paint until the ticker fires), so these
-		// steps are invisible — they only collapse the period of
-		// chaotic motion that made it hard to click a node before.
-		// A small board laid out from scratch runs all the way to rest
-		// here, so the first frame IS the final layout and nothing
-		// drifts out of the frame the camera is about to be given.
-		// Large boards, and any board where nodes are joining a layout
-		// the user is already looking at, keep the short warm-start and
-		// finish settling on screen — settling a joined board here
-		// would snap the nodes the user can see to new positions with
-		// no transition.
+
 		const warmupSteps = fromScratch
 			? warmupStepLimit( nodes.length )
 			: JOIN_WARMUP_STEPS;
 		for ( let i = 0; i < warmupSteps && ! this.sim.isSettled; i++ ) {
 			this.sim.step( 1 );
 		}
-		// If a grouping was active before this rebuild (e.g. the post-type
-		// filter changed mid-session), re-derive the assignment against
-		// the new node set so the cluster force keeps working.
+
 		if ( this.currentGrouping ) {
 			this.setGrouping( this.currentGrouping );
 		}
@@ -730,16 +443,13 @@ export class GraphScene {
 			const halo = new this.pixi.Graphics();
 			container.addChild( halo );
 
-			// Disc sits between the halo and the glyph: the halo is a
-			// soft wash *behind* the body, the glyph is revealed
-			// *inside* it on focus.
 			const disc = new this.pixi.Graphics();
 			container.addChild( disc );
 
 			const iconName = this.postTypeIcon( n.type );
 			const iconChar = resolveDashicon( iconName );
 			const icon = new this.pixi.Text( {
-				text: iconChar ?? '●', // black circle fallback
+				text: iconChar ?? '●',
 				style: {
 					fontFamily: iconChar ? 'dashicons' : 'sans-serif',
 					fontSize: 2 * n.radius,
@@ -750,11 +460,6 @@ export class GraphScene {
 			} );
 			container.addChild( icon );
 
-			// Wrap each label in a Container so the backing rect, the
-			// text, and the per-node alpha all transform as one unit
-			// when the camera zooms. The backing keeps labels readable
-			// over busy edge tangles + the dot-grid background — the
-			// review feedback flagged unbacked labels as hard to read.
 			const labelBox = new this.pixi.Container();
 			this.labelLayer.addChild( labelBox );
 
@@ -775,10 +480,6 @@ export class GraphScene {
 			} );
 			labelBox.addChild( label );
 
-			// Draw the backing once now that the text has measured
-			// itself. Width doesn't change after construction (we
-			// don't mutate label.text after this), so re-painting per
-			// frame would be pure waste.
 			const padX = 5;
 			const padY = 1;
 			const lw = label.width + padX * 2;
@@ -805,7 +506,7 @@ export class GraphScene {
 				iconName,
 				typeColor:
 					this.postTypeColor.get( n.type ) ?? TYPE_PALETTE[ 0 ],
-				// Empty so the first `draw()` always paints.
+
 				discKey: '',
 			} );
 		}
@@ -821,12 +522,7 @@ export class GraphScene {
 	private bindNodeInput( gfx: PixiContainer, node: GraphNode ): void {
 		let downAt = { x: 0, y: 0 };
 		let isDragging = false;
-		// Pointer must travel > 6px to be considered an intentional
-		// drag. Below that the pointer-stream is treated as a click,
-		// even when Pixi emits incidental `globalpointermove` events
-		// between down + up (that incidental flip was the cause of
-		// the "click on a moving node didn't open" bug — now we only
-		// commit to drag after the user actually moves the cursor).
+
 		const DRAG_THRESHOLD_SQ = 36;
 		gfx.on( 'pointerdown', ( evt: unknown ) => {
 			const e = evt as {
@@ -838,10 +534,7 @@ export class GraphScene {
 			this.nodeClickActive = true;
 			this.pressedNode = node;
 			isDragging = false;
-			// Pin so the simulation can't move the node out from
-			// under the user's cursor between down and up. We unpin
-			// on release (unless this is the focused node, which
-			// focusNode pins independently).
+
 			node.pinned = true;
 			node.vx = 0;
 			node.vy = 0;
@@ -860,11 +553,7 @@ export class GraphScene {
 			const e = evt as { global: { x: number; y: number } };
 			const dx = e.global.x - downAt.x;
 			const dy = e.global.y - downAt.y;
-			// Generous click tolerance even if `isDragging` never
-			// flipped — the simulation may still be settling and the
-			// cursor may have drifted a few px from the press point.
-			// A finger lifting off a pinch is not a click on the node
-			// it happened to rest on.
+
 			if ( ! isDragging && dx * dx + dy * dy <= 256 && ! this.pinchRecent() ) {
 				this.callbacks.onNodeClick?.( node );
 			}
@@ -887,9 +576,6 @@ export class GraphScene {
 			isDragging = false;
 		} );
 		gfx.on( 'globalpointermove', ( evt: unknown ) => {
-			// Only the pressed node should react. Without this guard,
-			// other pinned nodes (e.g. the focused one) would also
-			// run the drag-promotion check on every pointer move.
 			if ( this.pressedNode !== node ) {
 				return;
 			}
@@ -901,11 +587,7 @@ export class GraphScene {
 				if ( d2 < DRAG_THRESHOLD_SQ ) {
 					return;
 				}
-				// Promote: pointer travelled past the threshold, so
-				// this is intentional drag. Capture the world-space
-				// offset between the cursor and the node's current
-				// position so the node "stays put" relative to the
-				// cursor while we drag.
+
 				isDragging = true;
 				const w = this.toWorld( e.global.x, e.global.y );
 				this.dragOffset = { x: node.x - w.x, y: node.y - w.y };
@@ -925,33 +607,23 @@ export class GraphScene {
 		} );
 	}
 
-	/** Whether a pinch is under way, or ended a moment ago. */
 	private pinchRecent(): boolean {
 		return this.pointers.size >= 2 || performance.now() < this.pinchUntil;
 	}
 
-	/** A pointer event's position in the canvas's own pixels. */
 	private canvasPoint( canvas: HTMLCanvasElement, ev: PointerEvent ): Point {
 		const rect = canvas.getBoundingClientRect();
 		return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
 	}
 
 	private bindStageInput( canvas: HTMLCanvasElement ): void {
-		// The board owns every touch on it: no browser pan, no browser
-		// zoom, so two fingers reach the pinch below as pointer events
-		// instead of being taken for a page gesture. (The phone layer's
-		// zoom guard cancels page zoom at the document too; this is what
-		// makes the pinch OURS rather than merely not the browser's.)
 		canvas.style.touchAction = 'none';
 
 		canvas.addEventListener(
 			'wheel',
 			( ev: WheelEvent ) => {
 				ev.preventDefault();
-				// Smooth, exponential zoom with cursor-anchored framing.
-				// Compose against the *target* (not the live world) so
-				// rapid wheel ticks chain correctly while the camera is
-				// still easing toward a previous target.
+
 				const factor = Math.exp( -ev.deltaY * ZOOM_SENSITIVITY );
 				const nextScale = Math.max(
 					ZOOM_MIN,
@@ -969,15 +641,9 @@ export class GraphScene {
 			{ passive: false },
 		);
 
-		// Every pointer that lands on the canvas is tracked, whatever it
-		// landed on: the second finger of a pinch is as likely to touch
-		// a node as the cork. Only a pointer on bare cork starts a pan.
 		canvas.addEventListener( 'pointerdown', ( ev: PointerEvent ) => {
 			this.pointers.set( ev.pointerId, this.canvasPoint( canvas, ev ) );
 			if ( this.pointers.size === 2 ) {
-				// A second finger turns whatever was happening into a
-				// pinch: the pan stops where it is, and a node the first
-				// finger was about to drag is let go.
 				this.isPanning = false;
 				this.nodeClickActive = false;
 				if ( this.pressedNode ) {
@@ -1016,8 +682,7 @@ export class GraphScene {
 			if ( ! this.isPanning || this.nodeClickActive || this.pointers.size > 1 ) {
 				return;
 			}
-			// Direct pan: write both live and target so the camera doesn't
-			// lurch back toward an old target after the user releases.
+
 			const newX = this.panStart.wx + ( ev.clientX - this.panStart.x );
 			const newY = this.panStart.wy + ( ev.clientY - this.panStart.y );
 			this.world.x = newX;
@@ -1029,16 +694,12 @@ export class GraphScene {
 			const wasPinch = this.pointers.size >= 2;
 			this.pointers.delete( ev.pointerId );
 			if ( wasPinch ) {
-				// The finger that stays is not a pan that started
-				// somewhere else; it has to touch down again to pan.
 				this.isPanning = false;
 				this.pinchUntil = performance.now() + PINCH_CLICK_GRACE_MS;
 			}
 		};
 		window.addEventListener( 'pointercancel', release );
 		window.addEventListener( 'pointerup', ( ev: PointerEvent ) => {
-			// `release` stamps the grace period when this ends a pinch,
-			// so `pinchRecent()` below still knows.
 			release( ev );
 			const nodeWasTarget = this.nodeClickActive;
 			this.nodeClickActive = false;
@@ -1054,12 +715,6 @@ export class GraphScene {
 		} );
 	}
 
-	/**
-	 * One pinch step: the pointer `movedId` went from `prev` to where
-	 * `this.pointers` now has it; the other finger is where it was.
-	 * Written to the live camera AND the targets, as the pan is, so the
-	 * easing loop has nothing older to drift back to.
-	 */
 	private pinch( movedId: number, prev: Point ): void {
 		let other: Point | null = null;
 		let moved: Point | null = null;
@@ -1097,17 +752,9 @@ export class GraphScene {
 			}
 			const w = this.host.clientWidth;
 			const h = this.host.clientHeight;
-			// Layout is clean inside a ResizeObserver callback, so this
-			// is the cheap place to re-measure the work-area overhang.
+
 			this.fitInsets = workAreaInsetsOf( this.host );
-			// Hidden / detached host has clientWidth/clientHeight = 0.
-			// `renderer.resize(0, 0)` puts Pixi v8's batched renderer
-			// into a state that crashes the next render with
-			// "Cannot read properties of null (reading 'clear')",
-			// which then floods rAF for the rest of the session. Skip
-			// the resize entirely while we're zero-sized; the next
-			// observation, when the host has dimensions again, will
-			// catch up.
+
 			if ( w <= 0 || h <= 0 ) {
 				return;
 			}
@@ -1116,21 +763,16 @@ export class GraphScene {
 			} catch {
 				return;
 			}
-			// Render synchronously so the freshly-resized canvas has
-			// pixels NOW. Without this the WebGL drawingBuffer briefly
-			// composites as white before the next ticker frame paints —
-			// that's the "white flash" the reviewer flagged.
+
 			try {
 				this.app.render();
 			} catch {
-				// Pixi sometimes throws on race during teardown.
+
 			}
 			if ( this.fitPending ) {
 				this.fitToView();
 			}
-			// Sub-pixel sidebar reflows (panel open/close, scroll
-			// adjustments) shouldn't trigger camera repositioning. Only
-			// genuine window resizes pass the threshold.
+
 			const dw = Math.abs( w - this.lastResizeWidth );
 			const dh = Math.abs( h - this.lastResizeHeight );
 			if (
@@ -1142,8 +784,7 @@ export class GraphScene {
 			}
 		} );
 		this.resizeObserver.observe( this.host );
-		// The dock moving or resizing changes the overhang without the
-		// host changing size — the store fires once per real change.
+
 		this.unsubscribeWorkArea = subscribeWorkArea( () => {
 			if ( ! this.destroyed ) {
 				this.fitInsets = workAreaInsetsOf( this.host );
@@ -1168,25 +809,16 @@ export class GraphScene {
 		if ( this.destroyed ) {
 			return;
 		}
-		// Defensive: the Pixi app's ticker also drives the internal
-		// renderer. If we've been torn down between frames, bail
-		// before touching any layer / graphics state.
+
 		if ( ! this.app || ! this.world ) {
 			return;
 		}
 		if ( this.groupingTween ) {
-			// While the grouping tween is active, lerp positions
-			// toward the targets and SKIP the sim integration so the
-			// two layout mechanisms don't fight. Once the tween
-			// completes the sim resumes and the cluster force
-			// polishes the final positions.
 			this.advanceGroupingTween();
 		} else {
 			this.sim?.step( delta );
 		}
-		// Ease the camera toward its targets each frame. dt-aware so
-		// the feel stays consistent across frame-rate dips. Snap when
-		// we're within sub-pixel distance to avoid the buzz.
+
 		const k = 1 - Math.pow( 1 - CAMERA_EASE, delta );
 		const ds = this.targetScale - this.world.scale.x;
 		if ( Math.abs( ds ) < CAMERA_EPSILON ) {
@@ -1212,16 +844,6 @@ export class GraphScene {
 		this.advanceFitFollow();
 	}
 
-	/**
-	 * Per-tick auto-fit while the layout is still moving after a
-	 * grouping change. Re-frames the camera at the current node
-	 * bounds whenever peak velocity is above the threshold; once
-	 * the layout has settled (or the hard cap has elapsed) the
-	 * loop disarms and the camera stays put. Skips while the
-	 * grouping tween is mid-lerp — velocities are zeroed there by
-	 * design, and the initial `fitToViewOfTargets` already framed
-	 * the target bounds.
-	 */
 	private advanceFitFollow(): void {
 		if ( ! this.fitFollowActive ) {
 			return;
@@ -1233,10 +855,7 @@ export class GraphScene {
 			this.fitFollowActive = false;
 			return;
 		}
-		// During the tween, our `advanceGroupingTween` zeroes vx/vy
-		// every frame — peak velocity is 0 by construction. Don't
-		// disarm on that account: wait until the tween hands control
-		// back to the sim and real motion (or stillness) is observable.
+
 		if ( this.groupingTween ) {
 			return;
 		}
@@ -1254,21 +873,11 @@ export class GraphScene {
 			this.fitFollowSawMotion = true;
 			this.fitToView( false );
 		} else if ( this.fitFollowSawMotion ) {
-			// Only disarm AFTER we've observed non-zero motion at
-			// least once. Otherwise the first tick after the tween
-			// ends — when the sim hasn't yet run a step and velocities
-			// are still zero from the tween — would disarm before the
-			// cluster force gets a chance to spread members past the
-			// initial fit framing.
 			this.fitFollowActive = false;
 		}
 	}
 
 	private postTypeSupportsTaxonomy( typeSlug: string, taxonomy: 'category' | 'post_tag' ): boolean {
-		// Unknown type (not registered in the scene's post-type list) is
-		// treated as not supporting the taxonomy so it gets its own
-		// cat:type_<slug> / tag:type_<slug> cluster rather than silently
-		// merging into the shared Uncategorized / Untagged pool.
 		return this.postTypeBySlug.get( typeSlug )?.taxonomies?.[ taxonomy ] ?? false;
 	}
 
@@ -1297,22 +906,9 @@ export class GraphScene {
 			case 'author': {
 				const primaryId = n.author_id || 0;
 				const primaryKey = `author:${ primaryId }`;
-				// List the primary author TWICE so the cluster
-				// attractor weights its pull 2× per contributor.
-				// Result: a post with one contributor settles at the
-				// (2·primary + 1·contributor) / 3 balance point —
-				// between the two authors but closer to the primary.
-				// Posts with no contributors get the same 2× pull,
-				// which is mathematically equivalent to a single
-				// entry (force magnitude is unchanged after the
-				// sim's `perKey = k / keys.length` normalisation),
-				// so doubling is safe across the board.
+
 				const keys = [ primaryKey, primaryKey ];
-				// Defensive: an older cached server payload (predates
-				// the `contributor_ids` field) deserialises to
-				// undefined here. TS thinks it's required, but at
-				// runtime we accept missing/null/non-array and treat
-				// it as an empty contributor list rather than throwing.
+
 				const contribs = Array.isArray( n.contributor_ids )
 					? n.contributor_ids
 					: [];
@@ -1391,8 +987,7 @@ export class GraphScene {
 			if ( ids.length === 0 ) {
 				continue;
 			}
-			// Suffix the member count so readers see cluster size at a
-			// glance, e.g. "Recipe (15)" / "Untagged (3)".
+
 			const label = `${ this.labelForGroupKey( key ) } (${ ids.length })`;
 			const el = document.createElement( 'div' );
 			el.className = 'os-content-graph__group-label';
@@ -1410,19 +1005,11 @@ export class GraphScene {
 		this.groupViews.clear();
 	}
 
-	/**
-	 * Per-frame paint of the cluster label markers. Centroid is the
-	 * running average of member positions, scale is inverse of world
-	 * scale (so labels stay legible across zoom), alpha fades the
-	 * labels OUT as you zoom past the focused-node range so they
-	 * don't clutter the close-up view.
-	 */
 	private drawGroupLabels(): void {
 		if ( this.destroyed || this.groupViews.size === 0 ) {
 			return;
 		}
-		// Mirror of the node-label fade, inverted: present at low
-		// zoom (cluster reading), gone at high zoom (close-up).
+
 		const fade = 1 - smoothstep( 1.2, 2.4, this.world.scale.x );
 		const scale = this.world.scale.x;
 		const ox = this.world.x;
@@ -1444,13 +1031,7 @@ export class GraphScene {
 				v.el.style.display = 'none';
 				continue;
 			}
-			// Pure centroid positioning — labels glide smoothly with
-			// the cluster's centre of mass. Tried and rejected: top-of-
-			// bounding-box anchoring (read as detached from the
-			// cluster), and per-frame collision push-away (members
-			// rotating under the label made it twitch). Fluidity over
-			// strict non-overlap; some overlap with a node passing
-			// through the label is the accepted trade-off.
+
 			const screenX = ox + ( sumX / count ) * scale;
 			const screenY = oy + ( sumY / count ) * scale;
 			v.el.style.display = '';
@@ -1480,12 +1061,7 @@ export class GraphScene {
 		}
 
 		const dimmed = focusId !== null;
-		// Edges fade in as the user zooms in. At the overview-fit
-		// zoom (~0.45-0.55) the graph reads as a constellation of
-		// nodes; as the user zooms toward 1×, the post-to-post links
-		// crisp up so you can trace connections without having to
-		// hover each node. Same band as the labels — edges + labels
-		// gain prominence together.
+
 		const edgeZoomFade = smoothstep( 0.45, 1.1, this.world.scale.x );
 		const edgeBaseAlpha = 0.2 + edgeZoomFade * 0.35;
 
@@ -1500,11 +1076,6 @@ export class GraphScene {
 				( edge.from.id === hoverId || edge.to.id === hoverId );
 			let alpha: number;
 			if ( dimmed ) {
-				// Focus edges visible at full prominence; non-focus
-				// edges fully hidden (no faint ghost). The line itself
-				// is geometry-trimmed so it starts at the focused
-				// node's halo edge rather than passing through the
-				// disc — see the `lineEndpoints` computation below.
 				alpha = isFocusEdge ? 0.85 : 0;
 			} else if ( isHoverEdge ) {
 				alpha = 0.7;
@@ -1513,10 +1084,7 @@ export class GraphScene {
 			}
 			const color = isFocusEdge || isHoverEdge ? EDGE_HOT : EDGE_BASE;
 			const width = isFocusEdge || isHoverEdge ? 1.2 : 0.7;
-			// Trim either endpoint when it sits on the focused node so
-			// the visible line stops at the halo's outer edge instead
-			// of running into the disc's centre. The halo radius is
-			// `node.radius + 8` (mirrors the halo paint below).
+
 			let sx = edge.from.x;
 			let sy = edge.from.y;
 			let ex = edge.to.x;
@@ -1551,10 +1119,7 @@ export class GraphScene {
 		}
 
 		const inverseScale = 1 / this.world.scale.x;
-		// Smooth fade between two zoom thresholds rather than a hard
-		// cutoff. At <= 0.55 labels are invisible; at >= 0.95 they're
-		// fully present; in between the alpha eases via smoothstep so
-		// pinch-zoom doesn't pop them in/out.
+
 		const zoomFade = smoothstep( 0.55, 0.95, this.world.scale.x );
 		const discs = this.nodeStyle === 'disc';
 		for ( const v of this.nodeViews.values() ) {
@@ -1570,13 +1135,6 @@ export class GraphScene {
 			container.y = node.y;
 			container.alpha = baseAlpha;
 
-			// In icon style the glyph itself carries the state colour
-			// (the original behaviour). In disc style the *body*
-			// carries post-type identity and only focus overrides it —
-			// a neighbour keeps its own colour and is distinguished by
-			// the un-dimmed alpha above, which is what makes a focused
-			// neighbourhood read as "these, in their own colours"
-			// rather than "these, repainted blue".
 			let fill = NODE_FILL;
 			if ( isFocus ) {
 				fill = NODE_FILL_FOCUS;
@@ -1593,7 +1151,6 @@ export class GraphScene {
 				} );
 			}
 
-			// Disc body — repainted only when its signature changes.
 			const discRadius = isFocus
 				? node.radius * FOCUS_DISC_SCALE
 				: node.radius;
@@ -1615,28 +1172,17 @@ export class GraphScene {
 				}
 			}
 
-			// The glyph is the node in icon style; in disc style it is
-			// the reveal on the node the user is pointing at or has
-			// focused, drawn in the ring colour so it reads as cut out
-			// of the disc rather than stacked on top of it.
 			icon.visible = ! discs || isFocus || isHover;
 			icon.style.fill = discs ? DISC_RING : fill;
 			const fontSize = discs ? discRadius * 1.35 : 2 * node.radius;
 			icon.style.fontSize = fontSize;
-			// Nudge the glyph onto the visible disc centre. Without this
-			// the bbox-centred anchor leaves glyphs (notably `admin-post`
-			// — the pushpin head is in the upper-left of its bbox) reading
-			// as top-left of where the user expects them.
+
 			const nudge = ICON_NUDGE[ v.iconName ];
 			icon.x = ( nudge?.x ?? 0 ) * fontSize;
 			icon.y = ( ( nudge?.y ?? ICON_NUDGE_Y_ASCENT ) ) * fontSize;
 
 			labelBox.x = node.x;
-			// Clear the body, whichever body that is: a focused disc
-			// has grown past `node.radius`, and in icon style the
-			// glyph's visible height is about the same as the disc's
-			// diameter, so the un-scaled radius is the right floor for
-			// both.
+
 			labelBox.y = node.y + ( discs ? discRadius : node.radius ) + 4;
 			labelBox.scale.set( inverseScale );
 			let baseLabelAlpha: number;
@@ -1653,7 +1199,6 @@ export class GraphScene {
 	}
 
 	focusNode( id: number ): void {
-		// Unpin previous focus (if any) so the cluster can move freely.
 		if ( this.focusedId !== null ) {
 			const prev = this.nodeViews.get( this.focusedId );
 			if ( prev ) {
@@ -1661,12 +1206,7 @@ export class GraphScene {
 			}
 		}
 		this.focusedId = id;
-		// Deliberately NO reheat here. With the focused node pinned and
-		// the cluster already in equilibrium, reheating would inject a
-		// random velocity into every other node and the whole graph
-		// would visibly jiggle. The reviewer flagged this as "all nodes
-		// move when selecting a node". Camera ease + satellites are
-		// enough animation for the focus moment.
+
 		const view = this.nodeViews.get( id );
 		if ( view ) {
 			view.node.pinned = true;
@@ -1695,19 +1235,8 @@ export class GraphScene {
 			return;
 		}
 		this.satellites.setFocused( node, detail );
-		// No reheat — satellites have their own entrance animation and
-		// reheating here would shake the whole cluster (see focusNode).
 	}
 
-	/**
-	 * Swap the active clustering facet. Pass `null` to disable
-	 * clustering entirely. Computes the per-node group assignment from
-	 * the current node set, hands it to the sim (which reheats), and
-	 * rebuilds the per-cluster label markers in `groupLabelLayer`.
-	 *
-	 * Cheap to call repeatedly — there's no Pixi teardown beyond
-	 * destroying / recreating the small `GroupView` containers.
-	 */
 	setGrouping( facet: GroupFacet | null ): void {
 		this.currentGrouping = facet;
 		this.clearGroupViews();
@@ -1716,18 +1245,12 @@ export class GraphScene {
 			return;
 		}
 		const assignment = new Map< number, string[] >();
-		// `members` is built alongside the assignment so the per-frame
-		// centroid recompute in drawGroupLabels() doesn't have to walk
-		// every node for every group.
+
 		const members = new Map< string, number[] >();
 		for ( const n of this.nodes ) {
 			const keys = this.deriveGroupKeys( n, facet );
 			assignment.set( n.id, keys );
-			// Dedupe before populating `members` — `deriveGroupKeys`
-			// can list the same key twice on purpose (e.g. the
-			// primary author gets a 2× weighting), and we don't want
-			// that duplication to inflate the visual "(15)" count
-			// or pull the cluster centroid toward duplicated nodes.
+
 			const seen = new Set< string >();
 			for ( const key of keys ) {
 				if ( seen.has( key ) ) {
@@ -1743,39 +1266,21 @@ export class GraphScene {
 			}
 		}
 		const order = this.chronologicalOrder( facet, members );
-		// Year-month produces ~60 clusters on a long-lived blog, all
-		// jammed onto one horizontal line in chronological order →
-		// crowded. Alternating Y above / below the axis gives each
-		// cluster its own vertical "lane" while keeping the time
-		// reading. Year alone (single-digit cluster count) stays on
-		// the straight axis.
+
 		this.sim.groupOrderStaggerY = facet === 'year_month' ? 160 : 0;
-		// Hand the assignment to the sim BEFORE starting the tween so
-		// the cluster force is already wired up when the tween hands
-		// motion control back. The sim's reheat does nothing visible
-		// during the tween (tick skips sim.step while the tween runs).
+
 		this.sim.setGroupAssignment( assignment, order );
-		// Build per-node target positions on the seed lattice, then
-		// hand them to the tween. Camera is fit-to-view'd against the
-		// targets so it zooms in parallel with the layout instead of
-		// waiting for the tween to finish.
+
 		const targets = this.buildGroupSeedTargets( assignment, members, order );
 		this.startGroupingTween( targets );
 		this.fitToViewOfTargets( targets );
 		this.buildGroupViews( members, facet );
-		// Arm the auto-fit-follow. Stays active until peak velocity
-		// falls below the threshold post-tween (sim has settled) or
-		// the hard-cap duration elapses, whichever comes first.
+
 		this.fitFollowActive = true;
 		this.fitFollowStartedAt = performance.now();
 		this.fitFollowSawMotion = false;
 	}
 
-	/**
-	 * Drive one frame of the active grouping tween. Lerps each
-	 * non-pinned node from its captured start position to its target
-	 * with an ease-out cubic. Cleans up + resumes the sim when done.
-	 */
 	private advanceGroupingTween(): void {
 		if ( this.destroyed ) {
 			return;
@@ -1802,34 +1307,11 @@ export class GraphScene {
 		}
 		if ( t >= 1 ) {
 			this.groupingTween = null;
-			// Brief reheat so the cluster force can polish positions
-			// post-tween (clusters land near their seeds; the force
-			// settles any small drift from emergent Y centroids).
+
 			this.sim?.reheat( 0.18, false );
 		}
 	}
 
-	/**
-	 * Compute a per-cluster seed position + per-node target on that
-	 * seed. The tween animates each node from its current position
-	 * to its target so the user sees a smooth flow into clusters
-	 * instead of an instant snap.
-	 *
-	 * Seeds:
-	 *   - **Ordered facets** (year, year-month): a horizontal lattice
-	 *     matching the order array, so chronological clusters land
-	 *     in the same left-to-right slots the cluster force pins
-	 *     them to. Unordered keys (e.g. `'ym:unknown'`) sit to the
-	 *     right of the chronological range.
-	 *   - **Unordered facets** (category, tag, author): polar
-	 *     distribution around the origin, radius scaling with the
-	 *     number of groups. Floor keeps small group counts (2–3)
-	 *     visually distinct.
-	 *
-	 * Multi-membership posts (a post in two categories) target the
-	 * average of their group seeds so they start at the force-balance
-	 * midpoint instead of being arbitrarily assigned to one cluster.
-	 */
 	private buildGroupSeedTargets(
 		assignment: Map< number, string[] >,
 		members: Map< string, number[] >,
@@ -1845,9 +1327,7 @@ export class GraphScene {
 
 		if ( order && order.length > 0 ) {
 			const n = order.length;
-			// Mirror the sim's zig-zag exactly so the tween lands on
-			// the cluster force's target Y instead of snapping at
-			// `y=0` then jumping to ±stagger on the first sim step.
+
 			const stagger = this.sim.groupOrderStaggerY;
 			const staggerY = ( idx: number ): number => {
 				if ( stagger <= 0 ) {
@@ -1916,12 +1396,6 @@ export class GraphScene {
 		return targets;
 	}
 
-	/**
-	 * Capture the current positions as the tween starts, set the
-	 * tween clock, and let `tick()` drive each frame from there.
-	 * Replaces any in-flight tween — picking a new facet mid-tween
-	 * just retargets from wherever the nodes currently sit.
-	 */
 	private startGroupingTween(
 		targets: Map< number, { x: number; y: number } >,
 	): void {
@@ -1939,46 +1413,24 @@ export class GraphScene {
 		}
 		this.groupingTween = {
 			startTime: performance.now(),
-			// Fast enough to feel responsive, long enough to read as
-			// a real transition (not a snap). Tuned by feel; if it
-			// looks sluggish on slow machines, drop to 350.
+
 			duration: 450,
 			starts,
 			targets,
 		};
 	}
 
-	/**
-	 * Frame the camera against the target bounds (not the current
-	 * node positions) so the zoom-out animates IN PARALLEL with the
-	 * layout tween instead of waiting for it to settle.
-	 */
 	private fitToViewOfTargets(
 		targets: Map< number, { x: number; y: number } >,
 	): void {
 		if ( targets.size === 0 ) {
 			return;
 		}
-		// A user-initiated fit: measure once so a window dragged under
-		// the dock since the last resize is framed correctly.
+
 		this.fitInsets = workAreaInsetsOf( this.host );
 		this.frame( targets.values() );
 	}
 
-	/**
-	 * Point the camera at `points`, centred and at the largest fit
-	 * zoom, in the REACHABLE part of the host: its box minus whatever
-	 * hangs outside the desktop's work area (the band under the dock
-	 * pill when the window is dragged low). Framing into the whole
-	 * host put a small graph's lowest nodes under the dock after every
-	 * Fit — visible, unreachable. The insets are host px, and so is
-	 * the camera's translation, so the reachable box's centre is where
-	 * the bounds' centre lands.
-	 *
-	 * When the host has no size yet the request is parked and
-	 * replayed by the resize observer — framing against a 0×0 host
-	 * would leave the board in the top-left corner at minimum zoom.
-	 */
 	private frame( points: Iterable< Point > ): void {
 		const inset = this.fitInsets;
 		const target = frameBounds(
@@ -1999,14 +1451,6 @@ export class GraphScene {
 		this.targetY = inset.top + target.y;
 	}
 
-	/**
-	 * For date facets, sort the keys oldest-to-newest so the cluster
-	 * attractor can lay them out left-to-right. For other facets,
-	 * returns `null` — those clusters stay fully emergent.
-	 *
-	 * `'year:<unknown>'` and `'ym:unknown'` are skipped from the
-	 * order: an undated post shouldn't bias one end of the timeline.
-	 */
 	private chronologicalOrder(
 		facet: GroupFacet,
 		members: Map< string, number[] >,
@@ -2023,12 +1467,9 @@ export class GraphScene {
 				if ( ! Number.isFinite( y ) || y <= 0 ) {
 					continue;
 				}
-				// Zero-pad so string-sort is identical to numeric-sort
-				// without parsing twice.
+
 				ordered.push( { key, sort: String( y ).padStart( 6, '0' ) } );
 			} else {
-				// year-month tokens are already in YYYY-MM, which
-				// string-sorts chronologically.
 				if ( rest === 'unknown' || rest === '' ) {
 					continue;
 				}
@@ -2056,19 +1497,11 @@ export class GraphScene {
 		}
 		this.focusedId = null;
 		this.satellites?.clear();
-		// Calm re-settle: keep the integrator alive briefly so the
-		// previously-pinned node can ease back to equilibrium without
-		// a global kick that would jiggle the rest of the cluster.
+
 		this.sim?.reheat( 0.25, false );
 		this.draw();
 	}
 
-	/**
-	 * Mark a satellite by its synthetic key as selected (e.g. when
-	 * the side panel switches to that satellite's dossier). Pass
-	 * `null` to clear the selection — done when the panel navigates
-	 * back to the post view or closes entirely.
-	 */
 	setSatelliteSelectedKey( key: string | null ): void {
 		this.satellites?.setSelectedKey( key );
 	}
@@ -2081,16 +1514,6 @@ export class GraphScene {
 		return this.nodes;
 	}
 
-	/**
-	 * Switch how node bodies are drawn. Safe to call before `mount()`
-	 * — the style is stored and the first paint honours it.
-	 *
-	 * Invalidates every disc signature so the next frame repaints all
-	 * of them; nothing else needs to happen, since the tick loop is
-	 * already running and the glyphs' visibility is derived per frame.
-	 *
-	 * @param style Body style. See {@link NodeStyle}.
-	 */
 	setNodeStyle( style: NodeStyle ): void {
 		if ( this.nodeStyle === style ) {
 			return;
@@ -2101,27 +1524,14 @@ export class GraphScene {
 		}
 	}
 
-	/** Active node body style. */
 	getNodeStyle(): NodeStyle {
 		return this.nodeStyle;
 	}
 
-	/**
-	 * Currently focused node id, or `null` when nothing is focused.
-	 * Used by the host orchestrator to implement click-to-deselect:
-	 * if the user clicks the already-focused node, the host calls
-	 * `clearFocus()` instead of re-focusing.
-	 */
 	getFocusedId(): number | null {
 		return this.focusedId;
 	}
 
-	/**
-	 * Frame every node. `measure` re-reads the host's work-area
-	 * overhang first — the default, right for the Fit button and a
-	 * fresh load; the fit-follow loop passes `false` and rides the
-	 * cached value so it never forces layout mid-simulation.
-	 */
 	fitToView( measure = true ): void {
 		if ( this.nodes.length === 0 ) {
 			return;
@@ -2134,23 +1544,17 @@ export class GraphScene {
 
 	destroy(): void {
 		this.destroyed = true;
-		// Park the Pixi app's ticker FIRST. The ticker auto-runs an
-		// internal render every frame regardless of our own
-		// `tickerCb`; if we destroy graphics objects (via satellites /
-		// app cascade) while the ticker is still scheduled to fire,
-		// the next auto-render hits half-destroyed state and crashes
-		// in the batched renderer. Stopping the ticker quiets the
-		// auto-render before we touch any child.
+
 		try {
 			this.app?.ticker?.stop();
 		} catch {
-			// Ignore — destroy is best-effort.
+
 		}
 		if ( this.tickerCb ) {
 			try {
 				this.app?.ticker?.remove( this.tickerCb );
 			} catch {
-				// Ignore.
+
 			}
 			this.tickerCb = null;
 		}
@@ -2160,31 +1564,19 @@ export class GraphScene {
 		this.unsubscribeWorkArea = null;
 		this.satellites?.destroy();
 		this.satellites = null;
-		// DOM overlay for cluster labels lives outside the Pixi
-		// cascade — remove it explicitly.
+
 		this.clearGroupViews();
 		this.groupLabelOverlay?.remove();
 		this.groupLabelOverlay = null;
-		// Group views, edge views, node views, etc. are destroyed by
-		// the `app.destroy({children: true})` cascade below. Doing it
-		// here explicitly was redundant and could double-destroy.
+
 		try {
-			// `{ removeView: true }`, NEVER `true`: a literal `true` runs
-			// `releaseGlobalResources()`, wiping Pixi's page-global pools
-			// out from under every other live Application on the page
-			// (canvas wallpaper, previews, the categories mindmap).
 			this.app.destroy( { removeView: true }, { children: true } );
 		} catch {
-			// ignore — Pixi sometimes throws on race during teardown.
+
 		}
 	}
 }
 
-/**
- * Strip a leading `dashicons-` prefix and reject http(s) URL icons
- * (those are theme-supplied images, not part of the dashicons font).
- * Returns a sensible default if the input doesn't match a dashicon.
- */
 function normalizeDashiconName( raw: string ): string {
 	if ( typeof raw !== 'string' || raw === '' ) {
 		return 'admin-generic';
@@ -2195,12 +1587,6 @@ function normalizeDashiconName( raw: string ): string {
 	return raw.replace( /^dashicons-/, '' );
 }
 
-/**
- * Walk `distance` units from `(fromX, fromY)` along the ray that
- * points at `(toX, toY)`. Used to trim edge / spoke endpoints to the
- * focused node's halo edge so lines don't visibly run through the
- * disc.
- */
 function pointOnSegment(
 	fromX: number,
 	fromY: number,
@@ -2229,11 +1615,6 @@ function smoothstep( a: number, b: number, x: number ): number {
 	return t * t * ( 3 - 2 * t );
 }
 
-/**
- * Render a `'YYYY-MM'` token as a user-facing month label
- * (e.g. `'2024-03'` → `'Mar 2024'`) using the browser's locale.
- * Falls back to the raw token if parsing fails.
- */
 function formatYearMonth( token: string ): string {
 	const m = /^(\d{4})-(\d{2})$/.exec( token );
 	if ( ! m ) {

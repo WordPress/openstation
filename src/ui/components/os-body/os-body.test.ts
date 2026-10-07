@@ -55,10 +55,7 @@ describe( '<os-body>', () => {
 		await tick();
 
 		const body = host.querySelector( 'os-body' )!;
-		// Attribute presence is the contract — the CSS rule keys off
-		// `:host([scroll])`. jsdom doesn't resolve the computed
-		// style, but the structural contract (attribute present) is
-		// what plugin authors write.
+
 		expect( body.hasAttribute( 'scroll' ) ).toBe( true );
 	} );
 
@@ -76,9 +73,6 @@ describe( '<os-body>', () => {
 		await tick();
 		await tick();
 
-		// The full body → panel → row → col tree should survive
-		// mounting. querySelector walks flattened light tree, so
-		// plugin author code reaches every level predictably.
 		expect( host.querySelector( 'os-body os-panel os-row .a' ) ).not.toBeNull();
 		expect( host.querySelector( 'os-body os-panel os-row .b' ) ).not.toBeNull();
 	} );

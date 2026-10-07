@@ -1,12 +1,3 @@
-/**
- * Your own image — the drawer behind the dashed wallpaper tile. Two
- * sources: "Upload new" (drag-drop + file picker, absent when the
- * user cannot upload) and "Media Library" (a paginated REST grid with
- * search + the HD filter). Both talk to `wp/v2/media` through
- * `ctx.fetch`, so the nonce rides along and the window's activity dot
- * shows the request.
- */
-
 import { __, html, sprintf } from '@openstation/app';
 import {
 	CUSTOM_IMAGE_ID,
@@ -22,11 +13,6 @@ import { describeRestFailure } from '../../../src/core/rest-failure';
 import { settings, update } from './store';
 import { extraOf, pickedChecked, pickedValue, uiOf, type Ctx, type Section } from './types';
 
-/**
- * Subset of the REST media item we actually use. `_fields` on the
- * request narrows the payload to match so we're not shipping 60kb of
- * Gutenberg-specific metadata for a picker.
- */
 export interface MediaItem {
 	id: number;
 	source_url: string;
@@ -42,20 +28,11 @@ export interface MediaItem {
 	};
 }
 
-/**
- * A safe filename for the Content-Disposition header on upload:
- * anything outside `[A-Za-z0-9._-]` becomes a dash.
- */
 function sanitizeFilename( name: string ): string {
 	const cleaned = name.replace( /[^a-zA-Z0-9._-]+/g, '-' ).replace( /^-+|-+$/g, '' );
 	return cleaned || 'wallpaper';
 }
 
-/**
- * Sanity-check a REST media item before showing it in the picker:
- * drops entries missing a URL, an id, or zero-sized media_details
- * (usually broken uploads).
- */
 function isUsableImage( item: MediaItem ): boolean {
 	if ( ! item || typeof item.id !== 'number' || ! item.source_url ) {
 		return false;
@@ -64,7 +41,6 @@ function isUsableImage( item: MediaItem ): boolean {
 	return !! d && typeof d.width === 'number' && typeof d.height === 'number' && d.width > 0 && d.height > 0;
 }
 
-/** Plain text out of a REST `title.rendered`, entities and tags included. */
 function stripHtml( markup: string ): string {
 	if ( ! markup ) {
 		return '';
@@ -73,8 +49,6 @@ function stripHtml( markup: string ): string {
 	el.innerHTML = markup;
 	return el.textContent?.trim() || '';
 }
-
-// -------------------------------------------------------------- REST
 
 async function fetchMediaPage(
 	ctx: Ctx,
@@ -106,10 +80,6 @@ async function fetchMediaPage(
 	return { items: items.filter( isUsableImage ), totalPages: totalPages || 1 };
 }
 
-/**
- * A raw binary body with `Content-Disposition: attachment` — the
- * simplest shape WordPress accepts.
- */
 async function uploadImage( ctx: Ctx, file: File ): Promise< { id: number; url: string } > {
 	const response = await ctx.fetch( extraOf( ctx ).mediaUrl, {
 		method: 'POST',
@@ -125,8 +95,6 @@ async function uploadImage( ctx: Ctx, file: File ): Promise< { id: number; url: 
 	const data = ( await response.json() ) as { id: number; source_url: string };
 	return { id: data.id, url: data.source_url };
 }
-
-// ------------------------------------------------------------ upload
 
 function choose( item: { id: number; url: string } ): void {
 	update( { customImage: item, wallpaper: CUSTOM_IMAGE_ID } );
@@ -158,7 +126,6 @@ async function handleImageFile( ctx: Ctx, file: File ): Promise< void > {
 	}
 }
 
-/** What the upload tile shows: a status, the Remove button, or the prompt. */
 function tileBody( uploading: boolean, hasImage: boolean, onRemove: ( e: Event ) => void ) {
 	if ( uploading ) {
 		return html`<span class="os-settings__upload-status">${ __( 'Uploading…' ) }</span>`;
@@ -195,9 +162,7 @@ const uploadPane: Section = ( s, ctx ) => {
 		ctx.root.querySelector< HTMLInputElement >( '[data-os-upload-input]' );
 	const onRemove = ( e: Event ): void => {
 		e.stopPropagation();
-		// If the image was the active wallpaper, fall back to the
-		// default preset so the user isn't left with an unreadable
-		// blank desktop the moment they hit remove.
+
 		update( {
 			customImage: null,
 			...( s.wallpaper === CUSTOM_IMAGE_ID ? { wallpaper: getDefaultWallpaperId() } : {} ),
@@ -219,7 +184,7 @@ const uploadPane: Section = ( s, ctx ) => {
 		if ( file ) {
 			void handleImageFile( ctx, file );
 		}
-		// Clear so re-picking the same file fires `change` again.
+
 		input.value = '';
 	};
 	const setDragover = ( on: boolean ): void => {
@@ -265,8 +230,6 @@ const uploadPane: Section = ( s, ctx ) => {
 	`;
 };
 
-// ----------------------------------------------------------- library
-
 function visibleLibraryItems( s: OsSettingsState, items: MediaItem[] ): MediaItem[] {
 	if ( ! s.libraryHdOnly ) {
 		return items;
@@ -276,7 +239,6 @@ function visibleLibraryItems( s: OsSettingsState, items: MediaItem[] ): MediaIte
 	);
 }
 
-/** Fetch the next page into the library state. */
 export async function loadNextPage( ctx: Ctx ): Promise< void > {
 	const lib = uiOf( ctx ).library;
 	if ( lib.loading || ( lib.totalPages > 0 && lib.page >= lib.totalPages ) ) {
@@ -301,7 +263,6 @@ export async function loadNextPage( ctx: Ctx ): Promise< void > {
 	}
 }
 
-/** Start over — a new query, or the HD filter flipped. */
 function resetAndReload( ctx: Ctx ): void {
 	const lib = uiOf( ctx ).library;
 	lib.page = 0;
@@ -341,11 +302,10 @@ const libraryPane: Section = ( s, ctx ) => {
 	const visible = visibleLibraryItems( s, lib.loaded );
 	const hiddenByHd = lib.loaded.length - visible.length;
 	const parts = [
-		/* translators: %d: the number of media items currently visible. */
+
 		sprintf( __( 'Showing %d' ), visible.length ),
 	];
 	if ( s.libraryHdOnly && hiddenByHd > 0 ) {
-		/* translators: %d: the number of images filtered out by the HD toggle. */
 		parts.push( sprintf( __( '%d hidden by HD filter' ), hiddenByHd ) );
 	}
 	const onSearch = ( e: Event ): void => {
@@ -360,8 +320,6 @@ const libraryPane: Section = ( s, ctx ) => {
 		}, SEARCH_DEBOUNCE_MS );
 	};
 	const onHdToggle = ( e: Event ): void => {
-		// A setting, but nothing for the store to paint: the list is
-		// re-fetched here, reading the value the store now holds.
 		update( { libraryHdOnly: pickedChecked( e ) } );
 		resetAndReload( ctx );
 	};
@@ -396,7 +354,7 @@ const libraryPane: Section = ( s, ctx ) => {
 				/>
 				<os-checkbox-label
 					label=${ sprintf(
-						/* translators: 1: the HD minimum width in px, 2: the minimum height. */
+
 						__( 'Only HD (≥%1$d×%2$d)' ),
 						HD_MIN_WIDTH,
 						HD_MIN_HEIGHT,
@@ -419,9 +377,6 @@ const libraryPane: Section = ( s, ctx ) => {
 	`;
 };
 
-// ------------------------------------------------------------ section
-
-/** Which source the drawer shows; Upload when the user may upload. */
 export function imageSource( ctx: Ctx ): 'upload' | 'library' {
 	const ui = uiOf( ctx );
 	if ( ui.imageSource ) {
@@ -430,10 +385,6 @@ export function imageSource( ctx: Ctx ): 'upload' | 'library' {
 	return ctx.data.canUpload ? 'upload' : 'library';
 }
 
-/**
- * The library fetches on first sight, not at mount: most sessions
- * never open the drawer. Called after every paint.
- */
 export function syncLibrary( ctx: Ctx ): void {
 	const ui = uiOf( ctx );
 	if ( ! ui.imagePickerOpen || imageSource( ctx ) !== 'library' ) {
@@ -455,9 +406,7 @@ export const customImageSection: Section = ( s, ctx ) => {
 			ctx.repaint();
 		}
 	};
-	// No heading. "Use your own image" is the dashed tile in the grid
-	// above that opens this, and repeating it here names the same
-	// thing twice within 40px.
+
 	return html`
 		<div class="os-settings__uploader">
 			${ canUpload

@@ -1,44 +1,14 @@
-/**
- * My WordPress — the user activity footprint.
- *
- * Part of the `my-wordpress` client view: imported by the
- * `my-wordpress.os.ts` entry. WP Explorer's full-body footprint
- * surface, ported 1:1 — the sections, their order, and every class
- * name are the original's, so its stylesheet rules and any plugin CSS
- * written against them keep applying:
- *
- *   1. Hero header  — big avatar, name, role chips, member-since.
- *   2. Stat strip   — totals + current/longest streak callouts.
- *   3. Calendar     — 52-week × 7-day GitHub-style heatmap of daily
- *                     activity (posts + comments + update saves folded
- *                     into a single intensity score).
- *   4. Rhythm       — weekday distribution + hour-of-day distribution.
- *   5. Most-prolific month callout.
- *   6. Recent timeline.
- *   7. Action footer.
- *
- * All data comes from one round-trip to
- * `/desktop-mode/v1/user-footprint/<id>` — through `ctx.fetch`, so the
- * REST root, the nonce and the window's spinner attribution are the
- * framework's — cached per window+user, so a `watch` repaint never
- * re-asks for a year of aggregates it already holds.
- *
- * @public
- */
-
 import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
 import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
 import { restErrorFromResponse } from '../../../src/core/api-client';
 import { uiOf, type Ctx, type UserFootprint } from './types';
 
-/** Per-window fetch cache — lives in the UI bag, keyed by user. */
 export interface FootprintCache {
 	userId: number;
 	status: 'loading' | 'error' | 'ready';
 	payload: UserFootprint | null;
 }
 
-/** Kick (or reuse) the fetch for the open footprint. */
 function ensureFootprint( ctx: Ctx, userId: number ): FootprintCache {
 	const ui = uiOf( ctx );
 	if ( ui.fp && ui.fp.userId === userId ) {
@@ -54,7 +24,6 @@ function ensureFootprint( ctx: Ctx, userId: number ): FootprintCache {
 			return ( await response.json() ) as UserFootprint;
 		} )
 		.then( ( payload ) => {
-			// Guard against late arrivals after the user navigated on.
 			if ( ui.fp === cache ) {
 				cache.status = 'ready';
 				cache.payload = payload;
@@ -70,11 +39,6 @@ function ensureFootprint( ctx: Ctx, userId: number ): FootprintCache {
 	return cache;
 }
 
-/**
- * The status-bar strings while the footprint is open — the same
- * pair the original painted: totals on the left, the window's date
- * range on the right.
- */
 export function footprintStatus( ctx: Ctx ): [ string, string ] | null {
 	const userId = Number( ctx.state.footprint );
 	if ( ! ( userId > 0 ) ) {
@@ -90,21 +54,19 @@ export function footprintStatus( ctx: Ctx ): [ string, string ] | null {
 	const payload = cache.payload;
 	return [
 		sprintf(
-			/* translators: 1: post total, 2: comment total. */
+
 			__( '%1$d posts · %2$d comments tracked' ),
 			payload.totals.posts + payload.totals.pages,
 			payload.totals.comments,
 		),
 		sprintf(
-			/* translators: 1: window-start date, 2: window-end date. */
+
 			__( 'Window %1$s → %2$s' ),
 			formatDate( payload.range.from ),
 			formatDate( payload.range.to ),
 		),
 	];
 }
-
-// ------------------------------------------------------------ helpers
 
 function initialsOf( name: string ): string {
 	const parts = name
@@ -132,8 +94,6 @@ function statCard( value: string, label: string, caption: string ): TemplateResu
 	`;
 }
 
-// ------------------------------------------------------------ sections
-
 function hero( payload: UserFootprint ): TemplateResult {
 	const roles = payload.profile.roleLabels ?? [];
 	return html`
@@ -149,7 +109,7 @@ function hero( payload: UserFootprint ): TemplateResult {
 					${ roles.map( ( r ) => html`<span class="os-my-wordpress__user-role">${ r }</span>` ) }
 					${ payload.profile.registered
 						? html`<span class="os-my-wordpress__user-role os-my-wordpress__footprint-since">${ sprintf(
-							/* translators: %s is a year-month label like "January 2023". */
+
 							__( 'Member since %s' ),
 							formatDate( payload.profile.registered, 'month' ),
 						) }</span>`
@@ -176,7 +136,7 @@ function headlineStats( payload: UserFootprint ): TemplateResult {
 				__( 'Total content' ),
 				payload.totals.posts > 0 && payload.totals.pages > 0
 					? sprintf(
-						/* translators: 1: post count, 2: page count. */
+
 						__( '%1$d posts · %2$d pages' ),
 						payload.totals.posts,
 						payload.totals.pages,
@@ -193,14 +153,14 @@ function headlineStats( payload: UserFootprint ): TemplateResult {
 				: '' }
 			${ statCard(
 				sprintf(
-					/* translators: %d is the length in days of the user's longest publishing streak. */
+
 					_n( '%d day', '%d days', payload.streak.longest ),
 					payload.streak.longest,
 				),
 				__( 'Longest streak' ),
 				longestRange.from && longestRange.to
 					? sprintf(
-						/* translators: 1: start date, 2: end date. */
+
 						__( '%1$s → %2$s' ),
 						formatDate( longestRange.from ),
 						formatDate( longestRange.to ),
@@ -209,7 +169,7 @@ function headlineStats( payload: UserFootprint ): TemplateResult {
 			) }
 			${ statCard(
 				sprintf(
-					/* translators: %d is the length in days of the user's current active streak. */
+
 					_n( '%d day', '%d days', payload.streak.current ),
 					payload.streak.current,
 				),
@@ -256,14 +216,10 @@ function calendar( payload: UserFootprint ): TemplateResult {
 		`;
 	}
 
-	// Grid geometry — the original's, verbatim: row 1 is month labels,
-	// col 1 is weekday labels, data cells start at (2, 2), a column per
-	// week. See the legacy renderer for the reasoning on each rule.
 	const firstDow = dates[ 0 ].getUTCDay();
 	const place = ( linear: number ): string =>
 		`grid-row:${ ( linear % 7 ) + 2 };grid-column:${ Math.floor( linear / 7 ) + 2 }`;
 
-	// Mon / Wed / Fri labels, locale-formatted from a known Monday.
 	const weekdaySource = [
 		new Date( Date.UTC( 2024, 11, 2 ) ),
 		new Date( Date.UTC( 2024, 11, 4 ) ),
@@ -281,8 +237,7 @@ function calendar( payload: UserFootprint ): TemplateResult {
 		lastMonth = m;
 		const linear = firstDow + i;
 		const week = Math.floor( linear / 7 );
-		// A first-column label whose month starts mid-week would
-		// half-overhang the weekday gutter.
+
 		if ( week === 0 && linear % 7 !== 0 ) {
 			continue;
 		}
@@ -310,7 +265,7 @@ function calendar( payload: UserFootprint ): TemplateResult {
 					${ payload.daily.map( ( d, i ) => html`<span
 						class="os-my-wordpress__footprint-cell os-my-wordpress__footprint-cell--l${ bucketize( dayIntensity( d ) ) }"
 						title=${ sprintf(
-							/* translators: 1: date, 2: post count, 3: comment count, 4: update (re-save) count. */
+
 							__( '%1$s — %2$d posts, %3$d comments, %4$d updates' ),
 							formatDate( d.date, 'long' ),
 							d.posts,
@@ -341,7 +296,7 @@ function barChart( values: number[], labels: string[], titles: string[] ): Templ
 						class="os-my-wordpress__footprint-bar ${ v === 0 ? 'os-my-wordpress__footprint-bar--empty' : '' }"
 						style="height:${ Math.round( ( v / max ) * 100 ) }%"
 						title=${ sprintf(
-							/* translators: 1: bucket label, 2: count. */
+
 							__( '%1$s · %2$d' ),
 							titles[ i ] ?? labels[ i ] ?? String( i ),
 							v,
@@ -370,7 +325,7 @@ function rhythm( payload: UserFootprint ): TemplateResult {
 	);
 	const hourFull = Array.from( { length: 24 }, ( _unused, i ) =>
 		sprintf(
-			/* translators: %d is an hour of the day (0-23). */
+
 			__( '%d:00' ),
 			i,
 		),
@@ -402,7 +357,7 @@ function monthCallout( payload: UserFootprint ): TemplateResult | '' {
 			<span class="os-my-wordpress__footprint-callout-label">${ __( 'Most prolific month' ) }</span>
 			<h3 class="os-my-wordpress__footprint-callout-value">${ formatDate( m.ym, 'month' ) }</h3>
 			<p class="os-my-wordpress__footprint-callout-detail">${ sprintf(
-				/* translators: %d is a post count. */
+
 				_n(
 					'%d post published — their personal record.',
 					'%d posts published — their personal record.',
@@ -428,14 +383,14 @@ function timeline( payload: UserFootprint ): TemplateResult {
 		const title = ev.title || __( '(no title)' );
 		if ( ev.kind === 'comment' ) {
 			return sprintf(
-				/* translators: %s is a post title the user commented on. */
+
 				__( 'Commented on “%s”' ),
 				title,
 			);
 		}
 		if ( ev.kind === 'post-update' ) {
 			return sprintf(
-				/* translators: %s is the post title the user re-saved. */
+
 				__( 'Updated “%s”' ),
 				title,
 			);
@@ -502,7 +457,6 @@ function footer( ctx: Ctx, payload: UserFootprint, userId: number ): TemplateRes
 	`;
 }
 
-/** The full-body footprint view — replaces the split list/preview. */
 export function renderFootprint( ctx: Ctx ): TemplateResult {
 	const userId = Number( ctx.state.footprint );
 	const cache = ensureFootprint( ctx, userId );

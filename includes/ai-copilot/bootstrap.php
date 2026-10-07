@@ -1,12 +1,4 @@
 <?php
-/**
- * OpenStation — AI Copilot bootstrap.
- *
- * Loads all sub-modules in dependency order: settings helpers first so
- * every other file can call `openstation_ai_get_settings()` immediately.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 

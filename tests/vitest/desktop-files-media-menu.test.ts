@@ -1,10 +1,3 @@
-/**
- * Tests for the Media Library entries on upload tiles: "Add to
- * Media Library" on any media-capable stored file, "Start a post /
- * page with this image" on images, each gated by the server's
- * `desktopStorage` capability flags; and the click paths that call
- * the REST client and open the resulting edit screen.
- */
 import { RestError } from '../../src/core/api-client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -135,9 +128,9 @@ describe( 'media menu items', () => {
 	test( 'the isMedia flag is the gate, not the kind', async () => {
 		setConfig( { currentUserId: 5, desktopStorage: allFlags } );
 		const { applyMenu } = await loadAndInstall();
-		// An image the server filtered out of the media policy.
+
 		expect( applyMenu( imagePlacement( { file: { isMedia: false } } ) ) ).toEqual( [] );
-		// A legacy payload without the flag is treated as not media.
+
 		const legacy = imagePlacement();
 		delete ( legacy.file as { isMedia?: boolean } ).isMedia;
 		expect( applyMenu( legacy ) ).toEqual( [] );
@@ -154,8 +147,6 @@ describe( 'media menu items', () => {
 			'desktop-mode/upload-start-page',
 		] );
 
-		// Without upload_files nothing is offered — the post entries
-		// need the attachment too.
 		setConfig( {
 			currentUserId: 5,
 			desktopStorage: { canAddToMedia: false, canStartPost: true, canStartPage: true },
@@ -248,7 +239,7 @@ describe( 'media menu items', () => {
 			imagePlacement( { file: { ref: '1' } } ),
 			imagePlacement( { file: { ref: '2' } } ),
 			pdfPlacement(),
-			exePlacement(), // not media — skipped, no call
+			exePlacement(),
 		] );
 		expect( restMock.addUploadToMediaLibrary ).toHaveBeenCalledTimes( 3 );
 		expect( showToast ).toHaveBeenCalledTimes( 1 );

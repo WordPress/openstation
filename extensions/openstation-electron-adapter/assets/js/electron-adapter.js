@@ -90,7 +90,7 @@ var openStationElectronAdapter = function(exports) {
         for (const id of known) {
           dockedListeners.forEach((cb) => cb({ windowId: id }));
         }
-        known = /* @__PURE__ */ new Set();
+        known =                 new Set();
         stopPolling();
         return;
       }
@@ -164,9 +164,7 @@ var openStationElectronAdapter = function(exports) {
           windowIds: Array.isArray(data.windowIds) ? data.windowIds : []
         };
       },
-      // The app owns its own connection to WordPress. A browser tab
-      // asking it to re-register would be speaking for a process it
-      // does not own.
+
       handshake: () => Promise.resolve(idle),
       getConnection: () => Promise.resolve(idle),
       disconnect: () => Promise.resolve({ ok: false }),
@@ -193,35 +191,20 @@ var openStationElectronAdapter = function(exports) {
     };
   }
   class FreedWindows {
-    /**
-     * @param deps Injected collaborators.
-     */
+
     constructor(deps) {
       this.deps = deps;
-      this.ids = /* @__PURE__ */ new Set();
+      this.ids =                 new Set();
     }
-    /** @return Ids currently out on the real desktop. */
+
     list() {
       return Array.from(this.ids);
     }
-    /**
-     * @param windowId Window id.
-     * @return Whether it is out on the desktop.
-     */
+
     has(windowId) {
       return this.ids.has(windowId);
     }
-    /**
-     * Adopt ids the host already had open — a shell reload does not
-     * close native windows, so boot is not a clean slate.
-     *
-     * Silent by design: nothing *changed*, the adapter is only
-     * catching up with what was already true, and firing "freed" for
-     * each would tell subscribers about transitions that never
-     * happened.
-     *
-     * @param windowIds Ids reported by the host.
-     */
+
     adoptExisting(windowIds) {
       for (const id of windowIds) {
         if (id) {
@@ -229,11 +212,7 @@ var openStationElectronAdapter = function(exports) {
         }
       }
     }
-    /**
-     * Mark a window as out on the desktop and get it off the desk.
-     *
-     * @param windowId Window id.
-     */
+
     adopt(windowId) {
       if (!windowId || this.ids.has(windowId)) {
         return;
@@ -249,11 +228,7 @@ var openStationElectronAdapter = function(exports) {
       }
       this.deps.onFreed?.(windowId);
     }
-    /**
-     * Restore a window that is no longer out on the desktop.
-     *
-     * @param windowId Window id.
-     */
+
     release(windowId) {
       if (!this.ids.delete(windowId)) {
         return;
@@ -269,12 +244,7 @@ var openStationElectronAdapter = function(exports) {
       }
       this.deps.onDocked?.(windowId);
     }
-    /**
-     * Anything that would surface a freed window inside the shell
-     * raises the native window instead.
-     *
-     * @param windowId Window id.
-     */
+
     redirect(windowId) {
       if (!this.ids.has(windowId)) {
         return;
@@ -285,12 +255,7 @@ var openStationElectronAdapter = function(exports) {
       }
       this.deps.focusNative(windowId);
     }
-    /**
-     * A window the user closed for real is no longer anyone's problem —
-     * take its native counterpart down with it.
-     *
-     * @param windowId Window id.
-     */
+
     forget(windowId) {
       if (this.ids.delete(windowId)) {
         this.deps.closeNative(windowId);
@@ -398,9 +363,7 @@ var openStationElectronAdapter = function(exports) {
           {
             id: win.id,
             config: win.config,
-            // At `WINDOW_OPENED` an iframe window may not have
-            // navigated yet, so fall back to the URL it was
-            // configured with rather than to solo mode.
+
             getCurrentUrl: () => (win.getCurrentUrl ? win.getCurrentUrl() : "") || win.config.url || ""
           },
           {

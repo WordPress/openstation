@@ -1,17 +1,5 @@
 <?php
-/**
- * Tests for single-file sharing (`target_type='file'`): invite /
- * accept / deny / leave / revoke lifecycle, the read-only tier
- * enforcement, pending delivery, purge cascade, and the
- * target-type scoping regression (file shares must never bleed
- * into folder-share reads that share the same numeric id).
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-files
- */
+
 class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -77,7 +65,6 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 		$this->assertSame( 'read', $row['capability'] );
 		$this->assertSame( 'pending', $row['state'] );
 
-		// Pending invite is deliverable.
 		$pending = openstation_files_get_pending_file_shares_for_user( self::$recipient_id );
 		$this->assertCount( 1, $pending );
 		$shape = openstation_files_shape_file_share( $pending[0] );
@@ -87,33 +74,28 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 		$next = openstation_stored_file_share_accept( $share_id, self::$recipient_id );
 		$this->assertSame( 'accepted', $next['state'] );
 
-		// The recipient got a root placement of the upload.
 		$rows = openstation_files_get_for_user_folder( self::$recipient_id, 0 );
 		$uploads = array_filter( $rows, function ( $r ) {
 			return 'upload' === $r['file_type'];
 		} );
 		$this->assertCount( 1, $uploads );
 
-		// And read access.
 		$this->assertTrue( openstation_stored_file_user_can_read( $file_id, self::$recipient_id ) );
-		// The pending list is now empty.
+
 		$this->assertCount( 0, openstation_files_get_pending_file_shares_for_user( self::$recipient_id ) );
 	}
 
 	public function test_invite_validations() {
 		$file_id = $this->make_stored_file( self::$owner_id );
 
-		// Non-manager cannot invite.
 		$err = openstation_stored_file_share_invite( $file_id, self::$recipient_id, self::$stranger_id );
 		$this->assertWPError( $err );
 		$this->assertSame( 'openstation_files_forbidden', $err->get_error_code() );
 
-		// Owner cannot be invited.
 		$err = openstation_stored_file_share_invite( $file_id, self::$owner_id, self::$owner_id );
 		$this->assertWPError( $err );
 		$this->assertSame( 'openstation_files_share_owner', $err->get_error_code() );
 
-		// Subscribers are ineligible (no edit_posts).
 		$err = openstation_stored_file_share_invite( $file_id, self::$owner_id, self::$stranger_id );
 		$this->assertWPError( $err );
 		$this->assertSame( 'openstation_files_ineligible_principal', $err->get_error_code() );
@@ -152,7 +134,6 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 		$this->assertSame( 'denied', openstation_stored_file_share_state( $file_id, self::$recipient_id ) );
 		$this->assertCount( 0, openstation_files_get_for_user_folder( self::$recipient_id, 0 ) );
 
-		// Owner cannot leave; a non-member gets not_member.
 		$err = openstation_stored_file_share_leave( $file_id, self::$owner_id );
 		$this->assertSame( 'openstation_files_owner_cannot_leave', $err->get_error_code() );
 		$err = openstation_stored_file_share_leave( $file_id, self::$stranger_id );
@@ -178,7 +159,6 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 
 		$path = openstation_stored_file_path( openstation_stored_files_get( $file_id ) );
 
-		// Owner hard-removes their placement.
 		$rows = openstation_files_get_for_user_folder( self::$owner_id, 0 );
 		$this->assertTrue( openstation_files_remove( (int) $rows[0]['id'], self::$owner_id ) );
 
@@ -198,8 +178,6 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 		global $wpdb;
 		$tables = openstation_files_table_names();
 
-		// Craft a folder and a stored file with the SAME numeric id
-		// by aligning auto-increments.
 		$folder_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Collide' ) );
 		$file_id   = $this->make_stored_file( self::$owner_id );
 		$wpdb->update( $tables['stored_files'], array( 'id' => (int) $folder_id ), array( 'id' => $file_id ) );
@@ -212,15 +190,11 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 
 		openstation_stored_file_share_invite( $file_id, self::$owner_id, self::$recipient_id );
 
-		// The folder's share list must stay empty; the file's list has one.
 		$this->assertCount( 0, openstation_files_get_folder_shares( $folder_id ) );
 		$this->assertCount( 1, openstation_stored_files_get_file_shares( $file_id ) );
 
-		// The FOLDER capability resolver must not grant anything from
-		// the file share.
 		$this->assertSame( 'none', openstation_folder_share_user_capability( $folder_id, self::$recipient_id ) );
 
-		// Folder pending list stays empty for the recipient.
 		$pending_folders = openstation_files_get_pending_shares_for_user( self::$recipient_id );
 		$this->assertCount( 0, $pending_folders );
 	}
@@ -229,7 +203,6 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 		global $wpdb;
 		$tables = openstation_files_table_names();
 
-		// Align a folder id and a stored-file id numerically.
 		$folder_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Collide' ) );
 		openstation_files_place( self::$owner_id, 0, 'folder', (string) $folder_id );
 		$file_id = $this->make_stored_file( self::$owner_id );
@@ -244,11 +217,9 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 		$share_id = openstation_stored_file_share_invite( $file_id, self::$owner_id, self::$recipient_id );
 		openstation_stored_file_share_accept( $share_id, self::$recipient_id );
 
-		// Recycle-bin path: trash + purge the FOLDER with the same id.
 		$this->assertTrue( openstation_files_trash_folder( self::$owner_id, $folder_id ) );
 		$this->assertTrue( openstation_files_purge_folder( self::$owner_id, $folder_id ) );
 
-		// The file share must survive; the recipient keeps access.
 		$this->assertSame( 'accepted', openstation_stored_file_share_state( $file_id, self::$recipient_id ) );
 		$this->assertTrue( openstation_stored_file_user_can_read( $file_id, self::$recipient_id ) );
 		$this->assertNotNull( openstation_stored_files_get( $file_id ) );
@@ -315,7 +286,7 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 		$this->assertSame( $share_id, $again );
 		$this->assertSame( 'pending', openstation_files_get_share( $share_id )['state'] );
 	}
-	/** @covers ::openstation_stored_file_share_accept */
+
 	public function test_accept_can_retry_when_placement_lock_was_busy() {
 		$file_id = $this->make_stored_file( self::$owner_id );
 		$share_id = openstation_stored_file_share_invite( $file_id, self::$owner_id, self::$recipient_id );

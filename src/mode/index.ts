@@ -1,34 +1,3 @@
-/**
- * OpenStation — responsive mode.
- *
- * One answer to "which experience is the shell rendering?":
- *
- *   `'desktop'` — 1025px and up. Windows, dock, wallpaper icons.
- *   `'tablet'`  — 768px to 1024px. Reported, not yet a distinct
- *                 layout: the shell renders the desktop experience.
- *   `'mobile'`  — up to 767px. The phone layer (`src/mobile/`) takes
- *                 over: a home grid, full-screen apps, an app
- *                 switcher and a bottom tab bar.
- *
- * The mode is a pure function of the viewport width and the user's
- * preference (`'auto' | 'desktop' | 'mobile'`, Preferences → Mobile).
- * `resolveMode()` is that function, exported alone so tests and the
- * PHP-printed first-paint stamp (`openstation_print_mode_stamp()`)
- * can agree on it without booting anything.
- *
- * The module owns exactly three side effects: it stamps
- * `data-os-mode` on `<html>` (the selector every mode-aware
- * stylesheet keys on — the same attribute the head stamp writes, so
- * the first paint and the live value never disagree), it fires
- * `HOOKS.MODE_CHANGED` on the hook bus, and it dispatches the
- * `os-mode-changed` CustomEvent on `document`. Nothing here lays
- * anything out; the phone layer and the desktop surfaces subscribe
- * and decide for themselves, per `docs/event-driven-framework.md`.
- *
- * Detection is `matchMedia`, not a `resize` listener: the browser
- * fires the media-query listener only on a crossing, so a desktop
- * user dragging a window edge costs nothing here.
- */
 import { doAction, HOOKS } from '../hooks';
 import { stampDisplay, stampMode, type OsDisplay, type OsMode } from './stamp';
 
@@ -46,16 +15,8 @@ export {
 } from './stamp';
 export type { OsDisplay, OsMode } from './stamp';
 
-/** The media query an installed app matches. */
 export const STANDALONE_QUERY = '(display-mode: standalone)';
 
-/**
- * The display for a window. Pure: `standalone` when the display-mode
- * media query matches or Safari's `navigator.standalone` says the
- * page was launched from the home screen, `browser` otherwise. The
- * PHP head stamp (`openstation_mode_stamp_script()`) runs the same
- * rule before the first paint.
- */
 export function resolveDisplay(
 	win: Pick< globalThis.Window, 'matchMedia' > | undefined,
 	nav: { standalone?: boolean } | undefined,
@@ -65,12 +26,10 @@ export function resolveDisplay(
 	return displayFor( matches, nav );
 }
 
-/** The display for a query answer and Safari's flag. */
 function displayFor( queryMatches: boolean, nav: { standalone?: boolean } | undefined ): OsDisplay {
 	return queryMatches || nav?.standalone === true ? 'standalone' : 'browser';
 }
 
-/** The user's override. `'auto'` follows the viewport. */
 export type OsModePreference = 'auto' | 'desktop' | 'mobile';
 
 export const OS_MODE_PREFERENCES: readonly OsModePreference[] = [
@@ -79,15 +38,14 @@ export const OS_MODE_PREFERENCES: readonly OsModePreference[] = [
 	'mobile',
 ];
 
-/** Widest viewport (CSS px, inclusive) that is a phone. */
 export const MOBILE_MAX_WIDTH = 767;
-/** Widest viewport (CSS px, inclusive) that is a tablet. */
+
 export const TABLET_MAX_WIDTH = 1024;
 
 export interface OsModeBreakpoints {
-	/** Viewports at or below this width are `'mobile'`. */
+
 	mobile: number;
-	/** Viewports at or below this width (and above `mobile`) are `'tablet'`. */
+
 	tablet: number;
 }
 
@@ -104,53 +62,32 @@ export interface OsModeChange {
 
 type ModeListener = ( change: OsModeChange ) => void;
 
-/**
- * The public `wp.os.mode` surface. Read-only from the outside: the
- * preference is a setting, and settings are written through
- * `wp.os.updateOsSettings( { mobileLayout } )` like every other one.
- */
 export interface OsModeApi {
-	/** The effective mode right now. */
+
 	get(): OsMode;
-	/** The user's override that produced it. */
+
 	getPreference(): OsModePreference;
-	/** The breakpoints in force (filterable server-side). */
+
 	getBreakpoints(): Readonly< OsModeBreakpoints >;
-	/** `get() === 'mobile'`. */
+
 	isMobile(): boolean;
-	/**
-	 * How the document is displayed: `standalone` as an installed app
-	 * (a home-screen web app, an installed PWA), `browser` in a tab.
-	 * Stamped on `<html>` as `data-os-display` for CSS.
-	 */
+
 	getDisplay(): OsDisplay;
-	/** `getDisplay() === 'standalone'`. */
+
 	isStandalone(): boolean;
-	/**
-	 * Called with every transition, and — when `immediate` is set —
-	 * once right away with the current mode. Returns the
-	 * unsubscribe function.
-	 */
+
 	subscribe(
 		cb: ( change: OsModeChange ) => void,
 		opts?: { immediate?: boolean },
 	): () => void;
 }
 
-/**
- * Coerce an unknown value to a preference, defaulting to `'auto'`.
- */
 export function sanitizeModePreference( raw: unknown ): OsModePreference {
 	return OS_MODE_PREFERENCES.includes( raw as OsModePreference )
 		? ( raw as OsModePreference )
 		: 'auto';
 }
 
-/**
- * Coerce an unknown breakpoint object, keeping the invariant
- * `0 < mobile < tablet` so the three bands stay disjoint whatever a
- * filter returned.
- */
 export function sanitizeBreakpoints( raw: unknown ): OsModeBreakpoints {
 	const obj = ( raw && typeof raw === 'object' ? raw : {} ) as Record<
 		string,
@@ -168,14 +105,6 @@ export function sanitizeBreakpoints( raw: unknown ): OsModeBreakpoints {
 	return { mobile, tablet };
 }
 
-/**
- * The mode for a viewport width under a preference. Pure.
- *
- * A forced preference wins regardless of width: `'desktop'` on a
- * phone is the "give me the real thing" escape hatch, `'mobile'` on
- * a desktop is how a developer previews the phone layer without a
- * device.
- */
 export function resolveMode(
 	width: number,
 	preference: OsModePreference = 'auto',
@@ -197,28 +126,25 @@ export function resolveMode(
 }
 
 export interface InstallModeOptions {
-	/** Initial preference, normally `osSettings.mobileLayout`. */
+
 	preference?: OsModePreference;
 	breakpoints?: Partial< OsModeBreakpoints >;
-	/** Defaults to `document.documentElement`. */
+
 	root?: Element;
-	/** Defaults to the global `window`; injectable for tests. */
+
 	win?: Pick< globalThis.Window, 'matchMedia' | 'innerWidth' >;
-	/** Defaults to the global `navigator`; injectable for tests. */
+
 	nav?: { standalone?: boolean };
 }
 
 export interface ModeController {
 	api: OsModeApi;
-	/** Re-resolve under a new preference (the settings store calls this). */
+
 	setPreference( preference: OsModePreference ): void;
-	/** Stop listening to the viewport. Leaves the stamp in place. */
+
 	dispose(): void;
 }
 
-/**
- * Wire the mode to the viewport and the hook bus. One call per shell.
- */
 export function installMode( opts: InstallModeOptions = {} ): ModeController {
 	const root = opts.root ?? document.documentElement;
 	const win = opts.win ?? window;
@@ -237,9 +163,6 @@ export function installMode( opts: InstallModeOptions = {} ): ModeController {
 	let mode: OsMode = resolveMode( measure(), preference, breakpoints );
 	stampMode( root, mode );
 
-	// The display is stamped the same way, and re-stamped when the
-	// browser moves the document between a tab and an app window
-	// (Chromium fires the display-mode query on install).
 	const nav =
 		opts.nav ??
 		( typeof navigator !== 'undefined'
@@ -275,13 +198,11 @@ export function installMode( opts: InstallModeOptions = {} ): ModeController {
 		}
 	};
 
-	// Two crossings, two queries. The listener fires only when a
-	// query flips, so an ordinary resize inside one band is free.
 	const queries: MediaQueryList[] = [];
 	if ( typeof win.matchMedia === 'function' ) {
 		for ( const px of [ breakpoints.mobile, breakpoints.tablet ] ) {
 			const q = win.matchMedia( `(max-width: ${ px }px)` );
-			// Older WebKit shipped `addListener` only.
+
 			if ( typeof q.addEventListener === 'function' ) {
 				q.addEventListener( 'change', update );
 			} else if ( typeof q.addListener === 'function' ) {

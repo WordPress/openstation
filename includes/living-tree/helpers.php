@@ -1,28 +1,7 @@
 <?php
-/**
- * OpenStation — Living Tree: metric helpers.
- *
- * The scalar signals the snapshot builder folds into the site's DNA.
- * Each helper composes existing WordPress aggregates (`wp_count_posts`,
- * `wp_count_comments`, `wp_count_terms`), the site-views traffic signal,
- * and framework presence — never a per-row payload. The golden rule
- * (WordPress emits hormones, never geometry) starts here: everything
- * returned is a scalar or a tiny capped list.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * The site's inception moment as a unix timestamp — the stable half of
- * the determinism seed (`siteUrl|installEpoch`), so it must never drift
- * between requests. Composed (core has no first-party "install time"):
- * the earlier of the oldest user registration and the oldest published
- * post date.
- *
- * @return int Unix timestamp, or 0 when the site has neither.
- */
 function openstation_living_tree_install_epoch() {
 	global $wpdb;
 
@@ -47,12 +26,6 @@ function openstation_living_tree_install_epoch() {
 	return empty( $candidates ) ? 0 : min( $candidates );
 }
 
-/**
- * Age of the site in whole days, from the install epoch. Clamped to be
- * non-negative — the master clock never runs backwards.
- *
- * @return int Whole days since the site's inception. >= 0.
- */
 function openstation_living_tree_site_age_days() {
 	$epoch = openstation_living_tree_install_epoch();
 	if ( $epoch <= 0 ) {
@@ -61,70 +34,21 @@ function openstation_living_tree_site_age_days() {
 	return max( 0, (int) floor( ( time() - $epoch ) / DAY_IN_SECONDS ) );
 }
 
-/**
- * Recent traffic signal, resolved with the same source ladder the
- * site-views widget uses: Jetpack Stats first, then the
- * `_post_views_YYYY-MM-DD` post-meta convention — both summed over the
- * last 14 days. Sites with neither simply report 0 (a windless day).
- *
- * The final value passes through the `openstation_living_tree_traffic`
- * filter so analytics plugins with their own counters can feed the
- * real number in.
- *
- * @param bool $with_jetpack Whether Jetpack Stats may answer. False
- *                           resolves the ladder from the post-views
- *                           meta down, for a caller Jetpack withholds
- *                           its stats from.
- * @return int Recent view sum. >= 0.
- */
 function openstation_living_tree_traffic( $with_jetpack = true ) {
 	$views = $with_jetpack ? openstation_living_tree_jetpack_visits() : null;
 	if ( null === $views ) {
 		$views = openstation_living_tree_meta_views();
 	}
 
-	/**
-	 * Filter the Living Tree traffic hormone source. Return a
-	 * non-negative view count for the last ~14 days — it drives the
-	 * wind (canopy sway amplitude / frequency).
-	 *
-	 * @param int $views Views in the window. Default: Jetpack Stats
-	 *                   when available, else the `_post_views_*` meta
-	 *                   sum, else 0.
-	 */
 	$views = (int) apply_filters( 'openstation_living_tree_traffic', $views );
 	return max( 0, $views );
 }
 
-/**
- * Last-14-days visits from Jetpack Stats, or `null` when unavailable.
- *
- * Sums the daily rows the site-views widget's `site-views-jetpack`
- * route serves, read through {@see openstation_site_views_jetpack_days()},
- * so the two cannot disagree about when Jetpack is the source: Jetpack
- * absent, the Stats module off, a WP_Error or an unexpected payload
- * all return `null` and the caller falls back to the post-views meta.
- * A successful `0` is trusted (a quiet site is a valid answer).
- *
- * Not gated on the caller, so the snapshot's transient holds the same
- * value no matter which user primes it. The gate is applied where the
- * snapshot is served, see {@see openstation_living_tree_snapshot_for_caller()}.
- *
- * @return int|null Views over the last 14 days, or null when Jetpack
- *                  Stats can't answer.
- */
 function openstation_living_tree_jetpack_visits() {
 	$days = openstation_site_views_jetpack_days();
 	return null === $days ? null : (int) array_sum( array_column( $days, 'views' ) );
 }
 
-/**
- * Last-14-days view sum from the `_post_views_YYYY-MM-DD` post-meta
- * convention — the plain-WP fallback shared with the site-views
- * widget. Sites without a view-counter plugin report 0.
- *
- * @return int Recent view sum. >= 0.
- */
 function openstation_living_tree_meta_views() {
 	global $wpdb;
 
@@ -146,11 +70,6 @@ function openstation_living_tree_meta_views() {
 	return max( 0, $total );
 }
 
-/**
- * Number of users currently online, from framework presence.
- *
- * @return int Count of users with `online` presence status. >= 0.
- */
 function openstation_living_tree_active_users() {
 	if ( ! function_exists( 'openstation_presence_snapshot' ) ) {
 		return 0;
@@ -164,91 +83,28 @@ function openstation_living_tree_active_users() {
 	return $count;
 }
 
-/**
- * SEO / site-health score, normalised 0..1.
- *
- * KNOWN GAP: unlike `traffic` (Jetpack Stats → post-views meta) and
- * `performance` (core Site Health tallies), this hormone still has no
- * first-party source — WordPress ships nothing SEO-shaped to read, so
- * the default is a healthy 0.7 and the filter is the only integration
- * point. Candidate future source: aggregate the per-post scores that
- * SEO plugins store in post-meta into a site-wide average. Until then,
- * an SEO or monitoring plugin that *does* know the site's health can
- * feed the real value in via the filter.
- *
- * @return float Health score in [0, 1].
- */
 function openstation_living_tree_seo_health() {
-	/**
-	 * Filter the Living Tree health hormone source. Return 0..1 — it
-	 * drives the canopy's colour temperature (green → yellow → red →
-	 * grey).
-	 *
-	 * @param float $health Default 0.7.
-	 */
+
 	$health = (float) apply_filters( 'openstation_living_tree_seo_health', 0.7 );
 	return min( 1.0, max( 0.0, $health ) );
 }
 
-/**
- * Performance headroom, normalised 0..1 (1 = plenty, 0 = under load).
- *
- * Sourced from core's own Site Health tallies when available (see
- * {@see openstation_living_tree_site_health_performance()}), falling
- * back to a comfortable 0.8 until the weekly Site Health cron has run
- * at least once. The filter remains the integration point for plugins
- * with real runtime telemetry.
- *
- * @return float Performance score in [0, 1].
- */
 function openstation_living_tree_performance() {
 	$performance = openstation_living_tree_site_health_performance();
 	if ( null === $performance ) {
 		$performance = 0.8;
 	}
 
-	/**
-	 * Filter the Living Tree performance hormone source. Return 0..1 —
-	 * it throttles growth vigour.
-	 *
-	 * @param float $performance Default: a composite of core's Site
-	 *                           Health issue counts when the
-	 *                           `health-check-site-status-result`
-	 *                           transient exists, else 0.8.
-	 */
 	$performance = (float) apply_filters( 'openstation_living_tree_performance', $performance );
 	return min( 1.0, max( 0.0, $performance ) );
 }
 
-/**
- * Performance composite from core's Site Health tallies, or `null`
- * when unavailable.
- *
- * WordPress runs every Site Health test on a weekly cron
- * (`wp_site_health_scheduled_check`) and persists the tallies in the
- * `health-check-site-status-result` transient as JSON counts
- * (`good` / `recommended` / `critical`) — the same source the
- * dashboard's Site Health widget reads. Mapping: start at 1.0,
- * subtract 0.15 per critical issue and 0.04 per recommendation, clamp
- * to [0.2, 1] — a clean install grows vigorously, a neglected one
- * visibly slows down but never fully stalls.
- *
- * Site Health measures broad install health (PHP version, HTTPS,
- * updates, object caching…), not pure runtime speed — the right
- * flavour for a "growth vigour" hormone. The transient is absent on a
- * brand-new site until the weekly cron first fires or someone opens
- * the Site Health screen; callers fall back to the 0.8 default then.
- *
- * @return float|null Composite in [0.2, 1], or null when the Site
- *                    Health tallies aren't available (yet).
- */
 function openstation_living_tree_site_health_performance() {
 	$raw = get_transient( 'health-check-site-status-result' );
 	if ( is_string( $raw ) && '' !== $raw ) {
 		$counts = json_decode( $raw, true );
 	} elseif ( is_array( $raw ) ) {
-		// Defensive: some object-cache drop-ins hand back the decoded
-		// array. Core itself always stores a JSON string.
+
 		$counts = $raw;
 	} else {
 		return null;
@@ -267,14 +123,6 @@ function openstation_living_tree_site_health_performance() {
 	return min( 1.0, max( 0.2, $score ) );
 }
 
-/**
- * Compact per-region structural hints (the `branches` array): published
- * posts grouped by year, each year mapped to a depth/girth/length hint
- * normalised against the busiest year. This is DNA, not geometry — the
- * simulator may bias growth density with it, never position anything.
- *
- * @return array[] Compact branch DNA hints (max 12 entries).
- */
 function openstation_living_tree_branch_dna() {
 	global $wpdb;
 

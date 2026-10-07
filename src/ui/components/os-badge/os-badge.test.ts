@@ -1,8 +1,3 @@
-/**
- * `<os-badge>` — smoke tests. Verifies the dot + slot render, the
- * `tone` attribute reaches the host for CSS targeting, and `no-dot`
- * suppresses the dot.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-badge';
 

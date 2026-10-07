@@ -1,71 +1,3 @@
-/**
- * OpenStation — CSS Custom Properties.
- *
- * All design tokens for the desktop shell, carrying the OpenStation
- * brand: https://nuriapenya.github.io/open-station-brand/
- *
- * ## The palette
- *
- *   Pulse      #f252fc  neon identity accent
- *   Nebula     #ec9bff  soft identity accent
- *   Sirius     #c2f1f1  aqua contrast accent
- *   Starlight  #fffbff  lightest — primary text on the station
- *   Void       #0c0b0f  darkest — the base everything sits on
- *   Obsidian   #1a1721  surfaces: window bodies, cards, rows
- *
- *   Shade ramp, Void to Starlight, for text hierarchy and lines:
- *   Astro #33303a · Silver #4d4a52 · Pewter #66636b ·
- *   Osmium #99969c · Ash #b3afb5 · Cloud #ccc8ce · Mist #e6e2e6
- *
- * The brand's own composition rule, followed here literally: "Void as
- * the base, Obsidian for surfaces, Pulse and Nebula for identity
- * moments, Sirius and Starlight for contrast, the Shade palette for
- * text hierarchy and lines, meshes reserved for hero surfaces."
- *
- * ## Why these are declared at all
- *
- * Every rule in the tree reads its token as
- * `var( --token, <literal> )`, and those literals are the look the
- * shell had before the brand: WordPress-admin greys and blues. They
- * are still there, still correct, and still what renders if this file
- * fails to load. Declaring the tokens here is what puts the station on
- * top of them — one declaration retints every surface that reads it.
- *
- * The way back is a theme, not an edit: **Desktop Mode (Legacy)**
- * (`assets/desktop-themes/legacy/theme.json`) is a frozen snapshot of
- * those pre-brand literals, and picking it in OS Settings → Themes
- * restores the old look wholesale. A desktop theme's compiled selector
- * weighs (0,2,0) against this file's `:root` (0,1,0) and loads after
- * it, so any theme — Legacy or a third party's — outranks everything
- * below.
- *
- * ## Semantic colours
- *
- * The brand defines no status palette, so danger / success / warning /
- * info are derived rather than quoted: the hues the shell already used,
- * lifted until they carry on a Void-to-Obsidian background, and where
- * the brand does have a colour that means the right thing it is used
- * instead — Sirius for info, and Holomesh's mint and warm for success
- * and warning.
- */
-
-/*
- * ---- Typefaces -------------------------------------------------
- *
- * Geist and Geist Mono, the brand faces, self-hosted from
- * `assets/fonts/` under the SIL Open Font License 1.1 (the licence
- * text ships beside them in `OFL.txt`). Both are VARIABLE fonts: one
- * file covers 100–900, which is why a whole typographic scale costs
- * ~70 kB per family rather than one file per weight.
- *
- * `font-display: swap` paints fallback text immediately and swaps when
- * the face arrives — on admin chrome that is almost always right,
- * where `block` would hide every dock label until the download lands.
- *
- * The `url()`s are relative to THIS stylesheet, which is what keeps
- * them correct however the plugin directory is renamed or wherever it
- * is symlinked from.
- */
 @font-face {
 	font-family: 'Geist';
 	src: url('../fonts/Geist-Variable.woff2') format('woff2');
@@ -82,66 +14,14 @@
 	font-display: swap;
 }
 
-/*
- * ---- Registered, so "undeclared" never means transparent ---------
- *
- * The scope note below keeps this palette out of iframe documents on
- * purpose: an admin page inside a window renders with the values its
- * own stylesheets were written with. That promise has one hole CSS
- * digs by itself — a stylesheet that consumes
- * `var(--wp-admin-theme-color)` with no fallback, in a document where
- * nothing declares it, does not fall back to an earlier declaration
- * in the cascade. An unresolved `var()` is invalid at computed-value
- * time, so the property computes to `initial` — and an unregistered
- * custom property's initial value is the guaranteed-invalid value,
- * which for a `background` means transparent. Core's own scheme files
- * declare the property, but a third-party admin scheme that consumes
- * it without declaring it renders `.button-primary` white-on-white
- * inside every chromeless window (#702).
- *
- * Registering the property gives "undeclared" a real answer:
- * WordPress's default admin colour, the same value Core's fallbacks
- * reach for. Declarations are untouched — a scheme, the palette
- * below, or the accent picker's inline style all keep winning exactly
- * as before. Registration only decides what the absence of all of
- * them computes to.
- */
 @property --wp-admin-theme-color {
 	syntax: "<color>";
 	inherits: true;
 	initial-value: #3858e9;
 }
 
-/*
- * ---- Scope: the shell document, and nothing else -----------------
- *
- * `body.os-active` rather than `:root`, and that is
- * load-bearing rather than tidy.
- *
- * This stylesheet is a dependency of `chromeless.css`, so it also
- * loads INSIDE every iframe window — a real `wp-admin` document. A
- * palette on `:root` would reach that document and repaint WordPress's
- * own UI: `--wp-admin-theme-color` alone would turn Core's primary
- * buttons, links and focus rings across every admin screen, with
- * white button text landing on a colour it was never contrast-tested
- * against.
- *
- * Iframe documents carry `body.os-chromeless` instead, so
- * they match nothing here and every rule in the tree falls back to the
- * literal it was always written with — the WordPress-admin values.
- * **An admin page inside a window looks exactly as it does outside
- * one.** That is deliberate: the station is the chrome around the
- * page, not a reskin of the page.
- *
- * Specificity: (0,1,1). A desktop theme compiles to
- * `body.os-desktop-theme-<slug>`, also (0,1,1) on the same
- * element, and its stylesheet declares `os-variables` as a
- * dependency — so it always prints after this file and wins the tie.
- * Do not remove that dependency; see the note in
- * `openstation_enqueue_desktop_theme_style()`.
- */
 body.os-active {
-	/* MIO's conversation follows desktop themes through these public tokens. */
+
 	--os-mio-chat-bg: var(--os-ui-modal-bg, #15151e);
 	--os-mio-chat-fg: var(--os-ui-modal-text, #f4f4fb);
 	--os-mio-chat-muted: var(--os-ui-modal-text-muted, #b4b4c6);
@@ -155,205 +35,49 @@ body.os-active {
 	--os-mio-callout-border: color-mix(in srgb, var(--os-ui-accent-dim, #a855f7) 32%, transparent);
 	--os-mio-chat-radius: max(18px, var(--os-window-radius, 22px));
 
-	/*
-	 * ---- Desk --------------------------------------------------
-	 *
-	 * `Space`, the brand's quiet deep-space backdrop: a linear
-	 * gradient from near-black through to a faint violet horizon.
-	 *
-	 * Note this is the desk's CSS default, not usually what you see:
-	 * the wallpaper layer writes the ACTIVE wallpaper into this same
-	 * property as an inline style, and the shipped default is the
-	 * `Galaxy` artwork (`includes/wallpapers.php`). This value is what
-	 * paints before that runs, and for anyone whose wallpaper is
-	 * unavailable.
-	 */
 	--os-bg: linear-gradient(160deg, #010101 0%, #111114 58%, #1e1d23 100%);
-	/*
-	 * Flat colour painted on the shell itself, behind every other
-	 * layer including the wallpaper.
-	 *
-	 * The shell is `position: fixed` over the classic admin page, and
-	 * that page is WHITE. Anything that leaves a layer unpainted for a
-	 * single frame — a canvas wallpaper's context being disturbed, the
-	 * compositor re-rasterising after a large GPU layer goes away —
-	 * shows it. This is the floor that makes that impossible: the worst
-	 * a dropped frame can now look like is Void.
-	 *
-	 * Deliberately a solid rather than `--os-bg`: it is never
-	 * seen when things are working, so it should cost one flat fill,
-	 * not a second gradient rasterisation on every shell repaint.
-	 */
+
 	--os-backstop: #0c0b0f;
 	--os-area-inset: 0;
 
-	/*
-	 * ── The icon grid ────────────────────────────────────────────
-	 *
-	 * ONE grid, everywhere placements are laid out: the wallpaper,
-	 * folder windows, and every canvas in the site folder. Before
-	 * these tokens each surface carried its own pitch and its own
-	 * tile width, and the two drifted apart — the desktop ended up
-	 * with an 88px tile in a 96px cell whose 8px of air the tile's
-	 * own padding ate, so icons touched edge to edge while the site
-	 * folder had 20px between them.
-	 *
-	 * The cell is derived, never declared: `cell = tile + gap`. A
-	 * gap you can see is the whole point, so it is the number that
-	 * gets tuned; the pitch follows.
-	 *
-	 * The TypeScript side mirrors these in `src/desktop-files/grid.ts`
-	 * (layout maths can't read CSS), and
-	 * `tests/vitest/grid-metrics.test.ts` parses this file to prove
-	 * the two agree. Change a number here and that test tells you
-	 * exactly which constant to move with it.
-	 */
 	--os-tile-w: 88px;
-	/*
-	 * A FIXED height, and it has to fit the tallest a tile can get:
-	 * 8px padding + 48px icon well + 6px gap + two clamped label
-	 * lines (2 × 12px × 1.2 = 28.8px) + 8px padding = 98.8px, so
-	 * 104px with a little slack for font metrics.
-	 *
-	 * Fixed rather than minimum because the selection ring is drawn
-	 * around the tile box: let the box follow its label and a row of
-	 * selected icons is a ragged run of different-height rectangles,
-	 * one per label that happened to wrap.
-	 */
+
 	--os-tile-h: 104px;
 	--os-grid-gap-x: 20px;
 	--os-grid-gap-y: 16px;
-	/* Gutter from the top / inline-start edge of any icon canvas. */
+
 	--os-grid-padding: 16px;
-	/*
-	 * Image-led sections opt into a bigger tile (`tileSize: 'large'`)
-	 * — a shop's products read as a catalogue, not a file list. Same
-	 * gaps, bigger tile.
-	 */
+
 	--os-tile-w-large: 132px;
 	--os-tile-h-large: 160px;
 
-	/* Window chrome — Obsidian body inside a Starlight hairline. */
 	--os-window-bg: #1a1721;
 	--os-window-border: rgba(255, 251, 255, 0.12);
-	/*
-	 * Window corner. Softer than the 8px the shell carried before, so
-	 * a window reads as an object on the desk rather than a panel
-	 * pinned to it.
-	 *
-	 * The tab strip's own radius is deliberately NOT tied to this one.
-	 * A tab is 30px tall, so a corner anywhere near this size eats the
-	 * whole straight edge and turns the tab into a capsule — it stops
-	 * reading as a folder tab attached to the page, which is the one
-	 * thing the tab has to say. `--os-tabs-radius` stays smaller and
-	 * independent on purpose.
-	 */
+
 	--os-window-radius: 16px;
-	/*
-	 * Shadows stay black and go deeper than they were: on a Void desk
-	 * a soft grey shadow is invisible, and depth is the only thing
-	 * separating a window from the sky behind it.
-	 */
+
 	--os-window-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
 	--os-window-shadow-focused: 0 12px 48px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.35);
-	/*
-	 * Fill of the surface a window's content is revealed from once it
-	 * finishes loading (OS Settings → Effects → "Window reveal").
-	 *
-	 * Obsidian, so a window uncovers from its own colour rather than
-	 * flashing white on a dark desk. The surface has to be opaque or
-	 * there is nothing to reveal FROM — the content would simply be
-	 * visible the whole time and the clip animation would paint
-	 * nothing. `transparent` is a legitimate value meaning "no
-	 * covering surface"; the shell then skips the layer rather than
-	 * animating something invisible.
-	 *
-	 * A reveal may override this for itself when the paint IS the
-	 * reveal; `obturator` (Camera shutter) is the one built-in that
-	 * does, because near-black blades are what make it a shutter.
-	 */
+
 	--os-window-reveal-surface: #1a1721;
-	/*
-	 * Fill of the reveal's leading edge — the band that travels with
-	 * the clip boundary and draws each reveal's shape (six lines on
-	 * Blinds, an opening ring on Iris, a rotating spoke on Radar).
-	 *
-	 * `transparent` by default: the reveal reads as the page arriving,
-	 * and a hard graphic edge on top of that is a deliberate look
-	 * rather than the neutral one. A theme (or any stylesheet) opts in
-	 * by giving this a colour — no JS and no per-reveal configuration
-	 * needed, because the band follows whatever shape the active
-	 * reveal has. While it computes to fully transparent the shell
-	 * skips the layer altogether, so the default costs nothing.
-	 */
+
 	--os-window-reveal-edge: transparent;
 
-	/*
-	 * ---- Title bar ---------------------------------------------
-	 *
-	 * Obsidian when focused, Void when not: the focused window's
-	 * chrome sits one step up the Shade ramp while its unfocused
-	 * neighbours sink toward the desk they are lying on. That is the
-	 * entire focus signal, and it costs no colour — which matters,
-	 * because the accent is spoken for.
-	 *
-	 * The pair used to be Astro-over-Obsidian, a step higher. It came
-	 * down so a focused window's title bar and its tab strip are the
-	 * SAME Obsidian, and the only thing lifting out of that surface is
-	 * the tab itself. The step is the same size; the whole ramp moved.
-	 */
 	--os-titlebar-bg: #0c0b0f;
 	--os-titlebar-bg-focused: #1a1721;
 	--os-titlebar-color: #99969c;
 	--os-titlebar-color-focused: #fffbff;
 	--os-titlebar-height: 40px;
-	/* Hairline between page chrome and window chrome. */
+
 	--os-titlebar-divider: rgba(255, 251, 255, 0.12);
 	--os-titlebar-divider-unfocused: rgba(255, 251, 255, 0.06);
 
-	/*
-	 * The status ring — leading mark of the title bar, where the app
-	 * icon used to be. Four states: the resting ring is Starlight,
-	 * work and success are both Pulse, failure is the danger colour.
-	 *
-	 * Pulse twice over is not an oversight. In flight and landed
-	 * differ in FILL — an open ring breathing, then a solid disc with
-	 * a check — and failure differs from both in fill AND glyph AND
-	 * hue. Shape carries the distinction that colour alone cannot for
-	 * a user who can't separate the two hues, and the accent stays the
-	 * shell's own voice for "this is your station working".
-	 *
-	 * Failure resolves through `--os-ui-danger` and is the one value
-	 * here that must not be quietened: a failure that whispers is a
-	 * failure the user misses.
-	 *
-	 * The resting ring is one value in both title-bar states, not two:
-	 * the ring reports a phase, and dimming it on an unfocused window
-	 * would make `idle` say something different depending on which
-	 * window you last clicked.
-	 */
 	--os-titlebar-activity-idle-color: #fffbff;
 	--os-titlebar-activity-color: var(--os-ui-accent, #2271b1);
 	--os-titlebar-activity-saved-color: var(--os-ui-accent, #2271b1);
 	--os-titlebar-activity-failed-color: var(--os-ui-danger, #d63638);
 	--os-titlebar-activity-size: 16px;
 
-	/*
-	 * Title-bar control glyphs — minimise / maximise / close, the ⋯
-	 * menu trigger, and the screen-meta cluster — in each of the two
-	 * title-bar states.
-	 *
-	 * Both halves are named explicitly. The unfocused half would
-	 * otherwise derive itself from `--os-titlebar-color` by
-	 * a `color-mix()` that only runs while a desktop theme is active,
-	 * and the focused half cannot derive at all: its glyphs sit on
-	 * `-bg-focused`, and CSS has no contrast-safe function of a
-	 * background colour.
-	 *
-	 * Close-button red is deliberately not in either set — it is
-	 * semantic signal, not chrome, and both states resolve it through
-	 * `--os-ui-danger`.
-	 */
 	--os-titlebar-btn-color: rgba(255, 251, 255, 0.55);
 	--os-titlebar-btn-color-hover: #fffbff;
 	--os-titlebar-btn-bg-hover: rgba(255, 251, 255, 0.1);
@@ -364,65 +88,11 @@ body.os-active {
 	--os-titlebar-btn-focused-bg-active: rgba(255, 251, 255, 0.2);
 	--os-titlebar-btn-focused-outline: #f252fc;
 
-	/*
-	 * The control cluster and each button face stay TRANSPARENT, so a
-	 * themed title-bar texture runs edge to edge underneath them and
-	 * the glyphs float on the artwork. A plate behind the controls is
-	 * a choice a theme makes, not a default the framework imposes.
-	 * The knobs for building one:
-	 *
-	 *   Cluster   --os-titlebar-controls-bg
-	 *             --os-titlebar-controls-image (+ -repeat,
-	 *               -size, -position)
-	 *             --os-titlebar-controls-radius
-	 *             --os-titlebar-controls-padding (inline)
-	 *             --os-titlebar-controls-gap
-	 *   Screen-meta cluster
-	 *             --os-titlebar-meta-bg / -image / -radius
-	 *               (radius falls through to the controls radius)
-	 *   Each face --os-ui-btn-bg / --os-ui-btn-bg-image / --os-ui-btn-radius
-	 */
-
-	/*
-	 * Admin accent. Pulse, the brand's identity colour, and the value
-	 * behind the `pulse` swatch that OS Settings → Appearance ships as
-	 * its default (`includes/accents.php`). The accent picker writes
-	 * the user's choice into this same property as an inline style, so
-	 * this is the pre-JS value and the floor under every scheme block
-	 * below.
-	 */
 	--wp-admin-theme-color: #f252fc;
 
-	/* Resize handle — larger hit area than visual glyph; corners
-	   are transparent until hover so they don't compete with the
-	   window's own drop shadow.  */
 	--os-resize-size: 20px;
 	--os-resize-color: rgba(255, 251, 255, 0.18);
 
-	/*
-	 * ---- The `--os-ui-*` UI palette ------------------------------
-	 *
-	 * The single vocabulary for every surface, text tone, border, and
-	 * status colour inside window BODIES — the `<os-*>` component kit
-	 * AND the feature stylesheets both read these. Setting one value
-	 * retints everything that uses it, which is what makes a
-	 * whole-OS repaint eleven declarations rather than a thousand.
-	 *
-	 * It reaches further than window bodies: the shell's own
-	 * body-mounted overlays — toasts, confirm dialogs, context menus,
-	 * and the command palette — read it too.
-	 *
-	 * Roughly 190 component-local tokens (`--os-ui-card-bg`,
-	 * `--os-ui-table-header-bg`, …) fall through to these, e.g.
-	 *
-	 *     background: var( --os-ui-card-bg, var( --os-ui-surface, #fff ) );
-	 *
-	 * so the ones named further down are only those whose own literal
-	 * does NOT chain through the palette and would otherwise stay a
-	 * light-mode value on a dark station.
-	 */
-
-	/* Surfaces — Obsidian on Void, one step up the ramp for elevated. */
 	--os-ui-surface: #1a1721;
 	--os-ui-surface-elevated: #33303a;
 	--os-ui-surface-sunken: #0c0b0f;
@@ -431,185 +101,38 @@ body.os-active {
 	--os-ui-bg: #1a1721;
 	--os-ui-bg-subtle: rgba(255, 251, 255, 0.03);
 
-	/*
-	 * Fields — the surface an input paints, for markup in the LIGHT
-	 * DOM.
-	 *
-	 * The kit's own controls don't need these: `<os-text-field>` and
-	 * friends resolve `--os-window-bg` inside their shadow roots,
-	 * which the window chrome sets. A plugin writing a plain
-	 * `<input>` into a native window's body has neither, and the
-	 * palette had no general answer — no `surface` variant means
-	 * "input". What it had was `--os-ui-modal-field-bg`, which is a
-	 * MODAL token: right value, wrong scope, and the sort of thing a
-	 * plugin author finds by grepping for a colour that looks close.
-	 *
-	 * Consumers keep the pre-brand WordPress-admin literals as their
-	 * fallbacks — `#fff`, `#8c8f94`, `#2c3338` — so an unstyled page
-	 * lands on the classic admin's own field, not on nothing:
-	 *
-	 *     background: var( --os-ui-field-bg, #fff );
-	 *     border: 1px solid var( --os-ui-field-border, #8c8f94 );
-	 *     color: var( --os-ui-field-fg, #2c3338 );
-	 */
 	--os-ui-field-bg: #33303a;
 	--os-ui-field-border: #4d4a52;
 	--os-ui-field-fg: #fffbff;
 
-	/*
-	 * Field sizing. The kit's own `<os-text-field>` and `<os-textarea>`
-	 * (and every kit control that hosts a typing input) read these for
-	 * the control's type size and corner. The phone layer raises the
-	 * size to 16px — below that, iOS zooms the whole page into a
-	 * focused control and never zooms back — and rounds its search;
-	 * a theme may do the same anywhere.
-	 */
 	--os-ui-field-font-size: 13px;
 	--os-ui-field-font-size-compact: 12px;
 	--os-ui-field-radius: 6px;
 
-	/* Text — Starlight down through the Shade ramp. */
 	--os-ui-fg: #fffbff;
 	--os-ui-fg-muted: #b3afb5;
 	--os-ui-fg-faint: #66636b;
 	--os-ui-text-muted: rgba(255, 251, 255, 0.6);
-	/*
-	 * Text on a filled surface — and the name undersells it. Around
-	 * forty rules read this token, and only about half of them sit on
-	 * the accent: the rest are white-on-dark chips that never had a
-	 * name of their own — the toast, the drag hint, the widget picker,
-	 * the file-tile lock, the overview labels, every scrim-backed
-	 * caption in OS Settings.
-	 *
-	 * So it is Starlight. Void reads better ON Pulse (5.9:1 against
-	 * 2.9:1) and was the first choice here, but it turned all of those
-	 * chips into black text on a near-black wash. One token cannot be
-	 * both, and the dark-chip half is both larger and the half that
-	 * fails catastrophically rather than merely weakly.
-	 *
-	 * The surfaces that really are a bright fill — ribbons and step
-	 * chips — name their own dark text below, which is the escape
-	 * hatch this token leaves open.
-	 */
+
 	--os-ui-fg-on-accent: #fffbff;
 
-	/* Lines. */
 	--os-ui-border: #33303a;
 	--os-ui-border-strong: #4d4a52;
 
-	/* Interaction — light washes, since the surface underneath is dark. */
 	--os-ui-hover: rgba(255, 251, 255, 0.06);
 	--os-ui-scrim: rgba(12, 11, 15, 0.72);
 
-	/*
-	 * ---- Text selection ------------------------------------------
-	 *
-	 * Lagoon, the brand's violet-blue, at 60%. It is the one primary
-	 * colour in the guidelines the shell had no job for, and this is
-	 * the right job: violet-blue is what every OS has trained people
-	 * to read as "selected", so it needs no learning.
-	 *
-	 * The alpha is where the accessibility is, and it is squeezed from
-	 * both ends. A selection has to satisfy two constraints at once:
-	 *
-	 *   1. the selected TEXT stays readable on it — Starlight over
-	 *      Lagoon@60% is 5.1:1 on Obsidian, 5.5:1 on Void; and
-	 *   2. the highlight is distinguishable from the unselected
-	 *      background — 3.4:1 and 3.5:1 respectively.
-	 *
-	 * Raising the alpha helps (2) and hurts (1); lowering it does the
-	 * reverse. 60% is the middle of the band where both clear their
-	 * bar on both surfaces. An accent wash cannot do this at all: the
-	 * Pulse family only separates from the background above 75%, by
-	 * which point it is a fill rather than a highlight.
-	 *
-	 * The text colour is Starlight — the colour body text already is.
-	 * A selection that also RECOLOURS the text destroys every
-	 * distinction the text was carrying: syntax highlighting, a red
-	 * error, a muted timestamp. Highlighting is not restyling.
-	 */
 	--os-ui-selection-bg: rgba(159, 152, 255, 0.6);
 	--os-ui-selection-fg: #fffbff;
 
-	/* Accent — the identity moment. */
 	--os-ui-accent: #f252fc;
-	/*
-	 * Ink on the accent FILL: the tick in a checked box, the dot in a
-	 * radio, the label of a primary button. Distinct from
-	 * `--os-ui-fg-on-accent`, which the shell reads as "light text on
-	 * a dark surface" in seventy-odd places that are not the accent.
-	 * Starlight here for Pulse; the accent picker rewrites it inline
-	 * to Void whenever the chosen accent is light (Starlight, Sirius,
-	 * Nebula, Lagoon), so the pair always agree.
-	 */
+
 	--os-ui-accent-ink: #fffbff;
 	--os-ui-accent-strong: #ec9bff;
 	--os-ui-accent-soft: color-mix(in srgb, var(--os-ui-accent-dim) 14%, transparent);
-	/*
-	 * Pulse, one step back — and the single knob for how loud the
-	 * station is.
-	 *
-	 * Pulse is not a contrast problem: #f252fc carries 6.2:1 against
-	 * Obsidian, better than most accents in a dark UI manage. What it
-	 * is, is SATURATED — HSL 296, 97, 65 — and the places that hurt
-	 * are the ones where it is spread rather than stated: a bloom
-	 * behind a focused control, a 18% wash under a selected row, a
-	 * fill wider than a chip. Ten of those on one panel and the whole
-	 * surface hums.
-	 *
-	 * So the fix is not to move Pulse. It is to spend it where it is
-	 * a statement and to spend THIS where it is atmosphere: the same
-	 * hue with saturation and lightness pulled down together (S 77,
-	 * L 53), which is what keeps it recognisably Pulse rather than a
-	 * different purple. 4.6:1 on Obsidian, and Starlight over it goes
-	 * from 2.8:1 to 3.8:1 — so the wash also stopped eating text.
-	 *
-	 * Everything ambient below resolves through it: the glows, the
-	 * soft wash, the focus bloom. Turning the station up or down is
-	 * one edit here.
-	 *
-	 * `--os-ui-accent` itself stays #f252fc. That one is the brand's,
-	 * not ours — it is what the guidelines name and what
-	 * `brand-palette.test.ts` pins, and moving it is a brand decision
-	 * rather than a UI one.
-	 */
+
 	--os-ui-accent-dim: #d92ee3;
 
-	/*
-	 * ---- The meshes ---------------------------------------------
-	 *
-	 * The brand ships five mesh gradients as SVG artwork. These are
-	 * those same meshes transcribed into CSS: the base linear plus
-	 * every radial glow, at the offsets, radii, colours and alphas
-	 * the vector files declare, converted from the 1440×960 artboard
-	 * into percentages so they scale to any box.
-	 *
-	 * Transcribed rather than referenced on purpose. A `url()` to an
-	 * SVG cannot be animated, cannot be tinted, costs a request, and
-	 * cannot resize its glows independently of the box — a mesh
-	 * painted on a 40 px switch track would be one flat corner of the
-	 * artwork. As gradient stacks they rasterise at whatever size the
-	 * control happens to be, and `background-position` can slide them,
-	 * which is the entire holographic effect: a foil that shifts as
-	 * you tilt it.
-	 *
-	 * Layer order is inverted from the SVG. In SVG the last `<rect>`
-	 * paints on top; in a CSS `background-image` list the FIRST layer
-	 * is on top. So each mesh below reads bottom-glow-first and ends
-	 * with its base linear.
-	 *
-	 * The brand's own rule — "meshes reserved for hero surfaces" — is
-	 * why none of these is a surface colour. They are what the shell
-	 * paints at an identity moment: a switch that is on, the primary
-	 * action in a dialog, the filled part of a progress bar. See the
-	 * `--os-ui-holo-*` block below for the tokens components actually
-	 * read.
-	 */
-
-	/*
-	 * Holomesh. Lavender base under eight glows — white, cyan, pink,
-	 * warm, mint, white, pink, blue. The default holographic fill.
-	 */
 	--os-mesh-holo:
 		radial-gradient(ellipse 21.7% 39.6% at 96.5% 13.5%, rgba(159, 214, 255, 0.6) 0%, rgba(159, 214, 255, 0) 100%),
 		radial-gradient(ellipse 26.3% 57.2% at 83.3% 56.2%, rgba(243, 181, 236, 0.75) 0%, rgba(243, 181, 236, 0) 100%),
@@ -621,10 +144,6 @@ body.os-active {
 		radial-gradient(ellipse 26.9% 70.7% at 29.8% 44.8%, rgba(255, 253, 255, 0.95) 0%, rgba(255, 253, 255, 0.5) 55%, rgba(255, 253, 255, 0) 100%),
 		linear-gradient(124deg, #afa2e8 0%, #b7abea 55%, #c3b8ef 100%);
 
-	/*
-	 * Pulsemesh. The loud one — a blue-to-violet base torn open by
-	 * magenta. Reserved for the moments Holomesh would undersell.
-	 */
 	--os-mesh-pulse:
 		radial-gradient(ellipse 39.1% 48.6% at 92% 94.5%, rgba(255, 253, 255, 0.95) 0%, rgba(255, 240, 252, 0.55) 50%, rgba(255, 240, 252, 0) 100%),
 		radial-gradient(ellipse 33.3% 50% at 61.1% 62.5%, rgba(251, 134, 236, 0.85) 0%, rgba(251, 134, 236, 0) 100%),
@@ -634,90 +153,24 @@ body.os-active {
 		radial-gradient(ellipse 43.1% 54.2% at 81.3% 34.4%, rgba(108, 143, 245, 0.6) 0%, rgba(108, 143, 245, 0) 100%),
 		linear-gradient(236deg, #8d9bf3 0%, #c878f0 100%);
 
-	/* Auromesh. Lavender through mint into cyan — the calm mesh. */
 	--os-mesh-auro: linear-gradient(80deg, #d1c6f8 9.5%, #cefada 50%, #b8ffff 90.5%);
 
-	/* Starmesh. A Starlight glow falling away into Cloud. */
 	--os-mesh-star:
 		radial-gradient(ellipse 72.7% 72.7% at 50% 12.5%, #fffbff 0%, #fffbff 67.8%, #ccc8ce 100%);
 
-	/* Miomesh. The mascot's own sweep. Mio's, and used sparingly. */
 	--os-mesh-mio: linear-gradient(90deg, #f252fc 7%, #aa67ff 48.3%, #a580ff 70.7%, #4b3eff 93%);
 
-	/*
-	 * ---- Holographic controls -----------------------------------
-	 *
-	 * What a control reads when it wants to be holographic. Every
-	 * `<os-*>` resolves these through a private `--_holo-*` alias (see
-	 * `src/ui/holo.ts`), so a desktop theme can re-point any of them
-	 * and every control in the kit changes together.
-	 *
-	 * The holographic state is a MOMENT, not a skin. A control paints
-	 * `--os-ui-holo-fill` when it is on, selected, primary or filled —
-	 * the one instant it is speaking for the brand — and wears
-	 * ordinary Obsidian the rest of the time. That is the difference
-	 * between a station and a novelty; a panel where every control is
-	 * iridescent has no identity moments left to spend.
-	 */
-
-	/* The fill itself. Holomesh, so the mesh is the default look. */
 	--os-ui-holo-fill: var(--os-mesh-holo);
-	/*
-	 * A hero FIELD, as distinct from a hero control.
-	 *
-	 * `--os-ui-holo-fill` is sized for a surface a control wears — a
-	 * button, a chip, a progress bar. Stretch that same value across
-	 * a few hundred square pixels of panel and a theme's answer stops
-	 * working: Legacy's `#f0f6fc -> #f6f7f7` reads as "on" on a 40px
-	 * chip and as nothing at all on a rail, where it lands within a
-	 * few units of the surface behind it.
-	 *
-	 * So a large decorative field reads THIS instead, and a theme
-	 * gets to answer the two cases separately — how a control looks
-	 * when it is on, and how much of itself the station shows in the
-	 * background. Legacy sets a flat pre-brand wash here while
-	 * leaving its control fill alone.
-	 *
-	 * The default is an aurora, and it is built differently from the
-	 * five meshes on purpose. Those are OPAQUE light surfaces — the
-	 * darkest stop in Holomesh still sits above 60% luminance — which
-	 * is right for a control that has to read as lit against whatever
-	 * is behind it. Spread one across a rail and the only way to calm
-	 * it down is `opacity`, which drags every hue toward the surface
-	 * underneath: on Void that is grey, and the mesh dies as a
-	 * grey-mauve smear.
-	 *
-	 * So the alpha lives in the COLOUR STOPS here, over transparent.
-	 * The desk shows through instead of being covered, the hues keep
-	 * their chroma at any strength, and the field stays dark the way
-	 * an aurora is dark — light added to a night sky, not a pale
-	 * sheet laid over one. Hues are the brand's: violet and Nebula
-	 * through the upper curtains, Sirius cyan and Holomesh's mint
-	 * below, one wide Pulse bloom tying them together.
-	 */
+
 	--os-ui-hero-mesh:
 		radial-gradient(ellipse 62% 38% at 34% 20%, rgba(170, 103, 255, 0.58) 0%, rgba(170, 103, 255, 0) 74%),
 		radial-gradient(ellipse 54% 33% at 58% 36%, rgba(236, 155, 255, 0.45) 0%, rgba(236, 155, 255, 0) 76%),
 		radial-gradient(ellipse 68% 30% at 26% 50%, rgba(125, 239, 245, 0.32) 0%, rgba(125, 239, 245, 0) 74%),
 		radial-gradient(ellipse 58% 28% at 46% 66%, rgba(147, 240, 198, 0.26) 0%, rgba(147, 240, 198, 0) 76%),
 		radial-gradient(ellipse 96% 62% at 40% 42%, rgba(242, 82, 252, 0.18) 0%, rgba(242, 82, 252, 0) 82%);
-	/*
-	 * Glyphs and text ON that fill. Void, not Starlight — every mesh
-	 * in the brand is a LIGHT surface (its darkest stop, Holomesh's
-	 * #afa2e8, still sits at 62% luminance), so Starlight on it is a
-	 * white-on-lilac 1.4:1 that looks fine in a mock and is unreadable
-	 * on a screen. Void carries at 8.6:1 against the same stop.
-	 */
+
 	--os-ui-holo-ink: #0c0b0f;
-	/*
-	 * The hover film. A control that is NOT in its holographic state
-	 * still hints at one under the pointer: a low-alpha sweep of the
-	 * mesh's own hues, laid over whatever the surface already is.
-	 *
-	 * Alphas are deliberately in the 6–12% range. This lands on
-	 * Obsidian, where anything stronger stops reading as a sheen and
-	 * starts reading as a second, wrongly-coloured surface.
-	 */
+
 	--os-ui-holo-sheen: linear-gradient(
 		124deg,
 		rgba(159, 214, 255, 0.1) 0%,
@@ -725,11 +178,7 @@ body.os-active {
 		rgba(242, 82, 252, 0.1) 58%,
 		rgba(147, 240, 198, 0.09) 100%
 	);
-	/*
-	 * The iridescent hairline. Painted as a gradient on a padding-box
-	 * mask rather than a `border-color`, because a border cannot hold
-	 * a gradient and `border-image` loses the corner radius.
-	 */
+
 	--os-ui-holo-edge: linear-gradient(
 		124deg,
 		rgba(154, 242, 255, 0.7) 0%,
@@ -737,7 +186,7 @@ body.os-active {
 		rgba(242, 82, 252, 0.7) 62%,
 		rgba(159, 152, 255, 0.6) 100%
 	);
-	/* Resting edge — the same hairline, quieted, for an idle control. */
+
 	--os-ui-holo-edge-quiet: linear-gradient(
 		124deg,
 		rgba(154, 242, 255, 0.22) 0%,
@@ -745,96 +194,23 @@ body.os-active {
 		rgba(242, 82, 252, 0.22) 62%,
 		rgba(159, 152, 255, 0.2) 100%
 	);
-	/*
-	 * The bloom around a holographic surface. Pulse, because on a Void
-	 * desk the glow is what separates "lit" from "light-coloured".
-	 */
+
 	--os-ui-holo-glow: 0 0 0 1px color-mix(in srgb, var(--os-ui-accent-dim) 20%, transparent),
 		0 2px 10px color-mix(in srgb, var(--os-ui-accent-dim) 15%, transparent);
 	--os-ui-holo-glow-strong: 0 0 0 1px color-mix(in srgb, var(--os-ui-accent-dim) 30%, transparent),
 		0 4px 18px color-mix(in srgb, var(--os-ui-accent-dim) 26%, transparent),
 		0 1px 3px rgba(12, 11, 15, 0.6);
-	/*
-	 * The unlit half — switch tracks, empty progress, the unchecked
-	 * checkbox.
-	 *
-	 * This was a sunken Void well, and it was a mistake that measured
-	 * badly: `rgba(12, 11, 15, 0.55)` composites to #121017 on an
-	 * Obsidian panel, which is **1.07:1** against that panel. An off
-	 * switch was, to a very good approximation, not drawn. WCAG 1.4.11
-	 * asks for 3:1 on the boundary of a control, and this was not in
-	 * the same postcode.
-	 *
-	 * So the well is LIFTED rather than sunk: a Starlight wash, which
-	 * also means it tracks whatever surface a theme puts behind it
-	 * instead of pinning a grey that only works on Obsidian. Every
-	 * dark OS does the same thing with its switches for the same
-	 * reason — on a dark UI the visible thing is the lighter one.
-	 *
-	 * The fill alone still only reaches ~1.6:1, which is a *look*
-	 * rather than a boundary. The 3:1 comes from the edge below, and
-	 * the two together are what make an off switch findable.
-	 */
+
 	--os-ui-holo-track: rgba(255, 251, 255, 0.16);
-	/*
-	 * The unlit half's boundary. Pewter, and not a rounder-looking
-	 * neighbour, because Pewter is the first step on the Shade ramp
-	 * that reaches 3.00:1 against Obsidian — Silver manages 2.03 and
-	 * Astro 1.37. This is the declaration that makes an off control
-	 * satisfy WCAG 1.4.11.
-	 */
+
 	--os-ui-holo-track-edge: #66636b;
-	/*
-	 * Focus. One ring for the whole kit — the accent, offset by a Void
-	 * gap, so it reads on Obsidian, on a mesh, and on the near-white
-	 * of a legacy theme alike.
-	 *
-	 * The RING is full accent and stays there: it is the only thing on
-	 * screen saying where the keyboard is, and a focus indicator is the
-	 * last place to trade legibility for calm. The bloom that used to
-	 * sit behind it is gone: it was the layer that made a focused
-	 * control look like it was on fire, and the Void gap already does
-	 * the work of separating the ring from whatever it lands on.
-	 */
+
 	--os-ui-focus-ring: 0 0 0 2px rgba(12, 11, 15, 0.9),
 		0 0 0 4px var(--os-ui-accent, #f252fc);
-	/*
-	 * …and one for FIELDS, which is a different problem. A text input
-	 * already has a border to thicken and it sits in a column of other
-	 * inputs, so the ring above — designed to survive landing on a
-	 * bright mesh — reads as an alarm on a settings form. This one
-	 * tightens the field's own edge to Pulse and puts a soft halo
-	 * outside it: unmistakable, and quiet enough to live in a stack of
-	 * twelve.
-	 */
+
 	--os-ui-focus-ring-field: 0 0 0 1px var(--os-ui-accent, #f252fc),
 		0 0 0 4px color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent);
 
-	/*
-	 * The selected row of a VERTICAL `<os-tabs>`: the sidebar in
-	 * OpenStation Preferences, and any native window that lays its
-	 * pages down the side rather than across the top.
-	 *
-	 * The one selection on the station that keeps the accent. The row
-	 * runs full-bleed and says "this one" with a 2px accent line at its
-	 * leading edge, the bloom that line throws back across the row, and
-	 * a wash fading out towards the label. Everywhere else a selection
-	 * is a surface (a grey key, an outline, a flat fill); the sidebar is
-	 * where you are, and the brand marks it.
-	 *
-	 * The three coloured layers are DERIVED from the accent: `-edge` is
-	 * the accent flat, `-wash` and `-bloom` resolve through
-	 * `--os-ui-accent-dim` like every other ambient use, so a picked
-	 * accent reaches the row on this palette and on Legacy alike (see
-	 * `desktopThemesLegacy.php`: a theme cannot answer a derived token,
-	 * so a derivation is shared). How much of each shows, and the row's
-	 * shape, are literals a theme answers on its own: edge width, wash
-	 * and bloom opacity, and a fill, radius and inset that together
-	 * would turn the row into a lifted pill. The wash's opacity scales
-	 * every stop of the gradient, because a background image has no
-	 * opacity of its own and both of the row's pseudo-elements are
-	 * already spent on the edge and the bloom.
-	 */
 	--os-ui-tab-edge: linear-gradient(
 		var(--os-ui-accent, #f252fc),
 		var(--os-ui-accent, #f252fc)
@@ -862,26 +238,6 @@ body.os-active {
 	--os-ui-tab-radius: 0px;
 	--os-ui-tab-inset: 0px;
 
-	/*
-	 * `<os-segmented>`, same split again. The thumb and its label still
-	 * mix from the accent, so Legacy and any theme that answers 100%
-	 * keep a coloured pill that follows the picker. This palette answers
-	 * 0%: a Void track with the chosen option as a mid-grey key and a
-	 * Starlight label, whatever accent is picked.
-	 *
-	 * The key's grey is set by contrast, not by taste. The first pass
-	 * used the sidebar row's grey, and it sat at 1.37:1 against the
-	 * track and 1.15:1 against the card around it, so the key read as a
-	 * hole in the track rather than a thing pressed into it. This grey
-	 * clears 3:1 against Void, what a selected state needs against its
-	 * neighbours, and still carries its Starlight label at 5.7:1. A
-	 * small shadow under it and a hairline around the track do the
-	 * rest: without the hairline, a Void track on the page behind the
-	 * dock options measured 1.05:1 and all but disappeared.
-	 *
-	 * Under the pointer an unselected option takes a faint Starlight
-	 * lift instead of the holographic film.
-	 */
 	--os-ui-segmented-bg: #0c0b0f;
 	--os-ui-segmented-edge: inset 0 0 0 1px rgba(255, 251, 255, 0.1);
 	--os-ui-segmented-selected-accent: 0%;
@@ -890,78 +246,27 @@ body.os-active {
 	--os-ui-segmented-hover-bg: rgba(255, 251, 255, 0.06);
 	--os-ui-segmented-hover-sheen: none;
 
-	/*
-	 * The chosen tile in a swatch grid (wallpapers, the theme and
-	 * layout cards in Preferences, and any grid a plugin builds from
-	 * `<os-swatch>`), same split. The ring is the accent and stays
-	 * derived; this palette sets its width to 0 and lifts the tile
-	 * instead: a solid Starlight stroke outlines it, a shadow sets it
-	 * above the grid, and a Starlight disc with a tick cut out of it
-	 * sits in the corner. The stroke is Starlight rather than the
-	 * accent, like the badge, so the chosen tile stands out the same
-	 * way whichever accent is picked; a translucent hairline was too
-	 * faint on the dark theme cards. Legacy answers 2px, no lift, no
-	 * badge. The accent chips in the colour row keep their ring
-	 * whatever these say: a colour is the whole content there, and a
-	 * lift on a 28px square is invisible.
-	 */
 	--os-ui-swatch-ring-width: 0px;
 	--os-ui-swatch-lift: 0 0 0 1px #fffbff,
 		0 12px 24px -12px rgba(0, 0, 0, 0.8);
 	--os-ui-swatch-badge-bg: #fffbff;
 
-	/*
-	 * ---- Motion --------------------------------------------------
-	 *
-	 * Four durations and three curves, and every animated thing in the
-	 * kit picks from them. Not for tidiness: a panel where the switch
-	 * settles in 220ms, the segmented thumb in 300 and the tab
-	 * underline in 150 does not read as three well-tuned controls, it
-	 * reads as one surface that cannot keep time.
-	 *
-	 * The scale is roughly logarithmic because perceived duration is:
-	 * 90 and 140 are distinguishable, 220 and 240 are not.
-	 */
-	/* A state flip with no travel — a colour, an opacity, a tick. */
 	--os-ui-motion-fast: 140ms;
-	/*
-	 * How long the foil takes to tilt, and the kit's default. One
-	 * duration for every holographic transition, so a panel full of
-	 * controls moves as one surface rather than as thirty independent
-	 * ones.
-	 */
+
 	--os-ui-holo-transition: 220ms;
-	/* Something crossing a distance: a thumb, a drawer, a card. */
+
 	--os-ui-motion-slow: 340ms;
-	/* An ambient loop — a shimmer, a drift. Long enough to ignore. */
+
 	--os-ui-motion-ambient: 12s;
 
-	/*
-	 * The curves. `spring` overshoots ~9% and settles; it is what makes
-	 * a knob feel thrown rather than moved, and it is wrong for
-	 * anything that changes size (an overshooting width reads as a
-	 * glitch, not as weight).
-	 */
 	--os-ui-ease-spring: cubic-bezier(0.32, 1.5, 0.55, 1);
-	/* Decelerating. The default for anything arriving. */
+
 	--os-ui-ease-out: cubic-bezier(0.22, 0.9, 0.28, 1);
-	/*
-	 * Accelerating — the mirror of `out`, and the default for anything
-	 * LEAVING. A surface that eases out on the way in and eases in on
-	 * the way out is the difference between "dismissed" and "undone":
-	 * decelerating into nothing reads as the thing hesitating, which
-	 * is the wrong note when the user has already moved on.
-	 */
+
 	--os-ui-ease-in: cubic-bezier(0.4, 0, 1, 1);
-	/* Symmetric, for a loop that has to come back where it started. */
+
 	--os-ui-ease-loop: cubic-bezier(0.45, 0, 0.55, 1);
 
-	/*
-	 * Status. Derived, not quoted — see the header note. Info takes
-	 * Sirius and success takes Holomesh's mint because the brand
-	 * already has a colour that means those things; danger and warning
-	 * are the shell's own hues lifted until they carry on Obsidian.
-	 */
 	--os-ui-danger: #ff5a5a;
 	--os-ui-danger-hover: #ff8a8a;
 	--os-ui-success-fg: #93f0c6;
@@ -972,42 +277,6 @@ body.os-active {
 	--os-ui-info-fg: #c2f1f1;
 	--os-ui-info-bg: rgba(194, 241, 241, 0.1);
 
-	/*
-	 * ---- Component tokens the palette cannot reach --------------
-	 *
-	 * Each of these is read with a literal of its own rather than a
-	 * `var( --os-ui-<palette> )` chain, so the palette above does not
-	 * carry to it. Everything else in the kit is left alone and
-	 * inherits.
-	 */
-
-	/*
-	 * Dialogs, menus and flyouts.
-	 *
-	 * The `--os-ui-modal-*` names below are the escape hatch
-	 * `<os-modal>` needs. Its dialog surface is dark whatever the
-	 * admin colour scheme says, so it re-points `--os-ui-fg`,
-	 * `--os-ui-fg-muted`, `--os-ui-border`, `--os-window-bg` and
-	 * `--os-ui-button-bg-hover` on its own `:host` — and a declaration
-	 * on the host outranks anything the host inherits, which is how
-	 * the palette used to stop at the dialog's edge. It reads these
-	 * instead, so the station owns the dialog again and the literals
-	 * behind them stay as the no-stylesheet floor.
-	 *
-	 * The set has to cover a dark context COMPLETELY, and the four
-	 * added last are the ones that proved it. A dialog re-pointing
-	 * only its text colours is fine while the palette around it is
-	 * dark too — every unre-pointed token happens to agree. Put a
-	 * LIGHT palette outside it (any theme in the admin's own colours,
-	 * Legacy included) and the halves come apart: `--os-ui-surface`
-	 * stays white, so `<os-select>` inside the dialog painted a white
-	 * trigger and the re-pointed `--os-ui-fg` wrote near-white text
-	 * onto it. `--os-ui-hover` was a black wash over a dark row.
-	 *
-	 * So the rule for anything added here: if a token names a SURFACE
-	 * or a wash on one, the dialog owns it. Leaving one out is not
-	 * "inherit the theme", it is "disagree with the other five".
-	 */
 	--os-ui-modal-bg: #1a1721;
 	--os-ui-modal-text: #fffbff;
 	--os-ui-modal-text-muted: #b3afb5;
@@ -1025,7 +294,6 @@ body.os-active {
 	--os-ui-card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.45);
 	--os-ui-ribbon-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
 
-	/* Tables. */
 	--os-ui-table-bg: #1a1721;
 	--os-ui-table-header-bg: #33303a;
 	--os-ui-table-border: rgba(255, 251, 255, 0.1);
@@ -1034,7 +302,6 @@ body.os-active {
 	--os-ui-table-stripe: rgba(255, 251, 255, 0.03);
 	--os-ui-table-sticky-edge: 2px solid rgba(255, 251, 255, 0.14);
 
-	/* Notices and badges — tinted washes of their own status colour. */
 	--os-ui-notice-error-bg: rgba(255, 90, 90, 0.12);
 	--os-ui-notice-error-border: rgba(255, 90, 90, 0.28);
 	--os-ui-notice-success-bg: rgba(147, 240, 198, 0.12);
@@ -1045,23 +312,7 @@ body.os-active {
 	--os-ui-notice-info-border: rgba(194, 241, 241, 0.28);
 	--os-ui-notice-neutral-bg: rgba(255, 251, 255, 0.06);
 	--os-ui-notice-neutral-border: rgba(255, 251, 255, 0.14);
-	/*
-	 * A link inside a notice reads Nebula, the same value `--os-link`
-	 * gives every other shell link — NOT the accent.
-	 *
-	 * Undeclared, the base fell through to `--wp-admin-theme-color`,
-	 * which OpenStation Preferences → Appearance writes inline on `<html>`
-	 * from the accent picker. That made the one piece of text a notice
-	 * most needs the user to read take whichever hue they chose for
-	 * focus rings. An accent is an identity colour; legibility on a dark
-	 * surface is not something it can promise, so the link stops asking
-	 * it to. Hover lifts to Starlight, and both ends stay in the palette.
-	 *
-	 * These are consumed from a DOCUMENT-tree rule in `desktop.css`, not
-	 * only from the component's own `::slotted( a )`. See the comment
-	 * there: a slotted link is a document-tree element, so wp-admin's
-	 * bare `a` rule outranks anything the shadow root says about it.
-	 */
+
 	--os-ui-notice-link: #fffbff;
 	--os-ui-notice-link-hover: #ccc8ce;
 	--os-ui-badge-danger-bg: rgba(255, 90, 90, 0.16);
@@ -1070,36 +321,11 @@ body.os-active {
 	--os-ui-badge-info-bg: rgba(194, 241, 241, 0.16);
 	--os-ui-badge-neutral-bg: rgba(255, 251, 255, 0.08);
 
-	/*
-	 * Fills that must stay fills. Each of these paints a solid shape —
-	 * a ribbon, a chip, a focused input's edge — and each was reading
-	 * a token the palette turned into a 10%-alpha wash or into the
-	 * body colour itself. A ribbon the same colour as the card behind
-	 * it is not a subtle ribbon, it is a missing one.
-	 */
-	/*
-	 * Text on the bright status fills. These are the surfaces the
-	 * `--os-ui-fg-on-accent` note points at: a ribbon filled with Pulse,
-	 * Sirius or Holomesh mint is a LIGHT surface, and Starlight on it
-	 * disappears.
-	 */
 	--os-ui-ribbon-fg: #0c0b0f;
 	--os-ui-step-chip-fg: #0c0b0f;
-	/*
-	 * The step chip is the right size and shape for the mesh: a small
-	 * round fill, one per row, already carrying dark text. Its
-	 * `--os-ui-step-chip-fg` above is Void, which is what the mesh
-	 * needs anyway — the two decisions were made independently and
-	 * agree, which is usually the sign a palette is holding together.
-	 */
+
 	--os-ui-step-chip-bg: var(--os-mesh-holo);
 
-	/*
-	 * The default ribbon. One per tile, small, angled, and already
-	 * paired with Void ink above — which is what a mesh needs anyway.
-	 * The status ribbons below keep their flat colours: a ribbon that
-	 * says "deprecated" should say it in warning yellow, not in brand.
-	 */
 	--os-ui-ribbon-bg: var(--os-mesh-holo);
 
 	--os-ui-ribbon-info: #c2f1f1;
@@ -1108,80 +334,27 @@ body.os-active {
 	--os-ui-crumb-bg: #33303a;
 	--os-ui-tag-input-input-border: #f252fc;
 
-	/*
-	 * Pairs that have to stay distinguishable. Hover and pressed, or
-	 * base and shimmer, both resolve through `--os-ui-hover` — one wash
-	 * for two states reads as a dead control, so the second step of
-	 * each pair is named.
-	 */
 	--os-ui-btn-bg-active: rgba(255, 251, 255, 0.12);
-	/*
-	 * `<os-button>` ghost + secondary. Their resting wash and their
-	 * hover wash BOTH fall through to `--os-ui-hover` — in two different
-	 * rules, with two different literals behind them (6% and 10%), so
-	 * declaring the palette collapsed them onto one value and the
-	 * buttons stopped reacting to the pointer entirely. Primary is
-	 * unaffected: it hovers with `filter: brightness()` over its
-	 * accent fill rather than through this token.
-	 */
+
 	--os-ui-button-bg-hover: rgba(255, 251, 255, 0.14);
 	--os-ui-key-bg-hover: rgba(255, 251, 255, 0.1);
 	--os-ui-key-bg-pressed: rgba(255, 251, 255, 0.16);
 	--os-ui-table-skeleton-highlight: rgba(255, 251, 255, 0.14);
 
-	/* Code, logs, progress, ratings, avatars. */
 	--os-ui-code-border: 1px solid rgba(255, 251, 255, 0.1);
 	--os-ui-log-border: 1px solid rgba(255, 251, 255, 0.08);
 	--os-ui-log-row-border: 1px solid rgba(255, 251, 255, 0.06);
 	--os-ui-progress-track-bg: rgba(255, 251, 255, 0.1);
-	/*
-	 * The filled part of a progress bar is the one surface in the kit
-	 * that is *already* a hero: bounded, watched, and the only thing
-	 * moving on screen. So it takes Holomesh, and the bar stretches
-	 * the mesh as it grows — the hue travelling from lavender toward
-	 * cyan IS the progress, which a flat accent could only report.
-	 *
-	 * Retinted here rather than in `<os-progress-bar>` because the
-	 * component's own literal has to stay the pre-brand WordPress blue
-	 * (it is the no-stylesheet floor, and it is what Legacy collected).
-	 * The tone modifiers — success, warning, danger — still declare
-	 * flat colours and still win: a failing job should read as red, not
-	 * as brand.
-	 */
+
 	--os-ui-progress-fill: var(--os-mesh-holo);
 	--os-ui-rating-star: #f8f2b6;
 	--os-ui-rating-fill: linear-gradient(90deg, #f8f2b6 0%, #fffbff 100%);
 	--os-ui-avatar-dot-ring: #1a1721;
-	/* The avatar's hover halo. It was a fixed indigo — a hue no
-	   palette in the station names — so it lit itself in a colour
-	   nothing around it used. Pulse. */
+
 	--os-ui-avatar-halo: #f252fc;
-	/* Search-match highlight inside a label. A WASH, not a fill: the
-	   text keeps its own colour, so the wash has to stay light enough
-	   for Starlight to carry over it. */
+
 	--os-ui-search-highlight-bg: rgba(248, 242, 182, 0.3);
-	/*
-	 * The content graph's cluster hue is NOT retinted. Graph node
-	 * colours are composed artwork that encodes meaning — the docs list
-	 * them under "what stays fixed" — and moving this one to Nebula put
-	 * white cluster labels on a pale lilac chip at 1.9:1. It keeps its
-	 * own colour, and the label keeps carrying on it.
-	 *
-	 * The graph's toolbar is chrome, though, and it follows the same
-	 * split as selection everywhere else: the accent stays derived, a
-	 * literal says how much of it shows. An ON filter chip mixes its
-	 * edge, wash and text from the accent by `-accent`, towards the
-	 * neutrals below; this palette answers 0%, so an on chip reads like
-	 * the selected theme card in Preferences, a Starlight outline around
-	 * the dark surface. Legacy answers 100%. An OFF chip sits on the
-	 * toolbar with the strong border as its edge, because the plain
-	 * border is the toolbar's own colour and a chip drawn with it has no
-	 * outline at all.
-	 *
-	 * The count pill is the strong border's grey on both, with Starlight
-	 * numerals: muted numerals on that grey land at 4.0:1, under what
-	 * 12px text needs.
-	 */
+
 	--os-ui-cg-chip-accent: 0%;
 	--os-ui-cg-chip-border: #4d4a52;
 	--os-ui-cg-chip-border-active: #fffbff;
@@ -1191,177 +364,21 @@ body.os-active {
 	--os-ui-cg-chip-count-bg-active: #4d4a52;
 	--os-ui-cg-chip-count-fg-active: #fffbff;
 
-	/*
-	 * ---- The widget card's public token contract ----------------
-	 *
-	 * Five names a third-party widget stylesheet is told to read.
-	 * The list lives in `src/plugins/starter-widget/styles.css`,
-	 * which is the file plugin authors copy — so it is a contract,
-	 * not a convenience, and four of the five were documented
-	 * without ever being declared. Every consumer fell through to
-	 * the light-mode grey in its own `var()` fallback, on a card
-	 * whose glass is dark: Post Stats' metadata measured 3.81:1
-	 * where `.os-widgets__title` on the same surface measures 18.4.
-	 *
-	 * They are mostly literals rather than aliases of the text ramp,
-	 * and that is the point. `.os-widgets__card` paints a fixed dark
-	 * glass — `--os-ui-color-surface` below IS that colour, and the
-	 * card reads it — under every desktop theme, so a name that
-	 * flips with the theme is the wrong chain here: Legacy's
-	 * `--os-ui-fg-muted` is `#50575e`, which lands at 2.54:1 on the
-	 * glass and makes the bug WORSE for anyone wearing it. The two
-	 * text names below do chain, but through the two names Legacy
-	 * keeps light — the ones describing the same on-dark chrome
-	 * this card is.
-	 *
-	 * A theme that wants to move a widget card declares these names
-	 * itself, the way Legacy already declares the accent.
-	 */
 	--os-ui-color-surface: rgba(20, 20, 22, 0.55);
-	/* What the card's own `color` already resolves to — so a widget
-	   asking for "primary text" gets the text it inherited. */
+
 	--os-ui-color-text: var(--os-ui-fg-on-accent, #fffbff);
-	/* The shell's muted-on-dark. 9.2:1 on the glass, and Legacy
-	   keeps it at `rgba( 255, 255, 255, 0.7 )`. */
+
 	--os-ui-color-text-subtle: var(--os-fg-muted, rgba(255, 251, 255, 0.7));
-	/* A hairline INSIDE the card, so a touch stronger than the
-	   card's own 0.08 edge, which is drawn against the wallpaper.
-	   Literal because no general on-dark hairline exists: the ones
-	   Legacy keeps light are `--os-dock-border` and
-	   `--os-cn-border`, and borrowing either is the right value at
-	   the wrong scope. It reads quieter than what it replaces —
-	   the widgets' own fallback was `#e5e7eb`, a light-theme
-	   divider that on dark glass drew the loudest line in the
-	   station. 0.12 is what the window and dock edges use. */
+
 	--os-ui-color-border: rgba(255, 251, 255, 0.12);
-	/* The one name that has to reach the accent picker. It was a
-	   hard `#f252fc`, so a widget told to "use the accent for
-	   buttons and links" stayed brand pink after the user chose
-	   teal, while every control around it moved. */
+
 	--os-ui-color-accent: var(--os-ui-accent, #f252fc);
 
-	/*
-	 * ---- Typography --------------------------------------------
-	 *
-	 * Geist for everything human — headlines, UI copy, body text — and
-	 * Geist Mono for the instrument voice: labels, metadata, statuses,
-	 * code. Both faces are declared above; a stack without them still
-	 * reads correctly, which is why every entry ends in a generic
-	 * family.
-	 *
-	 * The chrome / body split is the one real decision here, and it is
-	 * the one real desktop environments make. Here both sides run
-	 * Geist: the station is one surface, and the title bar is not a
-	 * different product from the window under it.
-	 *
-	 * Note that iframe windows render a real wp-admin document in a
-	 * separate browsing context that this stylesheet does not reach —
-	 * these tokens style the shell and native windows.
-	 */
 	--os-font: 'Geist', system-ui, sans-serif;
 	--os-titlebar-font: 'Geist', system-ui, sans-serif;
 	--os-ui-font: 'Geist', system-ui, sans-serif;
 	--os-ui-font-mono: 'Geist Mono', ui-monospace, monospace;
 
-	/*
-	 * ---- Desktop-theme texture family -------------------------
-	 *
-	 * These are DELIBERATELY not declared. Every rule that consumes
-	 * one reads it as `var( --name, <initial> )`, so an unset variable
-	 * resolves to the CSS initial value and costs exactly nothing.
-	 * Declaring them with `none` up here would be equivalent but would
-	 * imply they are part of the default palette — they are not. They
-	 * exist only while an uploaded or code-registered desktop theme is
-	 * active, and only the compiled theme stylesheet ever sets them.
-	 *
-	 *   TITLEBAR          --os-titlebar-image
-	 *                     --os-titlebar-image-repeat
-	 *                     --os-titlebar-image-size
-	 *   TITLEBAR_FOCUSED  --os-titlebar-image-focused
-	 *                       (falls back to the unfocused image)
-	 *   WINDOW_FRAME      --os-window-border-image-source
-	 *                     --os-window-border-image-slice
-	 *                     --os-window-border-image-width
-	 *                     --os-window-border-image-repeat
-	 *   WINDOW_CORNER_*   --os-window-corner-{ne,nw,se,sw}-image
-	 *                     --os-window-corner-size (shared)
-	 *                     --os-window-corner-inset (shared;
-	 *                       how far inside the rounded corner the
-	 *                       ornament sits. Defaults to the resize
-	 *                       handle's 3px overhang plus a share of
-	 *                       --os-window-radius, because the
-	 *                       window clips its descendants)
-	 *   WINDOW_FRAME_FOCUSED
-	 *                     --os-window-border-image-focused-*
-	 *                       (same four sub-properties as WINDOW_FRAME)
-	 *   WINDOW_BODY       --os-window-body-image
-	 *   TABBAR            --os-tabs-image
-	 *   TITLEBAR_CONTROLS --os-titlebar-controls-image
-	 *   TITLEBAR_BUTTON   --os-ui-btn-bg-image
-	 *   DOCK              --os-dock-bg-image
-	 *                     --os-dock-bg-image-repeat
-	 *                     --os-dock-bg-image-size
-	 *   DOCK_ITEM         --os-dock-item-image
-	 *   DESKTOP           --os-desktop-image
-	 *                     --os-desktop-image-repeat
-	 *                     --os-desktop-image-size
-	 *   ICON_TILE         --os-tile-image
-	 *   WIDGET            --os-widget-image
-	 *   MENU              --os-ui-menu-bg-image
-	 *   DIALOG            --os-ui-dialog-bg-image
-	 *   SCRIM             --os-ui-scrim-image
-	 *   PANEL             --os-ui-panel-bg-image
-	 *   TOAST             --os-ui-toast-bg-image
-	 *   TABLE_HEADER      --os-ui-table-header-bg-image
-	 *   BUTTON            --os-ui-button-bg-image
-	 *
-	 * Every `image` slot also gets `<prop>-repeat` and `<prop>-size`
-	 * companions (the corners share one `-size`, and
-	 * TITLEBAR_FOCUSED inherits TITLEBAR's).
-	 *
-	 * Consumers: window-chrome.css (titlebar, frame, body, tab bar),
-	 * window-states.css (corners), dock.css, desktop.css (wallpaper,
-	 * icons, widgets), and the `<os-*>` component stylesheets under
-	 * `src/ui/components/` for the last seven.
-	 * Authoring reference: docs/desktop-themes.md.
-	 */
-
-	/*
-	 * ---- Badges ----------------------------------------------
-	 *
-	 * Sizes stay undeclared and DERIVED: every badge sizes itself off
-	 * the icon it decorates — the dock badge off
-	 * `--os-dock-icon-size`, the wallpaper badges off
-	 * `--os-icon-image-size` — so a user who picks a large
-	 * dock, or a theme that scales its icons, doesn't end up with a
-	 * speck stuck to an oversized tile.
-	 *
-	 *   Dock          --os-dock-badge-size (overrides the
-	 *                   whole derivation; font + padding follow it)
-	 *                 --os-dock-badge-font-size / -padding
-	 *                 --os-dock-badge-offset / -bg / -fg
-	 *                 --os-dock-badge-font-weight
-	 *   Desktop icon  --os-icon-badge-size / -font-size
-	 *                 --os-icon-badge-padding / -bg / -fg
-	 *   Recycle bin   --os-recycle-badge-size / -font-size
-	 *                   / -bg / -fg. Falls through to the generic
-	 *                   icon-badge token, so "badges are 22px" reaches
-	 *                   the bin too.
-	 *
-	 * The count badges wear Pulse, and wear it as a LITERAL gradient:
-	 * both stops used to resolve through `--os-ui-danger`, which the
-	 * palette moved, flattening the badge to one flat fill and turning
-	 * its numerals Void by accident. Naming the stops here keeps it a
-	 * gradient on purpose. The bin's neutral badge is deliberately not
-	 * part of this: a count of things in the trash is ambient state,
-	 * not something asking for you.
-	 *
-	 * **The numerals are Void, not Starlight, and that is a
-	 * requirement rather than a preference.** Starlight on Pulse is
-	 * 2.9:1, which fails AA for text this small; Void on Pulse is
-	 * 6.8:1. Any future retint of these has to keep the pair legible,
-	 * so check the ratio before swapping the ink back to white.
-	 */
 	--os-dock-badge-bg: linear-gradient(180deg, #f97dff 0%, #f252fc 100%);
 	--os-dock-badge-fg: #0c0b0f;
 	--os-icon-badge-bg: linear-gradient(180deg, #f97dff 0%, #f252fc 100%);
@@ -1371,37 +388,6 @@ body.os-active {
 	--os-dock-recycle-badge-bg: rgba(26, 23, 33, 0.85);
 	--os-dock-recycle-badge-fg: rgba(255, 251, 255, 0.92);
 
-	/*
-	 * ---- Chrome that sits on the wallpaper ---------------------
-	 *
-	 * The desktop icons and the Add widget pill paint straight onto
-	 * the wallpaper, with no window behind them. Bare Starlight only
-	 * works there while the wallpaper is dark, and not every one is:
-	 * on Holomesh they measured 1.5:1 to 2.2:1.
-	 *
-	 * **A plate and an ink are two different answers, and which one a
-	 * surface gets depends on whether it is an object.**
-	 *
-	 * The Add widget pill is, so it takes a PLATE and reads on every
-	 * wallpaper without anyone measuring anything. It derives it from
-	 * the glass it sits beside rather than mixing its own: the widget
-	 * card whose stack it trails.
-	 *
-	 * Icons, captions and file tiles are not objects — plating each one
-	 * turns a desk into a sheet of stickers — so they change INK, which
-	 * needs someone to know how bright the desk is. `--os-desk-fg` is
-	 * that answer, decided by `src/wallpapers/tone.ts` and carried by
-	 * the `body.os-wallpaper-light` rule below. Retint the desk by
-	 * naming the two literals it chooses between, never the chooser.
-	 *
-	 * `--os-icon-label-bg` is the belt to that pair of braces, for the
-	 * wallpaper nobody can measure: it costs nothing on a dark desk
-	 * (Void on Void), switches off where the tone is light, and holds
-	 * Starlight up where the tone is simply unknown.
-	 *
-	 * The shadows sharpen rather than rescue: a halo moves the glyph
-	 * edges, not the contrast ratio.
-	 */
 	--os-icon-label-bg: rgba(12, 11, 15, 0.55);
 	--os-icon-label-shadow: 0 1px 2px rgba(12, 11, 15, 0.9);
 	--os-icon-glyph-shadow: drop-shadow(0 1px 3px rgba(12, 11, 15, 0.75));
@@ -1416,59 +402,12 @@ body.os-active {
 	--os-desk-fg: var(--os-fg, #fffbff);
 	--os-desk-ink-light: #1a1721;
 
-	/*
-	 * ---- Tooltips ---------------------------------------------
-	 *
-	 * Two tokens own every tooltip CHIP in the shell — the dock tile
-	 * tooltip and the content-graph satellite tooltip.
-	 *
-	 * They are worth naming rather than leaving derived. Without them
-	 * tooltips borrow their colours from unrelated families —
-	 * `--os-ui-scrim` (an overlay BACKDROP) or `--os-ui-surface-elevated`
-	 * for the surface, `--os-ui-fg-on-accent` for the text — and those
-	 * pairings come apart the moment the palette moves. On this
-	 * palette `--os-ui-fg-on-accent` is Void, which would have rendered
-	 * near-black text on a near-black chip.
-	 *
-	 * A chip is deliberately the SAME dark lozenge on every desktop
-	 * theme, which is why these two are flat values and not derived
-	 * from anything. That is right for one line of text pinned to a
-	 * control, and wrong for a rich card: the My WordPress entity
-	 * hover card used to read them and showed up Obsidian over a white
-	 * Legacy window. It has its own derived family now —
-	 * `--os-my-wordpress-card-*`, further down — and it still names
-	 * these two as its last fallback.
-	 */
 	--os-tooltip-bg: #33303a;
 	--os-tooltip-fg: #fffbff;
 
-	/*
-	 * ---- Dock --------------------------------------------------
-	 *
-	 * Void glass over the desk, with a Starlight hairline. The tile
-	 * hover wash and the focus ring are the dock's identity moment:
-	 * Pulse, at the two alphas that read as "warm" and "here".
-	 *
-	 * `--os-dock-icon-color` is a COLOUR, not a fill, and
-	 * that is load-bearing: every image glyph in the dock is painted
-	 * as a mask filled with this colour — a theme's own iconset via
-	 * `"iconColor": "currentColor"`, and plugin / CPT artwork via
-	 * `currentColor` on the tile. One token drives dashicons, theme
-	 * art, plugin art, and the hover transition between them.
-	 *
-	 * Consumers: dock.css, dock-peek.css (which re-states the hover
-	 * rule and so must read the same two tokens).
-	 */
 	--os-dock-width: 56px;
 	--os-dock-icon-size: 20px;
-	/*
-	 * The indicator line a dynamic dock collapses into while parked
-	 * (Preferences → Appearance → Desktop layout → Dock behavior):
-	 * the iOS home indicator, painted in the accent at partial alpha
-	 * so it reads as a mark on the wallpaper rather than a control.
-	 * `-length` runs along the rail's edge, `-thickness` across it; a
-	 * theme retunes any of the three.
-	 */
+
 	--os-dock-indicator-length: 180px;
 	--os-dock-indicator-thickness: 5px;
 	--os-dock-indicator-bg: color-mix( in srgb, var( --os-ui-accent, #f252fc ) 72%, transparent );
@@ -1476,51 +415,13 @@ body.os-active {
 	--os-dock-icon-color: rgba(255, 251, 255, 0.72);
 	--os-dock-icon-color-hover: #fffbff;
 	--os-dock-item-bg-hover: rgba(255, 251, 255, 0.08);
-	/*
-	 * The tile whose window is in front sits on a lit plate: the same
-	 * Starlight wash the hover uses, one step brighter, so "this is the
-	 * app you are in" reads as depth rather than as a coloured mark.
-	 * The running dot under every open app stays; a lit plate says
-	 * which one is in front, the dots say which ones are open.
-	 */
+
 	--os-dock-item-bg-focused: rgba(255, 251, 255, 0.1);
-	/*
-	 * The status indicator and the focus ring, and both say "this
-	 * one" about a tile the user chose — so they read the accent
-	 * rather than a fixed colour. Starlight is what an untouched
-	 * install shows, because that is the accent the picker starts on.
-	 */
+
 	--os-dock-item-outline: var(--os-ui-accent, #f252fc);
-	/*
-	 * Hairline between the dock and the desktop. Reaches the side
-	 * placements (as a single inline-edge border) AND the floating
-	 * bottom pill (as its full outline). Set `transparent` for a
-	 * borderless dock.
-	 *
-	 * The bottom pill's own chrome is separately overridable, because
-	 * it is deliberately a different piece of glass — a warmer tint, a
-	 * brighter top edge, an inset highlight, a drop shadow. Each falls
-	 * back to the shared value above it.
-	 */
+
 	--os-dock-border: rgba(255, 251, 255, 0.1);
 
-	/*
-	 * The dividers INSIDE the rail, which are a different job from the
-	 * outline around it: they separate tiles that belong to different
-	 * groups — core menus, plugin apps, and OpenStation's own controls.
-	 *
-	 * One treatment for all of them. An earlier pass gave the
-	 * WordPress-to-OpenStation boundary Pulse and dropped the
-	 * core-to-plugin one to a hairline, on the theory that only one
-	 * boundary was worth reading. Two weights in one short rail read as
-	 * two unrelated ideas instead of one system, so both are now the
-	 * same line: Pulse at the waist, falling away to nothing at both
-	 * ends, with a soft glow to hold it against the dock tint.
-	 *
-	 * Resolved one step back from the accent through
-	 * `--os-ui-accent-dim`, where every ambient use of Pulse resolves,
-	 * so "tone the station down" stays one edit.
-	 */
 	--os-dock-divider: color-mix(in srgb, var(--os-ui-accent-dim) 70%, transparent);
 	--os-dock-floating-bg: rgba(12, 11, 15, 0.62);
 	--os-dock-floating-border: rgba(255, 251, 255, 0.12);
@@ -1528,17 +429,6 @@ body.os-active {
 	--os-dock-floating-highlight: rgba(255, 251, 255, 0.1);
 	--os-dock-floating-shadow: rgba(0, 0, 0, 0.55);
 
-	/*
-	 * The phone layer (`mobile.css`). Its surfaces are the dock's
-	 * family — translucent glass over the wallpaper, light glyphs —
-	 * and read the dock tokens above for fill, text and lines. What
-	 * the dock has no word for is declared here: the glass a tile, a
-	 * round control and a switcher card are cut from, its pressed
-	 * state, the shadow under a tile, the scrim behind the switcher,
-	 * and the label shadow that keeps text legible over any wallpaper.
-	 * A desktop theme that reskins the dock reskins the phone with it;
-	 * one that wants the phone alone has these.
-	 */
 	--os-mobile-glass: rgba(255, 251, 255, 0.1);
 	--os-mobile-glass-strong: rgba(255, 251, 255, 0.16);
 	--os-mobile-glass-border: rgba(255, 251, 255, 0.14);
@@ -1550,21 +440,6 @@ body.os-active {
 	--os-mobile-top-scrim: rgba(0, 0, 0, 0.45);
 	--os-mobile-label-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 
-	/*
-	 * ---- The OpenStation layout ---------------------------------
-	 *
-	 * The constellation: the flyout that fans a menu's submenu out of
-	 * its tile on hover, on every rail in every layout. The rail's
-	 * divider used to live here too; it is shared chrome now and reads
-	 * through `--os-dock-divider`.
-	 *
-	 * The constellation's SURFACE is Obsidian, deliberately. The mesh
-	 * is spent on the row under the pointer and on the head's icon
-	 * halo — the two moments where the panel is answering the user —
-	 * and nowhere else. A flyout that was iridescent edge to edge
-	 * would have nothing left to say when you actually pointed at
-	 * something in it.
-	 */
 	--os-cn-surface: rgba(26, 23, 33, 0.82);
 	--os-cn-border: rgba(255, 251, 255, 0.14);
 	--os-cn-shadow: 0 24px 64px rgba(0, 0, 0, 0.62),
@@ -1573,27 +448,15 @@ body.os-active {
 	--os-cn-fg-muted: rgba(255, 251, 255, 0.62);
 	--os-cn-legend: rgba(255, 251, 255, 0.4);
 	--os-cn-divider: rgba(255, 251, 255, 0.1);
-	/* The row under the pointer — the panel's identity moment. */
+
 	--os-cn-row-fill: var(--os-ui-holo-fill);
 	--os-cn-row-ink: var(--os-ui-holo-ink);
-	/* Beam: the thread from the panel's underside down to the tile. */
+
 	--os-cn-beam: color-mix(in srgb, var(--os-ui-accent-dim) 80%, transparent);
 	--os-cn-radius: 14px;
-	/*
-	 * Above every window and above the dock. Two panels coexist while
-	 * the pointer moves along the rail — one dismissing, one arriving
-	 * — and the retiring one is painted one step below so it can
-	 * never fade out on top of the menu being read.
-	 */
+
 	--os-cn-z: 2147483000;
 
-	/*
-	 * ---- Shell surfaces ----------------------------------------
-	 *
-	 * The panels, tab strips and washes that belong to the shell
-	 * rather than to the component kit. Same Obsidian-on-Void
-	 * composition; the selection wash is Pulse.
-	 */
 	--os-accent: #f252fc;
 	--os-link: #ec9bff;
 	--os-danger: #ff5a5a;
@@ -1601,23 +464,9 @@ body.os-active {
 	--os-hover: rgba(255, 251, 255, 0.06);
 	--os-selected: rgba(242, 82, 252, 0.18);
 	--os-fg-muted: rgba(255, 251, 255, 0.7);
-	/*
-	 * Shell text. Undeclared before the brand and it had to be: it read
-	 * light on the desk (tile labels over the wallpaper) and dark
-	 * inside a window, and one value broke one of the two. The station
-	 * settles the argument — every surface it owns is dark now, so
-	 * Starlight is right in both places.
-	 */
+
 	--os-fg: #fffbff;
-	/*
-	 * "…on light" is a name from before the station, and it is now a
-	 * misnomer worth keeping: every surface that reads it — the folder
-	 * window, its preview pane, the upload HUD — was a light card and
-	 * is Obsidian today. The token means "text on the surfaces this one
-	 * names", and those surfaces are dark, so the text is Starlight.
-	 * Renaming it is a public-API change for the sake of tidiness; the
-	 * comment is cheaper and the behaviour is what matters.
-	 */
+
 	--os-fg-on-light: #fffbff;
 	--os-panel-bg: #1a1721;
 	--os-panel-header-bg: rgba(255, 251, 255, 0.04);
@@ -1625,38 +474,7 @@ body.os-active {
 	--os-my-wordpress-bg: #1a1721;
 	--os-my-wordpress-fg: #fffbff;
 	--os-my-wordpress-surface: rgba(255, 251, 255, 0.06);
-	/*
-	 * The entity hover card — the "thumb" that floats over a tile with
-	 * a title, a featured image and an excerpt.
-	 *
-	 * It is NOT a dock chip, and it used to be painted as one.
-	 * `--os-tooltip-bg` is a fixed dark lozenge on every theme by
-	 * design — one line of text, always the same object, no reason to
-	 * follow anything. The card borrowed it, so a light desktop theme
-	 * summoned an Obsidian card over a white window, with a border in
-	 * `--os-ui-border` and an excerpt in `--os-ui-fg-muted` that both
-	 * followed the WINDOW instead. Three families, one surface.
-	 *
-	 * The card is window furniture: it belongs to the surface it was
-	 * summoned from, so it follows the theme that paints that surface.
-	 * Every value below is DERIVED rather than declared flat, which is
-	 * what makes that true — a theme that names only
-	 * `--os-my-wordpress-bg` (Legacy names exactly that, `#fff`) moves
-	 * the card with the window for free, and a theme that wants the
-	 * card alone names a `-card-` token.
-	 *
-	 * A card lands on the same colour as the window under it, so the
-	 * border and the shadow are the whole reason it reads as a
-	 * separate object. Neither is decoration here and neither may
-	 * collapse into the background — which is exactly what the border
-	 * did: `--os-ui-border` is #33303a on this palette, the SAME value
-	 * `--os-tooltip-bg` had, so the card had no edge at all.
-	 *
-	 * The shadow is the one flat value in the family. A drop shadow is
-	 * cast light, dark on a light theme and dark on a dark one, so
-	 * there is no window token for it to follow; it is named so a
-	 * theme can still reach it.
-	 */
+
 	--os-my-wordpress-card-bg: var(--os-my-wordpress-bg, #1a1721);
 	--os-my-wordpress-card-fg: var(--os-my-wordpress-fg, #fffbff);
 	--os-my-wordpress-card-fg-muted: var(--os-ui-fg-muted, #b3afb5);
@@ -1671,124 +489,28 @@ body.os-active {
 		rgba(255, 90, 90, 0.16)
 	);
 	--os-ai-panel-bg: rgba(26, 23, 33, 0.97);
-	/*
-	 * The Site assistant, the same split as selection everywhere else:
-	 * its header tint and mark, search icon, lit row and icon tiles still
-	 * mix from the accent, and so does its send button; --os-ai-accent
-	 * says how much. This palette
-	 * answers 0%, so the chrome is neutral and a lit row is the flat 8%
-	 * Starlight of the Preferences sidebar; Legacy answers 100%. The
-	 * command icons keep the accent here too: they read it directly, so
-	 * the colour stays in the pictures and out of the chrome.
-	 */
+
 	--os-ai-accent: 0%;
 	--os-ai-row-fill: rgba(255, 251, 255, 0.08);
 	--os-ai-tile-fill: rgba(255, 251, 255, 0.06);
-	/*
-	 * ---- Window tab strip ---------------------------------------
-	 *
-	 * A window with sub-pages reads as three surfaces stacked in
-	 * depth, and the values below are that ramp: Astro on the focused
-	 * title bar, VOID for the track the tabs sit in, then the page
-	 * itself. The track is the darkest of the three on purpose — it
-	 * has to stay a distinct band under BOTH title-bar states, and
-	 * Obsidian would collapse into the unfocused bar (also Obsidian)
-	 * exactly when a window has the least going on to distinguish it.
-	 *
-	 * The active tab is not a colour, it is the page arriving early.
-	 * `chromeless.css` paints every admin page inside a window `#fff`
-	 * whatever the admin colour scheme says, so the tab can name that
-	 * white and the joint between the two is seamless. Retinting the
-	 * tab means retinting the page it belongs to, and these two move
-	 * together or the seam comes back.
-	 *
-	 * `-color-muted` is the second tone anything nested in an active
-	 * tab needs — the external tab's detach and close chips. It is
-	 * the only reason a "muted on light" value exists this far down a
-	 * dark palette.
-	 */
+
 	--os-tabs-bg: #1a1721;
-	/*
-	 * The track on an UNFOCUSED window, which follows the title bar
-	 * down to Void rather than holding Obsidian.
-	 *
-	 * A focused window already reads as two surfaces: title bar and
-	 * track are the same Obsidian, and the tab lifts out of them. Let
-	 * the track keep that Obsidian while the bar above it dims and
-	 * the window reads as THREE, with the strip belonging to neither
-	 * the chrome above nor the page below. Following the bar down
-	 * keeps the count at two in both states.
-	 *
-	 * Both tracks read this: the shell's strip on an iframe window,
-	 * and `<os-tabs variant="window">` inside a native one. The track
-	 * is chrome in both cases, so it dims with the chrome; what keeps
-	 * the tab attached to the content while that happens is the
-	 * plate's fill, which wears the body's own colour rather than the
-	 * track's.
-	 *
-	 * Note the asymmetry with the title bar's pair, which is
-	 * deliberate: there, `--os-titlebar-bg` is the unfocused base and
-	 * `-focused` is the modifier. Here the base is the LIT value,
-	 * so a theme naming one track colour lands on the state where the
-	 * track is doing the most work.
-	 *
-	 * A theme that sets only `--os-tabs-bg` (Legacy, and anything
-	 * written before this token existed) resolves through it in both
-	 * states and keeps its single strip colour.
-	 */
+
 	--os-tabs-bg-unfocused: #0c0b0f;
 	--os-tabs-color: #b3afb5;
 	--os-tabs-active-bg: #fff;
 	--os-tabs-active-color: #0c0b0f;
 	--os-tabs-active-color-muted: rgba(12, 11, 15, 0.6);
-	/*
-	 * The plate's own body: a frosted crown resolving to flat page
-	 * white well before the joint.
-	 *
-	 * Every stop is OPAQUE, and that is a requirement rather than a
-	 * preference. The face used to be translucent over a
-	 * `backdrop-filter`, which promotes it to its own compositor layer
-	 * and leaves a faint grey hairline where that layer is clipped —
-	 * down the plate's sides and across its bottom, which is precisely
-	 * where this design has a bright rail and needs everything else to
-	 * be invisible.
-	 *
-	 * The last stop must also land above the joint (the bottom
-	 * `--os-tabs-radius` of the plate), because the joint is painted
-	 * in flat `--os-tabs-active-bg` and a body still tinted where the
-	 * two meet draws a seam of its own. If you retune these stops,
-	 * check the bottom edge first.
-	 */
+
 	--os-tabs-active-frost: linear-gradient(
 		180deg,
 		#f4eff9 0%,
 		#ffffff 58%
 	);
-	/*
-	 * The crown. Holomesh over the top of the plate, masked away before
-	 * the joint, on exactly ONE tab at a time. Off in this palette: the
-	 * plain frosted plate is the tab, and the one identity moment on a
-	 * window is left to the wallpaper behind it. A theme that wants the
-	 * mesh back declares `var(--os-mesh-holo)` here, at around 0.3.
-	 */
+
 	--os-tabs-active-crown: none;
 	--os-tabs-active-crown-opacity: 0.3;
-	/*
-	 * The rail: one continuous line around the silhouette of
-	 * page-plus-tab, painted as a background-image through a mask,
-	 * which is why it is a gradient and not a colour. It is the accent
-	 * the user picked, flat, and it stays derived so the pick reaches
-	 * it on every theme.
-	 *
-	 * On this palette it is drawn at 0 opacity. The plate already
-	 * reads as "this tab" by being the one white shape on an Obsidian
-	 * strip that joins the page below it; a coloured line around that
-	 * silhouette was saying the same thing a second time, on every
-	 * window on the desk. The opacity is the literal a theme answers
-	 * (Legacy: 1), and the width stays at 2px because the strip's
-	 * geometry is built on it: the plate sits on the rail whether or
-	 * not the rail is visible, so turning it back on costs no seam.
-	 */
+
 	--os-tabs-rail: linear-gradient(
 		var(--os-ui-accent, #f252fc),
 		var(--os-ui-accent, #f252fc)
@@ -1802,29 +524,6 @@ body.os-active {
 	--os-drop-preview-bg: rgba(255, 251, 255, 0.08);
 	--os-drop-preview-border: rgba(255, 251, 255, 0.45);
 
-	/*
-	 * File tiles — anywhere a `.os-file-tile` (or sibling
-	 * canvas tile) renders. The defaults match the desk: Starlight
-	 * labels over a dark sky, and a selected tile is a lifted
-	 * Starlight plate, the same language as the selected row in the
-	 * Preferences sidebar, one step brighter than the hover wash so
-	 * the two states stay apart. The accent ring around it is a
-	 * derived colour with a literal width; this palette sets the
-	 * width to 0 (Legacy keeps 1px) so selection is depth, not colour.
-	 *
-	 * Surfaces that are light in their own right override these in
-	 * their own scope, e.g.:
-	 *
-	 *   .desktop-mode-folder-window {
-	 *       --os-tile-fg: #1d2327;
-	 *       --os-tile-hover-bg: rgba(0, 0, 0, 0.06);
-	 *   }
-	 *
-	 * Plugin authors can override any of these in their own theme
-	 * to retint tiles globally without touching the rules below.
-	 */
-	/* Through the desk's ink: a file tile sits on the wallpaper as a
-	   desktop icon does. Folder windows override it in their own scope. */
 	--os-tile-fg: var(--os-desk-fg, var(--os-fg, #fffbff));
 	--os-tile-fg-muted: rgba(255, 251, 255, 0.7);
 	--os-tile-hover-bg: rgba(255, 251, 255, 0.12);
@@ -1835,106 +534,34 @@ body.os-active {
 	--os-tile-shortcut-fg: #fffbff;
 	--os-tile-shortcut-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 
-	/*
-	 * Label rendering tokens. The desk is dark at every wallpaper, so
-	 * a soft drop-shadow boosts legibility against the artwork,
-	 * regular weight, default antialiasing.
-	 *
-	 * Light-context surfaces (folder windows, My WordPress, any
-	 * future window with a light body) rebind these in their own
-	 * scope so tile labels render with the same crispness as the
-	 * surrounding chrome — no per-surface duplicate rules.
-	 */
 	--os-tile-label-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 	--os-tile-label-weight: 400;
 	--os-tile-label-smoothing: auto;
 	--os-tile-label-color: var(--os-tile-fg);
 
-	/*
-	 * Admin bar — how many pixels of the bar stay on screen while it
-	 * is parked off the top edge in `dynamic` mode. This is the
-	 * VISIBLE seam only: small enough to read as "nothing is there".
-	 * Themes may retune it; `0` makes the bar invisible until hovered.
-	 */
 	--os-admin-bar-peek: 4px;
 
-	/*
-	 * How far BELOW the parked bar the invisible reveal zone reaches.
-	 * Decoupled from the peek on purpose — the seam wants to be a
-	 * hairline, the pointer target wants to be forgiving, and tying
-	 * them together forces one of the two to be wrong. The band the
-	 * user actually has to hit is `peek + this`.
-	 *
-	 * CEILING: keep `peek + reveal-zone` comfortably under the admin
-	 * bar's own height (32px, 46px below 783px). Past that, leaving
-	 * the revealed bar drops the pointer straight back into the zone,
-	 * which re-reveals it — an oscillation loop, not a wider target.
-	 */
 	--os-admin-bar-reveal-zone: 16px;
 
-	/* Z-index layers */
 	--os-z-base: 100;
 	--os-z-dock: 200;
 	--os-z-adminbar: 9991;
 	--os-z-fullscreen: 99999;
-	/* Window-link layer — above widgets (z 1), behind windows (z 100+). */
+
 	--os-z-window-links: 50;
-	/*
-	 * Mio layer — above every window (windows run 100 + stack
-	 * index) so the companion can perch on top of them, but below
-	 * the dock (200) so it never covers navigation.
-	 */
+
 	--os-z-mio: 190;
-	/*
-	 * The desktop-name caption. Same reasoning as Mio, one step up:
-	 * above every window so a maximized Dashboard cannot hide it, and
-	 * above the companion, since a momentary message should not be
-	 * the thing that gets perched on. Still under the dock (200).
-	 */
+
 	--os-z-desktop-name: 195;
-	/*
-	 * Window-link ties (relation splines between windows). The accent
-	 * follows the admin color scheme. Solid colors only — the resting
-	 * dimming is done with stroke-opacity/fill-opacity in
-	 * window-links.css, NOT color-mix(): an unresolvable color-mix()
-	 * inside a custom property makes the consuming declaration invalid
-	 * at computed-value time, which turns SVG strokes invisible and
-	 * marker fills black (the written rgba() fallback declaration is
-	 * already gone from the cascade by then). Overridable per scheme
-	 * or by plugins/themes without touching the renderer.
-	 */
+
 	--os-window-link-color: var(--wp-admin-theme-color, #f252fc);
 	--os-window-link-color-active: var(--wp-admin-theme-color, #f252fc);
 	--os-window-link-width: 1.5px;
 	--os-window-link-accent: var(--wp-admin-theme-color, #f252fc);
-	/*
-	 * Halo behind related windows (`.os-window--linked`).
-	 * A literal rgba of Pulse rather than a color-mix() of the accent —
-	 * same no-color-mix rationale as above: if this token failed to
-	 * resolve, the whole box-shadow declaration (elevation shadow
-	 * included) would go invalid. Schemes/plugins that retint the
-	 * accent should override this too.
-	 */
+
 	--os-window-link-glow: rgba(242, 82, 252, 0.45);
 }
 
-/*
- * ---- A light desk -------------------------------------------------
- *
- * Stamped by `src/wallpapers/tone.ts` while the active wallpaper is
- * light: either it declared `tone: 'light'` (both meshes do) or, for
- * the two wallpapers the user supplies themselves, the shell measured
- * it brighter than the crossover where Void ink overtakes Starlight.
- *
- * Only things that paint DIRECTLY on the wallpaper flip, so the halos
- * invert with the ink and the caption lozenge switches off. Chrome that
- * carries its own plate does not.
- *
- * The selector carries `.os-active` to sit a class above a theme's
- * `body.os-desktop-theme-<slug>`. A theme retints the desk by naming
- * `--os-fg` / `--os-desk-ink-light`; answering the chooser instead
- * would pin one ink to every wallpaper.
- */
 body.os-active.os-wallpaper-light {
 	--os-desk-fg: var(--os-desk-ink-light, #1a1721);
 	--os-icon-label-bg: transparent;
@@ -1947,60 +574,10 @@ body.os-active.os-wallpaper-light {
 	--os-tile-label-shadow: 0 1px 2px rgba(255, 251, 255, 0.55);
 }
 
-/*
- * ---- Iframe windows keep a light body -----------------------------
- *
- * A window hosting a real `wp-admin` page is not a station surface — it
- * is a frame around someone else's document, and that document is
- * light. The reveal surface is what covers such a window while it
- * loads, so a dark one wiping back to a white page is a flash in the
- * wrong direction.
- *
- * The window's own background is deliberately NOT overridden here, and
- * that was learned the hard way: `chromeless.css` paints the iframe's
- * canvas, so nothing of the window shows through the page anyway —
- * while the tab strip above it carries a 16px `mask-image` fade at
- * each end (the "scroll for more tabs" affordance). A mask makes the
- * element's own background transparent, so a white window behind a
- * dark strip turned that invisible cosmetic into a white gradient
- * bleeding into the chrome. The strip needs the station's colour
- * behind it; the page needs its own; those are two different surfaces
- * and only one of them belongs to the window element.
- *
- * Native windows — the ones the station draws itself — are excluded
- * and keep the Obsidian reveal from the palette above.
- */
 .os-window:not( .os-window--native ) {
 	--os-window-reveal-surface: #fff;
 }
 
-/*
- * ---- The WordPress admin colour scheme no longer tints the shell ----
- *
- * There used to be nine blocks here, one per admin colour scheme, each
- * setting `--wp-admin-theme-color` on
- * `.os-shell[data-os-scheme="…"]`. They are gone,
- * and their removal is a bug fix as much as a rebrand.
- *
- * OS Settings → Appearance writes the user's chosen accent as an inline
- * style on `<html>` — deliberately, so it also reaches the WordPress
- * admin bar, which is a SIBLING of `#os-shell`. But those
- * blocks matched the shell root, a descendant of `<html>`, and for
- * custom properties the nearest ancestor with a value wins no matter
- * what the specificity of the rule that set it was. So inside the shell
- * the scheme always beat the picker: choosing Rose, or Pulse, changed
- * the admin bar and nothing else. Every focus ring, tab underline, sort
- * arrow and selection wash kept the colour of the admin scheme.
- *
- * With the accent picker defaulting to Pulse there is nothing left for
- * these blocks to express: the station has one identity colour, and a
- * user who wants their admin scheme's hue picks it in the same panel.
- * The `data-os-scheme` attribute is still stamped on the
- * shell root for plugins and themes that key off it.
- */
-
-/* The chat is a MIO surface even when its owning window wears a light theme.
- * Component colours remain reachable through the public MIO token family. */
 body.os-active .os-mio-chat,
 body.os-active .os-mio-chat-launcher {
 	--os-ui-fg: var(--os-mio-chat-fg, #1d2327);
@@ -2009,7 +586,6 @@ body.os-active .os-mio-chat-launcher {
 	--os-ui-border: var(--os-mio-chat-border, #c3c4c7);
 }
 
-/* Ghost labels sit on the chat; the hero button owns a lighter mesh. */
 body.os-active .os-mio-chat os-button[variant="ghost"],
 body.os-active .os-mio-chat-launcher {
 	--os-ui-button-fg: var(--os-mio-chat-fg, #1d2327);
@@ -2021,7 +597,6 @@ body.os-active .os-mio-chat os-button[variant="holo"] {
 	--os-ui-button-fg: var(--os-ui-holo-ink, #1d2327);
 }
 
-/* The component owns the launcher's single border and rounded surface. */
 body.os-active .os-mio-chat-launcher {
 	--os-ui-button-bg: var(--os-mio-launcher-bg, #ffffffa0);
 	--os-ui-button-border: 1px solid var(--os-mio-chat-border, #c3c4c7);

@@ -1,14 +1,3 @@
-/**
- * bin/build-wiki.mjs — the docs/ → GitHub-wiki flattener.
- *
- * The wiki sync on trunk once failed for every push because a PR added
- * docs/screenshots/<name>/README.md and the builder refused any docs/
- * subdirectory it had not been taught. Every directory now has a home in
- * the flat namespace; this test runs the real script against the real
- * docs/ tree and pins that contract, so the next new folder cannot take
- * the whole wiki down.
- */
-
 import { describe, expect, test, beforeAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
@@ -70,7 +59,7 @@ describe( 'bin/build-wiki.mjs', () => {
 	} );
 
 	test( 'a nested README maps to a dash-joined page and its images travel with it', () => {
-		// The folder that broke the sync; keep it as the worked example.
+
 		const page = join( out, 'screenshots-native-workspaces.md' );
 		expect( existsSync( page ) ).toBe( true );
 		const images = readdirSync( join( DOCS, 'screenshots/native-workspaces' ) ).filter( ( f ) => ! f.endsWith( '.md' ) );
@@ -86,7 +75,7 @@ describe( 'bin/build-wiki.mjs', () => {
 		expect( ( page.match( /```mermaid/g ) ?? [] ).length ).toBeGreaterThanOrEqual( 2 );
 		expect( page ).toContain( '](assets/data-model/storage-overview.svg)' );
 		expect( existsSync( join( out, 'assets/data-model/storage-overview.svg' ) ) ).toBe( true );
-		// Cross-doc links become bare page names, not .md paths.
+
 		expect( page ).toContain( '](files-on-desktop)' );
 		expect( page ).not.toContain( './files-on-desktop.md' );
 	} );

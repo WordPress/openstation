@@ -1,62 +1,22 @@
-/**
- * OpenStation — built-in dock-peek thumbnail renderers.
- *
- * The generic mini-window card (faux titlebar + ghosted content
- * lines) is fine for admin-page windows where the only signal
- * worth showing is "this window is open." Native shell apps —
- * OS Settings, Recycle Bin — are different: they have a visual
- * identity and a useful piece of state worth surfacing on hover.
- *
- * This module hooks `os.dock.peek-card-content` once and,
- * for each known built-in window id, returns a custom body element
- * instead of the default ghosted lines. The renderer set is closed
- * to shell-owned windows; third-party plugins use the public
- * filter directly to register their own.
- *
- * Bootstrapped from `desktop.ts` once the hook bus is up.
- */
-
 import { __ } from '../i18n';
 import type { Window as WPWindow } from '../window';
 
-/** Window id used by the OS Settings native window. Shared with `desktop.ts`. */
 const OS_SETTINGS_ID = 'desktop-mode-os-settings';
 
-/** The Trash app's frozen window id. Shared with `desktop-files/recycle-bin-icon-state.ts`. */
 const RECYCLE_BIN_ID = 'desktop-mode-recycle-bin';
 
-/**
- * Reader for the live recycle-bin count. Delayed-bound at registration
- * time because `desktop.ts` imports this module before the recycle-bin
- * module has finished bootstrapping its store; trying to import the
- * count getter at module top would create a load-order dependency we
- * don't want to enforce.
- */
 type CountReader = () => number;
 
-/**
- * Filter context — shape mirrors `DockPeekCardContext` from
- * `src/dock-peek/index.ts`. Duplicated here as a structural type
- * to avoid the circular import.
- */
 interface PeekCardContext {
 	window: WPWindow;
 	item: { id: string; title: string; icon: string; url: string };
 }
 
 interface RegisterOpts {
-	/**
-	 * Returns the current recycle-bin count. Called every time the
-	 * peek opens — fresh value, no staleness. The Recycle Bin
-	 * module passes its `_currentRecycleBinCount` getter.
-	 */
+
 	getRecycleBinCount: CountReader;
 }
 
-/**
- * Wire the built-in peek renderers. Idempotent: calling twice
- * registers the filter twice, so guard at the call site.
- */
 export function registerBuiltInPeekRenderers( opts: RegisterOpts ): void {
 	const wpHooks = getWpHooks();
 	if ( ! wpHooks ) {
@@ -78,16 +38,6 @@ export function registerBuiltInPeekRenderers( opts: RegisterOpts ): void {
 		},
 	);
 }
-
-/* ──────────────────────────────────────────────────────────────────
-   OS Settings renderer.
-
-   Visual: large dashicon + a mosaic of three "tab tiles" beneath
-   the big icon, hinting at the Settings tabs (Appearance, AI,
-   Help — interleaved with whatever a plugin's added). Accent color
-   inherits from the user's WP profile scheme via
-   `--wp-admin-theme-color`.
-   ────────────────────────────────────────────────────────────────── */
 
 function renderOsSettings( _ctx: PeekCardContext ): HTMLElement {
 	const root = document.createElement( 'span' );
@@ -120,16 +70,6 @@ function renderOsSettings( _ctx: PeekCardContext ): HTMLElement {
 	return root;
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Recycle Bin renderer.
-
-   Visual: trash dashicon — open lid when empty, closed lid with a
-   stack of "items" peeking out when full — plus a live count
-   badge when ≥1 item exists. The count is read fresh on every
-   peek build via the injected `getRecycleBinCount` getter, so the
-   thumbnail always reflects current state without subscriptions.
-   ────────────────────────────────────────────────────────────────── */
-
 function renderRecycleBin(
 	_ctx: PeekCardContext,
 	getCount: CountReader,
@@ -145,8 +85,6 @@ function renderRecycleBin(
 	const stage = document.createElement( 'span' );
 	stage.className = 'os-dock-peek__bin-stage';
 
-	// "Stack" — three layered slips representing trashed items.
-	// Hidden when empty; revealed (with a slight stagger) when full.
 	const stack = document.createElement( 'span' );
 	stack.className = 'os-dock-peek__bin-stack';
 	for ( let i = 0; i < 3; i++ ) {
@@ -173,20 +111,12 @@ function renderRecycleBin(
 	} else if ( count > 99 ) {
 		label.textContent = '99+ items';
 	} else {
-		// translators: %d is the number of items in the recycle bin.
 		label.textContent = `${ count } items`;
 	}
 	root.appendChild( label );
 
 	return root;
 }
-
-/* ──────────────────────────────────────────────────────────────────
-   Hook bus accessor — duplicated from `src/hooks.ts` so this module
-   doesn't pull the full hooks framework into the load path. The bus
-   is mounted on `window.wp.hooks` by the time we're called from
-   `desktop.ts`.
-   ────────────────────────────────────────────────────────────────── */
 
 interface FakeWpHooks {
 	addFilter: (

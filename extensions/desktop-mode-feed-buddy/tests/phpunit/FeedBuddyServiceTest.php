@@ -1,47 +1,21 @@
 <?php
-/**
- * FeedBuddy integration tests.
- *
- * @package OpenStationFeedBuddy
- */
 
 if ( ! class_exists( 'Feed_Buddy_Service' ) ) {
 	require_once dirname( __DIR__, 2 ) . '/desktop-mode-feed-buddy.php';
 }
 
-/**
- * @group openstation
- */
 class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 
-	/**
-	 * @var Feed_Buddy_Service
-	 */
 	private $service;
 
-	/**
-	 * @var int
-	 */
 	private $user_id;
 
-	/**
-	 * @var string
-	 */
 	private $url;
 
-	/**
-	 * @var string
-	 */
 	private $http_body = '';
 
-	/**
-	 * @var callable|null
-	 */
 	private $http_filter;
 
-	/**
-	 * @var array
-	 */
 	private $last_http_args = array();
 
 	public function set_up() {
@@ -69,11 +43,6 @@ class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Preempt WordPress HTTP while preserving the request arguments for assertions.
-	 *
-	 * @param callable|null $resolver Optional URL-to-body resolver.
-	 */
 	private function stub_http( $resolver = null ) {
 		$this->http_filter = function ( $preempt, $args, $url ) use ( $resolver ) {
 			unset( $preempt );
@@ -95,12 +64,6 @@ class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 		add_filter( 'pre_http_request', $this->http_filter, 10, 3 );
 	}
 
-	/**
-	 * Build a compact RSS fixture.
-	 *
-	 * @param array $items Items.
-	 * @return string
-	 */
 	private function rss( array $items ) {
 		$xml = '<?xml version="1.0" encoding="UTF-8"?>'
 			. '<rss version="2.0"><channel><title>Example Feed</title>'

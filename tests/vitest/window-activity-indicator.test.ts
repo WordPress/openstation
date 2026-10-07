@@ -1,19 +1,3 @@
-/**
- * Window activity, as the title bar reports it.
- *
- * The status ring is the leading mark of the title bar, in the
- * position the app icon used to hold — and the app icon is gone,
- * because it was a copy of the window's own dock tile a few hundred
- * pixels below it.
- *
- * Three things here are easy to break by accident and all three are
- * pinned: the ring is found through the PUBLIC
- * `[data-os-activity-indicator]` attribute (the framework's own
- * indicator claims no private channel, so a plugin's is driven by the
- * same code), every indicator in the title bar is driven rather than
- * the first, and the phase is announced to screen readers because a
- * ring announces nothing.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -92,8 +76,7 @@ describe( 'the title-bar status ring', () => {
 		expect( ring() ).not.toBeNull();
 		expect( ring().tagName.toLowerCase() ).toBe( 'os-save-status' );
 		expect( ring().getAttribute( 'variant' ) ).toBe( 'ring' );
-		// The icon lives in the dock. Two of the same mark, one above
-		// the other, is one mark too many.
+
 		expect( win.element.querySelector( '.os-window__icon' ) ).toBeNull();
 	} );
 
@@ -104,8 +87,7 @@ describe( 'the title-bar status ring', () => {
 	} );
 
 	test( 'the ring is reached through the public indicator attribute', () => {
-		// Not a private hook: the framework's ring and a plugin's are
-		// the same kind of thing, found by the same selector.
+
 		expect( ring().hasAttribute( 'data-os-activity-indicator' ) ).toBe(
 			true,
 		);
@@ -189,14 +171,12 @@ describe( 'reference counting and the reset escape hatch', () => {
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'saving' );
 
 		win._markActivitySettled( true );
-		// Still one in flight — the ring must not claim success yet.
+
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'saving' );
 	} );
 
 	test( 'a reset drops the count so a navigated-away iframe cannot strand the ring', () => {
-		// The one case the counter cannot survive: the document that
-		// started the requests is gone, so its `end` messages never
-		// arrive and the count would never reach zero.
+
 		win._markActivityStart();
 		win._markActivityStart();
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'saving' );
@@ -226,10 +206,7 @@ describe( 'a form submit, bracketed across two documents', () => {
 	} );
 
 	test( 'the answer landing is the end the submit never sent', () => {
-		// Settled the moment it lands, with none of the minimum-blink
-		// hold a fetch gets — that floor stands in for feedback a 50ms
-		// request can't give, and a document arriving IS that
-		// feedback. The fade back to idle survives, though.
+
 		win._noteNavigationActivity();
 		win._markActivityStart();
 		vi.advanceTimersByTime( 500 );
@@ -243,11 +220,7 @@ describe( 'a form submit, bracketed across two documents', () => {
 	} );
 
 	test( 'the boot signal behind the head report leaves the outcome alone', () => {
-		// Both arrive for every submit, in that order: the head report
-		// settles the ring, `os-ready` follows from the footer of the
-		// same document, and its usual reset would wipe the check off
-		// a ring that had only just earned it. Once — the navigation
-		// after this one is an ordinary one again.
+
 		win._noteNavigationActivity();
 		win._markActivityStart();
 		win._settleNavigationActivity();
@@ -258,8 +231,7 @@ describe( 'a form submit, bracketed across two documents', () => {
 	} );
 
 	test( 'os-ready settles a document that sent no head report', () => {
-		// Not every response carries the head hook, and the ring
-		// cannot be left blinking on the ones that don't.
+
 		win._noteNavigationActivity();
 		win._markActivityStart();
 
@@ -268,9 +240,7 @@ describe( 'a form submit, bracketed across two documents', () => {
 	} );
 
 	test( 'a submit that lands nowhere lets go of the ring', () => {
-		// A `wp_die()` page (an expired nonce) runs no admin hooks, so
-		// nothing on it reports back and the blink would outlive the
-		// window.
+
 		win._noteNavigationActivity();
 		win._markActivityStart();
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'saving' );
@@ -284,12 +254,7 @@ describe( 'a form submit, bracketed across two documents', () => {
 
 describe( 'the ring treatment', () => {
 	test( 'the ring has no resting fill, whatever the host sets', () => {
-		// The bug this pins shipped and was visible on every idle
-		// window: `--os-ui-save-status-bg` is the DOT's background on
-		// the base rule, and the title bar was setting it to tint the
-		// in-flight outline — so idle painted a solid accent disc
-		// inside the white ring. One token, two meanings, one rule
-		// apart.
+
 		const guard = COMPONENT_CSS.slice(
 			COMPONENT_CSS.indexOf(
 				":host( [ variant='ring' ] ) .os-save-status__indicator {",
@@ -299,8 +264,6 @@ describe( 'the ring treatment', () => {
 			'background: transparent',
 		);
 
-		// …and the title bar asks for the ring by its own name, so the
-		// two can never be confused again.
 		const host = CHROME_CSS.slice(
 			CHROME_CSS.indexOf( '.os-window__status {' ),
 		);
@@ -310,8 +273,7 @@ describe( 'the ring treatment', () => {
 	} );
 
 	test( 'only success fills — the other phases keep the outline open', () => {
-		// Colour alone is not a distinction every user can make, so
-		// the two outcomes differ in shape as well as hue.
+
 		const savedRule = COMPONENT_CSS.slice(
 			COMPONENT_CSS.indexOf(
 				":host( [ variant='ring' ][ phase='saved' ] ) .os-save-status__indicator {",
@@ -334,9 +296,7 @@ describe( 'the ring treatment', () => {
 	} );
 
 	test( 'each state change has a gesture, and success and failure differ', () => {
-		// Landing overshoots and settles; failure swells twice and
-		// stops. A heartbeat would say "still going" on a phase that
-		// has already ended.
+
 		expect( COMPONENT_CSS ).toContain(
 			'@keyframes os-save-status-ring-land',
 		);
@@ -363,8 +323,7 @@ describe( 'the ring treatment', () => {
 	} );
 
 	test( 'the gestures stay small — a 16px ring cannot bounce', () => {
-		// Anything past ~1.1 on a mark this size reads as a wobble
-		// rather than as weight.
+
 		const scales = [
 			...COMPONENT_CSS.matchAll( /scale:\s*([\d.]+)/g ),
 		].map( ( m ) => Number( m[ 1 ] ) );
@@ -380,16 +339,13 @@ describe( 'the ring treatment', () => {
 		expect( block ).toContain( "variant='ring'" );
 		expect( block ).toContain( 'animation: none' );
 		expect( block ).toContain( 'scale: 1' );
-		// The glyph is information, not emphasis — it must not be
-		// swept up with the animations that carry it in.
+
 		expect( block ).toContain( 'opacity: 1' );
 		expect( block ).not.toContain( 'display: none' );
 	} );
 
 	test( 'the resting ring is white, in both title-bar states', () => {
-		// One value, not two: the ring reports a phase, and dimming it
-		// on an unfocused window would make `idle` mean something
-		// different depending on which window you last clicked.
+
 		const rule = CHROME_CSS.slice(
 			CHROME_CSS.indexOf( '.os-window__status {' ),
 		);
@@ -414,7 +370,7 @@ describe( 'the ring treatment', () => {
 			expect( CHROME_CSS ).toContain( `var(${ token },` );
 			expect( VARIABLES_CSS ).toContain( `\t${ token }:` );
 		}
-		// Failure is the one value that must not be quietened.
+
 		expect( VARIABLES_CSS ).toMatch(
 			/--os-titlebar-activity-failed-color:\s*var\(--os-ui-danger/,
 		);

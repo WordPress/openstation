@@ -1,53 +1,3 @@
-/*
- * Announcement dialog — the shell's full-stop moment.
- *
- * The look is the first-run welcome dialog's: a blurred Void scrim with
- * Nebula and mint glows, a near-white card with a holographic hairline,
- * and a dark shimmering hero at the top of it. That dialog is the one
- * piece of UI in the product that gets to be loud, and an announcement
- * that has to explain a rename is the only other thing that earns it.
- *
- * Built as plain classed DOM rather than out of `<os-*>` components, on
- * purpose and for the same reason the welcome dialog is: this is a
- * poster, not a control panel. `<os-modal>` gives a dialog chrome and a
- * focus trap, and would then have to be fought for every one of the
- * gradients below.
- *
- * ---------------------------------------------------------------
- * KNOWN DUPLICATION. `includes/welcome-dialog.php` inlines its own copy
- * of this design. It has to be self-contained — it renders in *classic*
- * wp-admin, on `admin_footer`, where none of the shell's stylesheets
- * are enqueued — so the two cannot share a file without that dialog
- * taking on a dependency it was deliberately built without. Restyle one
- * and the other will drift. If they should converge, the move is to
- * enqueue THIS file in classic admin too and delete the inline block,
- * not to copy edits between them.
- * ---------------------------------------------------------------
- *
- * ---------------------------------------------------------------
- * THIS FILE OPTS OUT OF THE PALETTE, AND THAT IS A DEPARTURE.
- *
- * Every colour below is a literal. Not one reads a `--os-*` token, so
- * nothing here answers to `variables.css` or to a desktop theme, which
- * is exactly what AGENTS.md's "one declaration, one owner" rule tells
- * you not to do. Read this as a one-off, NOT as the house pattern: a
- * feature stylesheet that hardcodes its colours is a bug.
- *
- * The trade, deliberately made: the card is the product introducing
- * itself by name, and a theme recolouring that would be the theme
- * speaking in the product's voice. `<os-modal>` makes the same call for
- * its own surface. The difference is that `<os-modal>` still routes
- * through `--os-ui-modal-*` names, so a theme that really wants the
- * surface can reach it; this file gives a theme nothing, and it is only
- * defensible because the dialog exists for one release cycle and then
- * stops firing forever.
- *
- * If it outlives that, tokenize it. Note that nothing will tell you to:
- * `brand-palette.test.ts` only scans `variables.css`, so no test fails
- * while this drifts from the palette beside it.
- * ---------------------------------------------------------------
- */
-
 .os-announce,
 .os-announce * {
 	box-sizing: border-box;
@@ -56,11 +6,7 @@
 .os-announce {
 	position: fixed;
 	inset: 0;
-	/*
-	 * Above every window (z 100+), the dock, and the Mio layer (190).
-	 * Matches the welcome dialog's own z-index so the two can never
-	 * argue if a site somehow shows both.
-	 */
+
 	z-index: 100000;
 	display: flex;
 	align-items: center;
@@ -133,10 +79,6 @@
 	animation-delay: 60ms;
 }
 
-/*
- * Holographic hairline. A padded pseudo-element masked with `xor` so
- * only the 1px ring paints — a plain border cannot carry a gradient.
- */
 .os-announce__card::before {
 	content: "";
 	position: absolute;
@@ -166,7 +108,6 @@
 	overflow: hidden;
 }
 
-/* Station grid + glows, faded out at the edges so it reads as depth. */
 .os-announce__hero::after {
 	content: "";
 	position: absolute;
@@ -194,11 +135,6 @@
 	);
 }
 
-/*
- * The eyebrow pill, sitting above the hero's own overlay. Same chip the
- * welcome dialog wears for "New here", so the two dialogs read as the
- * same voice saying two different things.
- */
 .os-announce__eyebrow {
 	position: relative;
 	z-index: 1;
@@ -261,11 +197,6 @@
 	margin-bottom: 0;
 }
 
-/*
- * The reassurance line — quieter than the copy above it. It answers
- * "did my install change?" for the people who think to ask, without
- * competing with the explanation.
- */
 .os-announce__fine {
 	padding: 14px 16px;
 	background: linear-gradient(
@@ -318,11 +249,7 @@
 }
 
 .os-announce__btn--primary {
-	/*
-	 * Ends on Pulse, not Nebula. `background-position` slides this on
-	 * hover, so every stop carries the label at some point, and Nebula
-	 * is light enough that Starlight text on it falls to ~1.6:1.
-	 */
+
 	background: linear-gradient(135deg, #2a2533, #a12bb0 45%, #f252fc);
 	background-size: 180% 180%;
 	box-shadow: 0 10px 24px -10px rgba(242, 82, 252, 0.75),
@@ -365,11 +292,6 @@
 	}
 }
 
-/*
- * Reduced motion stops the movement, never the paint. The shimmer, the
- * pop and the scrim fade are decoration; the gradients they animate are
- * the dialog's identity and stay put at their first frame.
- */
 @media (prefers-reduced-motion: reduce) {
 	.os-announce,
 	.os-announce__card,

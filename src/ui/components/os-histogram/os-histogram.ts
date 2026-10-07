@@ -1,29 +1,3 @@
-/**
- * `<os-histogram>` — stacked time histogram with a toggle legend.
- *
- * One stacked column per time bucket, one series per stack layer,
- * painted as plain inline SVG (no chart library). The legend doubles
- * as a series filter: clicking a chip hides that layer and emits
- * `os-series-toggle`, so a server-rendered view can persist the
- * choice without owning any chart code.
- *
- *   <os-histogram
- *       legend
- *       series='[{"key":"error","label":"Errors","tone":"danger"}, …]'
- *       columns='[[3,1,0,2],[0,0,1,0], …]'
- *       start="1756600000" end="1756686400"
- *       hidden-series="info"
- *       empty="No events in this range."
- *   ></os-histogram>
- *
- * Mark discipline per the shell's chart conventions: columns cap at
- * 24px, adjacent columns and stacked segments are separated by 2px
- * of surface (no strokes), the top segment gets a rounded cap,
- * gridlines are 1px and recessive, and every text node wears text
- * tokens — never a series colour. Repaints itself when its width
- * changes.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-histogram.styles';
 
@@ -37,11 +11,10 @@ const MAX_BAR = 24;
 const GAP = 2;
 const DEFAULT_HEIGHT = 150;
 
-/** A stack layer. */
 export interface HistogramSeries {
 	key: string;
 	label: string;
-	/** `danger` | `warning` | `info` | `success` | `accent` | `neutral`. */
+
 	tone?: string;
 }
 
@@ -58,7 +31,6 @@ function parseJson< T >( raw: string | null, fallback: T ): T {
 	}
 }
 
-/** Smallest "nice" ceiling (1/2/5 × 10^k) at or above `value`. */
 export function niceCeil( value: number ): number {
 	if ( value <= 5 ) {
 		return Math.max( 1, value );
@@ -83,7 +55,6 @@ function svgEl< K extends keyof SVGElementTagNameMap >(
 	return el;
 }
 
-/** A rect whose top two corners are rounded — the stack's cap. */
 function cappedPath( x: number, y: number, w: number, h: number ): string {
 	const r = Math.min( 3, h / 2, w / 2 );
 	return (
@@ -191,13 +162,10 @@ export class OsHistogram extends Component {
 
 	protected requestUpdate(): void {
 		super.requestUpdate();
-		// The base render runs on the next microtask; paint after it.
+
 		queueMicrotask( () => this.paint() );
 	}
 
-	// ------------------------------------------------------------ data
-
-	/** Declared series, tones normalised. */
 	get seriesList(): HistogramSeries[] {
 		const raw = parseJson< unknown >( this.getAttribute( 'series' ), [] );
 		if ( ! Array.isArray( raw ) ) {
@@ -212,7 +180,6 @@ export class OsHistogram extends Component {
 			} ) );
 	}
 
-	/** Column counts, one number per series per bucket. */
 	get columnList(): number[][] {
 		const raw = parseJson< unknown >( this.getAttribute( 'columns' ), [] );
 		if ( ! Array.isArray( raw ) ) {
@@ -232,7 +199,6 @@ export class OsHistogram extends Component {
 		);
 	}
 
-	/** Per-series totals across every column (hidden or not). */
 	totals(): number[] {
 		const series = this.seriesList;
 		const totals = series.map( () => 0 );
@@ -244,7 +210,6 @@ export class OsHistogram extends Component {
 		return totals;
 	}
 
-	/** Flip one series and announce the new hidden set. */
 	toggleSeries( key: string ): void {
 		const hidden = this.hiddenSet;
 		if ( hidden.has( key ) ) {
@@ -260,8 +225,6 @@ export class OsHistogram extends Component {
 		}
 		this.emit( 'os-series-toggle', { key, hidden: list } );
 	}
-
-	// ---------------------------------------------------------- render
 
 	protected render() {
 		const series = this.seriesList;
@@ -294,7 +257,6 @@ export class OsHistogram extends Component {
 		`;
 	}
 
-	/** Imperative SVG paint into the chart host. */
 	paint(): void {
 		const root = this.shadowRoot;
 		const host = root?.querySelector< HTMLElement >( '.chart' );
@@ -486,7 +448,6 @@ export class OsHistogram extends Component {
 		head.textContent = info.head;
 		tooltip.appendChild( head );
 
-		// Rows top-of-stack first, mirroring what the eye sees.
 		let rows = 0;
 		for ( const i of [ ...info.visibleIndexes ].reverse() ) {
 			const count = column[ i ] ?? 0;
@@ -517,8 +478,7 @@ export class OsHistogram extends Component {
 
 		tooltip.hidden = false;
 		const x = PAD_LEFT + index * slot + slot / 2;
-		// Physical `left` on purpose: `x` is SVG geometry, physical in
-		// RTL too — a logical inset would mirror onto the wrong column.
+
 		tooltip.style.left = `${ Math.max( 60, Math.min( x, width - 60 ) ) }px`;
 	}
 }

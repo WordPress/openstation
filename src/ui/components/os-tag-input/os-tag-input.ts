@@ -1,89 +1,17 @@
-/**
- * `<os-tag-input>` — multi-tag picker with autocomplete and free-form
- * creation.
- *
- * The component is **purely presentational + event-driven**. It owns
- * the visual layout (chip row + "+ Add" trigger + inline input +
- * suggestions popover) and the keyboard model (Enter/Backspace/
- * Escape/ArrowUp/ArrowDown). Mutations — fetching suggestions,
- * creating tags, persisting to a REST endpoint — are the consumer's
- * job, dispatched via well-typed events:
- *
- *   - `os-tag-suggest` `{ query }` — user typed in the input. The
- *     consumer should fetch suggestions and assign them back via
- *     `el.suggestions = [...]`.
- *   - `os-tag-add` `{ tag, isNew }` — user picked a suggestion or,
- *     when `creatable`, pressed Enter on a query that didn't match
- *     any suggestion (`isNew: true`). The component does NOT mutate
- *     its own `value` — the consumer is the source of truth, and is
- *     expected to update `value` (optimistically) and persist in the
- *     background.
- *   - `os-tag-remove` `{ tag }` — user clicked × on a chip. Same
- *     contract: consumer mutates `value`, runs REST.
- *   - `os-tag-open` / `os-tag-close` — lifecycle of the inline
- *     input. Useful for prefetching the empty-query suggestion list,
- *     or for restoring focus to the parent toolbar on close.
- *
- * The `value` and `suggestions` properties are JS-only (not
- * attribute-mirrored) because they carry structured data with ids.
- *
- * Optimistic UX is supported via `pending: true` on individual tag
- * items — they render with a soft pulse so the user can see "this
- * one's still landing" without us blocking interaction.
- *
- * ```js
- * const picker = document.querySelector( 'os-tag-input' );
- * picker.value = [ { id: 1, label: 'WordPress' } ];
- * picker.creatable = true;
- *
- * picker.addEventListener( 'os-tag-suggest', async ( e ) => {
- *     const list = await searchTags( e.detail.query );
- *     picker.suggestions = list;
- * } );
- * picker.addEventListener( 'os-tag-add', async ( e ) => {
- *     // Optimistic: append + mark pending.
- *     picker.value = [
- *         ...picker.value,
- *         { ...e.detail.tag, pending: true },
- *     ];
- *     try {
- *         const saved = await persistTag( e.detail.tag, e.detail.isNew );
- *         picker.value = picker.value.map( ( t ) =>
- *             t.label === saved.label ? saved : t );
- *     } catch ( err ) {
- *         picker.value = picker.value.filter( ( t ) => t.label !== e.detail.tag.label );
- *         showToast( err.message );
- *     }
- * } );
- * ```
- *
- * @public
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { osIcon } from '../../icons';
 import { styles } from './os-tag-input.styles';
-// Side-effect import — registers `<os-chip>` so callers don't need
-// to remember to import it separately.
+
 import '../os-chip/os-chip';
 
-/**
- * One row in the picker. The `id` is opaque to the component — most
- * consumers map it to a server-side id (term id, taxonomy term).
- * Items without an `id` are typically "to be created" entries; the
- * component doesn't care either way.
- */
 export interface OsTagItem {
-	/** Stable id (term id, etc.). Optional. */
+
 	id?: number | string;
-	/** Visible text. Required. */
+
 	label: string;
-	/** Render the chip in a "in flight" pulsed state. */
+
 	pending?: boolean;
-	/**
-	 * Optional `tone` forwarded to the chip. Lets a consumer color
-	 * tags by taxonomy / status without knowing the chip API.
-	 */
+
 	tone?: 'neutral' | 'accent' | 'positive' | 'warning' | 'danger';
 }
 
@@ -228,8 +156,6 @@ export class OsTagInput extends Component {
 		`,
 	} as const;
 
-	// --- Private state ----------------------------------------------------
-
 	private _value: OsTagItem[] = [];
 	private _suggestions: OsTagItem[] = [];
 	private _suggestionsLoading = false;
@@ -237,23 +163,17 @@ export class OsTagInput extends Component {
 	private _highlight = -1;
 	private _focusedChip = -1;
 
-	// Resolves to the inline input AFTER each render. Re-queried on
-	// every `requestUpdate` because the shadow tree builds fresh
-	// nodes per render.
 	private get _input(): HTMLInputElement | null {
 		const root = this.shadowRoot;
 		return root ? root.querySelector< HTMLInputElement >( '.os-tag-input__input' ) : null;
 	}
-
-	// --- Public properties (JS-only) -------------------------------------
 
 	get value(): OsTagItem[] {
 		return this._value;
 	}
 	set value( next: readonly OsTagItem[] | null | undefined ) {
 		this._value = Array.isArray( next ) ? next.slice() : [];
-		// Selection invariant: stop "deleting backwards" pointing at a
-		// chip that no longer exists.
+
 		if ( this._focusedChip >= this._value.length ) {
 			this._focusedChip = -1;
 		}
@@ -265,7 +185,7 @@ export class OsTagInput extends Component {
 	}
 	set suggestions( next: readonly OsTagItem[] | null | undefined ) {
 		this._suggestions = Array.isArray( next ) ? next.slice() : [];
-		// Reset highlight to first match on every fresh batch.
+
 		this._highlight = this._suggestions.length > 0 ? 0 : -1;
 		this._suggestionsLoading = false;
 		this.requestUpdate();
@@ -287,11 +207,6 @@ export class OsTagInput extends Component {
 		return ( this as unknown as { open: string | null } ).open !== null;
 	}
 
-	/**
-	 * Open the inline input + suggestions popover. Equivalent to
-	 * clicking the "+" trigger. Call from the parent to start tag
-	 * entry programmatically (e.g. paste interception).
-	 */
 	public openInput(): void {
 		if ( this.isOpen ) {
 			return;
@@ -300,18 +215,13 @@ export class OsTagInput extends Component {
 		this._query = '';
 		this._highlight = -1;
 		this.emit( 'os-tag-open', {} );
-		// Move focus + emit the empty-query suggest so the consumer
-		// can prime the popover with recent / popular tags.
+
 		queueMicrotask( () => {
 			this._input?.focus();
 			this._emitSuggest( '' );
 		} );
 	}
 
-	/**
-	 * Close the inline input. Use from a parent to dismiss after a
-	 * background save resolves.
-	 */
 	public closeInput(): void {
 		if ( ! this.isOpen ) {
 			return;
@@ -325,22 +235,15 @@ export class OsTagInput extends Component {
 		this.requestUpdate();
 	}
 
-	// --- Lifecycle --------------------------------------------------------
-
 	connectedCallback(): void {
 		super.connectedCallback();
-		// Click-outside closes the input. We listen on the document
-		// (capture so we beat any stopPropagation()) and consult
-		// composedPath() to see if the click crossed our shadow
-		// boundary.
+
 		document.addEventListener( 'pointerdown', this._onDocumentPointerDown, true );
 	}
 
 	disconnectedCallback(): void {
 		document.removeEventListener( 'pointerdown', this._onDocumentPointerDown, true );
 	}
-
-	// --- Render -----------------------------------------------------------
 
 	protected render() {
 		const isOpen = this.isOpen;
@@ -354,17 +257,7 @@ export class OsTagInput extends Component {
 				! readonly );
 		const creatable =
 			( this as unknown as { creatable: string | null } ).creatable !== null;
-		/*
-		 * "Add", not "+ Add". The button already renders an SVG plus
-		 * beside this text, so a literal one in the label put two of
-		 * them on screen — it read as "++ Add".
-		 *
-		 * The icon is the one to keep: it is `aria-hidden`, so the
-		 * accessible name is exactly this string, and a screen reader
-		 * announcing "plus Add" was the same duplication in the other
-		 * modality. A caller who wants a glyph in the text can still
-		 * pass one through `add-label`.
-		 */
+
 		const addLabel =
 			( this as unknown as { 'add-label': string | null } )[ 'add-label' ] ||
 			'Add';
@@ -526,9 +419,6 @@ export class OsTagInput extends Component {
 							aria-selected=${ selected ? 'true' : 'false' }
 							class="os-tag-input__suggestion-item"
 							@mousedown=${ ( e: MouseEvent ) => {
-								// `mousedown` (not `click`) so the input
-								// doesn't blur out from under us before the
-								// click resolves.
 								e.preventDefault();
 								this._addSuggestion( item, false );
 							} }
@@ -567,8 +457,6 @@ export class OsTagInput extends Component {
 			</div>
 		`;
 	}
-
-	// --- Event handlers ---------------------------------------------------
 
 	private _onChipDismiss( e: Event, tag: OsTagItem ): void {
 		e.stopPropagation();
@@ -664,15 +552,11 @@ export class OsTagInput extends Component {
 					e.preventDefault();
 					const lastIdx = this._value.length - 1;
 					if ( this._focusedChip === lastIdx ) {
-						// Second backspace on empty input → remove the
-						// already-focused chip. Confirms intent.
 						this.emit( 'os-tag-remove', {
 							tag: this._value[ lastIdx ],
 						} );
 						this._focusedChip = -1;
 					} else {
-						// First backspace on empty input → focus the
-						// last chip without removing.
 						this._focusedChip = lastIdx;
 						this.requestUpdate();
 					}
@@ -680,8 +564,7 @@ export class OsTagInput extends Component {
 				return;
 			}
 			default:
-				// Any other keypress reverts the chip-focus heuristic so
-				// typing after a Backspace doesn't inadvertently remove.
+
 				if ( this._focusedChip !== -1 ) {
 					this._focusedChip = -1;
 				}
@@ -689,12 +572,6 @@ export class OsTagInput extends Component {
 	}
 
 	private _onInputBlur( _e: FocusEvent ): void {
-		// Blur usually means the user is done. Close after a tick so
-		// a click on a suggestion (which fires `mousedown` first, then
-		// blur, then click) still has time to resolve. The
-		// `mousedown` handler on suggestions calls `preventDefault`,
-		// so a real suggestion-click never blurs. This branch only
-		// catches "user tabbed/clicked away".
 		queueMicrotask( () => {
 			if ( ! this.shadowRoot?.activeElement ) {
 				this.closeInput();
@@ -714,10 +591,6 @@ export class OsTagInput extends Component {
 	};
 
 	private _addSuggestion( tag: OsTagItem, isNew: boolean ): void {
-		// De-dupe — a consumer that hasn't refreshed `value` yet would
-		// otherwise add the same label twice. Comparison by label
-		// (lowercased) handles the "user typed 'WordPress' but the
-		// REST term came back as 'wordpress'" case.
 		const exists = this._value.some(
 			( v ) => v.label.toLowerCase() === tag.label.toLowerCase(),
 		);
@@ -732,9 +605,6 @@ export class OsTagInput extends Component {
 
 		this.emit( 'os-tag-add', { tag, isNew } );
 
-		// Stay open so the user can keep adding tags. Reset the input
-		// + suggestions; the consumer will push the new tag into
-		// `value` on the next tick.
 		this._query = '';
 		this._highlight = -1;
 		this._suggestions = [];

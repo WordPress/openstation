@@ -1,10 +1,3 @@
-/**
- * The public Playground Blueprint is a stock OpenStation install.
- *
- * Keep demo extensions, feature mutations, and must-use-plugin staging out of
- * this file. The public link should always resolve fresh WordPress plus the
- * latest released OpenStation package, with no hidden demo behaviour.
- */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';

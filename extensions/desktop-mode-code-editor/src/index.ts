@@ -1,25 +1,3 @@
-/**
- * Code Editor — Phase 3 / 2.5 entry.
- *
- * Three-zone layout:
- *
- *   ┌────────────┬──────────────────────────────────────┐
- *   │            │  tab strip                           │
- *   │   tree     ├──────────────────────────────────────┤
- *   │            │  Monaco                              │
- *   │            ├──────────────────────────────────────┤
- *   │            │  status bar                          │
- *   └────────────┴──────────────────────────────────────┘
- *
- * Click a file in the tree → opens (or focuses) a tab on the right.
- * Each tab owns its Monaco model + per-file save state. Cmd/Ctrl+S
- * writes the active tab's buffer through `/code/file`. Closing a
- * dirty tab confirms; closing the last tab returns to the
- * placeholder.
- *
- * @public
- */
-
 import { showConflictDialog } from './conflict-dialog';
 import { createModelCache, languageFor } from './file-models';
 import { installEditorGlobalListeners } from './global-listeners';
@@ -49,22 +27,19 @@ declare global {
 	}
 }
 
-/** Mount selectors — kept in lockstep with `openstation_code_editor_render_template()`. */
 export const ROOT_SELECTOR = '[data-osc-editor-root]';
 export const MONACO_MOUNT_SELECTOR = '[data-osc-editor-monaco]';
 export const LOADING_CLASS = 'osc-editor--loading';
 export const ERROR_CLASS = 'osc-editor--error';
 
-/** Per-open-file save state. Keyed by relative path. */
 interface OpenFile {
 	path: string;
 	mtime: number;
 	size: number;
-	/** Hash of the saved-on-disk content; used to derive the dirty flag. */
+
 	savedVersionId: number;
 }
 
-/** Build the layout: tree on the left, (tabs / Monaco / status) on the right. */
 function buildShell( root: HTMLElement, monacoSlot: HTMLElement ): {
 	treeMount: HTMLElement;
 	tabsMount: HTMLElement;
@@ -135,7 +110,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	const root = body.querySelector< HTMLElement >( ROOT_SELECTOR );
 	const monacoSlot = body.querySelector< HTMLElement >( MONACO_MOUNT_SELECTOR );
 	if ( ! root || ! monacoSlot ) {
-		// eslint-disable-next-line no-console
+
 		console.error(
 			'[os-code-editor] Template mount nodes missing; ensure openstation_code_editor_render_template ran.',
 		);
@@ -173,17 +148,11 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	const editor = monaco.editor.create( editorMount, {
 		model: placeholder,
 		theme: monacoThemeForScheme( currentColorScheme() ),
-		// `automaticLayout: true` polls + relayouts synchronously
-		// every tick during a drag-resize, which makes the minimap
-		// canvas flicker. We drive layout via a rAF-throttled
-		// ResizeObserver below — one layout per frame, no flicker.
+
 		automaticLayout: false,
 		minimap: {
 			enabled: true,
-			// Render the minimap as colour blocks rather than
-			// individual character glyphs — same level of detail
-			// at a fraction of the per-frame cost. Cheaper redraws
-			// = less visible churn during resize.
+
 			renderCharacters: false,
 		},
 		fontSize: 13,
@@ -193,10 +162,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		scrollBeyondLastLine: false,
 	} );
 
-	// rAF-throttled layout. Multiple ResizeObserver entries collapse
-	// into a single layout per frame; the minimap repaints once per
-	// frame in lockstep with the browser's compositor instead of
-	// many times mid-frame.
 	let layoutScheduled = false;
 	const scheduleLayout = (): void => {
 		if ( layoutScheduled ) {
@@ -215,15 +180,10 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 
 	const models = createModelCache();
 	const openFiles = new Map< string, OpenFile >();
-	const modelChangeDisposers = new Map< string, () => void >(); // eslint-disable-line func-call-spacing
+	const modelChangeDisposers = new Map< string, () => void >();
 	const openControllers = new Map< string, AbortController >();
 	let saveController: AbortController | null = null;
 
-	// Resolve the desktop Window once — used to update the window's
-	// chrome title with the active file's name + dirty marker. Lookup
-	// is by id (matches the `openstation_register_window( 'wpdc-editor' )`
-	// registration). Falls back to a no-op if the global API isn't
-	// available (e.g. tests that mount the editor in isolation).
 	const setWindowTitle = ( title: string ): void => {
 		const win = (
 			window as unknown as {
@@ -287,17 +247,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		);
 	};
 
-	/**
-	 * Re-evaluate the dirty marker for a given path. The tab strip's
-	 * dirty flag is derived from the model's `versionId` vs the
-	 * `savedVersionId` we stash on every successful save (or on
-	 * initial load). Cheap to call on every keystroke.
-	 *
-	 * Callbacks below close over `tabs`, declared later in this
-	 * scope. Safe because every closure runs only AFTER
-	 * `mountTabsStrip` returns and assigns the binding — invoking
-	 * them earlier (which we don't) would TDZ.
-	 */
 	const recomputeDirty = ( path: string ): void => {
 		const file = openFiles.get( path );
 		const model = models.get( path );
@@ -306,9 +255,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		}
 		const dirty = model.getVersionId() !== file.savedVersionId;
 		tabs.setDirty( path, dirty );
-		// Window-title dirty marker only matters for the active tab —
-		// `refreshWindowTitle` reads it itself, no path comparison
-		// needed here.
+
 		if ( tabs.getActive() === path ) {
 			refreshWindowTitle();
 		}
@@ -332,9 +279,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	};
 
 	const onTabClose = ( path: string ): void => {
-		// Tear down per-file state. Aborting any in-flight open is
-		// kinder than letting it overwrite the buffer of whatever's
-		// active right now.
+
 		openControllers.get( path )?.abort();
 		openControllers.delete( path );
 		modelChangeDisposers.get( path )?.();
@@ -364,8 +309,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		if ( ! model ) {
 			return;
 		}
-		// One subscription per model — re-binding on every open
-		// would leak.
+
 		modelChangeDisposers.get( path )?.();
 		const sub = model.onDidChangeContent( () => {
 			recomputeDirty( path );
@@ -373,24 +317,16 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		modelChangeDisposers.set( path, () => sub.dispose() );
 	};
 
-	/**
-	 * Idempotently open a file: returns the existing model if already
-	 * open as a tab, otherwise fetches via REST + creates the model
-	 * + opens the tab. Returns the model on success, null on error
-	 * (errors surface on the status bar).
-	 */
 	const openFile = async (
 		path: string,
 	): Promise< Monaco.editor.ITextModel | null > => {
-		// Already open? Focus its tab and return the cached model.
+
 		if ( tabs.has( path ) ) {
 			tabs.open( tabMetaForPath( path ) );
 			showFile( path );
 			return models.get( path );
 		}
 
-		// Cancel any concurrent open for the same path (rapid
-		// re-clicks while still loading).
 		openControllers.get( path )?.abort();
 		const ac = new AbortController();
 		openControllers.set( path, ac );
@@ -433,12 +369,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		}
 	};
 
-	/**
-	 * Open a file AND scroll the editor to a specific line. Used by
-	 * the PHP `Go to Definition` provider when the user cmd-clicks a
-	 * workspace symbol — opens the file in a new tab (or focuses
-	 * existing) and reveals the declaration line.
-	 */
 	const openFileAtLine = async (
 		path: string,
 		line: number,
@@ -447,8 +377,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		if ( ! model ) {
 			return null;
 		}
-		// Defer to the next tick so Monaco has time to bind the model
-		// to the editor before we try to reveal a line in it.
+
 		requestAnimationFrame( () => {
 			editor.revealLineInCenter( line );
 			editor.setPosition( { lineNumber: line, column: 1 } );
@@ -484,9 +413,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 				path: result.path,
 				mtime: result.mtime,
 				size: result.size,
-				// Snapshot the model's versionId at save time. Any
-				// subsequent edit advances the versionId, which
-				// `recomputeDirty` reads to set the tab marker.
+
 				savedVersionId: model.getVersionId(),
 			};
 			openFiles.set( file.path, updated );
@@ -533,8 +460,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 					renderFileStatus( reloaded, ' · reloaded from disk' );
 					return;
 				}
-				// Overwrite — bump our mtime to the server's so the
-				// next-attempt's concurrency check passes.
+
 				openFiles.set( file.path, {
 					...file,
 					mtime: data.server_mtime,
@@ -558,7 +484,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	};
 
 	editor.addCommand(
-		// eslint-disable-next-line no-bitwise
+
 		monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
 		() => {
 			void saveActiveFile();
@@ -567,7 +493,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	editor.addAction( {
 		id: 'osc.saveFile',
 		label: 'Save File',
-		// eslint-disable-next-line no-bitwise
+
 		keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS ],
 		contextMenuGroupId: 'navigation',
 		run: () => {
@@ -575,9 +501,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		},
 	} );
 
-	// Cursor position → status bar's right zone. Monaco fires
-	// `onDidChangeCursorPosition` for both keyboard movement and
-	// mouse clicks; one subscription covers both.
 	editor.onDidChangeCursorPosition( ( e ) => {
 		setCursorStatus( e.position.lineNumber, e.position.column );
 	} );
@@ -586,17 +509,8 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		setCursorStatus( initial.lineNumber, initial.column );
 	}
 
-	// Wire the PHP `Go to Definition` provider to this editor's
-	// open-file plumbing. Cmd-clicking a workspace symbol now opens
-	// the file in a tab and scrolls to its declaration line.
 	setPhpProviderHost( { openFileAtLine } );
 
-	// In-editor `os-code-open` handler. The page-level
-	// listener in `global-listeners.ts` opens the editor window and
-	// re-broadcasts the message; this handler catches the broadcast
-	// once the render callback has mounted. Same listener also
-	// handles direct messages from a user-open editor (no
-	// re-broadcast needed in that case).
 	const onPostOpen = ( event: MessageEvent ): void => {
 		if ( event.origin !== window.location.origin ) {
 			return;
@@ -626,9 +540,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	void tree;
 }
 
-// Install page-level keyboard shortcut + open-from-elsewhere
-// postMessage listener. Idempotent — bundle imported multiple times
-// (rare but possible if a plugin re-enqueues it) won't double-attach.
 installEditorGlobalListeners();
 
 const registry =

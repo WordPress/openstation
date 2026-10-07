@@ -1,24 +1,8 @@
-/**
- * Plugins app — drag a plugin card to the dock to pin it.
- *
- * Part of the `desktop-mode-plugins` client view. Wires every card as
- * a drag source for the framework's `wp.os.dragManager`. Payload type
- * is `'wporg-plugin'`, so any plugin author can register their own
- * drop targets that accept it. The one target installed here is the
- * dock: `wp.os.registerSystemTile()` creates a transient tile opening
- * the plugin's wp.org page (session-only, not persisted).
- *
- * @public
- */
-
 import { __, sprintf } from '@openstation/app';
 import { pickIcon } from './card';
 import { fallbackGlyph, stripHtml, wpOrgUrl } from './html';
 import type { WpOrgBrowsePlugin } from './types';
 
-/**
- * Mark a card element as a drag source. Idempotent.
- */
 export function makeCardDraggable( card: HTMLElement, plugin: WpOrgBrowsePlugin ): void {
 	if ( card.dataset.dragWired === '1' ) {
 		return;
@@ -30,7 +14,7 @@ export function makeCardDraggable( card: HTMLElement, plugin: WpOrgBrowsePlugin 
 		if ( ! manager ) {
 			return;
 		}
-		// The CTA is an action, not the start of a drag.
+
 		if ( ( ev.target as HTMLElement | null )?.closest( '[data-plugin-card-cta]' ) ) {
 			return;
 		}
@@ -50,16 +34,12 @@ export function makeCardDraggable( card: HTMLElement, plugin: WpOrgBrowsePlugin 
 			},
 			origin: ev,
 			onClickOnly: () => {
-				/* The card's own click handler runs; nothing to do. */
+
 			},
 		} );
 	} );
 }
 
-/**
- * Install the drop targets that accept `wporg-plugin` payloads.
- * Returns a teardown that removes every registered target.
- */
 export function installPluginDropTargets(): () => void {
 	const desktop = window.wp?.os;
 	const manager = desktop?.dragManager;
@@ -100,7 +80,7 @@ export function installPluginDropTargets(): () => void {
 			} );
 			desktop.showToast( {
 				message: sprintf(
-					/* translators: %s: plugin name */
+
 					__( 'Pinned %s to the dock.', 'desktop-mode' ),
 					name,
 				),
@@ -113,13 +93,12 @@ export function installPluginDropTargets(): () => void {
 		try {
 			off();
 		} catch {
-			/* best-effort cleanup */
+
 		}
 	};
 }
 
 function findDockElement(): HTMLElement | null {
-	// Bottom dock first because it paints on top.
 	return (
 		document.querySelector< HTMLElement >( '.os-bottom-dock' ) ??
 		document.querySelector< HTMLElement >( '.os-dock' ) ??

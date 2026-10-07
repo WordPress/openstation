@@ -1,12 +1,3 @@
-/**
- * The App Framework's shared formatting primitives.
- *
- * `formatBytes` is the file-drop formatter re-exported — the pin
- * here is that `@openstation/app` serves it at all, plus the
- * distinctive decimal rule. `formatDate` is pinned on the shapes
- * that made five app-side copies subtly disagree: the empty guard,
- * the bare `YYYY-MM` month, and the unparseable-input fallback.
- */
 import { describe, expect, it } from 'vitest';
 import { formatBytes, formatDate } from '@openstation/app';
 
@@ -15,7 +6,7 @@ describe( 'formatBytes', () => {
 		expect( formatBytes( 0 ) ).toBe( '0 B' );
 		expect( formatBytes( 844 ) ).toBe( '844 B' );
 		expect( formatBytes( 1024 * 1024 * 1.25 ) ).toBe( '1.3 MB' );
-		// ≥ 100 in the unit drops the decimal.
+
 		expect( formatBytes( 563200 ) ).toBe( '550 KB' );
 	} );
 } );
@@ -33,7 +24,7 @@ describe( 'formatDate', () => {
 
 	it( 'reads a bare YYYY-MM as that month, local time', () => {
 		expect( formatDate( '2026-08', 'month' ) ).toContain( '2026' );
-		// Local midnight, so the month never slides across a timezone.
+
 		expect( formatDate( '2026-08', 'iso' ) ).toBe(
 			new Date( '2026-08-01T00:00:00' ).toISOString(),
 		);

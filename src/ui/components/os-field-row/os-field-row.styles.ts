@@ -2,13 +2,7 @@ import { css } from '../../core';
 
 export const styles = css`
 	:host {
-		/*
-		 * Public tokens read into private aliases so a theme or the
-		 * palette can still reach them — a declaration on the bare
-		 * host would pin the name and nothing outside could set it
-		 * again. See AGENTS.md, "Never declare a themeable token on a
-		 * component's :host".
-		 */
+
 		--_gap: var( --os-ui-field-row-gap, 6px );
 		--_label-width: var( --os-ui-field-row-label-width, 12rem );
 
@@ -65,12 +59,6 @@ export const styles = css`
 		color: var( --os-ui-danger, #d63638 );
 	}
 
-	/*
-	 * Inline layout: label column, control beside it. Container-
-	 * queried rather than media-queried — a row inside a 320px
-	 * inspector pane should stack even on a wide screen, and the
-	 * pane is what it can measure.
-	 */
 	:host( [ layout='inline' ] ) {
 		display: grid;
 		grid-template-columns: var( --_label-width ) minmax( 0, 1fr );
@@ -103,12 +91,6 @@ export const styles = css`
 		}
 	}
 
-	/*
-	 * Light-DOM controls get the field palette applied for them.
-	 * ::slotted reaches exactly one level, which is the level a bare
-	 * input sits at, and the selector is held at (0,1,0) so anything
-	 * the consumer writes outranks it.
-	 */
 	::slotted( input:where( :not( [ type='checkbox' ], [ type='radio' ] ) ) ),
 	::slotted( select ),
 	::slotted( textarea ) {

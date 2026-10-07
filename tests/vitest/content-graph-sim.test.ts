@@ -1,12 +1,3 @@
-/**
- * Unit tests for the Content Graph force simulation, focused on the
- * cluster-attractor force that backs the group-by selector. We don't
- * exhaustively test the (already-shipped) repulsion / spring / gravity
- * loops here — those are visually verified — but we do check that the
- * cluster force pulls grouped nodes together, that disabling it lets
- * the layout relax back, and that multi-membership nodes settle
- * between centroids.
- */
 import { describe, expect, test } from 'vitest';
 import { ForceSim } from '../../src/content-graph/sim';
 import type { GraphNode } from '../../src/content-graph/types';
@@ -66,10 +57,7 @@ describe( 'ForceSim cluster-attractor', () => {
 	} );
 
 	test( 'nodes in different group keys do NOT converge', () => {
-		// Two pairs: pair-1 shares "cat:1", pair-2 shares "cat:2".
-		// Cross-pair nodes should not be drawn together by the cluster
-		// force (they ARE pushed apart by repulsion + gravity, but the
-		// invariant we care about is that grouping doesn't merge them).
+
 		const a = makeNode( 1, -300, 0 );
 		const b = makeNode( 2, -250, 0 );
 		const c = makeNode( 3, 250, 0 );
@@ -84,18 +72,13 @@ describe( 'ForceSim cluster-attractor', () => {
 
 		runTicks( sim, 200 );
 
-		// Pair-1 members should be closer to each other than to a
-		// pair-2 member.
 		const intra = distance( a, b );
 		const cross = distance( a, c );
 		expect( intra ).toBeLessThan( cross );
 	} );
 
 	test( 'multi-membership node settles between two cluster centres', () => {
-		// Three nodes in cluster-A, three in cluster-B, one in both.
-		// The multi-member node should end up nearer the midpoint of
-		// the two cluster centroids than it does to either centroid
-		// alone.
+
 		const aMembers = [ makeNode( 1, -300, 0 ), makeNode( 2, -310, 30 ), makeNode( 3, -290, -30 ) ];
 		const bMembers = [ makeNode( 4, 300, 0 ), makeNode( 5, 310, 30 ), makeNode( 6, 290, -30 ) ];
 		const both = makeNode( 7, 0, 0 );
@@ -125,8 +108,6 @@ describe( 'ForceSim cluster-attractor', () => {
 		const distToA = Math.hypot( both.x - centroidA.x, both.y - centroidA.y );
 		const distToB = Math.hypot( both.x - centroidB.x, both.y - centroidB.y );
 
-		// Closer to the midpoint than to either centroid alone — the
-		// classic force-balance settle.
 		expect( distToMid ).toBeLessThan( distToA );
 		expect( distToMid ).toBeLessThan( distToB );
 	} );
@@ -142,24 +123,18 @@ describe( 'ForceSim cluster-attractor', () => {
 		runTicks( sim, 100 );
 		const grouped = distance( a, b );
 
-		// Disable clustering, kick the layout, and let it re-spread.
 		sim.setGroupAssignment( null );
-		// Re-displace so the test isn't sensitive to whatever near-zero
-		// distance the cluster force left us at.
+
 		a.x = -400;
 		b.x = 400;
 		runTicks( sim, 200 );
 		const ungrouped = distance( a, b );
 
-		// Without the attractor, repulsion + gravity stop the two
-		// nodes from converging the way they did under clustering.
 		expect( ungrouped ).toBeGreaterThan( grouped );
 	} );
 
 	test( 'groupOrder lays clusters out left-to-right', () => {
-		// Three clusters: A, B, C. Ordered A → B → C so the centroids
-		// should land in that horizontal order regardless of their
-		// (random) initial X positions.
+
 		const a1 = makeNode( 1, 50, 0 );
 		const a2 = makeNode( 2, 60, 30 );
 		const b1 = makeNode( 3, -200, 0 );
@@ -184,7 +159,6 @@ describe( 'ForceSim cluster-attractor', () => {
 		const xb = avgX( [ b1, b2 ] );
 		const xc = avgX( [ c1, c2 ] );
 
-		// Strict left-to-right ordering matches the lattice.
 		expect( xa ).toBeLessThan( xb );
 		expect( xb ).toBeLessThan( xc );
 	} );

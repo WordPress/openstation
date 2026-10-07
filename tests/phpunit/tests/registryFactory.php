@@ -1,40 +1,22 @@
 <?php
-/**
- * Tests for the generic registry factory in
- * `includes/core/registry-factory.php`.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-registry-factory
- */
+
 class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 
-	/**
-	 * @covers ::openstation_create_registry
-	 */
 	public function test_create_registry_basic_read_write() {
 		$reg = openstation_create_registry();
 
-		// Empty initial state.
 		$this->assertSame( array(), $reg( '' ) );
 		$this->assertNull( $reg( 'missing' ) );
 
-		// Write + read one.
 		$reg( 'a', array( 'label' => 'A' ) );
 		$this->assertSame( array( 'label' => 'A' ), $reg( 'a' ) );
 
-		// Read all.
 		$this->assertSame(
 			array( 'a' => array( 'label' => 'A' ) ),
 			$reg( '' )
 		);
 	}
 
-	/**
-	 * @covers ::openstation_create_registry
-	 */
 	public function test_create_registry_replace_semantics() {
 		$reg = openstation_create_registry();
 		$reg( 'x', 'first' );
@@ -43,9 +25,6 @@ class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 		$this->assertCount( 1, $reg( '' ) );
 	}
 
-	/**
-	 * @covers ::openstation_create_registry
-	 */
 	public function test_create_registry_flush_clears_state() {
 		$reg = openstation_create_registry();
 		$reg( 'a', 1 );
@@ -56,9 +35,6 @@ class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 		$this->assertNull( $reg( 'a' ) );
 	}
 
-	/**
-	 * @covers ::openstation_create_registry
-	 */
 	public function test_create_registry_instances_are_isolated() {
 		$a = openstation_create_registry();
 		$b = openstation_create_registry();
@@ -66,17 +42,11 @@ class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 		$this->assertNull( $b( 'shared' ) );
 	}
 
-	/**
-	 * @covers ::openstation_create_registry
-	 */
 	public function test_create_registry_accepts_initial_entries() {
 		$reg = openstation_create_registry( array( 'seed' => 'value' ) );
 		$this->assertSame( 'value', $reg( 'seed' ) );
 	}
 
-	/**
-	 * @covers ::openstation_create_script_registry
-	 */
 	public function test_create_script_registry_read_write_default_false() {
 		$reg = openstation_create_script_registry();
 
@@ -84,14 +54,10 @@ class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 		$reg( 'handle-a', true );
 		$this->assertTrue( $reg( 'handle-a' ) );
 
-		// Booleans are coerced.
 		$reg( 'handle-b', 1 );
 		$this->assertTrue( $reg( 'handle-b' ) );
 	}
 
-	/**
-	 * @covers ::openstation_create_script_registry
-	 */
 	public function test_create_script_registry_flush() {
 		$reg = openstation_create_script_registry();
 		$reg( 'h', true );

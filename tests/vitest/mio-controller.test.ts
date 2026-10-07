@@ -1,8 +1,3 @@
-/**
- * Mio controller — the always-on half that lives in the main
- * bundle: layer ownership, the lazy bundle load, the enable/disable
- * lifecycle, and the config merge chain.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { MIO_DEFAULTS } from '../../src/mio/config';
@@ -20,13 +15,6 @@ async function load(): Promise< ControllerModule > {
 	return await import( '../../src/mio/controller' );
 }
 
-/**
- * A mount function that records its calls and hands back a stub.
- *
- * Published only once the (mocked) bundle load resolves, mirroring
- * production: the global does not exist until the lazy bundle has
- * actually run. Tests that need it earlier call `install()`.
- */
 function stubMount(): {
 	calls: MioMountOptions[];
 	handles: MioHandle[];
@@ -171,8 +159,7 @@ describe( 'MioController', () => {
 		lease.dispose(); controller.syncEnabled( false ); vi.unstubAllGlobals();
 	} );
 	test( 'a summon survives a settings re-sync and never writes the preference', async () => {
-		// The shell tour summons Mio, then invites the user to change a
-		// setting; every settings save re-syncs Mio to the saved value.
+
 		const { MioController } = await load();
 		stubMount();
 		const persist = vi.fn();
@@ -189,7 +176,7 @@ describe( 'MioController', () => {
 	} );
 
 	test( 'a spot asked for before Mio has loaded is where it goes once mounted', async () => {
-		// The tour's first card asks while the bundle is still loading.
+
 		const { MioController } = await load();
 		const setAnchor = vi.fn();
 		const setFloating = vi.fn();
@@ -210,8 +197,7 @@ describe( 'MioController', () => {
 		controller.setAnchor( { x: 800, y: 974 } );
 		await summoning;
 		expect( setAnchor ).toHaveBeenLastCalledWith( { x: 800, y: 974 }, true );
-		// Held by the tour, Mio floats clear of windows; handed back, it
-		// lives among them again.
+
 		expect( setFloating ).toHaveBeenLastCalledWith( true );
 		controller.dismiss();
 		expect( setFloating ).toHaveBeenLastCalledWith( false );
@@ -233,14 +219,12 @@ describe( 'MioController', () => {
 		const persist = vi.fn();
 		const controller = new MioController( { shell: shell(), bundleUrl: 'https://example.test/mio.js', enabled: false, persist } );
 
-		// Switched on while it was already summoned on screen: kept.
 		await controller.summon();
 		await controller.api().enable();
 		expect( persist ).toHaveBeenLastCalledWith( true );
 		controller.dismiss();
 		expect( controller.api().isEnabled() ).toBe( true );
 
-		// Switched off mid-summon: a later settings sync must not revive it.
 		await controller.summon();
 		await controller.api().toggle();
 		expect( controller.api().isEnabled() ).toBe( false );
@@ -308,8 +292,6 @@ describe( 'MioController', () => {
 			physics: {},
 		} );
 
-		// A fresh controller handed what was stored — i.e. the next page
-		// load, with the look coming back from user meta.
 		const next = new MioController( {
 			shell: shell(),
 			bundleUrl: 'https://example.test/mio.js',
@@ -331,8 +313,6 @@ describe( 'MioController', () => {
 			persistLook,
 		} );
 
-		// The stiffness rides along in the same object and must be
-		// dropped: the panel is not a way into the springs.
 		controller.api().setStyle( {
 			glow: 2,
 			shapePreset: 'star',
@@ -368,7 +348,7 @@ describe( 'MioController', () => {
 		const { appearance, physics } = controller.api().getConfig();
 		expect( appearance.glow ).toBe( 20 );
 		expect( appearance.saturation ).toBe( 0 );
-		// An unknown preset falls back rather than throwing.
+
 		expect( physics.shapePreset ).toBe( MIO_DEFAULTS.physics.shapePreset );
 		expect( physics.shapeAmount ).toBe( 1.4 );
 	} );
@@ -419,8 +399,7 @@ describe( 'MioController', () => {
 		expect( controller.api().getConfig().physics.shapePreset ).toBe(
 			MIO_DEFAULTS.physics.shapePreset,
 		);
-		// The empty look is written too — "Restore Mio" has to travel to
-		// the user's other devices, and only a save can carry it.
+
 		expect( persistLook ).toHaveBeenLastCalledWith( {
 			appearance: {},
 			physics: {},
@@ -428,9 +407,7 @@ describe( 'MioController', () => {
 	} );
 
 	test( 'setConfig does NOT persist — only setStyle does', async () => {
-		// The programmatic surface must stay programmatic: a plugin
-		// nudging Mio for a moment shouldn't silently become the user's
-		// saved look.
+
 		const { MioController } = await load();
 		const persistLook = vi.fn();
 		const controller = new MioController( {
@@ -469,8 +446,7 @@ describe( 'MioController', () => {
 	} );
 
 	test( 'the look survives a controller with nowhere to persist it', async () => {
-		// `persistLook` is optional — a host that hasn't wired storage
-		// should still get a working panel for the session.
+
 		const { MioController } = await load();
 		const controller = new MioController( {
 			shell: shell(),
@@ -484,9 +460,7 @@ describe( 'MioController', () => {
 	} );
 
 	test( 'toggling off parks the instance rather than destroying it', async () => {
-		// Releasing a WebGL context makes the browser re-rasterise the
-		// whole shell, which is what surfaced as a white flash. No
-		// toggle may do it — the instance is stopped and hidden instead.
+
 		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
 		const persist = vi.fn();
@@ -504,15 +478,13 @@ describe( 'MioController', () => {
 		expect( persist ).toHaveBeenCalledWith( false );
 		expect( mount.handles[ 0 ].destroy ).not.toHaveBeenCalled();
 		expect( mount.handles[ 0 ].setAnimating ).toHaveBeenCalledWith( false );
-		// The layer stays in the DOM, hidden and inert.
+
 		const layer = document.getElementById( MIO_LAYER_ID );
 		expect( layer?.style.display ).toBe( 'none' );
 	} );
 
 	test( 'disabling records where Mio was, not where hiding leaves it', async () => {
-		// Regression: hiding the layer makes the host report zero size,
-		// and every position derived from a zero-size host is the
-		// top-left corner. The resting place has to be read first.
+
 		const { MioController } = await load();
 		const mount = stubMount();
 		const controller = new MioController( {
@@ -526,7 +498,6 @@ describe( 'MioController', () => {
 
 		controller.api().disable();
 
-		// The stub handle rests at (10, 20) — that, not a corner.
 		expect(
 			JSON.parse(
 				window.localStorage.getItem( 'desktop-mode-mio-position' ) ??
@@ -536,8 +507,7 @@ describe( 'MioController', () => {
 	} );
 
 	test( 're-enabling wakes the parked instance, it does not build a new one', async () => {
-		// The payoff of parking, and the thing that proves no second
-		// WebGL context was created: `mount` is never called twice.
+
 		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
 		const controller = new MioController( {
@@ -564,8 +534,7 @@ describe( 'MioController', () => {
 	test( 'a fast on-off-on cycle never leaves two mios behind', async () => {
 		const { MioController } = await load();
 		const mount = stubMount();
-		// Hold the bundle load open so the first mount is still in
-		// flight when the user changes their mind.
+
 		let release: () => void = () => undefined;
 		loadVendorScript.mockImplementation(
 			() =>
@@ -589,7 +558,6 @@ describe( 'MioController', () => {
 		release();
 		await first;
 
-		// The in-flight mount noticed the generation bump and bailed.
 		expect( mount.calls ).toHaveLength( 0 );
 		expect( api.isEnabled() ).toBe( false );
 		expect( document.getElementById( 'os-mio' ) ).toBeNull();
@@ -598,10 +566,7 @@ describe( 'MioController', () => {
 	test( 'a mount that loses the race cleans up its own layer', async () => {
 		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
-		// The user switches off *while Pixi is booting*, i.e. after
-		// the mount call has started. The earlier generation guard
-		// has already passed, so this mount has to clean up after
-		// itself — layer included.
+
 		mount.install();
 		const handles: Array< { destroy: ReturnType< typeof vi.fn > } > = [];
 		let disableMidMount: () => void = () => undefined;
@@ -670,9 +635,9 @@ describe( 'MioController', () => {
 		const config = controller.api().getConfig();
 		expect( config.appearance.radius ).toBe( 90 );
 		expect( config.appearance.hueStart ).toBe( 200 );
-		// Clamped, not rejected.
+
 		expect( config.physics.magnetStrength ).toBe( 0 );
-		// Untouched keys keep the reference design.
+
 		expect( config.appearance.hueSpan ).toBe(
 			MIO_DEFAULTS.appearance.hueSpan,
 		);

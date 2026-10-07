@@ -1,13 +1,3 @@
-/**
- * My WordPress — window-local layout.
- *
- * Two-pane file-explorer for browsing WordPress entities. Mirrors the
- * Recycle Bin and Posts window CSS conventions (`os-*`
- * BEM-ish prefix, container-relative geometry, theming via the
- * os-variables CSS custom properties).
- *
- */
-
 .desktop-mode-my-wordpress {
 	display: flex;
 	flex-direction: column;
@@ -19,26 +9,12 @@
 		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
 	);
 	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
-	/* Window background — separate from the wallpaper bg so the
-	 * folder window reads as a real OS window even when the desktop
-	 * gradient is dark. Themes / plugins can override
-	 * `--os-my-wordpress-bg` to repaint just this surface
-	 * without touching every other window. */
+
 	background: var(
 		--os-my-wordpress-bg,
 		var( --os-window-bg, #fff )
 	);
-	/* Tile color tokens — same recipe as the folder window. Both
-	 * chain through the palette so the surface follows the active
-	 * desktop theme, with the pre-brand WordPress-admin literal as
-	 * the floor if no stylesheet declares one.
-	 *
-	 * `--os-tile-fg-muted` used to be the bare literal below, which
-	 * outranked the palette's own value and painted every tile's
-	 * secondary line near-black — invisible on a dark station, while
-	 * the label right beside it followed the theme correctly. A
-	 * colour declared next to the thing it paints is out of reach of
-	 * the palette AND of every desktop theme. */
+
 	--os-tile-fg: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 	--os-tile-fg-muted: var(
 		--os-my-wordpress-fg-muted,
@@ -48,30 +24,16 @@
 		--os-hover,
 		rgba( 0, 0, 0, 0.06 )
 	);
-	/* Light-context label rendering — same recipe as the folder
-	 * window. Defined as tokens in `variables.css`; the single
-	 * `.os-file-tile__label` rule reads them for every
-	 * surface. */
+
 	--os-tile-label-shadow: none;
 	--os-tile-label-weight: 500;
 	--os-tile-label-smoothing: antialiased;
 	--os-tile-label-color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 }
 
-/* Pinned-icon visual cue — used by `os-icon--pinned` (the
- * generic flag added in 0.8.0). The icon-rail itself owns the
- * non-draggable invariant; this rule just removes the grab affordance
- * if the framework ever attaches one in a later phase.
- */
 .os-icon--pinned {
 	cursor: pointer;
 }
-
-/* Breadcrumb header chrome — owned by the shared
- * `.os-breadcrumbs` rules in `desktop-files.css`. No
- * per-surface duplication. */
-
-/* ----- Body host ----- */
 
 .os-my-wordpress__body {
 	flex: 1 1 auto;
@@ -82,12 +44,6 @@
 	flex-direction: column;
 }
 
-/* List-view toolbar — sits between the breadcrumb header and the
- * split pane in every entity list view (Posts, Pages, Users, Media).
- * Holds the server-side search input today; reserved for future
- * filter / sort controls. Visual treatment mirrors the Content
- * Graph toolbar's search row so the two surfaces read as the same
- * control. */
 .os-my-wordpress__list-toolbar {
 	flex: 0 0 auto;
 	display: flex;
@@ -95,8 +51,7 @@
 	gap: 8px;
 	padding: 8px 12px;
 	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
-	/* Opaque and above the canvas: the tile canvas scrolls beneath
-	 * this row, and a transparent toolbar let tiles read through it. */
+
 	position: relative;
 	z-index: 4;
 	background: var( --os-ui-bg, #fff );
@@ -126,20 +81,11 @@
 	box-shadow: 0 0 0 3px var( --os-ui-accent-soft, rgba( 44, 107, 229, 0.18 ) );
 }
 
-/* When the list-toolbar mounts, the split pane needs to claim the
- * remaining vertical space inside the flex column body — without
- * this rule it would size to its content (which, for an empty list,
- * is zero) and the tile canvas would collapse. */
 .os-my-wordpress__body > .os-my-wordpress__split {
 	flex: 1 1 auto;
 	min-height: 0;
 }
 
-/* Search-in-progress dimming. The previous result set stays in place
- * (no skeleton flash, no empty intermediate page) but reads as
- * "stale" until the new page lands and the renderer atomically swaps
- * the tiles. `pointer-events: none` blocks the user from clicking
- * a tile that's about to disappear. */
 .os-my-wordpress__tiles--searching,
 .os-my-wordpress__media-grid--searching {
 	opacity: 0.45;
@@ -147,11 +93,6 @@
 	transition: opacity 0.12s ease-out;
 }
 
-/* Reuse the file-system folder window's status-bar element
- * (`.os-folder-status-bar`) so segments render with the
- * exact same DOM the file-system uses — but retone it for the
- * white window background. The dark default (white-on-dark) reads
- * as invisible against `--os-window-bg`. */
 .desktop-mode-my-wordpress > .os-folder-status-bar {
 	border-top: 1px solid var( --os-ui-border, #dcdcde );
 	background: transparent;
@@ -164,25 +105,11 @@
 	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 }
 
-/* ----- Tile canvas (root + entity list) -----
- *
- * Both views use the SAME tile element (`.os-file-tile`)
- * the wallpaper uses, so visuals stay 1:1 with the desktop. The
- * canvas is `position: relative`; tiles are absolute-positioned and
- * draggable — same interaction pattern as the wallpaper, just
- * scoped to the window. Positions persist per-window in
- * `localStorage` (see `createTileLayout` in src/my-wordpress).
- */
-
 .os-my-wordpress__canvas {
 	position: relative;
 	min-height: 100%;
 	box-sizing: border-box;
-	/* Note — DO NOT add `overflow: auto` here. Scroll is owned by
-	 * the surrounding pane (`__list` for entity views, `__body` for
-	 * the root view via `__grid` below). A second scroller here
-	 * would steal the wheel from the outer pane and break the
-	 * IntersectionObserver-based infinite scroll. */
+
 }
 
 .os-my-wordpress__grid {
@@ -190,53 +117,12 @@
 	overflow-y: scroll;
 }
 
-/* Override the wallpaper file-tile palette for in-window context.
- * On the wallpaper the file tile sits on a dark gradient and uses
- * white text + a 12% white hover — both of which would be invisible
- * on a white window background. Inside My WordPress we re-tone the
- * same element to read on light surfaces. The dimensions / tile
- * structure are inherited from `.os-file-tile`.
- */
 .desktop-mode-my-wordpress .os-file-tile {
-	/* Color + hover come from `--os-tile-*` — see the
-	 * scope-level variable overrides on `.desktop-mode-my-wordpress`
-	 * above. We only override structural / animation bits here.
-	 *
-	 * Drop the wallpaper's `transition: transform` — it hints at
-	 * GPU compositing in Chrome, and the moment the layer is
-	 * composited the label rasterizes against fractional device
-	 * pixels (sub-pixel blur on HiDPI). We don't animate transform
-	 * here, so the transition is dead code anyway. */
+
 	transition: background-color 0.15s ease;
 	transform: none;
 }
 
-/* Selected state for every tile in My WordPress is rendered by
- * the canonical `.os-file-tile--selected` rule in
- * `desktop-files.css` — same accent border + tinted background
- * the folder windows + wallpaper tiles use. No section-specific
- * override here — visual parity across the whole shell.
- */
-
-/* Large tiles — sections that opt in with `tileSize: 'large'`.
- *
- * A section whose rows carry a photograph (a shop's products) reads
- * as a catalogue, not a file list: the picture is what's being
- * scanned, and at 48px it's a thumbnail of a thumbnail. Roughly
- * doubling the icon well also gives a corner ribbon room to be a
- * corner flash instead of covering the subject.
- *
- * The cell pitch lives in `TILE_METRICS_LARGE` (src/my-wordpress/
- * index.ts) and the two MUST move together — a wider tile in a cell
- * that didn't grow overlaps its neighbour. */
-/*
- * Image-led sections re-point the tile tokens for their whole
- * subtree rather than overriding the tile's width directly. The base
- * `.os-file-tile` rule then sizes itself from them, and so does
- * everything derived from them (the label's max-width, the loading
- * skeletons) — one declaration instead of a chain of overrides that
- * have to be kept in step.
- */
 .os-my-wordpress__tiles--large {
 	--os-tile-w: var( --os-tile-w-large, 132px );
 	--os-tile-h: var( --os-tile-h-large, 160px );
@@ -255,39 +141,19 @@
 	border-radius: 8px;
 }
 
-/* Three lines of title at this width instead of two — a product name
- * is long and the extra width earns the room. Matches the taller
- * cell in `TILE_METRICS_LARGE`. */
 .os-my-wordpress__tiles--large .os-file-tile__label {
 	-webkit-line-clamp: 3;
 }
 
-/* Featured-image tiles. Entries that have a featured image render it
- * in the icon well instead of the section dashicon — decisive for
- * image-led types like WooCommerce products. The base
- * `.os-file-tile__preview` rule in `desktop-files.css`
- * already sizes and crops it; all that's added here is a hairline
- * border so a light-on-light photo still reads as a distinct object
- * against the wallpaper, plus a neutral well behind it so a
- * transparent PNG or a slow-loading image doesn't flash the
- * wallpaper through. */
 .os-my-wordpress__tile--entry .os-file-tile__preview {
 	background: var(
 		--os-media-tile-bg,
 		rgba( 0, 0, 0, 0.05 )
 	);
-	/* The hairline was a flat 12%-alpha black — right on the pre-brand
-	 * white canvas, and nothing at all on a dark one, where a black
-	 * line over a near-black surface leaves the photo edgeless. It
-	 * follows the border token now, so it inverts with the theme. */
+
 	box-shadow: inset 0 0 0 1px var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
 }
 
-/* Banded list views. A section can split its tiles into labelled
- * bands (WooCommerce Orders groups by status, needs-attention first)
- * instead of one flat canvas. The root container stops being a
- * positioned canvas and becomes a plain stack; each band owns its
- * own canvas below its heading. */
 .os-my-wordpress__tiles--banded {
 	position: static;
 	min-height: 0;
@@ -297,9 +163,6 @@
 	margin-block-start: 8px;
 }
 
-/* Bands are laid out in order before the first page arrives so none
- * appears mid-scroll, but one that hasn't received a row yet stays
- * out of the way rather than showing a heading over nothing. */
 .os-my-wordpress__band--empty {
 	display: none;
 }
@@ -309,11 +172,9 @@
 	align-items: center;
 	gap: 8px;
 	position: sticky;
-	/* Keeps the band label visible while scrolling a long band —
-	 * the whole point of banding is knowing what you're looking at. */
+
 	top: 0;
-	/* Above the absolutely-positioned tiles of every band, including
-	 * the ones that come later in the DOM. */
+
 	z-index: 3;
 	margin: 0;
 	padding: 6px 12px;
@@ -322,11 +183,7 @@
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var( --os-ui-fg-muted, #787c82 );
-	/* Near-opaque on purpose. Tiles scrolling underneath are behind
-	 * the bar, but at 85% they still read as ghostly blurred shapes
-	 * through it, which looks like a rendering fault rather than
-	 * frosted glass. The blur + saturate keeps the frosted feel while
-	 * the alpha stops the content beneath resolving into shapes. */
+
 	background: color-mix(
 		in srgb,
 		var( --os-ui-bg, #fff ) 94%,
@@ -336,17 +193,12 @@
 	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
-/* Browsers without `color-mix()` fall back to the flat surface —
- * still opaque, just without the translucency. */
 @supports not ( background: color-mix( in srgb, red 50%, transparent ) ) {
 	.os-my-wordpress__band-title {
 		background: var( --os-ui-bg, #fff );
 	}
 }
 
-/* Attention-carrying bands (WooCommerce's "Needs attention",
- * "Problems") tint their bar so the eye lands there first instead of
- * having to read every heading. */
 .os-my-wordpress__band-title--warn {
 	color: var( --os-ui-warning, #8a6116 );
 	background: color-mix(
@@ -384,11 +236,6 @@
 	color: inherit;
 }
 
-/* Lock state — another user is currently editing this post. We dim
- * the tile a touch and overlay a small dashicon-lock badge on the
- * top-right of the icon. The whole tile stays clickable; the lock
- * is just a visual heads-up so the user knows the takeover dialog
- * is coming if they double-click. */
 .os-my-wordpress__tile--locked {
 	opacity: 0.85;
 }
@@ -411,10 +258,6 @@
 	pointer-events: none;
 }
 
-/* Hover-card lock banner — shown above the excerpt when present. The
- * wash was a fixed 8%-alpha red, which on a dark card was a smear too
- * faint to read as a banner at all; it follows the badge-danger token
- * now, so it lands at the alpha the active theme picked. */
 .os-my-wordpress__tooltip-lock {
 	display: flex;
 	align-items: center;
@@ -437,12 +280,6 @@
 	height: 14px;
 }
 
-/* Plain two-line clamp without `-webkit-line-clamp`. The webkit
- * variant promotes the label to its own composited layer, which on
- * HiDPI screens snaps text to fractional device pixels and renders
- * blurry. `max-height: 2 × line-height` + `overflow: hidden` looks
- * the same and stays sharp.
- */
 .os-my-wordpress__tile .os-file-tile__label {
 	font-size: 12px;
 	line-height: 1.3;
@@ -452,8 +289,6 @@
 	max-width: 100%;
 	word-break: break-word;
 }
-
-/* ----- Entity list: two-pane split ----- */
 
 .os-my-wordpress__split {
 	display: grid;
@@ -468,13 +303,6 @@
 	min-width: 0;
 }
 
-/* Always-visible scrollbar styling for the icon canvases. macOS
- * defaults to overlay scrollbars that hide until a wheel/scroll
- * event — fine for documents but actively confusing on a tile
- * canvas where the user can't tell whether more icons live below
- * or to the right. We force the scrollbar to render at all times
- * via `::-webkit-scrollbar` (works in WebKit / Blink / Edge), and
- * the explicit `scrollbar-width: thin` covers Firefox. */
 .os-my-wordpress__list,
 .os-my-wordpress__grid {
 	scrollbar-width: thin;
@@ -510,33 +338,13 @@
 	height: 1px;
 }
 
-/* Tile-grid loading skeleton — placeholder tiles that mimic the
- * icon + label shape of what's about to load. We dropped the
- * spinning WordPress mark here because it read as an alien
- * affordance inside the file-explorer surface; a skeleton signals
- * "tiles are landing in these slots" instead of "the system is
- * busy doing something opaque."
- *
- * Each placeholder is parented directly to the positioned canvas
- * (`__canvas--positioned`) and `position: absolute` at the
- * (left, top) the next real tile will occupy — see
- * `layout.peekNextCells()` and `showLoadingSkeleton()` in
- * `src/my-wordpress/index.ts`. Per-tile shimmer delay and label
- * width are inlined so a row of placeholders reads as a cascade,
- * not a uniform pulse.
- *
- * Tile dimensions mirror the real `.os-file-tile` width
- * so a placeholder sits cleanly in the cell its successor will
- * inherit.
- */
 .os-my-wordpress__skeleton-tile {
 	position: absolute;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: 6px;
-	/* Same box as the real tile it stands in for — a skeleton that
-	 * doesn't match the grid makes the list jump when rows land. */
+
 	width: var( --os-tile-w, 88px );
 	height: var( --os-tile-h, 104px );
 	padding: 8px 4px;
@@ -585,8 +393,6 @@
 	}
 }
 
-/* ----- Right pane: preview ----- */
-
 .os-my-wordpress__preview {
 	overflow: auto;
 	min-width: 0;
@@ -606,16 +412,11 @@
 	text-align: center;
 }
 
-/* Type / status breakdown under a multi-selection's count. */
 .os-my-wordpress__preview-selection-breakdown {
 	font-size: 12px;
 	opacity: 0.75;
 }
 
-/* One labelled control in the bulk-edit modal. Label above field,
- * because the fields are wide (a category tree, a tag row) and a
- * two-column grid would put a one-word label beside a control four
- * times its height. */
 .os-my-wordpress__bulk-row {
 	display: flex;
 	flex-direction: column;
@@ -639,14 +440,6 @@
 	box-sizing: border-box;
 }
 
-/* Preview-pane loader — same scale curve as the tile-grid first
- * spinner and the window-loading overlay. The JS used to hard-code
- * `size="128"`, which set an inline `--os-ui-spinner-size` that
- * overrode any CSS knob; the size attribute is now omitted so this
- * rule is the single source of truth for both the My WordPress
- * preview and the wallpaper file-preview pane (which reuses this
- * class deliberately).
- */
 .os-my-wordpress__preview-loading os-spinner {
 	--os-ui-spinner-size: clamp( 96px, 14vw, 192px );
 }
@@ -698,8 +491,6 @@
 	flex-wrap: wrap;
 }
 
-/* ----- Empty / error states ----- */
-
 .os-my-wordpress__empty,
 .os-my-wordpress__error {
 	padding: 32px 24px;
@@ -711,22 +502,6 @@
 .os-my-wordpress__error {
 	color: var( --os-danger, var( --os-ui-danger, #b32d2e ) );
 }
-
-/* ----- Hover card (floats over body) -----
- *
- * The card is summoned from a tile and belongs to the window that
- * tile is in, so it follows the active desktop theme rather than the
- * shell's tooltip chip. Every colour chains
- * `--os-my-wordpress-card-*` first — derived in `variables.css` from
- * the window family, so a theme that repaints the window repaints the
- * card with it — then the chip tokens, then the pre-brand literal.
- *
- * It is appended to `document.body`, not to the window, because it is
- * `position: fixed` and a window with `overflow: hidden` would clip
- * it. Theme tokens still reach it: a desktop theme declares on
- * `body.os-desktop-theme-<slug>`, an ancestor of both. What does NOT
- * reach it is anything scoped to `.desktop-mode-my-wordpress`, which
- * is why the card family is declared at palette level. */
 
 .os-my-wordpress__tooltip {
 	position: fixed;
@@ -743,9 +518,7 @@
 		--os-my-wordpress-card-fg,
 		var( --os-tooltip-fg, var( --os-fg, #1d2327 ) )
 	);
-	/* The card lands on the same colour as the window under it — the
-	 * border and the shadow are the only reason it reads as a separate
-	 * object, so neither is decoration. */
+
 	border: 1px solid var( --os-my-wordpress-card-border, #dcdcde );
 	border-radius: 6px;
 	padding: 12px;
@@ -763,10 +536,6 @@
 	font-size: 13px;
 }
 
-/* Same neutral well the entry and media tiles give their thumbnails:
- * a transparent PNG or a still-loading image would otherwise show the
- * card straight through, and a photo whose edge matches the card
- * would have no boundary. */
 .os-my-wordpress__tooltip-thumb {
 	display: block;
 	max-width: 100%;
@@ -786,21 +555,10 @@
 	line-height: 1.4;
 }
 
-/* ----- Context menu host ----- */
-
 .os-my-wordpress__menu {
 	position: fixed;
 	z-index: 100001;
 }
-
-/* ---------------------------------------------------------------
- * User dossier — right-pane preview when a person is selected.
- * Header (avatar + name + roles + links), bio, stat cards row,
- * 12-month activity sparkline, milestones, recent posts, top
- * categories. Designed to fit comfortably on a 360px-wide pane
- * but to stretch nicely up to ~720px before the line-length stops
- * helping readability.
- * --------------------------------------------------------------- */
 
 .os-my-wordpress__user {
 	max-width: 720px;
@@ -875,8 +633,6 @@
 	border-left: 3px solid var( --os-ui-border, #dcdcde );
 }
 
-/* ----- Stat cards row ----- */
-
 .os-my-wordpress__user-stats {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 120px, 1fr ) );
@@ -913,8 +669,6 @@
 	font-size: 11px;
 	color: var( --os-ui-fg-muted, #787c82 );
 }
-
-/* ----- 12-month activity sparkline ----- */
 
 .os-my-wordpress__user-section {
 	margin-bottom: 20px;
@@ -971,8 +725,6 @@
 	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-/* ----- Milestones ----- */
-
 .os-my-wordpress__user-milestones {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 140px, 1fr ) );
@@ -993,8 +745,6 @@
 	font-weight: 600;
 	margin: 0;
 }
-
-/* ----- Recent posts list ----- */
 
 .os-my-wordpress__user-recent {
 	list-style: none;
@@ -1029,8 +779,6 @@
 	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-/* ----- Top categories chips ----- */
-
 .os-my-wordpress__user-chips {
 	display: flex;
 	flex-wrap: wrap;
@@ -1058,15 +806,6 @@
 	color: var( --wp-admin-theme-color, #2271b1 );
 	font-variant-numeric: tabular-nums;
 }
-
-/* ---------------------------------------------------------------
- * Term dossier — same skeleton as the user dossier (header, stat
- * cards, sparkline, milestones, recent list, chips) plus a few
- * term-specific bits below: a colored taxonomy icon medallion in
- * the header, role badge variants for category vs tag, and a
- * "Top contributors" grid that pairs an author avatar with a
- * post count.
- * --------------------------------------------------------------- */
 
 .os-my-wordpress__term-header {
 	display: flex;
@@ -1106,7 +845,6 @@
 	color: #6d28d9;
 }
 
-/* Top contributors row — paired avatar + name + post count. */
 .os-my-wordpress__term-authors {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 180px, 1fr ) );
@@ -1150,14 +888,6 @@
 	color: var( --os-ui-fg-muted, #50575e );
 }
 
-/* ---------------------------------------------------------------
- * Comment dossier — header (avatar + name + status / date / count
- * badges + author archive / website / moderate links), optional
- * "in reply to" quote, the comment body, parent-post card,
- * direct-reply thread, and a moderation strip (IP + user agent)
- * for users with moderate_comments.
- * --------------------------------------------------------------- */
-
 .os-my-wordpress__comment-status--approved {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 12%, transparent );
 	color: var( --os-ui-accent-strong, #135e96 );
@@ -1186,8 +916,6 @@
 	letter-spacing: normal;
 }
 
-/* "In reply to ..." quote shown above the comment body when this
- * is a thread reply. */
 .os-my-wordpress__comment-quote {
 	margin: 0 0 16px;
 	padding: 10px 14px;
@@ -1211,8 +939,6 @@
 	color: var( --os-fg, #1d2327 );
 }
 
-/* Comment body — same style as article-content but with a soft
- * card background so it reads as the focal element. */
 .os-my-wordpress__comment-body {
 	padding: 14px 16px;
 	background: var( --os-ui-hover, rgba( 0, 0, 0, 0.03 ) );
@@ -1220,7 +946,6 @@
 	border: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-/* Parent-post card under the comment body. */
 .os-my-wordpress__comment-post {
 	display: flex;
 	flex-direction: column;
@@ -1246,7 +971,6 @@
 	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-/* Replies list. */
 .os-my-wordpress__comment-replies {
 	list-style: none;
 	margin: 0;
@@ -1304,19 +1028,6 @@
 	line-height: 1.45;
 }
 
-/* =================================================================== *
- *  USERS — list tiles + activity footprint surface.
- *
- *  The Users folder reuses the same canvas + 96×92 tile grid the
- *  post tiles use; the user-tile content (avatar circle + label +
- *  small sub-line) fits inside the cell. The "View activity
- *  footprint" surface is a full-width body view (no split pane)
- *  with hero / stats / heatmap / rhythm / timeline.
- *
- *  Since 0.20.0.
- * =================================================================== */
-
-/* User tile — replaces the dashicon glyph with a real avatar */
 .os-my-wordpress__tile--user {
 	display: flex;
 	flex-direction: column;
@@ -1361,9 +1072,6 @@
 	text-transform: uppercase;
 }
 
-/* Single-line label for user tiles — we already have a generic
- * label clamp, but the user variant gets only ONE line so the
- * sub-line ("Editor · 12 posts") can fit beneath it. */
 .os-my-wordpress__tile--user .os-file-tile__label {
 	font-size: 11px;
 	font-weight: 500;
@@ -1391,17 +1099,6 @@
 	box-sizing: border-box;
 }
 
-/* Selected/hover user tiles inherit the same chrome the post tiles
- * use — see `.os-my-wordpress__tile--selected` above. */
-
-/* ----- Activity footprint — full-width body surface -----
- *
- * Opens via the right-click context menu on a user tile (or the
- * dossier's "View activity footprint" button). Replaces the split
- * list/preview with a wide canvas so each section gets enough room
- * to read.
- */
-
 .os-my-wordpress__footprint {
 	display: flex;
 	flex-direction: column;
@@ -1410,10 +1107,7 @@
 	box-sizing: border-box;
 	overflow-y: auto;
 	height: 100%;
-	/* Scroll container spans the full window width so wheel + touch
-	 * scroll work no matter where the pointer is — including in the
-	 * empty margins to the left / right of the content. The 1080px
-	 * cap is applied to each immediate child instead (below). */
+
 	align-items: center;
 }
 
@@ -1431,14 +1125,7 @@
 		var( --os-surface, var( --os-ui-surface, rgba( 255, 255, 255, 0.6 ) ) )
 	);
 	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.04 );
-	/* The parent `.__footprint` is a flex column with `overflow-y:
-	 * auto`. Flex items default to `flex-shrink: 1`, so each section
-	 * would compress along the column axis when the combined natural
-	 * height exceeds the container — clipping the calendar heatmap
-	 * (the calendar section also sets `overflow-x: auto`, which
-	 * doesn't surface a vertical scrollbar). Lock the intrinsic
-	 * height so the parent scroller, not the children, handles the
-	 * overflow. */
+
 	flex: 0 0 auto;
 }
 
@@ -1450,8 +1137,6 @@
 	text-transform: uppercase;
 	color: var( --os-ui-fg-muted, #50575e );
 }
-
-/* ----- Hero ----- */
 
 .os-my-wordpress__footprint-hero {
 	display: flex;
@@ -1527,8 +1212,6 @@
 	color: var( --os-ui-fg-muted, #50575e );
 }
 
-/* ----- Headline stats row (4 cards) ----- */
-
 .os-my-wordpress__footprint-stats-row {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
@@ -1542,8 +1225,6 @@
 	box-shadow: 0 1px 4px rgba( 0, 0, 0, 0.04 );
 }
 
-/* ----- Calendar heatmap (GitHub-style) ----- */
-
 .os-my-wordpress__footprint-calendar-section {
 	overflow-x: auto;
 }
@@ -1552,10 +1233,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	/* Size to the grid itself so the legend (justify-content: flex-end
-	 * inside this same column) anchors to the grid's right edge instead
-	 * of the section's. Centered within the wider section by
-	 * `margin-inline: auto`. */
+
 	width: max-content;
 	max-width: 100%;
 	margin-inline: auto;
@@ -1563,10 +1241,7 @@
 
 .os-my-wordpress__footprint-grid {
 	display: grid;
-	/* Row 1 holds month labels (auto height); rows 2–8 are the 7
-	 * weekdays at fixed 11px. Col 1 holds weekday labels (auto width);
-	 * subsequent cols are 11px-wide week tracks, set per-cell via
-	 * `grid-column` so the JS can place items explicitly. */
+
 	grid-template-rows: auto repeat( 7, 11px );
 	grid-template-columns: auto;
 	grid-auto-columns: 11px;
@@ -1584,9 +1259,7 @@
 }
 
 .os-my-wordpress__footprint-weekday {
-	/* Sit flush to the right of the label gutter so each label reads
-	 * adjacent to its row. The 6px breathing room is in addition to
-	 * the grid's column-gap. */
+
 	padding-inline-end: 6px;
 	align-self: center;
 	justify-self: end;
@@ -1648,8 +1321,6 @@
 	color: var( --os-ui-fg-muted, #50575e );
 	padding: 0 4px;
 }
-
-/* ----- Rhythm (weekday + hour bar charts) ----- */
 
 .os-my-wordpress__footprint-rhythm-grid {
 	display: grid;
@@ -1717,8 +1388,6 @@
 	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-/* ----- Most-prolific-month callout ----- */
-
 .os-my-wordpress__footprint-callout {
 	display: flex;
 	flex-direction: column;
@@ -1754,8 +1423,6 @@
 	color: var( --os-ui-fg-muted, #50575e );
 	max-width: 480px;
 }
-
-/* ----- Recent-activity timeline ----- */
 
 .os-my-wordpress__footprint-timeline {
 	list-style: none;
@@ -1842,8 +1509,6 @@ a.os-my-wordpress__footprint-event-title:hover {
 	color: var( --os-ui-fg-muted, #787c82 );
 }
 
-/* ----- Footer actions ----- */
-
 .os-my-wordpress__footprint-footer {
 	display: flex;
 	justify-content: flex-end;
@@ -1855,40 +1520,6 @@ a.os-my-wordpress__footprint-event-title:hover {
 	box-shadow: none;
 	padding: 0;
 }
-
-/* ============================================================ *
- *  Status ribbon — diagonal corner banner for non-published tiles
- *  (since 0.21.0)
- *
- *  Classic 45° corner ribbon — same affordance as a stamp on a
- *  document. Applied to every tile whose post status isn't
- *  `publish` across every My WordPress section (Posts, Pages,
- *  Media drill-in, plugin kinds).
- *
- *  Implementation:
- *   1. Tiles with a status modifier get `overflow: hidden` so the
- *      ribbon's overshoot clips to the tile bounds.
- *   2. Ribbon is a wide strip (`width: 110px`) anchored to the
- *      top-right corner, rotated +45° so it forms a diagonal
- *      banner across that corner. The strip extends past the
- *      tile edges; `overflow: hidden` on the parent crops it
- *      into a clean triangle.
- *
- *  The status tiles need a positioning context. `.os-
- *  file-tile` is `position: absolute` (canvas layout) on the
- *  Posts/Pages browse views — that satisfies the positioning-
- *  context requirement. For the Media drill-in usage tiles we
- *  swap from `static` to `relative` via the per-status rule
- *  below so the ribbon stays anchored to its own tile.
- * ============================================================ */
-
-/* Status ribbon — the diagonal corner banner — is now drawn by
- * the `<os-ribbon>` web component slotted inside `<os-tile>`.
- * The component's own shadow-DOM styles own placement, rotation,
- * background, lettering, and the WP admin-theme tint. The only
- * surface-specific rule left here is dimming the icon on non-
- * published tiles so the unpublished signal carries even when
- * the ribbon is hidden via the OS-settings toggle. */
 
 .os-my-wordpress__tile--draft,
 .os-my-wordpress__tile--pending,
@@ -1904,17 +1535,10 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	opacity: 0.7;
 }
 
-/* ============================================================ *
- *  Media section (since 0.21.0)
- * ============================================================ */
-
 .os-my-wordpress__media-grid {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, minmax( 120px, 1fr ) );
-	/* A flow grid rather than the absolute canvas, but the air
-	 * between two icons should not depend on which window you are
-	 * looking at — so the gaps and the gutter come from the same
-	 * tokens the canvas pitch is built from. */
+
 	gap: var( --os-grid-gap-y, 16px ) var( --os-grid-gap-x, 20px );
 	padding: var( --os-grid-padding, 16px );
 	overflow-y: auto;
@@ -1922,22 +1546,10 @@ os-tile[ status='future' ] .os-file-tile__icon {
 }
 
 .os-my-wordpress__media-tile {
-	/* Override the base `.os-file-tile` (position: absolute,
-	 * width: 88px) so media tiles flow inside the CSS Grid instead of
-	 * stacking at (0,0) like the absolute-positioned post/user tiles.
-	 *
-	 * `relative` (not `static`) so the tile remains a containing
-	 * block for absolutely-positioned descendants — the `::after`
-	 * shortcut-arrow badge on attachment tiles, and the
-	 * `<os-ribbon>` post-status corner ribbon — both of which
-	 * would otherwise escape to the nearest positioned ancestor
-	 * (the window, the desktop, the viewport) and render way off
-	 * the tile. */
+
 	position: relative;
 	width: auto;
-	/* …and out of the fixed tile height for the same reason: a media
-	 * tile is a square thumbnail plus a caption, sized by the grid
-	 * column it lands in, not by the icon-canvas cell. */
+
 	height: auto;
 	display: flex;
 	flex-direction: column;
@@ -1956,16 +1568,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) ) );
 }
 
-/* Media tiles inherit the canonical `.os-file-tile--selected`
- * rule from `desktop-files.css` — accent inset border + tinted
- * background — same as every other tile in the shell. */
-
-/* Override the canonical 48×48 visual/preview sizing — media tiles
- * want the visual to fill the full grid-cell width as a square
- * thumbnail (or icon-fallback square). Photos browser look, not
- * folder-icon look. Applies to BOTH the `<img>` (real thumbnail)
- * and the dashicon fallback (non-image MIME), so the two tile
- * shapes are visually consistent in the grid. */
 .os-my-wordpress__media-tile .os-file-tile__visual {
 	display: flex;
 	align-items: center;
@@ -1979,8 +1581,7 @@ os-tile[ status='future' ] .os-file-tile__icon {
 		--os-media-tile-bg,
 		rgba( 0, 0, 0, 0.05 )
 	);
-	/* Reset the base 32px font + 48px size since we're sizing the
-	 * inner img/icon explicitly below. */
+
 	font-size: 0;
 	line-height: 1;
 }
@@ -1993,8 +1594,7 @@ os-tile[ status='future' ] .os-file-tile__icon {
 }
 
 .os-my-wordpress__media-tile .os-file-tile__icon {
-	/* Centered dashicon fallback — proportional to the larger
-	 * thumbnail well so it doesn't look like a postage stamp. */
+
 	width: auto;
 	height: auto;
 	font-size: 36px;
@@ -2010,8 +1610,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
 }
-
-/* ----- Media preview pane ----- */
 
 .os-my-wordpress__media-pane {
 	display: flex;
@@ -2091,19 +1689,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	border-top: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-/* ----- Media drill-in ----- */
-
-/* Drill-in: referencing-posts list. Visually identical to the
- * Posts / Pages tiles — same `os-file-tile` chrome (48px
- * dashicon + 88px-wide two-line label). We can't reuse the
- * absolute-positioning canvas layout from `renderEntityList` here
- * (those internals don't export), so this surface uses a flex-wrap
- * of fixed-width tiles to reproduce the look.
- *
- * NOTE: this rule INTENTIONALLY overrides the `__media-grid`
- * defaults (which target square thumbnails on 130px columns) so
- * usage tiles match the canvas-flowed post tiles instead.
- */
 .os-my-wordpress__usage-grid {
 	display: flex;
 	flex-wrap: wrap;
@@ -2112,10 +1697,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	align-content: flex-start;
 }
 
-/* Reset the `__media-tile` overrides for usage tiles so they
- * inherit the unmodified `.os-file-tile` chrome the
- * canvas-positioned post tiles use — except for `position: static`
- * so they participate in the flex layout. */
 .os-my-wordpress__tile--usage {
 	width: var( --os-tile-w, 88px );
 	align-items: center;
@@ -2123,7 +1704,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	gap: 6px;
 }
 
-/* Right-pane summary bar sits ABOVE the inline media preview. */
 .os-my-wordpress__media-detail-summary-bar {
 	padding: 12px 16px;
 	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
@@ -2136,14 +1716,9 @@ os-tile[ status='future' ] .os-file-tile__icon {
 }
 
 .os-my-wordpress__media-detail-preview {
-	/* Lets the embedded `__media-pane` keep its own padding without
-	 * fighting the summary bar's spacing. */
+
 	display: block;
 }
-
-/* ------------------------------------------------------------------ */
-/* Agents section (`agent` entity kind — src/my-wordpress/agents-renderer.ts) */
-/* ------------------------------------------------------------------ */
 
 .dm-agents {
 	display: flex;
@@ -2156,10 +1731,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	box-sizing: border-box;
 }
 
-
-/* Section-level loading — same scale curve as the My WordPress
-   preview loader and the window-loading overlay, instead of the bare
-   48px component default. */
 .dm-agents__loading {
 	display: flex;
 	align-items: center;
@@ -2181,12 +1752,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	gap: 10px;
 }
 
-/* `<os-empty-state>` owns the icon + copy and centres them within
-   itself; the host is still a flex item that shrinks to its content,
-   so without this it sits at the top of a pane that is mostly empty
-   space. Auto margins on both axes absorb the slack — placement only,
-   same as the comments window. Covers the framework-off state and
-   "No agents yet" alike. */
 .dm-agents__detail > os-empty-state {
 	margin: auto;
 }
@@ -2201,8 +1766,7 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	width: 48px;
 	height: 48px;
 	border-radius: 50%;
-	/* Placeholder behind the avatar image while it loads — follows the
-	   palette so it isn't a white disc on a dark station. */
+
 	background: var( --os-ui-surface-elevated, #fff );
 	flex: none;
 }
@@ -2222,9 +1786,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	opacity: 0.6;
 }
 
-/* Verbs get their own row under the identity block: the set grows
-   (profile, contributions, desktop, chat, delete) and squeezing them
-   beside the name truncated it first. */
 .dm-agents__detail-actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -2262,9 +1823,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	padding-bottom: 12px;
 }
 
-/* Pane-level loading: same big, centered WordPress mark the section
-   loader uses, instead of a bare 48px spinner pinned to the top-left
-   of the pane. */
 .dm-agents__pane--loading {
 	align-items: center;
 	justify-content: center;
@@ -2282,25 +1840,16 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	opacity: 0.7;
 }
 
-/* Role first: least privilege is the decision, so the control holds
-   the mockup's width instead of stretching into a landing strip. */
 .dm-agents__role-select {
 	max-width: 280px;
 }
 
-/* The ability filter. Sized like the role select rather than the
-   full pane: it sits above a list of rules, and a search box as wide
-   as the rules reads as another one of them. */
 .dm-agents__ability-search {
 	display: block;
 	max-width: 320px;
 	margin: 12px 0 4px;
 }
 
-/* Each category is a native disclosure. `<details>` because the
-   behaviour is exactly what it is for: keyboard, screen-reader
-   semantics and the open/closed state all arrive for free, and the
-   only thing left to write is the costume. */
 .dm-agents__ability-group {
 	border-bottom: 1px solid var( --os-border, rgba( 0, 0, 0, 0.08 ) );
 }
@@ -2319,9 +1868,6 @@ os-tile[ status='future' ] .os-file-tile__icon {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* A `<summary>` is a button, so it gets a button's affordances: a
-   pointer, a hover, and a focus ring that is visible on the dark
-   surface the section is drawn on. */
 summary.dm-agents__category {
 	display: flex;
 	align-items: center;
@@ -2337,10 +1883,6 @@ summary.dm-agents__category::-webkit-details-marker {
 	display: none;
 }
 
-/* The marker is drawn here rather than left to the UA so it can be
-   the same triangle in every browser and turn with the disclosure.
-   Rotation only: a transform, so opening a group of forty rows
-   costs no layout. */
 summary.dm-agents__category::before {
 	content: '';
 	flex: none;
@@ -2375,19 +1917,12 @@ summary.dm-agents__category:focus-visible {
 	flex: 1 1 auto;
 }
 
-/* "3 of 12" when some are ticked, otherwise just the size of the
-   group. The count is why a closed group is still informative:
-   collapsing must not hide the fact that something in there is
-   switched on. */
 .dm-agents__category-count {
 	flex: none;
 	font-variant-numeric: tabular-nums;
 	opacity: 0.75;
 }
 
-/* One ability per row, ruled like the mockup: tick and name on the
-   left, badge on the right, the description indented under the name
-   (the checkbox column is the control's own 26px). */
 .dm-agents__ability {
 	display: grid;
 	grid-template-columns: 1fr auto;
@@ -2409,9 +1944,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* Access badges in the instrument voice. The palette's own warning
-   tokens carry the pale-yellow "can modify"; all this changes is the
-   costume: mono, uppercase, an outline instead of a wash. */
 .dm-agents__ability os-badge {
 	--os-ui-badge-font: 500 10px/1.6 var( --os-ui-font-mono, ui-monospace, monospace );
 	--os-ui-badge-dot-size: 0;
@@ -2465,19 +1997,6 @@ summary.dm-agents__category:focus-visible {
 	margin-block-start: 12px;
 }
 
-/* ---------------------------------------------------------------------
-   The cast
-   ------------------------------------------------------------------ */
-
-/* One view at a time: the grid, an agent, or the wizard. A sidebar of
-   faces next to a detail form would leave neither enough room, and the
-   whole point of the grid is that the faces are big enough to tell
-   apart. */
-/* The pane scrolls, and a scroll container clips ink overflow: a field
-   flush with its edge loses the focus halo the kit paints outside the
-   border (1px ring + 4px bloom), so the brief's ring read as a top and
-   bottom line with nothing at the sides. Trade 5px of the section's
-   12px padding for a gutter inside the pane; the content does not move. */
 .dm-agents__view {
 	display: flex;
 	flex-direction: column;
@@ -2512,10 +2031,6 @@ summary.dm-agents__category:focus-visible {
 	align-content: start;
 }
 
-/* The card reacts like the mockup's: a lift and a brighter edge.
-   Transform and border-color only — both cheap, and the same pair the
-   mockup transitions. Document styles win over the component's own
-   :host rules, which is the sanctioned way to restyle a host. */
 .dm-agents__cast-card,
 .dm-agents__cast-new {
 	--os-ui-card-padding: 20px 18px 16px;
@@ -2528,14 +2043,11 @@ summary.dm-agents__category:focus-visible {
 	transform: translateY( -2px );
 }
 
-/* The dashed door, same as the mockup's crew-new card. */
 .dm-agents__cast-new {
 	border-style: dashed;
 	--os-ui-card-bg: var( --os-ui-surface-subtle, transparent );
 }
 
-/* The crew breathes. Transform only, staggered so five faces do not
-   bob in lockstep, and gone entirely under reduced motion. */
 @media ( prefers-reduced-motion: no-preference ) {
 	.dm-agents__cast-card .dm-agents__cast-face {
 		animation: dm-agents-bob 6s ease-in-out infinite;
@@ -2560,10 +2072,6 @@ summary.dm-agents__category:focus-visible {
 	}
 }
 
-/* The column lives on a wrapper we own, not on the host: the slotted
-   children sit inside the card's own container, so a flex rule on the
-   host never reaches them and the role badges land wherever the
-   description's line count leaves them. */
 .dm-agents__cast-inner {
 	display: flex;
 	flex-direction: column;
@@ -2573,10 +2081,6 @@ summary.dm-agents__category:focus-visible {
 	height: 100%;
 }
 
-/* The faces are the loud part of this surface, and deliberately so:
-   agent identity is the one place the station spends the mesh budget
-   on something other than a hero CTA. A cast has to be legible at a
-   glance, which is exactly what a flat accent cannot do. */
 .dm-agents__cast-face {
 	width: 118px;
 	height: 118px;
@@ -2590,8 +2094,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg, #1d2327 );
 }
 
-/* The voice line, in the instrument register: this is metadata about
-   the agent, not prose from it. */
 .dm-agents__cast-vibes {
 	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
 	font-size: 11.5px;
@@ -2605,10 +2107,6 @@ summary.dm-agents__category:focus-visible {
 	flex: 1;
 }
 
-/* The role pill in the instrument voice: mono, uppercase, no status
-   dot — this is a fact about the agent, not a state to monitor. The
-   custom properties are the component's own theming hooks; the
-   inherited text properties flow into its shadow label. */
 .dm-agents__cast-card os-badge {
 	--os-ui-badge-font: 500 11px/1.6 var( --os-ui-font-mono, ui-monospace, monospace );
 	--os-ui-badge-dot-size: 0;
@@ -2618,13 +2116,6 @@ summary.dm-agents__category:focus-visible {
 	letter-spacing: 0.08em;
 }
 
-/* The framework-off bar: the section's status and its one action, on
-   one line above the crew it would hire. It is deliberately not an
-   `os-empty-state` — that block is centred, icon-led and paragraph-
-   shaped, which is exactly the wall of text the cast replaced, and at
-   five cards tall it would push the button that undoes the situation
-   off the bottom of the window. `flex: none` because `.dm-agents__view`
-   is a scrolling flex column and the bar must not absorb the slack. */
 .dm-agents__off-head {
 	display: flex;
 	align-items: center;
@@ -2652,15 +2143,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* The cast the site would get, drawn while the framework is off.
-   Dimmed as a whole rather than desaturated: the five hues ARE the
-   argument this state is making, and a greyscale filter would flatten
-   the crew into five identical blobs on the way to saying "not yet".
-   Opacity says inactive and leaves the faces telling each other apart.
-
-   `pointer-events` is belt and braces — the cards are rendered without
-   `interactive` and without a click handler, so there is nothing to
-   press. It exists so a hover state cannot promise otherwise. */
 .dm-agents__cast--preview {
 	opacity: 0.6;
 	pointer-events: none;
@@ -2680,10 +2162,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* ---------------------------------------------------------------------
-   The wizard
-   ------------------------------------------------------------------ */
-
 .dm-agents__wizard {
 	display: flex;
 	flex-direction: column;
@@ -2702,10 +2180,6 @@ summary.dm-agents__category:focus-visible {
 	margin: 0;
 }
 
-/* The trail wears the instrument voice: mono uppercase labels, 22px
-   dots, a thin rule between stations. All of it goes through the
-   component's own theming hooks; the host elements live in this light
-   DOM, so the per-state overrides below can select them directly. */
 .dm-agents__trail {
 	margin-block: 6px 14px;
 	--os-ui-steps-gap: 10px;
@@ -2719,17 +2193,12 @@ summary.dm-agents__category:focus-visible {
 	--os-ui-step-title-spacing: 0.08em;
 }
 
-/* A station you have not reached is an outline, not a filled dot: the
-   mesh chip is where you ARE, and it only reads that way if it is the
-   only one lit. */
 .dm-agents__trail os-step:not( [ done ] ):not( [ current ] ) {
 	--os-ui-step-chip-bg: transparent;
 	--os-ui-step-chip-border: 1px solid var( --os-ui-border-strong, #8c8f94 );
 	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
 }
 
-/* Done is quiet: a filled tick on the elevated surface, muted like its
-   label. It reads as history, not as a second highlight. */
 .dm-agents__trail os-step[ done ] {
 	--os-ui-step-chip-done-bg: var( --os-ui-surface-elevated, #f0f0f1 );
 	--os-ui-step-chip-fg: var( --os-ui-fg-muted, #646970 );
@@ -2742,8 +2211,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg, #1d2327 );
 }
 
-/* The door. Five complete agents already ship with the plugin, and
-   until now the create flow showed them to nobody. */
 .dm-agents__starters {
 	display: grid;
 	gap: 12px;
@@ -2787,8 +2254,6 @@ summary.dm-agents__category:focus-visible {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* Meet: the portrait beside the fields, so the thing being named is
-   visible while it is being named. */
 .dm-agents__meet {
 	display: grid;
 	gap: 20px;
@@ -2796,9 +2261,6 @@ summary.dm-agents__category:focus-visible {
 	align-items: start;
 }
 
-/* The character card. Sunken rather than subtle: the portrait is the
-   hero of this step, and the mockup floats it on the darkest surface
-   so the face's own glow does the framing. */
 .dm-agents__portrait {
 	display: flex;
 	flex-direction: column;
@@ -2817,7 +2279,6 @@ summary.dm-agents__category:focus-visible {
 	margin-top: -12px;
 }
 
-/* What this face is, in two words. */
 .dm-agents__portrait-chips {
 	display: flex;
 	gap: 6px;
@@ -2868,8 +2329,6 @@ summary.dm-agents__category:focus-visible {
 	min-width: 0;
 }
 
-/* Launch: one card, the brand's card radius, floating on the darkest
-   surface like the portrait it echoes. */
 .dm-agents__summary {
 	display: grid;
 	grid-template-columns: 106px 1fr;
@@ -2911,8 +2370,6 @@ summary.dm-agents__category:focus-visible {
 	margin-block-start: 10px;
 }
 
-/* What the agent will actually be told, under the chips. Clamped: a
-   summary card quotes the instructions, it does not host them. */
 .dm-agents__summary-instr {
 	margin: 10px 0 0;
 	font-size: 13px;
@@ -2923,9 +2380,6 @@ summary.dm-agents__category:focus-visible {
 	overflow: hidden;
 }
 
-/* Identity chips — role, abilities, silhouette, hue — all wear the
-   instrument voice: these are facts about the character, stamped
-   rather than said. */
 .dm-agents__chips os-chip,
 .dm-agents__portrait-chips os-chip {
 	--os-ui-chip-font-size: 10.5px;
@@ -2953,8 +2407,6 @@ summary.dm-agents__category:focus-visible {
 	}
 }
 
-/* The way back to the grid. The window's own breadcrumb goes UP to the
-   folder, which is a different journey: this one returns to the cast. */
 .dm-agents__back {
 	align-self: flex-start;
 	margin-block-end: 4px;

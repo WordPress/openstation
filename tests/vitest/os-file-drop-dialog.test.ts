@@ -1,9 +1,3 @@
-/**
- * Tests for the upload dialog: destination defaults by drop intent
- * (media-kind files on the desk default to Media Library) and the
- * single-dialog merge behavior (a second drop folds into the open
- * dialog instead of stacking a new modal).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -123,7 +117,7 @@ describe( 'single-dialog replace', () => {
 
 	test( 'a second drop replaces the open dialog batch instead of stacking', async () => {
 		const mod = await load();
-		// Non-media file so the desk default is Desktop.
+
 		void mod.openUploadDialog( {
 			...baseDialogArgs(),
 			entries: [ entry( 'a.txt', 'text/plain' ) ],
@@ -133,8 +127,6 @@ describe( 'single-dialog replace', () => {
 			'Upload to Desktop',
 		);
 
-		// Second drop while the dialog is open: latest wins, first
-		// batch discarded.
 		void mod.openUploadDialog( {
 			...baseDialogArgs(),
 			entries: [ entry( 'b.txt', 'text/plain' ), entry( 'c.txt', 'text/plain' ) ],
@@ -151,13 +143,12 @@ describe( 'single-dialog replace', () => {
 		const mod = await load();
 		void mod.openUploadDialog( {
 			...baseDialogArgs(),
-			entries: [ entry( 'notes.txt', 'text/plain' ) ], // Desktop default.
+			entries: [ entry( 'notes.txt', 'text/plain' ) ],
 		} );
 		expect( document.querySelector( 'os-modal' )?.getAttribute( 'title' ) ).toBe(
 			'Upload to Desktop',
 		);
 
-		// All-media second drop: the dialog flips to the Media default.
 		void mod.openUploadDialog( {
 			...baseDialogArgs(),
 			entries: [ entry( 'photo.jpg', 'image/jpeg' ) ],
@@ -203,14 +194,13 @@ describe( 'single-dialog replace', () => {
 				zipAvailable: true,
 			},
 			mediaMaxBytes: 2 * 1024 * 1024,
-			entries: [ entry( 'a.txt', 'text/plain' ) ], // Desktop default.
+			entries: [ entry( 'a.txt', 'text/plain' ) ],
 		} );
 		const capLine = (): string =>
 			document.querySelector( '.os-upload-dialog__max-size' )
 				?.textContent ?? '';
 		expect( capLine() ).toBe( 'Maximum file size: 8.0 MB' );
 
-		// Switching destination re-renders with the media cap.
 		const segmented = document.querySelector( 'os-segmented' )!;
 		segmented.dispatchEvent(
 			new CustomEvent( 'os-pick', { detail: { value: 'media' } } ),

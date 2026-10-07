@@ -1,4 +1,3 @@
-/** Browser QA fixture, isolated from WordPress and any real provider or save. */
 import '../../../src/ui/components/os-button/os-button';
 import { mountMioChat, type MioChatHandle } from '../../../src/mio/assistant/chat';
 import { MioSession } from '../../../src/mio/assistant/session';

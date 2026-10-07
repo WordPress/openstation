@@ -1,54 +1,19 @@
-/**
- * OS-file drop manager — folder-tree traversal.
- *
- * Walks `webkitGetAsEntry()` entries from a drop's
- * `DataTransferItemList` into a flat file list with per-file
- * relative paths, plus the list of EMPTY directories (only the
- * drag-drop Entries API can see those; `<input webkitdirectory>`
- * loses them).
- *
- * Two hard-won browser rules are encoded here:
- *
- *   1. `dataTransfer.items` is live and is cleared the moment the
- *      drop handler yields — {@link snapshotEntries} must be called
- *      synchronously, before any `await`.
- *   2. Chromium's `FileSystemDirectoryReader.readEntries()` returns
- *      at most 100 entries per call — {@link readAllEntries} loops
- *      the same reader until it yields an empty batch, or files
- *      101+ are silently dropped.
- *
- * The prefixed APIs are the standardized WICG Entries API and are
- * Baseline across browsers; the File System Access API is
- * deliberately NOT used (Chromium-only).
- */
-
-/** One real file discovered in the tree. */
 export interface TreeFile {
 	file: File;
-	/**
-	 * Path relative to the drop, INCLUDING the dropped folder's own
-	 * name (`docs/reports/q1.pdf` for a dropped `docs` folder) so
-	 * the tree recreates itself on the desktop. Empty string for a
-	 * file dropped directly (no tree).
-	 */
+
 	relativePath: string;
 }
 
 export interface TreeCollection {
 	files: TreeFile[];
-	/** Directory paths (no trailing slash) that contained nothing. */
+
 	emptyDirs: string[];
-	/** True when at least one dropped item was a directory. */
+
 	hadDirectory: boolean;
 }
 
-/** Depth cap mirroring the server's segment limit. */
 const MAX_DEPTH = 32;
 
-/**
- * Synchronously snapshot the entries of a drop. MUST run inside
- * the `drop` event handler before any `await` (rule 1 above).
- */
 export function snapshotEntries( items: DataTransferItemList | undefined | null ): FileSystemEntry[] {
 	if ( ! items ) {
 		return [];
@@ -67,7 +32,6 @@ export function snapshotEntries( items: DataTransferItemList | undefined | null 
 	return out;
 }
 
-/** Loop `readEntries` until the batch comes back empty (rule 2). */
 function readAllEntries( dir: FileSystemDirectoryEntry ): Promise< FileSystemEntry[] > {
 	const reader = dir.createReader();
 	return new Promise( ( resolve, reject ) => {
@@ -92,11 +56,6 @@ function entryFile( entry: FileSystemFileEntry ): Promise< File > {
 	} );
 }
 
-/**
- * Collect the full tree behind a snapshot of dropped entries.
- * Unreadable entries (permission race, file vanished mid-drag) are
- * skipped rather than failing the whole batch.
- */
 export async function collectDroppedTree(
 	entries: FileSystemEntry[],
 ): Promise< TreeCollection > {
@@ -125,12 +84,11 @@ async function collectEntry(
 			const file = await entryFile( entry as FileSystemFileEntry );
 			collection.files.push( {
 				file,
-				// `File.webkitRelativePath` is EMPTY for drag-dropped
-				// files — the path must come from the entry walk.
+
 				relativePath: prefix ? `${ prefix }${ file.name }` : '',
 			} );
 		} catch {
-			// Unreadable file — skip, keep the batch going.
+
 		}
 		return;
 	}

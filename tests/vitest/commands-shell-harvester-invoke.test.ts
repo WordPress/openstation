@@ -1,27 +1,3 @@
-/**
- * What happens when a harvested `core/commands` command is picked.
- *
- * The shell harvester re-publishes the WordPress-wide command set as
- * palette commands, and `action`-classified ones are dispatched by
- * calling the callback the store handed us. Three things about that
- * call are contract, not detail, and all three were once wrong at the
- * same time — which is what made a third-party command that listed,
- * highlighted and picked do nothing at all, with no error and no
- * console line to say why (issue #705):
- *
- *   - the callback receives the palette's REAL `close`, because
- *     WordPress documents the handler as `callback( { close } )` and
- *     commands written to that contract call it;
- *   - a callback that throws surfaces as a command error, because a
- *     swallowed throw is indistinguishable from a command that ran;
- *   - a name that is registered but has no live callback says so,
- *     for the same reason.
- *
- * `runInvoke` is private; the tests reach it the way the publish path
- * does, through a cast. Mounting the React harvester to get at it
- * would test `wp.element` rather than any of the above.
- */
-
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { ShellCommandHarvester } from '../../src/commands/shell-harvester';
@@ -34,7 +10,6 @@ import type { WindowManager } from '../../src/window-manager';
 
 type StoreCallback = ( args: { close(): void } ) => void;
 
-/** Reach the private invoke factory + its callback cache. */
 interface HarvesterInternals {
 	runInvoke( name: string ): (
 		args: string,
@@ -43,13 +18,6 @@ interface HarvesterInternals {
 	callbackCache: Record< string, StoreCallback >;
 }
 
-/**
- * A harvester with nothing mounted — `runInvoke` only reads the
- * callback cache, so the React side is irrelevant here.
- *
- * @param callbacks Callback cache contents, keyed by command name.
- * @return The harvester, typed for its private invoke surface.
- */
 function harvesterWith(
 	callbacks: Record< string, StoreCallback >,
 ): HarvesterInternals {
@@ -62,7 +30,6 @@ function harvesterWith(
 	return internals;
 }
 
-/** A palette context whose `close` records that it was called. */
 function contextSpy(): { ctx: CommandContext; close: ReturnType< typeof vi.fn > } {
 	const close = vi.fn();
 	return {
@@ -112,8 +79,7 @@ describe( 'shell harvester — invoking a harvested command', () => {
 		expect( () => harvester.runInvoke( 'plugin/broken' )( '', ctx ) ).toThrow(
 			'sntAbilityRun is not defined',
 		);
-		// The palette is not dismissed on the way past — a failure the
-		// user can read is the whole point, and it renders in the panel.
+
 		expect( close ).not.toHaveBeenCalled();
 	} );
 
@@ -149,9 +115,6 @@ describe( 'shell harvester — running a "Go to" command', () => {
 		const goTo = { name, label: 'Go to: Settings > Permalinks', callback: () => {} };
 		const viewSite = { name: 'core/view-site', label: 'View site', callback: () => {} };
 
-		// Core's commands arrive in more than one pass on every boot
-		// (loaders resolve after the menu commands), and a later pass
-		// re-registers each command from its cached classification.
 		harvester.publish( [ goTo ] );
 		harvester.publish( [ goTo, viewSite ] );
 		findCommand( 'global-options-general-php-options-permalink-php' )

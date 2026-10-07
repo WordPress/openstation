@@ -1,111 +1,33 @@
 <?php
-/**
- * OpenStation — chromeless asset trim.
- *
- * A window renders a real admin page with the admin bar suppressed:
- * `show_admin_bar` returns false and `wp_admin_bar_render` is removed
- * from `in_admin_header` (see `includes/helpers.php`), so `#wpadminbar`
- * never reaches the DOM inside a chromeless iframe. WordPress and the
- * host still enqueue the bar's scripts and styles, which then load,
- * parse and execute against markup that does not exist — once per
- * window, every window.
- *
- * Measured on a live WordPress.com install, one Settings window:
- *
- *   admin-bar.min.css               20.9 KB
- *   os-admin-bar.js (ours)          17.7 KB
- *   admin-bar.min.js                 3.4 KB
- *   wpcom-notes admin-bar-v2.js      3.1 KB   (cross-origin)
- *   wpcom-notes admin-bar-v2.css     2.4 KB   (cross-origin)
- *   wpcom-admin-bar.js               0.6 KB
- *   notes-common-lite.min.js         0.5 KB   (cross-origin)
- *   a8c-faux-inline-help.js          0.2 KB
- *                                   -------
- *                                   48.8 KB + three cross-origin round
- *                                             trips, for a bar the
- *                                             window does not draw.
- *
- * **Dequeue, never deregister.** A handle that stays registered can
- * still be pulled in as another script's dependency, which is exactly
- * the safety property we want: if some third-party script genuinely
- * depends on `admin-bar`, WordPress resolves it and that script keeps
- * working. Deregistering would strand the dependent instead. The cost
- * of that choice is that a dependency-pulled handle survives the trim
- * — correct behaviour, and the reason this list covers the whole
- * family rather than core's handle alone.
- *
- * Third-party handles ship in the defaults on purpose: they are
- * admin-bar-only by construction (a masterbar, a notifications panel),
- * and leaving them queued would drag core's `admin-bar` back in as a
- * dependency, undoing the trim. Sites that need one of them back can
- * filter it out.
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Script handles dropped inside chromeless windows.
- *
- * @return string[]
- */
 function openstation_chromeless_trimmed_scripts() {
 	$handles = array(
-		// Core's admin bar behaviour (hover intent, search, shortcuts).
+
 		'admin-bar',
-		// OpenStation's own toggle bundle. Also guarded at its enqueue
-		// site in `includes/admin-bar.php`; listed here so the trim is
-		// complete even if a plugin re-enqueues it.
+
 		'os-admin-bar',
-		// WordPress.com / Jetpack masterbar family.
+
 		'wpcom-admin-bar',
 		'wpcom-notes-common',
 		'wpcom-notes-admin-bar',
 		'a8c-faux-inline-help',
 	);
 
-	/**
-	 * Filters the script handles dequeued inside chromeless windows.
-	 *
-	 * Everything here is chrome the window never renders. Add a handle
-	 * to reclaim its parse/execute cost per window; remove one if your
-	 * site genuinely needs it inside a window.
-	 *
-	 * @param string[] $handles Script handles to dequeue.
-	 */
 	return (array) apply_filters( 'openstation_chromeless_trimmed_scripts', $handles );
 }
 
-/**
- * Style handles dropped inside chromeless windows.
- *
- * @return string[]
- */
 function openstation_chromeless_trimmed_styles() {
 	$handles = array(
-		// Core's admin-bar stylesheet. Dropping it also removes the
-		// source of the 32px `html.wp-toolbar` padding; the
-		// `!important` override in `chromeless.css` stays as the
-		// belt-and-braces half of that pair and must not be removed.
+
 		'admin-bar',
 		'wpcom-notes-admin-bar',
 	);
 
-	/**
-	 * Filters the style handles dequeued inside chromeless windows.
-	 *
-	 * @param string[] $handles Style handles to dequeue.
-	 */
 	return (array) apply_filters( 'openstation_chromeless_trimmed_styles', $handles );
 }
 
-/**
- * Drops chrome-only assets inside chromeless windows.
- *
- * Runs at `PHP_INT_MAX` on `admin_enqueue_scripts` so it sees the queue
- * after every plugin has had its say. No-op outside chromeless
- * requests — the shell itself draws a real admin bar and must keep all
- * of this.
- */
 function openstation_chromeless_trim_assets() {
 	if ( ! openstation_is_chromeless_request() ) {
 		return;
@@ -118,145 +40,39 @@ function openstation_chromeless_trim_assets() {
 		wp_dequeue_style( $handle );
 	}
 
-	/**
-	 * Fires after OpenStation trims chrome-only assets in a window.
-	 *
-	 * The point to dequeue anything else that only exists to decorate
-	 * admin chrome a window does not draw.
-	 */
 	do_action( 'openstation_chromeless_trimmed_assets' );
 }
 add_action( 'admin_enqueue_scripts', 'openstation_chromeless_trim_assets', PHP_INT_MAX );
 
-/**
- * Drops WordPress's emoji polyfill inside chromeless windows.
- *
- * **What this actually is**, because it is easy to overstate: the
- * inline detection script tests the browser against the newest Unicode
- * emoji set, and when anything is missing it pulls in
- * `wp-emoji-release.min.js` (Twemoji, 22 KB) to swap those characters
- * for images. It is a compatibility polyfill, not dead code — a live
- * measurement on current Chrome showed the 22 KB file genuinely
- * loading inside a window, because browsers routinely lag the newest
- * emoji.
- *
- * **Why dropping it in a window is still right.** Core sets the
- * precedent itself: `wp-admin/edit-form-blocks.php` removes this exact
- * action on the block-editor screen. The only thing lost inside a
- * window is that a very new emoji in admin content — a post title, a
- * comment — renders with the operating system's own glyph (or its
- * fallback) instead of a Twemoji image. And the shell that hosts these
- * windows already requires service workers, custom elements, ES2020
- * and `:has()`; a browser that clears that bar is not one that needs
- * help drawing emoji at all.
- *
- * Removal happens on `admin_init` because `wp_enqueue_emoji_styles`
- * rides `admin_enqueue_scripts` at the default priority — by the time
- * the handle trim above runs at `PHP_INT_MAX`, it has already fired.
- * This is the same hook and the same reasoning as the admin-bar
- * suppression in `includes/helpers.php`.
- */
 function openstation_chromeless_suppress_emoji() {
 	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 
-	/**
-	 * Filters whether the emoji polyfill is dropped inside windows.
-	 *
-	 * Return `false` to keep Twemoji's image replacement for admin
-	 * content shown in a window.
-	 *
-	 * @param bool $trim Defaults to `true`.
-	 */
 	if ( ! apply_filters( 'openstation_chromeless_trim_emoji', true ) ) {
 		return;
 	}
 
 	remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
 	remove_action( 'admin_enqueue_scripts', 'wp_enqueue_emoji_styles' );
-	// Retained by Core for back-compat and normally unhooked by
-	// `wp_enqueue_emoji_styles()`; removed here because we just took
-	// that away, and it would otherwise print the styles instead.
+
 	remove_action( 'admin_print_styles', 'print_emoji_styles' );
 }
 add_action( 'admin_init', 'openstation_chromeless_suppress_emoji' );
 
-/**
- * The Core command-palette root handles.
- *
- * `wp-commands` is the `core/commands` store package; `wp-core-commands`
- * registers WordPress's baseline command set on top of it. Everything
- * else in the family reaches the palette *through* one of these two, so
- * they are both the things to drop and the marker that identifies a
- * dependent as a palette contributor.
- *
- * @return string[]
- */
 function openstation_command_palette_root_handles() {
-	/**
-	 * Filters the handles treated as command-palette roots.
-	 *
-	 * A queued script whose dependency closure reaches one of these is
-	 * considered a palette contributor and is trimmed inside windows.
-	 *
-	 * @param string[] $handles Root handles.
-	 */
+
 	return (array) apply_filters(
 		'openstation_command_palette_root_handles',
 		array( 'wp-commands', 'wp-core-commands' )
 	);
 }
 
-/**
- * Whether a handle is one of Core's own bundled packages.
- *
- * **This is the line between a palette contributor and a library, and
- * getting it wrong breaks the block editor.** `wp-block-editor` declares
- * `wp-commands` directly:
- *
- *     wp-block-editor => …, wp-blocks, wp-commands, wp-components, …
- *     wp-editor       => …, wp-block-editor, wp-commands, …
- *
- * It does so because the editor *registers* commands into the palette
- * store — the dependency runs the opposite way from a palette extension,
- * which *is* the palette. A closure walk cannot tell those apart, so
- * without this exclusion the walk convicts the whole block-editor stack
- * and drops it, taking every plugin's block-registration script with it.
- * Measured on `customize.php` before this rule existed: the block-widgets
- * panel lost `wp-block-editor`, and Contact Form 7's and MailPoet's block
- * scripts went with it.
- *
- * Core packages are therefore never *dependents* to be trimmed. They are
- * libraries, and `WP_Dependencies` already knows how to decide whether
- * one is needed: if something still queued requires it, it resolves and
- * stays; if the only thing that wanted it was the palette, it falls out
- * on its own. The roots themselves are exempt from this rule — they are
- * the palette, not a library it uses.
- *
- * @param WP_Dependencies $dependencies The scripts registry.
- * @param string          $handle       Handle to test.
- * @return bool
- */
 function openstation_is_core_package_handle( $dependencies, $handle ) {
 	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
 		return false;
 	}
 
-	// Identify a package by its NAME, not by where it is served from.
-	// The `wp-` prefix is the `@wordpress/*` package convention and is
-	// the only stable signal: the Gutenberg plugin re-registers the
-	// entire family — `wp-block-editor`, `wp-commands`, `wp-core-data`,
-	// `wp-customize-widgets` — from `/wp-content/plugins/gutenberg/
-	// build/scripts/…` via its own `$scripts->add()`. A path test for
-	// `/wp-includes/js/dist/` therefore answers false for every package
-	// on a Gutenberg site, silently retiring this guard exactly where
-	// it matters most, and the walk goes on to convict the whole editor
-	// stack. That is what emptied the Customizer's Widgets panel.
-	//
-	// A plugin that registers a handle under this prefix is treated as
-	// a package too. That direction is safe — the only consequence is
-	// that it is never trimmed.
 	if ( 0 === strpos( $handle, 'wp-' ) ) {
 		return true;
 	}
@@ -266,29 +82,9 @@ function openstation_is_core_package_handle( $dependencies, $handle ) {
 	return ( is_string( $src ) && false !== strpos( $src, '/wp-includes/js/dist/' ) );
 }
 
-/**
- * Whether `$handle`'s dependency closure reaches any of `$roots`.
- *
- * `$memo` is passed by reference and shared across every candidate in a
- * single {@see openstation_command_palette_family()} call, so each node
- * is decided once per call rather than once per candidate that happens
- * to sit above it. The Gutenberg graph is dense with shared nodes, and
- * the walk runs twice per request (dequeue, then print list), so a
- * per-candidate guard re-walks the same subgraph repeatedly.
- *
- * A handle currently being walked is memoized as `null`, which reads as
- * "not yet known" and breaks a dependency cycle the same way a visited
- * set would.
- *
- * @param WP_Dependencies $dependencies The scripts registry.
- * @param string          $handle       Handle to test.
- * @param string[]        $roots        Root handles to look for.
- * @param array           $memo         Handle => verdict, by reference.
- * @return bool
- */
 function openstation_handle_depends_on( $dependencies, $handle, $roots, &$memo ) {
 	if ( array_key_exists( $handle, $memo ) ) {
-		// `null` means "in progress" — a cycle, which reaches nothing new.
+
 		return ( true === $memo[ $handle ] );
 	}
 	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
@@ -305,15 +101,6 @@ function openstation_handle_depends_on( $dependencies, $handle, $roots, &$memo )
 			break;
 		}
 
-		/*
-		 * Never route through a Core package. Reaching the palette *via*
-		 * `wp-block-editor` says something about the editor, not about
-		 * this handle: Contact Form 7's block script declares
-		 * `wp-block-editor`, and traversing into it would convict the
-		 * block script of being a palette extension. A real palette
-		 * extension names the palette in its own chain — Astra's and
-		 * WooCommerce's both list `wp-commands` directly.
-		 */
 		if ( openstation_is_core_package_handle( $dependencies, $dep ) ) {
 			continue;
 		}
@@ -327,30 +114,6 @@ function openstation_handle_depends_on( $dependencies, $handle, $roots, &$memo )
 	return $result;
 }
 
-/**
- * Whether a handle carries no file of its own.
- *
- * A src-less handle is an aggregator: it exists to group dependencies
- * and to hang inline data on. **Trimming one can only lose.** There is
- * no file to stop downloading — the entire saving this module exists to
- * make is zero — while dropping it discards its inline payload, which
- * may be the whole reason the handle exists.
- *
- * Gutenberg's Connectors screen is the case that taught this:
- * `options-connectors-wp-admin-prerequisites` is registered with an
- * empty `src` and the dependency list of its boot module, and carries
- * the app's bootstrap as an inline script —
- * `import("@wordpress/boot").then( mod => mod.initSinglePage( … ) )`.
- * Convicting it printed no bootstrap and rendered a blank page, for a
- * saving of nothing.
- *
- * This is a structural rule, not a guess about intent: whatever a
- * src-less handle is for, trimming it has no upside.
- *
- * @param WP_Dependencies $dependencies The scripts registry.
- * @param string          $handle       Handle to test.
- * @return bool
- */
 function openstation_handle_has_no_src( $dependencies, $handle ) {
 	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
 		return false;
@@ -360,74 +123,11 @@ function openstation_handle_has_no_src( $dependencies, $handle ) {
 	return ( ! is_string( $src ) || '' === $src );
 }
 
-/**
- * Whether the trim may also drop handles that merely *depend on* the
- * palette. Defaults to **true**, guarded structurally.
- *
- * Dropping the roots alone reclaims nothing while one dependent
- * survives — `WP_Dependencies::all_deps()` pulls the whole chain back
- * in on its behalf — so the walk earns its place. What it must never do
- * is guess.
- *
- * **The graph records "needs", not "is."** `wp-block-editor` declares
- * `wp-commands`; so does Gutenberg's Connectors bootstrap; so does a
- * genuine palette extension. All three for the same honest reason —
- * their UI needs the commands *store*. Nothing about the dependency
- * itself separates the palette from something merely using it, and two
- * regressions came from pretending otherwise.
- *
- * So conviction is fenced by **structural** exclusions rather than by
- * inference about intent, and each is a statement about what trimming
- * could possibly save:
- *
- *   - {@see openstation_is_core_package_handle()} — Core's own packages
- *     are libraries `WP_Dependencies` already knows how to include or
- *     omit, and the palette is a feature *of* the editor, so the
- *     dependency there runs backwards.
- *   - {@see openstation_handle_has_no_src()} — a handle with no file
- *     offers nothing to reclaim, so trimming it is all risk.
- *
- * Neither rule names a plugin, and neither reads a handle's name: a
- * site with a completely different plugin set gets the same treatment,
- * derived from the graph in front of it.
- *
- * A residue remains — a plugin bundle with a real `src` that depends on
- * the palette and also paints part of its screen would still be
- * convicted. That is what {@see openstation_command_palette_family()}
- * is for: a site knows its own handles, and can name the exception the
- * framework has no way to infer.
- *
- * @return bool
- */
 function openstation_command_palette_trims_dependents() {
-	/**
-	 * Filters whether handles depending on the palette are dropped too.
-	 *
-	 * Default true. Return false to trim only the palette roots, which
-	 * gives up the saving on sites carrying palette extensions and
-	 * keeps the whole of it on a site where Core's palette is the only
-	 * consumer — the safest setting, and rarely a necessary one.
-	 *
-	 * @param bool $trim Whether to trim palette dependents.
-	 */
+
 	return (bool) apply_filters( 'openstation_command_palette_trim_dependents', true );
 }
 
-/**
- * The command-palette family present in a given handle list.
- *
- * The roots, plus every handle in `$handles` that reaches one of them
- * and survives the structural exclusions —
- * {@see openstation_command_palette_trims_dependents()} sets out what
- * those are and why they are the only fencing this walk is allowed.
- *
- * Nothing here reads a handle's name or knows any plugin: the same
- * rules run against whatever graph the site happens to present.
- *
- * @param WP_Dependencies $dependencies The scripts registry.
- * @param string[]        $handles      Handles to scan.
- * @return string[] Handles to drop.
- */
 function openstation_command_palette_family( $dependencies, $handles ) {
 	$roots  = openstation_command_palette_root_handles();
 	$family = $roots;
@@ -446,32 +146,9 @@ function openstation_command_palette_family( $dependencies, $handles ) {
 		}
 	}
 
-	/**
-	 * Filters the command-palette handles dropped inside windows.
-	 *
-	 * Remove a handle here to keep it inside windows — the escape hatch
-	 * for a script that registers commands *and* renders part of its own
-	 * admin screen, which the dependency walk cannot tell apart.
-	 *
-	 * @param string[] $family  Handles about to be dropped.
-	 * @param string[] $handles The handles that were scanned.
-	 */
 	return (array) apply_filters( 'openstation_command_palette_family', $family, $handles );
 }
 
-/**
- * The palette contributors among `$handles` — the family, less the
- * roots.
- *
- * A contributor is a script whose reason to exist is the command
- * palette: Astra's `command-palette.js`, WooCommerce's
- * `command-palette.js` / `command-palette-analytics.js`. The roots are
- * the palette itself, not contributions to it, so they are excluded.
- *
- * @param WP_Dependencies $dependencies The scripts registry.
- * @param string[]        $handles      Handles to scan.
- * @return string[] Contributor handles.
- */
 function openstation_command_palette_contributors( $dependencies, $handles ) {
 	return array_values(
 		array_diff(
@@ -481,13 +158,6 @@ function openstation_command_palette_contributors( $dependencies, $handles ) {
 	);
 }
 
-/**
- * The plugin or theme directory a handle's `src` lives in.
- *
- * @param WP_Dependencies $dependencies The scripts registry.
- * @param string          $handle       Handle to resolve.
- * @return string Directory slug, or '' for core / unregistered handles.
- */
 function openstation_command_palette_handle_owner( $dependencies, $handle ) {
 	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
 		return '';
@@ -502,32 +172,11 @@ function openstation_command_palette_handle_owner( $dependencies, $handle ) {
 	return '';
 }
 
-/**
- * Whether a contributor's own plugin owns the current admin screen.
- *
- * The exemption that lets a plugin keep its palette script *under its
- * own route*: on its own screen a plugin registers screen-specific
- * commands, rather than the site-wide ones the shell already carries
- * once for everybody.
- *
- * The default is deliberately conservative, because a false positive
- * costs that window the whole chain: it matches when the request is for
- * a file inside the plugin's own directory, or when the `page` query
- * var is prefixed by the plugin's directory slug — the two shapes a
- * plugin-owned admin route actually takes. A plugin whose menu slug
- * resembles nothing in its folder name should claim its route through
- * the filter rather than by loosening this.
- *
- * @param WP_Dependencies $dependencies The scripts registry.
- * @param string          $handle       Contributor handle.
- * @return bool
- */
 function openstation_command_palette_owns_screen( $dependencies, $handle ) {
 	$owner = openstation_command_palette_handle_owner( $dependencies, $handle );
 
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen routing.
 	$page = isset( $_GET['page'] )
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen routing.
+
 		? sanitize_text_field( wp_unslash( $_GET['page'] ) )
 		: '';
 	$uri  = isset( $_SERVER['REQUEST_URI'] )
@@ -544,33 +193,9 @@ function openstation_command_palette_owns_screen( $dependencies, $handle ) {
 		}
 	}
 
-	/**
-	 * Filters whether a palette contributor may load in this window.
-	 *
-	 * Return true to keep the contributor — and, necessarily, the
-	 * palette runtime it depends on — inside a window on this screen.
-	 *
-	 * @param bool   $owns   Whether the contributor owns this screen.
-	 * @param string $handle Contributor handle.
-	 * @param string $owner  The handle's plugin/theme directory slug.
-	 * @param string $page   The `page` query var, if any.
-	 */
 	return (bool) apply_filters( 'openstation_command_palette_contributor_owns_screen', $owns, $handle, $owner, $page );
 }
 
-/**
- * The palette handles to drop from a window's queue.
- *
- * Empty when a contributor owns the current screen: keeping that
- * contributor means keeping the roots it depends on, so there is
- * nothing left to drop. That is the deliberate price of the exemption
- * — the plugin's own admin screen pays for the runtime its commands
- * need, and no other window does.
- *
- * @param WP_Dependencies $dependencies The scripts registry.
- * @param string[]        $handles      Handles to scan.
- * @return string[] Handles to drop; empty when a contributor owns the screen.
- */
 function openstation_chromeless_command_palette_drops( $dependencies, $handles ) {
 	foreach ( openstation_command_palette_contributors( $dependencies, $handles ) as $handle ) {
 		if ( openstation_command_palette_owns_screen( $dependencies, $handle ) ) {
@@ -585,31 +210,6 @@ function openstation_chromeless_command_palette_drops( $dependencies, $handles )
 	);
 }
 
-/**
- * Removes from `$drops` anything a surviving handle still depends on.
- *
- * **The safety property the rest of this module rests on**, and the one
- * that turns a guess about a handle's purpose into a fact about the
- * page: whatever we believe a handle is *for*, if something that is
- * still going to print needs it, dropping it strands that thing.
- *
- * `WP_Dependencies` walks the graph downwards — it will happily print a
- * script whose dependency we removed from the list underneath it, and
- * the browser then throws on the missing global rather than on the
- * handle we actually meant to drop. That is how a trim aimed at the
- * command palette emptied the Customizer's Widgets panel:
- * `customize-widgets` survived, `wp-block-editor` and `wp-commands`
- * were taken out from under it, and the panel rendered nothing.
- *
- * The closure is resolved on a CLONE, so the request's real `$to_do` /
- * `$done` bookkeeping is untouched — the same technique the palette
- * manifest builder uses.
- *
- * @param WP_Dependencies $dependencies The scripts or styles registry.
- * @param string[]        $handles      The full list under consideration.
- * @param string[]        $drops        Handles the trim wants to remove.
- * @return string[] `$drops`, less anything a survivor depends on.
- */
 function openstation_protect_survivor_dependencies( $dependencies, $handles, $drops ) {
 	if ( empty( $drops ) ) {
 		return $drops;
@@ -619,53 +219,11 @@ function openstation_protect_survivor_dependencies( $dependencies, $handles, $dr
 		return $drops;
 	}
 
-	/*
-	 * An explicit closure walk rather than `all_deps()`. The three
-	 * reasons — filter re-entry, silent truncation under
-	 * `$recursion = true`, and duplicated `_doing_it_wrong()` noise —
-	 * are recorded on {@see openstation_script_dependency_closure()},
-	 * which is the shared implementation. The one that bites hardest
-	 * here: `WP_Styles::all_deps()` / `WP_Scripts::all_deps()` apply
-	 * `print_styles_array` / `print_scripts_array` to their result, and
-	 * those are the very filters this helper is called from — an
-	 * infinite loop that hangs the request.
-	 */
 	$needed = openstation_script_dependency_closure( $dependencies, $survivors );
 
 	return array_values( array_diff( $drops, $needed ) );
 }
 
-/**
- * Whether this request should drop the Core command-palette runtime.
- *
- * **Why a window never needs it.** ⌘K inside a window belongs to the
- * shell: the desktop owns the palette, the keystroke is handled in the
- * parent frame, and the parent only asks a window for its commands when
- * the palette is actually opened (`os-commands-subscribe`, sent from
- * `onPaletteOpened()` in `src/commands/iframe-bridge.ts`). The runtime
- * that answers that request was nevertheless loaded eagerly in every
- * window, on the chance the user might one day press ⌘K while that
- * window happened to hold focus.
- *
- * What that cost, measured on a live install opening Settings in a
- * window: 43 files, 10.66 MB raw / 1.94 MB gzipped — react, react-dom,
- * `components.js` (3.7 MB), `block-editor.js` (3.7 MB), `core-data`,
- * `blocks`, `sync` — **73.6% of everything the window downloaded**, then
- * parsed and executed again in each window's own JavaScript realm,
- * where an HTTP cache hit buys nothing.
- *
- * **Block-editor screens are exempt.** `post.php`, `post-new.php`, the
- * site editor and the widgets screen load that same chain for their own
- * reasons, so the palette rides along for the cost of `commands.js` +
- * `core-commands.js` (~150 KB) — and those are exactly the screens whose
- * stores hold commands worth harvesting ("Duplicate block", pattern
- * commands). Trimming there would cost real functionality and save
- * nothing. Everywhere else the store only ever holds the WordPress
- * baseline, which the shell already publishes itself from its own
- * lazily-loaded runtime (`src/commands/shell-harvester.ts`).
- *
- * @return bool
- */
 function openstation_chromeless_should_trim_command_palette() {
 	if ( ! openstation_is_chromeless_request() ) {
 		return false;
@@ -673,36 +231,9 @@ function openstation_chromeless_should_trim_command_palette() {
 
 	$trim = ! openstation_chromeless_screen_uses_block_editor();
 
-	/**
-	 * Filters whether the Core command-palette runtime is dropped in a
-	 * window.
-	 *
-	 * Return `false` to keep Core's palette — and its Gutenberg
-	 * dependency chain — inside windows on this screen.
-	 *
-	 * @param bool $trim Whether to trim. Defaults to true off block-editor screens.
-	 */
 	return (bool) apply_filters( 'openstation_chromeless_trim_command_palette', $trim );
 }
 
-/**
- * Whether the current admin screen renders the block editor.
- *
- * `WP_Screen::is_block_editor()` covers `post.php` / `post-new.php`.
- * The site editor and the block-based widgets screen load the same
- * runtime without setting that flag, so they are named explicitly.
- *
- * **`customize.php` is deliberately not in this list.** It was, on the
- * assumption that the block-widgets panel made it an editor screen.
- * Measured, it is not one worth exempting: the Customizer keeps its own
- * Gutenberg chain either way — that chain has real consumers there, and
- * they hold it — so the trim removes only the palette and the palette
- * extensions, and the exemption bought nothing. Verified on a live
- * install that `wp-block-editor`, `wp-blocks`, `wp-components` and every
- * plugin block script survive the trim on that screen.
- *
- * @return bool
- */
 function openstation_chromeless_screen_uses_block_editor() {
 	global $pagenow;
 
@@ -717,19 +248,6 @@ function openstation_chromeless_screen_uses_block_editor() {
 	return ( $screen instanceof WP_Screen && $screen->is_block_editor() );
 }
 
-/**
- * Keeps Core's boot-time palette enqueue off window pages.
- *
- * Removing the callback rather than dequeuing its handles afterwards
- * also skips the work it does *before* enqueuing anything: a walk of
- * `$menu` and `$submenu` running `current_user_can()` and
- * `menu_page_url()` per entry, serialized into a 19.6 KB inline
- * `wp.coreCommands.initializeCommandPalette( … )` blob — per window.
- *
- * Priority 0, ahead of Core's default 10. The shell's own deferral
- * lives in {@see openstation_defer_core_command_palette()}; this is
- * the window half of the same idea.
- */
 function openstation_chromeless_defer_command_palette() {
 	if ( ! openstation_chromeless_should_trim_command_palette() ) {
 		return;
@@ -738,25 +256,6 @@ function openstation_chromeless_defer_command_palette() {
 }
 add_action( 'admin_enqueue_scripts', 'openstation_chromeless_defer_command_palette', 0 );
 
-/**
- * Drops the command-palette family inside windows.
- *
- * Unhooking Core's enqueue above is necessary but nowhere near
- * sufficient, and a live measurement showed exactly why: with Core's
- * palette deferred, a Settings window still pulled 14.28 MB of the
- * original 14.49 MB, because Astra's `command-palette.js` and
- * WooCommerce's `command-palette.js` / `command-palette-analytics.js`
- * each declare `wp-commands` as a dependency and were still queued.
- * `WP_Dependencies::all_deps()` then pulls the entire chain back in on
- * their behalf. Dropping the roots alone saves nothing while a single
- * dependent survives — which is the same lesson the admin-bar trim
- * above records, and the reason both are family trims.
- *
- * Runs at `PHP_INT_MAX` so it sees the queue after every plugin has
- * had its say. Dequeue, never deregister: a handle that stays
- * registered can still be resolved as a dependency by something that
- * genuinely needs it.
- */
 function openstation_chromeless_trim_command_palette() {
 	if ( ! openstation_chromeless_should_trim_command_palette() ) {
 		return;
@@ -777,26 +276,10 @@ function openstation_chromeless_trim_command_palette() {
 		}
 	}
 
-	/**
-	 * Fires after OpenStation drops the command-palette family in a window.
-	 */
 	do_action( 'openstation_chromeless_trimmed_command_palette' );
 }
 add_action( 'admin_enqueue_scripts', 'openstation_chromeless_trim_command_palette', PHP_INT_MAX );
 
-/**
- * Second pass: strip the palette family from the actual print list.
- *
- * Same two survivors as the named trim below — late enqueues and
- * dependency pull-back — but the family has to be recomputed here
- * rather than reused, because a handle enqueued after
- * `admin_enqueue_scripts` was never in the queue the dequeue pass
- * scanned. The walk runs against the to-print list, which is the last
- * word before output.
- *
- * @param string[] $handles Script handles about to print.
- * @return string[]
- */
 function openstation_chromeless_filter_palette_print_list( $handles ) {
 	if ( ! is_array( $handles ) || ! openstation_chromeless_should_trim_command_palette() ) {
 		return $handles;
@@ -811,29 +294,17 @@ function openstation_chromeless_filter_palette_print_list( $handles ) {
 }
 add_filter( 'print_scripts_array', 'openstation_chromeless_filter_palette_print_list' );
 
-/**
- * Second pass: strip the palette style roots from the print list.
- *
- * @param string[] $handles Style handles about to print.
- * @return string[]
- */
 function openstation_chromeless_filter_palette_style_print_list( $handles ) {
 	if ( ! is_array( $handles ) || ! openstation_chromeless_should_trim_command_palette() ) {
 		return $handles;
 	}
-	// A contributor that owns this screen keeps the runtime, and its
-	// stylesheet with it — otherwise the palette it is allowed to show
-	// would render unstyled.
+
 	$scripts = wp_scripts();
 	if ( $scripts
 		&& empty( openstation_chromeless_command_palette_drops( $scripts, $scripts->queue ) ) ) {
 		return $handles;
 	}
 
-	// Styles have their own dependency graph, and a surviving sheet may
-	// sit on top of a palette one — `wp-commands`' stylesheet is a
-	// dependency of others on editor screens. Drop only what nothing
-	// still printing depends on.
 	return array_values(
 		array_diff(
 			$handles,
@@ -847,32 +318,6 @@ function openstation_chromeless_filter_palette_style_print_list( $handles ) {
 }
 add_filter( 'print_styles_array', 'openstation_chromeless_filter_palette_style_print_list' );
 
-/**
- * Second pass: strip trimmed handles from the actual print list.
- *
- * The dequeue above cannot be the whole story, and a live install
- * showed exactly why. Two things survive it:
- *
- *   1. **Late enqueues.** A host mu-plugin that queues its masterbar
- *      assets after `admin_enqueue_scripts` has already run is simply
- *      not in the queue yet when we dequeue. WordPress.com's
- *      `wpcom-notes-*` handles behave this way.
- *   2. **Dependency pull-back.** `WP_Dependencies::all_deps()` pulls a
- *      dequeued-but-registered handle back in when something still
- *      queued declares it as a dependency. Core's `admin-bar`
- *      stylesheet rode back in on the notes stylesheet exactly so.
- *
- * `print_scripts_array` / `print_styles_array` run inside `do_items()`
- * after every enqueue, dequeue and dependency walk has finished, so
- * they are the last word. Scope stays the same list — a handle nobody
- * asked us to trim is never touched — and because the list covers the
- * whole family, removing one member never strands another member that
- * depended on it.
- *
- * @param string[] $handles Handles WordPress is about to print.
- * @param string   $kind    'scripts' or 'styles'.
- * @return string[] Filtered handles.
- */
 function openstation_chromeless_filter_print_list( $handles, $kind ) {
 	if ( ! is_array( $handles ) || ! openstation_is_chromeless_request() ) {
 		return $handles;
@@ -897,31 +342,6 @@ add_filter(
 	}
 );
 
-/**
- * Hoists the shell's palette contributors into the deferred manifest.
- *
- * The shell already defers Core's own palette runtime and replays it on
- * the first ⌘K. Plugin contributors defeated that completely: they are
- * enqueued normally, they declare `wp-commands`, and
- * `WP_Dependencies::all_deps()` therefore pulled the palette chain back
- * into the boot document on their behalf — the deferral was in place
- * and paying for nothing.
- *
- * Worse, it did not even work. A contributor that ran at boot
- * registered its commands against a `core/commands` store that does not
- * exist yet, and lost them. Hoisting fixes the bug and the cost
- * together: the contributor now executes as part of the replay, *after*
- * the store exists, so a plugin's commands reach the palette **once, on
- * the shell**, and cost no window anything.
- *
- * Runs at `PHP_INT_MAX` so every plugin has enqueued. Appends to
- * `openStationConfig.commandPalette.scripts` through a `before` inline
- * on our own bundle, which prints after the localized config object and
- * before the bundle that reads it. `src/commands/palette-assets.ts`
- * de-duplicates by handle, so a dependency the Core manifest already
- * lists is never executed twice — and re-running `wp-data` would wipe
- * every store registered against the first copy.
- */
 function openstation_shell_hoist_command_palette_contributors() {
 	if ( ! openstation_is_shell_request() ) {
 		return;
@@ -931,16 +351,6 @@ function openstation_shell_hoist_command_palette_contributors() {
 		return;
 	}
 
-	// No Core palette on this WordPress, no manifest to hoist into.
-	//
-	// `openstation_build_command_palette_assets_payload()` returns null
-	// when `wp_enqueue_command_palette_assets()` does not exist, so
-	// `openStationConfig.commandPalette` is null and the replay has
-	// nowhere to put anything. Hoisting anyway would dequeue the
-	// contributors from the boot page and then drop them on the floor —
-	// their commands would not merely be late, they would be gone, which
-	// is strictly worse than the eager loading this replaces. Leave them
-	// printing normally instead.
 	if ( ! function_exists( 'wp_enqueue_command_palette_assets' ) ) {
 		return;
 	}
@@ -950,20 +360,11 @@ function openstation_shell_hoist_command_palette_contributors() {
 		return;
 	}
 
-	// Resolve each contributor's ordered chain on a clone, so the
-	// request's real `$to_do` / `$done` state is untouched.
 	$probe        = clone $scripts;
 	$probe->to_do = array();
 	$probe->done  = array();
 	$probe->all_deps( $contributors );
 
-	// `all_deps()` bails out wholesale if any single dependency is
-	// unregistered — and every contributor depends on `wp-commands`,
-	// which a pre-6.9 site simply does not have. Falling back to the
-	// contributors themselves keeps the hoist working there: their Core
-	// dependencies are already carried by the Core manifest this list is
-	// appended to, so the contributor script is the only part that has
-	// to come from here.
 	$chain = $probe->to_do;
 	foreach ( $contributors as $handle ) {
 		if ( ! in_array( $handle, $chain, true ) ) {
@@ -990,9 +391,6 @@ function openstation_shell_hoist_command_palette_contributors() {
 		);
 	}
 
-	// Unwind: none of it prints at boot any more. Dequeue, never
-	// deregister — anything that genuinely depends on one of these
-	// still resolves it.
 	foreach ( $contributors as $handle ) {
 		wp_dequeue_script( $handle );
 	}
@@ -1010,12 +408,6 @@ function openstation_shell_hoist_command_palette_contributors() {
 		'before'
 	);
 
-	/**
-	 * Fires after the shell hoists palette contributors into the
-	 * deferred manifest.
-	 *
-	 * @param string[] $contributors Handles moved off the boot document.
-	 */
 	do_action( 'openstation_command_palette_contributors_hoisted', $contributors );
 }
 add_action( 'admin_enqueue_scripts', 'openstation_shell_hoist_command_palette_contributors', PHP_INT_MAX );

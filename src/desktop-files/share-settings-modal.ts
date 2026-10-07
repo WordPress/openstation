@@ -1,12 +1,3 @@
-/**
- * OpenStation — Folder share-settings modal.
- *
- * Imperative `openShareSettingsModal( folderId )` — mounts a
- * `<os-modal>` on `document.body` configured to manage the
- * folder's share list. Owner-only; the caller is expected to
- * have gated on ownership before calling.
- */
-
 import { showToast } from '../toast';
 import { toastRestFailure } from '../core/rest-failure';
 import {
@@ -28,19 +19,12 @@ import {
 import { setFolderPlacements } from './store';
 import { setSharesForFolder, sharesStore, upsertShare, removeShare } from './shares-store';
 
-// Side-effect-import every component the modal renders so it
-// upgrades the moment the modal is mounted — no waiting on the
-// shell-overlays lazy bundle, no race-y "missing import" warning.
 import '../ui/components/os-modal/os-modal';
 import '../ui/components/os-user-search/os-user-search';
 import '../ui/components/os-role-picker/os-role-picker';
 import '../ui/components/os-segmented/os-segmented';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-toast/os-toast';
-// No `os-confirm-dialog` import: the modal renders no confirm
-// prompt, and the class belongs to the lazy shell-overlays bundle.
-// Pulling it in here registered the tag at boot, which used to make
-// the overlays loader think its bundle was already in the tab.
 
 interface OpenOptions {
 	folderId: number;
@@ -48,18 +32,6 @@ interface OpenOptions {
 	ownerName?: string;
 }
 
-/**
- * Build a Read / Read+Write segmented control wired to a callback.
- * Encapsulates the two-segment layout the share modal uses
- * everywhere it needs to pick a capability.
- *
- * The component's default theme assumes a LIGHT surface (selected
- * segment = pure white, unselected text = light gray). The share
- * modal is dark, so we override the inherited theme variables on
- * the host: pill background is a translucent white slab, the
- * selected segment becomes the accent color, unselected text is
- * a high-contrast rgba(255,255,255,…) muted.
- */
 function buildCapSegmented(
 	initial: 'read' | 'write',
 	onChange: ( next: 'read' | 'write' ) => void,
@@ -68,8 +40,6 @@ function buildCapSegmented(
 	segmented.setAttribute( 'value', initial );
 	segmented.setAttribute( 'label', 'Capability' );
 
-	// Dark-theme CSS-variable overrides. These cascade through the
-	// component's shadow boundary because custom properties inherit.
 	segmented.style.setProperty( '--os-ui-segmented-bg', 'rgba(255,255,255,0.06)' );
 	segmented.style.setProperty(
 		'--os-window-bg',
@@ -95,12 +65,6 @@ function buildCapSegmented(
 	return segmented;
 }
 
-/**
- * Build a small "×" icon button styled for the dark modal. Uses
- * `<os-button>` so it inherits the rest of the design system,
- * but with explicit CSS-variable overrides for legibility on
- * the dark surface.
- */
 function buildIconButton(
 	label: string,
 	onClick: () => void,
@@ -116,8 +80,7 @@ function buildIconButton(
 		: '1px solid rgba(255,255,255,0.18)';
 	btn.style.setProperty( '--os-ui-button-fg', fg );
 	btn.style.setProperty( '--os-ui-button-border', border );
-	// Match the segmented control's vertical metrics (~34px total
-	// height) so the × button doesn't visually float above the row.
+
 	btn.style.setProperty( '--os-ui-button-padding', '6px 12px' );
 	btn.style.setProperty( '--os-ui-button-border-radius', '7px' );
 	btn.style.setProperty( '--os-ui-button-min-height', '34px' );
@@ -146,7 +109,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 	const renderBody = (): void => {
 		modal.innerHTML = '';
 
-		// Owner caption.
 		const owner = document.createElement( 'div' );
 		owner.style.cssText = 'opacity:0.7;margin-bottom:14px;font-size:12px;';
 		owner.textContent = opts.ownerName
@@ -154,7 +116,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 			: 'Owner cannot be changed';
 		modal.appendChild( owner );
 
-		// Add people row.
 		const addPeople = document.createElement( 'div' );
 		addPeople.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:14px;';
 		const addPeopleLabel = document.createElement( 'div' );
@@ -182,7 +143,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 		addPeople.appendChild( userSearch );
 		modal.appendChild( addPeople );
 
-		// Add roles row.
 		const addRoles = document.createElement( 'div' );
 		addRoles.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:14px;';
 		const addRolesLabel = document.createElement( 'div' );
@@ -200,7 +160,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 		rolePicker.setAttribute( 'selected', [ ...grantedRoles, ...pickedRoles ].join( ',' ) );
 		rolePicker.addEventListener( 'os-role-toggle', ( e ) => {
 			const detail = ( e as CustomEvent< { slug: string; selected: boolean } > ).detail;
-			// If the role is already a granted share, treat toggle as a revoke.
+
 			const existing = shares.find(
 				( s ) => s.principalType === 'role' && s.principalRef === detail.slug,
 			);
@@ -231,8 +191,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 		addRoles.appendChild( rolePicker );
 		modal.appendChild( addRoles );
 
-		// Pending picks (not yet sent to server) — show as chips with
-		// per-row capability toggle + a "Send invites" action below.
 		if ( pendingPicks.length > 0 ) {
 			const pendingBlock = document.createElement( 'div' );
 			pendingBlock.style.cssText =
@@ -277,20 +235,12 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 				}
 				sendBtn.setAttribute( 'busy', '' );
 				sendBtn.setAttribute( 'disabled', '' );
-				// Snapshot the picks BEFORE any mutation. Each pick
-				// already carries its `cap` so we don't reach into the
-				// DOM at send time (the old code did, which broke when
-				// the modal re-rendered mid-send).
+
 				const snapshot = pendingPicks.slice();
 				let succeeded = 0;
 				let firstError: Error | null = null;
 				for ( const pick of snapshot ) {
 					try {
-						// We don't trust the inline response for store
-						// updates — `refresh()` below pulls the canonical
-						// list. This makes us resilient to a server that
-						// happens to ship a parseable-but-truncated body
-						// (PHP notice, gzip glitch, etc.).
 						await inviteShare( opts.folderId, {
 							principalType: pick.kind,
 							principalRef: pick.ref,
@@ -308,7 +258,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 				try {
 					await refresh();
 				} catch ( _e ) {
-					// `refresh()` swallows its own errors via toast.
+
 				}
 				if ( firstError ) {
 					toastRestFailure( showToast, firstError, { lead: `Could not send invites`, fallback: `Could not send invites.` } );
@@ -328,7 +278,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 			modal.appendChild( pendingBlock );
 		}
 
-		// Existing access rows.
 		const listTitle = document.createElement( 'div' );
 		listTitle.textContent = 'Who has access';
 		listTitle.style.cssText = 'font-weight:600;margin:8px 0 6px;';
@@ -381,10 +330,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 			}
 		}
 
-		// Footer. The wrapper itself is the flex container that
-		// spaces its buttons — relying on the modal's shadow-DOM
-		// slot styles doesn't reliably propagate `gap` to the
-		// slotted children across browsers.
 		const footer = document.createElement( 'div' );
 		footer.setAttribute( 'slot', 'footer' );
 		footer.style.display = 'flex';
@@ -437,13 +382,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 	await refresh();
 }
 
-/**
- * Owner-facing modal for a single uploaded file
- * (`target_type='file'` shares). Deliberately simpler than the
- * folder modal: user principals only, and NO capability control —
- * file shares are read + download by design (DESKMOD-45's
- * owner-locked model; the write tier does not exist here).
- */
 export async function openFileShareModal( opts: {
 	fileId: number;
 	fileName: string;
@@ -576,11 +514,6 @@ export async function openFileShareModal( opts: {
 	await refresh();
 }
 
-/**
- * Recipient-facing modal for a FILE share invite. Same
- * Accept / Deny / Decide-later flow as the folder variant, minus
- * the capability line (file shares are always read + download).
- */
 export function openPendingFileInviteModal( invite: {
 	id: number;
 	fileId: number;
@@ -644,13 +577,12 @@ export function openPendingFileInviteModal( invite: {
 			acceptBtn.setAttribute( 'disabled', '' );
 			try {
 				await acceptFileShare( invite.fileId, invite.id );
-				// Pull the canonical root list so the new tile paints
-				// without waiting for the next heartbeat tick.
+
 				try {
 					const res = await listPlacements( 0 );
 					setFolderPlacements( 0, res.placements );
 				} catch ( _e ) {
-					// Non-fatal.
+
 				}
 				modal.remove();
 				resolve( 'accepted' );
@@ -675,11 +607,6 @@ export function openPendingFileInviteModal( invite: {
 	} );
 }
 
-/**
- * Recipient-facing modal: shows an invite and offers
- * Accept / Deny / Decide later. Returns when the user makes
- * a decision (or dismisses without deciding).
- */
 export function openPendingInviteModal( invite: {
 	id: number;
 	folderId: number;
@@ -704,9 +631,7 @@ export function openPendingInviteModal( invite: {
 
 		const footer = document.createElement( 'div' );
 		footer.setAttribute( 'slot', 'footer' );
-		// Light-DOM flex on the footer wrapper — the most reliable
-		// way to space the slotted buttons. Shadow-DOM slot styles
-		// don't always propagate `gap` to children across browsers.
+
 		footer.style.display = 'flex';
 		footer.style.justifyContent = 'flex-end';
 		footer.style.gap = '10px';
@@ -747,16 +672,12 @@ export function openPendingInviteModal( invite: {
 			acceptBtn.setAttribute( 'disabled', '' );
 			try {
 				await acceptShare( invite.folderId, invite.id );
-				// The server just created our placement of the
-				// shared folder at parent_id=0. Pull the canonical
-				// root placement list so the new tile appears on
-				// the desktop without waiting for the next
-				// heartbeat tick (which can take up to ~60s).
+
 				try {
 					const res = await listPlacements( 0 );
 					setFolderPlacements( 0, res.placements );
 				} catch ( _e ) {
-					// Non-fatal — heartbeat will eventually sync.
+
 				}
 				modal.remove();
 				resolve( 'accepted' );

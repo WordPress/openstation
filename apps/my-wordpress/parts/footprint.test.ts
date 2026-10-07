@@ -1,9 +1,3 @@
-/**
- * The activity footprint — WP Explorer's full-body surface, ported
- * 1:1 into the app: one round-trip, the section order, the class
- * names its stylesheet and plugin CSS target, and the status-bar
- * strings.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../../src/app-runtime/testing';
 import app, { type AppData, type AppState } from '../my-wordpress.os';
@@ -140,7 +134,6 @@ describe( 'the activity footprint', () => {
 		const fetchMock = stubFetch( PAYLOAD );
 		const { root, ctx } = mount();
 
-		// Loading first — the spinner in the full-body host.
 		expect( root.querySelector( '.os-my-wordpress__footprint' ) ).not.toBeNull();
 		expect( root.querySelector( '.os-mywp__tiles' ) ).toBeNull();
 
@@ -148,44 +141,41 @@ describe( 'the activity footprint', () => {
 		app.render( ctx );
 
 		expect( fetchMock ).toHaveBeenCalledTimes( 1 );
-		// The path only: `ctx.fetch` owns REST-root resolution and the
-		// nonce, and the session tests pin that.
+
 		expect( String( fetchMock.mock.calls[ 0 ][ 0 ] ) ).toBe(
 			'desktop-mode/v1/user-footprint/12',
 		);
 
 		const text = root.textContent ?? '';
-		// Hero.
+
 		expect( text ).toContain( 'Sofia Ramirez' );
 		expect( text ).toContain( 'Author archive' );
 		expect( text ).toContain( 'Member since' );
-		// Stat strip.
+
 		expect( text ).toContain( 'Total content' );
 		expect( text ).toContain( '104 posts · 2 pages' );
 		expect( text ).toContain( 'Longest streak' );
 		expect( text ).toContain( '9 days' );
-		// Calendar + legend.
+
 		expect( text ).toContain( 'A year of activity' );
 		expect(
 			root.querySelectorAll( '.os-my-wordpress__footprint-cell--l4' ).length,
 		).toBeGreaterThan( 0 );
 		expect( text ).toContain( 'Less' );
-		// The "Mon" label sits on the Mondays' row (2026-08-31 is one).
+
 		const row = ( el: Element | null ) => el?.getAttribute( 'style' )?.match( /grid-row:(\d+)/ )?.[ 1 ];
 		expect( row( root.querySelector( '.os-my-wordpress__footprint-weekday' ) ) ).toBe(
 			row( root.querySelector( '[data-date="2026-08-31"]' ) ),
 		);
-		// Rhythm, callout, timeline, footer.
+
 		expect( text ).toContain( 'Publishing rhythm' );
 		expect( text ).toContain( 'Most prolific month' );
 		expect( text ).toContain( 'Commented on “A post”' );
 		expect( text ).toContain( 'Show profile' );
 
-		// A repaint reuses the cache — no second round trip.
 		app.render( ctx );
 		expect( fetchMock ).toHaveBeenCalledTimes( 1 );
 
-		// The status bar speaks the original's two lines.
 		const status = footprintStatus( ctx as never );
 		expect( status?.[ 0 ] ).toBe( '106 posts · 7 comments tracked' );
 		expect( status?.[ 1 ] ).toContain( 'Window' );
@@ -208,7 +198,7 @@ describe( 'the activity footprint', () => {
 		const { root } = mount();
 		const crumbs = root.querySelector( '.os-mywp__crumbs' );
 		expect( crumbs?.textContent ).toContain( 'Sofia Ramirez' );
-		// The section crumb is a LINK back out of the footprint.
+
 		const links = Array.from( crumbs?.querySelectorAll( 'button' ) ?? [] ).map(
 			( b ) => b.textContent,
 		);

@@ -1,8 +1,3 @@
-/**
- * `<os-rating-summary>` — smoke tests. Cover bucket-count rendering,
- * total auto-sum, rating → stars conversion, and the per-row ratio
- * variable wired up for the animated fill.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-rating-summary';
 import type { OsRatingSummary } from './os-rating-summary';

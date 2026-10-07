@@ -1,32 +1,8 @@
-/**
- * OpenStation — the one context menu.
- *
- * Four surfaces had grown their own near-identical `<os-context-menu>`
- * builder (file tiles, My WordPress entities, users, media). They
- * drifted: one sorted its items and three didn't, two forgot the
- * outside-click dismisser, and only one deferred construction behind
- * the shell-overlays loader. This is that builder, once.
- *
- * Construction is deferred through `openWithShellOverlays` so the
- * `<os-context-menu>` / `<os-context-menu-option>` classes stay in
- * the lazy overlay bundle rather than in `desktop.min.js`. The
- * generation counter makes a second right-click before the bundle
- * lands cancel the first — otherwise two menus race to the DOM.
- */
-
 import { doAction } from '../hooks';
 import { attachDismissable } from '../desktop-files/dismissable';
 import { openWithShellOverlays } from '../shell-overlays/loader';
 import { clampToViewport } from '../ui/util/menu-position';
-/**
- * What the menu needs from an action — the structural subset of
- * `SelectionAction` that has nothing to do with which item type the
- * action came from. Typing the parameter this way lets a caller pass
- * `SelectionAction< Post >[]` or `SelectionAction< User >[]` without
- * a cast through `unknown`; the menu neither knows nor cares.
- *
- * @public
- */
+
 export interface ActionMenuEntry {
 	id: string;
 	label: string;
@@ -44,21 +20,17 @@ let activeOnClosed: ( () => void ) | null = null;
 let openGeneration = 0;
 
 export interface ActionMenuOptions {
-	/** Actions to render. Already resolved — this does no filtering. */
+
 	actions: ActionMenuEntry[];
-	/** Extra `data-*` pairs for the menu element (diagnostics, tests). */
+
 	dataset?: Record< string, string >;
-	/** Extra class on the menu element. */
+
 	className?: string;
-	/** Action slug fired as `os.<scope>.menu.opened` / `.closed`. */
+
 	scope?: string;
-	/**
-	 * Fired once the menu is in the DOM, with the rendered ids.
-	 * Surfaces with their own long-standing `doAction` contract pass
-	 * one of these to keep firing it verbatim.
-	 */
+
 	onOpened?: ( ids: string[] ) => void;
-	/** Fired when the menu closes, however it closed. */
+
 	onClosed?: () => void;
 }
 
@@ -80,11 +52,6 @@ export function closeActionMenu(): void {
 	doAction( `os.${ scope }.menu.closed`, {} );
 }
 
-/**
- * Open a context menu at viewport coordinates.
- *
- * @public
- */
 export function openActionMenu(
 	pos: { x: number; y: number },
 	opts: ActionMenuOptions,
@@ -129,10 +96,7 @@ function openImmediate(
 	for ( const action of actions ) {
 		byId.set( action.id, action );
 		const opt = document.createElement( 'os-context-menu-option' );
-		// `os-context-menu-option` reports `detail.id` from
-		// `dataset.menuItemId`; the `value` attribute alone lands under
-		// `detail.value`, which nothing here reads. Setting only
-		// `value` is the silent "the menu item does nothing" bug.
+
 		opt.dataset.menuItemId = action.id;
 		opt.setAttribute( 'value', action.id );
 		if ( action.danger ) {
@@ -157,7 +121,6 @@ function openImmediate(
 		closeActionMenu();
 		void Promise.resolve( action.onClick( new MouseEvent( 'click' ) ) ).catch(
 			( err: unknown ) => {
-				// eslint-disable-next-line no-console
 				console.error(
 					`[openstation] menu action '${ action.id }' threw:`,
 					err,

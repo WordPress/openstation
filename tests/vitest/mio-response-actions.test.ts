@@ -44,7 +44,7 @@ test( 'confirmed receipt binds Preview to its original form; clicks do not call 
 	const transcript = JSON.parse( transport.mock.calls.at( -1 )![ 0 ]?.transcript ?? '{}' );
 	expect( JSON.stringify( transcript ) ).not.toContain( message.actionIds![ 0 ] );
 	expect( transcript.messages.every( ( m: MioChatMessage ) => ! m.id && ! m.actionIds ) ).toBe( true );
-	expect( received.operations ).toEqual( [] ); // Second turn only.
+	expect( received.operations ).toEqual( [] );
 } );
 
 test.each( [ 'validation', 'unknown' ] )( '%s failure does not offer a success action', async kind => {
@@ -104,7 +104,7 @@ test( 'closing cancels pending work; reopening retains callbacks; disposal remov
 	const chat = mountMioChat( document.body, 'Editor', session, vi.fn() );
 	const pending = run( session ); chat.destroy(); expect( signal.aborted ).toBe( true );
 	const reopened = mountMioChat( document.body, 'Editor', session, vi.fn() );
-	await run( session ); expect( execute ).toHaveBeenCalledOnce(); // Still in flight, even if the app ignores abort.
+	await run( session ); expect( execute ).toHaveBeenCalledOnce();
 	settle(); await pending;
 	expect( document.querySelector( '[data-mio-action]' ) ).not.toBeNull();
 	reopened.destroy(); session.dispose();
@@ -155,7 +155,7 @@ test( 'action labels and errors are text; state changes preserve button nodes an
 	expect( document.querySelector( '.os-mio-chat__action-status' )?.textContent ).toBe( '<script>bad</script>' );
 	expect( document.querySelector( '.os-mio-chat__actions' )?.getAttribute( 'aria-label' ) ).toBe( 'Suggested actions' );
 	expect( button.textContent ).toContain( 'Preview saved form' );
-	// Another reply must not replace this row, either.
+
 	const input = document.querySelector( 'os-textarea' )!;
 	input.dispatchEvent( new CustomEvent( 'os-input-change', { detail: { value: 'Explain more' } } ) ); input.dispatchEvent( new CustomEvent( 'os-submit' ) ); await flush();
 	expect( document.querySelector( '[data-mio-action]' ) ).toBe( button ); chat.destroy();

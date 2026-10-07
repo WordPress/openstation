@@ -1,7 +1,3 @@
-/**
- * The Preferences app's frame: the sidebar, its bands, the search, the
- * deep link, the reset, and the registry tabs.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from '../../tests/vitest/helpers/hooks-stub';
 import { installOsSettingsStub, type OsSettingsStub } from '../../tests/vitest/helpers/os-settings-stub';
@@ -93,8 +89,7 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( select.getAttribute( 'os-bind' ) ).toBe( 'tab' );
 		expect( select.getAttribute( 'value' ) ).toBe( 'appearance' );
 		expect( Array.from( select.querySelectorAll( 'os-option' ) ).map( ( o ) => o.getAttribute( 'value' ) ) ).toEqual( tabIds() );
-		// A sibling of the strip and the panes: the stylesheet lays the
-		// column out from siblings, and swaps strip for picker by width.
+
 		expect( select.parentElement ).toBe( root.querySelector( '#os-settings-nav' )!.parentElement );
 		( ctx.state as { tab: string } ).tab = 'features';
 		ctx.repaint();
@@ -134,8 +129,7 @@ describe( 'OpenStation Preferences — the frame', () => {
 		const starts = Array.from( root.querySelectorAll( '#os-settings-nav > os-tab[data-group-start="true"]' ) ).map(
 			( tab ) => tab.getAttribute( 'value' ),
 		);
-		// Desktop (appearance, themes, windows) · running on it
-		// (navigation, features) · the system (help, about).
+
 		expect( starts ).toEqual( [ 'navigation', 'help' ] );
 	} );
 
@@ -182,8 +176,7 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( next.tab ).toBe( 'features' );
 		const same = app.runLocal( 'tab', { tab: 'themes' }, { value: '' }, ctx.data );
 		expect( same.tab ).toBe( 'themes' );
-		// A page that no longer exists selects the default rather than
-		// deselecting every row.
+
 		( ctx.state as { tab: string } ).tab = 'gone';
 		ctx.repaint();
 		expect( root.querySelector( '#os-settings-nav' )?.getAttribute( 'value' ) ).toBe( 'appearance' );
@@ -309,24 +302,19 @@ describe( 'OpenStation Preferences — Appearance › Desktop layout', () => {
 	test( 'the whole card picks the layout, its control does not, and the radio does not pick twice', () => {
 		paint();
 		const split = cards()[ 1 ];
-		// The band of card between the description and the control,
-		// where a click used to land on nothing.
+
 		split.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 1 );
 		expect( stub.updateOsSettings ).toHaveBeenLastCalledWith( { desktopLayout: 'classic' }, expect.anything() );
-		// The padded row around the control is as blank as that band.
+
 		split.querySelector< HTMLElement >( '.os-settings__dock-options' )!.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 2 );
 
-		// The control is the one part of the card that is not the
-		// layout: picking Sidebar behavior must not also pick Split.
 		for ( const sel of [ '.os-settings__dock-option', '.os-settings__dock-option-label', '.os-settings__dock-option os-segmented' ] ) {
 			split.querySelector< HTMLElement >( sel )!.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		}
 		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 2 );
 
-		// The radio itself — pointer, or Enter and Space — is one
-		// pick, through the card, not one of its own on top.
 		const radio = cards()[ 0 ].querySelector< HTMLElement >( '.os-settings__layout-choice' )!;
 		radio.click();
 		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 3 );

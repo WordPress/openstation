@@ -1,14 +1,3 @@
-/**
- * Component base-class — attribute/property reflection.
- *
- * Locks in the HTML-convention reflection rule: assigning `false` /
- * `null` / `undefined` to a `static props` accessor REMOVES the
- * attribute, assigning `true` adds it with an empty value. Without
- * this, `el.disabled = false` used to emit `disabled="false"` and
- * the element stayed visually disabled because `[disabled]` and
- * `hasAttribute('disabled')` both still matched.
- */
-
 import { describe, expect, it } from 'vitest';
 import { Component, defineComponent } from './component';
 import { html } from './html';

@@ -1,15 +1,3 @@
-/**
- * OpenStation Preferences → Appearance → Desktop layout → Dock
- * behavior / Sidebar behavior, at the apply pass and on the way in.
- *
- * Each pick reaches CSS as a `data-os-dock-behavior` attribute on
- * its own rail — the dock (`#os-dock`) from `dockBehavior`, the Split
- * sidebar (`#os-side-dock`) from `sideDockBehavior` — because the two
- * answer independently. PHP stamps the dock for the first paint;
- * these tests cover the half that makes a change take effect without
- * a reload, plus the parse that keeps an unknown value from ever
- * reaching a rail.
- */
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { OsSettings } from '../../src/settings';

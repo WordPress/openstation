@@ -1,56 +1,21 @@
-/**
- * OpenStation — shared breadcrumb header.
- *
- * Both the folder window and the My WordPress folder window grow a
- * navigation stack as the user drills in. The chrome is identical:
- * a small icon-only Back button on the left, then `›`-separated
- * clickable crumb segments, the deepest of which is bold + non-
- * clickable.
- *
- * This module owns the DOM construction so both surfaces render
- * pixel-identical breadcrumbs and share a single set of CSS rules
- * (`.os-breadcrumbs__*`). The caller manages the route
- * stack — this is purely a render helper.
- *
- * @public
- */
-
 import { __ } from '../i18n';
 
 export interface BreadcrumbSegment {
-	/** Visible label for the segment. */
+
 	label: string;
-	/**
-	 * Click handler. Omit (or pass undefined) for the current
-	 * segment — the renderer treats segments without `onClick` as
-	 * the "you are here" tail and styles them bold + non-
-	 * interactive.
-	 */
+
 	onClick?: () => void;
 }
 
 export interface BreadcrumbsOptions {
-	/**
-	 * Fired when the user clicks the Back button. Omit to hide
-	 * the Back button entirely (some surfaces only want crumbs).
-	 */
+
 	onBack?: () => void;
-	/**
-	 * When `true`, the Back button is rendered but disabled.
-	 * Surfaces that always show the Back button regardless of
-	 * stack depth use this to dim it at the root.
-	 */
+
 	backDisabled?: boolean;
 }
 
 const ROOT_CLASS = 'os-breadcrumbs';
 
-/**
- * Build the breadcrumb header DOM into `host`. Replaces children,
- * so calling this on every route change is the canonical pattern.
- *
- * @public
- */
 export function renderBreadcrumbs(
 	host: HTMLElement,
 	segments: BreadcrumbSegment[],
@@ -94,12 +59,7 @@ export function renderBreadcrumbs(
 			sep.textContent = '›';
 			nav.appendChild( sep );
 		}
-		// Convention: the segment WITHOUT an `onClick` is the
-		// current/tail segment. Surfaces that want a clickable
-		// tail (e.g., to refresh the same view) can supply
-		// `onClick` and we'll render it as a button. Skipping
-		// `onClick` makes it bold + non-interactive — matches
-		// every breadcrumb library on the planet.
+
 		if ( ! seg.onClick ) {
 			const here = document.createElement( 'span' );
 			here.className = `${ ROOT_CLASS }__crumb ${ ROOT_CLASS }__crumb--current`;

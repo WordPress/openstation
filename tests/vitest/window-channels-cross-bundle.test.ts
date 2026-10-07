@@ -1,24 +1,3 @@
-/**
- * The window channel bus across a bundle seam.
- *
- * `window-channels.ts` is compiled into the shell bundle AND into
- * `window-system.js` — `createWindowElement` (which marks a window
- * loading) rides in the latter, while the synthetic-iframe readiness
- * signal `native-windows.ts` emits for an `iframeContent` window rides
- * in the former. Module-level `Set`s therefore gave the two sides
- * separate bookkeeping: the copy that registered the loading mark and
- * the copy the ready signal deleted from were different objects, so
- * `WINDOW_CONTENT_LOADED` never fired and the window sat under its
- * loading overlay forever.
- *
- * Vitest imports both sides into ONE module graph, so the seam has to
- * be built deliberately: `vi.resetModules()` between two dynamic
- * imports yields two module instances, which is exactly what two Vite
- * IIFE bundles produce in the browser.
- *
- * See AGENTS.md, "Cross-bundle state — wp.os.createSharedStore".
- */
-
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { HOOKS } from '../../src/hooks';
 import {
@@ -31,7 +10,6 @@ import { loadTwoBundleCopies } from './helpers/bundle-seam';
 
 type Channels = typeof import( '../../src/window-channels' );
 
-/** The window-system copy and the shell copy, in that order. */
 const loadCopies = (): Promise< [ Channels, Channels ] > =>
 	loadTwoBundleCopies< Channels >(
 		() => import( '../../src/window-channels?bundle-a' ) as Promise< Channels >,
@@ -63,11 +41,9 @@ describe( 'window-channels across a bundle seam', () => {
 			},
 		);
 
-		// `createWindowElement` — window-system bundle.
 		windowSystem.markWindowContentLoading( 'probe' );
 		expect( windowSystem.isWindowContentLoading( 'probe' ) ).toBe( true );
 
-		// The readiness signal — shell bundle.
 		shell.markWindowContentReady( 'probe' );
 
 		expect( loaded ).toEqual( [ 'probe' ] );
@@ -91,8 +67,6 @@ describe( 'window-channels across a bundle seam', () => {
 		shell.markWindowContentReady( 'probe' );
 		windowSystem.markWindowContentReady( 'probe' );
 
-		// Edge-triggered: exactly one loaded fire per loading episode,
-		// no matter which bundle delivers the signal.
 		expect( loaded ).toEqual( [ 'probe' ] );
 	} );
 
@@ -116,13 +90,11 @@ describe( 'window-channels across a bundle seam', () => {
 		const [ windowSystem, shell ] = await loadCopies();
 
 		const seen: unknown[] = [];
-		// `Window.on()` — window-system bundle.
+
 		windowSystem.addParentSubscriber( 'probe', 'ping', ( payload ) => {
 			seen.push( payload );
 		} );
 
-		// The connection bridge / an `iframeContent` message relay —
-		// shell bundle.
 		shell.dispatchFromWindow( 'probe', 'ping', { n: 1 } );
 
 		expect( seen ).toEqual( [ { n: 1 } ] );
@@ -148,12 +120,8 @@ describe( 'window-channels across a bundle seam', () => {
 		shell.markWindowContentReady( 'probe' );
 		expect( shell.isWindowContentReady( 'probe' ) ).toBe( true );
 
-		// `Window.close()` — window-system bundle.
 		windowSystem.clearWindowChannels( 'probe' );
 
-		// A reopen of the same id starts from a clean slate on BOTH
-		// sides; a stale `_readyWindows` entry would make the reopened
-		// window skip its queued-send flush.
 		expect( shell.isWindowContentReady( 'probe' ) ).toBe( false );
 		expect( windowSystem.isWindowContentReady( 'probe' ) ).toBe( false );
 	} );

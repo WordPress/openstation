@@ -1,16 +1,3 @@
-/**
- * OpenStation — phone layer: open what a navigation item stands for.
- *
- * The home grid and the tab bar paint `NavItem`s, and a tap has to
- * land on the SAME window a dock click would — same id, same tab
- * strip, same native remap. This is the dock's `openPage()` and the
- * icon grid's `openTarget()` folded into one function that takes a
- * `NavItem`, which can carry any of the three sources (`menu`,
- * `tile`, `entry`) at once.
- *
- * Ships in the main bundle: it reaches into the native URL remap
- * table and the external-URL guard, both of which live there.
- */
 import { findMenuEntryForUrl } from '../desktop-files/menu-entry';
 import { tryOpenExternalUrl } from '../external-url';
 import { tryNativeUrlRemap } from '../native-url-remap';
@@ -21,22 +8,14 @@ import type { WindowManager } from '../window-manager';
 export interface NavItemOpenerDeps {
 	manager: WindowManager;
 	adminUrl: string;
-	/** Opens a registered native window by id; `false` when unknown. */
+
 	openNative: ( id: string ) => boolean;
 }
 
-/**
- * Build the opener. Returns `true` when something opened (or was
- * focused), `false` when the item has nothing to open — a tile
- * whose only opener was removed, a malformed URL.
- */
 export function createNavItemOpener( deps: NavItemOpenerDeps ): ( item: NavItem ) => boolean {
 	const { manager, adminUrl, openNative } = deps;
 
 	return ( item: NavItem ): boolean => {
-		// A native window: focus it if it is already open (it may have
-		// arrived by a route the registry cannot reopen), else ask the
-		// registry.
 		if ( item.windowId ) {
 			const existing = manager.getById( item.windowId );
 			if ( existing ) {
@@ -51,7 +30,6 @@ export function createNavItemOpener( deps: NavItemOpenerDeps ): ( item: NavItem 
 			}
 		}
 
-		// A system tile owns its opener.
 		if ( item.tile ) {
 			item.tile.onOpen();
 			return true;

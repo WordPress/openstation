@@ -1,27 +1,12 @@
 <?php
-/**
- * Tests for the deactivation feedback route.
- *
- * Guards the gate (not the usual `openstation_rest_require_enabled()`:
- * the person deactivating usually has OpenStation off), the anonymity
- * promise in `readme.txt` (exactly the documented keys, nothing that
- * identifies the site or the user), and the host opt-out.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-feedback
- */
+
 class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
 
-	/** What the last stubbed forward received, decoded. */
 	private $forwarded = null;
 
-	/** How many forwards the stub saw. */
 	private $forward_calls = 0;
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
@@ -49,7 +34,6 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/** Capture the forward instead of hitting the network. */
 	public function stub_forward( $preempt, $args, $url ) {
 		if ( false === strpos( $url, '/deactivation' ) ) {
 			return $preempt;
@@ -120,28 +104,23 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 			),
 			array_keys( $payload )
 		);
-		// Deduplicated, in the dialog's order.
+
 		$this->assertSame( array( 'too_buggy', 'other' ), $payload['reasons'] );
 		$this->assertSame( 1000, strlen( $payload['details'] ) );
 		$this->assertSame( 'app', $payload['context'] );
 		$this->assertSame( OPENSTATION_VERSION, $payload['plugin_version'] );
 		$this->assertMatchesRegularExpression( '/^\d+\.\d+$/', $payload['php_version'] );
-		// No first-run stamps on this site: unknown, never a guess.
+
 		$this->assertNull( $payload['install_age_days'] );
 		$this->assertNull( $payload['first_enable_delay_days'] );
 		$this->assertIsInt( $payload['active_plugins'] );
 
-		// Anonymous: nothing about the site or the person.
 		$encoded = wp_json_encode( $payload );
 		$this->assertStringNotContainsString( home_url(), $encoded );
 		$this->assertStringNotContainsString( wp_get_current_user()->user_email, $encoded );
 		$this->assertStringNotContainsString( wp_get_current_user()->user_login, $encoded );
 	}
 
-	/**
-	 * A real (`activation`) pair of first-run stamps gives the two day
-	 * counts; a backfilled one is an unknown age, not a number.
-	 */
 	public function test_first_run_stamps_give_the_day_counts() {
 		wp_set_current_user( self::$admin_id );
 		$now = time();
@@ -182,10 +161,6 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 		delete_option( OPENSTATION_FIRST_ENABLED_AT_OPTION );
 	}
 
-	/**
-	 * Network activation leaves a plugin in a site's own list, so the
-	 * count must not add it twice.
-	 */
 	public function test_active_plugin_count_does_not_double_count_on_a_network() {
 		if ( ! is_multisite() ) {
 			$this->markTestSkipped( 'Multisite only.' );

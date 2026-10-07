@@ -1,17 +1,3 @@
-/**
- * Content Graph — toolbar.
- *
- * Top strip of the window. Three pieces:
- *
- *   1. **Filter chips** — one per public post type. Click to toggle;
- *      the host re-fetches `/nodes` with the active set.
- *   2. **Search** — fuzzy match on node titles. Selecting a result
- *      tells the host to focus that node.
- *   3. **Action buttons** — fit-to-view + reheat the simulation.
- *
- * @public
- */
-
 import { __ } from '../i18n';
 import type { GraphNode, GroupFacet, PostTypeDescriptor } from './types';
 
@@ -23,21 +9,11 @@ export interface ToolbarCallbacks {
 	getNodes: () => GraphNode[];
 }
 
-// Sentinel for the "no clustering" option. `<os-select>` works
-// best with non-empty values; the toolbar maps it to `null` before
-// handing it to the orchestrator.
 const GROUP_NONE = 'none';
 
 export interface ToolbarHandle {
 	setStatus: ( text: string ) => void;
-	/**
-	 * Refresh the count badge on each chip from a newer descriptor
-	 * list, in place. The window config's descriptors carry no counts;
-	 * `/post-types` answers with them a moment after the window is
-	 * already interactive, and rebuilding the toolbar at that point
-	 * would reset every chip, the search box and Group by under the
-	 * user's pointer. Slugs the toolbar does not know are ignored.
-	 */
+
 	updateCounts: ( types: PostTypeDescriptor[] ) => void;
 	destroy: () => void;
 }
@@ -57,10 +33,6 @@ export function renderToolbar(
 	chipsRow.setAttribute( 'aria-label', __( 'Show post types' ) );
 	host.appendChild( chipsRow );
 
-	// Each chip is a toggle button, and `aria-pressed` is its state for
-	// assistive tech and for the stylesheet alike: one attribute, so
-	// what a screen reader announces and what the chip shows cannot
-	// drift apart.
 	for ( const type of postTypes ) {
 		const chip = document.createElement( 'button' );
 		chip.type = 'button';
@@ -103,7 +75,6 @@ export function renderToolbar(
 
 	host.appendChild( searchWrap );
 
-	// The field keeps its value on the host, reflected two-way.
 	const searchValue = (): string =>
 		( searchInput as HTMLElement & { value?: string } ).value ?? '';
 
@@ -138,30 +109,15 @@ export function renderToolbar(
 		}
 		dropdown.hidden = matches.length === 0;
 	};
-	// `focusin` / `focusout` rather than `focus` / `blur`: the input
-	// lives in the field's shadow root, and only the bubbling pair
-	// reaches the host.
+
 	searchInput.addEventListener( 'os-input-change', handleSearchInput );
 	searchInput.addEventListener( 'focusin', handleSearchInput );
 	searchInput.addEventListener( 'focusout', () => {
-		// Delay so click on a result still registers.
 		setTimeout( () => {
 			dropdown.hidden = true;
 		}, 120 );
 	} );
 
-	// Group-by select lives next to the filter chips so it reads as a
-	// peer control ("filter, then group"). It's a direct child of the
-	// toolbar — NOT inside `actions` — because actions has `margin-left:
-	// auto` and would shove the select to the right edge, away from
-	// the chips it groups.
-	//
-	// Deliberately no `label` attribute: `<os-select>` renders its
-	// label stacked above the dropdown, which makes the control
-	// taller than the chips and breaks horizontal alignment on the
-	// toolbar row. Instead, the first option's text ("No grouping")
-	// telegraphs the purpose, with `aria-label` + `title` carrying
-	// the "Group by" semantics for screen readers and hover.
 	const groupBy = document.createElement( 'os-select' );
 	groupBy.className = 'os-content-graph__group-by';
 	groupBy.setAttribute( 'value', GROUP_NONE );
@@ -187,8 +143,7 @@ export function renderToolbar(
 			raw === GROUP_NONE ? null : ( raw as GroupFacet );
 		callbacks.onGroupChange( facet );
 	} );
-	// Sit between chips and search so it lines up with the filter
-	// chips on the same row.
+
 	host.insertBefore( groupBy, searchWrap );
 
 	const actions = document.createElement( 'div' );
@@ -203,8 +158,6 @@ export function renderToolbar(
 	fit.addEventListener( 'click', () => callbacks.onFitToView() );
 	actions.appendChild( fit );
 
-	// A live region, so the count a filter change produces is announced
-	// rather than only drawn. It changes once per load, not per frame.
 	const status = document.createElement( 'span' );
 	status.className = 'os-content-graph__toolbar-status';
 	status.setAttribute( 'role', 'status' );

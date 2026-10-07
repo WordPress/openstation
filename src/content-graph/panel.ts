@@ -1,27 +1,3 @@
-/**
- * Content Graph — right-side detail panel.
- *
- * Two layers of state:
- *
- *   - **`currentPost`** — the post that's focused on the canvas. Set
- *     once when the user clicks a node; survives sub-view navigation.
- *   - **`currentView`** — what's actually rendered. Defaults to
- *     `{ kind: 'post' }`; flips to a contextual view when the user
- *     clicks a satellite, and back via the breadcrumb's "back to
- *     post" affordance.
- *
- * Rich contextual views — for users / terms / comments the panel
- * fetches the same `desktop-mode/v1/{user,term,comment}-stats`
- * endpoints My WordPress's dossier panes use. While the fetch is in
- * flight, a summary view (built from data already in `PostDetail`)
- * renders immediately so there's no flash of emptiness; the rich
- * dossier replaces it on resolution. On fetch failure the summary
- * stays. Media + revisions don't have dossier endpoints; they show
- * the summary plus an "Open in WordPress" button.
- *
- * @public
- */
-
 import { __, _n, sprintf } from '../i18n';
 import { openExplorerDetail } from '../open-targets/explorer-open';
 import { decodeHTML } from '../utils';
@@ -86,14 +62,7 @@ type PanelView =
 
 export interface PanelCallbacks {
 	onClose: () => void;
-	/**
-	 * Called whenever the visible view kind changes — `null` for the
-	 * post view, otherwise a key like `user:42` matching the
-	 * `keyForRef` shape in `satellites.ts`. The host wires this to the
-	 * scene so the satellite layer can mark the corresponding bubble
-	 * as selected (or clear the selection when we navigate back to the
-	 * post view).
-	 */
+
 	onViewChange?: ( key: string | null ) => void;
 }
 
@@ -116,11 +85,7 @@ export function renderPanel(
 	callbacks: PanelCallbacks,
 ): PanelHandle {
 	host.replaceChildren();
-	// Convert the PHP-rendered `hidden` attribute to the class-based
-	// closed state so we can transition open/close. The CSS pins the
-	// initial `[hidden]` paint to no transition, so the page-load
-	// state stays flicker-free; subsequent toggles via the class
-	// pick up the slide.
+
 	host.hidden = false;
 	host.classList.add( 'os-content-graph__panel--closed' );
 
@@ -176,11 +141,6 @@ export function renderPanel(
 	frame.appendChild( body );
 	host.appendChild( frame );
 
-	// Pages live inside `body`. Each `renderCurrent()` produces a
-	// fresh page DIV; `swapPage` slides it in over the previous one
-	// (iOS-style — forward = new from right, back = new from left).
-	// All `renderXxxView` calls append to `currentPage`, which is
-	// reassigned BEFORE the switch so they target the new page.
 	let currentPage: HTMLDivElement = createPage();
 	body.append( currentPage );
 	let prevViewKind: PanelView[ 'kind' ] | null = null;
@@ -209,9 +169,7 @@ export function renderPanel(
 		const exit =
 			direction === 'forward' ? 'page-to-left' : 'page-to-right';
 		next.classList.add( `os-content-graph__${ enter }` );
-		// Force a layout pass so the browser registers the off-screen
-		// position before we strip the modifier and let the transition
-		// run. Without this the new page just appears on screen.
+
 		void next.offsetWidth;
 		const mySeq = ++pageSeq;
 		requestAnimationFrame( () => {
@@ -235,9 +193,7 @@ export function renderPanel(
 			prev.remove();
 		};
 		prev.addEventListener( 'transitionend', cleanup );
-		// Belt-and-braces: if the transition never fires (display:none
-		// race during a panel close, missing CSS), drop the old page
-		// after the worst-case duration so it doesn't pile up.
+
 		setTimeout( cleanup, 360 );
 	};
 
@@ -267,16 +223,7 @@ export function renderPanel(
 		href: string,
 		labelText: string,
 		icon: string,
-		// Per-entity disambiguator for URLs whose entity param the
-		// framework's `deriveWindowId()` strips (not in
-		// IDENTITY_PARAMS) — without it every such url collapses to a
-		// single window id and clicking "Open" on a second entity just
-		// focuses the first one's window. Still needed for `user_id`
-		// and `revision`; do NOT pass it for params `deriveWindowId`
-		// already treats as identity (`post`, `c`, `tag_ID`, `item`) —
-		// a suffix there forks the id away from every other open path
-		// (dock, links, the Related menu) and produces DUPLICATE
-		// windows for the same entity. See issue #150.
+
 		windowKey?: string,
 	): void => {
 		const api = desktopApi();
@@ -286,13 +233,7 @@ export function renderPanel(
 			}
 			return;
 		}
-		// If the currently-focused window is in fullscreen, exit
-		// fullscreen first so the freshly opened window is actually
-		// visible. The framework pins fullscreen windows to
-		// `z-index: 99999 !important`, which overrides the normal
-		// inline z-index the new window receives — without this, the
-		// new window opens "underneath" the fullscreen one and the
-		// user only sees the click do nothing.
+
 		const focused = api.windowManager.getFocused?.();
 		if ( focused?.isFullscreen?.() ) {
 			focused.toggleFullscreen?.();
@@ -344,12 +285,6 @@ export function renderPanel(
 		setPanelOpen( true );
 		renderBreadcrumb();
 
-		// Build a fresh page. Capture the OUTGOING page first, then
-		// flip `currentPage` so the renderXxx functions (which read
-		// `currentPage` via closure) append into the new one. The
-		// captured `prev` is what swapPage animates out — without
-		// this snapshot, swapPage saw `currentPage === next` and
-		// short-circuited, which is why the iOS slide never played.
 		const next = createPage();
 		const prev = currentPage;
 		currentPage = next;
@@ -374,9 +309,6 @@ export function renderPanel(
 				break;
 		}
 
-		// Direction policy: post → sub-view = forward (slide left,
-		// new in from right); sub → post = back (slide right, new in
-		// from left); sub → sub treated as forward.
 		let direction: 'forward' | 'back' | 'none' = 'none';
 		if ( prevViewKind !== null && prevViewKind !== currentView.kind ) {
 			if ( currentView.kind === 'post' ) {
@@ -389,8 +321,6 @@ export function renderPanel(
 		callbacks.onViewChange?.( keyForView( currentView ) );
 		prevViewKind = currentView.kind;
 	};
-
-	// --- POST view -----------------------------------------------------
 
 	const renderPostView = ( detail: PostDetail | null ): void => {
 		if ( ! detail ) {
@@ -509,7 +439,7 @@ export function renderPanel(
 		{
 			const myWp = button( {
 				label: sprintf(
-					// translators: %s is the site title.
+
 					__( 'Open in %s' ),
 					getConfig().siteName?.trim() || __( 'WordPress' ),
 				),
@@ -560,8 +490,6 @@ export function renderPanel(
 		return wrap;
 	};
 
-	// --- USER view -----------------------------------------------------
-
 	const renderUserView = ( view: Extract< PanelView, { kind: 'user' } > ): void => {
 		const { user, role, stats, loading } = view;
 
@@ -569,7 +497,6 @@ export function renderPanel(
 		meta.textContent =
 			role === 'author' ? __( 'Author' ) : __( 'Contributor' );
 
-		// Header (always shown — works from minimal data)
 		const head2 = document.createElement( 'div' );
 		head2.className = 'os-content-graph__panel-detail-head';
 		const avatar = stats?.profile.avatarUrl || user.avatar;
@@ -589,7 +516,6 @@ export function renderPanel(
 		head2.appendChild( handleEl );
 		currentPage.appendChild( head2 );
 
-		// Roles (if available)
 		if ( stats?.profile.roleLabels?.length ) {
 			currentPage.appendChild(
 				renderBadges(
@@ -599,7 +525,6 @@ export function renderPanel(
 			);
 		}
 
-		// Bio + website
 		if ( stats?.profile.description ) {
 			currentPage.appendChild(
 				renderProse( __( 'About' ), stats.profile.description ),
@@ -615,7 +540,6 @@ export function renderPanel(
 			);
 		}
 
-		// Counts grid
 		if ( stats ) {
 			const cs = stats.counts;
 			currentPage.appendChild(
@@ -635,14 +559,12 @@ export function renderPanel(
 			);
 		}
 
-		// Top categories / tags
 		if ( stats?.topTerms?.length ) {
 			currentPage.appendChild(
 				renderTopTerms( __( 'Top topics' ), stats.topTerms ),
 			);
 		}
 
-		// Milestones
 		if ( stats ) {
 			currentPage.appendChild(
 				renderMilestones( [
@@ -662,7 +584,6 @@ export function renderPanel(
 			currentPage.appendChild( renderLoadingRow() );
 		}
 
-		// Action
 		currentPage.appendChild(
 			renderActionRow( {
 				label: __( 'Open in WordPress' ),
@@ -675,8 +596,6 @@ export function renderPanel(
 		);
 	};
 
-	// --- TERM view -----------------------------------------------------
-
 	const renderTermView = ( view: Extract< PanelView, { kind: 'term' } > ): void => {
 		const { term, stats, loading } = view;
 
@@ -685,7 +604,6 @@ export function renderPanel(
 			stats?.profile.taxonomyLabel ?? term.tax_label
 		} · ${ stats?.profile.taxonomy ?? term.taxonomy }`;
 
-		// Parent breadcrumb (term hierarchy, not panel breadcrumb)
 		if ( stats?.profile.parentName ) {
 			currentPage.appendChild(
 				renderInlineMeta( [
@@ -697,14 +615,12 @@ export function renderPanel(
 			);
 		}
 
-		// Description
 		if ( stats?.profile.description ) {
 			currentPage.appendChild(
 				renderProse( __( 'Description' ), stats.profile.description ),
 			);
 		}
 
-		// Counts
 		if ( stats ) {
 			currentPage.appendChild(
 				renderStatsGrid( [
@@ -727,14 +643,12 @@ export function renderPanel(
 			);
 		}
 
-		// Top authors
 		if ( stats?.topAuthors?.length ) {
 			currentPage.appendChild(
 				renderTopAuthors( __( 'Top authors' ), stats.topAuthors ),
 			);
 		}
 
-		// Co-terms
 		if ( stats?.coTerms?.length ) {
 			currentPage.appendChild(
 				renderTopTerms(
@@ -747,7 +661,6 @@ export function renderPanel(
 			);
 		}
 
-		// Milestones
 		if ( stats ) {
 			currentPage.appendChild(
 				renderMilestones( [
@@ -778,8 +691,6 @@ export function renderPanel(
 		);
 	};
 
-	// --- COMMENT view --------------------------------------------------
-
 	const renderCommentView = ( view: Extract< PanelView, { kind: 'comment' } > ): void => {
 		const { comment, stats, loading } = view;
 		const authorName = stats?.author.name ?? comment.author;
@@ -787,7 +698,6 @@ export function renderPanel(
 		title.textContent = authorName || `#${ comment.id }`;
 		meta.textContent = formatDate( stats?.comment.date ?? comment.date );
 
-		// Author header (avatar + name)
 		const avatar = stats?.author.avatarUrl;
 		if ( avatar ) {
 			const head2 = document.createElement( 'div' );
@@ -812,7 +722,6 @@ export function renderPanel(
 			currentPage.appendChild( head2 );
 		}
 
-		// Status badge
 		const status = stats?.comment.status ?? __( '—' );
 		currentPage.appendChild(
 			renderBadges( __( 'Status' ), [ status ], {
@@ -821,7 +730,6 @@ export function renderPanel(
 			} ),
 		);
 
-		// Content
 		const content = stats?.comment.rendered;
 		if ( content ) {
 			const wrap = document.createElement( 'div' );
@@ -843,7 +751,6 @@ export function renderPanel(
 			);
 		}
 
-		// Parent quote
 		if ( stats?.parent ) {
 			const wrap = document.createElement( 'blockquote' );
 			wrap.className =
@@ -854,7 +761,6 @@ export function renderPanel(
 			currentPage.appendChild( wrap );
 		}
 
-		// Replies
 		if ( stats?.replies?.length ) {
 			currentPage.appendChild( renderReplies( stats.replies ) );
 		}
@@ -873,8 +779,6 @@ export function renderPanel(
 			} ),
 		);
 	};
-
-	// --- MEDIA view ----------------------------------------------------
 
 	const renderMediaView = ( media: MediaRef ): void => {
 		title.textContent = media.title || `#${ media.id }`;
@@ -904,8 +808,6 @@ export function renderPanel(
 			} ),
 		);
 	};
-
-	// --- REVISION view -------------------------------------------------
 
 	const renderRevisionView = ( revision: RevisionRef ): void => {
 		title.textContent = revision.author?.name ?? __( 'Revision' );
@@ -947,8 +849,6 @@ export function renderPanel(
 			} ),
 		);
 	};
-
-	// --- Reusable building blocks --------------------------------------
 
 	const renderProse = ( label: string, text: string ): HTMLElement => {
 		const wrap = document.createElement( 'div' );
@@ -1157,7 +1057,7 @@ export function renderPanel(
 		labelEl.className =
 			'os-content-graph__panel-section-label';
 		labelEl.textContent = sprintf(
-			/* translators: %d: number of comment replies. */
+
 			_n( 'Reply (%d)', 'Replies (%d)', replies.length ),
 			replies.length,
 		);
@@ -1230,8 +1130,6 @@ export function renderPanel(
 			`<span>${ escapeHtml( opts.label ) }</span>`;
 		return btn;
 	};
-
-	// --- Public handle -------------------------------------------------
 
 	return {
 		setLoading: ( id: number, fallbackTitle?: string ) => {
@@ -1313,7 +1211,7 @@ export function renderPanel(
 					}
 					currentView = { ...currentView, loading: false };
 					renderCurrent();
-					// eslint-disable-next-line no-console
+
 					console.warn( '[content-graph] user-stats failed', err );
 				} );
 		},
@@ -1357,7 +1255,7 @@ export function renderPanel(
 					}
 					currentView = { ...currentView, loading: false };
 					renderCurrent();
-					// eslint-disable-next-line no-console
+
 					console.warn( '[content-graph] term-stats failed', err );
 				} );
 		},
@@ -1401,7 +1299,7 @@ export function renderPanel(
 					}
 					currentView = { ...currentView, loading: false };
 					renderCurrent();
-					// eslint-disable-next-line no-console
+
 					console.warn(
 						'[content-graph] comment-stats failed',
 						err,

@@ -1,29 +1,7 @@
 <?php
-/**
- * OpenStation — Heartbeat widget (built-in, lazy-loaded).
- *
- * Dogfoods the public `openstation_register_widget()` API for a
- * built-in widget: the metadata + script handle live here, the
- * JS + CSS ship as their own Vite bundle
- * (`assets/js/widget-heartbeat[.min].js` and matching `.css`).
- * The shell's widgets `server-sync` only loads them when the user
- * adds the widget or the picker is opened — main bundle keeps
- * none of the heart's code.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the JS bundle as a script handle so it can be loaded
- * lazily via `wp_register_script()` / its URL. The CSS file
- * emitted by Vite alongside the JS is registered as its own
- * style handle and eagerly enqueued by
- * openstation_enqueue_heartbeat_widget_styles() below — the
- * widget server-sync only injects the JS, so the stylesheet must
- * ship ahead of time for the chrome to paint with the JS.
- */
 function openstation_register_heartbeat_widget_assets() {
 	$suffix  = openstation_asset_suffix();
 	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
@@ -47,12 +25,6 @@ function openstation_register_heartbeat_widget_assets() {
 }
 add_action( 'init', 'openstation_register_heartbeat_widget_assets', 5 );
 
-/**
- * Register the widget itself. Sizing constraints + chrome metadata
- * (label / description / icon) live here so the framework knows
- * the widget exists at picker-render time, before the JS bundle
- * is even fetched.
- */
 function openstation_register_heartbeat_widget() {
 	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;
@@ -80,53 +52,18 @@ function openstation_register_heartbeat_widget() {
 }
 add_action( 'init', 'openstation_register_heartbeat_widget', 6 );
 
-/**
- * Eagerly enqueue the widget's CSS handle when the current
- * request runs in OpenStation and is not a chromeless iframe
- * load. The JS bundle stays lazy and loads via the widget
- * server-sync the first time the picker opens or the widget
- * mounts.
- *
- * Why eager (on shell pages): the shell injects a `<script>` for
- * the widget at runtime, but there is no matching auto-load for
- * the stylesheet. A pure-JS CSS injection creates a flash of
- * unstyled content while the link's stylesheet is still in
- * flight — long enough for the widget frame's children to render
- * past the card boundary before the stylesheet's flex layout
- * kicks in. 1.9 KB ungzipped is small enough to live in the
- * shell's always-loaded set without measurable cost; the
- * heavier JS (9 KB + PIXI) stays lazy.
- *
- * Why NOT eager in chromeless iframes: they never mount widgets
- * themselves — sending the stylesheet there is dead weight. Note
- * that classic-override pages (`?desktop_mode_classic=1`) are
- * not excluded: they skip the shell but still receive the
- * (1.9 KB) stylesheet. The
- * `openstation_heartbeat_widget_eager_css` filter lets a
- * site owner opt out entirely without forking the plugin.
- */
 function openstation_enqueue_heartbeat_widget_styles() {
 	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
 	}
-	// Chromeless requests render content inside an iframe owned
-	// by a shell elsewhere — they never mount widgets themselves.
+
 	if (
 		function_exists( 'openstation_is_chromeless_request' )
 		&& openstation_is_chromeless_request()
 	) {
 		return;
 	}
-	/**
-	 * Whether to enqueue the heartbeat widget's stylesheet on
-	 * this request. Defaults to `true` for shell requests in
-	 * OpenStation. Sites that never plan to ship the heartbeat
-	 * widget can return `false` and save the ~0.66 KB gzipped
-	 * stylesheet roundtrip.
-	 *
-	 * @param bool $eager Default `true` once the chromeless +
-	 *                    openstation gates above have passed.
-	 */
+
 	$eager = (bool) apply_filters( 'openstation_heartbeat_widget_eager_css', true );
 	if ( ! $eager ) {
 		return;

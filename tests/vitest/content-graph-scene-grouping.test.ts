@@ -1,13 +1,3 @@
-/**
- * Content Graph — group-key derivation + cluster label contract.
- *
- * Pins the `cat:type_<slug>` / `tag:type_<slug>` isolation behavior
- * for post types that don't support a taxonomy (and for descriptors
- * missing `taxonomies` entirely — the pre-normalization legacy
- * shape), without dragging Pixi into the test: the scene constructor
- * is renderer-free, all the heavy work lives in `mount()`.
- */
-
 import { describe, expect, test } from 'vitest';
 import { GraphScene } from '../../src/content-graph/scene';
 import type {
@@ -36,13 +26,10 @@ const POST_TYPES: PostTypeDescriptor[] = [
 		label: 'Legacy',
 		icon: 'dashicons-book',
 		count: 1,
-		// No `taxonomies` — a descriptor from a filter written to the
-		// pre-taxonomies contract that bypassed server normalization.
+
 	},
 ];
 
-// The methods under test are private; reach in through a structural
-// cast so the contract stays testable without widening the public API.
 interface GroupingInternals {
 	deriveGroupKeys: ( n: GraphNode, facet: GroupFacet ) => string[];
 	labelForGroupKey: ( key: string ) => string;

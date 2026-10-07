@@ -1,21 +1,3 @@
-/**
- * `iframeContent` native windows must key their bridge plumbing on
- * the LIVE window id, not the id the plugin registered.
- *
- * `createRegisterWindow` builds the synthesised iframe render before
- * calling `manager.open()`, and `open()` reassigns the id whenever an
- * instance of the same baseId already exists (`chat` → `chat-2` when
- * the first instance sits on another virtual desktop). Baking the
- * registered id into the render callback meant the second instance
- * registered its synthetic iframe, marked content ready, routed
- * bridge messages, and dispatched window channels all under the FIRST
- * instance's id:
- *
- *   - `connect( 'chat-2' )` found no iframe and dropped every message;
- *   - the second window's loading overlay never cleared;
- *   - `Window.on( channel )` on the second window never fired;
- *   - closing either instance tore down the other's bridge entry.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { createRegisterWindow } from '../../src/native-windows';
 import { getSyntheticIframe } from '../../src/connection';
@@ -74,13 +56,6 @@ describe( 'iframeContent native windows — window id plumbing', () => {
 		iframeContent: { url: '/wp-admin/admin.php?page=chat' },
 	} );
 
-	/**
-	 * Open a second instance of the same registered window. A second
-	 * virtual desktop makes the first instance invisible to
-	 * `getByBaseIdOnActiveDesktop`, so `open()` allocates the next
-	 * instance id instead of focusing the far-off sibling — the exact
-	 * production path that surfaced this bug.
-	 */
 	const openOnSecondDesktop = async () => {
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
@@ -108,8 +83,6 @@ describe( 'iframeContent native windows — window id plumbing', () => {
 		expect( secondIframe ).not.toBeNull();
 		expect( secondIframe ).not.toBe( firstIframe );
 
-		// Each instance owns its own bridge entry — the second must
-		// not have clobbered the first.
 		expect( getSyntheticIframe( 'chat-2' ) ).toBe( secondIframe );
 		expect( getSyntheticIframe( 'chat' ) ).toBe( firstIframe );
 	} );
@@ -137,16 +110,13 @@ describe( 'iframeContent native windows — window id plumbing', () => {
 			},
 		} );
 		const iframe = win.element.querySelector( 'iframe' )!;
-		// jsdom gives every iframe a real `contentWindow`; the render's
-		// listener source-checks against it, so posting through it is
-		// the only way to reach the handler.
+
 		const post = ( payload: unknown ) => {
 			const ev = new MessageEvent( 'message', {
 				data: payload,
 				origin: window.location.origin,
 			} );
-			// `source` is getter-only on jsdom's MessageEvent — redefine
-			// rather than assign so the render's source-check passes.
+
 			Object.defineProperty( ev, 'source', {
 				value: iframe.contentWindow,
 				configurable: true,
@@ -160,9 +130,6 @@ describe( 'iframeContent native windows — window id plumbing', () => {
 		win.destroy();
 		post( { type: 'ping', n: 2 } );
 
-		// Without the close-time teardown the listener stayed on
-		// `window` for the rest of the session and kept firing the
-		// plugin's `onMessage` after its window was gone.
 		expect( received ).toHaveLength( 1 );
 	} );
 

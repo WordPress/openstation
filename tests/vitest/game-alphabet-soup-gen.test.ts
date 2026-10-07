@@ -1,7 +1,3 @@
-/**
- * Unit tests for Alphabet Soup's seeded grid generation +
- * selection geometry (`src/games/alphabet-soup/soup-gen.ts`).
- */
 import { describe, expect, test } from 'vitest';
 import { parseDictionary } from '../../src/games/dictionary';
 import {
@@ -15,7 +11,6 @@ import {
 	hash32,
 } from '../../src/plugins/living-tree-wallpaper/rng';
 
-// Length-ascending, like the real asset.
 const FIXTURE = [
 	'note',
 	'page',
@@ -82,7 +77,7 @@ describe( 'alphabet-soup/soup-gen.ts', () => {
 	} );
 
 	test( 'words never share a cell', () => {
-		// Several seeds, so a lucky layout can't mask a crossing.
+
 		for ( const seed of [ 'a', 'b', 'c', 'd', 'e' ] ) {
 			const grid = makeGrid( seed );
 			const used = new Set< string >();
@@ -126,7 +121,7 @@ describe( 'alphabet-soup/soup-gen.ts', () => {
 	} );
 
 	test( 'lineCells snaps a crooked drag to the nearest spoke', () => {
-		// 3 right, 1 down is closer to horizontal than diagonal.
+
 		const cells = lineCells( { row: 0, col: 0 }, { row: 1, col: 3 }, 8 );
 		expect( cells ).toEqual( [
 			{ row: 0, col: 0 },
@@ -155,8 +150,7 @@ describe( 'alphabet-soup/soup-gen.ts', () => {
 	test( 'selectionMatches rejects non-words and single cells', () => {
 		const grid = makeGrid();
 		expect( selectionMatches( grid, [ { row: 0, col: 0 } ] ) ).toBe( -1 );
-		// A straight run that is (almost surely) not a placed word:
-		// build one differing from every placed path.
+
 		const bogus = [
 			{ row: 0, col: 0 },
 			{ row: 0, col: 1 },

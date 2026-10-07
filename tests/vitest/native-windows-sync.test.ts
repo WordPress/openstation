@@ -1,20 +1,3 @@
-/**
- * Live-refresh tests for `createNativeWindowSync` — the closure that
- * reconciles the unified dock's system-tile section against the
- * server's `nativeWindows` payload.
- *
- * The bug class this file guards against: a plugin that registers a
- * `openstation_register_window( … )` should appear on the dock the
- * moment it's activated from the chromeless plugins.php iframe, and
- * disappear the moment it's deactivated — both without a page reload.
- * The `applyPayload` path forwards `nativeWindows` to this sync; if
- * the sync's add/remove contract slips, the dock visibly stops
- * tracking the install.
- *
- * Tests deliberately stand up a real `Dock` (not a mock) so we exercise
- * the actual `appendSystemItem` / `removeSystemItem` / `hasItems`
- * surface the live-refresh path leans on.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock } from '../../src/dock';
 import { createNativeWindowSync } from '../../src/native-windows';
@@ -63,11 +46,6 @@ function setupHarness(): Harness {
 	return { dockEl, desktopArea, dock, manager, managerOpen };
 }
 
-/**
- * Build the deps `createNativeWindowSync` expects from a harness —
- * the system-tile callbacks delegate to the harness's `Dock` instance
- * directly so the tests still assert against real DOM tiles.
- */
 function depsFromHarness( h: Harness ) {
 	return {
 		manager: h.manager,
@@ -111,9 +89,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 	beforeEach( () => {
 		installHooksStub();
 		__resetNativeWindowGeometryForTests();
-		// `loadVendorScript` is exercised when an entry has a non-empty
-		// scriptUrl. We stub it so tests don't try to inject real
-		// `<script>` tags. Most tests use scriptUrl='' and bypass it.
+
 		vi.spyOn( vendorLoader, 'loadVendorScript' ).mockResolvedValue( undefined );
 	} );
 	afterEach( () => {
@@ -214,15 +190,9 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 		expect( tilesIn( h.dockEl ) ).toEqual( [] );
 	} );
 
-	// `styleUrl` lazy injection — closes the gap where a peer plugin
-	// activated mid-session would render its window WITHOUT its CSS
-	// because the parent shell already finished `wp_print_styles`.
 	describe( 'styleUrl lazy injection', () => {
 		beforeEach( () => {
-			// Strip prior <link>/<style> nodes the parent describe's
-			// harness/jsdom may have left in <head>; the lazy-loader's
-			// "is this already there?" guard is global to <head>, so a
-			// stale node would short-circuit injection.
+
 			document.head
 				.querySelectorAll( 'link[rel="stylesheet"], style[data-os-style-handle]' )
 				.forEach( ( n ) => n.remove() );
@@ -387,12 +357,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 		} );
 
 		test( 'openById does not pin x / y, so createWindow can apply the saved position', async () => {
-			// Regression: native open path used to hard-code
-			// `x: 0, y: 0`, which short-circuited the saved-position
-			// replay in `WindowManager.createWindow`. After dragging
-			// a native window like Posts to the bottom-right, closing
-			// it, and reopening from the dock, it would land back at
-			// (0, 0) instead of the user's last position.
+
 			const h = setupHarness();
 			const { sync, openById } = createNativeWindowSync(
 				depsFromHarness( h ),
@@ -411,9 +376,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 		} );
 
 		test( 'a stored size smaller than the current minimum is clamped up', async () => {
-			// A previous version registered a smaller minimum and the
-			// user resized down. After the plugin update raises
-			// minWidth, the next open must respect the new floor.
+
 			saveNativeWindowGeometry( 'calculator', {
 				width: 320,
 				height: 240,
@@ -562,9 +525,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 		} );
 
 		test( 'WINDOW_DRAG_END seeds size + position even when nothing was previously stored', async () => {
-			// Regression: open-drag-close (no manual resize) was
-			// dropping the position because `saveNativeWindowPosition`
-			// requires a prior entry to layer onto.
+
 			const h = setupHarness();
 			const element = document.createElement( 'div' );
 			Object.defineProperty( element, 'offsetLeft', { value: 1200, configurable: true } );

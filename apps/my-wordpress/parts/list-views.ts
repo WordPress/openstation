@@ -1,15 +1,3 @@
-/**
- * My WordPress — the list surfaces.
- *
- * Part of the `my-wordpress` client view: imported by the
- * `my-wordpress.os.ts` entry. This part paints what a section LISTS:
- * the root folder grid, the tile canvas with its ghosts and sentinel,
- * the context menu (running the shared WP Explorer filters), the
- * Edit… quick-edit modal and the media zoom overlay.
- *
- * @public
- */
-
 import { openPreview, trashExplorerItems } from './optimistic';
 import { __, _n, html, sprintf, type TemplateResult } from '@openstation/app';
 import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
@@ -50,10 +38,7 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 				.reduce( ( sum, s ) => sum + s.count, 0 ),
 		} ) );
 	const ui = uiOf( ctx );
-	// Finder semantics, like WP Explorer's root: a single click only
-	// SELECTS the folder tile; double click (or Enter) navigates in.
-	// Under a finger (`opensOnTap`) the tap navigates: there is no
-	// double tap to wait for, and a folder has nothing else to say.
+
 	const folderTile = (
 		key: string,
 		label: string,
@@ -90,11 +75,7 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 			<span class="os-mywp__tile-label">${ label } · ${ count }</span>
 		</button>
 	`;
-	// A section's icon is normally a dashicon, or a plugin brand mark
-	// masked to the text colour. The Agents tile is a PORTRAIT — the
-	// same robot avatar `get_avatar()` serves — and a portrait drawn
-	// through a monochrome mask is a filled circle, so it renders as
-	// the image it is, exactly as WP Explorer's os-tile paints it.
+
 	const sectionIcon = ( s: { kind: string; icon: string } ): TemplateResult =>
 		s.kind === 'agent' && /^(https?:|data:)/.test( s.icon )
 			? html`<img class="os-mywp__icon-img" src=${ s.icon } alt="" width="48" height="48" />`
@@ -130,10 +111,9 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 	const { state } = ctx;
 	const isSelected = state.selected.includes( item.id );
 	const isOpen = state.item === item.id;
-	// One definition of click / double click / right click, shared
-	// with the list view's rows (`parts/rows.ts`).
+
 	const row = rowInteractions( ctx, section, item, order );
-	// The drag kind is a desktop file type: every post type files as a `post`.
+
 	return html`
 		<div
 			class="os-mywp__cell ${ isOpen ? 'is-open' : '' }"
@@ -162,7 +142,7 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 				></os-tile>
 				${ item.lockedBy
 					? html`<span class="os-mywp__lock" title=${ sprintf(
-						/* translators: %s: user display name. */
+
 						__( '%s is editing' ),
 						item.lockedBy,
 					) }>🔒</span>`
@@ -173,9 +153,6 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 }
 
 export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): TemplateResult {
-	// The list view: same rows, same selection, same drag-out and menu
-	// — a table instead of tiles, with the facts an id-minded person
-	// wants in columns. It paints its own empty state and skeletons.
 	if ( ctx.state.view === 'list' ) {
 		return renderTable( ctx, section, items );
 	}
@@ -192,8 +169,7 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 		ui.menu = { x: e.clientX, y: e.clientY, item: null };
 		ctx.repaint();
 	};
-	// The canvas menu on a finger held still on the cork; a press that
-	// began on a tile is the tile's.
+
 	const canvasPress = longPress(
 		( x, y ) => {
 			ui.menu = { x, y, item: null };
@@ -202,9 +178,7 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 		( e ) => ! ( e.target as Element | null )?.closest( '[data-item-id]' ),
 	);
 	const hasMore = ui.list.hasMore();
-	// The page being fetched paints as skeleton tiles — WP Explorer's
-	// loading placeholders. They occupy the incoming page's real
-	// footprint, so the scroll height settles once instead of jumping.
+
 	const ghosts = ui.list.ghosts( ctx.data.list?.perPage ?? 24 );
 	const ghostCells = html`
 		${ Array.from( { length: ghosts }, ( _unused, i ) => html`
@@ -217,10 +191,6 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 		` ) }
 	`;
 
-	// Banded layout — WP Explorer's `os.my-wordpress.list-bands`
-	// filter, verbatim: bands in declared order, rows grouped by the
-	// subscriber's assigner, unassigned rows in an unlabelled band at
-	// the end. Shift-selection extends across the VISUAL order.
 	const banding = resolveBanding( shell().hooks, section );
 	if ( banding ) {
 		const known = new Set( banding.bands.map( ( b ) => b.id ) );
@@ -254,9 +224,7 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 			>
 				${ sorted.map( ( band ) => {
 					const rows = byBand.get( band.id ) ?? [];
-					// Bands with a declared expected count are laid out
-					// before their rows land; ones without appear with
-					// their first row.
+
 					if ( rows.length === 0 && ! ( ( band.count ?? 0 ) > 0 ) ) {
 						return '';
 					}
@@ -316,8 +284,6 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 	};
 	const sortValue = ctx.state.sort || 'default';
 
-	// An action from the menu applies to the whole selection when the
-	// clicked item is part of one, to just the item otherwise.
 	let targets: number[] = [];
 	if ( item ) {
 		targets = ctx.state.selected.includes( item.id ) && ctx.state.selected.length > 1
@@ -334,8 +300,7 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 			shell().hooks,
 		);
 		options = buildMenuOptions( section, item, menuActions );
-		// The SAME filter WP Explorer runs — plugin entries, the
-		// agents' "Send to …" rows included, appear here unchanged.
+
 		const merged = shell().hooks?.applyFilters(
 			'os.my-wordpress.tile-context-menu',
 			options,
@@ -363,24 +328,16 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 		}
 		const picked = options.find( ( o ) => o.id === id );
 		if ( picked?.onSelect ) {
-			// A plugin-injected entry (an agent's "Send to", …) owns
-			// its own behaviour.
 			picked.onSelect();
 			return;
 		}
 		if ( id === 'open' ) {
-			// Posts navigate INTO their detail folder (author,
-			// comments, revisions, …); users, media and flat sections
-			// (whose rows are not posts) open the pane.
 			if ( section.kind === 'post' && ! section.flat ) {
 				void ctx.dispatch( 'into', { item: item.id } );
 			} else {
 				openPreview( ctx, item.id );
 			}
 		} else if ( id === 'edit' ) {
-			// A person's "Edit profile" opens the shared profile
-			// window, exactly as the pane's button does; everything
-			// else goes to its editor through the server.
 			if ( section.kind === 'user' ) {
 				openUserEditWindow( item.id, {
 					source: 'my-wordpress-app/context-menu',
@@ -403,8 +360,6 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 		} else if ( id === 'publish' ) {
 			void ctx.dispatch( 'quick-edit', { items: targets, status: 'publish' } );
 		} else if ( id === 'copy-link' || id === 'copy-shortlink' || id === 'copy-id' ) {
-			// The clipboard verbs work over the selection, one value
-			// per line (ids comma-separated — they paste into a query).
 			const rows = allItems.filter( ( i ) => targets.includes( i.id ) );
 			if ( id === 'copy-id' ) {
 				copyIds( ctx, rows );
@@ -463,7 +418,6 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 	`;
 }
 
-/** The Edit… quick-edit modal: status + comments over the selection. */
 export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): TemplateResult | '' {
 	const ui = uiOf( ctx );
 	const qe = ui.quickEdit;
@@ -492,9 +446,6 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 			payload.categories = qe.categories;
 		}
 		if ( qe.tags.length > 0 ) {
-			// The server takes NAMES and creates what does not exist
-			// yet (`wp_set_post_terms` with append) — so a brand-new
-			// token never needs an id minted client-side.
 			payload.tags = qe.tags.map( ( t ) => t.label ).join( ', ' );
 		}
 		close();
@@ -520,7 +471,7 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 			open
 			size="sm"
 			title=${ sprintf(
-				/* translators: 1: entry count, 2: section label. */
+
 				__( 'Edit %1$d %2$s' ),
 				qe.ids.length,
 				section.label,
@@ -566,8 +517,6 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 								.items=${ ctx.data.categories }
 								.value=${ qe.categories }
 								@os-categories-change=${ ( e: Event ) => {
-									// The picker never mutates its own
-									// value — the consumer is the truth.
 									qe.categories = [
 										...( ( e as CustomEvent< { value: number[] } > )
 											.detail?.value ?? [] ),
@@ -588,9 +537,6 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 								.value=${ qe.tags }
 								.suggestions=${ [] }
 								@os-tag-suggest=${ ( e: Event ) => {
-									// Suggestions come from the tag list the
-									// data payload already holds — filtered
-									// here, no request.
 									const query = (
 										( e as CustomEvent< { query: string } > ).detail
 											?.query ?? ''

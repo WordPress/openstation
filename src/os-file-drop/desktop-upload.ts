@@ -1,22 +1,3 @@
-/**
- * OS-file drop manager — desktop-storage uploader.
- *
- * The second upload sink next to `upload.ts` (Media Library):
- * POSTs one file per request to
- * `desktop-mode/v1/files/uploads` — real bytes into the user's
- * private desktop storage, with the placement created server-side.
- *
- * Fires the exact same `os.drop.*` hook chain as the
- * Media Library path so the progress HUD and third-party
- * subscribers work unchanged, and ingests the returned placement
- * into the shared files store so the tile paints without waiting
- * for a heartbeat tick.
- *
- * XHR (not `wp.os.fetch`) for the same reason as `upload.ts`:
- * upload progress events only exist on XHR. See the eslint note
- * there; the HUD provides the activity-bus visibility.
- */
-
 import { applyFilters, doAction } from '../hooks';
 import { FILE_DROP_HOOKS } from './hooks';
 import { UploadAbortedError, UploadCancelledError } from './upload';
@@ -29,28 +10,21 @@ interface DesktopUploadArgs {
 	mime: string;
 	fields: DropDialogFields;
 	context: DropContext;
-	/** Files REST base (`…/desktop-mode/v1/files`). */
+
 	filesUrl: string;
 	restNonce: string;
-	/** Target folder id (0 = desktop root). */
+
 	parentId: number;
-	/** `a/b/c.ext` tree path — '' for flat uploads. */
+
 	relativePath: string;
-	/**
-	 * Tile coordinates. Omit to let the server pick the next free
-	 * grid slot (used for every file after the first in a batch).
-	 */
+
 	coords?: { x: number; y: number };
 }
 
 export interface DesktopUploadResult {
 	placement: RestPlacementShape;
 	storedFileId: number;
-	/**
-	 * Folders this request created from `relativePath` (outermost
-	 * first), each with its placement in the parent. Empty for flat
-	 * uploads and for path segments that already existed.
-	 */
+
 	createdFolders: RestCreatedFolderShape[];
 }
 
@@ -102,7 +76,7 @@ export async function uploadFileToDesktop(
 			try {
 				xhr.abort();
 			} catch {
-				/* already done */
+
 			}
 		};
 
@@ -166,10 +140,7 @@ export async function uploadFileToDesktop(
 			const createdFolders = Array.isArray( data.createdFolders )
 				? data.createdFolders
 				: [];
-			// Paint the tiles now — no heartbeat wait. Folders first:
-			// a tree drop's file lands INSIDE the folder this same
-			// request created, and only the folder is visible from
-			// the surface the user dropped on.
+
 			ingestCreatedFolders( createdFolders, 'local' );
 			upsertPlacement( data.placement, 'local' );
 			const result: DesktopUploadResult = {
@@ -190,12 +161,6 @@ export async function uploadFileToDesktop(
 	} );
 }
 
-/**
- * Map a failed response to a user-facing message. Web-server 413s
- * (nginx `client_max_body_size`, PHP `post_max_size`) arrive with
- * HTML or empty bodies — never JSON — so status-based mapping runs
- * BEFORE JSON parsing.
- */
 export function extractMessage( xhr: XMLHttpRequest, fileName: string ): string {
 	if ( xhr.status === 413 ) {
 		return `“${ fileName }” is larger than this server accepts.`;
@@ -211,7 +176,7 @@ export function extractMessage( xhr: XMLHttpRequest, fileName: string ): string 
 			return data.message;
 		}
 	} catch {
-		/* Non-JSON (proxy error page) — fall through. */
+
 	}
 	return fallback;
 }

@@ -1,12 +1,3 @@
-/**
- * Snow wallpaper — settings sanitization + backdrop derivation.
- *
- * The backdrop test is load-bearing: the OS Settings swatch is a
- * static PHP-registered gradient string, and the JS side must paint
- * the exact same gradient at default settings — a drift between the
- * two would show one sky in the picker and a different one once
- * selected (the PHPUnit side pins the PHP half).
- */
 import { describe, expect, test } from 'vitest';
 import {
 	backdropCss,
@@ -65,8 +56,7 @@ describe( 'sanitizeSnowSettings', () => {
 
 describe( 'backdropCss', () => {
 	test( 'default background reproduces the canonical gradient exactly', () => {
-		// Must match the `preview` string registered in
-		// includes/wallpapers.php byte for byte.
+
 		expect( backdropCss( SNOW_DEFAULTS.background ) ).toBe(
 			'linear-gradient(180deg, #0c1a36 0%, #1d355e 55%, #425d8a 100%)',
 		);
@@ -77,8 +67,7 @@ describe( 'backdropCss', () => {
 		const stops = css.match( /#[0-9a-f]{6}/g );
 		expect( css ).toMatch( /^linear-gradient\(180deg, #301a0c 0%, / );
 		expect( stops ).toHaveLength( 3 );
-		// Each successive stop is lighter than the base (night sky
-		// lightening toward the horizon).
+
 		const luma = ( hex: string ): number =>
 			parseInt( hex.slice( 1, 3 ), 16 ) +
 			parseInt( hex.slice( 3, 5 ), 16 ) +

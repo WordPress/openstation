@@ -1,4 +1,3 @@
-/** Run with node; PLAYWRIGHT_MODULE may point at an installed Playwright module. */
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import { resolve } from 'node:path';
@@ -65,7 +64,6 @@ try {
 	await page.waitForFunction( () => ! document.querySelector( '#split' ).shadowRoot.querySelector( '.compact' ) );
 	close( Number( await divider.getAttribute( 'aria-valuenow' ) ), restored );
 
-	// Layout reflows during a gesture must not roll it back or poison the next drag.
 	const robust = page.locator( '#robust' );
 	const robustDivider = robust.locator( '[role="separator"]' );
 	await robust.scrollIntoViewIfNeeded();
@@ -101,8 +99,6 @@ try {
 	} ) );
 	assert.deepEqual( visuals, { seam: '1px', grip: '28px', background: 'rgba(0, 0, 0, 0)' } );
 
-	// Reproduce a release that reaches the browser but not the separator:
-	// native lostpointercapture must commit, not undo, the visible resize.
 	await robust.evaluate( ( el ) => {
 		el.setAttribute( 'position', '50' );
 		window.releaseChanges = [];
@@ -140,7 +136,7 @@ try {
 	await page.waitForFunction( () => document.querySelector( '#split' ).shadowRoot.querySelector( '.compact' ) );
 	assert.equal( await page.evaluate( () => document.documentElement.scrollWidth > innerWidth ), false );
 	await page.screenshot( { path: '/tmp/os-layout-mobile.png', fullPage: true } );
-	// Render the actual Comments view and its production CSS with deterministic data.
+
 	await page.setViewportSize( { width: 1200, height: 900 } );
 	await page.goto( `${ server.resolvedUrls.local[ 0 ] }tests/e2e/layout/comments-fixture.html` );
 	await page.waitForFunction( () => window.ready );

@@ -1,12 +1,3 @@
-/**
- * `<os-tag-input>` — shadow-DOM styles.
- *
- * Layout: a wrapping flex row of chips followed by either a "+ Add"
- * trigger button or, when expanded, an inline `<input>` with a
- * floating suggestions popover. The popover is absolutely positioned
- * relative to the editor span so it docks under the input regardless
- * of how the chip row wraps.
- */
 import { css } from '../../core';
 
 export const styles = css`
@@ -33,9 +24,6 @@ export const styles = css`
 		min-width: 0;
 	}
 
-	/* The "+ Add" trigger is intentionally minimal — a single small
-	 * button that doesn't compete with the chips. It expands into
-	 * the inline input when clicked. */
 	.os-tag-input__add {
 		appearance: none;
 		display: inline-flex;
@@ -78,7 +66,6 @@ export const styles = css`
 		display: block;
 	}
 
-	/* Editor — the inline input + the floating suggestions popover. */
 	.os-tag-input__editor {
 		position: relative;
 		display: inline-flex;
@@ -90,7 +77,7 @@ export const styles = css`
 	.os-tag-input__input {
 		appearance: none;
 		font: inherit;
-		/* A compact field; the phone layer raises it to 16px (see os-text-field). */
+
 		font-size: var( --os-ui-field-font-size-compact, 12px );
 		line-height: 1.4;
 		padding: 2px 8px;
@@ -110,9 +97,6 @@ export const styles = css`
 		);
 	}
 
-	/* Popover — pinned to the editor, full width by default. Z-index
-	 * is locked above os-table sticky-header (which sits at z-index
-	 * ~3) but below the global toast layer (z-index ~10000). */
 	.os-tag-input__suggestions {
 		position: absolute;
 		top: calc( 100% + 4px );

@@ -1,72 +1,30 @@
-/**
- * OpenStation — "New folder" inline dialog.
- *
- * Replaces the placeholder `window.prompt` from the wallpaper
- * context menu's "Create folder" item. Mounts a small modal
- * with a focused text input, Cancel / Create buttons, Enter to
- * submit, Escape to cancel. The modal is rendered into a
- * top-level overlay that traps clicks and dims the rest of
- * the desktop with a backdrop.
- *
- * The overlay + surface are vanilla DOM; the controls inside it are
- * `<os-text-field>` and `<os-button>`, same as the sibling
- * `url-dialog`. That is not a stylistic preference — a raw
- * `<input type="text">` in the parent shell is reachable by core's
- * `forms.css`, whose `input[type="text"] { background-color: #fff;
- * color: #1e1e1e }` weighs (0,1,1) and outranks any single class of
- * ours. The rename field came out as a white core-chrome box on the
- * dialog's dark surface, and because the dialog pre-selects the name
- * on open, the selected text was painted by the shell's
- * `::selection` — near-white ink on a pale lavender wash over white,
- * i.e. all but unreadable at the exact moment the user is meant to
- * read it. Shadow DOM ends both problems structurally: core's sheet
- * cannot reach in, and the field resolves the palette instead.
- *
- * Plugins that want a richer affordance can replace it via the
- * `os.files.create-folder.dialog` filter (returns `false` to
- * suppress the built-in dialog and own the flow).
- */
-
 import { applyFilters, doAction } from '../hooks';
-// Registered globally by the lazy shell-overlays bundle — see
-// src/shell-overlays/entry.ts.
+
 import { focusField, readFieldValue, setControlDisabled } from './dialog-fields';
 
 const ROOT_CLASS = 'os-create-folder-dialog';
 
 export interface CreateFolderDialogOptions {
-	/** Initial value of the input. Default `'Untitled folder'`. */
+
 	initialName?: string;
-	/** Called with the trimmed name when the user submits. May return a Promise. */
+
 	onSubmit: ( name: string ) => Promise< unknown > | unknown;
-	/** Optional cancel callback. */
+
 	onCancel?: () => void;
-	/**
-	 * Heading copy for the dialog. Defaults to `'New folder'`.
-	 * Pass a different string when reusing the dialog for rename
-	 * flows so screen readers and the visible heading match.
-	 */
+
 	title?: string;
-	/**
-	 * Label above the input. Defaults to `'Folder name'`.
-	 */
+
 	label?: string;
-	/**
-	 * Primary button copy. Defaults to `'Create'`. Use `'Rename'`
-	 * (or any verb that reads correctly with the new title) when
-	 * the dialog is acting as a rename modal.
-	 */
+
 	submitLabel?: string;
 }
 
 let active: HTMLElement | null = null;
 
-/** Whether a dialog is currently mounted. */
 export function isCreateFolderDialogOpen(): boolean {
 	return active !== null;
 }
 
-/** Close the active dialog (no-op when nothing is open). */
 export function closeCreateFolderDialog(): void {
 	if ( ! active ) {
 		return;
@@ -77,16 +35,9 @@ export function closeCreateFolderDialog(): void {
 	doAction( 'os.files.create-folder.closed', {} );
 }
 
-/**
- * Open the "New folder" dialog. Resolves when the user has
- * either submitted a name (and `onSubmit` resolved) or cancelled.
- */
 export function openCreateFolderDialog( options: CreateFolderDialogOptions ): void {
 	closeCreateFolderDialog();
 
-	// Plugins can short-circuit the built-in dialog and own the
-	// UX by registering a filter that returns `false`. Any other
-	// return value is ignored — the contract is presence-based.
 	const decision = applyFilters< unknown, [ CreateFolderDialogOptions ] >(
 		'os.files.create-folder.dialog',
 		null,
@@ -114,17 +65,13 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	title.textContent = options.title ?? 'New folder';
 	dialog.appendChild( title );
 
-	// The field carries its own label, so there is no sibling
-	// `<label for>` — the component pairs them inside its shadow root.
 	const field = document.createElement( 'os-text-field' );
 	field.className = `${ ROOT_CLASS }__field`;
 	field.id = `${ ROOT_CLASS }-input`;
 	field.setAttribute( 'label', options.label ?? 'Folder name' );
 	field.setAttribute( 'value', initial );
 	field.setAttribute( 'autocomplete', 'off' );
-	// `spellcheck` is an inherited content attribute, so declaring it
-	// on the host reaches the input inside the shadow root — a folder
-	// name is not prose and should not get a red squiggle.
+
 	field.setAttribute( 'spellcheck', 'false' );
 	dialog.appendChild( field );
 
@@ -155,9 +102,6 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	document.body.appendChild( overlay );
 	active = overlay;
 
-	// Focus and select the initial name so the user can type
-	// straight over it — same pattern as macOS Finder's
-	// "untitled folder" affordance.
 	focusField( field );
 
 	doAction( 'os.files.create-folder.opened', {} );

@@ -1,13 +1,3 @@
-/**
- * Host detection and freed-window URL rules.
- *
- * The whole feature hangs off `getHostBridge()` returning non-null, so
- * most of these tests are about the ways it must return NULL: a
- * browser, a half-injected preload, a host app newer than this plugin.
- * Getting any of those wrong turns "OpenStation works in a browser"
- * into "OpenStation throws in a browser".
- */
-
 import { afterEach, describe, expect, test } from 'vitest';
 
 import {
@@ -18,7 +8,6 @@ import {
 	sendLabel,
 } from '../src/host';
 
-/** Minimal stand-in for the global the Electron preload injects. */
 function installHost( overrides: Record< string, unknown > = {} ): void {
 	( window as unknown as Record< string, unknown > ).openStationDesktopHost = {
 		isDesktopHost: true,

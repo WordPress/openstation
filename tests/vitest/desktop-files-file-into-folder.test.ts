@@ -1,25 +1,3 @@
-/**
- * Filing an EXISTING desktop tile into a folder by dropping it on
- * the folder's icon.
- *
- * The reported symptom was an agent tile vanishing: dragged onto a
- * folder, gone from the desktop, and nowhere to be seen inside the
- * folder either. The placement was there the whole time, at the
- * coordinates it had held on the wallpaper — `y: 616`, from low
- * down a tall desktop. No folder window is 616px tall, and the
- * files layer is `position: absolute; inset: 0` with no scroll, so
- * the tile wasn't below a fold; there was no fold. It was
- * unreachable.
- *
- * Two guarantees are pinned here:
- *
- *   1. Filing re-packs into the destination folder, so the tile
- *      lands somewhere a folder window can actually show.
- *   2. A tile already stored out of bounds is reflowed into view on
- *      sight — the rescue for rows written before (1), which is
- *      what makes an existing desktop self-heal rather than needing
- *      a migration.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { DragManager } from '../../src/drag/manager';
@@ -58,7 +36,6 @@ const folderTilePlacement = ( id: number, ref: string ) => ( {
 	},
 } );
 
-/** A user (agent) tile sitting near the bottom of a tall desktop. */
 const agentPlacement = ( id: number, y: number ) => ( {
 	id,
 	parentId: 0,
@@ -196,7 +173,6 @@ describe( 'filing a desktop tile into a folder', () => {
 		const manager = new DragManager();
 		installManagerOnWindow( manager );
 
-		// A tall desktop: folder tile up top, agent tile way down.
 		store.setFolderPlacements( 0, [
 			folderTilePlacement( 1, '19' ),
 			agentPlacement( 158, 616 ),
@@ -255,13 +231,10 @@ describe( 'filing a desktop tile into a folder', () => {
 
 		expect( patches.length ).toBe( 1 );
 		expect( patches[ 0 ].parentId ).toBe( 19 );
-		// The whole point: NOT the 616 it came from. Row-major means
-		// the first free cell, which is the folder's top-left.
+
 		expect( patches[ 0 ].y ).toBe( 16 );
 		expect( patches[ 0 ].x ).toBe( 16 );
 
-		// The optimistic store entry agrees, so the tile is in a
-		// visible cell even before the server answers.
 		const filed = store
 			.getFilesState()
 			.placementsByFolder.get( 19 )
@@ -288,8 +261,6 @@ describe( 'filing a desktop tile into a folder', () => {
 			),
 		);
 
-		// Exactly the row found on the live install: filed into a
-		// folder, still carrying its wallpaper `y`.
 		store.setFolderPlacements( 19, [
 			{ ...agentPlacement( 158, 616 ), parentId: 19 },
 		] );
@@ -314,8 +285,7 @@ describe( 'filing a desktop tile into a folder', () => {
 			'[data-placement-id="158"]',
 		);
 		expect( tile ).not.toBeNull();
-		// Reflow is visual only — the stored placement is untouched
-		// until the user drags or sorts.
+
 		const top = parseInt( tile!.style.top || '0', 10 );
 		expect( top ).toBeLessThan( 400 );
 		expect(

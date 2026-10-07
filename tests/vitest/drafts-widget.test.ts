@@ -1,18 +1,6 @@
-/**
- * Drafts widget: the REST query is scoped to the viewer, the time-ago
- * stamps go through full sprintf placeholders (no concatenated
- * fragments), the empty/error states render, and the Trash button
- * refuses to act when it can't get consent.
- *
- * Plus the AI writing assistant: it stays completely absent without a
- * configured provider, the suggestions panel is a disclosure driven by
- * `<os-*>` controls, and accepting a suggestion writes it through
- * `/draft-apply` and reflects the result back into the row.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { WidgetContext } from '../../src/widgets/types';
 
-// Import for the side effect: registers window.openStationWidgets['desktop-mode/drafts'].
 import '../../src/plugins/drafts-widget/index';
 
 type MountFn = (
@@ -37,7 +25,6 @@ function makeCtx(): WidgetContext {
 	return { id: WIDGET_ID, pluginUrl: 'https://example.test/plugin' } as unknown as WidgetContext;
 }
 
-/** ISO-8601 UTC stamp (no `Z`, as the REST API emits `modified_gmt`). */
 function agoIso( secondsAgo: number ): string {
 	return new Date( Date.now() - secondsAgo * 1000 )
 		.toISOString()
@@ -61,7 +48,6 @@ interface DesktopStub {
 
 let desktop: DesktopStub;
 
-/** A full suggestions payload; individual tests override what they care about. */
 const SUGGESTIONS = {
 	titles: [ 'A better title', 'An even better title' ],
 	excerpt: 'A crisp one-line summary.',
@@ -70,18 +56,17 @@ const SUGGESTIONS = {
 	readiness: { summary: 'Nearly there.', missing: [ 'a conclusion' ] },
 };
 
-/** Install `window.wp.os`; trackedFetch resolves it at call time. */
 function installShell( opts: {
 	drafts?: unknown;
 	ok?: boolean;
 	userId?: number;
 	withConfirm?: boolean;
 	confirmAnswer?: boolean;
-	/** Mirrors `openStationConfig.aiAssistant.providerConfigured`. */
+
 	ai?: boolean;
 	suggestions?: unknown;
 	suggestionsOk?: boolean;
-	/** HTTP status of a failed suggestions request (default 500). */
+
 	suggestionsStatus?: number;
 	applyOk?: boolean;
 	connectorsUrl?: string;
@@ -129,7 +114,6 @@ function installShell( opts: {
 	return desktop;
 }
 
-/** URL of the first non-DELETE request the widget issued. */
 function listRequestUrl(): string {
 	const call = desktop.fetch.mock.calls.find(
 		( c ) => ( c[ 1 ] as RequestInit | undefined )?.method !== 'DELETE',
@@ -205,7 +189,7 @@ describe( 'drafts widget — rendering', () => {
 			( n ) => n.textContent,
 		);
 		expect( stamps[ 0 ] ).toBe( 'just now' );
-		// Full placeholder, not a bare "h ago" fragment glued to a number.
+
 		expect( stamps[ 1 ] ).toBe( '2h ago' );
 	} );
 
@@ -232,9 +216,7 @@ describe( 'drafts widget — rendering', () => {
 		teardown = await getMount()( container, makeCtx() );
 
 		const link = container.querySelector( '.dm-drafts__link' ) as HTMLAnchorElement;
-		// Without this the interceptor reads the anchor's text, and the
-		// two spans have no whitespace between them to read. The stamp
-		// stays in the row; the window is named after the draft.
+
 		expect( link.dataset.osWindowTitle ).toBe( 'Ginza after work' );
 		expect( link.textContent ).toBe( 'Ginza after work356d ago' );
 	} );
@@ -264,8 +246,6 @@ describe( 'drafts widget — rendering', () => {
 		installShell( { ok: false } );
 		teardown = await getMount()( container, makeCtx() );
 
-		// The widget's own line, then what the server did: a 5xx has no
-		// message worth showing, so the status is named instead.
 		expect( container.querySelector( '.dm-drafts__empty' )?.textContent ).toMatch(
 			/^Could not load drafts\. The server answered with error \d+\.$/,
 		);
@@ -333,7 +313,6 @@ describe( 'drafts widget — AI writing assistant', () => {
 		{ id: 12, title: { rendered: 'Rough notes' }, modified_gmt: agoIso( 90 ) },
 	];
 
-	/** Open the panel for the first row and wait for it to finish loading. */
 	async function openPanel(): Promise< HTMLElement > {
 		( container.querySelector( '.dm-drafts__spark' ) as HTMLElement ).click();
 		const panel = container.querySelector(
@@ -350,7 +329,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 		teardown = await getMount()( container, makeCtx() );
 
 		expect( container.querySelector( '.dm-drafts__spark' ) ).toBeNull();
-		// …and the rest of the row is untouched.
+
 		expect( container.querySelector( '.dm-drafts__trash' ) ).not.toBeNull();
 	} );
 
@@ -361,8 +340,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 		const spark = container.querySelector( '.dm-drafts__spark' ) as HTMLElement;
 		expect( spark.tagName.toLowerCase() ).toBe( 'os-button' );
 		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
-		// Named by slotted text rather than a host `aria-label`, which
-		// `<os-button>` cannot carry — see the accessible-names block.
+
 		expect(
 			spark.querySelector( '.screen-reader-text' )?.textContent,
 		).toBe( 'Suggest title, excerpt & tags' );
@@ -384,13 +362,11 @@ describe( 'drafts widget — AI writing assistant', () => {
 		const spark = container.querySelector( '.dm-drafts__spark' ) as HTMLElement;
 		spark.click();
 
-		// The panel appears immediately with a spinner while the round-trip runs.
 		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
 		expect( panel ).not.toBeNull();
 		const spinner = panel.querySelector( 'os-spinner' ) as HTMLElement;
 		expect( spinner ).not.toBeNull();
-		// The default mark-and-rings artwork is illegible at this size —
-		// the panel must ask for the bare inline arc.
+
 		expect( spinner.getAttribute( 'preset' ) ).toBe( 'inline' );
 		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'true' );
 		expect( spark.getAttribute( 'aria-controls' ) ).toBe( panel.id );
@@ -418,13 +394,13 @@ describe( 'drafts widget — AI writing assistant', () => {
 
 		const items = [ ...panel.querySelectorAll( '.dm-drafts__suggest-item' ) ];
 		const pills = [ ...panel.querySelectorAll( '.dm-drafts__suggest-tag' ) ];
-		// 2 titles + 1 excerpt.
+
 		expect( items.map( ( i ) => i.textContent ) ).toEqual( [
 			'A better title',
 			'An even better title',
 			'A crisp one-line summary.',
 		] );
-		// 2 tags + 1 category.
+
 		expect( pills.map( ( p ) => p.textContent ) ).toEqual( [
 			'wordpress',
 			'drafts',
@@ -453,11 +429,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 	} );
 
 	test( 'panel notices carry the contrast-override class', async () => {
-		// `dm-drafts__notice` re-points <os-notice>'s color surface at
-		// currentColor. Without it the component falls back to its
-		// light-surface palette (#1d2327 text) and disappears into a dark
-		// glass widget card — a regression that is invisible to a DOM
-		// assertion unless it is spelled out here.
+
 		installShell( { drafts: oneDraft, ai: true } );
 		teardown = await getMount()( container, makeCtx() );
 		const panel = await openPanel();
@@ -508,20 +480,17 @@ describe( 'drafts widget — AI writing assistant', () => {
 		expect( JSON.parse( String( ( call?.[ 1 ] as RequestInit ).body ) ) ).toEqual(
 			{ post_id: 12, title: 'A better title' },
 		);
-		// The row's title reflects the accepted suggestion without a refetch…
+
 		expect( container.querySelector( '.dm-drafts__name' )?.textContent ).toBe(
 			'A better title',
 		);
-		// …the button locks so a double-click can't apply it twice, via
-		// aria-disabled rather than the component's `disabled` (which
-		// would dim it to 50% opacity and gut its contrast on a dark
-		// glass card)…
+
 		expect( first.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
 		expect( first.hasAttribute( 'disabled' ) ).toBe( false );
 		expect(
 			first.querySelector( '.dm-drafts__applied-check' ),
 		).not.toBeNull();
-		// …and the user gets told.
+
 		expect( desktop.showToast ).toHaveBeenCalledWith( {
 			message: 'Title updated.',
 		} );
@@ -665,7 +634,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 		await openPanel();
 
 		desktop.fetch.mockClear();
-		// The blur nudge is the same code path the 60s poller uses.
+
 		document.dispatchEvent( new Event( 'os-window-blurred' ) );
 		await new Promise( ( resolve ) => setTimeout( resolve, 700 ) );
 
@@ -674,7 +643,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 				String( c[ 0 ] ).includes( '/wp/v2/posts' ),
 			),
 		).toBe( false );
-		// The panel survived.
+
 		expect( container.querySelector( '.dm-drafts__suggest' ) ).not.toBeNull();
 	} );
 } );
@@ -685,7 +654,6 @@ describe( 'drafts widget — focus across refreshes', () => {
 		{ id: 6, title: { rendered: 'Second' }, modified_gmt: agoIso( 120 ) },
 	];
 
-	/** Fire the blur nudge — the same rebuild the 60s poller drives. */
 	async function poll(): Promise< void > {
 		document.dispatchEvent( new Event( 'os-window-blurred' ) );
 		await new Promise( ( resolve ) => setTimeout( resolve, 700 ) );
@@ -704,21 +672,15 @@ describe( 'drafts widget — focus across refreshes', () => {
 		linkFor( 6 ).focus();
 		await poll();
 
-		// Same draft, and the node itself is the one the rebuild made.
 		expect( document.activeElement ).toBe( linkFor( 6 ) );
 	} );
 
-	// The control branch (trash / spark rather than the link) is not
-	// covered here: `<os-button>` puts its real button in a shadow root,
-	// and jsdom implements neither `delegatesFocus` nor a focusable host,
-	// so the row's buttons cannot take focus in this environment. It is
-	// exercised in a browser instead.
 	test( 'a vanished draft hands focus to the row that took its place', async () => {
 		installShell( { drafts: twoDrafts } );
 		teardown = await getMount()( container, makeCtx() );
 
 		linkFor( 5 ).focus();
-		// The draft is gone by the time the refresh lands.
+
 		desktop.fetch.mockImplementation( () =>
 			Promise.resolve( jsonResponse( [ twoDrafts[ 1 ] ] ) ),
 		);
@@ -753,13 +715,11 @@ describe( 'drafts widget — accessible names', () => {
 
 		for ( const cls of [ 'dm-drafts__trash', 'dm-drafts__spark' ] ) {
 			const btn = container.querySelector( `.${ cls }` ) as HTMLElement;
-			// `<os-button>` drops a host aria-label: it renders its real
-			// button in a shadow root and a custom element has no role to
-			// hang the label on. The name has to be inside the button.
+
 			expect( btn.getAttribute( 'aria-label' ) ).toBeNull();
 			const name = btn.querySelector( '.screen-reader-text' );
 			expect( name?.textContent?.trim() ).toBeTruthy();
-			// The tooltip stays for the pointer.
+
 			expect( btn.getAttribute( 'title' ) ).toBe( name?.textContent );
 		}
 	} );
@@ -788,8 +748,6 @@ describe( 'drafts widget — content-change refresh', () => {
 		);
 	}
 
-	// A draft saved in an editor window that keeps focus fires no window
-	// lifecycle event: the save broadcast is the only prompt there is.
 	test( 'a post change broadcast refreshes the list', async () => {
 		installShell();
 		teardown = await getMount()( container, makeCtx() );

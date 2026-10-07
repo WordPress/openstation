@@ -1,14 +1,3 @@
-/**
- * Agents — persisted chat conversations, client side.
- *
- * REST wrappers over `/desktop-mode/v1/agents/conversations` plus the
- * auto-save primitive the dispatcher calls after every completed
- * exchange. Conversations are owner-only server-side; this module
- * only ever sees the current user's rows.
- *
- * @public
- */
-
 import { trackedFetch } from './tracked-fetch';
 import { joinRestUrl } from './rest-url';
 import { restErrorFromBody } from './core/api-client';
@@ -25,9 +14,9 @@ export interface AgentConversationSummary {
 	agentDescription: string;
 	agentAvatarUrl: string;
 	title: string;
-	/** Tail of the last message — the sidebar's second line. */
+
 	preview: string;
-	/** Role that spoke last (`user` | `agent` | `error`), or ''. */
+
 	lastRole: string;
 	messageCount: number;
 	createdAt: string;
@@ -66,14 +55,11 @@ async function request< T >(
 		| ( T & { code?: unknown; message?: unknown; data?: unknown } )
 		| null;
 	if ( ! res.ok ) {
-		// The body is already read, so build the error from it rather
-		// than re-reading the response.
 		throw restErrorFromBody( res.status, body );
 	}
 	return body as T;
 }
 
-/** The caller's conversations, most recently updated first. */
 export async function listConversations(
 	rest: RestAuth,
 ): Promise< AgentConversationSummary[] > {
@@ -81,7 +67,6 @@ export async function listConversations(
 	return Array.isArray( rows ) ? ( rows as AgentConversationSummary[] ) : [];
 }
 
-/** One conversation with its messages. */
 export function getConversation(
 	rest: RestAuth,
 	id: number,
@@ -89,7 +74,6 @@ export function getConversation(
 	return request< AgentConversation >( rest, `${ BASE }/${ id }` );
 }
 
-/** Delete one conversation. */
 export function deleteConversation(
 	rest: RestAuth,
 	id: number,
@@ -101,13 +85,6 @@ function storableMessages( transcript: AgentChatMessage[] ): AgentChatMessage[] 
 	return transcript.filter( ( row ) => ! row.pending );
 }
 
-/**
- * Persist the agent's current transcript: create the conversation on
- * the first completed exchange, replace its messages afterwards.
- * Never throws — persistence must not break the chat itself.
- *
- * @public
- */
 export async function persistAgentTranscript(
 	agent: AgentChatAgent,
 	rest: RestAuth,
@@ -138,17 +115,10 @@ export async function persistAgentTranscript(
 		state.conversationsRev = ( state.conversationsRev ?? 0 ) + 1;
 		agentsChatStore.notify();
 	} catch ( err ) {
-		// eslint-disable-next-line no-console
 		console.warn( '[desktop-mode/agents] conversation save failed:', err );
 	}
 }
 
-/**
- * Load a persisted conversation into the store and make its agent the
- * active one — the sidebar's row-click handler.
- *
- * @public
- */
 export async function openConversation(
 	rest: RestAuth,
 	id: number,

@@ -1,6 +1,3 @@
-/**
- * Unit tests for the Phase-4 wallpaper context menu.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -130,8 +127,7 @@ describe( 'wallpaper context menu', () => {
 	} );
 
 	test( 'the filter receives the right-click position', async () => {
-		// onClick gets a synthetic MouseEvent, so this is the only
-		// place the coordinates can come from.
+
 		const { buildMenuItems } = await load();
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		const seen: unknown[] = [];
@@ -145,7 +141,7 @@ describe( 'wallpaper context menu', () => {
 		);
 		buildMenuItems( stubDeps( { position: { x: 320, y: 180 } } ) );
 		expect( seen[ 0 ] ).toEqual( { x: 320, y: 180 } );
-		// Callers with nothing to place may omit it.
+
 		buildMenuItems( stubDeps() );
 		expect( seen[ 1 ] ).toEqual( { x: 0, y: 0 } );
 	} );
@@ -165,7 +161,7 @@ describe( 'wallpaper context menu', () => {
 		);
 		showDesktopBtn!.click();
 		expect( deps.toggleShowDesktop ).toHaveBeenCalledTimes( 1 );
-		// Menu closes after activation.
+
 		expect( document.querySelector( 'os-context-menu' ) ).toBeNull();
 	} );
 
@@ -255,8 +251,7 @@ describe( 'wallpaper context menu', () => {
 			buildMenuItems( stubDeps() ),
 			{ excludeOutsideTarget: wallpaper },
 		);
-		// Simulate a mousedown on the excluded area — menu should
-		// stay open so the caller's click handler can decide.
+
 		const md = new MouseEvent( 'mousedown', { bubbles: true } );
 		wallpaper.dispatchEvent( md );
 		expect( isWallpaperMenuOpen() ).toBe( true );
@@ -280,9 +275,7 @@ describe( 'wallpaper context menu', () => {
 			],
 		} ) );
 		const ids = items.map( ( i ) => i.id );
-		// Sort happens at openWallpaperMenu time, but buildMenuItems
-		// returns the merged list in registration order. Assert here
-		// that the items are present.
+
 		expect( ids ).toContain( 'first' );
 		expect( ids ).toContain( 'last' );
 	} );

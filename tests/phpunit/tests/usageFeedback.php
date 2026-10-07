@@ -1,27 +1,13 @@
 <?php
-/**
- * Tests for usage feedback: the eligibility gate that decides who is
- * asked, the consent promise in `readme.txt` (exactly the documented
- * keys, an email only when one was typed, nothing that identifies the
- * site), the once-only rule, and the host opt-out.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-feedback
- */
+
 class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 
 	protected static $user_id;
 
-	/** What the last stubbed forward received, decoded. */
 	private $forwarded = null;
 
-	/** How many forwards the stub saw. */
 	private $forward_calls = 0;
 
-	/** What the stub answers. */
 	private $forward_status = 201;
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
@@ -56,7 +42,6 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/** Capture the forward instead of hitting the network. */
 	public function stub_forward( $preempt, $args, $url ) {
 		if ( false === strpos( $url, '/openstation-feedback/v1/usage' ) ) {
 			return $preempt;
@@ -74,7 +59,6 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 		);
 	}
 
-	/** Pretend the user turned OpenStation on `$days` days ago. */
 	private function enabled_days_ago( $days ) {
 		update_user_meta( self::$user_id, OPENSTATION_ENABLED_AT_META_KEY, time() - $days * DAY_IN_SECONDS );
 	}
@@ -90,7 +74,6 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 	public function test_a_user_is_asked_after_the_threshold_and_never_before() {
 		wp_set_current_user( self::$user_id );
 
-		// No stamp: they enabled before it existed, no moment to count from.
 		$this->assertNull( openstation_usage_feedback_config() );
 
 		$this->enabled_days_ago( OPENSTATION_USAGE_FEEDBACK_MIN_DAYS - 1 );
@@ -99,7 +82,6 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 		$this->enabled_days_ago( OPENSTATION_USAGE_FEEDBACK_MIN_DAYS );
 		$config = openstation_usage_feedback_config();
 
-		// The route, and nothing about the user: the email field starts empty.
 		$this->assertSame( array( 'restUrl' ), array_keys( $config ) );
 		$this->assertStringContainsString( '/desktop-mode/v1/feedback/usage', $config['restUrl'] );
 	}
@@ -135,7 +117,6 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 		$this->assertTrue( $response->get_data()['sent'] );
 		$this->assertSame( 1, $this->forward_calls );
 
-		// The disclosure in readme.txt is the contract: these keys, no more.
 		$this->assertSame(
 			array( 'id', 'requests', 'use_case', 'blockers', 'email', 'plugin_version', 'wp_version', 'locale', 'days_enabled' ),
 			array_keys( $this->forwarded )
@@ -146,7 +127,6 @@ class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 		$this->assertSame( 10, $this->forwarded['days_enabled'] );
 		$this->assertMatchesRegularExpression( '/^[0-9a-f-]{36}$/', $this->forwarded['id'] );
 
-		// No email was typed, so none travels: not even the account's.
 		$this->assertSame( '', $this->forwarded['email'] );
 		$encoded = wp_json_encode( $this->forwarded );
 		$this->assertStringNotContainsString( 'editor@example.test', $encoded );

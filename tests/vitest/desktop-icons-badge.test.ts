@@ -1,21 +1,3 @@
-/**
- * Tests for the wallpaper-icon badge surface
- * (`wp.os.icons.setBadge` / `clearBadge` / `getBadge`).
- *
- * The icon rail is the third badge surface, alongside the dock and
- * taskbar — every event-driven contract that holds for the others
- * must hold here too. We exercise the public surface (no DOM
- * scraping in the tests, mirroring how plugin authors are expected
- * to use it) and assert on:
- *
- *   - idempotency,
- *   - silent no-op when the id isn't on the rail,
- *   - activity-bus emission with `rail: 'icon'`,
- *   - hook-bus emission with `previousCount`,
- *   - badges surviving a full grid rebuild.
- *
- * @group icons
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	_resetIconBadgesForTests,
@@ -156,10 +138,6 @@ describe( 'wp.os.icons.setBadge', () => {
 		setIconBadge( 'os-messages', 6 );
 		expect( badgeNode( host, 'os-messages' )?.textContent ).toBe( '6' );
 
-		// Plugin activation lands a different icon list — the
-		// fingerprint changes, the renderer rebuilds. Without the
-		// badge persistence baked into the renderer this would
-		// drop the badge to nothing.
 		const stubManager = {} as ConstructorParameters< typeof renderDesktopIcons >[ 2 ][ 'manager' ];
 		renderDesktopIcons(
 			host,

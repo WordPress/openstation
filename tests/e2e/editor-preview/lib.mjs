@@ -1,7 +1,3 @@
-/**
- * Shared rig for the editor-preview regression runs against the live
- * dev site at :8889.
- */
 import puppeteer from 'puppeteer';
 
 export const BASE = 'http://localhost:8889';
@@ -19,9 +15,7 @@ export async function launch( { headless = true } = {} ) {
 }
 
 export async function login( page ) {
-	// `networkidle*` never settles here: the shell runs a heartbeat and
-	// the preview companion polls, so every wait is on an explicit
-	// signal instead.
+
 	await page.goto( `${ BASE }/wp-login.php`, { waitUntil: 'domcontentloaded' } );
 	if ( ! page.url().includes( 'wp-login.php' ) ) {
 		return;
@@ -35,7 +29,6 @@ export async function login( page ) {
 	] );
 }
 
-/** Poll a predicate in the page until it returns truthy. */
 export async function until( page, fn, { timeout = 45000, every = 400, label = 'condition' } = {} ) {
 	const started = Date.now();
 	for ( ;; ) {
@@ -52,16 +45,6 @@ export async function until( page, fn, { timeout = 45000, every = 400, label = '
 
 export const sleep = ( ms ) => new Promise( ( r ) => setTimeout( r, ms ) );
 
-/**
- * Installs counters in the parent shell.
- *
- * Distinguishes the two candidate causes rather than assuming one:
- *   - `liveSaved`  : the editor iframe announced a save.
- *   - `broadcast`  : a content-change broadcast reached the shell.
- *   - `swapReload` / `reload` / `navigateTo`: what the preview window
- *     was actually asked to do, and by which path.
- *   - `frameLoads` : real iframe loads observed in the preview window.
- */
 export async function instrument( page, previewId ) {
 	await page.evaluate( ( pid ) => {
 		const w = window;

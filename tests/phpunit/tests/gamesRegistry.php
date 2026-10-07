@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the games registry: registration validation, score
- * column sanitization, the `openstation_games` filter, and the
- * `serverGames` payload.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group desktop-mode-games
- */
+
 class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -47,27 +37,18 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_register_game
-	 */
 	public function test_register_requires_title() {
 		$result = openstation_register_game( 'test-game', array( 'script' => 'x' ) );
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_missing_title', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_game
-	 */
 	public function test_register_requires_script() {
 		$result = openstation_register_game( 'test-game', array( 'title' => 'X' ) );
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_missing_script', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_game
-	 */
 	public function test_register_rejects_script_tag_in_icon_svg() {
 		$result = $this->register_test_game( 'test-game', array(
 			'icon_svg' => '<svg><script>alert(1)</script></svg>',
@@ -76,9 +57,6 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_icon_svg', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_game
-	 */
 	public function test_register_converts_icon_svg_to_data_uri() {
 		$this->assertTrue( $this->register_test_game( 'test-game', array(
 			'icon_svg' => '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
@@ -87,9 +65,6 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		$this->assertStringStartsWith( 'data:image/svg+xml;base64,', $entry['icon'] );
 	}
 
-	/**
-	 * @covers ::openstation_games_sanitize_score_columns
-	 */
 	public function test_score_columns_are_sanitized() {
 		$columns = openstation_games_sanitize_score_columns( array(
 			array( 'key' => 'score', 'label' => 'Score', 'type' => 'number' ),
@@ -99,16 +74,12 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		) );
 		$this->assertCount( 2, $columns );
 		$this->assertSame( 'score', $columns[0]['key'] );
-		// Invalid type falls back to number; missing label falls back
-		// to the key; the key itself is slug-sanitized.
+
 		$this->assertSame( 'time', $columns[1]['key'] );
 		$this->assertSame( 'time', $columns[1]['label'] );
 		$this->assertSame( 'number', $columns[1]['type'] );
 	}
 
-	/**
-	 * @covers ::openstation_register_game
-	 */
 	public function test_register_fires_action() {
 		$seen = null;
 		add_action(
@@ -125,9 +96,6 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		$this->assertSame( 'Test Game', $seen[1]['title'] );
 	}
 
-	/**
-	 * @covers ::openstation_games_is_registered
-	 */
 	public function test_is_registered_sees_registry_and_filter_entries() {
 		$this->assertFalse( openstation_games_is_registered( 'test-game' ) );
 		$this->register_test_game();
@@ -144,9 +112,6 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		$this->assertFalse( openstation_games_is_registered( 'unknown-game' ) );
 	}
 
-	/**
-	 * @covers ::openstation_unregister_game
-	 */
 	public function test_unregister_removes_entry() {
 		$this->register_test_game();
 		$this->assertTrue( openstation_unregister_game( 'test-game' ) );
@@ -154,9 +119,6 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		$this->assertFalse( openstation_unregister_game( 'test-game' ) );
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_games_payload
-	 */
 	public function test_payload_shape() {
 		$this->register_test_game( 'test-game', array(
 			'description' => 'A test game.',
@@ -178,9 +140,6 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		$this->assertSame( 'test-game-script', $entry['scriptHandle'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_menu_payload
-	 */
 	public function test_menu_payload_carries_server_games_key() {
 		$this->register_test_game();
 		$payload = openstation_build_menu_payload();
@@ -189,14 +148,6 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		$this->assertContains( 'test-game', $ids );
 	}
 
-	/**
-	 * The window size has to survive to the payload, because the shell
-	 * opens the game window — and paints its loading spinner — before
-	 * it has fetched the bundle that also declares the size.
-	 *
-	 * @covers ::openstation_register_game
-	 * @covers ::openstation_build_desktop_games_payload
-	 */
 	public function test_window_size_reaches_the_payload() {
 		$this->register_test_game(
 			'test-game',
@@ -230,12 +181,6 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Omitted entirely, not defaulted: an empty array is what the JS
-	 * side reads as "use the framework defaults".
-	 *
-	 * @covers ::openstation_build_desktop_games_payload
-	 */
 	public function test_window_defaults_to_empty_when_undeclared() {
 		$this->register_test_game();
 
@@ -247,13 +192,6 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * Clamped, never rejected. A nonsensical size is a plugin bug that
-	 * must not stop the game opening — an unopenable window is a worse
-	 * answer than an oddly-sized one.
-	 *
-	 * @covers ::openstation_register_game
-	 */
 	public function test_window_drops_junk_and_keeps_the_rest() {
 		$this->register_test_game(
 			'test-game',
@@ -273,15 +211,11 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 			if ( 'test-game' !== $row['id'] ) {
 				continue;
 			}
-			// Numeric string coerced; zero, negative, non-numeric and
-			// unknown keys all dropped.
+
 			$this->assertSame( array( 'width' => 820 ), $row['window'] );
 		}
 	}
 
-	/**
-	 * @covers ::openstation_register_game
-	 */
 	public function test_window_ignores_a_non_array_declaration() {
 		$this->assertTrue(
 			$this->register_test_game( 'test-game', array( 'window' => 'big' ) )

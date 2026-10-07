@@ -1,26 +1,3 @@
-/**
- * A native window's bundle loads when the window opens, not when the
- * shell boots.
- *
- * The registry sync used to `await ensureScript( entry )` for every
- * entry it registered a tile for, which meant every window bundle in
- * the install — WP Explorer at 333 KB, Posts at 329 KB, Plugins at
- * 205 KB — downloaded and parsed on every admin page, whether or not
- * the user ever opened any of them. The shell reads a window's render
- * callback off `window.openStationNativeWindows[ id ]` at open time,
- * so none of that had to happen at boot.
- *
- * What these tests pin:
- *
- *   - Sync registers the tile without fetching the bundle.
- *   - The first open fetches it, and reads the render callback
- *     AFTERWARDS (a bundle that publishes its callback on load is
- *     the normal case, and reading before the load would find
- *     nothing).
- *   - Companion bundles land first, in declaration order.
- *   - `preloadScript` is the escape hatch for a bundle with a
- *     boot-time job.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock } from '../../src/dock';
 import {
@@ -100,7 +77,6 @@ function entry(
 	};
 }
 
-/** Put the `<template>` the render path clones into the document. */
 function installTemplate( e: NativeWindowServerEntry ): void {
 	const tpl = document.createElement( 'template' );
 	tpl.id = e.templateId;
@@ -108,7 +84,6 @@ function installTemplate( e: NativeWindowServerEntry ): void {
 	document.body.appendChild( tpl );
 }
 
-/** Run the render callback `manager.open` was handed. */
 async function runRender(
 	managerOpen: ReturnType< typeof vi.fn >,
 	call = 0,
@@ -181,9 +156,7 @@ describe( 'native-windows — deferred bundle loading', () => {
 		await sync( [ e ] );
 
 		const render = vi.fn();
-		// The bundle publishes its render callback as a load side
-		// effect — mirror that, so a shell that read the registry
-		// before loading would see `undefined` and never call it.
+
 		vi.mocked( vendorLoader.loadVendorScript ).mockImplementation(
 			async ( url: string ) => {
 				loaded.push( url );
@@ -344,11 +317,6 @@ describe( 'native-windows — deferred bundle loading', () => {
 		expect( body.querySelector( '[data-id="declarative"]' ) ).not.toBeNull();
 	} );
 
-	// ----------------------------------------------------------
-	// Wire-format hydration — entries reference handles, the
-	// script data lives once per handle in a sibling map
-	// ----------------------------------------------------------
-
 	test( 'hydration joins entry, companions and tabs with the handle map', async () => {
 		const wire = {
 			...entry( 'explorer' ),
@@ -421,7 +389,7 @@ describe( 'native-windows — deferred bundle loading', () => {
 				deps: [ 'forms-config' ],
 			},
 			'wp-hooks': { url: 'https://example.test/hooks.js' },
-			// The alias: nothing to fetch, its config to replay.
+
 			'forms-config': { url: '', before: [ 'window.allTerrainForms={};' ] },
 		} );
 
@@ -539,16 +507,11 @@ describe( 'native-windows — deferred bundle loading', () => {
 		await runRender( h.managerOpen );
 
 		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
-		// Whichever window loads the bundle carries the whole
-		// handle's config set — the sibling never needs a second copy.
+
 		expect(
 			( extras as { l10n?: string[] } ).l10n,
 		).toEqual( shared.l10n );
 	} );
-
-	// ----------------------------------------------------------
-	// Shared bundles — per-entry data must survive the URL dedupe
-	// ----------------------------------------------------------
 
 	test( 'a window sharing an already-loaded bundle still gets its own inline data', async () => {
 		const inject = vi
@@ -571,20 +534,18 @@ describe( 'native-windows — deferred bundle loading', () => {
 
 		openById( 'posts' );
 		await runRender( h.managerOpen, 0 );
-		// The first open carried its own extras through the (mocked)
-		// loadVendorScript — the late injector stays untouched.
+
 		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
 		expect( inject ).not.toHaveBeenCalled();
 
 		openById( 'pages' );
 		await runRender( h.managerOpen, 1 );
-		// No second fetch — but the sibling's config assignment lands.
+
 		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
 		expect( inject ).toHaveBeenCalledWith(
 			'window.openStationWindowConfig={pages:1};',
 		);
 
-		// A repeat open must not double-inject.
 		const calls = inject.mock.calls.length;
 		openById( 'pages' );
 		await runRender( h.managerOpen, 2 );
@@ -673,13 +634,6 @@ describe( 'native-windows — deferred bundle loading', () => {
 		);
 	} );
 
-	// ----------------------------------------------------------
-	// Companion styles (`styles` arg → payload `companionStyles`)
-	// ----------------------------------------------------------
-
-	// `document.head` survives the afterEach body reset, so every
-	// test uses its own stylesheet URL — a link left by one test must
-	// not satisfy (or break) the next test's assertions.
 	const cssLinks = ( url: string ) =>
 		document.head.querySelectorAll( `link[rel="stylesheet"][href="${ url }"]` );
 
@@ -722,16 +676,14 @@ describe( 'native-windows — deferred bundle loading', () => {
 				'link[rel="stylesheet"]',
 			),
 		).map( ( l ) => l.href );
-		// The window's own style landed at sync, the companion at
-		// open — appended later, so its equal-specificity overrides
-		// win by source order.
+
 		expect(
 			links.indexOf( 'https://example.test/explorer-own.css' ),
 		).toBeGreaterThanOrEqual( 0 );
 		expect(
 			links.indexOf( 'https://example.test/explorer-own.css' ),
 		).toBeLessThan( links.indexOf( url ) );
-		// Inline blobs replay as a <style> carrying the handle.
+
 		const inline = document.head.querySelector< HTMLStyleElement >(
 			'style[data-os-style-handle="woo-css"]',
 		);

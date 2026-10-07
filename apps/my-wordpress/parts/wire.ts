@@ -1,19 +1,3 @@
-/**
- * My WordPress — the after-render wiring.
- *
- * Part of the `my-wordpress` client view: imported by the
- * `my-wordpress.os.ts` entry. This part owns everything that touches
- * the LIVE DOM after a paint: `wire()` runs once per window (drag-out,
- * marquee selection, infinite scroll, the extended-options
- * subscription, Escape), `afterRender()` runs after every render
- * (observer re-aim, scroll re-arm, menu clamping, server-rendered
- * content injection), and `agentsAfterRender()` is the Agents
- * section's slice of it (drop targets, drag-out, the face backfill,
- * the roster signal, the create-then-chat hand-off).
- *
- * @public
- */
-
 import { __, createMarquee, sprintf } from '@openstation/app';
 import { clampToViewport } from '../../../src/ui/util/menu-position';
 import {
@@ -53,11 +37,6 @@ import { openPreview, previewDetail } from './optimistic';
 import { sectionOf } from './helpers';
 import { agentsMountIdOf, agentsRosterStamp, openChatWindow } from './agents';
 
-/**
- * What an editor window needs to accept the drop: without it the
- * block editor answers "Can't drop here". An attachment becomes an
- * image (or video, audio, file) block; a post or a person, a link.
- */
 function bridgePayloadOf( section: SectionDef | null, item: ListItem ): DragBridgePayload | undefined {
 	if ( ! section || ! item.link ) {
 		return undefined;
@@ -76,22 +55,18 @@ function bridgePayloadOf( section: SectionDef | null, item: ListItem ): DragBrid
 	if ( section.kind === 'user' ) {
 		return { kind: 'user', id: item.id, url: item.link, title: item.title };
 	}
-	// Flat sections (Woo's Orders) list rows that are not posts.
+
 	if ( section.kind === 'post' && ! section.flat ) {
 		return { kind: 'post', id: item.id, postType: section.post_type, url: item.link, title: item.title };
 	}
 	return undefined;
 }
 
-/** Marquee + drag-out + infinite scroll + Escape, wired once per window. */
 export function wire( ctx: Ctx ): () => void {
 	const { root } = ctx;
 	const ui = uiOf( ctx );
 	const teardowns: Array< () => void > = [];
 
-	// --- drag-out: rows lift into the shell DragManager -----------------
-	// Not on a phone: no drag and drop there (`docs/mobile.md`), and a
-	// press on a row is a tap.
 	const onPointerDown = ( e: PointerEvent ): void => {
 		if ( e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || isMobileStamped() ) {
 			return;
@@ -111,9 +86,7 @@ export function wire( ctx: Ctx ): () => void {
 		if ( ! item ) {
 			return;
 		}
-		// The section rides along so drop targets can route the object:
-		// the Recycle Bin trashes through the section's REST collection
-		// (`restPath`), agents gate on the section id.
+
 		const section = sectionOf( ctx.data, ctx.state.section );
 		const entityId = section?.id ?? '';
 		const restPath = String( section?.restPath ?? '' );
@@ -152,10 +125,6 @@ export function wire( ctx: Ctx ): () => void {
 	root.addEventListener( 'pointerdown', onPointerDown );
 	teardowns.push( () => root.removeEventListener( 'pointerdown', onPointerDown ) );
 
-	// --- marquee selection on the list canvas ---------------------------
-	// The framework's drawn marquee; the class stays ours so the app
-	// sheet keeps painting it with WP Explorer's selection tokens. A
-	// phone has no rubber band: a finger on the canvas scrolls it.
 	if ( ! isMobileStamped() ) {
 		teardowns.push(
 			createMarquee( {
@@ -167,16 +136,8 @@ export function wire( ctx: Ctx ): () => void {
 		);
 	}
 
-	// --- infinite scroll ------------------------------------------------
-	// The framework's paged list owns the whole protocol (sentinel,
-	// one page per gesture, skeletons, the short-list guard); it is
-	// wired to the live DOM in afterRender() below.
 	teardowns.push( () => ui.list.dispose() );
 
-	// --- agents: live re-render when the framework is toggled -----------
-	// Agents can be switched off in Preferences while this very window
-	// is open; the next dispatch is a fresh request, so the server
-	// reads the flag anew and the section repaints its other state.
 	const hooksApi = shell().hooks;
 	const optionsNs = `openstation-apps/my-wordpress/${ agentsMountIdOf( root ) }`;
 	hooksApi?.addAction?.(
@@ -197,17 +158,6 @@ export function wire( ctx: Ctx ): () => void {
 		ui.agentDropTargets.clear();
 	} );
 
-	// --- hover card ------------------------------------------------------
-	// A floating card with the title, the lock banner, the thumbnail
-	// and the clamped excerpt, following the pointer over a tile.
-	// OFF by default: a card that inflates every thumbnail the pointer
-	// crosses gets in the way of a marquee, a bulk pick and a drag-out,
-	// so OpenStation paints nothing on hover. The wiring stays, behind
-	// the `os.my-wordpress.hover-card` filter: return `build( item )`
-	// for the stock card, or any element of your own, and it is
-	// positioned and torn down exactly as the stock one was. The card's
-	// class names still ride the palette-level `--os-my-wordpress-card-*`
-	// family. Appended to document.body because the window clips.
 	let hoverTip: HTMLElement | null = null;
 	let hoverFor = 0;
 	const hideTip = (): void => {
@@ -252,7 +202,7 @@ export function wire( ctx: Ctx ): () => void {
 			banner.appendChild( icon );
 			const text = document.createElement( 'span' );
 			text.textContent = sprintf(
-				/* translators: %s: the user name currently editing the post. */
+
 				__( '%s is currently editing' ),
 				item.lockedBy,
 			);
@@ -266,8 +216,7 @@ export function wire( ctx: Ctx ): () => void {
 			img.alt = '';
 			tip.appendChild( img );
 		}
-		// Posts quote their excerpt; users and media (which have none)
-		// show their subtitle line, the fact their tile abbreviates.
+
 		const excerpt = item.excerpt || item.subtitle;
 		if ( excerpt ) {
 			const p = document.createElement( 'p' );
@@ -282,9 +231,7 @@ export function wire( ctx: Ctx ): () => void {
 		const cell = ( e.target as Element | null )?.closest< HTMLElement >(
 			'[data-mywp-drag][data-item-id]',
 		);
-		// The list view's rows already show what the card would say,
-		// and a card following the pointer down a table covers the
-		// neighbouring rows' facts.
+
 		if ( ! cell || cell.closest( '[data-mywp-list]' ) ) {
 			return;
 		}
@@ -297,9 +244,7 @@ export function wire( ctx: Ctx ): () => void {
 			return;
 		}
 		hideTip();
-		// Remember the tile even when no card comes back, so the filter
-		// runs once per tile entered rather than on every child the
-		// pointer crosses inside it. `hideTip()` forgets it on leave.
+
 		hoverFor = id;
 		const card = hooksApi?.applyFilters(
 			'os.my-wordpress.hover-card',
@@ -330,8 +275,7 @@ export function wire( ctx: Ctx ): () => void {
 	root.addEventListener( 'mouseover', onTipOver );
 	root.addEventListener( 'mousemove', onTipMove );
 	root.addEventListener( 'mouseleave', hideTip );
-	// A press means a click, a drag-out or the context menu — the card
-	// must not sit over any of them.
+
 	root.addEventListener( 'pointerdown', hideTip );
 	root.addEventListener( 'contextmenu', hideTip );
 	teardowns.push( () => {
@@ -343,7 +287,6 @@ export function wire( ctx: Ctx ): () => void {
 		hideTip();
 	} );
 
-	// --- Escape closes menu → zoom → footprint → pane -------------------
 	const onKey = ( e: KeyboardEvent ): void => {
 		if ( e.key !== 'Escape' ) {
 			return;
@@ -367,16 +310,6 @@ export function wire( ctx: Ctx ): () => void {
 	root.addEventListener( 'keydown', onKey );
 	teardowns.push( () => root.removeEventListener( 'keydown', onKey ) );
 
-	// --- the footprint target — the cross-bundle "open this person" ----
-	// `openUserFootprintWindow()` (the profile sidebar, the users.php
-	// row action riding the chromeless bridge, agent cards, any plugin)
-	// opens THIS window with the person as open-time params — `mount`
-	// and `reopen` land on the footprint server-side — and stashes the
-	// same person in the shared store, the contract that predates
-	// params. Consume the pending target on mount (cold open) and
-	// subscribe for re-targets (warm, already-open window); when the
-	// params already put that person on screen there is nothing left
-	// to ask for, so the consumer only clears.
 	const consumeFootprintTarget = ( target: { userId: number | null; userName: string } ): void => {
 		const userId = Number( target.userId );
 		if ( ! Number.isFinite( userId ) || userId <= 0 ) {
@@ -391,12 +324,6 @@ export function wire( ctx: Ctx ): () => void {
 	consumeFootprintTarget( readFootprintTarget() );
 	teardowns.push( subscribeFootprintTarget( consumeFootprintTarget ) );
 
-	// --- the open target — "open this object in the explorer" ----------
-	// `openExplorerDetail()` / `openExplorerMedia()` (the desktop
-	// tiles' "Navigate into", the wallpaper preview's "Explore
-	// details", the Corkboard's "Open in <site>") stash the object and
-	// open this window; the navigation serialises behind whatever is
-	// in flight.
 	const consumeOpenTarget = ( target: ExplorerOpenTarget ): void => {
 		if ( ! target.kind || ! ( Number( target.id ) > 0 ) ) {
 			return;
@@ -412,7 +339,6 @@ export function wire( ctx: Ctx ): () => void {
 	consumeOpenTarget( readExplorerOpenTarget() );
 	teardowns.push( subscribeExplorerOpenTarget( consumeOpenTarget ) );
 
-	// --- the agent-editor target — an avatar in the chat window --------
 	const consumeAgentTarget = ( target: { agentId: number | null } ): void => {
 		const agentId = Number( target.agentId );
 		if ( ! Number.isFinite( agentId ) || agentId <= 0 ) {
@@ -425,12 +351,6 @@ export function wire( ctx: Ctx ): () => void {
 	consumeAgentTarget( readAgentEditorTarget() );
 	teardowns.push( subscribeAgentEditorTarget( consumeAgentTarget ) );
 
-	// --- the "Send to <agent>" menu intake -----------------------------
-	// Registered on the shared bus (idempotent there), gated by the
-	// payload's agents flag so the warm-up never 404s a site with the
-	// framework off. `afterRender()` keeps the flag current. The bus
-	// itself is `wp.hooks` — absent on a bare host, where the menu
-	// simply carries no plugin rows.
 	setSendToEnabled( ctx.data.agentsEnabled === true );
 	if ( ( window.wp as { hooks?: unknown } | undefined )?.hooks ) {
 		registerSendToMenuFilter();
@@ -439,33 +359,12 @@ export function wire( ctx: Ctx ): () => void {
 	return () => teardowns.forEach( ( off ) => off() );
 }
 
-/**
- * Fire WP Explorer's plugin seams over the freshly rendered DOM:
- *
- *   - `os.my-wordpress.group-extras` — once per open plugin folder,
- *     with a container above the folder tiles for whole-folder
- *     context (store totals on a shop folder, sync status on an
- *     importer's). Appended empty when nothing subscribes.
- *   - `os.my-wordpress.preview-extras` — once per named slot on the
- *     preview article (`header` / `meta` / `footer`), with the row so
- *     subscribers can paint their facts (the AllTerrain Work board
- *     meta, Woo's order analytics, …). The stamp is what keeps one
- *     firing per item and what protects a plugin's appended DOM
- *     across repaints — in a client view the renderer keeps
- *     identical nodes, and the stamp guard skips re-painting a slot
- *     it already filled. (The slots also carry `os-preserve` for the
- *     server-view morph, which never runs here.)
- *   - `os.my-wordpress.list-tile` — once per rendered tile, after it
- *     is in the DOM (decorations added earlier are wiped when the
- *     tile paints on connect), with the row it stands for.
- */
 function pluginSeamsAfterRender( ctx: Ctx ): void {
 	const hooks = shell().hooks;
 	if ( ! hooks?.doAction ) {
 		return;
 	}
 
-	// --- group-extras -------------------------------------------------
 	const groupHost = ctx.root.querySelector< HTMLElement >( '[data-mywp-group-extras]' );
 	if ( groupHost ) {
 		const groupId = groupHost.dataset.mywpGroupExtras ?? '';
@@ -482,8 +381,6 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 						.map( ( s ) => s.id ),
 				} );
 			} catch ( err ) {
-				// Plugin code — contained.
-				// eslint-disable-next-line no-console
 				console.error( '[my-wordpress] a group-extras subscriber threw.', err );
 			}
 		}
@@ -498,7 +395,6 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 		rows.set( row.id, row as unknown as Record< string, unknown > );
 	}
 
-	// --- preview-extras ----------------------------------------------
 	const detail = ctx.data.detail;
 	const folder = ctx.data.folder;
 	for ( const host of Array.from(
@@ -512,8 +408,7 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 		}
 		host.dataset.mywpExtrasFor = stamp;
 		host.replaceChildren();
-		// The richest row we hold: the list row (REST-visible meta and
-		// taxonomy fields included) under the dossier's own fields.
+
 		let item: Record< string, unknown > | null = null;
 		if ( detail && detail.id === itemId ) {
 			item = { ...( rows.get( itemId ) ?? {} ), ...detail };
@@ -532,15 +427,10 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 				item,
 			} );
 		} catch ( err ) {
-			// Plugin code — contained. One throwing subscriber must not
-			// take the other slots (or the rest of the render wiring)
-			// down with it.
-			// eslint-disable-next-line no-console
 			console.error( '[my-wordpress] a preview-extras subscriber threw.', err );
 		}
 	}
 
-	// --- list-tile ----------------------------------------------------
 	for ( const cell of Array.from(
 		ctx.root.querySelectorAll< HTMLElement >( '[data-mywp-drag][data-item-id]' ),
 	) ) {
@@ -559,35 +449,26 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 				item,
 			} );
 		} catch ( err ) {
-			// Plugin code — contained, per tile.
-			// eslint-disable-next-line no-console
 			console.error( '[my-wordpress] a list-tile subscriber threw.', err );
 		}
 	}
 }
 
-/** Runs after every render — the `updated()` half of the app. */
 export function afterRender( ctx: Ctx ): void {
 	const ui = uiOf( ctx );
-	// Keep the Send-to intake's routes flag current — Preferences can
-	// flip the agents framework while this window is open.
+
 	setSendToEnabled( ctx.data.agentsEnabled === true );
-	// Agents wiring: drop targets, drag-out, the face backfill, the
-	// roster signal, the create-then-chat hand-off.
+
 	agentsAfterRender( ctx );
-	// Re-wire the framework's paged list to the freshly rendered DOM:
-	// the sentinel (the render may have replaced it), the scrolling
-	// canvas, and what "load the next page" means here.
+
 	ui.list.sync( {
 		sentinel: ctx.root.querySelector( '[data-mywp-sentinel]' ),
-		// The scrolling element of either view — the tile grid or the
-		// list view's table wrapper — both wear `.os-mywp__canvas`.
+
 		canvas: ctx.root.querySelector< HTMLElement >( '.os-mywp__canvas' ),
 		load: () => ctx.dispatch( 'more' ),
 		repaint: () => ctx.repaint(),
 	} );
-	// A view switch keeps the selection; bring it into sight in the
-	// other costume — the open item first, else the first selected.
+
 	if ( ui.revealSelection ) {
 		ui.revealSelection = false;
 		const target = ctx.state.item > 0 ? ctx.state.item : ( ctx.state.selected[ 0 ] ?? 0 );
@@ -597,12 +478,7 @@ export function afterRender( ctx: Ctx ): void {
 				?.scrollIntoView?.( { block: 'nearest' } );
 		}
 	}
-	// The context menu paints hidden (the view renders it with an
-	// inline visibility:hidden), then the shell's own placement
-	// helper measures it post-render, clamps it inside the viewport
-	// and reveals it — without the hidden frame the menu's unclamped
-	// first paint flashes at the raw pointer position before jumping
-	// into place. The column chooser is the same element, same rule.
+
 	for ( const menuEl of Array.from(
 		ctx.root.querySelectorAll< HTMLElement >( 'os-context-menu.os-mywp__menu' ),
 	) ) {
@@ -610,11 +486,7 @@ export function afterRender( ctx: Ctx ): void {
 			clampToViewport( menuEl );
 		}
 	}
-	// Inject the server-rendered post body — the preview pane's and
-	// the detail folder's article alike. Trusted admin content from
-	// our own dispatch; the data-mywp-stamp guard below is what keeps
-	// a repaint from re-injecting (and wiping a reader's text
-	// selection) — the renderer keeps identical nodes between paints.
+
 	const picked = ctx.data.subDetail;
 	let pickedContent: string | undefined;
 	if ( picked?.kind === 'revision' ) {
@@ -637,17 +509,10 @@ export function afterRender( ctx: Ctx ): void {
 			}
 		}
 	}
-	// WP Explorer's preview-extras + list-tile seams over the new DOM —
-	// LAST, so a throwing subscriber can never break the app's own
-	// wiring above (each fire is also try/caught individually).
+
 	pluginSeamsAfterRender( ctx );
 }
 
-/**
- * The after-render wiring for the Agents section: drop targets and
- * drag-out on the cast cards, the face backfill, the "Send to" roster
- * signal, and the create-then-chat hand-off.
- */
 function agentsAfterRender( ctx: Ctx ): void {
 	const ui = uiOf( ctx );
 	const payload = ctx.data.agents;
@@ -655,7 +520,6 @@ function agentsAfterRender( ctx: Ctx ): void {
 	const active = !! payload && section?.kind === 'agent';
 
 	if ( ! active || ! payload ) {
-		// The section closed — release every drop target it registered.
 		for ( const deregister of ui.agentDropTargets.values() ) {
 			deregister();
 		}
@@ -663,9 +527,6 @@ function agentsAfterRender( ctx: Ctx ): void {
 		return;
 	}
 
-	// The roster signal: WP Explorer's "Send to" menu cache re-warms on
-	// this action, so a trigger edit made here reaches its menus
-	// without a reload. First sight only stamps.
 	const stamp = agentsRosterStamp( payload.list );
 	if ( ui.rosterStamp !== stamp ) {
 		const first = ui.rosterStamp === '' && payload.list.length > 0;
@@ -675,8 +536,6 @@ function agentsAfterRender( ctx: Ctx ): void {
 		}
 	}
 
-	// Create-then-chat: the pending create landed (the wizard closed
-	// onto the new agent) — open the chat window it asked for.
 	if ( ui.chatAfterCreate && ! ctx.state.casting && ctx.state.item > 0 ) {
 		const created = payload.list.find( ( a ) => a.id === ctx.state.item );
 		if ( created ) {
@@ -685,13 +544,9 @@ function agentsAfterRender( ctx: Ctx ): void {
 		}
 	}
 	if ( ui.chatAfterCreate && ctx.state.casting && ctx.state.agentNotice !== '' ) {
-		// The create failed — do not open a chat for the NEXT success.
 		ui.chatAfterCreate = false;
 	}
 
-	// (Re)register every cast card as a drop target, and prune targets
-	// whose agent left the list — re-registering the same id replaces
-	// the element binding in place, so repaints never leak targets.
 	const dragManager = shell().dragManager;
 	const mountId = agentsMountIdOf( ctx.root );
 	const seen = new Set< number >();
@@ -705,12 +560,7 @@ function agentsAfterRender( ctx: Ctx ): void {
 					return;
 				}
 				seen.add( agentId );
-				// Drag-out: lifting a card drops the agent anywhere the
-				// files layer accepts a `user` shortcut — the same
-				// `'shortcut'` payload `attachTileDragOut` emits, inlined
-				// so the app bundle does not pull the os-tile module in.
-				// Guarded per element — the card may survive a repaint,
-				// and a second listener would double-start the drag.
+
 				if ( ! row.dataset.dmAgentDragOut ) {
 					row.dataset.dmAgentDragOut = '1';
 					row.addEventListener( 'pointerdown', ( e: PointerEvent ) => {
@@ -779,12 +629,6 @@ function agentsAfterRender( ctx: Ctx ): void {
 		}
 	}
 
-	// Give a face to every agent that has a seed but no look — one per
-	// pass, so concurrent dispatches never race the state. Rolling it
-	// here keeps one implementation of the randomizer; storing it is
-	// what gets the portrait onto disk for `get_avatar()`. A backfill
-	// is a courtesy: one refusal must not take the grid down, so each
-	// id is attempted once per window.
 	if ( payload.canManage && ! ui.agentBusy ) {
 		const faceless = payload.list.find(
 			( a ) => ! hasFace( a.face ) && a.faceSeed > 0 && ! ui.agentBackfilled.has( a.id ),

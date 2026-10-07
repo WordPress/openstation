@@ -1,7 +1,3 @@
-/**
- * `createListTableSync()` — the preserved-table dance every list
- * window used to write by hand.
- */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createListTableSync, type ListTableLike } from '../../src/app-runtime/list-table';
 
@@ -43,7 +39,6 @@ describe( 'createListTableSync', () => {
 		expect( table.columns ).toEqual( [ { key: 'desk' } ] );
 		expect( table.data ).toBe( list );
 
-		// A selection repaint: same query, same rows — nothing reassigned.
 		const again = sync.sync( { table, rows: rows( 1, 2 ), listKey: 'a', fingerprint: fp( list ), columns, wire } );
 		expect( again.dataChanged ).toBe( false );
 		expect( again.columnsChanged ).toBe( false );
@@ -61,14 +56,12 @@ describe( 'createListTableSync', () => {
 		sync.sync( { ...base, rows: page1, listKey: 'p1', fingerprint: fp( page1 ) } );
 		table.selection = [ '2', '3' ];
 
-		// Same query, a row left (deleted elsewhere): prune.
 		const fewer = rows( 1, 2 );
 		const pruned = sync.sync( { ...base, rows: fewer, listKey: 'p1', fingerprint: fp( fewer ) } );
 		expect( pruned.selectionChanged ).toBe( true );
 		expect( Array.from( table.selection ?? [] ) ).toEqual( [ '2' ] );
 		expect( onSelection ).toHaveBeenLastCalledWith( [ '2' ] );
 
-		// New query: cleared through the table's own method.
 		const page2 = rows( 7, 8 );
 		const next = sync.sync( { ...base, rows: page2, listKey: 'p2', fingerprint: fp( page2 ) } );
 		expect( next.selectionChanged ).toBe( true );

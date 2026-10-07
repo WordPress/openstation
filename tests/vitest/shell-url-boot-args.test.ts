@@ -1,15 +1,3 @@
-/**
- * The shell screen's `target` / `intent` args are a one-shot boot
- * instruction. PHP reads them on the request that carries them; the
- * shell drops them from the address bar so a reload re-resolves against
- * the live session rather than re-opening the page it was reached by.
- *
- * The bug this pins: a plain visit to a page-less `/wp-admin/admin.php`
- * used to be forwarded as `?target=%2Fwp-admin%2Fadmin.php&intent=1`,
- * and because the args stayed in the URL, every F5 re-opened a window
- * showing nothing — core answers that URL 200 with an empty body.
- */
-
 import { describe, expect, it } from 'vitest';
 
 import { shellUrlWithoutBootArgs } from '../../src/shell-url';
@@ -43,13 +31,13 @@ describe( 'shellUrlWithoutBootArgs', () => {
 	} );
 
 	it( 'returns null off the shell screen, where the names are the page’s own', () => {
-		// `edit.php?intent=1` belongs to whatever renders edit.php.
+
 		expect(
 			shellUrlWithoutBootArgs(
 				'https://openstation.blog/wp-admin/edit.php?target=x&intent=1',
 			),
 		).toBeNull();
-		// `admin.php` with a different plugin page is not the shell.
+
 		expect(
 			shellUrlWithoutBootArgs(
 				'https://openstation.blog/wp-admin/admin.php?page=jetpack&intent=1',

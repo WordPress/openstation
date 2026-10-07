@@ -1,13 +1,3 @@
-/**
- * Recommended OS settings — the payload sanitizer, the runtime
- * resolver, and the once-only apply.
- *
- * The invariant these tests exist to defend is the promise made to
- * users, not to theme authors: **a theme arranges your desktop once,
- * the first time you pick it, and never touches it again.** Every
- * "already seeded" and "user changed it afterwards" case below is a
- * guard on that sentence.
- */
 import { beforeEach, describe, expect, test } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import {
@@ -28,7 +18,6 @@ import {
 } from '../../src/dock-rail/registry';
 import type { DockRailRenderer } from '../../src/dock-rail/types';
 
-/** Minimal renderer stub — the registry only validates the shape. */
 function railRenderer( id: string ): DockRailRenderer {
 	return {
 		id,
@@ -112,9 +101,7 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 	} );
 
 	test( 'keys outside the schema are dropped', () => {
-		// The payload passes through the `openstation_desktop_themes`
-		// PHP filter AFTER sanitization, so the shell must not treat it
-		// as trusted. A theme must never reach a feature switch.
+
 		expect(
 			sanitizeRecommendedOsSettings( {
 				dockSize: 'compact',
@@ -152,9 +139,7 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 			'adminBarMode',
 			'dockRailRenderer',
 			'windowReveal',
-			// The accent is a slug field for the same reason the two
-			// above it are: the swatch list is filterable in PHP, so
-			// validity is a runtime lookup rather than an enum.
+
 			'accent',
 			'windowRevealDuration',
 		] );
@@ -167,9 +152,7 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 	} );
 
 	test( 'clamps a reveal duration instead of dropping it', () => {
-		// A theme asking for something outside the playable range is
-		// still expressing a direction; the nearest playable duration
-		// is the honest reading of it.
+
 		expect(
 			sanitizeRecommendedOsSettings( { windowRevealDuration: 99_999 } ),
 		).toEqual( { windowRevealDuration: 4000 } );
@@ -198,9 +181,7 @@ describe( 'resolveRecommendedOsSettings', () => {
 	} );
 
 	test( 'drops an unregistered renderer, keeping every other key', () => {
-		// A theme recommending a renderer shipped by a plugin the site
-		// does not have must not write an id nothing answers to into
-		// user meta, where it would look like a deliberate choice.
+
 		expect(
 			resolveRecommendedOsSettings( {
 				dockSize: 'large',
@@ -213,9 +194,7 @@ describe( 'resolveRecommendedOsSettings', () => {
 		expect( resolveRecommendedOsSettings( { windowReveal: 'iris' } ) ).toEqual(
 			{ windowReveal: 'iris' },
 		);
-		// `none` is the selector's "no reveal" sentinel rather than a
-		// registration, so a theme recommending a deliberately plain
-		// shell must survive the registry check.
+
 		expect( resolveRecommendedOsSettings( { windowReveal: 'none' } ) ).toEqual(
 			{ windowReveal: 'none' },
 		);
@@ -252,7 +231,7 @@ describe( 'normalizeEntry', () => {
 	} );
 
 	test( 'a payload with no block yields an empty object, never undefined', () => {
-		// Every theme installed before this feature existed lands here.
+
 		const entry = normalizeEntry( { slug: 'acme-neon', name: 'Neon' } );
 		expect( entry?.recommendedOsSettings ).toEqual( {} );
 	} );
@@ -275,13 +254,7 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'seeds windowRadius — the corner preset a theme asks for', () => {
-		// The path that replaced pinning `--os-window-radius`
-		// as a token: a token cannot beat the preset's inline write, a
-		// recommendation sets the preset itself.
-		//
-		// `sharp`, deliberately: `round` is the shipped default, so a
-		// theme recommending it would leave the state identical either
-		// way and this would pass without the code doing anything.
+
 		seedLibrary( { windowRadius: 'sharp' } );
 		const state = structuredDefaults();
 
@@ -292,22 +265,15 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'a theme already in the ledger does not pick up a NEW recommendation', () => {
-		// A theme update that adds a key reaches nobody who has already
-		// activated it — deliberate: re-seeding on update is exactly
-		// "the theme overwrote my settings again". The button is the
-		// way in.
+
 		seedLibrary( { dockSize: 'large' } );
 		const state = structuredDefaults();
 		applyThemeRecommendations( state, 'acme-neon' );
 
-		// `sharp` rather than `round` for the same reason as above:
-		// `round` is the shipped default, so recommending it would be
-		// indistinguishable from the recommendation being ignored.
 		seedLibrary( { dockSize: 'large', windowRadius: 'sharp' } );
 		expect( applyThemeRecommendations( state, 'acme-neon' ) ).toEqual( {} );
 		expect( state.windowRadius ).toBe( 'round' );
 
-		// …and the button picks it up.
 		expect(
 			applyThemeRecommendations( state, 'acme-neon', { force: true } ),
 		).toEqual( { dockSize: 'large', windowRadius: 'sharp' } );
@@ -315,8 +281,7 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'does nothing the second time, even after the user changed things', () => {
-		// This is the whole promise: pick the theme, move the dock back
-		// to compact, re-pick the theme — compact stays.
+
 		seedLibrary( { dockSize: 'large' } );
 		const state = structuredDefaults();
 
@@ -343,8 +308,7 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'a theme that recommends nothing is not recorded', () => {
-		// Leaving it out means a later theme version that DOES ship
-		// recommendations still gets its one chance.
+
 		seedLibrary( {} );
 		const state = structuredDefaults();
 
@@ -381,9 +345,7 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'never writes a non-string setting', () => {
-		// Belt and braces on top of the sanitizer: even a site that has
-		// widened the PHP schema cannot flip a boolean feature toggle
-		// from a theme manifest.
+
 		seedLibrary( { dockSize: 'large' } );
 		const state = structuredDefaults();
 		const before = state.nativePluginsEnabled;
@@ -425,10 +387,7 @@ describe( 'hasApplicableThemeRecommendations', () => {
 	} );
 
 	test( 'true for the system default, which recommends its own accent', () => {
-		// The "no theme" card is a palette like any other and gets the
-		// same "Apply …'s recommended layout and effects" button. It
-		// has no manifest to declare that in, so its recommendation is
-		// spelled out in `theme-recommendations.ts`.
+
 		expect( hasApplicableThemeRecommendations( SYSTEM_DEFAULT_THEME ) ).toBe(
 			true,
 		);
@@ -452,8 +411,7 @@ describe( 'the system default recommends the brand accent', () => {
 		expect( state.accent ).toBe( 'pulse' );
 		expect( state.desktopLayout ).toBe( 'unified' );
 		expect( state.dockPlacement ).toBe( 'bottom' );
-		// Not the empty string: the ledger is a list of theme slugs and
-		// `''` would read as "no theme" rather than as an entry.
+
 		expect( state.appliedThemeRecommendations ).toEqual( [
 			'system-default',
 		] );
@@ -482,9 +440,7 @@ describe( 'the system default recommends the brand accent', () => {
 	} );
 
 	test( 'an accent the site no longer offers is dropped, not written', () => {
-		// The swatch list is filterable in PHP, so validity is a runtime
-		// lookup — an unresolvable id would otherwise sit in user meta
-		// looking like a deliberate choice.
+
 		expect(
 			resolveRecommendedOsSettings( { accent: 'not-a-swatch' } ),
 		).toEqual( {} );

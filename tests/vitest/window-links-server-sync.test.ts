@@ -1,13 +1,3 @@
-/**
- * Unit tests for `src/window-links/server-sync.ts`.
- *
- * The sync module bridges the `serverWindowLinkRendererScripts`
- * payload (built in PHP, arrives via `applyPayload`) and the
- * window-link renderer registry. It mirrors `effects/server-sync.ts`,
- * so we exercise the same behaviours: fresh scripts inject, re-sync
- * is idempotent, and a departing handle unregisters owner-tagged
- * renderers while untagged ones survive.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -76,7 +66,6 @@ describe( 'window-links/server-sync.ts', () => {
 		const run = sync.createWindowLinkRendererRegistrySync();
 		await run( [ { handle: 'plugin-a', scriptUrl: 'https://example.test/a.js' } ] );
 
-		// Simulate plugin-a's just-loaded JS registering its renderer.
 		registry.registerWindowLinkRenderer( {
 			id: 'a-lasers',
 			label: 'Lasers',
@@ -91,11 +80,10 @@ describe( 'window-links/server-sync.ts', () => {
 
 		expect( registry.getWindowLinkRenderer( 'a-lasers' ) ).toBeDefined();
 
-		// Plugin-a deactivates — sync with an empty payload.
 		await run( [] );
 
 		expect( registry.getWindowLinkRenderer( 'a-lasers' ) ).toBeUndefined();
-		// Untagged renderer survives (graceful backwards-compat).
+
 		expect( registry.getWindowLinkRenderer( 'untagged' ) ).toBeDefined();
 	} );
 

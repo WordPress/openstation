@@ -1,30 +1,11 @@
-/**
- * The Living Tree — hidden DNA tuner (developer mode only).
- *
- * Click the trunk 20 times (with developer mode ON in OS Settings →
- * Features) and a slider panel opens for every snapshot metric — posts,
- * pages, terms, comments, age, traffic, presence, health — regrowing the
- * tree instantly on every drag. Purely a client-side debugging lens: it
- * never writes anything, never touches the server snapshot, and closes
- * back to the real DNA.
- *
- * The panel is bespoke DOM with raw `<input type="range">` on purpose:
- * the `<os-*>` field components live in the lazily-loaded OS Settings
- * bundle and aren't guaranteed upgraded inside a wallpaper's document
- * context — a dev tool must not depend on another bundle having loaded.
- */
-
 import { buildHormones } from './dna';
 import { currentHour } from './sky';
 import type { Envelope, TreeSnapshot } from './types';
 
-/** Trunk clicks required to open the tuner. */
 export const TUNER_CLICK_THRESHOLD = 20;
 
-/** Max gap between consecutive trunk clicks before the count resets. */
 export const TUNER_CLICK_WINDOW_MS = 2500;
 
-/** Snapshot fields the tuner exposes. */
 export type TunerKey =
 	| 'siteAgeDays'
 	| 'totalPosts'
@@ -58,10 +39,6 @@ export const SLIDER_DEFS: SliderDef[] = [
 	{ key: 'performance', label: 'Performance', min: 0, max: 1, step: 0.01 },
 ];
 
-/**
- * Whether the OS Settings developer-mode toggle is on. Read live on
- * every trunk click so flipping the toggle needs no wallpaper remount.
- */
 export function isDeveloperModeEnabled(): boolean {
 	const api = window.wp?.os as
 		| { getOsSettings?: () => { developerModeEnabled?: boolean } }
@@ -73,13 +50,6 @@ export function isDeveloperModeEnabled(): boolean {
 	}
 }
 
-/**
- * Consecutive-click counter with a per-gap timeout. `hit()` returns true
- * exactly on the threshold-th click of an unbroken run.
- *
- * @param threshold Clicks required.
- * @param windowMs  Max gap between clicks before the run resets.
- */
 export function createClickCounter(
 	threshold: number,
 	windowMs: number,
@@ -105,41 +75,24 @@ export function createClickCounter(
 	};
 }
 
-/**
- * Whether a point (in tree reference space — root at origin, up = -y)
- * lands on the trunk column.
- *
- * @param lx  Reference-space x.
- * @param ly  Reference-space y.
- * @param env The active envelope (trunk girth + height).
- */
 export function isTrunkHit( lx: number, ly: number, env: Envelope ): boolean {
 	const halfWidth = Math.max( 16, env.trunkBaseGirth * 3 );
 	return Math.abs( lx ) <= halfWidth && ly <= 6 && ly >= -env.heightMax * 0.55;
 }
 
 export interface TrunkClickGestureOptions {
-	/** Gate checked per click (developer mode ON, panel not already open). */
+
 	isEnabled: () => boolean;
-	/** Map a client-space click to tree reference space. */
+
 	toLocal: ( clientX: number, clientY: number ) => { lx: number; ly: number };
-	/** Whether a reference-space point lands on the trunk column. */
+
 	isHit: ( lx: number, ly: number ) => boolean;
-	/** Fired exactly once per completed 20-click run. */
+
 	onTrigger: () => void;
-	/** Clock override for tests. Defaults to `Date.now`. */
+
 	now?: () => number;
 }
 
-/**
- * The full easter-egg gesture as one testable unit: N consecutive trunk
- * clicks (each within the timeout window) fire `onTrigger`; a click off
- * the trunk resets the run; a disabled gate ignores clicks entirely.
- * The scene wires the returned listener to window `click`.
- *
- * @param opts Gesture dependencies (gate, hit-test, trigger, clock).
- * @return A `click` listener taking any `{ clientX, clientY }` event.
- */
 export function createTrunkClickGesture(
 	opts: TrunkClickGestureOptions,
 ): ( event: { clientX: number; clientY: number } ) => void {
@@ -176,23 +129,18 @@ function hormoneLine( snapshot: TreeSnapshot ): string {
 }
 
 export interface DebugPanelOptions {
-	/** The DNA currently rendered — seeds the sliders. */
+
 	snapshot: TreeSnapshot;
-	/** Fired (debounced) with a fresh snapshot on every slider move. */
+
 	onChange: ( next: TreeSnapshot ) => void;
-	/** Fired when the user closes the panel via its own button. */
+
 	onClose: () => void;
-	/** Initial value for the time-of-day slider (fractional hours). */
+
 	hour?: number;
-	/**
-	 * When provided, the panel grows a time-of-day slider (0..24) that
-	 * fires on every move — `null` means "back to the live clock". The
-	 * caller owns the override + sky refresh.
-	 */
+
 	onHourChange?: ( hour: number | null ) => void;
 }
 
-/** Format fractional hours as HH:MM for the slider readout. */
 function formatHour( hours: number ): string {
 	const h = Math.floor( hours );
 	const m = Math.round( ( hours - h ) * 60 );
@@ -201,16 +149,6 @@ function formatHour( hours: number ): string {
 	return `${ hh }:${ mm }`;
 }
 
-/**
- * Open the tuner panel. Returns a disposer (used by scene teardown); the
- * panel's close button also calls `onClose` after disposing itself.
- *
- * The panel mounts on `document.body`, NOT inside the wallpaper layer:
- * the wallpaper sits at the very bottom of the shell's stack under the
- * desktop-icons/files layers, so anything inside it is visible but never
- * hit-testable. `position:fixed` + a debug-grade z-index float the panel
- * above the whole shell — it's a dev tool; sitting over windows is fine.
- */
 export function openDebugPanel( opts: DebugPanelOptions ): () => void {
 	const state: TreeSnapshot = { ...opts.snapshot };
 	let pending: ReturnType< typeof setTimeout > | null = null;
@@ -265,9 +203,6 @@ export function openDebugPanel( opts: DebugPanelOptions ): () => void {
 	hormones.textContent = hormoneLine( state );
 	panel.appendChild( hormones );
 
-	// Time-of-day override — drives the sky + tree luminosity live. Not a
-	// snapshot field: it fires straight through (no debounce; a sky
-	// retint is cheap) and "live" hands the clock back to local time.
 	if ( opts.onHourChange ) {
 		const onHourChange = opts.onHourChange;
 		const row = document.createElement( 'label' );

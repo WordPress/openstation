@@ -1,33 +1,9 @@
-/**
- * OpenStation — Dock.
- *
- * A rail that hosts admin menu tiles plus shell-level system tiles.
- * Placement (left / right / bottom) is reflected on each dock element
- * itself as `data-os-dock-placement`; this stylesheet keys
- * off that attribute for layout, tooltip anchor, and indicator
- * position. Two instances can coexist (Classic layout: a left side
- * bar with core menus + a bottom dock with plugin menus); each
- * carries its own placement attribute, so the two rails are styled
- * independently without leaking selector state to one another.
- *
- * @since 6.9.0
- */
-
-/* ------------------------------------------------------------------
- * Shared dock chrome — applies to every placement.
- * ------------------------------------------------------------------ */
-
 .os-dock {
 	display: flex;
 	align-items: center;
 	z-index: var( --os-z-dock );
 	background-color: var( --os-dock-bg );
-	/*
-	 * Desktop-theme dock texture (DOCK slot). Layered OVER the dock
-	 * background colour, so a theme can ship a semi-transparent
-	 * texture and still get the translucent wash underneath. `none`
-	 * when unset — no theme, no cost.
-	 */
+
 	background-image: var( --os-dock-bg-image, none );
 	background-repeat: var( --os-dock-bg-image-repeat, repeat );
 	background-size: var( --os-dock-bg-image-size, auto );
@@ -35,17 +11,10 @@
 	backdrop-filter: blur( 20px );
 	-webkit-backdrop-filter: blur( 20px );
 	flex-shrink: 0;
-	/*
-	 * overflow: visible so the per-tile "Open another" chip can float
-	 * past the dock's outer edge. Real-world bottom-dock menus fit
-	 * the viewport without a scrollbar; vertical placements route
-	 * their overflow through the inner `__scroll` wrapper, leaving
-	 * the dock itself non-scrolling.
-	 */
+
 	overflow: visible;
 }
 
-/* A single dock tile — icon button (+ optional instance rail below). */
 .os-dock__item {
 	position: relative;
 	display: flex;
@@ -55,7 +24,6 @@
 	flex-shrink: 0;
 }
 
-/* Primary icon button — opens or focuses the page. */
 .os-dock__item-primary {
 	position: relative;
 	display: flex;
@@ -68,32 +36,16 @@
 	cursor: pointer;
 	padding: 0;
 	background-color: transparent;
-	/*
-	 * DOCK_ITEM texture slot — the face of a single dock tile, so a
-	 * theme can give every launcher a physical key/plate instead of
-	 * relying on the dock strip's texture showing through. Painted
-	 * under the icon; the hover wash below is a background-COLOR so
-	 * it composes with the texture rather than erasing it.
-	 */
+
 	background-image: var( --os-dock-item-image, none );
 	background-repeat: var( --os-dock-item-image-repeat, no-repeat );
 	background-size: var( --os-dock-item-image-size, auto );
 	background-position: var( --os-dock-item-image-position, center );
-	/*
-	 * Dock glyph colour. The literal is what this rule always said;
-	 * the token is the name a theme aims at when its dock strip is
-	 * not dark. See the "Dock glyphs" block in variables.css.
-	 */
+
 	color: var( --os-dock-icon-color, rgba( 255, 255, 255, 0.7 ) );
 	transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
 }
 
-/*
- * The tile whose window is in front sits on a lit plate. Declared
- * before the hover rule at the same specificity so the pointer still
- * wins while it is over the tile. Falls back to nothing, which is
- * what every placement drew before the token existed.
- */
 .os-dock__item--focused .os-dock__item-primary {
 	background-color: var( --os-dock-item-bg-focused, transparent );
 	color: var( --os-dock-icon-color-hover, var( --os-ui-fg-on-accent, #fff ) );
@@ -123,18 +75,6 @@
 	outline-offset: 2px;
 }
 
-/* Stacked card hint on hover — a second card peeks from behind the
-   icon when the tile has multiple open windows. Only visible on hover so
-   it never conflicts with focused tiles.
- *
- * Painted on the TILE, not on the button it hints at. The hover that
- * arms this also scales the button, a transform makes a stacking
- * context, and a `z-index: -1` child of one cannot escape it: the card
- * landed above the button's own hover plate instead of behind the
- * tile, reading as a second plate laid over the first. The tile is
- * transformed by nothing, and a positioned child (the button) paints
- * over a parent's `::before` at the same level, so the card sits where
- * its name says without asking for a z-index at all. */
 .os-dock__item--stacked:hover::before,
 .os-dock__item--stacked[ data-peek-active ]::before {
 	content: "";
@@ -149,7 +89,6 @@
 	pointer-events: none;
 }
 
-/* Dashicon inside dock item. */
 .os-dock__item .dashicons {
 	font-size: var( --os-dock-icon-size, 20px );
 	width: var( --os-dock-icon-size, 20px );
@@ -157,24 +96,13 @@
 	line-height: 1;
 }
 
-/* SVG icon (for custom post types with data:image/svg+xml icons).
- *
- * The FALLBACK path now: `_makeSvgIcon()` paints these as a mask
- * filled with `currentColor` (see `__item-mask` below) and only lands
- * here when the mask refuses the URL — one carrying quotes, spaces or
- * parens. The filter is what that fallback still needs. */
 .os-dock__item-svg {
 	width: var( --os-dock-icon-size, 20px );
 	height: var( --os-dock-icon-size, 20px );
 	display: block;
 	fill: currentColor;
 	opacity: 0.7;
-	/* Some plugin SVGs ship hardcoded `fill="..."` attributes inside
-	   the markup, which override `fill: currentColor` and make the
-	   icon keep its brand color. Force the monochrome white palette
-	   to match dashicons. Flattens to WHITE specifically, which is why
-	   the mask path is preferred: a filter has no colour to name, so a
-	   theme cannot reach it. */
+
 	filter: brightness(0) invert(1);
 	transition: opacity 0.15s ease;
 }
@@ -183,32 +111,6 @@
 	opacity: 1;
 }
 
-/*
- * MASKED icon — the glyph is painted as a CSS mask filled with a
- * colour, so only the source artwork's alpha is used.
- *
- * Two callers, one shape:
- *
- *   - A desktop theme's tinted iconset, filled with the colour the
- *     theme named for that slot.
- *   - Every other plugin / CPT image icon, filled with
- *     `currentColor` — which is `--os-dock-icon-color`, the
- *     same token the dashicons follow.
- *
- * Deliberately NOT `__item-svg`: that class force-whitens its content
- * with `filter: brightness(0) invert(1)`. Both mechanisms discard the
- * artwork's colours and keep its alpha, but only one of them has a
- * colour a theme can name.
- *
- * Full opacity, unlike `__item-svg`'s 0.7: the fill carries its own
- * alpha. Unthemed that is `rgba( 255, 255, 255, 0.7 )` at rest and
- * `#fff` on hover — exactly what the filter plus the opacity pair
- * used to compute — and a theme that names a colour has already
- * decided how prominent its glyphs should be, so dimming it again
- * would silently mix it with the dock.
- *
- * @since 0.9.8
- */
 .os-dock__item-mask {
 	width: var( --os-dock-icon-size, 20px );
 	height: var( --os-dock-icon-size, 20px );
@@ -216,11 +118,6 @@
 	flex-shrink: 0;
 }
 
-/*
- * Letter-badge icon — rendered for items registered without a
- * dashicon / SVG / image URL. Miniature "app placeholder": rounded
- * square tinted with a title-derived hue, first letter centered.
- */
 .os-dock__item-letter {
 	display: flex;
 	align-items: center;
@@ -255,9 +152,6 @@
 	opacity: 1;
 }
 
-/* "Open another" floating chip — shown on multi-capable tiles that
- * already have ≥1 open instance. Positioned inside each orientation
- * block so the chip hugs the outward edge of the tile. */
 .os-dock__item-new {
 	position: absolute;
 	display: flex;
@@ -289,25 +183,8 @@
 	outline-offset: 2px;
 }
 
-/* Notification badge — iOS/macOS-style pill straddling the tile
- * corner. Ring matches the dock bg so it reads as "punched out."
- * Badge positioning is placement-aware via the blocks below. */
 .os-dock__badge {
-	/*
-	 * Badge geometry DERIVES from the dock's icon size instead of
-	 * being pinned to 16px.
-	 *
-	 * The dock is user-sizable (18 / 20 / 26px icons via OS Settings →
-	 * dock size). A fixed badge tracked none of that: at "Large" it
-	 * read as a speck stuck to an oversized tile. The ratios below are
-	 * chosen so the DEFAULT dock (20px icons) resolves to exactly the
-	 * old numbers — 16px box, 10px text, ~5px padding — so nothing
-	 * moves for anyone who hasn't changed the setting.
-	 *
-	 * `--os-dock-badge-size` overrides the whole derivation
-	 * for themes that want a specific badge; the font size and padding
-	 * then follow it, so one token is usually enough.
-	 */
+
 	--os-dock-badge-computed-size: var(
 		--os-dock-badge-size,
 		calc( var( --os-dock-icon-size, 20px ) * 0.8 )
@@ -329,17 +206,7 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	/*
-	 * 0.625 of the badge box — 10px on the default 16px badge, the
-	 * value this rule carried before the geometry was derived. It is
-	 * the right weight for a menu tile's alert count: these badges sit
-	 * on the tile CORNER where the pill itself carries the signal, so
-	 * the digit only has to confirm it.
-	 *
-	 * The Recycle Bin's badge is a different problem and has its own
-	 * ratio below — it sits INSIDE the bin glyph, where the pill reads
-	 * as part of the artwork and the number has to carry itself.
-	 */
+
 	font-size: var(
 		--os-dock-badge-font-size,
 		calc( var( --os-dock-badge-computed-size ) * 0.625 )
@@ -363,26 +230,8 @@
 	top: -4px;
 }
 
-/*
- * Recycle Bin count — unlike unread/update badges, the trash count
- * is ambient state. Keep it inside the bin glyph as a quiet neutral
- * marker instead of a red alert on the tile corner.
- */
 .os-dock__item[ data-system-id="desktop-mode-recycle-bin" ] .os-dock__badge {
-	/*
-	 * Sized off the dock icon like every other badge, so it tracks the
-	 * dock-size setting instead of sitting at a fixed 13px on an icon
-	 * that may be 18, 20 or 26px.
-	 *
-	 * Deliberately quieter than the corner alert badge above — this is
-	 * ambient state, not a notification — but it still has to be a
-	 * READABLE number. It was 13px with an 8px digit, which is below
-	 * the point where a count reads as a count.
-	 *
-	 * Override chain: bin-specific token → the generic dock-badge
-	 * token → the derivation, so a theme that says "dock badges are
-	 * 20px" reaches the bin without naming it.
-	 */
+
 	--os-dock-recycle-badge-computed-size: var(
 		--os-dock-recycle-badge-size,
 		var(
@@ -419,34 +268,14 @@
 }
 
 .os-dock__item[ data-system-id="desktop-mode-recycle-bin" ]:hover .os-dock__badge {
-	/* Re-assert the derived offset, not a literal: the base rule above
-	 * is overridden by the generic `__item:hover .__badge` rule, and
-	 * hardcoding 20px here would strand the badge the moment the dock
-	 * icon size changed. */
+
 	top: calc( var( --os-dock-icon-size, 20px ) * 1 );
 	transform: scale( 1.03 );
 }
 
-/* System tiles — same footprint as menu tiles, no badges, no rails.
- *
- * Reads the SAME glyph token as a menu tile, with its own literal as
- * the fallback: unthemed, system tiles keep sitting a notch brighter
- * than the rest (0.8 vs 0.7); themed, one colour covers every glyph
- * in the dock rather than leaving these four stranded white. */
 .os-dock__item--system .os-dock__item-primary {
 	color: var( --os-dock-icon-color, rgba( 255, 255, 255, 0.8 ) );
 }
-
-/* -----------------------------------------------------------------------------
- * Attention animations — driven by `Dock.setAttention()` /
- * `Window.requestAttention()`. The class lands on the tile root,
- * the animation runs on the primary icon button so the badge stays
- * stable. Three modes (pulse / shake / bounce) and three intensities
- * (subtle / normal / strong). All animations gated on
- * `prefers-reduced-motion: no-preference`; the reduced-motion fallback
- * shows a static accent ring for the same duration so the affordance
- * still works.
- * ------------------------------------------------------------------------- */
 
 @keyframes os-dock-attention-pulse {
 	0%, 100% {
@@ -493,8 +322,6 @@
 	animation: os-dock-attention-bounce 1.2s ease-in-out infinite;
 }
 
-/* Intensity modulates animation duration — strong = faster, more
-   urgent; subtle = slower, calmer. */
 .os-dock__item--intensity-strong.os-dock__item--attention-pulse .os-dock__item-primary {
 	animation-duration: 1s;
 }
@@ -514,8 +341,6 @@
 	animation-duration: 1.6s;
 }
 
-/* Reduced-motion: kill the animation, replace with a static accent ring
-   for the same visual prominence without the movement. */
 @media ( prefers-reduced-motion: reduce ) {
 	.os-dock__item--attention-pulse .os-dock__item-primary,
 	.os-dock__item--attention-shake .os-dock__item-primary,
@@ -527,7 +352,6 @@
 	}
 }
 
-/* Shared tooltip — placement-specific anchor modifiers applied by JS. */
 .os-dock__tooltip {
 	position: fixed;
 	padding: 6px 12px;
@@ -554,47 +378,16 @@
 	opacity: 1;
 }
 
-/* ------------------------------------------------------------------
- * Vertical placement (left + right) — dock runs the full shell body
- * height along one edge, with items stacked vertically.
- * ------------------------------------------------------------------ */
-
 .os-dock[ data-os-dock-placement="left" ],
 .os-dock[ data-os-dock-placement="right" ] {
 	width: var( --os-dock-width );
 	flex-direction: column;
 	padding: 16px 0 12px;
 	gap: 6px;
-	/*
-	 * Vertical docks split into two inner wrappers:
-	 *   - `__scroll`  — flex: 1, scrollable, hosts menu tiles + the
-	 *                   inline core/plugin separator. When the menu
-	 *                   exceeds the dock's height, this is what
-	 *                   scrolls; the outer dock stays a fixed pillar.
-	 *   - `__pinned`  — sized to content, hosts system tiles
-	 *                   (Recycle Bin, OS Settings, …) + their hairline
-	 *                   separator. Always visible at the bottom edge
-	 *                   regardless of scroll position.
-	 *
-	 * `min-height: 0` on the dock is defensive: even though `__scroll`
-	 * absorbs the overflow, the dock is a flex item inside the shell
-	 * body (a flex row), and the default `min-height: auto` would let
-	 * a tall `__pinned` push the dock past the parent's height.
-	 */
+
 	min-height: 0;
 }
 
-/*
- * Scrollable menu-tile area inside vertical docks. `flex: 1 1 0` plus
- * `min-height: 0` lets it shrink below its content's natural height so
- * `overflow-y: auto` actually engages. `overflow-x: clip` keeps the
- * active-dot / focused-pill indicators visible (they sit at x≈2px
- * inside the wrapper's content box) while preventing `overflow-y: auto`
- * from coercing horizontal scroll. Scrollbar is hidden visually —
- * Firefox via `scrollbar-width: none`, WebKit via the pseudo-element
- * rule below — so the rail keeps its clean macOS look. Mouse wheel,
- * touchpad, touch, and keyboard focus-into-view all still work.
- */
 .os-dock[ data-os-dock-placement="left" ] .os-dock__scroll,
 .os-dock[ data-os-dock-placement="right" ] .os-dock__scroll {
 	display: flex;
@@ -614,11 +407,6 @@
 	display: none;
 }
 
-/*
- * Pinned area below `__scroll` — system tiles stay reachable here
- * regardless of how the menu list scrolls. `flex-shrink: 0` so it's
- * never compressed; sized to its content's natural height.
- */
 .os-dock[ data-os-dock-placement="left" ] .os-dock__pinned,
 .os-dock[ data-os-dock-placement="right" ] .os-dock__pinned {
 	display: flex;
@@ -629,19 +417,16 @@
 	width: 100%;
 }
 
-/* Left: dock is the first flex item in __body (row layout). */
 .os-dock[ data-os-dock-placement="left" ] {
 	border-inline-end: 1px solid var( --os-dock-border );
 	order: -1;
 }
 
-/* Right: push the dock to the end of __body and flip the border edge. */
 .os-dock[ data-os-dock-placement="right" ] {
 	border-inline-start: 1px solid var( --os-dock-border );
 	order: 1;
 }
 
-/* Active-indicator dot — left dock: inside-edge vertical pill. */
 .os-dock[ data-os-dock-placement="left" ]
 	.os-dock__item--active::before {
 	content: "";
@@ -662,16 +447,6 @@
 	border-radius: 2px;
 }
 
-/*
- * "All instances minimized" — the tile still has windows, they're
- * just hidden. Swap the solid dot for a hollow ring so the user sees
- * "I have something here, currently tucked away" instead of "I have
- * a focused / visible window here." `--all-minimized` is layered on
- * top of `--active`; the rule below wins on selector specificity.
- *
- * Sized slightly larger than the solid dot so the ring is legible at
- * dock size — a 4×4 outline reads as a dirty pixel.
- */
 .os-dock[ data-os-dock-placement="left" ]
 	.os-dock__item--all-minimized::before {
 	width: 6px;
@@ -681,7 +456,6 @@
 	border: 1px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) );
 }
 
-/* Right dock: indicator on the opposite edge (inside-facing). */
 .os-dock[ data-os-dock-placement="right" ]
 	.os-dock__item--active::before {
 	content: "";
@@ -711,7 +485,6 @@
 	border: 1px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) );
 }
 
-/* "Open another" chip — left: right of tile; right: left of tile. */
 .os-dock[ data-os-dock-placement="left" ]
 	.os-dock__item-new {
 	top: 50%;
@@ -736,24 +509,6 @@
 	transform: translateY( -50% ) scale( 1.1 );
 }
 
-/* Separator — the line between two groups of tiles. With the
- * `__scroll` / `__pinned` split the system separator lives at the top
- * of `__pinned`; flex-flow handles the "system tiles at the bottom"
- * placement, no margin-top: auto needed. The `--group` variant is used
- * inline between core and plugin menu tiles in `__scroll` and sits
- * exactly where it's inserted.
- *
- * ONE treatment for every division in the rail. The selector carries
- * only the base class on purpose: `--group` elements carry it too, so
- * both boundaries resolve here and cannot drift apart. Two weights in
- * one short rail read as two unrelated ideas rather than one system,
- * which is why the earlier loud-plus-hairline pairing is gone.
- *
- * A gradient, not a flat fill: the line is brightest where the eye
- * lands and gone by the time it reaches the rail's padding, so it
- * never terminates in a visible stub against the glass. The soft glow
- * around it is what keeps a 2px line from disappearing into the dock
- * tint; nothing is drawn on the line itself. */
 .os-dock[ data-os-dock-placement="left" ]
 	.os-dock__separator,
 .os-dock[ data-os-dock-placement="right" ]
@@ -779,17 +534,6 @@
 	flex-shrink: 0;
 }
 
-/*
- * Hide the system separator when nothing precedes it — on a clean
- * install (or a low-cap user with zero menu items) the separator
- * would render as a stray hairline with nothing to divide.
- *
- * Two cases:
- *   1. Bottom dock — separator is a direct child of the dock; hide
- *      when it's the first such child.
- *   2. Vertical docks — separator lives inside `__pinned`; hide when
- *      `__scroll` (its sibling above) is empty of menu tiles.
- */
 .os-dock > .os-dock__separator:first-child {
 	display: none;
 }
@@ -800,41 +544,11 @@
 	display: none;
 }
 
-
-/*
- * Drop an empty `__scroll` from the flex flow entirely. When only
- * system tiles are present (e.g. just the Recycle Bin), the empty
- * wrapper would otherwise still occupy the rail: its `flex-grow`
- * stretches it — shoving the lone `__pinned` tile to the far edge on
- * vertical docks — and the inter-wrapper `gap` leaves a phantom
- * offset that nudges the tile off-center on the bottom dock. Removing
- * it lets the dock center the lone system tile. As soon as a menu
- * tile is added the `:has()` no longer matches and normal flow
- * resumes.
- *
- * The `[data-os-dock-placement]` qualifier is load-bearing:
- * the per-placement rules that set `display: flex` on `__scroll` are
- * (0,3,0); this selector must out-specify them, so it carries the
- * placement attribute to reach (0,4,0).
- */
 .os-dock[ data-os-dock-placement ]
 	.os-dock__scroll:not(:has( .os-dock__item )) {
 	display: none;
 }
 
-/* Tooltip — anchor modifiers are applied directly to the tooltip
- * element (NOT via a descendant selector on `.os-dock`)
- * because the tooltip lives in `document.body`. JS writes the
- * absolute `top` / `left` coords; CSS handles the slide-in
- * animation direction per modifier.
- *
- *   - `--after`   : left-placed dock  (tooltip to the RIGHT of tile)
- *   - `--before`  : right-placed dock (tooltip to the LEFT of tile)
- *   - `--above`   : bottom-placed dock (tooltip ABOVE the tile)
- */
-
-/* Left dock — tooltip slides in from the left by 4px. JS sets
- * `left` to `tile.right + 8px`; the transform animates the entry. */
 .os-dock__tooltip--after {
 	transform: translateX( -4px );
 }
@@ -844,9 +558,7 @@
 }
 
 .os-dock__tooltip--before {
-	/* Right-placed dock — tooltip sits to the left of the tile. JS
-	 * writes the left coord to the tile's left edge; this translate
-	 * pulls the tooltip further left by its own width. */
+
 	transform: translate( calc( -100% - 8px ), 0 );
 }
 
@@ -854,12 +566,6 @@
 	transform: translate( calc( -100% - 8px ), 0 );
 	opacity: 1;
 }
-
-/* ------------------------------------------------------------------
- * Bottom placement — floating macOS-style pill centered above the
- * viewport floor. Absolutely positioned so it floats as pure chrome
- * rather than stealing vertical space from the shell body.
- * ------------------------------------------------------------------ */
 
 .os-dock[ data-os-dock-placement="bottom" ] {
 	position: absolute;
@@ -871,27 +577,11 @@
 	max-width: calc( 100% - 32px );
 	flex-direction: row;
 	justify-content: center;
-	/* Top padding is 4px instead of 8px so that the inner `__scroll`
-	 * wrapper can claim its own 4px padding-top for badge clearance
-	 * (the tile's badge sits at top: -3px). Net vertical chrome stays
-	 * symmetric: 4px pill padding + 4px wrapper padding above the
-	 * tile, 8px pill padding below — tile is 8px from both edges. */
+
 	padding: 4px 12px 8px;
 	gap: 6px;
 	border-radius: 18px;
 
-	/* Warmer, more saturated glass tint than vertical placements so
-	 * the floating pill reads as a distinct piece of chrome rather
-	 * than a section of the sidebar.
-	 *
-	 * background-COLOR, not the shorthand: the base `.os-dock`
-	 * rule declares the DOCK texture slot's background-image, and a
-	 * shorthand here would reset it — a themed dock texture would
-	 * simply never appear in the bottom placement.
-	 *
-	 * The tint is its own token rather than `--os-dock-bg`
-	 * precisely because the two are meant to differ; a theme that
-	 * wants them identical points this at the same value. */
 	background-color: var(
 		--os-dock-floating-bg,
 		rgba( 22, 22, 26, 0.42 )
@@ -899,18 +589,6 @@
 	backdrop-filter: blur( 28px ) saturate( 170% );
 	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
 
-	/*
-	 * Hairline + inset highlight. These used to be hardcoded, which
-	 * meant a theme could restyle every dock placement EXCEPT this
-	 * one and had no way to remove the outline it saw floating over
-	 * an empty desktop.
-	 *
-	 * The chain matters: the floating-specific token wins, then the
-	 * general `--os-dock-border` (so a theme that tokenized
-	 * its side docks gets the pill for free, which is what anyone
-	 * setting that token expects), then the literal. Set either to
-	 * `transparent` for a borderless pill.
-	 */
 	border: 1px solid var(
 		--os-dock-floating-border,
 		var( --os-dock-border, rgba( 255, 255, 255, 0.12 ) )
@@ -933,7 +611,6 @@
 		);
 }
 
-/* Active-indicator dot — below the tile, macOS-style. */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__item--active::before {
 	content: "";
@@ -955,11 +632,6 @@
 	border-radius: 2px;
 }
 
-/*
- * "All instances minimized" on the bottom dock — solid dot becomes
- * a hollow ring. Matches the vertical-dock treatment so the cue is
- * consistent across placements.
- */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__item--all-minimized::before {
 	width: 6px;
@@ -969,30 +641,6 @@
 	border: 1px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) );
 }
 
-/*
- * "Show Desktop" — every live window on the active desktop minimized.
- *
- * The dock does not change when this happens. It used to: the bottom
- * pill and the vertical rails each picked up a 1px inset ring, on the
- * reasoning that an empty wallpaper otherwise looks identical to a
- * desktop that never had anything on it.
- *
- * The reasoning was sound and the ring was still the wrong answer. It
- * outlined the whole dock — the one surface on screen that is always
- * present and never the subject — to say something about windows that
- * are not on the dock at all. Every tile that has minimized windows
- * already says so, precisely and locally, by swapping its solid
- * indicator dot for a hollow ring. That is the cue: it points at the
- * tiles the windows are under, in the place the user will click to get
- * them back.
- *
- * `body.os-show-desktop-active` is still set (see `src/dock.ts`) and
- * still public, so a theme or plugin that wants a global cue can paint
- * one. Core does not.
- */
-
-/* "Open another" chip — floats above the tile's top-right corner so
- * it doesn't collide with neighbouring tiles in the horizontal row. */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__item-new {
 	top: -6px;
@@ -1005,36 +653,6 @@
 	transform: scale( 1.1 );
 }
 
-/*
- * Bottom-dock inner wrappers — `__scroll` carries the menu tiles and
- * absorbs horizontal overflow; `__pinned` carries the system tiles and
- * stays anchored to the trailing edge.
- *
- * **The padding around `__scroll` is what keeps badges visible, and it
- * has to be on both axes.** `overflow-x: auto` below cannot coexist
- * with `overflow-y: visible`: per spec the visible axis computes to
- * `auto`, so this wrapper is a scroll container in BOTH directions
- * however it is authored, and anything a child hangs outside its
- * padding box is clipped. A badge sits at `top: -3px; right: -3px` on
- * its tile, and the LAST tile's edge is the wrapper's edge once the
- * content is wide enough to scroll — which is why this showed up as
- * "the badge on the last plugin looks cut off" rather than as a
- * general problem. The inline padding is symmetric so the tile cluster
- * stays centred in the pill. `min-width: 0` lets the wrapper shrink below its
- * content's natural width, so the dock pill's `max-width` is what
- * decides when scroll kicks in instead of the content forcing the
- * pill wider. `justify-content: safe center` keeps tiles balanced inside
- * the pill when content fits; when it overflows, the `safe` keyword
- * ensures alignment falls back to `start` so `scrollLeft = 0` reveals the
- * first item and all items remain scrollable without clipping. Bare
- * `center` put the leading tiles at a negative offset, and a scroll
- * container clamps `scrollLeft` at 0, so Dashboard and its neighbours
- * were clipped with no way to scroll back to them. **The plain `start`
- * above it is the fallback, not a leftover** — a browser that cannot
- * parse the overflow-alignment keyword drops the `safe center`
- * declaration and keeps that one, which left-aligns the tiles rather
- * than hiding them. Deleting it restores the bug on those browsers.
- */
 .os-dock[ data-os-dock-placement="bottom" ] .os-dock__scroll {
 	display: flex;
 	flex-direction: row;
@@ -1048,12 +666,7 @@
 	padding-bottom: 6px;
 	padding-inline: 4px;
 	overflow-x: auto;
-	/*
-	 * Authored `visible`, computed `auto` — see the note above. Kept as
-	 * the honest statement of intent: nothing here wants a vertical
-	 * scrollbar, and `scrollbar-width: none` plus the padding is what
-	 * makes that true in practice.
-	 */
+
 	overflow-y: visible;
 	scrollbar-width: none;
 }
@@ -1068,32 +681,18 @@
 	align-items: center;
 	gap: 6px;
 	flex-shrink: 0;
-	/* Match the scroll wrapper's badge clearance so system tiles sit
-	 * on the same vertical baseline as the menu tiles. */
+
 	padding-top: 4px;
 	padding-bottom: 6px;
 }
 
-/* Separator — the line between two groups of tiles. The system one
- * lives at the leading edge of `__pinned` (flex flow handles the
- * "pinned at the trailing edge" placement, no margin-inline-start:
- * auto needed); the `--group` one sits inline inside `__scroll` where
- * it was inserted. Both resolve through this single rule — see the
- * note on the vertical placements above for why there is only one. */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__separator {
 	position: relative;
 	width: 2px;
-	/* Fixed height — `60%` collapses against the floating pill's
-	   intrinsic height, leaving the line effectively invisible. */
+
 	height: 34px;
-	/* Symmetric horizontal margin so the divider sits centered in the
-	 * inter-tile gap: the 6px flex gap on each side (`__scroll`→`__pinned`
-	 * on the left, `__pinned`'s own gap on the right) plus an equal
-	 * margin per side balances out. An asymmetric margin here nudges the
-	 * divider — and the whole menu cluster with it — off the pill's
-	 * center. Wider than the tile gap on purpose: the clusters need to
-	 * read as groups before the line between them means anything. */
+
 	margin: auto 14px;
 	border-radius: 2px;
 	background: linear-gradient(
@@ -1112,9 +711,6 @@
 	flex-shrink: 0;
 }
 
-/* Tooltip — above the hovered tile. JS writes the horizontal center
- * + a top near the tile's top edge; CSS translates the tooltip up by
- * its own height so it clears the tile. */
 .os-dock__tooltip--above {
 	inset-inline-start: auto;
 	transform: translate( -50%, calc( -100% - 4px ) );
@@ -1124,26 +720,13 @@
 	transform: translate( -50%, -100% );
 }
 
-
-
-/* Drag-to-reorder (since 0.25.0).
- *
- * The dragged tile follows the cursor via inline `transform:
- * translate()` written from JS. It stays IN flow so flex doesn't
- * collapse the row — the visual lift is a z-index bump and
- * `pointer-events: none` so `elementFromPoint` finds siblings
- * underneath the cursor. Sibling tiles animate via FLIP — the JS
- * writes inline `transform` + `transition` per leg, so no CSS
- * transition is declared here (it would race with the per-leg
- * inline transition). */
 .os-dock__item--dragging {
 	pointer-events: none;
 	z-index: 50;
 	opacity: 0.92;
 	cursor: grabbing;
 	will-change: transform;
-	/* Subtle shadow so the dragged tile reads as "lifted" against
-	 * the dock surface it floats above. */
+
 	filter: drop-shadow( 0 6px 12px rgba( 0, 0, 0, 0.35 ) );
 }
 
@@ -1154,42 +737,6 @@
 .os-dock__item:not( .os-dock__item--system ):active {
 	cursor: grabbing;
 }
-
-/* ------------------------------------------------------------------
- * The way out — `Exit OpenStation`
- *
- * Every other system tile opens something you can close again. This
- * one leaves the desktop, and with the admin bar hidden by default it
- * is the only route back to classic admin. Drawn like its neighbours
- * it read as one more launcher, which is the same "some tiles do a
- * different kind of thing" confusion the single dock set out to fix,
- * just moved to the other end of the rail.
- *
- * Three signals, none of them colour. Danger red would overstate it
- * (nothing is destroyed, the session is saved and the desktop is one
- * click away) and Pulse is already spent on the seam:
- *
- *   1. **Last, always.** `order: 1` rather than registration order —
- *      native-window tiles from plugins sync in after boot and would
- *      otherwise land behind it.
- *   2. **Its own gap**, wider than the rail's 6px, so it reads as
- *      sitting outside the set rather than at the end of it. A second
- *      divider would have said this too, and would have cost the rail
- *      the one-structural-line rule it just earned.
- *   3. **A different silhouette** — a ring rather than a plate. Shape
- *      survives every theme, every dock texture, greyscale and a
- *      colour-blind reading of the rail; a tint survives none of them
- *      reliably.
- *
- * And it leans toward the edge it leads to on hover instead of lifting
- * toward the pointer, because every other tile's lift means "I will
- * come to you" and this one means the opposite.
- *
- * Keyed on the tile id, the same idiom the Recycle Bin badge uses
- * above. `os-exit` is frozen in `src/exit-openstation.ts`
- * (`EXIT_OPENSTATION_TILE_ID`) and `dock-exit-tile.test.ts` pins the
- * attribute this selector depends on.
- * ------------------------------------------------------------------ */
 
 .os-dock__item[ data-system-id="os-exit" ] {
 	order: 1;
@@ -1205,10 +752,6 @@
 	color: var( --os-dock-exit-icon, rgba( 255, 255, 255, 0.55 ) );
 }
 
-/*
- * The gap runs along the rail's own axis, so it follows the placement:
- * inline for the horizontal pill, block for the vertical pillars.
- */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__item[ data-system-id="os-exit" ] {
 	margin-inline-start: 10px;
@@ -1221,11 +764,6 @@
 	margin-block-start: 8px;
 }
 
-/*
- * Hover: the ring closes up and the tile moves TOWARD its edge. The
- * generic tile rule scales up by 1.1, so these have to out-specify it
- * rather than sit alongside it.
- */
 .os-dock__item[ data-system-id="os-exit" ] .os-dock__item-primary:hover,
 .os-dock__item[ data-system-id="os-exit" ]
 	.os-dock__item-primary:focus-visible {
@@ -1255,8 +793,6 @@
 	transform: translateX( 2px );
 }
 
-/* The press keeps the shared cue: every tile in the rail dips on
- * :active, and this one should not feel unresponsive by comparison. */
 .os-dock__item[ data-system-id="os-exit" ] .os-dock__item-primary:active {
 	transform: scale( 0.95 );
 }
@@ -1275,40 +811,6 @@
 	}
 }
 
-/* ------------------------------------------------------------------
- * Dynamic dock behavior — OpenStation Preferences → Appearance →
- * Desktop layout, persisted as `dockBehavior` (the dock) and
- * `sideDockBehavior` (the Split sidebar) and worn by each rail as
- * `data-os-dock-behavior` — an attribute PER RAIL rather than a body
- * class, because Split's two rails answer independently. PHP stamps
- * the dock on first paint; the apply pass and `src/dock-behavior.ts`
- * re-stamp on every change and rebuild. `static` is the absence of
- * rules.
- *
- * A dynamic rail that is not `os-dock--revealed` is PARKED: it
- * collapses into a thin indicator line hugging its edge — the iOS
- * home indicator, one line that says "there is a dock here" — and
- * expands back into the full rail when the pointer comes for it.
- * `src/dock-behavior.ts` owns the flip (a full-width edge zone, the
- * rail's own box, its flyouts, keyboard focus) and runs it through
- * the View Transitions API, so the line morphs into the pill and
- * back; the rules below only describe the two resting states and
- * tune the morph. There is deliberately no `:hover` here — a state
- * CSS flipped on its own would jump instead of morphing.
- *
- * The line is the rail itself, not a separate element: same node,
- * same `view-transition-name`, which is what lets the browser animate
- * one box into the other. Its children are hidden while parked so
- * the line is a line. A side rail leaves the flex row for the
- * duration, so the area grows to the full width and the rail rides
- * over it when summoned; the work area reserves nothing for a
- * dynamic rail (`src/work-area/index.ts`).
- * ------------------------------------------------------------------ */
-
-/*
- * Side rails overlay the area in both states — the flex row must not
- * shrink for a rail that is only sometimes there.
- */
 .os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="left" ],
 .os-dock[ data-os-dock-behavior="dynamic" ][ data-os-dock-placement="right" ] {
 	position: absolute;
@@ -1323,12 +825,6 @@
 	inset-inline-end: 0;
 }
 
-/*
- * Parked — the indicator line. Everything that makes the pill a
- * pill (padding, border, blur, texture, tile gap) comes off, and the
- * box is the line's size. `overflow: hidden` clips whatever a tile
- * paints past its box during the morph.
- */
 .os-dock[ data-os-dock-behavior="dynamic" ]:not( .os-dock--revealed ) {
 	min-width: 0;
 	min-height: 0;
@@ -1374,15 +870,6 @@
 	inset-inline-end: 8px;
 }
 
-/*
- * The morph. With the API, `src/dock-behavior.ts` names the rail for
- * the duration of one flip and the browser animates the old box into
- * the new one; the rail's contents cross-fade underneath. The root is
- * opted out of the snapshot so the rest of the desktop keeps
- * running while the line becomes a pill — a frozen page for 260ms
- * on every reveal would be the animation costing more than it
- * gives. Without the API, the properties that can transition do.
- */
 @supports ( view-transition-name: none ) {
 	html.os-dock-vt {
 		view-transition-name: none;
@@ -1393,17 +880,6 @@
 		animation: none;
 	}
 
-	/*
-	 * The transition layer must not catch the pointer. By default it
-	 * does — the whole page reads as inert until the morph settles —
-	 * and with the root opted out of the snapshot that is worse than
-	 * pointless: the live desktop is right there under a layer that
-	 * swallows every mouseup and every pointerenter for 260ms. The
-	 * behavior module already holds a park back while a button is
-	 * down; this is the other half, so a hover that lands on a tile
-	 * while the rail is still morphing out starts its hover-intent
-	 * timer instead of waiting for the next pointer movement.
-	 */
 	html.os-dock-vt::view-transition {
 		pointer-events: none;
 	}

@@ -1,8 +1,3 @@
-/**
- * `<os-checkbox-label>` — label + checkbox + text, emits
- * `os-checkbox-change` on toggle.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-checkbox-label.styles';
 
@@ -67,8 +62,6 @@ export class OsCheckboxLabel extends Component {
 	}
 
 	private _onChange( e: Event ): void {
-		// Native `disabled` inputs don't fire change, but guard anyway in
-		// case the attribute is toggled between event dispatch and handling.
 		if ( ( this as unknown as { disabled: string | null } ).disabled !== null ) {
 			return;
 		}

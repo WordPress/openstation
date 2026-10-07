@@ -1,29 +1,9 @@
-/**
- * OpenStation — Users app styles.
- *
- * The tab strip, the Add User panel, the Profile tab and the
- * `<os-user-profile>` layout. The User Edit app points its
- * `->style()` at this same sheet: it hosts the same component, and
- * one sheet is one place to keep the two in step. The list layout
- * (toolbar, body, pager, phone bulk footer) is the framework's
- * `.os-app-list__*` family in `assets/css/app-runtime.css`.
- *
- * Cell-content styles are NOT here — `<os-table>` renders into its
- * own shadow DOM; the cells carry inline styles.
- */
-
-/* Tab strip — auto-height, so the active panel below fills the
-   column. Without `flex: 0 0 auto` the strip grows and the panel
-   collapses to zero height — the "no table" regression. */
 .os-users__tabs {
 	flex: 0 0 auto;
 	padding: 0 18px;
 	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
 }
 
-/* The Add User tab. Padding lives on the host so the form's own
-   footer separator sits flush with the panel edges; the active tab
-   fills the remaining height and the inactive one is fully hidden. */
 .os-users__add-panel {
 	flex: 1 1 auto;
 	min-height: 0;
@@ -36,8 +16,6 @@
 	display: none;
 }
 
-/* Center the form at a comfortable reading width; the os-form does
-   the column layout. `min(760px, 100%)` keeps it inside narrow panels. */
 .os-users__add-panel > os-form {
 	display: block;
 	margin-inline: auto;
@@ -73,8 +51,6 @@
 	color: var( --os-ui-fg-muted, #50575e );
 }
 
-/* The bulk bar's clusters: the role pick + Apply, and the reassign
-   picker + Delete. */
 .os-users__bulk-group {
 	display: inline-flex;
 	align-items: center;
@@ -98,9 +74,6 @@
 	min-width: 160px;
 }
 
-/* Narrow-window trim — at < 540px the side padding gets in the way
-   more than it helps. Same breakpoint the form's own grid uses to
-   collapse to one column. */
 @media ( max-width: 540px ) {
 	.os-users__add-panel {
 		padding: 20px 14px 16px;
@@ -110,8 +83,6 @@
 	}
 }
 
-/* Profile tab — the active tabpanel fills the remaining height,
-   scrolls its own content, leaves the tab strip pinned at the top. */
 .os-users__edit-panel {
 	flex: 1 1 auto;
 	min-height: 0;
@@ -122,10 +93,7 @@
 .os-users__edit-panel[ hidden ] {
 	display: none;
 }
-/* The User Edit window. The body is a chromeless host;
-   `<os-user-profile>` fills the whole space and owns its own scroll.
-   Without `min-height: 0` on the chain, the inner `overflow-y: auto`
-   never gets a chance to clip and scroll. */
+
 .os-user-edit-window {
 	display: flex;
 	flex-direction: column;
@@ -133,9 +101,7 @@
 	height: 100%;
 	min-height: 0;
 }
-/* The component — the light-DOM host of the layout — fills whatever
-   hosts it (the Profile tab panel, the User Edit window) so its
-   internal scroll container takes the remaining space. */
+
 os-user-profile {
 	flex: 1 1 auto;
 	display: flex;
@@ -147,10 +113,6 @@ os-user-profile > .os-users__edit-layout {
 	min-height: 0;
 }
 
-/* Sidebar layout — at-a-glance summary on the left, editable form +
-   activity feed in the main column on the right. One container query
-   collapses the two columns to one stack on narrow widths, where the
-   aside moves above the form. */
 .os-users__edit-layout {
 	flex: 1 1 auto;
 	min-height: 0;
@@ -185,9 +147,7 @@ os-user-profile > .os-users__edit-layout {
 	min-width: 0;
 	width: 100%;
 	max-width: 720px;
-	/* Center within the `minmax(0, 1fr)` grid cell so the form stays
-	   readable on wide windows instead of leaving a large empty band
-	   on the right edge. */
+
 	margin-inline: auto;
 	display: flex;
 	flex-direction: column;

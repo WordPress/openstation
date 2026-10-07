@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the agents runner — network-free via the
- * `openstation_agent_runner_generate` pre-filter, following the
- * pure-function style of the AI Copilot suites.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-agents
- */
+
 class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -42,9 +32,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		add_filter( 'openstation_agent_runner_generate', $turns, 10, 5 );
 	}
 
-	/**
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_invoke_returns_text_answer() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -64,12 +51,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 1, $result['turns'] );
 	}
 
-	/**
-	 * The tool loop runs with the current user switched to the agent,
-	 * and the previous user is restored afterwards.
-	 *
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_invoke_switches_identity_and_restores() {
 		$agent    = $this->create_agent();
 		$seen_ids = array();
@@ -90,9 +71,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( self::$admin_id, get_current_user_id() );
 	}
 
-	/**
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_invoke_fires_completed_action_with_context() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -124,12 +102,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( array( 'source' => 'chat' ), $captured[3] );
 	}
 
-	/**
-	 * A function call outside the allowlist map is answered with an
-	 * error result, not executed.
-	 *
-	 * @covers ::openstation_agent_runner_loop
-	 */
 	public function test_unknown_tool_yields_error_result() {
 		$agent = $this->create_agent();
 		$turn  = 0;
@@ -165,13 +137,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertNotNull( $result['toolCalls'][0]['error'] );
 	}
 
-	/**
-	 * An allowlisted ability is executed as the agent and its output
-	 * lands in the trace. Requires the Abilities API.
-	 *
-	 * @covers ::openstation_agent_runner_dispatch_tool
-	 * @covers ::openstation_agent_runner_build_tools
-	 */
 	public function test_allowlisted_ability_dispatches() {
 		if ( ! function_exists( 'wp_get_ability' ) || ! wp_get_ability( 'desktop-mode/get-post' ) ) {
 			$this->markTestSkipped( 'Abilities API not available (requires WordPress 7.0+).' );
@@ -221,15 +186,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'Readable post', $call['output']['title'] );
 	}
 
-	/**
-	 * Tool schemas advertised to the model are projected through the
-	 * Copilot's provider-safe normalizer. One ability with a top-level
-	 * `oneOf`/`anyOf`/`allOf` (or a `type` union) 400s the WHOLE
-	 * request otherwise ("input_schema does not support oneOf, allOf,
-	 * or anyOf at the top level").
-	 *
-	 * @covers ::openstation_agent_runner_build_tools
-	 */
 	public function test_build_tools_normalizes_schemas() {
 		if ( ! function_exists( 'wp_get_ability' ) || ! wp_get_ability( 'desktop-mode/get-post' ) ) {
 			$this->markTestSkipped( 'Abilities API not available (requires WordPress 7.0+).' );
@@ -250,14 +206,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'allOf', $tools[0]['parameters'] );
 	}
 
-	/**
-	 * History flattens to a single user-message text: the original
-	 * request plus a tool transcript. No functionCall replay means no
-	 * provider signature requirements (Gemini `thought_signature`,
-	 * Anthropic thinking signatures).
-	 *
-	 * @covers ::openstation_agent_runner_compose_prompt
-	 */
 	public function test_compose_prompt_flattens_history() {
 		$bare = openstation_agent_runner_compose_prompt(
 			array(
@@ -299,12 +247,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'do not repeat an identical call', $with_tools );
 	}
 
-	/**
-	 * The second generate turn sees the executed call (with args) in
-	 * the neutral history the transcript is built from.
-	 *
-	 * @covers ::openstation_agent_runner_loop
-	 */
 	public function test_tool_results_rows_carry_args() {
 		$agent     = $this->create_agent();
 		$turn      = 0;
@@ -347,15 +289,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * Prior conversation turns reach the prompt, oldest first, ahead of
-	 * the new message. Without this a follow-up ("yes, do it") is a
-	 * contextless run and the agent can act on the wrong entity — the
-	 * reported bug where an approval wrote to a different post than the
-	 * one proposed.
-	 *
-	 * @covers ::openstation_agent_runner_compose_prompt
-	 */
 	public function test_prior_turns_precede_the_new_message() {
 		$prompt = openstation_agent_runner_compose_prompt(
 			array(
@@ -379,16 +312,13 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Conversation so far', $prompt );
 		$this->assertStringContainsString( 'User: Summarize post 973.', $prompt );
 		$this->assertStringContainsString( 'You: Proposal for post 973', $prompt );
-		// The new message comes last, after the replayed turns.
+
 		$this->assertGreaterThan(
 			strpos( $prompt, 'Proposal for post 973' ),
 			strpos( $prompt, 'Yes, please' )
 		);
 	}
 
-	/**
-	 * @covers ::openstation_agent_runner_sanitize_history
-	 */
 	public function test_history_sanitizer_filters_and_caps() {
 		$clean = openstation_agent_runner_sanitize_history(
 			array(
@@ -431,16 +361,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		}
 		$capped = openstation_agent_runner_sanitize_history( $many );
 		$this->assertCount( OPENSTATION_AGENT_HISTORY_TURN_CAP, $capped );
-		// The most RECENT turns survive — the oldest roll off.
+
 		$this->assertSame( 'turn ' . ( OPENSTATION_AGENT_HISTORY_TURN_CAP + 4 ), end( $capped )['text'] );
 	}
 
-	/**
-	 * History supplied through the invocation context reaches the
-	 * generate call.
-	 *
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_invoke_replays_context_history() {
 		$agent   = $this->create_agent();
 		$prompts = array();
@@ -477,9 +401,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Yes, please', $prompts[0] );
 	}
 
-	/**
-	 * @covers ::openstation_agent_runner_check_rate_limit
-	 */
 	public function test_rate_limit_blocks_after_cap() {
 		$agent = $this->create_agent();
 		openstation_agent_update( $agent->ID, array( 'rateLimit' => 1 ) );
@@ -501,9 +422,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_rate_limited', $second->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_invoke_validates_agent_and_message() {
 		$this->stub_generate(
 			static function () {
@@ -525,12 +443,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_empty_message', $empty->get_error_code() );
 	}
 
-	/**
-	 * Without the pre-filter and without the AI Client, the runner
-	 * reports unavailability instead of fataling.
-	 *
-	 * @covers ::openstation_agent_runner_available
-	 */
 	public function test_unavailable_without_client_or_stub() {
 		if ( function_exists( 'openstation_ai_is_available' ) && openstation_ai_is_available() ) {
 			$this->markTestSkipped( 'AI Client available on this environment.' );
@@ -541,20 +453,13 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_ai_unavailable', $result->get_error_code() );
 	}
 
-	/**
-	 * The runner gives up at the turn cap instead of looping forever.
-	 *
-	 * @covers ::openstation_agent_runner_loop
-	 */
 	public function test_turn_cap_stops_runaway_loop() {
 		$agent = $this->create_agent();
 		$calls = 0;
 		$this->stub_generate(
 			static function () use ( &$calls ) {
 				++$calls;
-				// A different (unknown) tool every turn: a runaway that
-				// keeps trying new things, not one stuck on the same
-				// failure (that one has its own test below).
+
 				return array(
 					'text'           => null,
 					'function_calls' => array(
@@ -572,17 +477,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$result = openstation_agent_invoke( $agent->ID, 'loop' );
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_agent_runner_max_turns', $result->get_error_code() );
-		// Cap turns + the forced tool-less attempt (which here still
-		// "called a tool", so the error is preserved).
+
 		$this->assertSame( OPENSTATION_AGENT_RUNNER_MAX_TURNS + 1, $calls );
 	}
 
-	/**
-	 * When the cap is hit, one forced TOOL-LESS generate turns the
-	 * transcript into a best-effort final answer instead of an error.
-	 *
-	 * @covers ::openstation_agent_runner_loop
-	 */
 	public function test_turn_cap_forces_a_final_toolless_answer() {
 		$agent = $this->create_agent();
 		$calls          = 0;
@@ -619,15 +517,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( array(), $forced_tools, 'The forced final turn must advertise no tools.' );
 	}
 
-	/**
-	 * A model re-sending the same failing call is not going to fix it
-	 * on the eighth turn. Three identical failing turns end the tool
-	 * loop and go straight to the forced tool-less answer, so the run
-	 * costs three provider round-trips instead of nine.
-	 *
-	 * @covers ::openstation_agent_runner_loop
-	 * @covers ::openstation_agent_runner_failure_signature
-	 */
 	public function test_repeated_identical_tool_failures_stop_the_loop_early() {
 		$agent = $this->create_agent();
 		$calls = 0;
@@ -635,8 +524,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			static function () use ( &$calls ) {
 				++$calls;
 				if ( $calls <= OPENSTATION_AGENT_RUNNER_STUCK_TURNS ) {
-					// Same unknown tool, same error, every turn; only the
-					// arguments vary, as a model retrying a rejected call does.
+
 					return array(
 						'text'           => null,
 						'function_calls' => array(
@@ -664,9 +552,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertCount( OPENSTATION_AGENT_RUNNER_STUCK_TURNS, $result['toolCalls'] );
 	}
 
-	/**
-	 * @covers ::openstation_agent_runner_failure_signature
-	 */
 	public function test_failure_signature_ignores_args_and_needs_every_call_to_fail() {
 		$failed = array(
 			'call_id'  => 'a',
@@ -692,13 +577,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_agent_runner_failure_signature( array() ) );
 	}
 
-	/**
-	 * The truncated-output error is permanent (a retry hits the same
-	 * ceiling) and reaches the user with the cause and the remedy.
-	 *
-	 * @covers ::openstation_agent_humanize_generate_error
-	 * @covers ::openstation_agent_generate_error_is_transient
-	 */
 	public function test_truncated_output_is_permanent_and_translated_for_the_user() {
 		$raw = openstation_ai_output_truncated_error( 'finish reason: length', array( 'completion' => 4096 ) );
 		$this->assertFalse( openstation_agent_generate_error_is_transient( $raw ) );
@@ -710,9 +588,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'finish reason: length', $human->get_error_data()['detail'] );
 	}
 
-	/**
-	 * @covers ::openstation_agent_runner_log_invocation
-	 */
 	public function test_invocations_are_logged() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -734,17 +609,12 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'logged answer', $log[0]['text'] );
 	}
 
-	/**
-	 * @covers ::openstation_agent_parse_answer
-	 * @covers ::openstation_agent_sanitize_call_to_actions
-	 */
 	public function test_parse_answer_is_lenient() {
-		// Plain text degrades to today's behavior.
+
 		$plain = openstation_agent_parse_answer( 'Just words.' );
 		$this->assertSame( 'Just words.', $plain['text'] );
 		$this->assertSame( array(), $plain['callToActions'] );
 
-		// The structured shape parses, with sanitized actions.
 		$json = wp_json_encode(
 			array(
 				'text'            => 'Apply the TL;DR to post 188?',
@@ -772,18 +642,14 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertCount( 2, $parsed['callToActions'] );
 		$this->assertSame( 'approve', $parsed['callToActions'][0]['id'] );
 		$this->assertSame( 'primary', $parsed['callToActions'][0]['style'] );
-		// Unknown style falls back to secondary.
+
 		$this->assertSame( 'secondary', $parsed['callToActions'][1]['style'] );
 
-		// A ```json fence around the object is tolerated.
 		$fenced = openstation_agent_parse_answer( "```json\n" . $json . "\n```" );
 		$this->assertSame( 'Apply the TL;DR to post 188?', $fenced['text'] );
 		$this->assertCount( 2, $fenced['callToActions'] );
 	}
 
-	/**
-	 * @covers ::openstation_agent_sanitize_call_to_actions
-	 */
 	public function test_call_to_actions_caps() {
 		$many = array();
 		for ( $i = 0; $i < OPENSTATION_AGENT_CTA_CAP + 3; $i++ ) {
@@ -799,12 +665,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( OPENSTATION_AGENT_CTA_REPLY_CAP, mb_strlen( $clean[0]['reply'] ) );
 	}
 
-	/**
-	 * A structured final answer surfaces as text + callToActions on the
-	 * invoke result.
-	 *
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_invoke_returns_call_to_actions() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -837,16 +697,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'Approved.', $result['callToActions'][0]['reply'] );
 	}
 
-	// -----------------------------------------------------------------
-	// Provider request timeout
-	// -----------------------------------------------------------------
-
-	/**
-	 * The WordPress default of 5s aborts a generation over a long post
-	 * mid-flight, surfacing as an opaque network error.
-	 *
-	 * @covers ::openstation_agent_with_http_timeout
-	 */
 	public function test_http_timeout_is_raised_for_the_provider_request() {
 		$seen = null;
 		openstation_agent_with_http_timeout(
@@ -858,15 +708,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( OPENSTATION_AGENT_HTTP_TIMEOUT, $seen );
 	}
 
-	/**
-	 * The AI Client pins an EXPLICIT 30s timeout via `RequestOptions`
-	 * in the `WP_AI_Client_Prompt_Builder` constructor, bypassing the
-	 * WordPress HTTP default entirely — the wrapper must raise its
-	 * `wp_ai_client_default_request_timeout` filter too, or long
-	 * generations die at 30s ("timed out after 30007 milliseconds").
-	 *
-	 * @covers ::openstation_agent_with_http_timeout
-	 */
 	public function test_ai_client_request_timeout_is_raised_too() {
 		$seen = null;
 		openstation_agent_with_http_timeout(
@@ -876,28 +717,16 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( (float) OPENSTATION_AGENT_HTTP_TIMEOUT, $seen );
-		// Released afterwards, like the generic filter.
+
 		$this->assertSame( 30.0, apply_filters( 'wp_ai_client_default_request_timeout', 30.0 ) );
 	}
 
-	/**
-	 * Released afterwards — an agent run must not widen the timeout for
-	 * unrelated requests later in the same page load.
-	 *
-	 * @covers ::openstation_agent_with_http_timeout
-	 */
 	public function test_http_timeout_is_released_after_the_call() {
 		openstation_agent_with_http_timeout( static function () {} );
 
 		$this->assertSame( 5, apply_filters( 'http_request_timeout', 5, 'https://example.com/' ) );
 	}
 
-	/**
-	 * Released even when the provider call throws, or one failure would
-	 * leak the raised timeout for the rest of the request.
-	 *
-	 * @covers ::openstation_agent_with_http_timeout
-	 */
 	public function test_http_timeout_is_released_when_the_callback_throws() {
 		try {
 			openstation_agent_with_http_timeout(
@@ -913,12 +742,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 5, apply_filters( 'http_request_timeout', 5, 'https://example.com/' ) );
 	}
 
-	/**
-	 * Only ever raises: a site that already allows longer keeps its own
-	 * value.
-	 *
-	 * @covers ::openstation_agent_with_http_timeout
-	 */
 	public function test_http_timeout_never_lowers_a_larger_site_value() {
 		$larger = OPENSTATION_AGENT_HTTP_TIMEOUT + 120;
 		$seen   = null;
@@ -932,11 +755,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( $larger, $seen );
 	}
 
-	/**
-	 * The filter is the opt-out: 0 leaves the site's timeout untouched.
-	 *
-	 * @covers ::openstation_agent_with_http_timeout
-	 */
 	public function test_http_timeout_filter_can_disable_the_override() {
 		add_filter( 'openstation_agent_http_timeout', '__return_zero' );
 
@@ -951,14 +769,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 5, $seen );
 	}
 
-	/**
-	 * The override wraps the AI Client call only, so it never widens the
-	 * timeout for the rest of a run: the `openstation_agent_runner_generate`
-	 * pre-filter short-circuits ahead of the wrapper and sees the site's
-	 * normal value, as does every tool dispatched between turns.
-	 *
-	 * @covers ::openstation_agent_runner_generate
-	 */
 	public function test_override_is_scoped_to_the_ai_client_call() {
 		$agent  = $this->create_agent();
 		$during = null;
@@ -980,9 +790,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 5, $during );
 	}
 
-	/**
-	 * @covers ::openstation_agent_generate_error_is_transient
-	 */
 	public function test_transient_error_detection() {
 		$transient = array(
 			'Unexpected Anthropic API response: Missing the "content" key.',
@@ -1010,12 +817,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * A transient generate failure is retried once — the flap the user
-	 * recovered from by typing "Can you try again?" heals silently.
-	 *
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_transient_generate_failure_is_retried_once() {
 		$agent = $this->create_agent();
 		$calls = 0;
@@ -1042,12 +843,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 2, $calls );
 	}
 
-	/**
-	 * Deterministic rejections are NOT retried — a schema the provider
-	 * rejects would fail identically and only add latency and spend.
-	 *
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_permanent_generate_failure_is_not_retried() {
 		$agent = $this->create_agent();
 		$calls = 0;
@@ -1066,13 +861,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 1, $calls );
 	}
 
-	/**
-	 * A provider refusal (surfaced by the Anthropic plugin as the
-	 * cryptic missing-content parse error) is translated into an
-	 * actionable message once the retry doesn't help.
-	 *
-	 * @covers ::openstation_agent_humanize_generate_error
-	 */
 	public function test_refusal_is_translated_for_the_user() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -1088,16 +876,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_agent_provider_refusal', $result->get_error_code() );
 		$this->assertStringContainsString( 'safety system', $result->get_error_message() );
-		// The provider's original message survives for debugging.
+
 		$this->assertStringContainsString( 'Missing the "content" key', $result->get_error_data()['detail'] );
 	}
 
-	/**
-	 * A flap that persists through the retry still surfaces as an error
-	 * — exactly one retry, never a loop.
-	 *
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_persistent_transient_failure_surfaces_after_one_retry() {
 		$agent = $this->create_agent();
 		$calls = 0;
@@ -1116,13 +898,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 2, $calls );
 	}
 
-	/**
-	 * A final turn with neither function calls nor text is a failed
-	 * generation, not a successful empty answer — the run must surface
-	 * an error instead of rendering an empty chat bubble.
-	 *
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_textless_final_turn_is_an_error_not_an_empty_success() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -1141,11 +916,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertNotSame( '', trim( $result->get_error_message() ) );
 	}
 
-	/**
-	 * Whitespace-only text is the same failure — trim decides, not isset.
-	 *
-	 * @covers ::openstation_agent_invoke
-	 */
 	public function test_whitespace_only_final_turn_is_an_error() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -1163,13 +933,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_empty_answer', $result->get_error_code() );
 	}
 
-	/**
-	 * The client's empty-answer error is humanized for the chat, with the
-	 * underlying extraction detail preserved for debugging.
-	 *
-	 * @covers ::openstation_agent_humanize_generate_error
-	 * @covers ::openstation_ai_empty_answer_error
-	 */
 	public function test_humanize_maps_empty_answer_to_actionable_message() {
 		$raw = openstation_ai_empty_answer_error( 'The provider response contains no text part.' );
 		$this->assertWPError( $raw );
@@ -1177,9 +940,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 
 		$human = openstation_agent_humanize_generate_error( $raw );
 		$this->assertSame( 'openstation_agent_empty_answer', $human->get_error_code() );
-		// The message is copy (and translated) — assert the structural
-		// contract instead: a non-empty human sentence + the 502 the
-		// humanizer stamps, so rewording never breaks the test.
+
 		$this->assertNotSame( '', trim( $human->get_error_message() ) );
 		$this->assertSame( 502, $human->get_error_data()['status'] );
 		$this->assertSame(

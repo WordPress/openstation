@@ -1,4 +1,3 @@
-/** Async agent transport: short submission, sequential status reads, no replay. */
 import { __ } from './i18n';
 import { trackedFetch } from './tracked-fetch';
 import { joinRestUrl } from './rest-url';
@@ -20,7 +19,6 @@ export interface AgentJobInput {
 	history: Array< { role: string; text: string } >;
 }
 
-/** UUID on both HTTPS and local HTTP installations. */
 export function agentRequestId(): string {
 	const bytes = crypto.getRandomValues( new Uint8Array( 16 ) );
 	bytes[ 6 ] = ( bytes[ 6 ] % 16 ) + 64;
@@ -29,7 +27,6 @@ export function agentRequestId(): string {
 	return `${ hex.slice( 0, 8 ) }-${ hex.slice( 8, 12 ) }-${ hex.slice( 12, 16 ) }-${ hex.slice( 16, 20 ) }-${ hex.slice( 20 ) }`;
 }
 
-/** A failed job request, plus whether the poller should try again. */
 class JobRequestError extends RestError {
 	readonly retryable: boolean;
 
@@ -51,8 +48,7 @@ async function request(
 	input?: AgentJobInput & { async: true; requestId: string },
 ): Promise< AgentJobStatus | AgentInvokeResult > {
 	const controller = new AbortController();
-	// The handle must survive both the request and body parsing for cleanup.
-	// eslint-disable-next-line @wordpress/no-unused-vars-before-return
+
 	const timeout = window.setTimeout( () => controller.abort(), 15000 );
 	try {
 		const response = await trackedFetch(
@@ -92,10 +88,6 @@ function delay( ms: number ): Promise< void > {
 	return new Promise( ( resolve ) => window.setTimeout( resolve, ms ) );
 }
 
-/**
- * Submit once logically, then poll until terminal. Network retries reuse the UUID.
- * Each status fetch finishes before the next timer starts; hidden tabs poll slower.
- */
 export async function runAgentJob(
 	agentId: number,
 	input: AgentJobInput,
@@ -114,7 +106,7 @@ export async function runAgentJob(
 				submitted ? `${ base }/jobs/${ requestId }` : `${ base }/invoke`,
 				submitted ? undefined : { ...input, async: true, requestId },
 			);
-			// Compatibility with an older server during a rolling upgrade.
+
 			if ( ! ( 'jobId' in body ) ) {
 				return body;
 			}

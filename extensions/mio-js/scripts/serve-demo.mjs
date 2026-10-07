@@ -1,15 +1,3 @@
-/**
- * mio-js — static server for the demo page.
- *
- * `npm run demo` → http://localhost:4321/
- *
- * Node's own http module and nothing else: the demo is two static
- * files, and a dependency to serve them would be larger than the thing
- * being served. Serves the extension directory so `demo/index.html`
- * can reference `../dist/mio.js` directly and you are always looking
- * at the file the build just wrote.
- */
-
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
@@ -32,8 +20,6 @@ const server = createServer( ( req, res ) => {
 	const requested = decodeURIComponent( url.pathname );
 	let file = path.join( root, requested === '/' ? 'demo/index.html' : requested );
 
-	// Never serve outside the extension directory, whatever the
-	// request says — `..` segments survive URL parsing.
 	if ( ! path.resolve( file ).startsWith( root ) ) {
 		res.writeHead( 403 ).end( 'Forbidden' );
 		return;
@@ -47,7 +33,7 @@ const server = createServer( ( req, res ) => {
 	}
 	res.writeHead( 200, {
 		'content-type': TYPES[ path.extname( file ) ] || 'application/octet-stream',
-		// The demo is for looking at a build you just made.
+
 		'cache-control': 'no-store',
 	} );
 	createReadStream( file ).pipe( res );

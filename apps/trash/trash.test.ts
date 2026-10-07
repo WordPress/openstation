@@ -1,9 +1,3 @@
-/**
- * Trash app — the client view: the toolbar/empty-state switch, the
- * Media segment's MEDIA_TRASH gate, the bulk bar, the table wiring
- * (shared columns, composite row identity, fingerprint-guarded data
- * assignment), and the dock badge.
- */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext, renderedText } from '../../src/app-runtime/testing';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -164,11 +158,10 @@ describe( 'the trash app view', () => {
 				stored = value;
 			},
 		} );
-		// The mount render already assigned and set the fingerprint —
-		// re-rendering the same rows must not assign again.
+
 		app.render( ctx );
 		expect( assignments ).toBe( 0 );
-		// A row changed — reassigned.
+
 		ctx.data.items = [ item( { deleted_at: '2026-08-31 09:00:00' } ) ];
 		app.render( ctx );
 		expect( assignments ).toBe( 1 );
@@ -192,15 +185,15 @@ describe( 'the trash app view', () => {
 		ctx.host.setBadge = setBadge;
 		app.render( ctx );
 		expect( setIcon ).toHaveBeenCalledWith( 'desktop-mode-recycle-bin', 'data:image/svg+xml;base64,FULL' );
-		// Same state again — no re-push.
+
 		app.render( ctx );
 		expect( setIcon ).toHaveBeenCalledTimes( 1 );
-		// The bin empties — the empty art goes up.
+
 		ctx.data.items = [];
 		ctx.data.total = 0;
 		app.render( ctx );
 		expect( setIcon ).toHaveBeenLastCalledWith( 'desktop-mode-recycle-bin', 'data:image/svg+xml;base64,EMPTY' );
-		// A count on the tile reads as update notifications.
+
 		expect( setBadge ).not.toHaveBeenCalled();
 	} );
 
@@ -209,7 +202,7 @@ describe( 'the trash app view', () => {
 		type UiBag = { empty: { mode: string; purged: number; total: number } };
 		( ctx.ui( () => ( {} ) ) as UiBag ).empty = { mode: 'progress', purged: 12, total: 40 };
 		app.render( ctx );
-		// Let any upgraded kit components finish their microtask paint.
+
 		await Promise.resolve();
 		expect( renderedText( root ) ).toContain( 'Emptying… 12 of 40' );
 	} );

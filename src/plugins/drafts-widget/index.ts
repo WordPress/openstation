@@ -1,19 +1,3 @@
-/**
- * OpenStation — Drafts Widget (lazy bundle).
- *
- * A quick list of your unfinished posts: the most recently edited
- * drafts, each a click away from reopening in the editor. Add it from
- * the widget picker to jump back into whatever you left half-written.
- *
- * Data: WP REST /wp/v2/posts?status=draft (edit context — returns the
- * drafts the current user can edit). Refresh: every 60s, plus an
- * immediate refresh on every `os.post.changed` broadcast (an editor
- * save, a relayed content change) and when a window closes or blurs,
- * so a just-saved draft shows up without waiting for the poll.
- * Clicking a row links to
- * post.php?action=edit; the shell's link interceptor opens it as a
- * native window.
- */
 import './styles.css';
 import '../../ui/components/os-button/os-button';
 import '../../ui/components/os-notice/os-notice';
@@ -48,10 +32,6 @@ function restRoot(): string {
 	).replace( /\/$/, '' );
 }
 
-/**
- * Numeric id of the viewer, or 0 when the shell hasn't published one.
- * Used to scope the draft list to the current user.
- */
 function currentUserId(): number {
 	const desktop = ( window as unknown as {
 		wp?: { os?: { config?: { currentUserId?: number } } };
@@ -59,7 +39,6 @@ function currentUserId(): number {
 	return Number( desktop?.config?.currentUserId ) || 0;
 }
 
-/** Move a draft to the Trash (reversible — not a permanent delete). */
 async function trashDraft( id: number ): Promise< void > {
 	const res = await trackedFetch(
 		`${ restRoot() }/wp/v2/posts/${ id }`,
@@ -79,10 +58,8 @@ interface DraftSuggestions {
 	readiness: { summary: string; missing: string[] };
 }
 
-/** Class on the panel; also the "is a panel open?" probe for the poller. */
 const PANEL_CLASS = 'dm-drafts__suggest';
 
-/** True when an AI provider is configured (Settings → Connectors). */
 function aiAvailable(): boolean {
 	const win = window as unknown as {
 		openStationConfig?: {
@@ -92,14 +69,6 @@ function aiAvailable(): boolean {
 	return win.openStationConfig?.aiAssistant?.providerConfigured === true;
 }
 
-/**
- * Why a suggestions request failed, in the widget's own vocabulary.
- *
- * `no-provider` is the route's `503 openstation_ai_unavailable` (the 💡
- * rendered from a stale config); the rest mirror `data.reason` on its
- * `502 openstation_ai_failed`. `other` is everything else, including a
- * body that isn't JSON at all.
- */
 type SuggestionsFailure = 'no-provider' | 'quota' | 'auth' | 'unavailable' | 'other';
 
 class SuggestionsError extends RestError {
@@ -117,7 +86,6 @@ class SuggestionsError extends RestError {
 	}
 }
 
-/** Read the reason out of a failed `/draft-suggestions` answer. */
 function suggestionsFailure( err: RestError ): SuggestionsFailure {
 	if ( err.code === 'openstation_ai_unavailable' ) {
 		return 'no-provider';
@@ -145,7 +113,6 @@ async function fetchSuggestions( id: number ): Promise< DraftSuggestions > {
 	return res.json() as Promise< DraftSuggestions >;
 }
 
-/** `admin_url( 'options-connectors.php' )`, or '' when the shell hasn't published it. */
 function connectorsUrl(): string {
 	const win = window as unknown as {
 		openStationConfig?: { aiAssistant?: { connectorsUrl?: string } };
@@ -160,7 +127,6 @@ interface ApplyFields {
 	categories?: string[];
 }
 
-/** Write a chosen suggestion straight onto the draft. */
 async function applyDraftField(
 	id: number,
 	fields: ApplyFields,
@@ -180,13 +146,6 @@ async function applyDraftField(
 	}
 }
 
-/**
- * Toggle the 💡 suggestions panel for a row (only one open at a time).
- *
- * The trigger owns `aria-expanded` / `aria-controls`, so the panel is
- * announced as the disclosure it is rather than as loose text that
- * appears out of nowhere.
- */
 function toggleSuggestions(
 	id: number,
 	row: HTMLElement,
@@ -196,13 +155,12 @@ function toggleSuggestions(
 	const next = row.nextElementSibling;
 	const wasOwnOpen = !! next && next.classList.contains( PANEL_CLASS );
 
-	// Collapse whatever was open, wherever it was, and reset its trigger.
 	list?.querySelectorAll( `.${ PANEL_CLASS }` ).forEach( ( p ) => p.remove() );
 	list?.querySelectorAll( '.dm-drafts__spark' ).forEach( ( t ) =>
 		t.setAttribute( 'aria-expanded', 'false' ),
 	);
 	if ( wasOwnOpen ) {
-		return; // second click closes it
+		return;
 	}
 
 	const panel = document.createElement( 'div' );
@@ -219,17 +177,12 @@ function toggleSuggestions(
 	void loadSuggestions( id, panel, row );
 }
 
-/** Spinner + label shown while the model is working. */
 function loadingState(): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'dm-drafts__suggest-loading';
-	// `aria-live` so the eventual result is announced without the
-	// screen-reader user having to go looking for it.
+
 	wrap.setAttribute( 'aria-live', 'polite' );
 
-	// `inline` rather than the default mark-and-rings artwork: at this
-	// size the WordPress mark is an unreadable smudge. The inline arc
-	// also inherits `currentColor`, so it tints itself from the panel.
 	const spinner = document.createElement( 'os-spinner' );
 	spinner.setAttribute( 'preset', 'inline' );
 	spinner.setAttribute( 'size', '14' );
@@ -242,13 +195,6 @@ function loadingState(): HTMLElement {
 	return wrap;
 }
 
-/**
- * A dismissal-free `<os-notice>` sized for the panel.
- *
- * `dm-drafts__notice` re-points the component's color surface at
- * `currentColor` — its light-surface defaults are unreadable on a dark
- * glass widget card. See the class in `styles.css`.
- */
 function notice( tone: string, message?: string, icon?: string ): HTMLElement {
 	const el = document.createElement( 'os-notice' );
 	el.className = 'dm-drafts__notice';
@@ -263,12 +209,6 @@ function notice( tone: string, message?: string, icon?: string ): HTMLElement {
 	return el;
 }
 
-/**
- * The error notice for a failed request: what happened in plain words,
- * never the provider's own text, plus a way to the Connectors screen
- * when the fix lives there. The anchor is a real admin link, so the
- * shell's interceptor opens Connectors as a window.
- */
 function failureNotice( reason: SuggestionsFailure ): HTMLElement {
 	const messages: Record< SuggestionsFailure, string > = {
 		'no-provider': __( 'No AI provider is set up.' ),
@@ -317,20 +257,6 @@ async function loadSuggestions(
 	}
 }
 
-/**
- * Build one tap-to-apply suggestion as a `<os-button>`.
- *
- * `busy` while the write is in flight (the component disables itself and
- * paints its own spinner), then `is-applied` + `aria-disabled` once it
- * lands, so a suggestion can't be applied twice by an impatient
- * double-click.
- *
- * Deliberately NOT the component's `disabled`: that dims the control to
- * 50% opacity, which halves its contrast against a widget card that may
- * be glass over any wallpaper. The applied state is carried by a
- * currentColor wash, a tinted border and a ✓ instead — all of which stay
- * legible whatever the card is sitting on.
- */
 function applyButton(
 	id: number,
 	text: string,
@@ -358,9 +284,7 @@ function applyButton(
 				check.setAttribute( 'aria-hidden', 'true' );
 				check.textContent = '✓';
 				btn.appendChild( check );
-				// The wash, the border and the ✓ all say "applied" to
-				// the eye and nothing to a screen reader; `aria-disabled`
-				// alone says "unavailable", not "this one landed".
+
 				const applied = document.createElement( 'span' );
 				applied.className = 'screen-reader-text';
 				applied.textContent = __( 'applied' );
@@ -377,7 +301,6 @@ function applyButton(
 	return btn;
 }
 
-/** Readiness verdict as a tone-coded `<os-notice>`. */
 function readinessNotice( readiness: DraftSuggestions[ 'readiness' ] ): HTMLElement {
 	const missing = readiness.missing ?? [];
 	const ready = missing.length === 0;
@@ -415,7 +338,6 @@ function renderSuggestions(
 ): void {
 	panel.replaceChildren();
 
-	// Readiness check — read-only diagnosis at the top.
 	if (
 		data.readiness &&
 		( data.readiness.summary || data.readiness.missing?.length )
@@ -504,24 +426,16 @@ function renderSuggestions(
 const WIDGET_ID = 'desktop-mode/drafts';
 const REFRESH_MS = 60_000;
 
-/**
- * The content-change broadcast for the `post` type: the one the list
- * queries. Listened for on `document` as the raw `os-broadcast`
- * CustomEvent rather than through `wp.os.subscribe`, the same way the
- * window lifecycle events are, so the widget does not need the facade.
- */
 const POSTS_CHANGED_TOPIC = 'os.post.changed';
 const LIMIT = 8;
 
 interface DraftRow {
 	id: number;
 	title: { rendered?: string; raw?: string };
-	// UTC timestamp; use for the "edited …" stamp regardless of the
-	// site's timezone.
+
 	modified_gmt: string;
 }
 
-/** Base admin URL, e.g. `http://site/wp-admin/` (trailing slash). */
 function editUrl( id: number ): string {
 	return `${ adminUrl() }post.php?post=${ id }&action=edit`;
 }
@@ -532,38 +446,29 @@ function timeAgo( isoUtc: string ): string {
 	if ( secs < 60 ) {
 		return __( 'just now' );
 	}
-	// Whole placeholders rather than `count + __( 'm ago' )`: a
-	// concatenated fragment reaches translators without context and
-	// can't be reordered — many locales put the unit before the number.
+
 	if ( secs < 3600 ) {
 		return sprintf(
-			/* translators: %d: whole minutes since the draft was last edited. */
+
 			__( '%dm ago' ),
 			Math.floor( secs / 60 ),
 		);
 	}
 	if ( secs < 86400 ) {
 		return sprintf(
-			/* translators: %d: whole hours since the draft was last edited. */
+
 			__( '%dh ago' ),
 			Math.floor( secs / 3600 ),
 		);
 	}
 	return sprintf(
-		/* translators: %d: whole days since the draft was last edited. */
+
 		__( '%dd ago' ),
 		Math.floor( secs / 86400 ),
 	);
 }
 
 async function fetchDrafts(): Promise< DraftRow[] > {
-	// trackedFetch routes through the framework (loading spinner + activity
-	// bus) and injects the REST nonce automatically. `context=edit` is what
-	// returns draft posts (and their titles) for a user who can edit them —
-	// but on its own that means *every* draft the viewer can edit, so an
-	// editor or admin would see the whole site's. This widget is "your
-	// unfinished posts", so scope it to the viewer whenever the shell has
-	// published their id.
 	const uid = currentUserId();
 	const res = await trackedFetch(
 		restRoot() +
@@ -590,15 +495,6 @@ function draftTitle( row: DraftRow ): string {
 	return raw || __( '(no title)' );
 }
 
-/**
- * One hover-revealed, icon-only action at the end of a draft row.
- *
- * `<os-button>` rather than a bare `<button>`: the component carries the
- * framework's focus ring, disabled semantics and theming tokens, and keeps
- * the two row actions visually identical. The Dashicon is slotted as a
- * light-DOM child because the global icon font can't cross the component's
- * shadow boundary.
- */
 function rowAction(
 	className: string,
 	dashicon: string,
@@ -607,18 +503,9 @@ function rowAction(
 	const btn = document.createElement( 'os-button' );
 	btn.className = className;
 	btn.setAttribute( 'variant', 'ghost' );
-	// Tooltip for the pointer.
+
 	btn.title = label;
 
-	// The name is slotted, not an `aria-label` on the host.
-	//
-	// `<os-button>` renders its real `<button>` inside a shadow root and
-	// forwards the host's `aria-label` onto it, but not its `title`, so
-	// either route names this control. Slotted text lands inside the
-	// `<button>`, where name-from-content picks it up.
-	//
-	// The icon is hidden from the name because a Dashicon is a
-	// private-use glyph, and it would otherwise be read out.
 	const icon = document.createElement( 'span' );
 	icon.className = `dashicons ${ dashicon }`;
 	icon.setAttribute( 'aria-hidden', 'true' );
@@ -674,12 +561,9 @@ function renderList(
 	for ( const d of drafts ) {
 		const row = document.createElement( 'div' );
 		row.className = 'dm-drafts__row';
-		// Stable identity across rebuilds, so `restoreFocus` can find
-		// this row again in the list the next refresh builds.
+
 		row.dataset.draftId = String( d.id );
 
-		// A real anchor so the shell's admin-link interceptor opens the
-		// editor as a native window (and middle-click / modifiers behave).
 		const link = document.createElement( 'a' );
 		link.className = 'dm-drafts__link';
 		link.href = editUrl( d.id );
@@ -697,20 +581,8 @@ function renderList(
 		link.appendChild( name );
 		link.appendChild( time );
 
-		// Name the window this row opens. Left to itself the interceptor
-		// reads the anchor's text, which has no whitespace between the
-		// two spans (they are spaced by `justify-content: space-between`)
-		// and so titles the window "Ginza after work356d ago".
-		//
-		// The window is named after the draft, and only the draft. The
-		// stamp is the row's own metadata: it belongs where it keeps
-		// ticking, not frozen into a title that would still claim
-		// "356d ago" after the draft had just been saved.
 		link.dataset.osWindowTitle = titleText;
 
-		// Trash button. The inner Dashicon is a light-DOM child so the
-		// global icon font reaches it, and pointer-events:none so the
-		// click always lands on the control itself.
 		const trash = rowAction(
 			'dm-drafts__trash',
 			'dashicons-trash',
@@ -723,7 +595,7 @@ function renderList(
 		} );
 
 		row.appendChild( link );
-		// 💡 AI suggestions — only when an AI provider is configured.
+
 		if ( aiAvailable() ) {
 			const spark = rowAction(
 				'dm-drafts__spark',
@@ -744,23 +616,20 @@ function renderList(
 	container.appendChild( list );
 }
 
-/** Confirm, trash the draft, then refresh the list. */
 async function onTrash(
 	draft: DraftRow,
 	row: HTMLElement,
 	onChange: () => void,
 ): Promise< void > {
 	const api = desktopApi();
-	// No confirm dialog available means we can't get consent — refuse
-	// rather than trashing unprompted. `wp.os.confirm` is a stable
-	// part of the shell API, so this only trips outside the shell.
+
 	if ( ! api?.confirm ) {
 		return;
 	}
 	const ok = await api.confirm( {
 		title: __( 'Move to Trash?' ),
 		message: sprintf(
-			/* translators: %s: draft title. */
+
 			__( '“%s” will be moved to the Trash. You can restore it later.' ),
 			draftTitle( draft ),
 		),
@@ -770,7 +639,7 @@ async function onTrash(
 	if ( ! ok ) {
 		return;
 	}
-	// Optimistic: dim the row while the request is in flight.
+
 	row.classList.add( 'is-trashing' );
 	try {
 		await trashDraft( draft.id );
@@ -784,26 +653,12 @@ async function onTrash(
 	}
 }
 
-/**
- * Where the keyboard was inside the widget, in terms that outlive the
- * elements themselves: which draft, which of its controls, and where
- * the row sat in the list.
- */
 interface FocusMark {
 	id: number;
 	control: string;
 	index: number;
 }
 
-/**
- * Note what has focus before a rebuild wipes it.
- *
- * `activeElement` reports the `<os-button>` host rather than the real
- * button inside its shadow root, which is exactly what we want: the
- * host carries the class that says which control this is. It is read
- * off the container's own document, not the global one, because a
- * widget can be mounted inside a window's iframe.
- */
 function markFocus( container: HTMLElement ): FocusMark | null {
 	const active = container.ownerDocument.activeElement;
 	if ( ! ( active instanceof HTMLElement ) || ! container.contains( active ) ) {
@@ -824,15 +679,6 @@ function markFocus( container: HTMLElement ): FocusMark | null {
 	};
 }
 
-/**
- * Put the keyboard back where the rebuild found it.
- *
- * The same draft when it survived the refresh, otherwise whatever row
- * took its place, so trashing a draft leaves focus in the list instead
- * of stranding it on `<body>`. Restores only the focus the rebuild
- * itself took: if the user moved on during the round-trip, they keep
- * where they went.
- */
 function restoreFocus( container: HTMLElement, mark: FocusMark | null ): void {
 	const doc = container.ownerDocument;
 	const active = doc.activeElement;
@@ -851,14 +697,6 @@ function restoreFocus( container: HTMLElement, mark: FocusMark | null ): void {
 	target?.focus( { preventScroll: true } );
 }
 
-/**
- * Rebuild the list, keeping the keyboard where it was.
- *
- * Every refresh path lands here (the 60s poll, the window-lifecycle
- * nudge, the refresh after a trash) and each one wipes the container.
- * Without this, a poll firing while someone was tabbed onto a draft
- * dropped them back to the top of the page mid-interaction.
- */
 function render(
 	container: HTMLElement,
 	drafts: DraftRow[] | null,
@@ -879,9 +717,7 @@ const mount = async (
 		if ( destroyed ) {
 			return;
 		}
-		// Don't rebuild the list while an AI suggestions panel is open —
-		// the round-trip takes a few seconds and a poll/blur refresh would
-		// otherwise wipe the panel out from under the user.
+
 		if ( container.querySelector( `.${ PANEL_CLASS }` ) ) {
 			return;
 		}
@@ -904,14 +740,6 @@ const mount = async (
 	await refresh();
 	const poller = startVisibilityAwarePoller( refresh, REFRESH_MS );
 
-	// Refresh as soon as posts change anywhere on the desktop: the editor's
-	// save-watcher announces every block-editor save, and the content-change
-	// layer relays footer renders and Heartbeat catches, all as
-	// `os.post.changed` broadcasts. A draft saved in a window that keeps
-	// focus fires no window lifecycle event, so without this it waited for
-	// the poll. The window lifecycle nudges stay for whatever the bus does
-	// not see. Debounced to coalesce bursts (a blur + focus during a switch,
-	// a save and its Heartbeat echo).
 	let nudgeTimer: ReturnType< typeof setTimeout > | null = null;
 	const nudge = (): void => {
 		if ( nudgeTimer !== null ) {

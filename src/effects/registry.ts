@@ -1,23 +1,3 @@
-/**
- * OpenStation — Unfocused-window effect registry.
- *
- * Owns the in-memory list of available unfocus effects and applies the
- * `os.unfocus-effects` filter each time callers read it, so
- * plugins can register via `wp.os.registerUnfocusEffect()` and
- * also reach the raw filter for reorder / remove / conditional swap.
- *
- * The built-in `darken` is seeded here, through the very same
- * `register()` the public hook calls — the shipped effect dogfoods the
- * extensibility API rather than taking a private shortcut.
- *
- * Cross-bundle: the seed list AND the subscriber set live in a
- * `createSharedStore` record so the lazy OS-Settings-panel bundle and
- * the main shell bundle share a single registry (see AGENTS.md →
- * "Cross-bundle state"). Without it the panel's selector would iterate
- * its own empty copy and the engine would never hear about effects the
- * panel registered.
- */
-
 import { applyFilters, HOOKS } from '../hooks';
 import { __ } from '../i18n';
 import { throwOnRegistrationErrors } from '../registration-errors';
@@ -26,12 +6,6 @@ import type { UnfocusEffectDef } from './types';
 
 type RegistryListener = () => void;
 
-/**
- * Reserved effect id meaning "no effect". It is offered in the OS
- * Settings selector and is the engine's sentinel, but it is never a
- * registered def — `registerUnfocusEffect` rejects it. Single source
- * of truth, imported by the engine and the settings section.
- */
 export const UNFOCUS_EFFECT_NONE = 'none';
 
 interface UnfocusEffectRegistryStore {
@@ -45,27 +19,8 @@ const store = createSharedStore< UnfocusEffectRegistryStore >(
 const registry = store.state.registry;
 const listeners = store.state.listeners;
 
-/**
- * Valid effect id: lower-case alphanum, hyphen, underscore, slash —
- * same shape as the title-bar-button / command registries so plugins
- * can namespace `vendor/sub-id`. Empty strings rejected.
- *
- * @internal
- */
 const UNFOCUS_EFFECT_ID = /^[a-z0-9_/-]+$/;
 
-/**
- * Register (or replace) an unfocus effect. Re-registering the same id
- * replaces the previous entry — mirrors WordPress's `register_*`
- * semantics where the latest call wins.
- *
- * Throws a {@link RegistrationError} on validation failure so plugin
- * authors get a stack frame at registration time instead of a silently
- * missing selector entry.
- *
- * @param  def Effect definition.
- * @throws {RegistrationError} when `def` fails validation.
- */
 export function registerUnfocusEffect( def: UnfocusEffectDef ): void {
 	const errors: string[] = [];
 
@@ -79,8 +34,6 @@ export function registerUnfocusEffect( def: UnfocusEffectDef ): void {
 				`id (must match ${ UNFOCUS_EFFECT_ID } — lowercase alphanum, hyphens, underscores, slashes for vendor/sub-id)`,
 			);
 		} else if ( def.id.trim().toLowerCase() === UNFOCUS_EFFECT_NONE ) {
-			// `none` is the engine's reserved "no effect" sentinel — it
-			// is offered in the selector but is never a registered def.
 			errors.push( 'id ("none" is reserved)' );
 		}
 		if ( typeof def.label !== 'string' || def.label.trim() === '' ) {
@@ -103,18 +56,12 @@ export function registerUnfocusEffect( def: UnfocusEffectDef ): void {
 	notify();
 }
 
-/** Remove an effect by id. */
 export function unregisterUnfocusEffect( id: string ): void {
 	if ( registry.delete( id.toLowerCase() ) ) {
 		notify();
 	}
 }
 
-/**
- * Remove every effect registered by a given owner (script handle).
- * Used by the server-sync module on plugin deactivation. Returns the
- * number removed.
- */
 export function unregisterUnfocusEffectsByOwner( owner: string ): number {
 	if ( ! owner ) {
 		return 0;
@@ -132,12 +79,6 @@ export function unregisterUnfocusEffectsByOwner( owner: string ): number {
 	return removed;
 }
 
-/**
- * Current effect list with the `os.unfocus-effects` filter
- * applied. The map values are copied so a filter callback can mutate
- * its input safely; a misbehaving filter that returns a non-array
- * falls back to the unfiltered list.
- */
 export function listUnfocusEffects(): UnfocusEffectDef[] {
 	const copy = Array.from( registry.values() );
 	const filtered = applyFilters< UnfocusEffectDef[] >(
@@ -156,15 +97,10 @@ export function listUnfocusEffects(): UnfocusEffectDef[] {
 	return filtered;
 }
 
-/** Look up an effect by id, post-filter. */
 export function getUnfocusEffect( id: string ): UnfocusEffectDef | undefined {
 	return listUnfocusEffects().find( ( e ) => e.id === id );
 }
 
-/**
- * Subscribe to registry changes — the OS Settings selector repaints
- * and the engine recomputes when this fires. Returns an unsubscribe.
- */
 export function subscribeUnfocusEffects( cb: RegistryListener ): () => void {
 	listeners.add( cb );
 	return () => {
@@ -188,13 +124,6 @@ function notify(): void {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Built-in effects
-//
-// Seeded through the public `register()` path so the shipped effect is
-// indistinguishable from a plugin's. `register()` replaces by id, so a
-// re-import (the panel bundle also evaluates this module) is idempotent.
-// ---------------------------------------------------------------------------
 registerUnfocusEffect( {
 	id: 'darken',
 	label: __( 'Darken' ),

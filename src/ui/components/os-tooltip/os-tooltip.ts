@@ -1,57 +1,23 @@
-/**
- * `<os-tooltip>` — hover and keyboard-focus hint for a control.
- *
- * A short dark lozenge that says what a control is for, shown after a
- * short hover or straight away on keyboard focus. It is for the
- * control whose glyph alone does not say what it does — the ⋯ button
- * in a window's title bar is the first one — and it is a visual aid
- * only: the control must still carry its own accessible name.
- *
- * Most callers never write the tag. `attachTooltip()` wires a control
- * to ONE shared `<os-tooltip>` on `document.body` — fixed-positioned,
- * so a window's overflow or transform cannot clip it — and handles
- * the timing, placement and dismissal:
- *
- * ```ts
- * const detach = attachTooltip( button, () => ( {
- *     heading: __( 'Window actions' ),
- *     text: listOfRows(),
- * } ) );
- * ```
- *
- * The content is resolved every time the tooltip shows, so a function
- * can describe state that changes while the control is on screen.
- *
- * Dismissal: leaving the control, pressing on it, moving focus away,
- * or Escape. It never shows for touch, and never while the control
- * reports `aria-expanded="true"` — a tooltip over the menu its own
- * button just opened is noise.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-tooltip.styles';
 
-/** What a tooltip says: an optional bold first line and a body. */
 export interface OsTooltipContent {
 	heading?: string;
 	text?: string;
 }
 
-/** A fixed string, a content object, or a function resolved on show. */
 export type OsTooltipSource =
 	| string
 	| OsTooltipContent
 	| ( () => string | OsTooltipContent | null );
 
 export interface AttachTooltipOptions {
-	/** Hover delay before showing, in ms. Keyboard focus shows at once. */
+
 	delay?: number;
 }
 
-/** Hover delay: long enough that sweeping across a title bar stays quiet. */
 const DEFAULT_DELAY = 500;
 
-/** Space between the control and the tooltip, and from the viewport edge. */
 const GAP = 8;
 
 export class OsTooltip extends Component {
@@ -126,10 +92,6 @@ export class OsTooltip extends Component {
 }
 defineComponent( 'os-tooltip', OsTooltip );
 
-// ------------------------------------------------------------------
-// attachTooltip — one shared tooltip, many controls.
-// ------------------------------------------------------------------
-
 let shared: HTMLElement | null = null;
 let owner: HTMLElement | null = null;
 let showTimer: ReturnType< typeof setTimeout > | null = null;
@@ -171,11 +133,6 @@ function onDocumentKeydown( e: KeyboardEvent ): void {
 	}
 }
 
-/**
- * Where the tooltip goes for a control: centred below it, flipped
- * above when the viewport has no room below, and slid sideways to
- * stay `GAP` inside the viewport's left and right edges.
- */
 export function placeTooltip(
 	anchor: DOMRect,
 	size: { width: number; height: number },
@@ -212,8 +169,7 @@ function showTooltip( anchor: HTMLElement, source: OsTooltipSource ): void {
 	} else {
 		tip.removeAttribute( 'text' );
 	}
-	// The content renders on a microtask; measure it on the next frame
-	// so the placement uses the new size, not the previous tooltip's.
+
 	positionFrame = requestAnimationFrame( () => {
 		positionFrame = null;
 		if ( owner !== anchor || ! anchor.isConnected ) {
@@ -232,7 +188,6 @@ function showTooltip( anchor: HTMLElement, source: OsTooltipSource ): void {
 	} );
 }
 
-/** Hide the shared tooltip, whichever control it belongs to. */
 export function hideTooltip(): void {
 	cancelPending();
 	owner = null;
@@ -240,7 +195,6 @@ export function hideTooltip(): void {
 	document.removeEventListener( 'keydown', onDocumentKeydown, true );
 }
 
-/** Whether a focus event landed through the keyboard rather than a click. */
 function isKeyboardFocus( e: FocusEvent ): boolean {
 	const target = e.composedPath()[ 0 ];
 	if ( ! ( target instanceof Element ) ) {
@@ -253,12 +207,6 @@ function isKeyboardFocus( e: FocusEvent ): boolean {
 	}
 }
 
-/**
- * Give `anchor` a tooltip. Returns a function that removes it.
- *
- * `source` is a string, `{ heading, text }`, or a function returning
- * either (or `null` to skip showing this time), resolved on every show.
- */
 export function attachTooltip(
 	anchor: HTMLElement,
 	source: OsTooltipSource,

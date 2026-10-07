@@ -1,19 +1,3 @@
-/**
- * The Living Tree — the golden rule + gradual growth, encoded as tests.
- *
- * Two load-bearing guarantees:
- *
- * 1. **Topological invariance** ("WordPress emits hormones, never
- *    geometry", §A.1/§A.4): two sites of the SAME AGE grow the SAME
- *    skeleton regardless of how wildly their post / category / tag
- *    counts differ — content only changes decoration (leaf budget /
- *    colour), never morphology.
- *
- * 2. **Gradual, monotone growth** (§A.5): the canonical skeleton is a
- *    pure function of the seed; age only reveals a prefix of it. The
- *    tree at day N+1 must CONTAIN the tree at day N — never reshuffle.
- *    (A regression here is exactly the "different tree every day" bug.)
- */
 import { describe, expect, test } from 'vitest';
 import { ageCurve, buildHormones } from '../../src/plugins/living-tree-wallpaper/dna';
 import {
@@ -39,7 +23,6 @@ import type {
 	TreeSnapshot,
 } from '../../src/plugins/living-tree-wallpaper/types';
 
-/** A snapshot with every metric zeroed except the overrides. */
 function snapshot( overrides: Partial< TreeSnapshot > = {} ): TreeSnapshot {
 	return {
 		siteUrl: 'https://example.com',
@@ -60,7 +43,6 @@ function snapshot( overrides: Partial< TreeSnapshot > = {} ): TreeSnapshot {
 	};
 }
 
-// A tiny site and a huge site, SAME age, SAME seed inputs.
 const sparse = snapshot( {
 	siteAgeDays: 365,
 	totalPosts: 5,
@@ -77,11 +59,10 @@ const dense = snapshot( {
 } );
 
 function seededRng( s: TreeSnapshot ): () => number {
-	// Must mirror the scene's seed EXACTLY (url | name | epoch).
+
 	return mulberry32( hash32( `${ s.siteUrl }|${ s.siteName }|${ s.installEpoch }` ) );
 }
 
-/** The canonical (mature) skeleton for a snapshot's seed. */
 function growCanonical( s: TreeSnapshot ): BranchNode[] {
 	const hormones = buildHormones( s );
 	const rng = seededRng( s );
@@ -95,7 +76,6 @@ function growCanonical( s: TreeSnapshot ): BranchNode[] {
 	return sim.nodes;
 }
 
-/** The revealed tree for a snapshot (what the scene actually renders). */
 function reveal( s: TreeSnapshot ): BranchNode[] {
 	const hormones = buildHormones( s );
 	const full = growCanonical( s );
@@ -131,7 +111,7 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 	test( 'the envelope is seed-only: identical for any age or content shape', () => {
 		const hSparse = buildHormones( sparse );
 		const hDense = buildHormones( dense );
-		// Vigour genuinely differs — that's what makes this test bite.
+
 		expect( hSparse.vigor01 ).not.toBe( hDense.vigor01 );
 		const old = snapshot( { siteAgeDays: 7300 } );
 		const envSparse = buildEnvelope( hSparse.age01, hSparse.vigor01, seededRng( sparse ) );
@@ -146,7 +126,7 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		const revealedDense = reveal( dense );
 		expect( revealedSparse.length ).toBeGreaterThan( 3 );
 		expect( revealedSparse.length ).toBe( revealedDense.length );
-		// Not just the same count — the same geometry, node for node.
+
 		expect( revealedSparse.map( ( n ) => n.pos ) ).toEqual(
 			revealedDense.map( ( n ) => n.pos ),
 		);
@@ -156,8 +136,7 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		const budgetSparse = computeLeafBudget( buildHormones( sparse ).foliage01 );
 		const budgetDense = computeLeafBudget( buildHormones( dense ).foliage01 );
 		expect( budgetDense ).toBeGreaterThan( budgetSparse );
-		// Taxonomy differences surface in the meadow, not the skeleton:
-		// more categories → more wildflowers, more tags → more butterflies.
+
 		expect( computeFlowerCount( dense.totalCategories ) ).toBeGreaterThan(
 			computeFlowerCount( sparse.totalCategories ),
 		);
@@ -179,7 +158,7 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		expect( maxDepthForAge( ageCurve( 20 ) ) ).toBe( 2 );
 		expect( maxDepthForAge( ageCurve( 3 * 365 ) ) ).toBe( 8 );
 		expect( maxDepthForAge( ageCurve( 20 * 365 ) ) ).toBeGreaterThanOrEqual( 12 );
-		// Girth follows the master clock too.
+
 		expect( trunkGirthForAge( 0.2 ) ).toBeLessThan( trunkGirthForAge( 0.9 ) );
 	} );
 
@@ -192,14 +171,13 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 	} );
 
 	test( 'two blogs on the SAME URL diverge by site name (seed + canopy hue)', () => {
-		// The localhost / staging-clone case: identical URLs and epochs,
-		// different blog names → different individuals.
+
 		const blogA = snapshot( { siteAgeDays: 365, siteName: 'Coffee Notes' } );
 		const blogB = snapshot( { siteAgeDays: 365, siteName: 'Trail Journal' } );
 		expect( reveal( blogA ).map( ( n ) => n.pos ) ).not.toEqual(
 			reveal( blogB ).map( ( n ) => n.pos ),
 		);
-		// Their base greens differ too.
+
 		expect( canopyHue( `${ blogA.siteUrl }|${ blogA.siteName }` ) ).not.toBe(
 			canopyHue( `${ blogB.siteUrl }|${ blogB.siteName }` ),
 		);
@@ -209,7 +187,7 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		const revealed = reveal( snapshot() );
 		expect( revealed.length ).toBeGreaterThanOrEqual( 2 );
 		expect( revealed.length ).toBeLessThan( 40 );
-		// It grew upward: some node sits above the root.
+
 		expect( Math.min( ...revealed.map( ( n ) => n.pos.y ) ) ).toBeLessThan( 0 );
 	} );
 } );
@@ -219,7 +197,7 @@ describe( 'living-tree gradual growth (no daily reshuffle)', () => {
 		const today = reveal( snapshot( { siteAgeDays: 1000 } ) );
 		const tomorrow = reveal( snapshot( { siteAgeDays: 1001 } ) );
 		expect( tomorrow.length ).toBeGreaterThanOrEqual( today.length );
-		// Every node the tree had yesterday is EXACTLY where it was.
+
 		for ( let i = 0; i < today.length; i++ ) {
 			expect( tomorrow[ i ].pos ).toEqual( today[ i ].pos );
 			expect( tomorrow[ i ].parent ).toBe( today[ i ].parent );
@@ -236,14 +214,12 @@ describe( 'living-tree gradual growth (no daily reshuffle)', () => {
 	} );
 
 	test( 'the sapling regime: a first-month site is a sprout/sapling, not a tree', () => {
-		// Day 1 must be indistinguishable from a sprout…
+
 		expect( ageCurve( 1 ) ).toBeLessThan( 0.005 );
-		// …a month in reads as a small sapling (the §A.4 depth cap
-		// bounds its structure on top of this)…
+
 		expect( ageCurve( 30 ) ).toBeGreaterThan( 0.08 );
 		expect( ageCurve( 30 ) ).toBeLessThan( 0.16 );
-		// …and past the linear/log crossover (~5 months) the curve IS
-		// the raw log curve, so established sites render as before.
+
 		expect( ageCurve( 365 ) ).toBeCloseTo(
 			Math.log1p( 365 ) / Math.log1p( 3650 ),
 			10,
@@ -251,9 +227,7 @@ describe( 'living-tree gradual growth (no daily reshuffle)', () => {
 	} );
 
 	test( 'the first days each visibly grow the seedling — no dead flatline', () => {
-		// Regression: the earlier smoothstep ramp started quadratically
-		// flat, pinning days 0–10 at the 2-node sprout. The linear
-		// sapling clock must add nodes every couple of days.
+
 		let prev = revealCountForAge( 800, ageCurve( 1 ) );
 		for ( const days of [ 3, 5, 7, 9, 11 ] ) {
 			const count = revealCountForAge( 800, ageCurve( days ) );

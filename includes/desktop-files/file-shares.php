@@ -1,58 +1,14 @@
 <?php
-/**
- * OpenStation — single-file sharing (`target_type='file'`).
- *
- * Shares one stored upload with specific users. Reuses the folder-
- * sharing tables via the `target_type` column the schema shipped
- * for exactly this (the `folder_id` column carries the STORED-FILE
- * id on these rows — historical column name).
- *
- * Deliberate divergences from folder sharing:
- *
- *   - **Read tier only.** The capability is hard-forced to `read`
- *     — recipients get view + download, never move/rename/delete
- *     (DESKMOD-45's owner-locked model; the write tier does not
- *     exist for files).
- *   - **User principals only (v1).** No role invites.
- *
- * Lifecycle mirrors folders: invite (pending) → heartbeat delivers
- * → accept (placement planted at the recipient's desktop root) /
- * deny / leave / revoke, every removal scrubbing the recipient's
- * placement.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Whether `$user_id` may manage a stored file's shares. Owner-only
- * by default, filterable like the folder equivalent.
- *
- * @param int $file_id Stored-file id.
- * @param int $user_id Viewer.
- * @return bool
- */
 function openstation_stored_files_share_can_manage( $file_id, $user_id ) {
 	$file = openstation_stored_files_get( (int) $file_id );
 	$can  = $file && (int) $file['owner_id'] === (int) $user_id;
-	/**
-	 * Filter who can manage a stored file's shares.
-	 *
-	 * @param bool       $can     Default: owner-only.
-	 * @param int        $file_id Stored-file id.
-	 * @param int        $user_id Viewer.
-	 * @param array|null $file    Stored-file row (null when missing).
-	 */
+
 	return (bool) apply_filters( 'openstation_stored_files_share_can_manage', $can, (int) $file_id, (int) $user_id, $file );
 }
 
-/**
- * All share rows for one stored file (owner-internal view).
- *
- * @param int $file_id Stored-file id.
- * @return array[]
- */
 function openstation_stored_files_get_file_shares( $file_id ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
@@ -70,14 +26,6 @@ function openstation_stored_files_get_file_shares( $file_id ) {
 	return $out;
 }
 
-/**
- * The viewer's state on a stored file: 'none' when no share row
- * targets them, else the row's state.
- *
- * @param int $file_id Stored-file id.
- * @param int $user_id Viewer.
- * @return string 'none' | 'pending' | 'accepted' | 'denied'
- */
 function openstation_stored_file_share_state( $file_id, $user_id ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
@@ -93,14 +41,6 @@ function openstation_stored_file_share_state( $file_id, $user_id ) {
 	return null === $state ? 'none' : (string) $state;
 }
 
-/**
- * Invite a user to a stored file. Capability is always `read`.
- *
- * @param int $file_id           Stored-file id.
- * @param int $actor_id          Actor (must manage the file's shares).
- * @param int $recipient_user_id Recipient.
- * @return int|WP_Error Share id.
- */
 function openstation_stored_file_share_invite( $file_id, $actor_id, $recipient_user_id ) {
 	global $wpdb;
 	$file_id  = (int) $file_id;
@@ -131,9 +71,6 @@ function openstation_stored_file_share_invite( $file_id, $actor_id, $recipient_u
 	$tables = openstation_files_table_names();
 	$now    = openstation_files_now_ms();
 
-	// Idempotent invite, mirroring the folder rules: denied →
-	// pending again; pending/accepted keep their state. Capability
-	// stays 'read' unconditionally.
 	$existing = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['shares']}
@@ -182,20 +119,11 @@ function openstation_stored_file_share_invite( $file_id, $actor_id, $recipient_u
 
 	$row = openstation_files_get_share( $id );
 
-	/** This action is documented in includes/desktop-files/shares-store.php */
 	do_action( 'openstation_files_share_invited', $id, $row, $actor_id );
 
 	return $id;
 }
 
-/**
- * Recipient accepts a file share. Plants an `upload` placement at
- * their desktop root.
- *
- * @param int $share_id Share id.
- * @param int $user_id  Recipient.
- * @return array|WP_Error Updated share row.
- */
 function openstation_stored_file_share_accept( $share_id, $user_id ) {
 	global $wpdb;
 	$share_id = (int) $share_id;
@@ -208,8 +136,7 @@ function openstation_stored_file_share_accept( $share_id, $user_id ) {
 		return new WP_Error( 'openstation_files_share_not_recipient', __( 'This invite is not for you.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	if ( 'accepted' === $row['state'] ) {
-		// A previous attempt may have accepted the invite but failed to plant
-		// its tile (for example, a busy upload lock). Allow that step to retry.
+
 		$tables = openstation_files_table_names();
 		$placed = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$tables['placements']} WHERE owner_id = %d AND file_type = 'upload' AND file_ref = %s LIMIT 1", $user_id, (string) $row['folder_id'] ) );
 		if ( $placed ) {
@@ -232,10 +159,8 @@ function openstation_stored_file_share_accept( $share_id, $user_id ) {
 		array( '%d' )
 	);
 
-	// Plant the tile — AFTER the state flip so the placement's
-	// `can_read` gate sees the accepted share.
 	$file_id = (int) $row['folder_id'];
-	/** This filter is documented in includes/desktop-files/shares-store.php */
+
 	$parent_id = (int) apply_filters( 'openstation_folder_share_accept_default_parent', 0, $file_id, $user_id, $row );
 	$placed    = openstation_files_place_at_next_free_slot( $user_id, $parent_id, 'upload', (string) $file_id );
 	if ( is_wp_error( $placed ) ) {
@@ -244,19 +169,11 @@ function openstation_stored_file_share_accept( $share_id, $user_id ) {
 
 	$next = openstation_files_get_share( $share_id );
 
-	/** This action is documented in includes/desktop-files/shares-store.php */
 	do_action( 'openstation_files_share_accepted', $share_id, $next, $user_id );
 
 	return $next;
 }
 
-/**
- * Recipient denies a file share.
- *
- * @param int $share_id Share id.
- * @param int $user_id  Recipient.
- * @return array|WP_Error Updated share row.
- */
 function openstation_stored_file_share_deny( $share_id, $user_id ) {
 	global $wpdb;
 	$share_id = (int) $share_id;
@@ -290,19 +207,11 @@ function openstation_stored_file_share_deny( $share_id, $user_id ) {
 
 	$next = openstation_files_get_share( $share_id );
 
-	/** This action is documented in includes/desktop-files/shares-store.php */
 	do_action( 'openstation_files_share_denied', $share_id, $next, $user_id );
 
 	return $next;
 }
 
-/**
- * Recipient leaves a previously accepted file share.
- *
- * @param int $file_id Stored-file id.
- * @param int $user_id Recipient.
- * @return true|WP_Error
- */
 function openstation_stored_file_share_leave( $file_id, $user_id ) {
 	global $wpdb;
 	$file_id = (int) $file_id;
@@ -327,8 +236,6 @@ function openstation_stored_file_share_leave( $file_id, $user_id ) {
 		ARRAY_A
 	);
 
-	// Scrub the recipient's tile regardless — lingering placements
-	// from a previously revoked share must go too.
 	openstation_files_trash_upload_for_user( $file_id, $user_id );
 
 	if ( ! $row ) {
@@ -346,19 +253,11 @@ function openstation_stored_file_share_leave( $file_id, $user_id ) {
 		array( '%d' )
 	);
 
-	/** This action is documented in includes/desktop-files/shares-store.php */
 	do_action( 'openstation_files_share_left', (int) $row['id'], $normalized, $user_id );
 
 	return true;
 }
 
-/**
- * Owner revokes a file share.
- *
- * @param int $share_id Share id.
- * @param int $actor_id Actor.
- * @return true|WP_Error
- */
 function openstation_stored_file_share_revoke( $share_id, $actor_id ) {
 	global $wpdb;
 	$share_id = (int) $share_id;
@@ -379,24 +278,11 @@ function openstation_stored_file_share_revoke( $share_id, $actor_id ) {
 		openstation_files_trash_upload_for_user( (int) $row['folder_id'], (int) $row['principal_ref'] );
 	}
 
-	/** This action is documented in includes/desktop-files/shares-store.php */
 	do_action( 'openstation_files_share_revoked', $share_id, $row, $actor_id );
 
 	return true;
 }
 
-/**
- * Soft-trash a recipient's placements of an uploaded file (their
- * desktop tile). Direct DB update on purpose — the owner-lock trash
- * gate would (correctly) refuse a recipient-initiated trash through
- * the normal flow; this administrative scrub bypasses it. No
- * tombstones: soft-trash rides the heartbeat's `trashed_at_ms`
- * channel (same invariant as the folder scrub).
- *
- * @param int $file_id Stored-file id.
- * @param int $user_id Recipient whose placements to scrub.
- * @return int Rows scrubbed.
- */
 function openstation_files_trash_upload_for_user( $file_id, $user_id ) {
 	global $wpdb;
 	$file_id = (int) $file_id;
@@ -435,14 +321,6 @@ function openstation_files_trash_upload_for_user( $file_id, $user_id ) {
 	return $count;
 }
 
-/**
- * Pending file-share invites for a user (heartbeat + shell-config
- * delivery). User-principal only.
- *
- * @param int $user_id  Viewer.
- * @param int $since_ms Only rows with `invited_at_ms > since`.
- * @return array[] Normalized share rows.
- */
 function openstation_files_get_pending_file_shares_for_user( $user_id, $since_ms = 0 ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
@@ -472,12 +350,6 @@ function openstation_files_get_pending_file_shares_for_user( $user_id, $since_ms
 	return $out;
 }
 
-/**
- * Wire shape for a file share, enriched for the invite banner.
- *
- * @param array $row Normalized share row (`target_type='file'`).
- * @return array
- */
 function openstation_files_shape_file_share( $row ) {
 	$file  = openstation_stored_files_get( (int) $row['folder_id'] );
 	$shape = array(
@@ -499,21 +371,13 @@ function openstation_files_shape_file_share( $row ) {
 		$shape['ownerName']   = $owner ? openstation_plain_text_title( $owner->display_name ) : '';
 		$shape['ownerAvatar'] = $owner ? get_avatar_url( $owner->ID, array( 'size' => 48 ) ) : '';
 	}
-	// Principal enrichment for the owner-side share list.
+
 	$principal            = get_userdata( (int) $row['principal_ref'] );
 	$shape['displayName'] = $principal ? openstation_plain_text_title( $principal->display_name ) : '';
 	$shape['avatarUrl']   = $principal ? get_avatar_url( $principal->ID, array( 'size' => 48 ) ) : '';
 	return $shape;
 }
 
-// ---------------------------------------------------------------------------
-// REST routes.
-// ---------------------------------------------------------------------------
-
-/**
- * Register the file-share routes. Same 404-when-disabled gate as
- * every other share route (`openstation_files_rest_share_permission`).
- */
 function openstation_files_register_file_share_rest_routes() {
 	$ns = 'desktop-mode/v1';
 
@@ -578,14 +442,6 @@ function openstation_files_register_file_share_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_files_register_file_share_rest_routes' );
 
-/**
- * Resolve the `{shareId}` inside `{id}` or fail with a masked 404.
- *
- * @internal
- *
- * @param WP_REST_Request $req Request.
- * @return array|WP_Error Normalized share row.
- */
 function openstation_files_rest_resolve_file_share( WP_REST_Request $req ) {
 	$row = openstation_files_get_share( (int) $req['shareId'] );
 	if ( ! $row || 'file' !== $row['target_type'] || (int) $row['folder_id'] !== (int) $req['id'] ) {
@@ -594,9 +450,6 @@ function openstation_files_rest_resolve_file_share( WP_REST_Request $req ) {
 	return $row;
 }
 
-/**
- * GET /files/uploads/<id>/shares (managers only).
- */
 function openstation_files_rest_list_file_shares( WP_REST_Request $req ) {
 	$file_id = (int) $req['id'];
 	$user_id = get_current_user_id();
@@ -610,10 +463,6 @@ function openstation_files_rest_list_file_shares( WP_REST_Request $req ) {
 	return rest_ensure_response( array( 'shares' => $out ) );
 }
 
-/**
- * POST /files/uploads/<id>/shares — invite (read tier, always).
- * A `capability` param, if sent, must be `read` — `write` is 400.
- */
 function openstation_files_rest_create_file_share( WP_REST_Request $req ) {
 	$capability = $req->get_param( 'capability' );
 	if ( null !== $capability && 'read' !== (string) $capability ) {
@@ -634,9 +483,6 @@ function openstation_files_rest_create_file_share( WP_REST_Request $req ) {
 	return rest_ensure_response( openstation_files_shape_file_share( openstation_files_get_share( $id ) ) );
 }
 
-/**
- * DELETE /files/uploads/<id>/shares/<shareId> — revoke.
- */
 function openstation_files_rest_delete_file_share( WP_REST_Request $req ) {
 	$row = openstation_files_rest_resolve_file_share( $req );
 	if ( is_wp_error( $row ) ) {
@@ -649,9 +495,6 @@ function openstation_files_rest_delete_file_share( WP_REST_Request $req ) {
 	return rest_ensure_response( array( 'deleted' => true ) );
 }
 
-/**
- * POST .../accept
- */
 function openstation_files_rest_accept_file_share( WP_REST_Request $req ) {
 	$row = openstation_files_rest_resolve_file_share( $req );
 	if ( is_wp_error( $row ) ) {
@@ -664,9 +507,6 @@ function openstation_files_rest_accept_file_share( WP_REST_Request $req ) {
 	return rest_ensure_response( openstation_files_shape_file_share( $next ) );
 }
 
-/**
- * POST .../deny
- */
 function openstation_files_rest_deny_file_share( WP_REST_Request $req ) {
 	$row = openstation_files_rest_resolve_file_share( $req );
 	if ( is_wp_error( $row ) ) {
@@ -679,9 +519,6 @@ function openstation_files_rest_deny_file_share( WP_REST_Request $req ) {
 	return rest_ensure_response( openstation_files_shape_file_share( $next ) );
 }
 
-/**
- * POST /files/uploads/<id>/leave
- */
 function openstation_files_rest_leave_file_share( WP_REST_Request $req ) {
 	$ok = openstation_stored_file_share_leave( (int) $req['id'], get_current_user_id() );
 	if ( is_wp_error( $ok ) ) {
@@ -690,19 +527,6 @@ function openstation_files_rest_leave_file_share( WP_REST_Request $req ) {
 	return rest_ensure_response( array( 'left' => true ) );
 }
 
-// ---------------------------------------------------------------------------
-// Delivery: shell config + heartbeat.
-// ---------------------------------------------------------------------------
-
-/**
- * Append pending file-share invites to the boot-time
- * `serverPendingShares` array (after the folder injection at 20).
- * File shapes carry `targetType: 'file'` + `fileId` / `fileName`
- * so the invite banner can branch.
- *
- * @param array $config Shell config.
- * @return array
- */
 function openstation_files_file_share_inject_shell_config( $config ) {
 	$user_id         = get_current_user_id();
 	$sharing_enabled = function_exists( 'openstation_files_sharing_enabled_for' )

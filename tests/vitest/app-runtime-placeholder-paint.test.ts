@@ -1,14 +1,3 @@
-/**
- * App Framework runtime — the placeholder paint.
- *
- * `App::prefetch()` paints a client view before `mount` answers by
- * shipping the real `data()` with the window config — right for a
- * `data()` that is capability checks and options, wrong for one that
- * runs queries, since every shell boot would pay them. A client
- * `placeholder` is the other way out: the app's own stand-in (an empty
- * list, zero counts), painted the moment the window opens with
- * `ctx.loading` set, and replaced by the `mount` answer.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSession } from '../../src/app-runtime/session';
 import { defineApp, html } from '../../src/app-runtime/client';
@@ -88,8 +77,7 @@ describe( 'the placeholder paint', () => {
 		expect( session.paintEagerly() ).toBe( true );
 		expect( root.querySelector( 'p' )?.textContent ).toBe( 'placeholder-for-page-3' );
 		expect( root.querySelector( 'p' )?.getAttribute( 'data-loading' ) ).toBe( 'true' );
-		// The placeholder is the first render: mounted() runs now, and
-		// reads the same loading flag the view did.
+
 		expect( mountedSpy ).toHaveBeenCalledTimes( 1 );
 		expect( seen.every( ( s ) => s.loading ) ).toBe( true );
 	} );

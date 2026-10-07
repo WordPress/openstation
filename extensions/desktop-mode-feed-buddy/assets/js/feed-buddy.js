@@ -177,7 +177,7 @@ var openStationFeedBuddy = function(exports) {
     return new Map((state?.summaries ?? []).map((summary) => [summary.id, summary]));
   }
   function groupSubscriptions(subscriptions) {
-    const groups = /* @__PURE__ */ new Map();
+    const groups =                 new Map();
     for (const subscription of subscriptions) {
       const group = subscription.group.trim() || "Feeds";
       const current = groups.get(group) ?? [];
@@ -339,7 +339,7 @@ var openStationFeedBuddy = function(exports) {
     let identityDetail;
     if (state.presenceMode === "away") {
       identityDetail = sprintf(
-        /* translators: %d: number of unread feed items. */
+
         __("idle — %d unread"),
         totalUnread(state.server)
       );
@@ -347,7 +347,7 @@ var openStationFeedBuddy = function(exports) {
       identityDetail = __("Screen name: SOL_Online :-)");
     } else {
       identityDetail = sprintf(
-        /* translators: %d: number of subscribed feeds. */
+
         __("Feeds online: %d"),
         state.server?.subscriptions.length ?? 0
       );
@@ -429,7 +429,7 @@ var openStationFeedBuddy = function(exports) {
           );
           badge.setAttribute(
             "aria-label",
-            /* translators: %d: number of unread feed items. */
+
             sprintf(__("%d unread items"), summary?.unread ?? 0)
           );
           feed.replaceChildren(dot, label, hiddenStatus, badge);
@@ -599,9 +599,9 @@ var openStationFeedBuddy = function(exports) {
     container.appendChild(root);
     const store = getStore();
     const controller = new AbortController();
-    const chimeCleanups = /* @__PURE__ */ new Set();
-    const clearTimers = /* @__PURE__ */ new Set();
-    const collapsedGroups = /* @__PURE__ */ new Set();
+    const chimeCleanups =                 new Set();
+    const clearTimers =                 new Set();
+    const collapsedGroups =                 new Set();
     const applyGroupVisibility = () => {
       for (const header of root.querySelectorAll(
         ".feed-buddy-widget__group"
@@ -940,7 +940,7 @@ var openStationFeedBuddy = function(exports) {
     if (presenceCopy) {
       if (state.presenceMode === "away") {
         presenceCopy.textContent = sprintf(
-          /* translators: %d: number of unread feed items. */
+
           __("idle — %d unread"),
           totalUnread(state.server)
         );
@@ -1007,7 +1007,7 @@ var openStationFeedBuddy = function(exports) {
       const confirmed = await desktop().confirm({
         title: __("Remove feed?"),
         message: sprintf(
-          /* translators: %s: feed title. */
+
           __("Remove “%s” from your buddy list?"),
           subscription?.title ?? __("this feed")
         ),
@@ -1051,7 +1051,7 @@ var openStationFeedBuddy = function(exports) {
     applyReaderTheme();
     const store = getStore();
     const offStore = store.subscribe((state) => renderReader(root, state));
-    const chimeCleanups = /* @__PURE__ */ new Set();
+    const chimeCleanups =                 new Set();
     let aboutCleanup = null;
     const onSecretKeyDown = createRetroSecretHandler((active) => {
       if (store.state.server?.preferences.soundEnabled) {

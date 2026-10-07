@@ -1,15 +1,3 @@
-/**
- * Comments app — the tab strip and the rail of conversations.
- *
- * Part of the `comments` client view: imported by the `comments.os.ts`
- * entry. The strip is `<os-tabs>` on a desk and an `<os-select>`
- * picker beside it for a narrow window (the stylesheet shows one or
- * the other); the rail is the search field, the "scoped to one post"
- * banner, one button per conversation, and a Load more footer.
- *
- * @public
- */
-
 import { __, html, sprintf, type TemplateResult } from '@openstation/app';
 import { decodeHTML } from '../../../src/utils';
 import {
@@ -32,11 +20,6 @@ const TABS: ReadonlyArray< { value: CommentTab; label: () => string } > = [
 	{ value: 'mine', label: () => __( 'Mine' ) },
 ];
 
-/**
- * Per-tab counts. "Mine" is deliberately left bare — the counts are
- * site totals, and a site-wide number next to a viewer-scoped tab
- * would read as a bug.
- */
 function countFor( tab: CommentTab, counts: CommentCounts | undefined ): number | null {
 	if ( ! counts ) {
 		return null;
@@ -55,12 +38,6 @@ function countFor( tab: CommentTab, counts: CommentCounts | undefined ): number 
 	}
 }
 
-/**
- * The tab strip, bound to `tab` and dispatching `filter`; a new list
- * puts a narrow window back on the rail. The picker beside it is the
- * same control for a narrow container — whichever is up, the other
- * is already right when the width changes.
- */
 export function tabs( ctx: Ctx, ui: UiState ): TemplateResult {
 	const { state, data } = ctx;
 	const toRail = (): void => {
@@ -74,7 +51,7 @@ export function tabs( ctx: Ctx, ui: UiState ): TemplateResult {
 				count === null
 					? tab.label()
 					: sprintf(
-						/* translators: 1: tab label, 2: comment count. */
+
 						__( '%1$s (%2$s)' ),
 						tab.label(),
 						String( count ),
@@ -111,7 +88,6 @@ export function tabs( ctx: Ctx, ui: UiState ): TemplateResult {
 	`;
 }
 
-/** "Filtered to one post" banner + a Show-all escape hatch. */
 function filterBanner( ctx: Ctx, ui: UiState, rows: CommentRow[] ): TemplateResult {
 	const title = rows[ 0 ]?.openstation_post_title;
 	const clear = (): void => {
@@ -121,7 +97,7 @@ function filterBanner( ctx: Ctx, ui: UiState, rows: CommentRow[] ): TemplateResu
 	return html`<div class="${ NS }__rail-filter">
 		<span class="${ NS }__rail-filter-label">${
 			title
-				? /* translators: %s: post title. */ sprintf( __( 'On: %s' ), decodeHTML( title ) )
+				? sprintf( __( 'On: %s' ), decodeHTML( title ) )
 				: __( 'Comments on this post' )
 		}</span>
 		<os-button class="${ NS }__rail-filter-clear" variant="link" @click=${ clear }>${ __( 'Show all' ) }</os-button>
@@ -131,10 +107,6 @@ function filterBanner( ctx: Ctx, ui: UiState, rows: CommentRow[] ): TemplateResu
 function threadItem( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 	const selected = ctx.state.selected === row.id;
 	const pick = (): void => {
-		// The user asked for this one: on a narrow window that is the
-		// moment the list gives way to the conversation. Re-picking the
-		// conversation already on screen is local — a request would
-		// throw away scroll position and a half-written reply.
 		ui.pane = 'convo';
 		if ( selected && ui.thread ) {
 			ctx.repaint();
@@ -143,10 +115,7 @@ function threadItem( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 		void ctx.dispatch( 'select', { id: row.id } );
 	};
 	const replies = row.openstation_replies_count ?? 0;
-	// `role="listitem"` lives on a wrapper: on the button it would
-	// override the button role and cost the row its keyboard semantics.
-	// `aria-current` (not `aria-selected`) is the signal for a list of
-	// buttons.
+
 	return html`<div role="listitem" class="${ NS }__thread-slot">
 		<button
 			type="button"
@@ -165,7 +134,7 @@ function threadItem( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 				${ timestamp( row.date_gmt, `${ NS }__thread-time`, true ) }
 				${ replies > 0
 					? html`<os-badge class="${ NS }__reply-count" tone="neutral" no-dot>${ replies }<span class="screen-reader-text">${ sprintf(
-						/* translators: %d: number of direct replies. */
+
 						__( '%d replies' ),
 						replies,
 					) }</span></os-badge>`
@@ -175,10 +144,8 @@ function threadItem( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 	</div>`;
 }
 
-/** How many silhouettes the rail shows before its first page. */
 const GHOST_ROWS = 6;
 
-/** A conversation's silhouette, for the beat before the rail has any. */
 function ghostItem(): TemplateResult {
 	return html`<div class="${ NS }__thread-slot ${ NS }__thread-slot--ghost" aria-hidden="true">
 		<div class="${ NS }__thread">
@@ -191,7 +158,6 @@ function ghostItem(): TemplateResult {
 	</div>`;
 }
 
-/** "Load more" footer — only when the server says there's another page. */
 function loadMoreRow( ctx: Ctx, ui: UiState ): TemplateResult {
 	const more = (): void => {
 		ui.loadingMore = true;
@@ -206,11 +172,6 @@ function loadMoreRow( ctx: Ctx, ui: UiState ): TemplateResult {
 	</div>`;
 }
 
-/**
- * The rail: search, scope banner, the conversations, Load more.
- * `error` is the last rail envelope's — a response that left the rail
- * out (a `select`) neither raises nor clears it.
- */
 export function rail( ctx: Ctx, ui: UiState, rows: CommentRow[], error: string ): TemplateResult {
 	const { state } = ctx;
 	const scoped = state.post > 0;
@@ -222,8 +183,6 @@ export function rail( ctx: Ctx, ui: UiState, rows: CommentRow[], error: string )
 			__( 'Check your connection and try another tab.' ),
 		);
 	} else if ( ctx.loading ) {
-		// The frame is up before the first answer: silhouettes where the
-		// conversations will land, never "No conversations yet".
 		body = Array.from( { length: GHOST_ROWS }, ghostItem );
 	} else if ( rows.length === 0 ) {
 		body = scoped

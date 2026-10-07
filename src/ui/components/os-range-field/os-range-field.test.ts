@@ -46,15 +46,12 @@ describe( '<os-range-field>', () => {
 	} );
 
 	test( 'the readout box is sized from the range, not the value', async () => {
-		// The bug: a readout that fits only what it is showing is
-		// exactly the readout that resizes mid-drag and shoves the
-		// track sideways under the thumb.
 		host.innerHTML = `<os-range-field min="0" max="360" step="0.5" suffix="°" value="5"></os-range-field>`;
 		await tick();
 		const field = host.querySelector( 'os-range-field' )!;
 		const width = (): string | undefined =>
 			readout().getAttribute( 'style' ) ?? undefined;
-		// 3 digits + point + 1 decimal + 1 suffix char.
+
 		expect( width() ).toContain( '6ch' );
 
 		field.setAttribute( 'value', '359.5' );

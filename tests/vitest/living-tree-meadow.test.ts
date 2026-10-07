@@ -1,13 +1,3 @@
-/**
- * The Living Tree — meadow decoration budgets.
- *
- * Categories bloom as wildflower patches in the meadow; tags flutter as
- * butterflies working them. Both budgets are pure saturating functions
- * of a single aggregate count — bounded, monotone, and generous at the
- * low end (one category already earns a visible cluster, one tag a pair
- * of wings). These are decoration budgets: like the leaf budget, they
- * must never touch the skeleton (see the invariance suite).
- */
 import { describe, expect, test } from 'vitest';
 import { computeButterflyCount } from '../../src/plugins/living-tree-wallpaper/render/butterflies';
 import { computeFlowerCount } from '../../src/plugins/living-tree-wallpaper/render/flowers';

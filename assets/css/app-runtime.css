@@ -1,12 +1,3 @@
-/**
- * OpenStation — App Framework runtime styles.
- *
- * The root every `.os.php` window mounts into. Fills the window
- * body, declares itself a container so an app's stylesheet can use
- * `@container` queries against the window's width, and centres the
- * first-paint spinner until the `mount` render lands.
- */
-
 .os-app {
 	display: flex;
 	flex-direction: column;
@@ -31,19 +22,14 @@
 	justify-content: center;
 }
 
-/* A dispatch is in flight: dim nothing, just signal it to AT and
-   let an app style `[aria-busy]` if it wants a visible cue. */
 .os-app[aria-busy='true'] {
 	cursor: progress;
 }
 
-/* The flex-row gap filler every toolbar ends up needing. */
 .os-app__spacer {
 	flex: 1;
 }
 
-/* The drawn selection box `createMarquee()` appends to the body —
-   the same canonical selection tokens the shell's tiles wear. */
 .os-app__marquee {
 	position: fixed;
 	z-index: 100000;
@@ -57,12 +43,6 @@
 	pointer-events: none;
 }
 
-/* ---------- The ⋯ menu section --------------------------------------- */
-
-/* A checkbox section `mountMenuCheckboxes()` appends to the window's
-   title-bar ⋯ menu ("Show columns"). The label is a small-caps
-   separator; the toggles are real <os-menu-item role="menuitemcheckbox">
-   nodes, so they pick up the menu's own styling. */
 .os-app__menu-section {
 	margin-top: 4px;
 	padding: 6px 12px 2px;
@@ -75,20 +55,10 @@
 	pointer-events: none;
 }
 
-/* ---------- List windows --------------------------------------------- */
-
-/* The layout every list window shares (Posts, Pages, Users, and any
-   list a plugin ships): a toolbar across the top, a flex-1 body that
-   hosts an <os-table>, a footer pager. The table is told to size to
-   the body via `--os-ui-table-max-height: 100%` so its sticky header
-   engages without an outer scrollbar. Cell-content styles are NOT
-   here — <os-table> renders into its own shadow DOM, which document
-   stylesheets never reach; cells carry inline styles. */
 .os-app-list {
 	display: flex;
 	flex-direction: column;
-	/* A query container, so the narrow rules below track the WINDOW's
-	   width — a phone, or a desktop window pulled in. */
+
 	container-type: inline-size;
 	height: 100%;
 	width: 100%;
@@ -97,14 +67,10 @@
 	color: var( --os-ui-fg, #1d2327 );
 }
 
-/* Tabs strip — auto-height; only the active panel below grows. */
 .os-app-list__tabs {
 	flex: 0 0 auto;
 }
 
-/* Sibling panels under one flex column. The hidden ones are UA
-   display:none via the `hidden` attribute; the visible one stretches
-   to fill the remaining height. */
 .os-app-list__panel {
 	flex: 1 1 auto;
 	min-height: 0;
@@ -135,7 +101,6 @@
 	gap: 8px;
 }
 
-/* Honour the `hidden` attribute over the explicit `display: flex`. */
 .os-app-list__toolbar-right[hidden] {
 	display: none;
 }
@@ -154,11 +119,7 @@
 
 .os-app-list__body {
 	flex: 1 1 auto;
-	/* `min-width: 0` is the load-bearing piece — without it the flex
-	   item's intrinsic width (the table's column sum) becomes its hard
-	   minimum, pushes the table past the window's edge and turns the
-	   WHOLE WINDOW into a horizontal scroller. With it the item shrinks
-	   and the table's own scroll container takes the overflow. */
+
 	min-width: 0;
 	min-height: 0;
 	display: flex;
@@ -229,11 +190,6 @@
 	margin-inline-start: 8px;
 }
 
-/* Narrow windows — a phone, or a desktop window pulled in. The toolbar
-   gives the status control and the search a row each instead of
-   squeezing them beside the buttons, the insets shrink to what a 360px
-   screen can spare, and the pager wraps rather than clipping its
-   per-page control. */
 @container ( max-width: 600px ) {
 	.os-app-list__toolbar {
 		gap: 8px;
@@ -265,11 +221,6 @@
 	}
 }
 
-/* The same declarations, keyed on the shell's phone mode: the phone
-   experience at any width (a wide browser previewing it, a phone
-   turned sideways), which no size query can express. A container
-   query and a stamp selector cannot share one rule list, so the
-   block is repeated on purpose — keep the two in step. */
 html[data-os-mode="mobile"] .os-app-list__toolbar {
 	gap: 8px;
 	padding: 8px 10px;
@@ -290,7 +241,7 @@ html[data-os-mode="mobile"] .os-app-list__toolbar-right {
 	flex: 1 1 100%;
 	flex-wrap: wrap;
 }
-/* The phone's list is a card per row running edge to edge. */
+
 html[data-os-mode="mobile"] .os-app-list__body {
 	padding: 0;
 }
@@ -300,12 +251,6 @@ html[data-os-mode="mobile"] .os-app-list__pager {
 	padding: 8px 10px;
 }
 
-/* The phone's list is a card per row (<os-table stacked>, set through
-   `stack-on-phone.ts`) running edge to edge, and the selection's
-   actions are a bar along the bottom of the panel — where the thumb
-   is, and still there once the toolbar has scrolled away. The bar is
-   a flex sibling of the body, so the cards end where it begins; it
-   clears the home indicator on an installed app. */
 .os-app-list__toolbar-right.os-app-list__bulk--footer {
 	flex: 0 0 auto;
 	flex-wrap: wrap;
@@ -335,12 +280,6 @@ html[data-os-mode="mobile"] .os-app-list__pager {
 	flex: 1 1 auto;
 }
 
-/* ---------- Tone contract -------------------------------------------- */
-
-/* Any element inside an app root may carry `data-tone` and read the
-   matching status colour back through `--os-app-tone` (a swatch fill, a
-   row's accent border). Scoped to `.os-app` so the mapping never
-   retints shell chrome or admin pages outside an app window. */
 .os-app [data-tone='danger'] {
 	--os-app-tone: var( --os-ui-danger, #d63638 );
 }

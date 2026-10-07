@@ -1,25 +1,3 @@
-/**
- * The component kit's runtime route has to stay wired end to end.
- *
- * `wp.os.loadComponents()` is the only way code outside this repo
- * can make an `<os-*>` tag upgrade — a plugin shipped as a zip has
- * no path to import the modules at build time. That route runs
- * through four separate files, and each of them can be broken
- * silently:
- *
- *   - `src/ui/components/entry.ts` must pull the barrel, or the
- *     bundle registers nothing and the loader rejects.
- *   - `vite.config.js` + `package.json` must build it, or PHP emits
- *     a URL for a file that isn't there — `$lazy_bundle_url()`
- *     falls back to the plugin version rather than failing, so the
- *     first symptom is a 404 in someone else's plugin.
- *   - `OS_COMPONENT_TAGS` must not fall behind what the kit
- *     registers, or `loadComponents( [ 'os-new-thing' ] )` reports a
- *     real component as "not a component" and skips the fetch.
- *
- * `os-settings-components-tab.test.ts` covers the other direction —
- * every declared tag really registers when the barrel is imported.
- */
 import { describe, expect, test } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -28,7 +6,6 @@ import { OS_COMPONENT_TAGS } from '../../src/ui/components/tags';
 const ROOT = resolve( __dirname, '../..' );
 const COMPONENTS = resolve( ROOT, 'src/ui/components' );
 
-/** Every `defineComponent( 'os-…', … )` tag in the component tree. */
 function definedTags(): Set< string > {
 	const found = new Set< string >();
 	const walk = ( dir: string ): void => {
@@ -71,9 +48,7 @@ describe( 'component kit bundle', () => {
 		expect( pkg.scripts[ 'build:components' ] ).toContain(
 			'OPENSTATION_TARGET=components',
 		);
-		// PHP points at `os-components[.min].js` unconditionally, so
-		// a target that only builds when someone remembers is a 404
-		// waiting for a release.
+
 		expect( pkg.scripts.build ).toContain( 'npm run build:components' );
 	} );
 

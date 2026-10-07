@@ -1,4 +1,3 @@
-/** One complete server activity snapshot, independent of the people feed. */
 import type { ViewContext } from '@openstation/app';
 import type { UsersState, UsersData } from './types';
 import type { ActivitySnapshot } from './activity-model';
@@ -12,7 +11,6 @@ export class ActivitySummary {
 	private request: AbortController | null = null;
 	private disposed = false;
 
-	/** Entering Activity or receiving a user-change refresh renews its snapshot. */
 	update( ctx: Ctx ): void {
 		const active = ctx.state.tab === 'activity';
 		const refresh = active && ( ! this.active || this.previous !== ctx.data );

@@ -1,27 +1,3 @@
-/**
- * Plugins — the client view of the Plugins app.
- *
- * The body of the Plugins window: the tab strip (Installed / Add
- * Plugin / OpenStation plugins, plus a Plugin File Editor tab that
- * opens Core's editor as its own window), the Installed plugin library
- * and its selection tray, the Browse toolbar
- * and card gallery with the .zip upload and the window-wide drop
- * overlay, the curated gallery, and the detail flyout. The framework
- * owns the registration and template, the config blob, the installed
- * list (`data()` rides every response, so the three tabs share one
- * list), the landing tab (a window param the server applies on
- * `mount` / `reopen`), and the toast / confirm / broadcast plumbing
- * the parts reach through {@link PluginsHost}.
- *
- * What stays imperative, under `os-preserve` hosts driven from
- * `updated()`: the galleries
- * (`parts/gallery.ts`), the flyout (`parts/flyout-detail.ts`) and the
- * upload dialog (`parts/upload-dialog.ts`) — DOM the kit renders
- * itself, fed from the live `data()`.
- *
- * @public
- */
-
 import { __, defineApp, html, statusControl, type TemplateResult } from '@openstation/app';
 import { isMobileStamped } from '../../src/mode/stamp';
 import { freshBusy } from './parts/actions';
@@ -45,31 +21,26 @@ import {
 } from './parts/types';
 import { openUploadDialog } from './parts/upload-dialog';
 
-/** The app id — the legacy window's FROZEN identifier (see AGENTS.md). */
 const APP_ID = 'desktop-mode-plugins';
 
-/** The Heartbeat relay's `source` for a change it recorded server-side. */
 const HEARTBEAT_SOURCE = 'heartbeat';
 
-/** How long a mutation of ours may take to come back through Heartbeat. */
 const OWN_CHANGE_TTL_MS = 5 * 60 * 1000;
 
-/** Client-only per-window state — none of it may reach the server. */
 interface UiState {
 	host: PluginsHost;
 	installed: InstalledUi;
 	browse: BrowseGallery | null;
 	featured: FeaturedGallery | null;
-	/** installed-list identity the galleries last painted their CTAs from. */
+
 	ctaKey: string;
-	/** Nesting depth of the window-wide .zip drag (child enter/leave pairs). */
+
 	dragDepth: number;
-	/** Heartbeat ids of the plugins this window mutated, with when. */
+
 	ownChanges: Map< number, number >;
 	teardown: Array< () => void >;
 }
 
-/** Build the host every part works against — once per mounted view. */
 function createHost( ctx: Ctx, ownChanges: Map< number, number > ): PluginsHost {
 	const extra = (): PluginsExtra => ctx.extra as unknown as PluginsExtra;
 	const rest = createPluginsRest( extra, ( url, init ) => ctx.fetch( url, init ) );
@@ -105,9 +76,7 @@ function createHost( ctx: Ctx, ownChanges: Map< number, number > ): PluginsHost 
 					ownChanges.set( pluginChangeId( fullPluginFile( plugin ) ), now );
 				}
 			}
-			// The topic carries plugin paths and plugin verbs, which the
-			// runtime's numeric `announce` cannot — so this one broadcast
-			// goes out on the shell bus directly.
+
 			const api = window.wp?.os;
 			if ( typeof api?.broadcast === 'function' ) {
 				api.broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
@@ -119,10 +88,6 @@ function createHost( ctx: Ctx, ownChanges: Map< number, number > ): PluginsHost 
 	};
 }
 
-/**
- * Whether a Heartbeat relay describes only plugins this window changed
- * itself recently — its own mutations already returned fresh data.
- */
 function isOwnEcho( ownChanges: Map< number, number >, ids: number[] | undefined ): boolean {
 	const now = Date.now();
 	for ( const [ id, at ] of ownChanges ) {
@@ -151,19 +116,8 @@ const uiOf = ( ctx: Ctx ): UiState =>
 const flyout = ( ctx: Ctx ): HTMLElement | null =>
 	ctx.root.querySelector< HTMLElement >( '[data-os-plugins-flyout]' );
 
-/**
- * The Plugin File Editor tab. It is Core's screen, opened as its own
- * window, so the tab launches rather than selects: it has no panel, and
- * `state.tab` never takes its value.
- */
 const EDITOR_TAB = 'plugin-editor';
 
-/**
- * The window's tabs, as `App::menu()` declared them — the same list
- * the dock builds the Plugins submenu from, capabilities already
- * applied. The file editor is not among them: it is a tab this window
- * opens on a file you picked, not a page you can ask for cold.
- */
 function menuTabs( ctx: Ctx ): Array< { id: string; label: string } > {
 	return (
 		( ctx.extra as { menuTabs?: Array< { id: string; label: string } > } )
@@ -183,7 +137,6 @@ function editorTab( ctx: Ctx, ui: UiState ): TemplateResult | string {
 		data-os-plugins-editor
 		title=${ __( 'Opens in its own window', 'desktop-mode' ) }
 		@os-tab-pick=${ ( ev: Event ) => {
-			// Kept from the strip, which would select a tab with no panel.
 			ev.stopPropagation();
 			open();
 		} }
@@ -196,11 +149,6 @@ function editorTab( ctx: Ctx, ui: UiState ): TemplateResult | string {
 	>${ label } ↗</os-tab>`;
 }
 
-/**
- * Arrow keys select the tab they land on. The editor tab keeps focus
- * (Enter or Space opens it) but hands the selection back, before the
- * runtime's `os-bind` can write it into `state.tab`.
- */
 function keepEditorUnselected( ctx: Ctx, ev: Event ): void {
 	if ( ( ev as CustomEvent< { value: string } > ).detail?.value !== EDITOR_TAB ) {
 		return;
@@ -278,12 +226,10 @@ const featuredPanel = (): TemplateResult => html`
 
 export default defineApp< AppState, AppData >( APP_ID, {
 	local: {
-		// A bound status / filter write repaints on its own; nothing to reduce.
+
 		set: () => undefined,
 	},
 
-	// The frame paints the moment the window opens — the tabs, the
-	// library header and loading state — and the rows land with `mount`.
 	placeholder: () => ( { installed: [], error: '' } ),
 
 	view: ( ctx ) => {
@@ -336,10 +282,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		const { host } = ui;
 		const root = ctx.root;
 
-		// Cross-window sync: a mutation elsewhere (a `plugins.php`
-		// iframe through the chromeless bridge, another tab, the
-		// Heartbeat relay) re-reads the list. Our own emissions already
-		// carried fresh data, and so does the relay of our own change.
 		const off = ctx.host.onBroadcast?.( PLUGINS_CHANGED_TOPIC, ( _topic, payload ) => {
 			const change = payload as PluginsChangedPayload | undefined;
 			if ( ! change || change.source === PLUGINS_CHANGED_SOURCE ) {
@@ -354,14 +296,10 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			ui.teardown.push( off );
 		}
 
-		// Drag a card to the dock: the drop target lives for the window.
 		if ( host.extra.caps.install ) {
 			ui.teardown.push( installPluginDropTargets() );
 		}
 
-		// The whole window body is a drop zone for a .zip from the
-		// desktop — the overlay lights up, the drop opens the upload
-		// dialog with the file pre-applied.
 		const isFileDrag = ( ev: DragEvent ): boolean => !! ev.dataTransfer?.types.includes( 'Files' );
 		const canUpload = (): boolean => !! host.extra.caps.upload;
 		const onDragEnter = ( ev: DragEvent ): void => {
@@ -407,9 +345,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			root.removeEventListener( 'drop', onDrop );
 		} );
 
-		// The view reads the shell's mode stamp (the bulk bar's place,
-		// the status picker); a crossing between the desk and the phone
-		// band is the one change that repaints nothing on its own.
 		const onModeChange = (): void => ctx.repaint();
 		document.addEventListener( 'os-mode-changed', onModeChange );
 		ui.teardown.push( () => document.removeEventListener( 'os-mode-changed', onModeChange ) );
@@ -449,8 +384,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 				active: ctx.state.tab === 'featured',
 			} );
 
-			// A card's CTA reads the installed list; repaint them when it
-			// changed (an install, an activation from anywhere).
 			const ctaKey = host.installed.map( ( r ) => `${ indexKeyFor( r ) }:${ r.status }` ).join( '|' );
 			if ( ctaKey !== ui.ctaKey ) {
 				ui.ctaKey = ctaKey;

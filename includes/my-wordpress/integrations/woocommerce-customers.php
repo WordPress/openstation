@@ -1,94 +1,11 @@
 <?php
-/**
- * OpenStation — My WordPress: WooCommerce **Customers**.
- *
- * WooCommerce ships two views of the people who buy from a store, and
- * neither is a place you can work from: `users.php` is a role list that
- * knows nothing about money, and Analytics → Customers is a report you
- * read and then leave. Neither one opens next to the order it explains.
- *
- * This file adds a **Customers** section to the Woo folder in the site
- * window. It renders through the existing `user` entity kind — avatar
- * tiles, the dossier preview, the drag-out seam, the footprint route —
- * so a customer is a first-class object on the desktop: drag one onto
- * the wallpaper, open their orders beside their profile, tie the
- * windows together with the relations layer.
- *
- * What makes it a *customer* list rather than a user list is the
- * `openstation_woo_customer` payload on every row: lifetime spend,
- * order count, average order value, first and last order, days since
- * the last one, and the band that summarises all of it.
- *
- * ## Bands
- *
- * Ordered so the two bands a merchant can *act on* come first:
- *
- *   1. **VIP**    — spend at or above the VIP threshold (three times
- *                   the store's average order value by default). Who
- *                   to look after.
- *   2. **Lapsed** — has ordered, but not within the lapse window (180
- *                   days by default). Who to win back.
- *   3. **Repeat** — two or more orders, still active.
- *   4. **New**    — exactly one order.
- *   5. **No orders** — registered, never bought.
- *
- * ## Who appears
- *
- * Every user who has placed a paid order, plus every user holding the
- * `customer` role. Guests (orders with no account) have no user to
- * render — their revenue is reported as a single line on the Woo
- * folder's Store panel instead of being silently dropped.
- *
- * ## Cost
- *
- * One grouped query over the order store gives every customer's
- * aggregate at once — order count, spend, first and last order date —
- * cached for five minutes and flushed whenever an order changes. The
- * band ordering, the per-row facts and the folder counts all read that
- * one map, so a page of customers costs no per-row order queries at
- * all. Stores past `OPENSTATION_WOO_MAX_ORDERED_CUSTOMERS` users skip
- * the band ordering and fall back to newest-first, exactly like the
- * catalogue does past its own cap.
- *
- * REST surface (read-only, gated on `list_users` + order access):
- *
- *   GET desktop-mode/v1/woocommerce/customers
- *   GET desktop-mode/v1/woocommerce/customers/<id>
- *   GET desktop-mode/v1/woocommerce/summary/customer/<id>
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Above this many candidate customers the section stops band-ordering
- * and falls back to newest-registered-first. The ordering plan holds
- * one id per customer in a transient; the cap is what keeps that
- * option from growing without bound on a store with a large user base.
- */
 const OPENSTATION_WOO_MAX_ORDERED_CUSTOMERS = 5000;
 
-/**
- * Days without an order after which a customer counts as lapsed.
- * Filterable through `openstation_my_wordpress_woo_customer_lapse_days`.
- */
 const OPENSTATION_WOO_CUSTOMER_LAPSE_DAYS = 180;
 
-/*
--------------------------------------------------------------------
- * Aggregates
- * ----------------------------------------------------------------
- */
-
-/**
- * Order statuses that count as money actually taken.
- *
- * Mirrors `wc_get_customer_total_spent()`, so the lifetime spend on a
- * tile agrees with the number WooCommerce itself would report.
- *
- * @return string[] Statuses WITH the `wc-` prefix.
- */
 function openstation_my_wordpress_woo_paid_statuses() {
 	$statuses = function_exists( 'wc_get_is_paid_statuses' )
 		? (array) wc_get_is_paid_statuses()
@@ -104,33 +21,11 @@ function openstation_my_wordpress_woo_paid_statuses() {
 	);
 }
 
-/**
- * Whether the store keeps orders in WooCommerce's own tables (HPOS)
- * rather than in `wp_posts`.
- *
- * @return bool
- */
 function openstation_my_wordpress_woo_hpos_enabled() {
 	return class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
 		&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
 }
 
-/**
- * Every customer's order aggregate, in one query.
- *
- * The whole section — band definitions, band ordering, per-row facts,
- * folder counts — reads this one map. Doing it per user would be one
- * or two queries per tile, and the band ordering would need the whole
- * user base walked before the first tile could paint.
- *
- * Guest orders (no account) are aggregated under the `0` key. They can
- * never appear as a tile — there is no user to render — but their
- * revenue is real and the Store panel reports it rather than letting
- * it vanish.
- *
- * @return array<int, array{orders:int, spend:float, first:string, last:string}>
- *         Keyed by user id; `0` holds the guest aggregate.
- */
 function openstation_my_wordpress_woo_customer_spend_map() {
 	static $memo = null;
 	if ( null !== $memo ) {
@@ -150,7 +45,7 @@ function openstation_my_wordpress_woo_customer_spend_map() {
 
 	if ( openstation_my_wordpress_woo_hpos_enabled() ) {
 		$table = $wpdb->prefix . 'wc_orders';
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name and the placeholder list are structural; every value is prepared.
+
 		$sql = $wpdb->prepare(
 			"SELECT customer_id AS uid,
 				COUNT(*) AS orders,
@@ -163,10 +58,7 @@ function openstation_my_wordpress_woo_customer_spend_map() {
 			$statuses
 		);
 	} else {
-		// Legacy storage: `_customer_user` is the account id (0 for a
-		// guest) and `_order_total` the gross. `+0` casts the meta
-		// strings so SUM/comparison behave numerically.
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ditto.
+
 		$sql = $wpdb->prepare(
 			"SELECT cu.meta_value + 0 AS uid,
 				COUNT(*) AS orders,
@@ -182,7 +74,6 @@ function openstation_my_wordpress_woo_customer_spend_map() {
 		);
 	}
 
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- one grouped aggregate with no core API equivalent; $sql came out of $wpdb->prepare() above, and the result is cached in the transient below.
 	$rows = $wpdb->get_results( $sql );
 
 	$map = array();
@@ -199,21 +90,6 @@ function openstation_my_wordpress_woo_customer_spend_map() {
 		);
 	}
 
-	/**
-	 * Filter the per-customer order aggregate the Customers section
-	 * is built from.
-	 *
-	 * Keyed by user id (`0` is the guest aggregate); each value is
-	 * `array( 'orders' => int, 'spend' => float, 'first' => gmt
-	 * datetime, 'last' => gmt datetime )`. A store that keeps order
-	 * money somewhere else — a subscriptions plugin, a marketplace
-	 * split — can rewrite the whole map here and every band, tile and
-	 * panel follows.
-	 *
-	 * **Status: Experimental**
-	 *
-	 * @param array $map Aggregate keyed by user id.
-	 */
 	$map = (array) apply_filters( 'openstation_my_wordpress_woo_customer_spend_map', $map );
 
 	set_transient( 'desktop_mode_woo_customer_spend', $map, 5 * MINUTE_IN_SECONDS );
@@ -222,14 +98,6 @@ function openstation_my_wordpress_woo_customer_spend_map() {
 	return $memo;
 }
 
-/**
- * The store's average order value across every paid order.
- *
- * Includes guests: a threshold derived only from account holders would
- * sit wherever the checkout-registration rate happened to put it.
- *
- * @return float
- */
 function openstation_my_wordpress_woo_store_aov() {
 	$orders = 0;
 	$spend  = 0.0;
@@ -241,29 +109,9 @@ function openstation_my_wordpress_woo_store_aov() {
 	return $orders > 0 ? $spend / $orders : 0.0;
 }
 
-/**
- * Lifetime spend at or above which a customer is a VIP.
- *
- * Derived rather than fixed: "spent over 500" means nothing without
- * knowing whether the store sells postcards or pianos. Three average
- * orders is the default — enough to be deliberate repeat custom on any
- * store, cheap to compute, and one filter away from a merchant's own
- * number.
- *
- * @return float Threshold, or `0.0` when the store has no paid orders
- *               yet (in which case nothing can qualify).
- */
 function openstation_my_wordpress_woo_vip_threshold() {
 	$aov = openstation_my_wordpress_woo_store_aov();
 
-	/**
-	 * Filter the lifetime-spend threshold for the VIP band.
-	 *
-	 * **Status: Experimental**
-	 *
-	 * @param float $threshold Threshold in store currency.
-	 * @param float $aov       The store's average order value.
-	 */
 	return (float) apply_filters(
 		'openstation_my_wordpress_woo_vip_threshold',
 		$aov * 3,
@@ -271,19 +119,8 @@ function openstation_my_wordpress_woo_vip_threshold() {
 	);
 }
 
-/**
- * Days without an order after which a customer counts as lapsed.
- *
- * @return int
- */
 function openstation_my_wordpress_woo_customer_lapse_days() {
-	/**
-	 * Filter the lapse window for the Customers section.
-	 *
-	 * **Status: Experimental**
-	 *
-	 * @param int $days Days since the last order.
-	 */
+
 	$days = (int) apply_filters(
 		'openstation_my_wordpress_woo_customer_lapse_days',
 		OPENSTATION_WOO_CUSTOMER_LAPSE_DAYS
@@ -292,22 +129,6 @@ function openstation_my_wordpress_woo_customer_lapse_days() {
 	return max( 1, $days );
 }
 
-/*
--------------------------------------------------------------------
- * Bands
- * ----------------------------------------------------------------
- */
-
-/**
- * Band definitions for the Customers section, in display order.
- *
- * VIP and Lapsed lead because they are the two the merchant can do
- * something about — one to look after, one to win back. Everything
- * else is context, and "No orders" trails because a registered
- * account that never bought is the least urgent row on the screen.
- *
- * @return array[] Each entry: `id`, `label`, `order`, optional `tone`.
- */
 function openstation_my_wordpress_woo_customer_band_defs() {
 	$bands = array(
 		array(
@@ -339,27 +160,9 @@ function openstation_my_wordpress_woo_customer_band_defs() {
 		),
 	);
 
-	/**
-	 * Filter the band definitions for the Customers section.
-	 *
-	 * Changing a band's membership rule means filtering
-	 * `openstation_my_wordpress_woo_customer_band` as well — this
-	 * filter only decides what the bands are called and in which
-	 * order they render.
-	 *
-	 * **Status: Experimental**
-	 *
-	 * @param array[] $bands Band descriptors.
-	 */
 	return (array) apply_filters( 'openstation_my_wordpress_woo_customer_bands', $bands );
 }
 
-/**
- * Which band a customer's aggregate puts them in.
- *
- * @param array $stats Aggregate row: `orders`, `spend`, `last`.
- * @return string Band id.
- */
 function openstation_my_wordpress_woo_customer_band_id( $stats ) {
 	$orders = (int) ( $stats['orders'] ?? 0 );
 	$spend  = (float) ( $stats['spend'] ?? 0 );
@@ -371,10 +174,7 @@ function openstation_my_wordpress_woo_customer_band_id( $stats ) {
 		$lapsed    = openstation_my_wordpress_woo_customer_days_since( $last );
 
 		if ( $threshold > 0 && $spend >= $threshold ) {
-			// VIP outranks lapsed on purpose: a big spender who has
-			// gone quiet is still the row you want at the top of the
-			// screen, and the days-since line in the pane says the
-			// rest.
+
 			$band = 'vip';
 		} elseif ( null !== $lapsed && $lapsed > openstation_my_wordpress_woo_customer_lapse_days() ) {
 			$band = 'lapsed';
@@ -385,24 +185,9 @@ function openstation_my_wordpress_woo_customer_band_id( $stats ) {
 		}
 	}
 
-	/**
-	 * Filter the band a customer lands in.
-	 *
-	 * **Status: Experimental**
-	 *
-	 * @param string $band  Band id.
-	 * @param array  $stats The customer's order aggregate.
-	 */
 	return (string) apply_filters( 'openstation_my_wordpress_woo_customer_band', $band, $stats );
 }
 
-/**
- * Whole days between a GMT datetime and now, or `null` when the input
- * isn't a usable date.
- *
- * @param string $gmt_datetime `Y-m-d H:i:s` in GMT.
- * @return int|null
- */
 function openstation_my_wordpress_woo_customer_days_since( $gmt_datetime ) {
 	if ( '' === (string) $gmt_datetime ) {
 		return null;
@@ -415,11 +200,6 @@ function openstation_my_wordpress_woo_customer_days_since( $gmt_datetime ) {
 	return (int) floor( ( time() - $stamp ) / DAY_IN_SECONDS );
 }
 
-/**
- * Band definitions with an exact row count each, for the client.
- *
- * @return array[]
- */
 function openstation_my_wordpress_woo_customer_bands_with_counts() {
 	$plan   = openstation_my_wordpress_woo_customer_plan();
 	$counts = (array) ( $plan['counts'] ?? array() );
@@ -433,23 +213,6 @@ function openstation_my_wordpress_woo_customer_bands_with_counts() {
 	return $bands;
 }
 
-/*
--------------------------------------------------------------------
- * The ordering plan
- * ----------------------------------------------------------------
- */
-
-/**
- * Candidate customer ids — everyone who has paid for something, plus
- * everyone holding the `customer` role.
- *
- * The union matters in both directions: a shop manager who buys from
- * their own store is a customer, and a checkout-registered account
- * that hasn't ordered yet is a customer the merchant would want to
- * see. Neither query alone finds both.
- *
- * @return int[] User ids, unordered.
- */
 function openstation_my_wordpress_woo_customer_candidate_ids() {
 	$ids = array();
 	foreach ( openstation_my_wordpress_woo_customer_spend_map() as $user_id => $stats ) {
@@ -472,29 +235,11 @@ function openstation_my_wordpress_woo_customer_candidate_ids() {
 		$ids[ (int) $user_id ] = true;
 	}
 
-	/**
-	 * Filter the set of users the Customers section considers.
-	 *
-	 * **Status: Experimental**
-	 *
-	 * @param int[] $ids Candidate user ids.
-	 */
 	return array_values(
 		array_map( 'intval', array_keys( (array) apply_filters( 'openstation_my_wordpress_woo_customer_ids', $ids ) ) )
 	);
 }
 
-/**
- * The band-ordered customer id list plus an exact count per band.
- *
- * Same contract as the catalogue's plan, and for the same reason:
- * bands only stop reshuffling if rows *arrive* in band order. A band
- * that fills late expands above whatever the user is already reading.
- *
- * Cached for five minutes and flushed on any order change.
- *
- * @return array{ids:int[], counts:array<string,int>, capped:bool, customers:int}
- */
 function openstation_my_wordpress_woo_customer_plan() {
 	static $memo = null;
 	if ( null !== $memo ) {
@@ -538,17 +283,13 @@ function openstation_my_wordpress_woo_customer_plan() {
 		);
 		$band  = openstation_my_wordpress_woo_customer_band_id( $stats );
 		if ( ! isset( $buckets[ $band ] ) ) {
-			// A filter invented a band the definitions don't declare.
-			// Park it under "no orders" rather than dropping the row:
-			// a customer missing from the list is a worse outcome than
-			// one in an unexpected group.
+
 			$band = 'none';
 			if ( ! isset( $buckets[ $band ] ) ) {
 				continue;
 			}
 		}
-		// Highest spend first inside every band — the ordering the
-		// merchant would apply by hand.
+
 		$buckets[ $band ][] = array(
 			'id'    => $user_id,
 			'spend' => (float) $stats['spend'],
@@ -583,13 +324,6 @@ function openstation_my_wordpress_woo_customer_plan() {
 	return $memo;
 }
 
-/**
- * A readable summary of whether the Customers list is band-ordered,
- * for diagnosing a section whose bands look wrong. Mirrors the
- * catalogue's `ordering` blob.
- *
- * @return array{mode:string, customers:int, ordered:int, limit:int}
- */
 function openstation_my_wordpress_woo_customer_ordering_state() {
 	$plan = openstation_my_wordpress_woo_customer_plan();
 
@@ -601,13 +335,6 @@ function openstation_my_wordpress_woo_customer_ordering_state() {
 	);
 }
 
-/**
- * Drop the cached aggregate and plan when an order changes, so a
- * first-time buyer moves out of "No orders yet" on the next load
- * rather than five minutes later.
- *
- * @return void
- */
 function openstation_my_wordpress_woo_flush_customer_caches() {
 	delete_transient( 'desktop_mode_woo_customer_spend' );
 	delete_transient( 'desktop_mode_woo_customer_plan' );
@@ -617,30 +344,9 @@ add_action( 'woocommerce_update_order', 'openstation_my_wordpress_woo_flush_cust
 add_action( 'woocommerce_order_status_changed', 'openstation_my_wordpress_woo_flush_customer_caches' );
 add_action( 'woocommerce_delete_order', 'openstation_my_wordpress_woo_flush_customer_caches' );
 add_action( 'woocommerce_trash_order', 'openstation_my_wordpress_woo_flush_customer_caches' );
-// Untrash is its own event, not an update: restoring a paid order has
-// to move the buyer's spend and band back where they were, and nothing
-// else fires when it happens.
+
 add_action( 'woocommerce_untrash_order', 'openstation_my_wordpress_woo_flush_customer_caches' );
 
-/*
--------------------------------------------------------------------
- * Per-customer facts
- * ----------------------------------------------------------------
- */
-
-/**
- * The `openstation_woo_customer` payload for one user — everything a
- * tile, a band, and the compact pane row need, and nothing that costs
- * an extra query.
- *
- * Every field here is read from the cached aggregate. The deeper
- * facts (last order number, favourite product, billing address) live
- * in the customer *summary* below, which only runs for the one row
- * actually selected.
- *
- * @param int $user_id User id.
- * @return array
- */
 function openstation_my_wordpress_woo_customer_facts( $user_id ) {
 	$user_id = (int) $user_id;
 	$map     = openstation_my_wordpress_woo_customer_spend_map();
@@ -659,41 +365,19 @@ function openstation_my_wordpress_woo_customer_facts( $user_id ) {
 		'band'       => openstation_my_wordpress_woo_customer_band_id( $stats ),
 		'orders'     => $orders,
 		'spend'      => openstation_my_wordpress_woo_price( $spend ),
-		// Raw alongside the formatted string: the client sorts and
-		// compares on this, and no locale can break a float.
+
 		'spendRaw'   => round( $spend, 2 ),
 		'aov'        => $orders > 0 ? openstation_my_wordpress_woo_price( $spend / $orders ) : '',
 		'firstOrder' => '' !== $stats['first'] ? mysql2date( 'c', $stats['first'], false ) : '',
 		'lastOrder'  => '' !== $stats['last'] ? mysql2date( 'c', $stats['last'], false ) : '',
 		'daysSince'  => $days,
-		// The list screen filtered to this person. On the row rather
-		// than only in the summary so the tile's context menu can open
-		// it without first fetching a panel the user never asked for.
+
 		'ordersUrl'  => $orders > 0 ? openstation_my_wordpress_woo_customer_orders_url( $user_id ) : '',
 	);
 
-	/**
-	 * Filter the compact customer facts carried on every row of the
-	 * Customers section (and on `/wp/v2/users` rows).
-	 *
-	 * **Status: Experimental**
-	 *
-	 * @param array $facts   Fact payload.
-	 * @param int   $user_id The customer.
-	 */
 	return (array) apply_filters( 'openstation_my_wordpress_woo_customer_facts', $facts, $user_id );
 }
 
-/**
- * Register `openstation_woo_customer` on the core `user` resource.
- *
- * Deliberately not limited to our own collection: it means the
- * built-in Users section, and any plugin reading `/wp/v2/users`, gets
- * lifetime spend for free. The field is gated the same way the rest of
- * the section is — a viewer who can't see orders sees no money.
- *
- * @return void
- */
 function openstation_my_wordpress_woo_register_customer_field() {
 	if ( ! openstation_my_wordpress_woo_active() ) {
 		return;
@@ -720,21 +404,6 @@ function openstation_my_wordpress_woo_register_customer_field() {
 }
 add_action( 'rest_api_init', 'openstation_my_wordpress_woo_register_customer_field' );
 
-/*
--------------------------------------------------------------------
- * REST
- * ----------------------------------------------------------------
- */
-
-/**
- * Whether the current user may see customer money.
- *
- * Two gates, both required: order access (the data *is* order data)
- * and `list_users` (the rows are people). An editor who can moderate
- * comments has neither.
- *
- * @return true|WP_Error
- */
 function openstation_my_wordpress_woo_customers_permission() {
 	$orders = openstation_my_wordpress_woo_orders_permission();
 	if ( is_wp_error( $orders ) ) {
@@ -752,13 +421,6 @@ function openstation_my_wordpress_woo_customers_permission() {
 	return true;
 }
 
-/**
- * Shape a user as the row the site window's `user` entity kind reads —
- * the same field set `/wp/v2/users` returns, plus our two payloads.
- *
- * @param WP_User $user User.
- * @return array
- */
 function openstation_my_wordpress_woo_customer_row( $user ) {
 	$avatars = array();
 	foreach ( rest_get_avatar_sizes() as $size ) {
@@ -779,12 +441,6 @@ function openstation_my_wordpress_woo_customer_row( $user ) {
 	);
 }
 
-/**
- * `GET /woocommerce/customers` — paginated, user-shaped customer list.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response
- */
 function openstation_my_wordpress_woo_customers( $request ) {
 	$per_page = max( 1, min( 100, (int) ( $request['per_page'] ?? 24 ) ) );
 	$page     = max( 1, (int) ( $request['page'] ?? 1 ) );
@@ -800,9 +456,7 @@ function openstation_my_wordpress_woo_customers( $request ) {
 	);
 
 	if ( $capped ) {
-		// Past the cap the plan holds no ids, so hand the ordering
-		// back to the database: newest accounts first, which is the
-		// only useful order left once bands are off.
+
 		$args['role']    = 'customer';
 		$args['orderby'] = 'registered';
 		$args['order']   = 'DESC';
@@ -815,35 +469,20 @@ function openstation_my_wordpress_woo_customers( $request ) {
 			return $response;
 		}
 		$args['include'] = $ids;
-		// `include` + `orderby => include` replays the plan's order
-		// verbatim, the same trick the catalogue uses with `post__in`.
+
 		$args['orderby'] = 'include';
 	}
 
 	if ( '' !== $search ) {
 		$args['search']         = '*' . $search . '*';
 		$args['search_columns'] = array( 'user_login', 'user_email', 'user_nicename', 'display_name' );
-		// A search is a different question from "show me the roster",
-		// and the plan's order would hide matches below the fold.
-		// Ordering falls back to relevance-free display name, which is
-		// at least stable.
+
 		if ( ! $capped ) {
 			$args['orderby'] = 'display_name';
 			$args['order']   = 'ASC';
 		}
 	}
 
-	/**
-	 * Filter the `WP_User_Query` args for the Customers section.
-	 *
-	 * `number` and `paged` are set by the paginator and will be
-	 * overwritten.
-	 *
-	 * **Status: Experimental**
-	 *
-	 * @param array           $args    Query args.
-	 * @param WP_REST_Request $request The request.
-	 */
 	$args = (array) apply_filters( 'openstation_my_wordpress_woo_customer_query_args', $args, $request );
 
 	$query = new WP_User_Query( $args );
@@ -857,10 +496,6 @@ function openstation_my_wordpress_woo_customers( $request ) {
 		}
 	}
 
-	// The customer *facts* come from one cached aggregate, but the
-	// generic user summary on each row is two indexed queries a piece
-	// — 200 of them on a full page. Prefetch the page in two grouped
-	// queries and every row below answers from memory.
 	if ( function_exists( 'openstation_my_wordpress_user_summary_prime' ) ) {
 		openstation_my_wordpress_user_summary_prime(
 			array_map(
@@ -880,20 +515,12 @@ function openstation_my_wordpress_woo_customers( $request ) {
 	$response = rest_ensure_response( $rows );
 	$response->header( 'X-WP-Total', (string) $total );
 	$response->header( 'X-WP-TotalPages', (string) max( 1, $pages ) );
-	// Same diagnostic contract the Orders route carries: an empty
-	// folder with a confident count should be answerable from the
-	// network tab, not guessed at.
+
 	$response->header( 'X-Desktop-Mode-Woo-Customers-Mode', $capped ? 'capped' : 'ordered' );
 
 	return $response;
 }
 
-/**
- * `GET /woocommerce/customers/<id>` — one user-shaped customer.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_my_wordpress_woo_customer( $request ) {
 	$user = get_userdata( (int) $request['id'] );
 	if ( ! $user instanceof WP_User ) {
@@ -907,22 +534,6 @@ function openstation_my_wordpress_woo_customer( $request ) {
 	return rest_ensure_response( openstation_my_wordpress_woo_customer_row( $user ) );
 }
 
-/*
--------------------------------------------------------------------
- * The customer summary — the right pane
- * ----------------------------------------------------------------
- */
-
-/**
- * The customer's most-bought product, resolved from their recent
- * orders.
- *
- * Bounded to the last 50 orders: this runs once per selection, and a
- * decade of order history would turn a preview pane into a page load.
- *
- * @param int $user_id User id.
- * @return array{label:string, editUrl:string, quantity:int}|null
- */
 function openstation_my_wordpress_woo_customer_favourite( $user_id ) {
 	$orders = wc_get_orders(
 		array(
@@ -970,13 +581,6 @@ function openstation_my_wordpress_woo_customer_favourite( $user_id ) {
 	$product_id = (int) array_key_first( $tally );
 	$top        = $tally[ $product_id ];
 
-	// The link is gated, the fact isn't: someone who may read customer
-	// money but not edit products should still be told what that
-	// person buys — the name just stops being clickable.
-	// `get_edit_post_link()` returns null without `edit_post`, and the
-	// cast turns that into the empty string the client reads as "no
-	// link"; the explicit check states the intent rather than leaving
-	// it resting on a core side-effect.
 	$can_edit = get_post( $product_id ) && current_user_can( 'edit_post', $product_id );
 
 	return array(
@@ -986,16 +590,6 @@ function openstation_my_wordpress_woo_customer_favourite( $user_id ) {
 	);
 }
 
-/**
- * A customer's most recent orders, shaped for a list.
- *
- * Bounded and only fetched for the one customer being looked at — the
- * list rows never touch this.
- *
- * @param int $user_id User id.
- * @param int $limit   How many.
- * @return array[]
- */
 function openstation_my_wordpress_woo_customer_recent_orders( $user_id, $limit = 8 ) {
 	$orders = wc_get_orders(
 		array(
@@ -1033,12 +627,6 @@ function openstation_my_wordpress_woo_customer_recent_orders( $user_id, $limit =
 	return $rows;
 }
 
-/**
- * Merchant facts for one customer — the right-pane panel.
- *
- * @param int $id User id.
- * @return array|WP_Error
- */
 function openstation_my_wordpress_woo_customer_summary( $id ) {
 	$user = get_userdata( (int) $id );
 	if ( ! $user instanceof WP_User ) {
@@ -1055,8 +643,6 @@ function openstation_my_wordpress_woo_customer_summary( $id ) {
 		$bands[ $band['id'] ] = (string) $band['label'];
 	}
 
-	// The most recent order, for the "last bought" line and the jump
-	// into it. One query, only for the selected row.
 	$recent = wc_get_orders(
 		array(
 			'customer_id' => $user->ID,
@@ -1098,8 +684,6 @@ function openstation_my_wordpress_woo_customer_summary( $id ) {
 		$location = implode( ', ', $parts );
 		$phone    = (string) $customer->get_billing_phone();
 
-		// `WC_Customer` has no formatted-address accessor of its own,
-		// so build the lines the way WooCommerce's order screen does.
 		$format   = static function ( array $address ) {
 			if ( ! function_exists( 'WC' ) || ! WC()->countries ) {
 				return '';
@@ -1142,9 +726,7 @@ function openstation_my_wordpress_woo_customer_summary( $id ) {
 		'phone'          => $phone,
 		'billing'        => $billing,
 		'shipping'       => $shipping,
-		// Only the window asks for these; the preview pane's panel
-		// ignores them. One payload, two consumers — cheaper than a
-		// second route, and the window is where the depth belongs.
+
 		'recentOrders'   => openstation_my_wordpress_woo_customer_recent_orders( $user->ID ),
 		'spendRaw'       => (float) $facts['spendRaw'],
 		'band'           => (string) $facts['band'],
@@ -1174,13 +756,6 @@ function openstation_my_wordpress_woo_customer_summary( $id ) {
 	);
 }
 
-/**
- * The admin URL listing this customer's orders — HPOS and legacy
- * storage put that screen in different places.
- *
- * @param int $user_id User id.
- * @return string
- */
 function openstation_my_wordpress_woo_customer_orders_url( $user_id ) {
 	$user_id = (int) $user_id;
 
@@ -1191,18 +766,6 @@ function openstation_my_wordpress_woo_customer_orders_url( $user_id ) {
 	return admin_url( 'edit.php?post_type=shop_order&_customer_user=' . $user_id );
 }
 
-/**
- * Add the `customer` type to the shared summary route.
- *
- * Joining through the route's own extension seam rather than editing
- * its switch keeps the whole Customers surface in one file — and
- * proves the seam works, since this is the first thing to use it.
- *
- * @param array|null $data Summary payload (untouched for other types).
- * @param string     $type Summary type.
- * @param int        $id   Object id.
- * @return array|WP_Error|null
- */
 function openstation_my_wordpress_woo_customer_summary_filter( $data, $type, $id ) {
 	if ( 'customer' !== $type ) {
 		return $data;
@@ -1211,16 +774,6 @@ function openstation_my_wordpress_woo_customer_summary_filter( $data, $type, $id
 	return openstation_my_wordpress_woo_customer_summary( $id );
 }
 
-/**
- * Gate the `customer` summary type. The generic fallback checks
- * `edit_post` against the id, which for a user id is meaningless —
- * and, on a site where post and user ids collide, wrong.
- *
- * @param true|WP_Error|null $allowed Permission verdict so far.
- * @param string             $type    Summary type.
- * @param int                $id      Object id.
- * @return true|WP_Error|null
- */
 function openstation_my_wordpress_woo_customer_summary_capability( $allowed, $type, $id ) {
 	unset( $id );
 	if ( 'customer' !== $type ) {
@@ -1230,11 +783,6 @@ function openstation_my_wordpress_woo_customer_summary_capability( $allowed, $ty
 	return openstation_my_wordpress_woo_customers_permission();
 }
 
-/**
- * Register the Customers routes.
- *
- * @return void
- */
 function openstation_my_wordpress_woo_register_customer_routes() {
 	if ( ! openstation_my_wordpress_woo_active() ) {
 		return;
@@ -1276,22 +824,6 @@ function openstation_my_wordpress_woo_register_customer_routes() {
 }
 add_action( 'rest_api_init', 'openstation_my_wordpress_woo_register_customer_routes' );
 
-/*
--------------------------------------------------------------------
- * The section
- * ----------------------------------------------------------------
- */
-
-/**
- * Append the Customers section to the Woo folder.
- *
- * Registered on the same filter as Orders and at the same priority,
- * so it lands next to it inside the folder rather than at the end of
- * the entity list.
- *
- * @param array[] $entities Entity descriptors.
- * @return array[]
- */
 function openstation_my_wordpress_woo_customer_entity( $entities ) {
 	if ( ! is_array( $entities ) || ! openstation_my_wordpress_woo_active() ) {
 		return $entities;
@@ -1315,11 +847,9 @@ function openstation_my_wordpress_woo_customer_entity( $entities ) {
 		'label'      => __( 'Customers', 'desktop-mode' ),
 		'icon'       => 'dashicons-groups',
 		'restPath'   => 'desktop-mode/v1/woocommerce/customers',
-		// Renders through the built-in user kind: avatar tiles, the
-		// dossier pane, the footprint route, the drag-out seam. A
-		// customer is a person before it is a row of money.
+
 		'kind'       => 'user',
-		// Keeps the facts payload from being stripped by `_fields`.
+
 		'listFields' => array( 'openstation_woo_customer' ),
 		'group'      => $group['id'],
 		'groupLabel' => $group['label'],
@@ -1330,17 +860,6 @@ function openstation_my_wordpress_woo_customer_entity( $entities ) {
 	return $entities;
 }
 
-/**
- * Add the people numbers to the Woo folder's Store panel.
- *
- * Guest revenue is here because it is the one figure the Customers
- * section structurally cannot show: an order with no account has no
- * tile to sit on. Reporting it as a line on the folder is the honest
- * alternative to letting it disappear.
- *
- * @param array $data Store totals.
- * @return array
- */
 function openstation_my_wordpress_woo_customer_store_totals( $data ) {
 	if ( ! is_array( $data ) || true !== openstation_my_wordpress_woo_customers_permission() ) {
 		return $data;
@@ -1352,10 +871,6 @@ function openstation_my_wordpress_woo_customer_store_totals( $data ) {
 
 	$data['customers'] = (int) ( $plan['customers'] ?? 0 );
 
-	// Past the ordering cap the plan holds no bands, so the band
-	// counts are not zero — they are unknown. Saying so is the whole
-	// point: a store with 40,000 customers reporting "0 VIPs" is a
-	// wrong answer stated confidently, which is worse than no answer.
 	$data['bandsCapped'] = ! empty( $plan['capped'] );
 	if ( empty( $data['bandsCapped'] ) ) {
 		$data['vips']   = (int) ( ( $plan['counts'] ?? array() )['vip'] ?? 0 );
@@ -1370,11 +885,6 @@ function openstation_my_wordpress_woo_customer_store_totals( $data ) {
 	return $data;
 }
 
-/**
- * Boot the Customers surface.
- *
- * @return void
- */
 function openstation_my_wordpress_woo_customers_boot() {
 	add_filter( 'openstation_my_wordpress_woo_store', 'openstation_my_wordpress_woo_customer_store_totals' );
 	add_filter( 'openstation_my_wordpress_entities', 'openstation_my_wordpress_woo_customer_entity', 5 );

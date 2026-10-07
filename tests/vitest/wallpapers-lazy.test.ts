@@ -1,24 +1,3 @@
-/**
- * A canvas wallpaper's bundle IS the wallpaper — Living Tree is
- * 58 KB of PixiJS scene, Snow is 42 KB — and both used to download
- * and parse on every admin page load, for every user, including the
- * overwhelming majority wearing a flat gradient.
- *
- * The server-sync now registers a metadata-only stub instead and the
- * bundle waits for something that actually needs the callbacks:
- * the wallpaper being applied, or the picker opening.
- *
- * What these tests pin:
- *
- *   - Sync registers a usable def (label, preview, description) with
- *     no script fetched.
- *   - The user's ACTIVE wallpaper is the one exception — it hydrates
- *     on sync, because the desktop is about to paint it.
- *   - `hydrateAll()` (the picker's call) pulls the rest in.
- *   - A stub that gets mounted anyway hydrates itself and delegates,
- *     resolving `needs` first the way the layer would have.
- *   - Failure leaves the stub in place and retryable.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -71,7 +50,6 @@ function serverEntry(
 	} as DesktopWallpaperServerEntry;
 }
 
-/** Minimal `OsSettings` stand-in — the sync reads + re-applies. */
 function fakeSettings( wallpaper = 'os-dark' ) {
 	return {
 		state: { wallpaper },
@@ -147,8 +125,7 @@ describe( 'wallpapers — deferred hydration', () => {
 		await sync( [ serverEntry() ] );
 
 		expect( m.lazy.isPending( 'wp-living-tree' ) ).toBe( false );
-		// The real def landed — with the server description overlaid,
-		// since the JS side didn't carry one.
+
 		expect( m.registry.get( 'wp-living-tree' )?.description ).toBe(
 			'A tree that grows with your site.',
 		);
@@ -268,9 +245,8 @@ describe( 'wallpapers — deferred hydration', () => {
 
 		await expect( m.lazy.hydrate( 'wp-living-tree' ) ).resolves.toBeNull();
 
-		// Tile survives, so the picker still shows the wallpaper.
 		expect( m.registry.get( 'wp-living-tree' ) ).toBeDefined();
-		// And the next attempt re-fetches rather than caching the failure.
+
 		expect( m.lazy.isPending( 'wp-living-tree' ) ).toBe( true );
 		await m.lazy.hydrate( 'wp-living-tree' );
 		expect( load ).toHaveBeenCalledTimes( 2 );
@@ -309,7 +285,7 @@ describe( 'wallpapers — deferred hydration', () => {
 					id: 'wp-living-tree',
 					label: 'Living Tree',
 					type: 'canvas',
-					// The swatch the server never declared.
+
 					preview: '#0b3',
 					mount: () => () => {},
 				} as CanvasWallpaperDef );

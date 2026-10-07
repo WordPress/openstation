@@ -1,30 +1,7 @@
 <?php
-/**
- * OpenStation — Agents: Personal Data Export + Erasure hooks.
- *
- * Agents carry user-attributable data on their synthetic `wp_users`
- * row (display name, login, role) and in the definition meta
- * (description, instructions, abilities, triggers, model, rate limit,
- * voice, face). One exporter + one eraser, both keyed off the target
- * email: if it matches an agent's synthetic address, the exporter
- * returns that definition and the eraser deletes the whole agent. The
- * invocation log (`_desktop_mode_agent_runs`) is not exported; it goes
- * with the agent's user row when the eraser deletes it. Human users who
- * created agents are NOT considered owners for export/erasure purposes —
- * agents are admin-managed assets that survive a human-user erasure.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the personal-data exporter under the `os-agents`
- * group.
- *
- * @param array $exporters Existing exporter registry.
- * @return array
- */
 function openstation_agents_register_personal_data_exporter( $exporters ) {
 	$exporters['os-agents'] = array(
 		'exporter_friendly_name' => __( 'OpenStation agents', 'desktop-mode' ),
@@ -34,14 +11,7 @@ function openstation_agents_register_personal_data_exporter( $exporters ) {
 }
 add_filter( 'wp_privacy_personal_data_exporters', 'openstation_agents_register_personal_data_exporter' );
 
-/**
- * Exporter callback.
- *
- * @param string $email_address Target user's email.
- * @param int    $page          1-indexed page (always done=true).
- * @return array
- */
-function openstation_agents_personal_data_exporter( $email_address, $page = 1 ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+function openstation_agents_personal_data_exporter( $email_address, $page = 1 ) {
 	$user = get_user_by( 'email', $email_address );
 	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
 		return array(
@@ -138,13 +108,6 @@ function openstation_agents_personal_data_exporter( $email_address, $page = 1 ) 
 	);
 }
 
-/**
- * Register the personal-data eraser under the `os-agents`
- * group.
- *
- * @param array $erasers Existing eraser registry.
- * @return array
- */
 function openstation_agents_register_personal_data_eraser( $erasers ) {
 	$erasers['os-agents'] = array(
 		'eraser_friendly_name' => __( 'OpenStation agents', 'desktop-mode' ),
@@ -154,16 +117,7 @@ function openstation_agents_register_personal_data_eraser( $erasers ) {
 }
 add_filter( 'wp_privacy_personal_data_erasers', 'openstation_agents_register_personal_data_eraser' );
 
-/**
- * Eraser callback. When the target email belongs to an agent, fully
- * delete it (the user row deletion removes every definition meta row).
- * Non-agent emails are a no-op.
- *
- * @param string $email_address Target user's email.
- * @param int    $page          1-indexed page (always done=true).
- * @return array
- */
-function openstation_agents_personal_data_eraser( $email_address, $page = 1 ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+function openstation_agents_personal_data_eraser( $email_address, $page = 1 ) {
 	$user = get_user_by( 'email', $email_address );
 	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
 		return array(

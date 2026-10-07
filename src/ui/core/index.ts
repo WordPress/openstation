@@ -1,11 +1,3 @@
-/**
- * os-ui core — public barrel.
- *
- * Component authors import from here:
- *
- *     import { Component, html, css, defineComponent } from '../core';
- */
-
 export { Component, defineComponent } from './component';
 export { html, render } from './html';
 export type { TemplateResult } from './html';

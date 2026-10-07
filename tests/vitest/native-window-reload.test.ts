@@ -1,18 +1,3 @@
-/**
- * Tests for "Reload" as a common action across BOTH window types.
- *
- * The ⋯ menu's Reload row used to be built only for iframe windows,
- * and `Window.reload()` early-returned for native ones — so a native
- * window that had drifted (a stale list, a half-applied optimistic
- * update) had no way back short of close-and-reopen, which loses the
- * window's geometry, focus and session entry.
- *
- * Native reload re-runs the render callback in place: teardown, empty
- * body, `hydrateNative()` again, with a fresh `NativeRenderContext`.
- * The window itself never closes, so nothing downstream of
- * `WINDOW_CLOSED` / `WINDOW_OPENED` sees a refresh as a lifecycle
- * event.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { HOOKS } from '../../src/hooks';
@@ -23,7 +8,6 @@ import {
 import type { NativeRenderContext } from '../../src/types';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
-/** Let the `requestAnimationFrame` readiness signal land. */
 const settle = (): Promise< void > =>
 	new Promise( ( resolve ) => {
 		requestAnimationFrame( () => resolve() );
@@ -60,10 +44,7 @@ describe( 'native-window reload', async () => {
 		} );
 		document.body.appendChild( desktop );
 		manager = new WindowManager( desktop );
-		// The `--loading` body class is hook-driven. The shell boot
-		// installs the transitions once; without them here the class
-		// set at construction never clears and every `reload()` would
-		// hit the in-flight guard.
+
 		_resetWindowLoadingTransitionsForTests();
 		installWindowLoadingTransitions();
 	} );
@@ -98,7 +79,6 @@ describe( 'native-window reload', async () => {
 			native: true,
 		} );
 
-		// Nothing to re-run — an inert row would be worse than none.
 		expect(
 			win?.element.querySelector( '.os-window__menu-item--reload' ),
 		).toBeNull();
@@ -139,8 +119,7 @@ describe( 'native-window reload', async () => {
 		await settle();
 
 		expect( renders ).toBe( 2 );
-		// Emptied, not appended to — one probe, carrying the second
-		// render's text.
+
 		const probes = win?.element.querySelectorAll( '.probe' );
 		expect( probes?.length ).toBe( 1 );
 		expect( probes?.[ 0 ].textContent ).toBe( 'render 2' );
@@ -196,9 +175,9 @@ describe( 'native-window reload', async () => {
 
 		expect( signals ).toHaveLength( 2 );
 		expect( signals[ 1 ] ).not.toBe( signals[ 0 ] );
-		// The first render's in-flight work is cancelled…
+
 		expect( signals[ 0 ].aborted ).toBe( true );
-		// …and the replacement starts live.
+
 		expect( signals[ 1 ].aborted ).toBe( false );
 	} );
 
@@ -230,7 +209,6 @@ describe( 'native-window reload', async () => {
 		win?.reload();
 		await settle();
 
-		// A plugin's cleanup bug must not cost the user their reload.
 		expect( renders ).toBe( 2 );
 		expect( errors.length ).toBeGreaterThan( 0 );
 	} );
@@ -286,19 +264,13 @@ describe( 'native-window reload', async () => {
 		await settle();
 
 		expect( closes ).toBe( 0 );
-		// Same live instance, same element — geometry, focus and the
-		// session entry all ride through untouched.
+
 		expect( manager.getById( 'no-lifecycle' ) ).toBe( win );
 		expect( win?.element ).toBe( elementBefore );
 	} );
 
 	test( 'emptying the body does not cost the window its loading overlay', async () => {
-		// The body holds framework-owned children besides the render
-		// output — the loading overlay and the reveal layers. Emptying
-		// it takes those with it; `markContentLoading()` has to run
-		// after the wipe so the `WINDOW_CONTENT_LOADING` subscriber
-		// rebuilds both. Get the order wrong and a native window loses
-		// its spinner for good on the first reload.
+
 		const win = await manager.open( {
 			id: 'overlay-survives',
 			url: '#overlay-survives',
@@ -310,8 +282,6 @@ describe( 'native-window reload', async () => {
 
 		win?.reload();
 
-		// Checked synchronously — the overlay belongs to the load that
-		// is running right now, not to whatever is left after it.
 		const body = win?.element.querySelector( '.os-window__body' );
 		expect( body?.querySelector( '.os-window__loading' ) ).not.toBeNull();
 	} );
@@ -329,8 +299,6 @@ describe( 'native-window reload', async () => {
 		} );
 		await settle();
 
-		// Re-arm the loading overlay the way a plugin doing
-		// event-listener-based async loading would.
 		win?.markContentLoading();
 		win?.reload();
 		await settle();

@@ -1,95 +1,36 @@
 <?php
-/**
- * OpenStation App Framework — effects.
- *
- * What an action wants the shell to do besides repainting the body:
- * show a toast, retitle the window, close it, open another one, set
- * a badge, pop a context menu. An action calls `$os->toast( … )`; the
- * runtime ships the list to the client, which performs each one
- * after the morph.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\App;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/**
- * Queue of shell effects for one dispatch.
- */
 final class Effects {
 
-	/**
-	 * @var array<int,array<string,mixed>>
-	 */
 	private $items = array();
 
-	/**
-	 * Show a toast.
-	 *
-	 * `$type` is an id from the toast-type registry the shell ships
-	 * (`openstation_get_toast_types()`, filterable through
-	 * `openstation_toast_types`): `success`, `warning`, `error`,
-	 * `shell-error`, or one a plugin registered. The shell maps it to
-	 * the tone the toast wears; an empty or unknown id is the plain
-	 * toast, so say what happened in the message either way.
-	 *
-	 * @param string $message Text.
-	 * @param string $type    Toast-type id, or '' for the plain toast.
-	 * @return self
-	 */
 	public function toast( $message, $type = '' ) {
 		$effect = array( 'message' => (string) $message );
 		if ( '' !== (string) $type ) {
-			// `type` is the effect kind on the wire; the toast type rides as `toastType`.
+
 			$effect['toastType'] = (string) $type;
 		}
 		return $this->add( 'toast', $effect );
 	}
 
-	/**
-	 * Retitle the window for this session.
-	 *
-	 * @param string $title New title.
-	 * @return self
-	 */
 	public function title( $title ) {
 		return $this->add( 'title', array( 'title' => (string) $title ) );
 	}
 
-	/**
-	 * Close the window once the response lands.
-	 *
-	 * @return self
-	 */
 	public function close() {
 		return $this->add( 'close', array() );
 	}
 
-	/**
-	 * Open (or focus) another registered window.
-	 *
-	 * @param string $window_id Native window id.
-	 * @return self
-	 */
 	public function open( $window_id ) {
 		return $this->add( 'open', array( 'window' => (string) $window_id ) );
 	}
 
-	/**
-	 * Open an admin URL in an iframe window (an edit screen, a
-	 * settings page).
-	 *
-	 * @param string $url   Admin URL.
-	 * @param string $title Window title; the page's own title when ''.
-	 * @param string $icon  Window icon (a Dashicons class or an image
-	 *                      URL); the shell's generic glyph when ''.
-	 * @return self
-	 */
 	public function open_url( $url, $title = '', $icon = '' ) {
 		return $this->add(
 			'open_url',
@@ -101,38 +42,14 @@ final class Effects {
 		);
 	}
 
-	/**
-	 * Set (or clear with 0) the badge on the app's dock tile and
-	 * desktop icon.
-	 *
-	 * @param int $count Count; 0 clears.
-	 * @return self
-	 */
 	public function badge( $count ) {
 		return $this->add( 'badge', array( 'count' => max( 0, (int) $count ) ) );
 	}
 
-	/**
-	 * Swap the art on every rail hosting the app's tile — dock,
-	 * taskbar, desktop icon. State-driven icons (the Recycle Bin's
-	 * empty/full bin is the canonical case).
-	 *
-	 * @param string $icon SVG data URI or image URL.
-	 * @return self
-	 */
 	public function icon( $icon ) {
 		return $this->add( 'icon', array( 'icon' => (string) $icon ) );
 	}
 
-	/**
-	 * Announce a content change so every window showing that content
-	 * refreshes (`wp.os.announceContentChange`).
-	 *
-	 * @param string    $type   Content type, e.g. `post`, `comment`, `user`.
-	 * @param string    $action `created` | `updated` | `trashed` | `untrashed` | `deleted`.
-	 * @param int|int[] $ids    Affected ids.
-	 * @return self
-	 */
 	public function announce( $type, $action, $ids ) {
 		return $this->add(
 			'announce',
@@ -144,13 +61,6 @@ final class Effects {
 		);
 	}
 
-	/**
-	 * Pop a context menu at the pointer. Each item dispatches an
-	 * action when picked.
-	 *
-	 * @param array<int,array<string,mixed>> $items Each: `label`, `action` (required), `args`, `icon`, `danger`, `disabled`.
-	 * @return self
-	 */
 	public function menu( array $items ) {
 		$clean = array();
 		foreach ( $items as $index => $item ) {
@@ -170,14 +80,6 @@ final class Effects {
 		return $this->add( 'menu', array( 'items' => $clean ) );
 	}
 
-	/**
-	 * Publish on the window's channel bus (`ctx.window.send`), for
-	 * peers connected with `wp.os.connect( id )`.
-	 *
-	 * @param string $channel Channel name.
-	 * @param mixed  $payload Serialisable payload.
-	 * @return self
-	 */
 	public function send( $channel, $payload = null ) {
 		return $this->add(
 			'send',
@@ -188,42 +90,15 @@ final class Effects {
 		);
 	}
 
-	/**
-	 * Ask the shell to rebuild its registries from a fresh menu
-	 * payload (`wp.os.refreshMenu()`).
-	 *
-	 * For an action that changed what the SERVER registers — a site
-	 * option that gates a whole module, a per-user flag a plugin's
-	 * `init` reads. The shell only learns about server registrations
-	 * from a payload, and the request that wrote the option decided,
-	 * near its own start, what to register: it cannot report the
-	 * window it would now add. The refresh is a separate request by
-	 * design, which an effect — performed after this response lands —
-	 * is exactly.
-	 *
-	 * @return self
-	 */
 	public function refresh_menu() {
 		return $this->add( 'refresh_menu', array() );
 	}
 
-	/**
-	 * Queue a custom effect for a runtime extension to handle.
-	 *
-	 * @param string              $type Effect type.
-	 * @param array<string,mixed> $data Payload.
-	 * @return self
-	 */
 	public function add( $type, array $data = array() ) {
 		$this->items[] = array_merge( array( 'type' => (string) $type ), $data );
 		return $this;
 	}
 
-	/**
-	 * Everything queued, in order.
-	 *
-	 * @return array<int,array<string,mixed>>
-	 */
 	public function all() {
 		return $this->items;
 	}

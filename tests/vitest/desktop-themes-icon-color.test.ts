@@ -1,16 +1,3 @@
-/**
- * Unit tests for desktop-theme icon TINTING.
- *
- * A tint changes the rendering mode, not just the colour: an image
- * icon stops being an `<img>` and becomes a CSS mask filled with the
- * tint, so only its alpha survives. That is what makes a black
- * silhouette set legible on a dark dock instead of invisible — the
- * bug this feature exists to fix.
- *
- * The same cheap-path invariant as the icon resolver applies: with no
- * active theme, `resolveThemedIconColor()` returns `null` without
- * reaching the hook bus.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -151,7 +138,7 @@ describe( 'applyIconMask', () => {
 		expect( el.style.getPropertyValue( 'mask' ) ).toContain(
 			'https://x.test/a.svg',
 		);
-		// A leftover background-image would show through the mask.
+
 		expect( el.style.backgroundImage ).toBe( 'none' );
 	} );
 
@@ -196,8 +183,7 @@ describe( 'renderIcon with a tint', () => {
 	} );
 
 	test( 'a tint with no glyph override recolours the shell own icon', () => {
-		// The theme names a colour for a slot it does not replace —
-		// "recolour every icon, replace none" is a legitimate theme.
+
 		seedTheme( { FOLDER: '#3ae0ff' } );
 		const el = renderIcon( 'https://x.test/folder.svg', {
 			title: 'Folder',
@@ -212,8 +198,7 @@ describe( 'renderIcon with a tint', () => {
 
 	test( 'an unmaskable icon falls through to its normal rendering', () => {
 		seedTheme( { FOLDER: '#fff' } );
-		// A letter-badge fallback value is not maskable; the tint must
-		// not swallow the icon.
+
 		const el = renderIcon( 'none', { title: 'My Plugin', slot: 'FOLDER' } );
 		expect( el.className ).toContain( 'os-icon-letter' );
 		expect( el.textContent ).toBe( 'MP' );

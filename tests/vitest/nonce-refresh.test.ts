@@ -1,11 +1,3 @@
-/**
- * Tests for `src/nonce-refresh.ts` — heartbeat-driven refresh of
- * the cached REST/ajax nonces. Regression target is GH#250
- * ("Plugins table sometimes won't load — Cookie check failed"),
- * where a long-running shell session crossed WordPress's 24-hour
- * `nonce_life` boundary and the per-window blob's `restNonce`
- * went stale.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	bootHeartbeatBus,
@@ -144,8 +136,7 @@ describe( 'nonce-refresh', () => {
 			'desktop-mode-plugins'
 		] as { restNonce: string; extra: Record< string, string >; ajaxNonce?: string };
 		expect( cfg.restNonce ).toBe( 'fresh-rest' );
-		// Rewritten IN PLACE on the same object the app reads through
-		// `ctx.extra`, and never copied to the top level.
+
 		expect( extra.ajaxNonce ).toBe( 'fresh-ajax' );
 		expect( extra.updatesNonce ).toBe( 'fresh-updates' );
 		expect( cfg.ajaxNonce ).toBeUndefined();
@@ -174,7 +165,7 @@ describe( 'nonce-refresh', () => {
 			'desktop-mode-plugins': { restNonce: 'stale' },
 			'desktop-mode-posts':   { restNonce: 'stale' },
 			'desktop-mode-users':   { restNonce: 'stale' },
-			// A blob without restNonce — should be left alone.
+
 			'os-other':   { something: 'else' },
 		};
 
@@ -214,7 +205,7 @@ describe( 'nonce-refresh', () => {
 
 	test( 'tolerates a missing openStationConfig and missing window-config blob', () => {
 		const handlers = installFakeJQuery();
-		// Neither global set — must NOT throw.
+
 		bootHeartbeatBus();
 		bootNonceRefresh();
 
@@ -278,9 +269,7 @@ describe( 'nonce-refresh', () => {
 			{},
 			{ desktop_mode_nonces: { wp_rest: 'fresh' } },
 		);
-		// Built-in target + custom target = restNonce updated AND
-		// our spy called exactly once. A double-boot would either
-		// double-fire the spy or re-register the built-in target.
+
 		expect( calls ).toEqual( [ 'fresh' ] );
 		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'fresh' );
 	} );
@@ -300,7 +289,7 @@ describe( 'nonce-refresh', () => {
 			{},
 			{ desktop_mode_nonces: { wp_rest: 'fresh' } },
 		);
-		// Built-in target still ran despite the throwing peer.
+
 		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'fresh' );
 		errSpy.mockRestore();
 	} );

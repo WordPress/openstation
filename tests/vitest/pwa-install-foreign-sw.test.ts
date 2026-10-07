@@ -1,16 +1,3 @@
-/**
- * Foreign-SW install affordance — fix for GH #239.
- *
- * Covers:
- *   - `registerServiceWorker` tags `_status = 'foreign-sw'` when another
- *     root-scope SW is on the origin, leaves `_status = 'registered'`
- *     when ours wins, and respects `forceReplace: true` to bypass the
- *     guard.
- *   - `getInstallTileDef(...).onOpen` surfaces the foreign-SW-specific
- *     toast (rather than the generic "not available" fallback) once the
- *     status flips, so users see the actionable message naming the
- *     `openstation_pwa_force_replace_sw` filter.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	_resetSwRegistration,
@@ -71,7 +58,7 @@ function installSwStub( initial: RegistrationLike[] = [] ): SwTestHandle {
 }
 
 function clearSwStub(): void {
-	// `delete` works because we set `configurable: true` above.
+
 	delete ( navigator as unknown as { serviceWorker?: unknown } )
 		.serviceWorker;
 }
@@ -139,8 +126,7 @@ describe( 'registerServiceWorker — foreign SW detection', () => {
 	} );
 
 	test( 'a sibling site\'s OpenStation SW is not foreign, and swScope routes the registration', async () => {
-		// A subdirectory network: the MAIN site's worker holds root
-		// scope, and this subsite registers its own at its site path.
+
 		const siblingReg: RegistrationLike = {
 			scope: '/',
 			active: {
@@ -236,7 +222,7 @@ describe( 'install tile — foreign-SW toast surfacing', () => {
 		const showToast = vi.fn( () => () => {} );
 		const tile = getInstallTileDef( 'Test Site', showToast );
 		tile.onOpen();
-		// onTileClick runs async (isLikelyInstalled is awaited).
+
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 
 		expect( showToast ).toHaveBeenCalledTimes( 1 );
@@ -248,12 +234,8 @@ describe( 'install tile — foreign-SW toast surfacing', () => {
 	} );
 
 	test( 'falls back to the generic toast when status is not "foreign-sw"', async () => {
-		// No foreign SW registered, no `beforeinstallprompt` fired → the
-		// click handler hits the generic "Install isn't available right
-		// now" branch.
+
 		installSwStub( [] );
-		// Don't call registerServiceWorker — leave status at 'pending'
-		// so we exercise the non-foreign path.
 
 		const showToast = vi.fn( () => () => {} );
 		const tile = getInstallTileDef( 'Test Site', showToast );

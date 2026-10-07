@@ -1,39 +1,3 @@
-/**
- * `<os-category-picker>` — hierarchical multi-select for taxonomy
- * terms (typically WordPress categories). Compact chip row + an
- * inline tree-popover with search, collapsible branches, indent
- * guides, keyboard navigation.
- *
- * Aligns with WordPress core's data model:
- *
- *   - Terms are a flat array with `parent` ids; the component builds
- *     the tree internally.
- *   - A post can hold any subset of terms — a child can be selected
- *     without its parent, parents without children, etc.
- *   - When the selected set is empty, WordPress auto-applies
- *     "Uncategorized" server-side. The component reflects this with
- *     a dashed sentinel chip so the user sees what's about to happen.
- *
- * Purely presentational + event-driven, like `<os-tag-input>`. The
- * component owns the visual layout (chip row, tree popover, search)
- * and the keyboard model. Mutations — fetching the tree, persisting
- * the new term set — are the consumer's job, dispatched via:
- *
- *   - `os-categories-change` `{ value }` — user toggled a row in
- *     the picker. The component does NOT mutate `value` itself
- *     (consumer is the source of truth, applies optimistically and
- *     rolls back on REST failure).
- *   - `os-categories-open` / `…-close` — popover lifecycle.
- *
- * Selected terms render as `<os-crumb-chain>` breadcrumb chains —
- * one chain per leaf selection, walking root → leaf through the
- * selected ancestors ("Tech › Web Dev › Frontend") — built from the
- * term tree at render time so a category renamed elsewhere updates
- * the chain on next refresh.
- *
- * @public
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { osIcon } from '../../icons';
 
@@ -44,23 +8,13 @@ import {
 	type OsCrumbSegment,
 } from '../os-crumb-chain/os-crumb-chain';
 import '../os-crumb-chain/os-crumb-chain';
-// `OsCrumbChain` is also imported above as a value so the side-
-// effect registration of `<os-crumb-chain>` happens at import
-// time — we use the class as a type for `document.createElement`
-// casts and rely on the same module to register the tag.
 
-/**
- * One taxonomy term. Mirrors the `/wp/v2/categories` REST shape we
- * actually consume — `id`, `name`, `parent` (0 for top-level). The
- * component is `parent`-agnostic about the rest.
- */
 export interface OsCategoryItem {
 	id: number;
 	name: string;
 	parent: number;
 }
 
-/** A row in the rendered tree. Internal — built from `items`. */
 interface TreeNode {
 	item: OsCategoryItem;
 	children: TreeNode[];
@@ -70,14 +24,6 @@ interface TreeNode {
 const UNCATEGORIZED_SLUG = 'uncategorized';
 const UNCATEGORIZED_DEFAULT_ID = 1;
 
-/**
- * Match the WordPress "Uncategorized" fallback term. Identified by id
- * (1 — the default term id WP assigns at install) OR by slug-shaped
- * name match — covers sites that re-named the term but kept it as
- * the default fallback. Used to suppress "create child of …" inputs
- * since core's fallback term doesn't accept children in the standard
- * Posts → Categories UX.
- */
 function _isUncategorized( item: OsCategoryItem ): boolean {
 	if ( item.id === UNCATEGORIZED_DEFAULT_ID ) {
 		return true;
@@ -177,11 +123,7 @@ export class OsCategoryPicker extends Component {
 				detail: '{ id: number; name: string }',
 			},
 		],
-		/*
-		 * `items` is a property — the tree cannot be expressed in
-		 * markup — so without this hook the picker rendered as a
-		 * search box above nothing.
-		 */
+
 		example: html`
 			<os-category-picker placeholder="Search categories…"></os-category-picker>
 		`,
@@ -206,28 +148,10 @@ export class OsCategoryPicker extends Component {
 	private _items: OsCategoryItem[] = [];
 	private _value: number[] = [];
 	private _query = '';
-	/**
-	 * Branches the user has explicitly COLLAPSED. The default
-	 * state is "everything is expanded so the user sees the whole
-	 * tree of choices"; only branches the user actively chose to
-	 * fold up live in this set. Inverted from the older expanded-
-	 * set model so adding a new branch to the registry doesn't
-	 * mean the user has to find and click it before its children
-	 * appear.
-	 */
+
 	private _collapsed: Set< number > = new Set();
 	private _focusedRow = -1;
 
-	/**
-	 * Inline create state, keyed by parent id (`0` = root). Every
-	 * row in the tree carries its own always-visible "add child"
-	 * input — and the popover carries one more for "add root" — so
-	 * we maintain typed value + pending state per parent rather
-	 * than a single mutually-exclusive cursor.
-	 *
-	 * Empty string in the map is equivalent to absent; we keep the
-	 * map small by deleting entries on clear.
-	 */
 	private _creatingValues: Map< number, string > = new Map();
 	private _creatingPending: Set< number > = new Set();
 
@@ -258,9 +182,7 @@ export class OsCategoryPicker extends Component {
 		( this as unknown as { open: string } ).open = '';
 		this._query = '';
 		this._focusedRow = 0;
-		// Branches are expanded by default — `_collapsed` tracks
-		// only the ones the user explicitly folded. No pre-expand
-		// pass needed.
+
 		this.emit( 'os-categories-open', {} );
 		queueMicrotask( () => {
 			this._positionPopover();
@@ -283,12 +205,7 @@ export class OsCategoryPicker extends Component {
 		super.connectedCallback();
 		document.addEventListener( 'pointerdown', this._onDocPointerDown, true );
 		document.addEventListener( 'keydown', this._onDocKeydown, true );
-		// Close the popover when the underlying surface moves under
-		// it — window drag, table scroll, viewport resize. The user
-		// can re-open and the popover re-anchors to the new trigger
-		// position. Closing on layout change is what every modern
-		// dropdown does (popper.js, Radix, etc) and avoids the
-		// "popover floats orphaned across the screen" bug.
+
 		window.addEventListener( 'resize', this._onLayoutChange, { passive: true } );
 		window.addEventListener( 'scroll', this._onLayoutChange, {
 			passive: true,
@@ -306,8 +223,6 @@ export class OsCategoryPicker extends Component {
 	private get _searchInput(): HTMLInputElement | null {
 		return this.shadowRoot?.querySelector< HTMLInputElement >( '.os-cat__search' ) ?? null;
 	}
-
-	// --- Render -----------------------------------------------------------
 
 	protected render() {
 		const isOpen = this.isOpen;
@@ -350,9 +265,6 @@ export class OsCategoryPicker extends Component {
 	) {
 		const selectedItems = this._selectedItemsInOrder();
 
-		// "Uncategorized" sentinel when nothing is selected — the
-		// whole cell becomes a single click-to-edit affordance,
-		// styled to read "this is the fallback, not a chosen tag".
 		if ( selectedItems.length === 0 ) {
 			return html`
 				<span class="os-cat__chips" role="list">
@@ -365,13 +277,6 @@ export class OsCategoryPicker extends Component {
 			`;
 		}
 
-		// One `<os-crumb-chain>` per "leaf selection" — a selected
-		// term that has no other selected descendant. The whole cell
-		// surface (chip area + any gaps between chains) is a click
-		// target that opens the picker; the chains' segments and ×
-		// buttons handle their own intents (segment click /
-		// remove-leaf) and stop propagation so they don't trigger an
-		// unintended picker open.
 		const chains = this._buildChains( selectedItems );
 		return html`
 			<div
@@ -386,25 +291,6 @@ export class OsCategoryPicker extends Component {
 		`;
 	}
 
-	/**
-	 * Build a `OsCrumbSegment[]` per LEAF selection. A "leaf
-	 * selection" is a selected term that has no other selected
-	 * descendant. When the user has selected a parent AND its
-	 * children AND its grandchildren, only the deepest (leaf)
-	 * selection produces a chain — the chain itself walks
-	 * root → leaf and includes every path segment. Segments that
-	 * the user explicitly picked AND segments that just sit on the
-	 * path render the same way visually; the user's intent ("this
-	 * post is filed under Parent → Child → Grandchild") is what
-	 * gets shown, regardless of which subset of the path they
-	 * happened to tick.
-	 *
-	 * Two leaves under the same parent produce two chains; the
-	 * shared parent appears in both, which matches the user's
-	 * mental model ("filed under Tech/Web Dev/Frontend AND
-	 * Tech/Web Dev/Backend") without the ambiguity of merged-tree
-	 * visualizations.
-	 */
 	private _buildChains(
 		selectedItems: OsCategoryItem[],
 	): Array< { id: number; segments: OsCrumbSegment[] } > {
@@ -414,22 +300,6 @@ export class OsCategoryPicker extends Component {
 		}
 		const selectedIds = new Set( selectedItems.map( ( s ) => s.id ) );
 
-		// A "chain leaf" is a SELECTED term with no SELECTED DESCENDANT
-		// anywhere beneath it (not just a direct child). From the leaf
-		// we walk up to the root and include only the SELECTED items
-		// along the way — gaps in the ancestry chain are silently
-		// skipped, so an "orphan" grandchild whose parent is unchecked
-		// still chains visually with its grand-parent.
-		//
-		// Each chain is therefore a faithful render of what the user
-		// actually picked along a single root → leaf path. Examples:
-		//   {Grandchild}                → [Grandchild]
-		//   {Child, Grandchild}         → [Child → Grandchild]
-		//   {Parent, Grandchild}        → [Parent → Grandchild]   (Child unselected, skipped)
-		//   {Parent, Child, Grandchild} → [Parent → Child → Grandchild]
-		//   {Child, Dog}  (both kids of an unselected Parent)
-		//                               → [Child], [Dog]
-		//   {Parent, Child, Dog}        → [Parent → Child], [Parent → Dog]
 		const hasSelectedDescendant = ( ancestorId: number ): boolean => {
 			for ( const otherId of selectedIds ) {
 				if ( otherId === ancestorId ) {
@@ -456,11 +326,6 @@ export class OsCategoryPicker extends Component {
 
 		const chains: Array< { id: number; segments: OsCrumbSegment[] } > = [];
 		for ( const leaf of chainLeaves ) {
-			// Walk from leaf to root, accumulating the SELECTED items
-			// in path order. Always include the leaf; for ancestors
-			// only include if selected. Unselected middle ancestors
-			// drop out — a selected great-grandparent above an
-			// unselected grandparent still ends up in the same chain.
 			const path: OsCategoryItem[] = [];
 			let cursor: OsCategoryItem | undefined = leaf;
 			let safety = 16;
@@ -473,11 +338,7 @@ export class OsCategoryPicker extends Component {
 				}
 				cursor = byId.get( cursor.parent );
 			}
-			// Neutral chip palette — the chain reads as a connected
-			// path because of the chevron interlock, not because of
-			// per-segment colour. Tags chips are also neutral, so
-			// the cell row scans as one cohesive control rather than
-			// two competing color systems.
+
 			const segments = path.map( ( item ) => ( {
 				id: item.id,
 				name: item.name,
@@ -493,24 +354,7 @@ export class OsCategoryPicker extends Component {
 		disabled: boolean,
 	) {
 		const removable = ! readonly && ! disabled;
-		// Chain-LOCAL removal. Clicking × on a segment removes THAT
-		// segment AND every descendant of it within the chain — every
-		// segment shown in the chain is a SELECTED term (unselected
-		// ancestors are filtered out by `_buildChains`), so this is
-		// the same "branch" that the user can drag elsewhere via
-		// `os-chain-segment-dragstart`.
-		//
-		// Examples (× clicks):
-		//   [a → b]  click × on b  →  remove [b]                ⇒  chain gone
-		//   [a → b]  click × on a  →  remove [a, b]             ⇒  chain gone
-		//   [a → b → c]  click × on b  →  remove [b, c]         ⇒  chain becomes [a]
-		//
-		// Sibling chains that share an ancestor stay independent —
-		// e.g. with _value = [Parent, Grand1, Grand2] producing
-		// chips [Parent → Grand1] and [Parent → Grand2]: clicking ×
-		// on Parent in chip 1 removes [Parent, Grand1] from _value;
-		// chip 2's chain rebuilds with Parent unselected, so its
-		// rendered chain becomes the single segment [Grand2].
+
 		const onRemove = ( e: Event ): void => {
 			e.stopPropagation();
 			const detail = ( e as CustomEvent< { index?: number } > ).detail;
@@ -532,9 +376,7 @@ export class OsCategoryPicker extends Component {
 			}
 			this.emit( 'os-categories-change', { value: next } );
 		};
-		// Setting properties on a custom element can't be done
-		// declaratively in the os-html template engine — fall back
-		// to imperative property assignment.
+
 		const el = document.createElement( 'os-crumb-chain' ) as OsCrumbChain;
 		el.segments = chain.segments;
 		if ( removable ) {
@@ -545,9 +387,6 @@ export class OsCategoryPicker extends Component {
 	}
 
 	private _onCellClick = ( e: Event ): void => {
-		// Don't open the picker when the click landed on an
-		// interactive sub-element that handles its own click — the
-		// node-toggle inside the tree, etc.
 		const target = e.target as HTMLElement | null;
 		if ( target?.closest( '.os-cat-node' ) ) {
 			return;
@@ -569,9 +408,7 @@ export class OsCategoryPicker extends Component {
 		const tree = this._buildTree();
 		const filtered = this._filterTree( tree, this._query );
 		const flat = this._flattenForDisplay( filtered );
-		// Re-snap the focused-row index whenever the visible flat list
-		// shrinks (search filter narrowed it). Otherwise the focus
-		// would drift past the last row.
+
 		if ( this._focusedRow >= flat.length ) {
 			this._focusedRow = flat.length > 0 ? flat.length - 1 : -1;
 		}
@@ -638,16 +475,6 @@ export class OsCategoryPicker extends Component {
 		const guide = node.depth > 0 ? node.depth * 16 : 0;
 		const isFocused = idx === this._focusedRow;
 
-		// IMPORTANT: keep the row + its trailing child-create input
-		// inside a SINGLE top-level wrapper. The outer template engine
-		// only tracks the top-level children of a template result for
-		// disposal — when an array of rows is disposed (length mismatch
-		// triggers full remount), any nested template content rendered
-		// from a slot of a multi-rooted template gets orphaned in the
-		// DOM. Putting both rows inside one wrapper makes that single
-		// element the only top-level node, so removing it cleans up
-		// everything inside. `display: contents` on the wrapper keeps
-		// layout identical to the unwrapped pair.
 		return html`
 			<div class="os-cat__row-block">
 				<div
@@ -704,19 +531,6 @@ export class OsCategoryPicker extends Component {
 		`;
 	}
 
-	/**
-	 * Render an always-visible inline create-input. One sits at the
-	 * top of the popover (parentId 0 = create a root category) and
-	 * one sits beneath every visible row (create a child of that
-	 * row). Indent + guide-line align the child input with where the
-	 * new term will appear in the tree, so the user reads "this
-	 * input creates a sibling of the children below".
-	 *
-	 * The "+" submit button lives inside the input chrome; pressing
-	 * it (or Enter) emits `os-categories-create`. Esc clears the
-	 * field. While the consumer is processing the create REST call,
-	 * the field disables and a spinner replaces the submit button.
-	 */
 	private _renderCreateRow(
 		parentId: number,
 		indent: number,
@@ -776,8 +590,7 @@ export class OsCategoryPicker extends Component {
 		} else {
 			this._creatingValues.set( parentId, value );
 		}
-		// Re-render so the submit button enabled-state tracks the
-		// input. Cheap — only the create row paints.
+
 		this.requestUpdate();
 	}
 
@@ -804,42 +617,16 @@ export class OsCategoryPicker extends Component {
 		this.emit( 'os-categories-create', { name, parent: parentId } );
 	}
 
-	/**
-	 * Public API — call after a successful create-handler run to
-	 * clear the inline input for that parent. Consumers usually
-	 * mutate `items` + `value` first (so the new term appears + is
-	 * selected), then call `endCreating( parent )` to clear the
-	 * field.
-	 *
-	 * @param parent The parent id used in the create event detail
-	 *               (`0` for a root-level create).
-	 *
-	 * @public
-	 */
 	public endCreating( parent = 0 ): void {
 		this._creatingPending.delete( parent );
 		this._creatingValues.delete( parent );
 		this.requestUpdate();
 	}
 
-	/**
-	 * Public API — call from a consumer's catch path when the
-	 * create REST request fails. Keeps the typed text intact so the
-	 * user can retry with the same name; only the pending flag
-	 * clears.
-	 *
-	 * @param parent The parent id used in the create event detail.
-	 * @param _error Reserved for future use (e.g. surfacing the
-	 *               error in the input chrome).
-	 *
-	 * @public
-	 */
 	public failCreating( parent = 0, _error?: string ): void {
 		this._creatingPending.delete( parent );
 		this.requestUpdate();
 	}
-
-	// --- Tree helpers ----------------------------------------------------
 
 	private _buildTree(): TreeNode[] {
 		const byId = new Map< number, TreeNode >();
@@ -856,7 +643,7 @@ export class OsCategoryPicker extends Component {
 				roots.push( node );
 			}
 		}
-		// Compute depth by DFS.
+
 		const setDepth = ( node: TreeNode, depth: number ): void => {
 			node.depth = depth;
 			for ( const child of node.children ) {
@@ -866,12 +653,7 @@ export class OsCategoryPicker extends Component {
 		for ( const root of roots ) {
 			setDepth( root, 0 );
 		}
-		// Sort siblings alphabetically, but pin the WP "Uncategorized"
-		// fallback to the very top so it's the FIRST entry in the
-		// dialog — it's the implicit default for any uncategorised
-		// post and the most likely thing a user reaches for. The
-		// `_isUncategorized` helper covers id-1 + slug-shaped name
-		// (renamed-default sites still resolve correctly).
+
 		const sortRecursive = ( nodes: TreeNode[] ): void => {
 			nodes.sort( ( a, b ) => {
 				const aUncat = _isUncategorized( a.item );
@@ -897,12 +679,6 @@ export class OsCategoryPicker extends Component {
 		const matches = ( node: TreeNode ): TreeNode | null => {
 			const ownMatch = node.item.name.toLowerCase().includes( trimmed );
 			if ( ownMatch ) {
-				// Parent matches — keep the entire subtree intact so
-				// the user can pick any descendant of the matched
-				// parent without retyping the query. Mirrors how
-				// users think about taxonomy search ("show me
-				// everything under Tech") rather than a strict
-				// per-node filter.
 				return {
 					item: node.item,
 					children: node.children.slice(),
@@ -942,14 +718,7 @@ export class OsCategoryPicker extends Component {
 					visible: true,
 					hasChildren: node.children.length > 0,
 				} );
-				// Default to EXPANDED. The picker is small, the
-				// trees are small (typical sites have <50
-				// categories), and "categories live under their
-				// parents" is the whole point — hiding the children
-				// behind a manual expander defeats the purpose.
-				// Users explicitly collapsed a branch (via the ▶/▼
-				// caret) get their preference respected through the
-				// `_collapsed` set; everything else is open.
+
 				const collapsed = this._collapsed.has( node.item.id ) && ! isSearching;
 				if ( ! collapsed && node.children.length > 0 ) {
 					walk( node.children );
@@ -965,10 +734,7 @@ export class OsCategoryPicker extends Component {
 		for ( const item of this._items ) {
 			byId.set( item.id, item );
 		}
-		// Filter out the "uncategorized" sentinel — we render it as
-		// a separate visual when it's the ONLY thing selected. When
-		// it's selected alongside real categories, the user picked
-		// it explicitly; render it as a real chip.
+
 		const real: OsCategoryItem[] = [];
 		const uncatItems: OsCategoryItem[] = [];
 		for ( const id of this._value ) {
@@ -985,10 +751,7 @@ export class OsCategoryPicker extends Component {
 				real.push( item );
 			}
 		}
-		// When the user has explicit categories AND uncategorized is
-		// in there, show the explicit ones; uncategorized is implied
-		// not relevant. When ONLY uncategorized is selected, treat as
-		// "no real selection" so the dashed sentinel renders.
+
 		if ( real.length > 0 ) {
 			return real;
 		}
@@ -1011,8 +774,6 @@ export class OsCategoryPicker extends Component {
 		>${ label.slice( idx + trimmed.length ) }`;
 	}
 
-	// --- Mutations -------------------------------------------------------
-
 	private _toggleSelection( id: number ): void {
 		const next = this._value.includes( id )
 			? this._value.filter( ( v ) => v !== id )
@@ -1024,18 +785,12 @@ export class OsCategoryPicker extends Component {
 		e: MouseEvent,
 		item: OsCategoryItem,
 	): void {
-		// Stop the row's click handler from also firing — the click
-		// landed on the delete button, NOT on the row, so we don't
-		// want to also flip the row's selection state.
 		e.stopPropagation();
 		e.preventDefault();
 		this.emit( 'os-categories-delete', { id: item.id, name: item.name } );
 	}
 
 	private _toggleExpand( id: number ): void {
-		// `_collapsed` holds the user's manual fold-up choices.
-		// Default state is expanded; toggle adds / removes from
-		// the collapsed set.
 		if ( this._collapsed.has( id ) ) {
 			this._collapsed.delete( id );
 		} else {
@@ -1082,7 +837,7 @@ export class OsCategoryPicker extends Component {
 					return;
 				}
 				const entry = flat[ this._focusedRow ];
-				// Expand a collapsed branch on right arrow.
+
 				if ( entry.hasChildren && this._collapsed.has( entry.node.item.id ) ) {
 					e.preventDefault();
 					this._toggleExpand( entry.node.item.id );
@@ -1094,7 +849,7 @@ export class OsCategoryPicker extends Component {
 					return;
 				}
 				const entry = flat[ this._focusedRow ];
-				// Collapse an expanded branch on left arrow.
+
 				if ( entry.hasChildren && ! this._collapsed.has( entry.node.item.id ) ) {
 					e.preventDefault();
 					this._toggleExpand( entry.node.item.id );
@@ -1158,21 +913,6 @@ export class OsCategoryPicker extends Component {
 		this.closePicker();
 	};
 
-	/**
-	 * Anchor the `position: fixed` popover to the trigger button.
-	 * Flips up when the popover would overflow the viewport bottom,
-	 * right-aligns when it would overflow the right edge. Runs on
-	 * every open after the popover has rendered (so we can read its
-	 * actual measured size, not a guess).
-	 *
-	 * Why fixed-positioning: the table cell scrolls inside
-	 * `<os-table>`'s shadow DOM, which has its own
-	 * `overflow: auto`. An `absolute` popover anchored to the cell
-	 * would be clipped by both the cell scroll AND the table
-	 * scroll. Fixed positioning escapes every ancestor's overflow
-	 * and lands the popover wherever we tell it relative to the
-	 * viewport.
-	 */
 	private _positionPopover(): void {
 		const popover = this.shadowRoot?.querySelector< HTMLElement >(
 			'.os-cat__popover',
@@ -1181,36 +921,21 @@ export class OsCategoryPicker extends Component {
 			return;
 		}
 
-		// Anchor against the host element itself — there is no
-		// dedicated trigger button anymore; the entire cell is the
-		// click target. Falling back to the host means the popover
-		// always lands at a consistent visual anchor, even when the
-		// click came from deep inside the SVG tree or the inline
-		// "+ Add" button.
 		const anchorRect = this.getBoundingClientRect();
 		const popRect = popover.getBoundingClientRect();
 		const viewportW = window.innerWidth;
 		const viewportH = window.innerHeight;
 		const margin = 8;
 
-		// Vertical: drop below the host by default; flip above if
-		// the popover would overflow the viewport bottom AND there's
-		// more room above.
 		let top = anchorRect.bottom + 4;
 		const overflowBottom = top + popRect.height + margin > viewportH;
 		const fitsAbove = anchorRect.top - 4 - popRect.height >= margin;
 		if ( overflowBottom && fitsAbove ) {
 			top = anchorRect.top - 4 - popRect.height;
 		} else if ( overflowBottom ) {
-			// Neither side fits cleanly — pin to viewport bottom with
-			// a margin so the popover scrolls inside its own
-			// max-height instead of bleeding off the screen.
 			top = Math.max( margin, viewportH - popRect.height - margin );
 		}
 
-		// Horizontal: align the popover's left edge with the
-		// anchor's left by default; right-align when overflowing
-		// the right edge of the viewport.
 		let left = anchorRect.left;
 		if ( left + popRect.width + margin > viewportW ) {
 			left = anchorRect.right - popRect.width;

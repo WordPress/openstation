@@ -1,21 +1,3 @@
-/**
- * The two per-user PWA flags, and both halves of the contract that
- * moves them.
- *
- * The flags used to be baked into the served worker bytes. That made
- * the body differ between an anonymous and a logged-in request, so any
- * in-scope logged-out navigation served different bytes, the browser
- * installed them as an update, and `controllerchange` hard-reloaded
- * the desktop out from under the user. Identical bytes for everyone
- * now, per-user values over a message — which means the message IS the
- * mechanism, and a drift between sender and receiver silently leaves
- * every worker on its defaults with nothing to notice.
- *
- * So both sides are pinned here: `applyFlagMessage` (what the worker
- * does with a message) and the two `notify*` senders (what the shell
- * actually posts).
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyFlagMessage, type SwFlags } from '../../src/pwa/sw-flags';
 import {
@@ -23,9 +5,8 @@ import {
 	notifyServiceWorkerPrewarm,
 } from '../../src/pwa/sw-register';
 
-/** Both flags off — how every worker starts. */
 const OFF: SwFlags = { windowPrewarm: false, adminAssetCache: false };
-/** Both flags on. */
+
 const ON: SwFlags = { windowPrewarm: true, adminAssetCache: true };
 
 describe( 'applyFlagMessage — os-sw-set-prewarm', () => {
@@ -38,8 +19,7 @@ describe( 'applyFlagMessage — os-sw-set-prewarm', () => {
 	} );
 
 	it( 'turning it off drops the in-memory AND on-disk copies', () => {
-		// The one thing the toggle exists to prevent is rendered pages
-		// outliving the opt-out.
+
 		expect( applyFlagMessage( { type: 'os-sw-set-prewarm', enabled: false }, ON ) ).toEqual( {
 			flags: { windowPrewarm: false, adminAssetCache: true },
 			clearSpeculative: true,
@@ -48,8 +28,7 @@ describe( 'applyFlagMessage — os-sw-set-prewarm', () => {
 	} );
 
 	it( 'treats a non-boolean `enabled` as off rather than as absent', () => {
-		// `enabled === true` is the whole test in the worker; anything
-		// else is a malformed message and off is the safe reading.
+
 		const update = applyFlagMessage( { type: 'os-sw-set-prewarm', enabled: 'yes' }, ON );
 		expect( update?.flags.windowPrewarm ).toBe( false );
 		expect( update?.dropSessionCache ).toBe( true );
@@ -82,9 +61,7 @@ describe( 'applyFlagMessage — os-sw-config', () => {
 	} );
 
 	it( 'clears speculations but keeps the session cache when prewarm is off', () => {
-		// The asymmetry with the toggle is deliberate: this is a state
-		// sync at boot, not a user action, and the session cache is
-		// what a restore reads on the NEXT boot.
+
 		expect(
 			applyFlagMessage(
 				{ type: 'os-sw-config', adminAssetCache: true, windowPrewarm: false },
@@ -98,9 +75,7 @@ describe( 'applyFlagMessage — os-sw-config', () => {
 	} );
 
 	it( 'leaves an omitted field alone rather than resetting it', () => {
-		// A partial message must not read as "the other flag is false",
-		// or a sender that learns one flag would silently disable the
-		// other.
+
 		const update = applyFlagMessage( { type: 'os-sw-config', windowPrewarm: false }, ON );
 		expect( update?.flags.adminAssetCache ).toBe( true );
 
@@ -142,22 +117,6 @@ describe( 'applyFlagMessage — everything else', () => {
 	} );
 } );
 
-/**
- * The refactor itself, proved rather than inspected.
- *
- * `applyFlagMessage()` was lifted out of two inline branches in the
- * worker's message listener. A refactor of the service worker is not
- * something to take on trust — a wrong decision here does not throw,
- * it silently leaves prewarming on for someone who turned it off, or
- * strands a cache nobody clears.
- *
- * `legacyApply` below is those two branches transcribed verbatim from
- * before the extraction. Every reachable input is run through both and
- * the four observable outcomes compared: the two flags, whether the
- * speculation store is cleared, whether the session cache is deleted,
- * and whether the listener returned early (which decides if the
- * message reaches the handlers underneath).
- */
 interface LegacyOutcome {
 	flags: SwFlags;
 	clearSpeculative: boolean;
@@ -222,7 +181,7 @@ function legacyApply( data: unknown, current: SwFlags ): LegacyOutcome {
 }
 
 describe( 'applyFlagMessage is equivalent to the branches it replaced', () => {
-	// Every flag state the worker can be in.
+
 	const STATES: SwFlags[] = [
 		{ windowPrewarm: false, adminAssetCache: false },
 		{ windowPrewarm: true, adminAssetCache: false },
@@ -230,8 +189,6 @@ describe( 'applyFlagMessage is equivalent to the branches it replaced', () => {
 		{ windowPrewarm: true, adminAssetCache: true },
 	];
 
-	// Values a field can carry once structured-cloned through
-	// postMessage, boolean and not.
 	const VALUES: unknown[] = [ true, false, 'true', 'yes', 1, 0, null, undefined, {}, [] ];
 
 	function messages(): unknown[] {
@@ -251,9 +208,7 @@ describe( 'applyFlagMessage is equivalent to the branches it replaced', () => {
 		];
 		for ( const value of VALUES ) {
 			out.push( { type: 'os-sw-set-prewarm', enabled: value } );
-			// The config message carries both fields; cross them so a
-			// boolean in one position is checked against every value in
-			// the other.
+
 			for ( const other of VALUES ) {
 				out.push( {
 					type: 'os-sw-config',
@@ -269,7 +224,7 @@ describe( 'applyFlagMessage is equivalent to the branches it replaced', () => {
 
 	it( 'agrees on every reachable input', () => {
 		const inputs = messages();
-		// Guard the guard: a shrunken matrix would pass vacuously.
+
 		expect( inputs.length ).toBeGreaterThan( 130 );
 
 		let compared = 0;

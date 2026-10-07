@@ -1,11 +1,3 @@
-/**
- * Tests for OS-drop target classification — the folder-routing
- * contract: drops anywhere inside a folder window, on the files
- * layer, or onto a closed folder tile must resolve the folder id
- * so the upload lands INSIDE the folder (regression: drops on a
- * folder window used to classify as wallpaper and file the upload
- * at the desktop root).
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { classifyDropTarget } from '../../src/os-file-drop/manager';
 
@@ -26,9 +18,7 @@ describe( 'classifyDropTarget', () => {
 	} );
 
 	test( 'drop on the files layer inside a folder window resolves the folder', () => {
-		// Real window DOM: class `os-window` + element id
-		// `wp-window-<windowId>` (createWindowElement in
-		// src/window/dom.ts). Window roots have NO data-window-id.
+
 		document.body.innerHTML = `
 			<div class="os-window os-window--native" id="wp-window-os-folder-7">
 				<div class="os-files-layer" data-folder-id="7">
@@ -41,8 +31,7 @@ describe( 'classifyDropTarget', () => {
 	} );
 
 	test( 'drop on folder-window whitespace OUTSIDE the layer still resolves the folder', () => {
-		// The reported bug: empty area below the tiles / preview pane
-		// is not inside the files-layer element.
+
 		document.body.innerHTML = `
 			<div class="os-window os-window--native" id="wp-window-os-folder-7">
 				<div class="os-folder-window__split" id="target"></div>

@@ -1,9 +1,3 @@
-/**
- * `createInfiniteList` tests — pin the contract that drives the
- * feed-reader scaffolding: cursor pagination, dedup-by-id, abort
- * on reset / destroy, end-of-list detachment, the loading
- * lifecycle indicator, and renderItem invocation order.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { createInfiniteList, type InfiniteListPage } from '../../src/infinite-list';
 
@@ -12,11 +6,6 @@ interface Item {
 	title: string;
 }
 
-/**
- * jsdom doesn't ship a real IntersectionObserver — install a
- * minimal stub that records observations + lets the tests trigger
- * intersection events programmatically.
- */
 class FakeObserver {
 	public elements = new Set< Element >();
 	public callback: IntersectionObserverCallback;
@@ -50,9 +39,7 @@ class FakeObserver {
 		this.instances = [];
 	}
 	static intersect( target: Element ): void {
-		// Walk every active observer that's watching this target and
-		// fire its callback synchronously with a single intersecting
-		// entry.
+
 		for ( const inst of this.instances ) {
 			if ( inst.elements.has( target ) ) {
 				const entry: IntersectionObserverEntry = {
@@ -102,7 +89,7 @@ describe( 'createInfiniteList', () => {
 			getId: ( i ) => i.id,
 			renderItem: buildItem,
 		} );
-		// Drain the microtask + promise chain.
+
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		const items = root.querySelectorAll( 'li' );
 		expect( items.length ).toBe( 2 );
@@ -130,7 +117,6 @@ describe( 'createInfiniteList', () => {
 		expect( fetchCalls ).toEqual( [ null ] );
 		expect( root.querySelectorAll( 'li' ).length ).toBe( 1 );
 
-		// Trigger the sentinel.
 		const sentinel = root.querySelector< HTMLElement >(
 			'[data-os-infinite-list-sentinel]',
 		);
@@ -144,7 +130,7 @@ describe( 'createInfiniteList', () => {
 	test( 'dedups by id across overlapping pages', async () => {
 		const pages: InfiniteListPage< Item >[] = [
 			{ items: [ { id: 1, title: 'A' }, { id: 2, title: 'B' } ], nextCursor: 'p2' },
-			// Page 2 includes id=2 again (race / refetch overlap) — must NOT re-render.
+
 			{ items: [ { id: 2, title: 'B' }, { id: 3, title: 'C' } ], nextCursor: null },
 		];
 		let cursorIdx = 0;
@@ -190,15 +176,12 @@ describe( 'createInfiniteList', () => {
 			getId: ( i ) => i.id,
 			renderItem: buildItem,
 		} );
-		// Don't drain — leave the first fetch pending.
+
 		expect( list.isLoading() ).toBe( true );
 		list.reset();
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		expect( signalSeenAborted ).toBe( true );
 
-		// The caller's ignored slow page must NOT land — even if it
-		// resolves later, the controller has changed and the page
-		// is dropped.
 		resolveSlow?.( {
 			items: [ { id: 1, title: 'stale' } ],
 			nextCursor: 'never',
@@ -229,9 +212,7 @@ describe( 'createInfiniteList', () => {
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		expect( aborted ).toBe( true );
 		expect( root.querySelector( '[data-os-infinite-list-sentinel]' ) ).toBeNull();
-		// hasMore stays true because we never reached end-of-list, but
-		// loadMore is a no-op after destroy — exercising it should not
-		// throw and not flip the loading state.
+
 		await list.loadMore();
 		expect( list.isLoading() ).toBe( false );
 	} );
@@ -265,8 +246,7 @@ describe( 'createInfiniteList', () => {
 		} );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		expect( calls ).toBe( 1 );
-		// Sentinel was removed from the observer when nextCursor was null —
-		// FakeObserver.intersect should be a no-op now.
+
 		const sentinel = root.querySelector< HTMLElement >(
 			'[data-os-infinite-list-sentinel]',
 		);

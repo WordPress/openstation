@@ -1,20 +1,3 @@
-/**
- * Verifies that every "window visibility / state changed" hook ships
- * the live `element: HTMLElement` alongside `windowId`, matching the
- * shape WINDOW_CLOSING already documents.
- *
- * Why this matters: wallpaper plugins that anchor decorative DOM to a
- * window's top edge (snow piling on title bars, leaves settling on
- * tab strips, rain splash hit-testing) match their stuck particles by
- * element identity. Without the element on minimize / maximize /
- * fullscreen events, those plugins can't run teardown when the
- * surface disappears — they fall back to per-frame `offsetParent`
- * sniffing, which fails for the minimized state because the framework
- * hides minimized windows via `opacity: 0` rather than `display: none`
- * (the layout box stays valid, the element is just invisible).
- *
- * @group window
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { Window } from '../../src/window';
 import { HOOKS } from '../../src/hooks';
@@ -68,12 +51,6 @@ describe( 'Window state hook payloads carry the live element', () => {
 		clearHooksStub();
 	} );
 
-	/**
-	 * Driver: subscribe to one hook, run the trigger callback, then
-	 * assert that exactly one payload arrived whose `element` matches
-	 * the live `win.element` reference (NOT a clone, NOT a query
-	 * result — wallpaper plugins compare by `===`).
-	 */
 	function expectElementPayload(
 		hookName: string,
 		trigger: () => void,
@@ -173,9 +150,7 @@ describe( 'Window state hook payloads carry the live element', () => {
 	} );
 
 	test( 'backwards compat — windowId is still present alongside element', () => {
-		// Existing subscribers that only destructure `windowId` keep
-		// working. This is a positive assertion of the contract, not
-		// just an absence-of-removal test.
+
 		const { win, cleanup } = mountWindow();
 		try {
 			const seen: Array< { windowId?: string; element?: unknown } > = [];

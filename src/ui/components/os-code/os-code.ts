@@ -1,32 +1,3 @@
-/**
- * `<os-code>` — inline (or block) monospace code badge.
- *
- * Why a separate component from `<os-key>`: `<os-key>` reads like
- * inline code but installs a global `keydown` listener so the tile
- * flashes when the key is pressed — great for on-screen keyboards,
- * disastrous for rendering strings like `chrome://flags` (that would
- * silently intercept `c` / `h` / `r` / …). `<os-code>` has zero
- * listeners and zero visual chrome interaction — it's just a styled
- * `<code>` host.
- *
- * Usage:
- *
- *   <os-code>chrome://flags</os-code>
- *
- *   <!-- Multi-line snippet -->
- *   <os-code block>
- *     openstation_register_settings_tab( array( …) );
- *   </os-code>
- *
- *   <!-- Snippet with a built-in copy button -->
- *   <os-code block copy>
- *     SELECT * FROM wp_posts WHERE post_status = 'publish';
- *   </os-code>
- *
- *   <!-- Long lines fold instead of scrolling sideways -->
- *   <os-code block wrap>…a stack trace…</os-code>
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-code.styles';
 
@@ -121,9 +92,7 @@ export class OsCode extends Component {
 			if ( this._resetTimer ) {
 				clearTimeout( this._resetTimer );
 			}
-			// 1.5 s holds the visual confirmation long enough to
-			// register without lingering. Tuned to match other
-			// micro-interactions in the shell (toast, undo banners).
+
 			this._resetTimer = setTimeout( () => {
 				this._copied = false;
 				this._resetTimer = null;
@@ -143,13 +112,6 @@ export class OsCode extends Component {
 		}
 	};
 
-	/**
-	 * Read every text node in the default slot. Walking the slot's
-	 * `assignedNodes({ flatten: true })` rather than `this.textContent`
-	 * keeps composed slot content (`<os-code>...nested<os-code>`)
-	 * out of the copied string — only top-level text matters for a
-	 * snippet copy.
-	 */
 	private _readSlotText(): string {
 		const slot = this.shadowRoot?.querySelector( 'slot' ) as HTMLSlotElement | null;
 		if ( ! slot ) {
@@ -160,12 +122,6 @@ export class OsCode extends Component {
 		return out.trim();
 	}
 
-	/**
-	 * Pre-Clipboard-API fallback: stage a hidden textarea, select,
-	 * `document.execCommand( 'copy' )`. Kept around so the component
-	 * works under permission-locked iframes where the modern API
-	 * silently rejects.
-	 */
 	private _fallbackCopy( text: string ): boolean {
 		try {
 			const ta = document.createElement( 'textarea' );

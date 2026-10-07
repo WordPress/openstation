@@ -1,4 +1,3 @@
-/** Executable response controls live only in their owning session, never history. */
 import { __ } from '../../i18n';
 import { observe } from './operations';
 import type { MioChatMessage, MioResponseAction, MioResponseContext, MioWindowContext } from './types';
@@ -59,7 +58,7 @@ export class MioResponseActions {
 			}
 			const names = new Set<string>();
 			let primary = false;
-			// Bound even a buggy application's descriptor list.
+
 			for ( const candidate of descriptors.slice( 0, 100 ) ) {
 				try {
 					if ( ! candidate || typeof candidate !== 'object' ) {
@@ -75,7 +74,7 @@ export class MioResponseActions {
 						continue;
 					}
 					names.add( action.id );
-					// The kit resolves only Dashicons; unknown names produce no glyph.
+
 					if ( action.icon !== undefined && ( typeof action.icon !== 'string' || ! /^(?:dashicons-)?[a-z][a-z0-9-]{0,63}$/.test( action.icon ) ) ) {
 						delete action.icon;
 					}
@@ -90,13 +89,12 @@ export class MioResponseActions {
 					if ( ids.length === 3 ) {
 						break;
 					}
-				} catch { /* One malformed descriptor cannot discard the reply. */ }
+				} catch { }
 			}
-		} catch { /* An app callback failure never changes a save outcome. */ }
+		} catch { }
 		return ids;
 	}
 
-	/** Also removes callbacks evicted by a custom store. At most 40 messages own actions. */
 	public prune(): void {
 		const live = new Set( this.messages().slice( -40 ).flatMap( ( message ) =>
 			message.role === 'assistant' ? ( message.actionIds ?? [] ).map( ( id ) => `${ message.id }/${ id }` ) : [] ) );
@@ -132,7 +130,6 @@ export class MioResponseActions {
 		} );
 	}
 
-	/** Runs synchronously up to the caller's first await to preserve a user gesture. */
 	public async run( messageId: string, id: string ): Promise<void> {
 		this.prune();
 		const entry = this.entries.get( id );
@@ -146,14 +143,12 @@ export class MioResponseActions {
 		entry.pending = controller; entry.status = __( 'Working…' );
 		this.notify();
 		try {
-			// Rendering observers may synchronously close the chat or revoke access.
 			controller.signal.throwIfAborted();
 			if ( ! this.allowed( entry ) ) {
 				throw new Error( __( 'This action is no longer available.' ) );
 			}
 			await entry.action.run( { signal: controller.signal, messageId, turnId: entry.turnId } );
-			// Opening a destination may focus it and close this chat. No post-run
-			// ownership guard: successful navigation must not turn into a failure.
+
 			entry.status = __( 'Done.' );
 		} catch ( error ) {
 			entry.status = error instanceof Error ? error.message.slice( 0, 500 ) : __( 'Could not complete this action. Try again.' );

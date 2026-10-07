@@ -1,9 +1,3 @@
-/**
- * The instance hop's two halves: the desk slides out towards the site
- * picked, and the shell that arrives slides its desk in from the same
- * side once overview is up. A desk never stays hidden.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	HOP_OUT_MS,
@@ -53,7 +47,7 @@ describe( 'the instance hop transition', () => {
 
 		stampArrival();
 		expect( shell.classList.contains( 'os-shell--arriving-prev' ) ).toBe( true );
-		// One-shot: a reload of this shell fades in plainly.
+
 		expect( sessionStorage.getItem( 'openstation-hop-direction' ) ).toBeNull();
 
 		revealInstance();
@@ -68,7 +62,7 @@ describe( 'the instance hop transition', () => {
 		const shell = mountShell( true );
 		stampArrival( 'next' );
 		expect( shell.classList.contains( 'os-shell--arriving-next' ) ).toBe( true );
-		// sessionStorage wins when it is there: it is this origin's own hint.
+
 		shell.className = 'os-shell os-shell--arriving';
 		sessionStorage.setItem( 'openstation-hop-direction', 'prev' );
 		stampArrival( 'next' );

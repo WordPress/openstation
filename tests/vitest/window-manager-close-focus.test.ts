@@ -1,13 +1,3 @@
-/**
- * Focus-transfer-on-close tests for {@link WindowManager}.
- *
- * Closing the focused window must hand focus to the next window the
- * user can actually *see* take it — the topmost non-minimized window
- * on the active desktop — not blindly the top of the stack (which
- * spans every virtual desktop and includes minimized windows). With
- * an unfocus effect active, focusing an invisible window would leave
- * every visible window darkened with nothing bright.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -98,8 +88,7 @@ describe( 'WindowManager — focus transfer on close', () => {
 	test( 'skips a minimized sibling and focuses the visible window', async () => {
 		const a = await manager.open( cfg( 'a' ) );
 		const b = await manager.open( cfg( 'b' ) );
-		// Minimize A, then re-focus B so the focused window (B) sits
-		// above a minimized window (A) in the stack.
+
 		a.minimize();
 		manager.focus( b );
 		expect( b.isFocused() ).toBe( true );
@@ -107,23 +96,20 @@ describe( 'WindowManager — focus transfer on close', () => {
 
 		b.close();
 
-		// A is the only remaining window but it's minimized — it must
-		// NOT be force-focused (the user can't see it take focus).
 		expect( a.isFocused() ).toBe( false );
 		expect( a.state ).toBe( 'minimized' );
 	} );
 
 	test( 'skips a minimized window in favour of a visible one', async () => {
-		const a = await manager.open( cfg( 'a' ) ); // visible
-		const b = await manager.open( cfg( 'b' ) ); // will minimize
-		const c = await manager.open( cfg( 'c' ) ); // focused
+		const a = await manager.open( cfg( 'a' ) );
+		const b = await manager.open( cfg( 'b' ) );
+		const c = await manager.open( cfg( 'c' ) );
 		b.minimize();
 		manager.focus( c );
 		expect( c.isFocused() ).toBe( true );
 
 		c.close();
 
-		// Topmost FOCUSABLE remaining window is A (B is minimized).
 		expect( a.isFocused() ).toBe( true );
 		expect( b.isFocused() ).toBe( false );
 	} );
@@ -136,8 +122,6 @@ describe( 'WindowManager — focus transfer on close', () => {
 
 		onActive.close();
 
-		// The only remaining window lives on desktop-2 — invisible from
-		// the active desktop, so it must not be focused.
 		expect( onOther.isFocused() ).toBe( false );
 	} );
 } );

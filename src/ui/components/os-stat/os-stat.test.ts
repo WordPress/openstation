@@ -1,8 +1,3 @@
-/**
- * `<os-stat>` — smoke tests. The value/label/caption trio renders,
- * the caption stays absent until asked for, the swatch chip appears
- * only with the `swatch` attribute, and prop updates repaint.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-stat';
 

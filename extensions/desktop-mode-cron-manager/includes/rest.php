@@ -1,19 +1,9 @@
 <?php
-/**
- * Cron Manager REST routes.
- *
- * REST namespace: `/desktop-mode-cron-manager/v1`.
- *
- * @package OpenStationCronManager
- */
 
 defined( 'ABSPATH' ) || exit;
 
 const OPENSTATION_CRON_MANAGER_REST_NAMESPACE = 'desktop-mode-cron-manager/v1';
 
-/**
- * Register REST routes.
- */
 function openstation_cron_manager_register_rest_routes() {
 	register_rest_route(
 		OPENSTATION_CRON_MANAGER_REST_NAMESPACE,
@@ -64,11 +54,6 @@ function openstation_cron_manager_register_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_cron_manager_register_rest_routes' );
 
-/**
- * Permission gate for every Cron Manager REST route.
- *
- * @return true|WP_Error
- */
 function openstation_cron_manager_rest_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
@@ -87,11 +72,6 @@ function openstation_cron_manager_rest_permission() {
 	return true;
 }
 
-/**
- * GET /events.
- *
- * @return WP_REST_Response
- */
 function openstation_cron_manager_rest_list_events() {
 	return rest_ensure_response(
 		array(
@@ -100,11 +80,6 @@ function openstation_cron_manager_rest_list_events() {
 	);
 }
 
-/**
- * GET /schedules.
- *
- * @return WP_REST_Response
- */
 function openstation_cron_manager_rest_list_schedules() {
 	return rest_ensure_response(
 		array(
@@ -113,12 +88,6 @@ function openstation_cron_manager_rest_list_schedules() {
 	);
 }
 
-/**
- * POST /events.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_cron_manager_rest_create_event( WP_REST_Request $request ) {
 	$result = openstation_cron_manager_create_event( $request->get_json_params() );
 	if ( is_wp_error( $result ) ) {
@@ -127,12 +96,6 @@ function openstation_cron_manager_rest_create_event( WP_REST_Request $request ) 
 	return rest_ensure_response( $result );
 }
 
-/**
- * PUT/PATCH /events.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_cron_manager_rest_update_event( WP_REST_Request $request ) {
 	$params   = $request->get_json_params();
 	$identity = is_array( $params ) && isset( $params['identity'] ) ? $params['identity'] : null;
@@ -144,12 +107,6 @@ function openstation_cron_manager_rest_update_event( WP_REST_Request $request ) 
 	return rest_ensure_response( $result );
 }
 
-/**
- * DELETE /events.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_cron_manager_rest_delete_event( WP_REST_Request $request ) {
 	$params   = $request->get_json_params();
 	$identity = is_array( $params ) && isset( $params['identity'] ) ? $params['identity'] : null;
@@ -160,12 +117,6 @@ function openstation_cron_manager_rest_delete_event( WP_REST_Request $request ) 
 	return rest_ensure_response( $result );
 }
 
-/**
- * POST /events/run-now.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_cron_manager_rest_run_now( WP_REST_Request $request ) {
 	$params   = $request->get_json_params();
 	$identity = is_array( $params ) && isset( $params['identity'] ) ? $params['identity'] : null;

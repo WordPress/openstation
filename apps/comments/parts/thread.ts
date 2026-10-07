@@ -1,14 +1,3 @@
-/**
- * Comments app — the conversation pane: the head, the nested thread
- * with its per-message actions and inline editor, and the docked
- * reply composer.
- *
- * Part of the `comments` client view: imported by the `comments.os.ts`
- * entry.
- *
- * @public
- */
-
 import { __, html, type TemplateResult } from '@openstation/app';
 import { osIcon } from '../../../src/ui/icons';
 import { decodeHTML } from '../../../src/utils';
@@ -36,12 +25,6 @@ function extra( ctx: Ctx ): AppExtra {
 	return ctx.extra as AppExtra;
 }
 
-/**
- * Push a short sentence into the window's polite live region. Cleared
- * first and set on the next tick: a screen reader announces a live
- * region on a DOM change, and the same sentence twice in a row (two
- * approvals) is no change at all.
- */
 export function announce( ctx: Ctx, ui: UiState, text: string ): void {
 	ui.status = '';
 	ctx.repaint();
@@ -51,12 +34,9 @@ export function announce( ctx: Ctx, ui: UiState, text: string ): void {
 	}, 0 );
 }
 
-/** Read from the textarea the runtime's events wrote into `ui`. */
 function draftValue( e: Event ): string {
 	return String( ( e as CustomEvent< { value?: string } > ).detail?.value ?? '' );
 }
-
-// ------------------------------------------------------------- actions
 
 async function moderate( ctx: Ctx, ui: UiState, id: number, action: BulkAction ): Promise< void > {
 	ui.busy = `${ id }:${ action }`;
@@ -74,7 +54,6 @@ async function moderate( ctx: Ctx, ui: UiState, id: number, action: BulkAction )
 	}
 }
 
-/** The per-message Reply button repoints the composer and focuses it. */
 function openComposerFor( ctx: Ctx, ui: UiState, target: CommentRow ): void {
 	ui.replyTo = target.id;
 	ctx.repaint();
@@ -84,12 +63,9 @@ function openComposerFor( ctx: Ctx, ui: UiState, target: CommentRow ): void {
 }
 
 function openInlineEdit( ctx: Ctx, ui: UiState, row: CommentRow ): void {
-	// Re-entrancy: a second Edit click on the open message just refocuses.
 	if ( ui.editing !== row.id ) {
 		ui.editing = row.id;
-		// The seed is bound once, when the editor mounts; the draft
-		// tracks the keystrokes. Binding the draft back would re-set the
-		// textarea's value under the caret on every repaint.
+
 		ui.editSeed = plainText( row );
 		ui.editDraft = ui.editSeed;
 		ctx.repaint();
@@ -139,14 +115,6 @@ async function sendReply( ctx: Ctx, ui: UiState, root: CommentRow ): Promise< vo
 	}
 }
 
-// --------------------------------------------------------------- pieces
-
-/**
- * One action in the per-message row — `<os-button variant="link">`,
- * the chrome-less variant, so the row reads as wp-admin's own comment
- * row actions: plain links, pipe separators, red for the two that take
- * a comment out of the conversation.
- */
 function actionButton(
 	label: string,
 	tone: 'default' | 'danger',
@@ -171,8 +139,6 @@ function messageActions( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResul
 	const canReply = !! extra( ctx ).canEditComments;
 	const busyOn = ( action: string ): boolean => ui.busy === `${ row.id }:${ action }`;
 
-	// Order mirrors wp-admin's comment row actions: the moderation verb
-	// first, then the authoring verbs, then the two destructive ones.
 	const items: TemplateResult[] = [];
 	if ( canModerate ) {
 		const approveAction: BulkAction = status === 'approved' ? 'unapprove' : 'approve';
@@ -185,9 +151,7 @@ function messageActions( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResul
 			),
 		);
 	}
-	// Replying posts a comment — gated on `edit_posts`, the cap the
-	// reply action and route enforce (the parent's post is re-checked
-	// server-side), so the action isn't offered to someone it will 403.
+
 	if ( canReply ) {
 		items.push( actionButton( __( 'Reply' ), 'default', false, () => openComposerFor( ctx, ui, row ) ) );
 	}
@@ -202,10 +166,7 @@ function messageActions( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResul
 			items.push( actionButton( __( 'Trash' ), 'danger', busyOn( 'trash' ), () => void moderate( ctx, ui, row.id, 'trash' ) ) );
 		}
 	}
-	// The pipe separators are real nodes: every `<os-button>` is a shadow
-	// host, and generated content on a host is at the mercy of flat-tree
-	// slotting. Built here, they land between whichever actions this
-	// viewer actually got, with none dangling at either end.
+
 	return html`<div class="${ NS }__msg-actions" ?hidden=${ ui.editing === row.id }>${ items.map(
 		( item, index ) =>
 			index > 0
@@ -214,7 +175,6 @@ function messageActions( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResul
 	) }</div>`;
 }
 
-/** The inline editor under a message, while `ui.editing` is it. */
 function inlineEditor( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 	const busy = ui.busy === `edit:${ row.id }`;
 	const cancel = (): void => {
@@ -279,9 +239,7 @@ function convoHead( ctx: Ctx, ui: UiState, root: CommentRow ): TemplateResult {
 		ui.pane = 'rail';
 		ctx.repaint();
 	};
-	// The title IS the edit affordance — a same-origin wp-admin link the
-	// shell's link interceptor catches and mounts as a window. The pencil
-	// and the tooltip are the hint that it is clickable.
+
 	const post =
 		root.post > 0
 			? html`<a
@@ -312,7 +270,6 @@ function convoHead( ctx: Ctx, ui: UiState, root: CommentRow ): TemplateResult {
 
 function composer( ctx: Ctx, ui: UiState, root: CommentRow, rows: CommentRow[] ): TemplateResult {
 	if ( ! extra( ctx ).canEditComments ) {
-		// Nothing to compose with — the reply action would refuse it.
 		return html`<div class="${ NS }__composer is-empty" data-target=${ root.id }></div>`;
 	}
 	const target = rows.find( ( r ) => r.id === ui.replyTo ) ?? root;
@@ -346,12 +303,6 @@ function composer( ctx: Ctx, ui: UiState, root: CommentRow, rows: CommentRow[] )
 	</div>`;
 }
 
-/**
- * The conversation pane: the placeholder when nothing is selected,
- * otherwise the head, the scrolling thread and the composer. The
- * thread rows are the last ones received (`ui.thread`); when that
- * read failed the root alone is painted.
- */
 export function conversation( ctx: Ctx, ui: UiState, root: CommentRow | undefined ): TemplateResult {
 	if ( ! root ) {
 		return html`<section slot="end" class="${ NS }__convo" data-os-comments-convo>${ emptyState(

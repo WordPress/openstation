@@ -1,27 +1,3 @@
-/**
- * `<os-facts>` + `<os-fact>` — the label/value list every detail
- * pane ends with: a muted label in a column sized to its content,
- * beside a zero-margin value. Apps tune the gaps and font size
- * through tokens rather than restyling the list.
- *
- * Usage:
- *
- *   <os-facts>
- *     <os-fact label="File"><os-code copy wrap>class-foo.php:42</os-code></os-fact>
- *     <os-fact label="Last edited"><os-relative-time datetime="…"></os-relative-time></os-fact>
- *   </os-facts>
- *
- * The value is a slot rather than an attribute because every existing
- * site puts an element in it: an `<os-code>`, an `<os-relative-time>`,
- * a link, a badge. A label that needs markup can use the `label` slot
- * instead of the attribute.
- *
- * `layout="between"` pushes the value to the far edge of its own line
- * (the Posts dates block) instead of aligning values in a column.
- * `stacked` puts the label above the value, for a pane too narrow to
- * hold both on one line.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { factStyles, factsStyles } from './os-facts.styles';
 
@@ -52,10 +28,7 @@ export class OsFact extends Component {
 			{ name: '--os-ui-facts-code-padding', default: '0' },
 			{ name: '--os-ui-facts-code-font-size', default: '1em' },
 		],
-		/*
-		 * A row on its own is half of a pair with no list around it
-		 * to align against, so the example is the list.
-		 */
+
 		example: html`
 			<os-facts>
 				<os-fact label="File">class-foo.php</os-fact>
@@ -115,9 +88,6 @@ export class OsFacts extends Component {
 	} as const;
 
 	protected render() {
-		// `role` is left to the native <dl>: in the column layout the
-		// rows are `display: contents`, so the <dt>/<dd> pairs
-		// reattach to this list in the accessibility tree.
 		return html`<dl part="list"><slot></slot></dl>`;
 	}
 }

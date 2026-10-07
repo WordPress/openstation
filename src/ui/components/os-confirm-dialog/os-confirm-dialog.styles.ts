@@ -11,7 +11,7 @@ export const dialogStyles = css`
 		align-items: center;
 		justify-content: center;
 		background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
-		/* Desktop-theme texture slot: unset resolves to none. */
+
 		background-image: var( --os-ui-scrim-image, none );
 		background-repeat: var( --os-ui-scrim-image-repeat, repeat );
 		background-size: var( --os-ui-scrim-image-size, auto );
@@ -20,14 +20,6 @@ export const dialogStyles = css`
 		z-index: 10000;
 	}
 
-	/*
-	 * Same arrival as <os-modal>: the scrim fades, the dialog lands on
-	 * the spring. Duplicated rather than shared because the two
-	 * components have separate shadow roots and separate keyframe
-	 * scopes — an @keyframes in one is invisible to the other, so the
-	 * only way to share it would be a fragment in src/ui/holo.ts, and
-	 * a two-line animation used twice does not earn one.
-	 */
 	:host( [ open ] ) {
 		display: flex;
 		animation: os-confirm-scrim var( --_holo-t ) var( --_holo-ease );
@@ -59,13 +51,9 @@ export const dialogStyles = css`
 
 	.dialog {
 		width: min( 420px, 92vw );
-		/* Longhand on purpose: the texture slot below owns
-		   background-image, and the shorthand would reset it. The
-		   fallback must be a literal colour — --os-bg is the
-		   wallpaper token and can hold a gradient, which is invalid as
-		   a background-color and would leave the dialog transparent. */
+
 		background-color: var( --os-ui-confirm-dialog-bg, #1d2327 );
-		/* Desktop-theme texture slot: unset resolves to none. */
+
 		background-image: var( --os-ui-dialog-bg-image, none );
 		background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
 		background-size: var( --os-ui-dialog-bg-image-size, auto );
@@ -104,22 +92,6 @@ export const dialogStyles = css`
 		color: inherit;
 	}
 
-	/*
-	 * Tab is trapped inside the dialog, which is only usable if you can
-	 * see where it landed. Same ring the rest of the kit wears — see
-	 * the note on --_holo-focus in src/ui/holo.ts. The container itself
-	 * is excluded: it takes focus programmatically as a last resort and
-	 * ringing the whole box reads as an error state.
-	 *
-	 * :focus, not :focus-visible — the one deliberate departure
-	 * from os-button. The dialog moves focus itself on open, and a
-	 * programmatic focus only matches :focus-visible when the LAST
-	 * interaction was a keystroke; open the dialog with the mouse and
-	 * the ring never appears, leaving the pre-selected button (Cancel,
-	 * on a danger dialog) silently armed for Enter. A trap that hides
-	 * where focus went is worse than a ring after a click, and the
-	 * dialog is modal — exactly one control can wear this at a time.
-	 */
 	.btn:focus,
 	.close:focus {
 		outline: none;
@@ -143,16 +115,6 @@ export const dialogStyles = css`
 		white-space: pre-line;
 	}
 
-	/*
-	 * The "don't ask again" row, when remember-label renders one.
-	 *
-	 * A native checkbox rather than os-checkbox: this component ships
-	 * in the shell-overlays bundle, which registers the tags a
-	 * triggered overlay needs and no others, and a dialog that renders
-	 * an unregistered tag renders an inert box. accent-color is the
-	 * whole styling — one property, the flat UI accent the rest of the
-	 * form controls wear.
-	 */
 	.remember {
 		display: flex;
 		align-items: center;

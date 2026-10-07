@@ -1,12 +1,3 @@
-/**
- * Contract checks for the chromeless Appearance → Themes redesign.
- *
- * WordPress owns this screen's dynamic markup, so the integration is kept
- * deliberately shallow: one server-rendered orientation header and CSS that
- * reshapes Core's single-theme, library, and details-dialog states. These
- * assertions protect the page boundary and the behaviors that are easiest to
- * accidentally lose during a future Core CSS adjustment.
- */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
@@ -15,8 +6,7 @@ const ROOT = resolve(__dirname, "../..");
 const CSS = readFileSync(resolve(ROOT, "assets/css/chromeless.css"), "utf8");
 const PHP = readFileSync(resolve(ROOT, "includes/themes-tabs.php"), "utf8");
 
-const WORKSPACE_MARKER = CSS.indexOf("Appearance → Themes workspace");
-const WORKSPACE_START = CSS.lastIndexOf("/*", WORKSPACE_MARKER);
+const WORKSPACE_START = CSS.indexOf(".os-chromeless.themes-php #wpbody-content {");
 const WORKSPACE_CSS = CSS.slice(WORKSPACE_START);
 const COMPACT_WORKSPACE_CSS = WORKSPACE_CSS.replace(/\s+/g, " ");
 
@@ -83,11 +73,6 @@ describe("WordPress Themes workspace", () => {
 		expect(PHP).toContain('class="openstation-themes-intro"');
 	});
 
-	/**
-	 * `$pagenow` is `themes.php` on every `add_theme_page()` screen too, but
-	 * those carry an `appearance_page_*` body class that matches none of the
-	 * CSS above — so the header must key off the screen ID, not `$pagenow`.
-	 */
 	test("the header keys off the screen ID rather than $pagenow", () => {
 		expect(PHP).toContain("'themes' !== $screen->id");
 		expect(PHP).not.toContain("'themes.php' !== $GLOBALS['pagenow']");

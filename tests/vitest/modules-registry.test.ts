@@ -1,14 +1,3 @@
-/**
- * Unit tests for `src/modules/registry.ts`.
- *
- * `loadModules` delegates to `loadVendorScript` which in turn injects
- * a `<script>` tag. We can't actually load external JS in jsdom, so
- * we substitute a resolved `Promise` via an `isReady` predicate that
- * returns true — the module loader then skips the script injection
- * entirely. Tests focus on registry behavior + error messaging, not
- * on the script-tag plumbing itself (that's covered in a separate
- * vendor-loader test).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 type Registry = typeof import( '../../src/modules/registry' );
@@ -20,8 +9,7 @@ async function loadRegistry(): Promise<Registry> {
 
 describe( 'modules/registry.ts', () => {
 	beforeEach( () => {
-		// No hooks stub needed — the module registry doesn't touch
-		// `wp.hooks`. Keep global state clean anyway.
+
 		delete ( window as unknown as { wp?: unknown } ).wp;
 	} );
 

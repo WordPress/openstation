@@ -1,20 +1,3 @@
-/**
- * Tests for `src/mobile/constraints.ts` — every window full-screen on
- * a phone, and the session diet.
- *
- * Pins:
- * - the geometry filter forces `state: 'maximized'` only while the
- *   mode is `mobile`, keeps the displaced x/y/width/height, and
- *   leaves a minimized restore alone;
- * - `os.session.snapshot` writes the displaced geometry back and
- *   folds the parked recents in until they are opened;
- * - `splitSessionForMobile` restores the focused window only;
- * - a crossing out of `mobile` un-maximizes exactly the windows the
- *   phone forced;
- * - a window on another desk is folded onto the active one as it
- *   opens and on the crossing in, the session records the desk it
- *   came from, and the crossing out hands it back.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { HOOKS, applyFilters, doAction } from '../../src/hooks';
 import type { OsMode, OsModeApi, OsModeChange } from '../../src/mode';
@@ -91,8 +74,7 @@ function fakeManager( wins: FakeWin[], desks: string[] = [ 'desktop-1' ] ) {
 		wins.push( w );
 		return w;
 	} );
-	// The manager's own rule: a move re-homes the window and nothing
-	// else; the stack order stands for focus order, last is in front.
+
 	const moveWindowToDesktop = vi.fn( ( id: string, desktopId: string ) => {
 		const w = wins.find( ( x ) => x.id === id );
 		if ( ! w || ! desks.includes( desktopId ) ) {
@@ -128,8 +110,6 @@ const sessionWin = ( id: string, over: Partial< SessionWindow > = {} ): SessionW
 	...over,
 } );
 
-// The desktop default a phone-born window gets when the viewport
-// widens is measured against the work area; give it one to measure.
 vi.mock( '../../src/work-area', async ( importOriginal ) => ( {
 	...( await importOriginal< typeof import('../../src/work-area') >() ),
 	workAreaRectOf: () => ( { x: 0, y: 0, width: 1400, height: 900 } ),
@@ -179,7 +159,6 @@ describe( 'installMobileConstraints', () => {
 		expect( out ).toEqual( { ...geometry, state: 'maximized' } );
 		expect( c.forcedIds() ).toEqual( [ 'w1' ] );
 
-		// A window restored minimized stays minimized (that is home).
 		const min = applyFilters( HOOKS.WINDOW_GEOMETRY, { ...geometry, state: 'minimized' }, ctx( 'w2' ) );
 		expect( min.state ).toBe( 'minimized' );
 
@@ -208,15 +187,12 @@ describe( 'installMobileConstraints', () => {
 		expect( trimmed.session.windows.map( ( w ) => w.id ) ).toEqual( [ 'b' ] );
 		expect( c.recents.list().map( ( w ) => w.id ) ).toEqual( [ 'a' ] );
 
-		// The filter runs for `b` as restore opens it (a restore pins
-		// the saved geometry, so nothing about it is a phone default).
 		applyFilters(
 			HOOKS.WINDOW_GEOMETRY,
 			{ x: 1, y: 2, width: 500, height: 400, state: 'normal' },
 			{ ...ctx( 'b' ), callerPinned: true },
 		);
 
-		// The phone is at home: `b` is minimized, full-screen sized.
 		const snapshot: Session = {
 			windows: [ sessionWin( 'b', { state: 'minimized', x: 0, y: 0, width: 390, height: 800 } ) ],
 			desktops: [],
@@ -230,7 +206,6 @@ describe( 'installMobileConstraints', () => {
 		expect( saved.windows[ 0 ] ).not.toHaveProperty( 'unplaced' );
 		expect( saved.windows[ 1 ] ).toEqual( sessionWin( 'a' ) );
 
-		// Opening `a` by any route drops it from the recents.
 		doAction( HOOKS.WINDOW_OPENED, { windowId: 'a' } );
 		expect( c.recents.list() ).toEqual( [] );
 		c.dispose();
@@ -281,8 +256,6 @@ describe( 'installMobileConstraints', () => {
 		const { manager } = fakeManager( [ fresh ] );
 		const c = installMobileConstraints( { manager, mode: mode.api, openNative: () => false } );
 
-		// A tap on a home tile: nothing saved, nothing pinned, and the
-		// defaults the manager computed are sized for 390px.
 		applyFilters(
 			HOOKS.WINDOW_GEOMETRY,
 			{ x: 58, y: 70, width: 320, height: 591, state: 'normal' },
@@ -298,9 +271,6 @@ describe( 'installMobileConstraints', () => {
 		const saved = applyFilters( HOOKS.SESSION_SNAPSHOT, snapshot );
 		expect( saved.windows[ 0 ] ).toMatchObject( { state: 'normal', unplaced: true } );
 
-		// Widened past the breakpoint, the window floats at the
-		// desktop's own default (80% of the mocked 1400×900 work area,
-		// cascaded from 40,40), not at 320×591.
 		mode.set( 'desktop' );
 		expect( fresh.toggleMaximize ).toHaveBeenCalledTimes( 1 );
 		expect( ( fresh as unknown as { _savedGeometry?: unknown } )._savedGeometry ).toEqual( {
@@ -314,7 +284,7 @@ describe( 'installMobileConstraints', () => {
 
 	test( 'a window opened on another desk is folded onto the active one; the session records its own desk', () => {
 		const mode = fakeMode( 'mobile' );
-		// The session's focused window, restored on the desk it was on.
+
 		const restored = fakeWin( 'r', { config: { baseId: 'r', desktopId: 'desktop-2' } } );
 		const here = fakeWin( 'h', { config: { baseId: 'h', desktopId: 'desktop-1' } } );
 		const wins = [ restored, here ];
@@ -328,8 +298,6 @@ describe( 'installMobileConstraints', () => {
 		expect( restored.config.desktopId ).toBe( 'desktop-1' );
 		expect( c.foldedIds() ).toEqual( [ 'r' ] );
 
-		// Every save writes the desk the window came from, not the
-		// phone's; a window that was already here is untouched.
 		const snapshot: Session = {
 			windows: [
 				sessionWin( 'r', { desktopId: 'desktop-1', state: 'maximized' } ),
@@ -341,18 +309,14 @@ describe( 'installMobileConstraints', () => {
 			updated: 2,
 		};
 		const saved = applyFilters( HOOKS.SESSION_SNAPSHOT, snapshot );
-		// The desk it came from, with the geometry the full-screen
-		// belt-and-braces displaced (its snapshot said `normal`).
+
 		expect( saved.windows[ 0 ] ).toMatchObject( { id: 'r', desktopId: 'desktop-2', state: 'normal', x: 10, y: 20 } );
-		// A window that was already on this desk keeps its desk; only
-		// its geometry is handed back.
+
 		expect( saved.windows[ 1 ] ).toMatchObject( { id: 'h', desktopId: 'desktop-1', x: 10, y: 20 } );
 
-		// Closed on the phone: nothing left to hand back.
 		doAction( HOOKS.WINDOW_CLOSED, { windowId: 'r' } );
 		expect( c.foldedIds() ).toEqual( [] );
 
-		// Not on a phone, the desk a window opens on is its own.
 		mode.set( 'desktop' );
 		const later = fakeWin( 'd', { config: { baseId: 'd', desktopId: 'desktop-2' } } );
 		wins.push( later );
@@ -366,13 +330,13 @@ describe( 'installMobileConstraints', () => {
 		const away = fakeWin( 'a', { config: { baseId: 'a', desktopId: 'desktop-2' } } );
 		const gone = fakeWin( 'g', { config: { baseId: 'g', desktopId: 'desktop-3' } } );
 		const here = fakeWin( 'h', { config: { baseId: 'h', desktopId: 'desktop-1' } } );
-		// `away` last: it is the window in front when the phone leaves.
+
 		const desks = [ 'desktop-1', 'desktop-2', 'desktop-3' ];
 		const { manager, moveWindowToDesktop, focus } = fakeManager( [ here, gone, away ], desks );
 		const c = installMobileConstraints( { manager, mode: mode.api, openNative: () => false } );
 
 		mode.set( 'mobile' );
-		// `h` is already on the active desk and is left alone.
+
 		expect( moveWindowToDesktop.mock.calls ).toEqual( [
 			[ 'g', 'desktop-1' ],
 			[ 'a', 'desktop-1' ],
@@ -380,8 +344,6 @@ describe( 'installMobileConstraints', () => {
 		expect( c.foldedIds() ).toEqual( [ 'g', 'a' ] );
 		expect( manager.getAll().every( ( w ) => w.config.desktopId === 'desktop-1' ) ).toBe( true );
 
-		// A desk closed while the phone had its window: the window
-		// stays where the desktop would have migrated it anyway.
 		desks.splice( desks.indexOf( 'desktop-3' ), 1 );
 
 		mode.set( 'desktop' );
@@ -389,9 +351,7 @@ describe( 'installMobileConstraints', () => {
 		expect( gone.config.desktopId ).toBe( 'desktop-1' );
 		expect( here.config.desktopId ).toBe( 'desktop-1' );
 		expect( c.foldedIds() ).toEqual( [] );
-		// The window in front went back to desktop-2, so the topmost
-		// window still on the active desk takes the focus — as a
-		// desktop switch would have done.
+
 		expect( focus ).toHaveBeenCalledTimes( 1 );
 		expect( ( focus.mock.calls[ 0 ][ 0 ] as FakeWin ).id ).toBe( 'g' );
 		c.dispose();
@@ -409,7 +369,6 @@ describe( 'installMobileConstraints', () => {
 		expect( alreadyMax.maximize ).not.toHaveBeenCalled();
 		expect( c.forcedIds() ).toEqual( [ 'f' ] );
 
-		// A restore while on the phone goes full-screen again.
 		floating.maximized = false;
 		doAction( HOOKS.WINDOW_RESTORED, { windowId: 'f' } );
 		expect( floating.maximize ).toHaveBeenCalledTimes( 2 );

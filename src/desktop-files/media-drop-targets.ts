@@ -1,23 +1,3 @@
-/**
- * OpenStation — drop an upload tile onto a post tile.
- *
- * A `post` tile hard-rejects drops by default (see
- * `shouldRejectTileDrops` in `layer.ts`); this module opts the
- * `desktop-file` payload in through the tile-payload seam, for the
- * case where every dragged tile is a stored file the Media Library
- * would accept. The server does the rest in one request: each file
- * is copied into the Media Library (idempotently), appended to the
- * post as a block, attached to the post, and the first image becomes
- * the featured image when the post has none.
- *
- * Two handlers, not one, so the ghost chip can say "Add to page" on
- * a page and "Add to post" everywhere else — `acceptLabel` is a
- * plain string per handler, and the resolver picks the first handler
- * whose `appliesTo` matches.
- *
- * Activated once on boot from `src/desktop-files/index.ts`.
- */
-
 import { showToast } from '../toast';
 import { toastRestFailure } from '../core/rest-failure';
 import { dragPlacements, type DesktopFileDragData } from './drag-payloads';
@@ -38,7 +18,6 @@ function canAddToMedia(): boolean {
 	);
 }
 
-/** The post id of a live post tile the viewer could add media to, or 0. */
 function postIdOf( ctx: TilePayloadContext ): number {
 	const file = ctx.placement.file;
 	if ( file.type !== 'post' || file.exists === false || file.status === 'trash' ) {
@@ -51,7 +30,6 @@ function postIdOf( ctx: TilePayloadContext ): number {
 	return Number.isFinite( id ) && id > 0 ? id : 0;
 }
 
-/** Stored-file ids when EVERY dragged placement is a media upload, else `[]`. */
 function mediaFileIds( data: Record< string, unknown > ): number[] {
 	const placements = dragPlacements( data as unknown as DesktopFileDragData );
 	if ( placements.length === 0 ) {
@@ -82,22 +60,20 @@ async function attachToPost(
 		const count = res.attachments.length;
 		const what = count === 1 ? 'file' : `${ count } files`;
 		const title = res.title || target.file.title || `#${ postId }`;
-		// The drop is an edit, so the post opens where the user can
-		// see what landed — and undo it, if that was not the intent.
+
 		openUrlWindow( {
 			url: res.editUrl,
 			title,
 			icon: target.file.icon || 'dashicons-admin-post',
 		} );
 		showToast( { message: `Added ${ what } to “${ title }”.` } );
-		// The post tile's preview is its featured image — re-pull the
-		// folder so a newly set one shows up.
+
 		if ( res.featuredImageSet ) {
 			try {
 				const refreshed = await listPlacements( target.parentId );
 				setFolderPlacements( target.parentId, refreshed.placements );
 			} catch {
-				// Heartbeat will catch up.
+
 			}
 		}
 	} catch ( err ) {
@@ -126,9 +102,6 @@ function makeHandler( postType: 'page' | 'other' ) {
 	};
 }
 
-/**
- * Boot — opt `desktop-file` drags of media uploads into post tiles.
- */
 export function installMediaDropTargets(): () => void {
 	const offPage = registerTilePayloadHandler( 'desktop-file', makeHandler( 'page' ) );
 	const offPost = registerTilePayloadHandler( 'desktop-file', makeHandler( 'other' ) );

@@ -1,18 +1,3 @@
-/**
- * Deferred Core command-palette runtime — the client replay.
- *
- * The server ships an ordered manifest
- * (`openStationConfig.commandPalette`); `ensureCommandPaletteAssets()`
- * replays it on the first palette invocation. What these tests pin:
- * strict dependency-order execution, the skip for handles the page
- * already delivered at boot — by handle as well as by URL, since a
- * concatenated package has no tag of its own, and re-running
- * `wp-data` would wipe every registered store while `wp-hooks` would
- * silence every subscriber — inline-only aggregator handles running
- * at their slot, the single-flight memo (with retry after a failed
- * load), the ready event the shell harvester re-installs on, and the
- * graceful no-op on a site with no manifest at all.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import * as scriptPresence from '../../src/script-presence';
 import * as vendorLoader from '../../src/wallpapers/vendor-loader';
@@ -126,11 +111,7 @@ describe( 'ensureCommandPaletteAssets', () => {
 	} );
 
 	test( 'hands the handle to the presence test, not just the URL', async () => {
-		// On a stock wp-admin every package in this chain arrives
-		// concatenated into `load-scripts.php` and no tag carries its
-		// path, so the handle is the only evidence that it is already
-		// in the tab. Re-running `wp-hooks` would replace
-		// `window.wp.hooks` out from under every boot-time subscriber.
+
 		vi.mocked( scriptPresence.isScriptInDocument ).mockImplementation(
 			( ref ) => 'wp-hooks' === ref.handle,
 		);
@@ -217,12 +198,7 @@ describe( 'ensureCommandPaletteAssets', () => {
 	} );
 
 	test( 'a handle listed twice executes once', async () => {
-		// The manifest is assembled from two passes — Core's chain,
-		// then the plugin contributors the shell hoists onto it — and
-		// they overlap by construction, since every contributor
-		// depends on `wp-commands`. Re-executing a handle is not
-		// harmless: running `wp-data` twice wipes every store
-		// registered against the first copy.
+
 		setManifest( {
 			scripts: [
 				{ handle: 'wp-data', url: 'https://example.test/data.js' },

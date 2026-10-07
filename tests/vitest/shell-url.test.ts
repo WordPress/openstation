@@ -1,14 +1,3 @@
-/**
- * The shell screen is never a window's document.
- *
- * The desktop boots from `admin.php?page=openstation`. Four paths turn
- * a URL into a document — the iframe src builder, the boot-time entry
- * window, session restore, and the two speculative fetchers — and each
- * one has to refuse that URL, or a desktop boots inside a window (or is
- * built on hover for nobody). They all answer through one predicate;
- * this pins the predicate and each consumer's use of it.
- */
-
 import { describe, expect, it, vi } from 'vitest';
 
 import { isShellDocumentUrl, SHELL_PAGE_SLUG } from '../../src/shell-url';
@@ -65,7 +54,7 @@ describe( 'consumers refuse the shell screen', () => {
 		expect(
 			isSpeculatableDocument( new URL( `${ SHELL }&openstation_chromeless=1` ) ),
 		).toBe( false );
-		// Control: a real screen with the same shape is accepted.
+
 		expect(
 			isSpeculatableDocument(
 				new URL( `${ ADMIN }admin.php?page=acme-crm&openstation_chromeless=1` ),

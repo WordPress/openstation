@@ -1,65 +1,14 @@
 <?php
-/**
- * Desktop window content relations — server-side surface.
- *
- * A desktop window may carry a "content identity": the object the
- * page inside it shows ("post 123", "comment 45 of post 123"). The
- * shell groups windows sharing the same root object and draws visual
- * ties between them (see `src/window-links/` and
- * `docs/examples/window-links.md`).
- *
- * This file builds the authoritative identity for admin iframe pages.
- * It runs inside the chromeless iframe request — real admin context,
- * where `get_current_screen()` and the content globals are live — so
- * relations the URL alone can't answer (which post a comment belongs
- * to) resolve server-side and reach the shell via the chromeless
- * bridge's `os-content-identity` postMessage.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Build the content identity for the current admin screen.
- *
- * Returns `null` when the screen shows no single identifiable object
- * (list tables, dashboards, settings pages, `post-new.php` before the
- * first save). Shape mirrors the JS `WindowContentRef`:
- *
- *     array(
- *         'type'  => 'comment',                          // sanitize_key'd object type
- *         'id'    => 45,
- *         'label' => 'Nice post! I especially liked…',   // optional, for tooltips
- *         'root'  => array( 'type' => 'post', 'id' => 123 ), // omitted when this IS a root
- *     )
- *
- * Detected screens:
- *  - `post.php` (post / page / CPT edit) — a root identity.
- *  - `post.php` on an attachment (Media edit) — `media`, rooted at
- *    `post_parent` when attached.
- *  - `comment.php` (comment edit / moderation) — `comment`, rooted at
- *    the parent post. The URL alone can't answer this one; only real
- *    admin context can.
- *  - `revision.php` (the revision browser) — `revisions`, rooted at
- *    the post whose history it shows. Keyed by the PARENT post rather
- *    than the revision on screen, because the browser's slider walks
- *    revisions client-side (`history.replaceState`) without a reload:
- *    a revision-keyed identity would go stale on the first drag, and
- *    the window is "the history of post 123" throughout anyway.
- *  - `user-edit.php` / `profile.php` — `user`, a root identity. What
- *    points at a person (a post's author, an order's customer) does so
- *    from its own `links`.
- *
- * @return array|null Identity array, or `null` when none applies.
- */
 function openstation_build_content_identity() {
 	$identity = null;
 	$screen   = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 	$pagenow  = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
 
 	if ( 'comment.php' === $pagenow ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+
 		$comment_id = isset( $_GET['c'] ) ? absint( $_GET['c'] ) : 0;
 		$comment    = $comment_id ? get_comment( $comment_id ) : null;
 		if ( $comment ) {
@@ -79,20 +28,10 @@ function openstation_build_content_identity() {
 			}
 		}
 	} elseif ( 'revision.php' === $pagenow ) {
-		// Revision browser — `revision.php?revision=N`. Core falls back
-		// to `?to=N` when `revision` is absent (the compare-two-revisions
-		// form of the URL), so mirror that: both forms show the same
-		// post's history and must announce the same identity.
-		//
-		// The identity is keyed by the PARENT post, not by the revision
-		// on screen — see the "Detected screens" note above — which also
-		// means the shell can seed it at open time knowing only the post
-		// it opened the browser for, so the tie to the editor window
-		// draws before the iframe has finished loading.
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+
 		$revision_id = isset( $_GET['revision'] ) ? absint( $_GET['revision'] ) : 0;
 		if ( ! $revision_id ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+
 			$revision_id = isset( $_GET['to'] ) ? absint( $_GET['to'] ) : 0;
 		}
 		$revision = $revision_id ? wp_get_post_revision( $revision_id ) : null;
@@ -101,7 +40,7 @@ function openstation_build_content_identity() {
 			$identity = array(
 				'type'  => 'revisions',
 				'id'    => (int) $parent->ID,
-				/* translators: %s: post title. */
+
 				'label' => sprintf( __( 'Revisions of %s', 'desktop-mode' ), get_the_title( $parent ) ),
 				'root'  => array(
 					'type' => sanitize_key( $parent->post_type ),
@@ -134,11 +73,6 @@ function openstation_build_content_identity() {
 					'label' => get_the_title( $post ),
 				);
 
-				// Outbound references — internal hyperlinks, embedded
-				// media, and assigned terms. When a window showing a
-				// referenced object is open, the shell draws a directed
-				// tie toward it (mutual links collapse into one
-				// bidirectional arrow).
 				$links = openstation_window_links_extract_references( $post );
 				if ( ! empty( $links ) ) {
 					$identity['links'] = $links;
@@ -155,20 +89,11 @@ function openstation_build_content_identity() {
 					$identity['revisionCount'] = $revisions['count'];
 				}
 
-				// Source for the built-in related-entity items attached
-				// after the identity filter below.
 				$related_source_post = $post;
 			}
 		}
 	} elseif ( 'upload.php' === $pagenow ) {
-		// Media Library grid with a details modal open —
-		// `upload.php?item=N`. The classic attachment-edit screen
-		// (`post.php` on an attachment) is handled above; this covers
-		// the far more common grid path. Only the item present at page
-		// load is announced — the modal navigates client-side without
-		// reloading, which is fine for the primary "open this media"
-		// flow the shell produces.
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+
 		$item_id = isset( $_GET['item'] ) ? absint( $_GET['item'] ) : 0;
 		$item    = $item_id ? get_post( $item_id ) : null;
 		if ( $item instanceof WP_Post && 'attachment' === $item->post_type ) {
@@ -188,20 +113,14 @@ function openstation_build_content_identity() {
 			}
 		}
 	} elseif ( 'edit-comments.php' === $pagenow ) {
-		// Comments list filtered to a single post —
-		// `edit-comments.php?p=N`, the target the Related menu's
-		// "Comments" item opens. One identity per post, rooted at the
-		// post, so the comments window and its post window tie
-		// together on the desktop. The unfiltered ALL-comments list
-		// stays identity-less.
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+
 		$post_id = isset( $_GET['p'] ) ? absint( $_GET['p'] ) : 0;
 		$post    = $post_id ? get_post( $post_id ) : null;
 		if ( $post instanceof WP_Post && 'attachment' !== $post->post_type ) {
 			$identity = array(
 				'type'  => 'comments',
 				'id'    => (int) $post->ID,
-				/* translators: %s: post title. */
+
 				'label' => sprintf( __( 'Comments on %s', 'desktop-mode' ), get_the_title( $post ) ),
 				'root'  => array(
 					'type' => sanitize_key( $post->post_type ),
@@ -210,11 +129,7 @@ function openstation_build_content_identity() {
 			);
 		}
 	} elseif ( 'term.php' === $pagenow ) {
-		// Term edit screen — `term.php?taxonomy=category&tag_ID=N`.
-		// A term is its own root (`term/{taxonomy}`); posts assigned to
-		// it reference it through their identity's `links`, so an open
-		// post window and its category/tag window tie together.
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+
 		$term_id = isset( $_GET['tag_ID'] ) ? absint( $_GET['tag_ID'] ) : 0;
 		$term    = $term_id ? get_term( $term_id ) : null;
 		if ( $term instanceof WP_Term ) {
@@ -225,12 +140,7 @@ function openstation_build_content_identity() {
 			);
 		}
 	} elseif ( 'user-edit.php' === $pagenow || 'profile.php' === $pagenow ) {
-		// Profile editor — `user-edit.php?user_id=N`, or `profile.php`
-		// for your own. A person is its own root: everything that
-		// points AT them (an order's customer, a post's author) does
-		// so through its identity's `links`, so an open profile window
-		// ties to whatever else on the desktop is about them.
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+
 		$user_id = isset( $_GET['user_id'] ) ? absint( $_GET['user_id'] ) : get_current_user_id();
 		$user    = $user_id ? get_userdata( $user_id ) : null;
 		if ( $user instanceof WP_User && current_user_can( 'edit_user', $user->ID ) ) {
@@ -242,25 +152,8 @@ function openstation_build_content_identity() {
 		}
 	}
 
-	/**
-	 * Filters the content identity announced for the current admin screen.
-	 *
-	 * Plugins add identities for their own admin screens (an order
-	 * editor, a form-entry viewer) or return `null` to suppress the
-	 * built-in detection. The shape must match the JS
-	 * `WindowContentRef`: `type` (lowercase slug), `id` (int|string),
-	 * optional `label`, optional `root => array( 'type', 'id' )`.
-	 *
-	 * @param array|null     $identity Identity array, or `null` for none.
-	 * @param WP_Screen|null $screen   The current screen, when available.
-	 */
 	$identity = apply_filters( 'openstation_window_content_identity', $identity, $screen );
 
-	// Related-entity navigation targets — what the title bar's
-	// "Related" button lists. Runs AFTER the identity filter so
-	// plugin-injected identities for custom screens get the related
-	// filter too, and only for a resolved identity: no identity, no
-	// related menu.
 	return openstation_window_related_attach(
 		$identity,
 		isset( $related_source_post ) && $related_source_post instanceof WP_Post ? $related_source_post : null,
@@ -268,27 +161,6 @@ function openstation_build_content_identity() {
 	);
 }
 
-/**
- * Build the front-end preview URL for a post — the target of the
- * shell's "Preview" (eye) title-bar button.
- *
- * Wraps `get_preview_post_link()` with the same query args core's own
- * `post_preview()` passes (`preview_id` + a `post_preview_{ID}` nonce),
- * so `_set_preview()` swaps in the newest autosave revision on the
- * front end. Required for published/scheduled/private posts, whose
- * autosaves land in a revision; harmless for drafts, where autosave
- * writes the post itself and `_set_preview()` no-ops.
- *
- * Nonce freshness is bounded by save cadence: the content identity is
- * rebuilt on every chromeless page render AND on the editor
- * save-watcher's REST recompute, so a long-lived editor window always
- * holds a recent nonce.
- *
- * @param WP_Post $post The post being edited.
- * @return string Preview URL, or `''` when the post has no front-end
- *                preview (non-viewable type, attachment, insufficient
- *                capability) or a filter suppressed it.
- */
 function openstation_window_preview_url( $post ) {
 	$preview_url = '';
 
@@ -311,51 +183,9 @@ function openstation_window_preview_url( $post ) {
 		}
 	}
 
-	/**
-	 * Filters the front-end preview URL attached to a post-editor
-	 * content identity (the target of the shell's "Preview" eye
-	 * title-bar button).
-	 *
-	 * Return `''` to suppress the preview button for this post, or
-	 * rewrite the URL to point somewhere else (a headless front end,
-	 * a staging domain). Note the shell only accepts same-origin URLs;
-	 * a cross-origin rewrite hides the button.
-	 *
-	 * @param string  $preview_url Preview URL, `''` when none applies.
-	 * @param WP_Post $post        The post being edited.
-	 */
 	return (string) apply_filters( 'openstation_window_preview_url', $preview_url, $post );
 }
 
-/**
- * Build the revision-browser link and revision total for a post — the
- * target of the window ⋯ menu's "View revisions" row, and the count it
- * shows beside the label.
- *
- * Core's revision browser is a whole admin screen that the block editor
- * can only reach by navigating the editor away from itself; in a
- * desktop shell it is simply another window, opened beside the editor
- * and tied to it by a window link. That only needs two facts, and both
- * are cheap enough to compute on every identity build.
- *
- * `wp_get_post_revisions()` with `fields => ids` returns the flat,
- * newest-first id list straight out of `get_children()` — one query, no
- * post hydration — and already answers `wp_revisions_enabled()` for the
- * post type and the `WP_POST_REVISIONS` constant. Autosaves are
- * included in the total, exactly as they are in Core's own revisions
- * meta box and in the block editor's revisions panel, so the number
- * beside the menu row matches the number the browser will list.
- *
- * @param WP_Post $post The post being edited.
- * @return array {
- *     Revision browser descriptor. `url` is `''` when the post has no
- *     revisions to browse (revisions disabled for the type, none
- *     written yet, insufficient capability) or a filter suppressed it.
- *
- *     @type string $url   Admin URL of the revision browser.
- *     @type int    $count Total revisions the browser will list.
- * }
- */
 function openstation_window_revisions( $post ) {
 	$revisions = array(
 		'url'   => '',
@@ -366,31 +196,15 @@ function openstation_window_revisions( $post ) {
 		$post instanceof WP_Post &&
 		$post->ID > 0 &&
 		'attachment' !== $post->post_type &&
-		// An auto-draft has never been saved, so it cannot have a
-		// revision — worth its own check because the REST recompute
-		// takes any post id and would otherwise spend a guaranteed-
-		// empty query on one.
+
 		'auto-draft' !== $post->post_status &&
 		post_type_supports( $post->post_type, 'revisions' ) &&
 		current_user_can( 'edit_post', $post->ID )
 	) {
-		// One query, IDs only — `wp_get_post_revisions()` checks
-		// `wp_revisions_enabled()` BEFORE querying, so a post type with
-		// revisions turned off costs nothing here either.
+
 		$ids = wp_get_post_revisions( $post->ID, array( 'fields' => 'ids' ) );
 		if ( ! empty( $ids ) ) {
-			/*
-			 * `get_edit_post_link()` maps the `revision` post type onto
-			 * `revision.php?revision=%d` and runs the `edit_post` meta
-			 * cap — which for a revision maps to its parent — so it is
-			 * the capability gate as much as the URL builder, and it
-			 * stays correct if a plugin re-points the revision screen
-			 * through the `get_edit_post_link` filter.
-			 *
-			 * Raw context deliberately: this URL is JSON-encoded into
-			 * the bridge payload and ends up as an iframe `src`, where
-			 * a display-escaped `&amp;` would arrive as a literal.
-			 */
+
 			$link = get_edit_post_link( (int) reset( $ids ), 'raw' );
 			if ( is_string( $link ) && '' !== $link ) {
 				$revisions['url']   = $link;
@@ -399,22 +213,6 @@ function openstation_window_revisions( $post ) {
 		}
 	}
 
-	/**
-	 * Filters the revision-browser descriptor attached to a post-editor
-	 * content identity (`revisionsUrl` / `revisionCount` — the target
-	 * of the window ⋯ menu's "View revisions" row).
-	 *
-	 * Return `array( 'url' => '', 'count' => 0 )` to hide the row for
-	 * this post, or rewrite `url` to point somewhere else (a custom
-	 * diff screen, a plugin's own history UI). Note the shell only
-	 * accepts same-origin URLs; a cross-origin rewrite hides the row.
-	 *
-	 * @param array   $revisions {
-	 *     @type string $url   Admin URL of the revision browser, `''` when none applies.
-	 *     @type int    $count Total revisions the browser will list.
-	 * }
-	 * @param WP_Post $post      The post being edited.
-	 */
 	$revisions = apply_filters( 'openstation_window_revisions', $revisions, $post );
 
 	if ( ! is_array( $revisions ) ) {
@@ -430,24 +228,6 @@ function openstation_window_revisions( $post ) {
 	);
 }
 
-/**
- * The related-entity pass: attach the `related` navigation items to a
- * (post-identity-filter) content identity. Shared by the page-render
- * builder above and the REST recompute endpoint the editor
- * save-watcher hits (where `$screen` is `null`). Also where the labels
- * become plain text: they name windows (Preview, Revisions, Related)
- * and are painted as text, where `get_the_title()`'s entities
- * (`&#8217;`) read literally.
- *
- * @internal
- *
- * @param array|null     $identity Filtered identity, or `null`.
- * @param WP_Post|null   $post     The detected source post, when the
- *                                 screen showed one.
- * @param WP_Screen|null $screen   The current screen, when available.
- * @return array|null The identity with `related` attached (or the
- *                    input untouched when it was `null`).
- */
 function openstation_window_related_attach( $identity, $post, $screen ) {
 	if ( ! is_array( $identity ) ) {
 		return $identity;
@@ -459,12 +239,7 @@ function openstation_window_related_attach( $identity, $post, $screen ) {
 	$related = array();
 	if (
 		$post instanceof WP_Post &&
-		// Built-ins belong to THIS post. If the identity filter
-		// rewrote the identity to a different object (a gated post
-		// remapped to a minimal ref, a custom root scheme), the
-		// post's comments/terms/media must not tag along — that
-		// would leak labels and deep links the filter deliberately
-		// removed.
+
 		isset( $identity['type'], $identity['id'] ) &&
 		sanitize_key( $post->post_type ) === $identity['type'] &&
 		(int) $post->ID === (int) $identity['id']
@@ -472,51 +247,13 @@ function openstation_window_related_attach( $identity, $post, $screen ) {
 		$related = openstation_window_related_entities_for_post( $post );
 	}
 	if ( isset( $identity['related'] ) && is_array( $identity['related'] ) ) {
-		// An identity filter may ship related items with its own
-		// identity — fold them in so they reach the related filter
-		// (and the sanitizer) like everything else.
+
 		$related = array_merge( $related, $identity['related'] );
 	}
 
-	/**
-	 * Filters the related-entity navigation items announced with the
-	 * current screen's content identity.
-	 *
-	 * Each item becomes an entry in the window's title-bar "Related"
-	 * menu; clicking it opens the target admin URL as its own
-	 * desktop window. Built-ins cover posts and pages (comments,
-	 * assigned terms, associated media, linked posts); plugins add
-	 * items for their own screens or object types here. Item shape
-	 * (mirrors the JS `RelatedEntityItem`):
-	 *
-	 *     array(
-	 *         'id'         => 'comments',            // unique in the list
-	 *         'group'      => 'comments',            // section key; built-ins:
-	 *                                                // 'comments', 'terms/{tax}',
-	 *                                                // 'media', 'links'
-	 *         'groupLabel' => __( 'Comments' ),      // optional section header
-	 *         'label'      => __( 'Comments' ),
-	 *         'icon'       => 'dashicons-admin-comments', // optional
-	 *         'url'        => admin_url( 'edit-comments.php?p=123' ),
-	 *         'count'      => 4,                     // optional badge
-	 *     )
-	 *
-	 * Malformed entries (missing/empty `id`, `group`, `label`, or
-	 * `url`) are dropped before the payload is announced.
-	 *
-	 * Runs during the chromeless page render AND on the
-	 * `desktop-mode/v1/content-identity` REST recompute the editor
-	 * save-watcher triggers — in the REST context `$screen` is `null`.
-	 *
-	 * @param array[]        $related  Related-entity items.
-	 * @param array          $identity The resolved content identity.
-	 * @param WP_Screen|null $screen   The current screen, when available.
-	 */
 	$related = apply_filters( 'openstation_window_related_entities', $related, $identity, $screen );
 	$related = openstation_window_related_entities_sanitize( $related );
-	// The related pass is the single authority over the key — an
-	// identity filter smuggling its own `related` would bypass the
-	// sanitizer above.
+
 	unset( $identity['related'] );
 	if ( ! empty( $related ) ) {
 		$identity['related'] = $related;
@@ -525,29 +262,6 @@ function openstation_window_related_attach( $identity, $post, $screen ) {
 	return $identity;
 }
 
-/**
- * Resolve a post's outbound references for the identity's `links`
- * array — everything this post's window should tie to when a window
- * showing it is open:
- *
- *  1. Internal hyperlinks in `post_content` that resolve to another
- *     post (via the content-graph extractor). Attachment pages and
- *     self-links are skipped.
- *  2. Media EMBEDDED in the content, harvested from the
- *     `wp-image-{id}` class both the block and classic editors stamp
- *     on inserted images. Deliberate: inserting an existing library
- *     image does NOT set `post_parent` (only uploading while editing
- *     attaches), so parent-based linking alone misses most in-content
- *     media.
- *  3. Assigned terms of every public taxonomy, as `term/{taxonomy}`
- *     refs — ties the post to open category/tag windows.
- *
- * Deduped by type:id and capped so a link-farm post can't flood the
- * shell.
- *
- * @param WP_Post $post Source post.
- * @return array[] Reference entries, possibly empty.
- */
 function openstation_window_links_extract_references( $post ) {
 	$links = array();
 	$seen  = array();
@@ -562,16 +276,12 @@ function openstation_window_links_extract_references( $post ) {
 			'id'   => (int) $id,
 		);
 		if ( 'child' === $rel ) {
-			// Arrow semantics: `child` reverses the tie — the linked
-			// object BELONGS TO this post (arrow media → post), unlike
-			// the default `references` (arrow post → target).
+
 			$entry['rel'] = 'child';
 		}
 		$links[] = $entry;
 	};
 
-	// 1. Internal hyperlinks → posts. Guarded: the content-graph
-	// extractor lives in a separate include.
 	if ( function_exists( 'openstation_content_graph_extract_internal_links' ) ) {
 		$ids = openstation_content_graph_extract_internal_links( (string) $post->post_content );
 		foreach ( array_slice( $ids, 0, 32 ) as $target_id ) {
@@ -587,12 +297,6 @@ function openstation_window_links_extract_references( $post ) {
 		}
 	}
 
-	// 2. Embedded media — `wp-image-{id}` classes — plus the featured
-	// image, which never appears in `post_content` at all. Declared as
-	// `child` refs: the image BELONGS TO the post, so the arrow runs
-	// media → post, matching attached media (`post_parent` roots) —
-	// the same visible relationship must never flip direction over an
-	// invisible technicality like attachment state.
 	if ( preg_match_all( '/\bwp-image-(\d+)\b/', (string) $post->post_content, $matches ) ) {
 		foreach ( array_slice( array_unique( $matches[1] ), 0, 32 ) as $media_id ) {
 			$media_id = (int) $media_id;
@@ -606,7 +310,6 @@ function openstation_window_links_extract_references( $post ) {
 		$push( 'media', $thumbnail_id, 'child' );
 	}
 
-	// 3. Assigned terms of public taxonomies.
 	foreach ( get_object_taxonomies( $post, 'objects' ) as $taxonomy ) {
 		if ( empty( $taxonomy->public ) ) {
 			continue;
@@ -623,36 +326,6 @@ function openstation_window_links_extract_references( $post ) {
 	return $links;
 }
 
-/**
- * Build the built-in related-entity navigation items for a post or
- * page — the entries the window's title-bar "Related" menu offers:
- *
- *  1. **Comments** — one item opening the Comments screen filtered to
- *     this post (`edit-comments.php?p={id}`), with the comment total
- *     as a count badge. Only when the post type supports comments AND
- *     at least one exists — an empty filtered list is a dead end.
- *  2. **Assigned terms** — one item per term of every public
- *     taxonomy, opening that term's edit screen
- *     (`term.php?taxonomy={tax}&tag_ID={id}`), grouped per taxonomy.
- *  3. **Media** — one item per associated attachment (featured image,
- *     `post_parent`-attached uploads, and `wp-image-{id}` embeds —
- *     the same three sources the reference extractor uses), opening
- *     the Media Library grid with that item's details modal
- *     (`upload.php?item={id}`). Core has no parent-filtered library
- *     view, so per-item deep links are the honest navigation.
- *  4. **Linked posts** — one item per internal hyperlink in the
- *     content that resolves to another post on this site (same
- *     extractor the window ties use), opening that post's editor.
- *     Cross-site and external hrefs don't resolve to a post id and
- *     are excluded.
- *
- * Built-ins deliberately cover `post` and `page` only; other post
- * types (and non-post screens) join via the
- * `openstation_window_related_entities` filter.
- *
- * @param WP_Post $post Source post.
- * @return array[] Related-entity items, possibly empty.
- */
 function openstation_window_related_entities_for_post( $post ) {
 	if ( ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
 		return array();
@@ -660,12 +333,6 @@ function openstation_window_related_entities_for_post( $post ) {
 
 	$related = array();
 
-	// 1. Comments. Count approved + awaiting moderation — the filtered
-	// screen the item opens lists both, and the moderation queue is
-	// the flow this jump serves most. `get_comments_number()` would
-	// return the approved-only cached count, hiding the item exactly
-	// when every comment is pending and disagreeing with the opened
-	// list when counts are mixed.
 	$comment_totals = get_comment_count( $post->ID );
 	$comment_count  = isset( $comment_totals['total_comments'] ) ? (int) $comment_totals['total_comments'] : 0;
 	if ( post_type_supports( $post->post_type, 'comments' ) && $comment_count > 0 ) {
@@ -680,12 +347,6 @@ function openstation_window_related_entities_for_post( $post ) {
 		);
 	}
 
-	// 2. Assigned terms of public taxonomies. Budgeted at 32 items
-	// ACROSS taxonomies (not per taxonomy): the engine hard-caps the
-	// whole `related` list at 64, and an unbudgeted term flood would
-	// silently push the trailing groups past that cap. Worst case is
-	// 1 comments + 32 terms + 20 media + 10 links = 63 — built-ins
-	// can never hit the engine's truncation.
 	$term_budget = 32;
 	foreach ( get_object_taxonomies( $post, 'objects' ) as $taxonomy ) {
 		if ( empty( $taxonomy->public ) || $term_budget <= 0 ) {
@@ -709,9 +370,6 @@ function openstation_window_related_entities_for_post( $post ) {
 		}
 	}
 
-	// 3. Associated media — featured image first, then attached
-	// uploads, then in-content embeds. Deduped and capped so a
-	// gallery-heavy post can't turn the menu into a scroll marathon.
 	$media_ids = array();
 	$push_id   = static function ( $media_id ) use ( &$media_ids ) {
 		$media_id = (int) $media_id;
@@ -746,7 +404,7 @@ function openstation_window_related_entities_for_post( $post ) {
 			$label = wp_basename( (string) get_attached_file( $media_id ) );
 		}
 		if ( '' === $label ) {
-			/* translators: %d: attachment ID. */
+
 			$label = sprintf( __( 'Media item %d', 'desktop-mode' ), $media_id );
 		}
 		$related[] = array(
@@ -759,10 +417,6 @@ function openstation_window_related_entities_for_post( $post ) {
 		);
 	}
 
-	// 4. Linked posts — internal hyperlinks resolving to another post
-	// on this site. Guarded: the extractor lives in the content-graph
-	// include. Capped tighter than the reference extractor (10) to
-	// stay inside the overall 64-item engine budget.
 	if ( function_exists( 'openstation_content_graph_extract_internal_links' ) ) {
 		$link_ids = openstation_content_graph_extract_internal_links( (string) $post->post_content );
 		$count    = 0;
@@ -780,7 +434,7 @@ function openstation_window_related_entities_for_post( $post ) {
 			}
 			$label = get_the_title( $target_id );
 			if ( '' === $label ) {
-				/* translators: %d: post ID. */
+
 				$label = sprintf( __( 'Post %d', 'desktop-mode' ), $target_id );
 			}
 			$related[] = array(
@@ -798,19 +452,6 @@ function openstation_window_related_entities_for_post( $post ) {
 	return $related;
 }
 
-/**
- * Drop malformed related-entity items and whitelist their fields.
- *
- * Runs on the `openstation_window_related_entities` filter output
- * before the payload is announced: a plugin returning one bad entry
- * must not invalidate the whole identity client-side (the JS engine
- * validates the ref as a unit and would discard everything).
- *
- * @internal
- *
- * @param mixed $related Filter output.
- * @return array[] Well-formed items, reindexed.
- */
 function openstation_window_related_entities_sanitize( $related ) {
 	if ( ! is_array( $related ) ) {
 		return array();
@@ -821,20 +462,14 @@ function openstation_window_related_entities_sanitize( $related ) {
 		if ( ! is_array( $item ) ) {
 			continue;
 		}
-		// Plain text (see `openstation_window_related_attach()`),
-		// decoded before the checks below so a label that was only
-		// markup is dropped here rather than failing the whole ref.
+
 		foreach ( array( 'label', 'groupLabel' ) as $text ) {
 			if ( isset( $item[ $text ] ) && is_string( $item[ $text ] ) ) {
 				$item[ $text ] = openstation_plain_text_title( $item[ $text ] );
 			}
 		}
 		foreach ( array( 'id', 'group', 'label', 'url' ) as $required ) {
-			// Mirror the JS engine's validation exactly (`.trim() !== ''`):
-			// a whitespace-only value passing here would fail validateRef
-			// client-side, which rejects the ref AS A UNIT — one bad item
-			// would silently cost the window its whole identity. Not
-			// `empty()`: that would also drop the legitimate string '0'.
+
 			if ( ! isset( $item[ $required ] ) || ! is_string( $item[ $required ] ) || '' === trim( $item[ $required ] ) ) {
 				continue 2;
 			}
@@ -860,22 +495,6 @@ function openstation_window_related_entities_sanitize( $related ) {
 	return $out;
 }
 
-/**
- * REST route: `GET /desktop-mode/v1/content-identity?post=N`.
- *
- * Recomputes a post's content identity — label, outbound `links`
- * references, and the `related` navigation items — outside a page
- * render. The chromeless bridge's editor save-watcher hits this
- * after every non-autosave Gutenberg save (Gutenberg saves over REST
- * without reloading, so the page-render announcement alone would go
- * stale the moment the user adds a category or an image) and
- * re-announces the fresh identity to the parent shell.
- *
- * Both public filters (`openstation_window_content_identity`,
- * `openstation_window_related_entities`) run here exactly as they
- * do at page render, with `$screen = null` — there is no WP_Screen
- * in REST context.
- */
 function openstation_register_content_identity_route() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -897,14 +516,6 @@ function openstation_register_content_identity_route() {
 }
 add_action( 'rest_api_init', 'openstation_register_content_identity_route' );
 
-/**
- * Permission: OpenStation enabled AND the caller can edit the post —
- * the identity carries the post title, term names, and media labels,
- * which is exactly what the edit screen itself exposes.
- *
- * @param WP_REST_Request $request REST request.
- * @return true|WP_Error
- */
 function openstation_rest_content_identity_permission( $request ) {
 	$enabled = openstation_rest_require_enabled();
 	if ( true !== $enabled ) {
@@ -920,13 +531,6 @@ function openstation_rest_content_identity_permission( $request ) {
 	return true;
 }
 
-/**
- * REST handler — rebuild the post-editor identity the same way the
- * page-render builder's `post.php` branch does, filters included.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_rest_content_identity( $request ) {
 	$post = get_post( (int) $request['post'] );
 	if ( ! $post instanceof WP_Post || 'attachment' === $post->post_type ) {
@@ -952,64 +556,18 @@ function openstation_rest_content_identity( $request ) {
 		$identity['previewUrl'] = $preview_url;
 	}
 
-	// The reason this recompute exists at all, for revisions: the FIRST
-	// save of a draft is what creates its first revision, so the "View
-	// revisions" row can only appear after a save — and a block-editor
-	// save never reloads the page.
 	$revisions = openstation_window_revisions( $post );
 	if ( '' !== $revisions['url'] ) {
 		$identity['revisionsUrl']  = $revisions['url'];
 		$identity['revisionCount'] = $revisions['count'];
 	}
 
-	/** This filter is documented in includes/window-links.php */
 	$identity = apply_filters( 'openstation_window_content_identity', $identity, null );
 	$identity = openstation_window_related_attach( $identity, $post, null );
 
 	return rest_ensure_response( array( 'identity' => $identity ) );
 }
 
-/**
- * Declare a WP-registered script handle as a window-link renderer
- * provider.
- *
- * Mirrors the unfocus-effect / command script registration pattern:
- * minimum-ceremony PHP opt-in tells the shell which enqueued scripts
- * contribute window-link renderers. The shell injects the script URL
- * into the live-refresh payload so a plugin activated mid-session
- * surfaces its renderer in OS Settings → Effects → Window links
- * immediately, no F5 needed.
- *
- * Renderers themselves are declared JS-side via
- * `wp.os.registerWindowLinkRenderer( … )` — the mount callback
- * and label live in the plugin's JavaScript. The built-in
- * `svg-splines` is registered through the very same JS hook (see
- * `src/window-links/renderers/svg-splines.ts`).
- *
- * Example:
- *
- * ```php
- * add_action( 'admin_enqueue_scripts', function () {
- *     wp_register_script(
- *         'my-plugin-link-renderer',
- *         plugins_url( 'js/link-renderer.js', __FILE__ ),
- *         array( 'openstation' ),
- *         '1.0.0',
- *         true
- *     );
- *     wp_enqueue_script( 'my-plugin-link-renderer' );
- * } );
- * openstation_register_window_link_renderer_script( 'my-plugin-link-renderer' );
- * ```
- *
- * For live unregistration on deactivation, the plugin's JS should set
- * `owner: 'my-plugin-link-renderer'` on each
- * `registerWindowLinkRenderer` call. Otherwise the renderer stays
- * until the next page reload — graceful backwards-compat.
- *
- * @param string $handle WP-registered script handle.
- * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
- */
 function openstation_register_window_link_renderer_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
@@ -1021,25 +579,11 @@ function openstation_register_window_link_renderer_script( $handle ) {
 
 	openstation_window_link_renderer_script_registry( $handle, true );
 
-	/**
-	 * Fires after a window-link renderer script handle is registered.
-	 *
-	 * @param string $handle The registered script handle.
-	 */
 	do_action( 'openstation_window_link_renderer_script_registered', $handle );
 
 	return true;
 }
 
-/**
- * Internal module-level registry for window-link renderer script handles.
- *
- * @internal
- *
- * @param string    $handle Script handle to read or write.
- * @param bool|null $value  Pass `true` to register; `null` to read only.
- * @return array|bool When called with no args returns the full store.
- */
 function openstation_window_link_renderer_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
@@ -1056,20 +600,10 @@ function openstation_window_link_renderer_script_registry( $handle = '', $value 
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
 }
 
-/**
- * Test-only: clear the registry between PHPUnit cases. See
- * {@see openstation_flush_script_handle_registries()}.
- */
 function openstation_flush_window_link_renderer_script_registry() {
 	openstation_window_link_renderer_script_registry( '__flush__' );
 }
 
-/**
- * Build the script-handle payload fed to the shell. Handles that
- * aren't currently enqueued resolve to an empty URL and are dropped.
- *
- * @return array[] List of `{ handle, scriptUrl, … }` entries.
- */
 function openstation_build_window_link_renderer_scripts_payload() {
 	$registry = openstation_window_link_renderer_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
@@ -1084,9 +618,7 @@ function openstation_build_window_link_renderer_scripts_payload() {
 		}
 		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-			// Loud diagnostic — visible under WP_DEBUG. Deduped by
-			// `openstation_warn_unresolvable_script_handle` so the
-			// notice fires once per handle per request.
+
 			openstation_warn_unresolvable_script_handle(
 				'openstation_register_window_link_renderer_script',
 				'Window-link renderer',
@@ -1101,8 +633,7 @@ function openstation_build_window_link_renderer_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-			// The handle's dependency closure, replayed before the bundle
-			// on its lazy load — see `openstation_resolve_script_dependencies()`.
+
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;

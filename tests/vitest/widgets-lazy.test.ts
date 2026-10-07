@@ -1,19 +1,3 @@
-/**
- * A widget's bundle loads when the widget mounts, not when the shell
- * boots.
- *
- * Everything the picker shows about a widget — label, description,
- * icon, size constraints — is metadata `openstation_register_widget()`
- * declares in PHP. The only thing the plugin's bundle contributes is
- * the `mount` callback. So the def is assembled from the payload and
- * its mount loads the script on first use, which means a widget the
- * user has never enabled costs a row in the picker and nothing else.
- *
- * Before this, the sync `await`ed a script load per registered
- * widget, so all nine built-in bundles (Drafts 46 KB, Focus Timer
- * 41 KB, Notes 31 KB, …) downloaded on every admin page whether or
- * not a single widget was on the desktop.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -148,16 +132,7 @@ describe( 'widgets — deferred bundle loading', () => {
 	} );
 
 	test( 'a package Core concatenated into load-scripts.php is not fetched again', async () => {
-		// The path #715 reports. On a stock wp-admin `wp-hooks` is in
-		// the tab inside Core's concat blob, with no `<script src>`
-		// carrying its path, and the widget manifest lists it as a
-		// dependency. The loader recognizes it by handle — but only if
-		// this sync forwards the payload's `scriptDeps` intact. A
-		// mapping that dropped `handle` would pass every unit test the
-		// loader has and still re-inject `wp-hooks`, replacing
-		// `window.wp.hooks` under every subscriber the shell registered
-		// at boot. So: real loader, real presence test; only
-		// `appendChild` is stubbed, to answer `load` without a network.
+
 		const m = await loadModulesUnderTest();
 		const blob = document.createElement( 'script' );
 		blob.src =
@@ -201,9 +176,6 @@ describe( 'widgets — deferred bundle loading', () => {
 			blob.remove();
 		}
 
-		// api-fetch is genuinely absent and still loads, in order,
-		// before the widget's own bundle; the concatenated package is
-		// the only thing skipped.
 		expect( appended ).toEqual( [
 			'/wp-includes/js/dist/api-fetch.min.js',
 			'/widget-drafts.js',

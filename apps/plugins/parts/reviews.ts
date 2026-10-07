@@ -1,19 +1,5 @@
-/**
- * Plugins app — the Reviews section.
- *
- * Part of the `desktop-mode-plugins` client view. The Installed tab's
- * detail panel and the Browse flyout both show a plugin's wp.org
- * ratings: the `<os-rating-summary>` histogram from the
- * `plugin_information` payload, then the recent reviews scraped by
- * `parts/reviews.php` (loaded on first sight, cached per slug for the
- * window). One renderer, one loading and one fallback state for both.
- *
- * @public
- */
-
 import { __ } from '@openstation/app';
-// Both surfaces paint outside the runtime's on-demand component
-// loading (a shadow root, an `os-preserve` host) — register here.
+
 import '../../../src/ui/components/os-card/os-card';
 import '../../../src/ui/components/os-empty-state/os-empty-state';
 import '../../../src/ui/components/os-rating-summary/os-rating-summary';
@@ -22,7 +8,6 @@ import { buildStarCluster } from './card';
 import { externalLink, linkButton, wpOrgUrl } from './html';
 import type { PluginReview, PluginReviewsResponse, PluginsHost, WpOrgPluginInfo } from './types';
 
-/** The stylesheet the section needs wherever it is mounted. */
 export const REVIEW_STYLES = `
 .os-plugins__reviews { display: flex; flex-direction: column; gap: 16px; }
 .os-plugins__reviews-grid { display: grid; grid-template-columns: repeat( auto-fill, minmax( 240px, 1fr ) ); gap: 12px; }
@@ -36,7 +21,6 @@ export const REVIEW_STYLES = `
 .os-plugins__reviews-loading { display: inline-flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var( --os-ui-surface-raised, rgba( 255, 255, 255, 0.7 ) ); border: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ); color: var( --os-ui-fg-muted, #666 ); font-size: 13px; }
 `;
 
-/** The histogram card from a `plugin_information` payload. */
 function buildRatingSummary( info: WpOrgPluginInfo ): HTMLElement {
 	const el = document.createElement( 'os-rating-summary' ) as OsRatingSummary;
 	if ( typeof info.rating === 'number' ) {
@@ -57,7 +41,6 @@ function buildRatingSummary( info: WpOrgPluginInfo ): HTMLElement {
 	return el;
 }
 
-/** A loading line with a spinner. */
 export function loadingLine( label: string ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'os-plugins__reviews-loading';
@@ -70,7 +53,6 @@ export function loadingLine( label: string ): HTMLElement {
 	return wrap;
 }
 
-/** An `<os-empty-state>` with a dashicon. */
 export function emptyState( icon: string, heading: string, description: string ): HTMLElement {
 	const e = document.createElement( 'os-empty-state' );
 	e.setAttribute( 'icon', `dashicons-${ icon }` );
@@ -79,10 +61,6 @@ export function emptyState( icon: string, heading: string, description: string )
 	return e;
 }
 
-/**
- * The whole section: the histogram, then the review list — from the
- * window's cache when the slug was seen, fetched once otherwise.
- */
 export function renderReviews( host: PluginsHost, slug: string, info: WpOrgPluginInfo | null ): HTMLElement {
 	const section = document.createElement( 'div' );
 	section.className = 'os-plugins__reviews';
@@ -126,8 +104,7 @@ export function renderReviews( host: PluginsHost, slug: string, info: WpOrgPlugi
 function paintReviewList( host: HTMLElement, resp: PluginReviewsResponse, slug: string ): void {
 	host.replaceChildren();
 	const reviewsUrl = wpOrgUrl( slug, '#reviews' );
-	// A failed scrape says nothing about whether reviews exist — say
-	// where they live rather than claim there are none.
+
 	if ( ! resp.parsed ) {
 		const empty = emptyState(
 			'external',
@@ -143,7 +120,7 @@ function paintReviewList( host: HTMLElement, resp: PluginReviewsResponse, slug: 
 		host.appendChild( empty );
 		return;
 	}
-	// Zero items: the histogram already tells the story; just the CTA.
+
 	if ( resp.items.length === 0 ) {
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'os-plugins__reviews-cta';

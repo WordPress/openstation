@@ -1,14 +1,3 @@
-/**
- * The keyboard-shortcuts reference, as a shell window. The System
- * menu's "Keyboard shortcuts" row is its front door.
- *
- * The DATA is the server's, read off `openStationAdminBar.shortcuts`:
- * PHP translates every string once and ships them with the admin
- * bar's config, which is emitted on every admin screen whether or not
- * the bar is on the page. Nothing here touches i18n.
- */
-
-/** One row of the contextual table: a key, and what it does where. */
 interface ContextualRow {
 	keys?: string[];
 	note?: string;
@@ -17,17 +6,11 @@ interface ContextualRow {
 	showDesktop?: string;
 }
 
-/** One entry of the flat list: a chord and a sentence. */
 interface GeneralItem {
 	keys?: string[];
 	description?: string;
 }
 
-/**
- * The server's shortcuts payload. Exported so `exit-openstation.ts`,
- * which owns the `openStationAdminBar` global declaration, can type
- * the key without owning its shape.
- */
 export interface ShortcutsData {
 	title?: string;
 	contextual?: {
@@ -41,7 +24,6 @@ export interface ShortcutsData {
 	};
 }
 
-/** `⌘` + `K` as a run of `<kbd>`s joined by thin plus signs. */
 function chord( keys: string[] ): HTMLElement {
 	const wrap = document.createElement( 'span' );
 	wrap.className = 'os-shortcuts__chord';
@@ -60,14 +42,6 @@ function chord( keys: string[] ): HTMLElement {
 	return wrap;
 }
 
-/**
- * The contextual block, as a table.
- *
- * A table rather than a list because the same key means three
- * different things depending on where you are, and that is a grid: the
- * columns ARE the contexts. Flattening it into sentences was tried in
- * the popover and made ← and → read as four unrelated shortcuts.
- */
 function buildContextual(
 	data: NonNullable< ShortcutsData[ 'contextual' ] >,
 ): HTMLElement {
@@ -127,7 +101,6 @@ function buildContextual(
 	return section;
 }
 
-/** The flat block: one chord, one sentence. */
 function buildGeneral(
 	data: NonNullable< ShortcutsData[ 'general' ] >,
 ): HTMLElement {
@@ -157,7 +130,6 @@ function buildGeneral(
 	return section;
 }
 
-/** Paint the reference into a window body. */
 export function renderShortcuts( body: HTMLElement ): void {
 	body.innerHTML = '';
 	const root = document.createElement( 'div' );
@@ -165,9 +137,6 @@ export function renderShortcuts( body: HTMLElement ): void {
 
 	const data = window.openStationAdminBar?.shortcuts;
 	if ( ! data ) {
-		// The admin-bar config is the only source, and it ships with
-		// the bar's own script. Say so rather than painting an empty
-		// window that reads as "this site has no shortcuts".
 		const empty = document.createElement( 'p' );
 		empty.className = 'os-shortcuts__empty';
 		empty.textContent = 'Keyboard shortcuts are unavailable.';
@@ -185,10 +154,8 @@ export function renderShortcuts( body: HTMLElement ): void {
 	body.appendChild( root );
 }
 
-/** Window id, exported so the System row and the opener agree on it. */
 export const SHORTCUTS_WINDOW_ID = 'openstation-shortcuts';
 
-/** Icon: a keyboard, which Dashicons does not have — so, drawn. */
 export const OS_SHORTCUTS_ICON = `data:image/svg+xml;base64,${ btoa(
 	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round">' +
 		'<rect x="5" y="14" width="54" height="36" rx="7"/>' +
@@ -196,13 +163,6 @@ export const OS_SHORTCUTS_ICON = `data:image/svg+xml;base64,${ btoa(
 		'</svg>',
 ) }`;
 
-/**
- * Open (or focus) the shortcuts window.
- *
- * Takes the opener rather than importing the window manager: this
- * module is a renderer, and `desktop.ts` owns every window id the
- * shell opens.
- */
 export function openShortcutsWith(
 	open: ( config: {
 		id: string;

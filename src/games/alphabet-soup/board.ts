@@ -1,17 +1,3 @@
-/**
- * Alphabet Soup — the Pixi board.
- *
- * Owns the letter grid's display objects: the simmering backdrop,
- * the letter tiles (with a staggered drop-in on every new wave),
- * the live selection capsule that follows the player's drag, the
- * locked capsules of found words, and the brief red flash of a
- * wrong guess. Geometry (which cells a drag covers) lives in
- * `soup-gen.ts`; this module only draws.
- *
- * All animation is time-based via `update( dt )` — the board never
- * owns a ticker; the game orchestrator drives it.
- */
-
 import type {
 	PixiContainer,
 	PixiGraphics,
@@ -20,10 +6,8 @@ import type {
 } from '../pixi-types';
 import type { SoupCell, SoupGrid } from './soup-gen';
 
-/** Font stack for the letter tiles. */
 export const TILE_FONT = '"Trebuchet MS", "Segoe UI", Verdana, sans-serif';
 
-/** Deep-pot backdrop and letter colors. */
 export const BACKDROP_COLOR = 0x1c1233;
 const BACKDROP_GLOW_A = 0x3b2a68;
 const BACKDROP_GLOW_B = 0x232a5c;
@@ -32,32 +16,27 @@ const LETTER_COLOR = 0xf3efff;
 const LOCKED_LETTER_COLOR = 0x241736;
 export const SELECTION_COLOR = 0xffd166;
 
-/** Capsule palette for found words — one color per find, cycling. */
 export const WORD_COLORS: readonly number[] = [
 	0xff6b6b, 0xffd166, 0x06d6a0, 0x4cc9f0, 0xc77dff,
 	0xf4978e, 0x90e0ef, 0xffe066, 0x80ed99, 0xf9c74f,
 ];
 
-/** Seconds one tile's drop-in takes. */
 const ENTRANCE_SECONDS = 0.3;
 
-/** Stagger between neighboring diagonals on entrance. */
 const ENTRANCE_STAGGER = 0.035;
 
-/** Seconds a found word's letters pop. */
 const POP_SECONDS = 0.35;
 
-/** Seconds the wrong-guess flash lives. */
 const FLASH_SECONDS = 0.45;
 
 interface TileNode {
 	node: PixiText;
 	cell: SoupCell;
-	/** Entrance delay in seconds (diagonal stagger). */
+
 	delay: number;
-	/** Age since setGrid, drives the entrance tween. */
+
 	age: number;
-	/** Pop animation age, or -1 when idle. */
+
 	popAge: number;
 	popDelay: number;
 }
@@ -73,22 +52,22 @@ interface LockedWord {
 }
 
 export interface SoupBoard {
-	/** Replace the grid (new wave). Restarts the entrance animation. */
+
 	setGrid: ( grid: SoupGrid ) => void;
-	/** Recompute layout after a resize; repositions everything. */
+
 	relayout: ( width: number, height: number ) => void;
-	/** The cell under a canvas-space point, or null. */
+
 	cellAt: ( x: number, y: number ) => SoupCell | null;
-	/** Canvas-space center of a cell. */
+
 	cellCenter: ( cell: SoupCell ) => { x: number; y: number };
-	/** Draw the live selection capsule through these cells. */
+
 	showSelection: ( cells: SoupCell[] ) => void;
 	clearSelection: () => void;
-	/** Permanently lock a found word's capsule + pop its letters. */
+
 	lockWord: ( cells: SoupCell[], color: number ) => void;
-	/** Brief red capsule flash for a wrong selection. */
+
 	flashInvalid: ( cells: SoupCell[] ) => void;
-	/** Advance animations. */
+
 	update: ( dt: number ) => void;
 	destroy: () => void;
 }
@@ -123,7 +102,7 @@ export function createSoupBoard(
 	let cell = 48;
 	let originX = 0;
 	let originY = 0;
-	/** Cells whose letter now sits on a locked capsule. */
+
 	const lockedCells = new Set< string >();
 
 	const cellKey = ( c: SoupCell ): string => `${ c.row }:${ c.col }`;
@@ -156,7 +135,7 @@ export function createSoupBoard(
 			return;
 		}
 		backdrop.rect( 0, 0, width, height ).fill( BACKDROP_COLOR );
-		// Soft simmering glows — cheap stand-ins for a gradient.
+
 		backdrop
 			.circle( width * 0.22, height * 0.2, Math.max( width, height ) * 0.4 )
 			.fill( { color: BACKDROP_GLOW_A, alpha: 0.35 } );
@@ -164,7 +143,6 @@ export function createSoupBoard(
 			.circle( width * 0.85, height * 0.9, Math.max( width, height ) * 0.45 )
 			.fill( { color: BACKDROP_GLOW_B, alpha: 0.4 } );
 		if ( grid ) {
-			// The pot: a rounded plate under the grid.
 			const platePad = Math.min( 14, cell * 0.3 );
 			backdrop
 				.roundRect(
@@ -175,7 +153,7 @@ export function createSoupBoard(
 					Math.min( 22, cell * 0.5 ),
 				)
 				.fill( { color: 0x000000, alpha: 0.28 } );
-			// Cell dots — a subtle grid rhythm.
+
 			for ( let row = 0; row < grid.size; row++ ) {
 				for ( let col = 0; col < grid.size; col++ ) {
 					const p = center( { row, col } );
@@ -226,7 +204,7 @@ export function createSoupBoard(
 		selectionLayer.clear();
 		if ( selection.length > 0 ) {
 			drawCapsule( selectionLayer, selection, SELECTION_COLOR, 0.35 );
-			// A brighter core dot on every covered cell.
+
 			for ( const c of selection ) {
 				const p = center( c );
 				selectionLayer
@@ -392,7 +370,7 @@ export function createSoupBoard(
 					1,
 					Math.max( 0, ( tile.age - tile.delay ) / ENTRANCE_SECONDS ),
 				);
-				// Back-ease overshoot: pops past 1 then settles.
+
 				const eased =
 					1 + 2.7 * Math.pow( t - 1, 3 ) + 1.7 * Math.pow( t - 1, 2 );
 				let scale = eased;
@@ -406,7 +384,7 @@ export function createSoupBoard(
 							( tile.popAge - tile.popDelay ) / POP_SECONDS,
 						),
 					);
-					// Quick swell and settle: sin arc peaking at +35%.
+
 					scale *= 1 + 0.35 * Math.sin( Math.PI * pt );
 					if ( pt >= 1 ) {
 						tile.popAge = -1;

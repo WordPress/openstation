@@ -1,18 +1,3 @@
-/**
- * The workspace wizard — the one door to a new desk.
- *
- * The rule this file exists to hold: **the fast path is still fast.**
- * Pressing `+` and then Enter has to be a plain new desktop, the same
- * two gestures it was before the wizard existed — and a user who never
- * touches a later step must end up with a plain Space (no profile), not
- * a workspace that happens to be empty. The rest pins that the steps
- * write what they say, and that Cancel genuinely discards.
- *
- * Runs against the real components: this bundle is the only thing in
- * the shell that puts `<os-steps>`, `<os-card>` and the picker kit in
- * one dialog, and a stubbed DOM would test a wizard nobody ships.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	closeWorkspaceWizard,
@@ -38,7 +23,6 @@ const COMMERCE: WorkspacePreset = {
 	defaultLabel: 'Commerce',
 };
 
-/** A resolved Commerce profile, as `resolvePreset` would return it. */
 function resolvedCommerce(): WorkspaceProfile {
 	return {
 		preset: 'commerce',
@@ -133,8 +117,7 @@ describe( 'workspace wizard', () => {
 	let onSave: ReturnType< typeof vi.fn >;
 
 	beforeEach( () => {
-		// The Look step's live-preview manager reads the wallpaper
-		// preview-params filter off the hooks bus.
+
 		installHooksStub();
 		onCreate = vi.fn();
 		onSave = vi.fn();
@@ -150,7 +133,6 @@ describe( 'workspace wizard', () => {
 	test( '+ then Create is a plain workspace, with no profile at all', () => {
 		openWorkspaceWizard( options( { onCreate } ) );
 
-		// Blank is the preselected card and the footer says so.
 		expect( cards()[ 0 ].hasAttribute( 'selected' ) ).toBe( true );
 		button( 'Create workspace' ).click();
 
@@ -159,7 +141,7 @@ describe( 'workspace wizard', () => {
 		expect( result.profile ).toBeNull();
 		expect( result.preset ).toBeUndefined();
 		expect( result.label ).toBe( '' );
-		// Committed means closed.
+
 		expect( modal() ).toBeNull();
 	} );
 
@@ -170,8 +152,6 @@ describe( 'workspace wizard', () => {
 		expect( cards()[ 1 ].hasAttribute( 'selected' ) ).toBe( true );
 		button( 'Create from template' ).click();
 
-		// The shell creates from the id so the profile filter runs,
-		// exactly as the old dropdown did.
 		expect( onCreate.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
 			preset: 'commerce',
 			profile: null,
@@ -180,7 +160,7 @@ describe( 'workspace wizard', () => {
 
 	test( 'activating the selected card again commits it', () => {
 		openWorkspaceWizard( options( { onCreate } ) );
-		// Click once to choose, again to go.
+
 		cards()[ 0 ].dispatchEvent( new CustomEvent( 'os-card-click' ) );
 		expect( onCreate ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -208,7 +188,7 @@ describe( 'workspace wizard', () => {
 		expect( currentStep() ).toBe( 'Look' );
 		button( 'Next' ).click();
 		expect( currentStep() ).toBe( 'Windows' );
-		// Last step: nothing to go Next to.
+
 		expect( footerButtons().map( ( b ) => b.textContent?.trim() ) ).not.toContain(
 			'Next',
 		);
@@ -222,12 +202,10 @@ describe( 'workspace wizard', () => {
 		cards()[ 1 ].dispatchEvent( new CustomEvent( 'os-card-click' ) );
 		button( 'Customize' ).click();
 
-		// The name step is prefilled from the template.
 		expect(
 			modal().querySelector( 'os-text-field' )?.getAttribute( 'value' ),
 		).toBe( 'Commerce' );
 
-		// Going back to Start and forward again must not wipe edits.
 		button( 'Back' ).click();
 		button( 'Customize' ).click();
 		button( 'Create workspace' ).click();
@@ -256,8 +234,6 @@ describe( 'workspace wizard', () => {
 		expect( exit.hasAttribute( 'checked' ) ).toBe( true );
 		expect( exit.hasAttribute( 'disabled' ) ).toBe( true );
 
-		// Turning narrowing on starts from what is on screen, so the
-		// non-control apps are checked, not blank.
 		const posts = boxes.find( ( b ) => b.getAttribute( 'value' ) === 'edit-php' )!;
 		expect( posts.hasAttribute( 'checked' ) ).toBe( true );
 
@@ -285,7 +261,7 @@ describe( 'workspace wizard', () => {
 			.dispatchEvent(
 				new CustomEvent( 'os-switch-change', { detail: { checked: true } } ),
 			);
-		// A wallpaper swatch is offered, and picking it writes the key.
+
 		const swatch = modal().querySelector( 'os-swatch[value="dark"]' )!;
 		swatch.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'dark' } } ) );
 
@@ -301,7 +277,7 @@ describe( 'workspace wizard', () => {
 				apps: [
 					{ id: 'edit-php', title: 'Posts', kind: 'core', url: 'edit.php' },
 					{ id: 'my-panel', title: 'My panel', kind: 'app', windowId: 'my-panel' },
-					// A control opens nothing and must not be offered.
+
 					{ id: 'os-exit', title: 'Exit', kind: 'control', locked: true },
 				],
 			} ),
@@ -331,10 +307,10 @@ describe( 'workspace wizard', () => {
 		const result: WorkspaceWizardResult = onCreate.mock.calls[ 0 ][ 0 ];
 		expect( result.profile?.windows ).toEqual( [
 			{ match: 'edit-php', title: 'Posts', url: 'edit.php' },
-			// Native: no url, reopens through the registry.
+
 			{ match: 'my-panel', title: 'My panel' },
 		] );
-		// There is something new to open on the next entry.
+
 		expect( result.profile?.provisioned ).toBe( false );
 	} );
 
@@ -354,9 +330,7 @@ describe( 'workspace wizard', () => {
 		const labels = Array.from( modal().querySelectorAll( 'os-button' ) ).map(
 			( b ) => b.textContent?.trim(),
 		);
-		// Both acted on a desk hidden behind the modal and read as
-		// buttons that did nothing. Restore under the tile is that
-		// action, done where it can be seen.
+
 		expect( labels ).not.toContain( 'Open them now' );
 		expect( labels ).not.toContain( 'Arrange now' );
 	} );
@@ -411,8 +385,7 @@ describe( 'workspace wizard', () => {
 				onSave,
 			} ),
 		);
-		// Every step but the one on screen is a jump target, so
-		// changing one thing does not mean clicking Next to it.
+
 		expect( jumpableSteps() ).toEqual( [ 'Apps', 'Widgets', 'Look', 'Windows' ] );
 		jumpTo( 'Look' );
 		expect( currentStep() ).toBe( 'Look' );
@@ -423,8 +396,7 @@ describe( 'workspace wizard', () => {
 	test( 'jumping past Start still reads the template into the draft', () => {
 		openWorkspaceWizard( options( { onCreate } ) );
 		cards()[ 1 ].dispatchEvent( new CustomEvent( 'os-card-click' ) );
-		// Straight from Start to Look, skipping the steps between: the
-		// pick those steps read is taken on the way out of Start.
+
 		jumpTo( 'Look' );
 		expect( currentStep() ).toBe( 'Look' );
 

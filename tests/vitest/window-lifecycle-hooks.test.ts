@@ -1,9 +1,3 @@
-/**
- * Hook-firing tests for the per-window lifecycle actions on
- * {@link Window}. Each state transition (minimize, maximize,
- * fullscreen, detach, title change) should fan the right action out
- * through the hook bus with a `{ windowId }` payload.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Window } from '../../src/window';
 import type { WindowConfig } from '../../src/types';
@@ -41,11 +35,6 @@ function baseConfig( overrides: Partial<WindowConfig> = {} ): WindowConfig {
 	};
 }
 
-/**
- * Mount a window in a parent that has deterministic dimensions so
- * maximize() has something to size against. Returns the window and a
- * cleanup that removes both nodes from the DOM.
- */
 function mountWindow( cfg: WindowConfig ): { win: Window; cleanup: () => void } {
 	const parent = document.createElement( 'div' );
 	Object.defineProperty( parent, 'clientWidth', { value: 1200, configurable: true } );
@@ -100,7 +89,7 @@ describe( 'Window — lifecycle hook firing', () => {
 	} );
 
 	test( 'restore (from minimized) fires window.restored; no-op when already normal fires nothing', () => {
-		// First, minimized -> restored: restored fires.
+
 		handle.win.minimize();
 		const log = recordActions( hooks, LIFECYCLE_HOOKS );
 		handle.win.restore();
@@ -108,8 +97,6 @@ describe( 'Window — lifecycle hook firing', () => {
 		const restored = log.filter( ( e ) => e.name === 'os.window.restored' );
 		expect( restored ).toHaveLength( 1 );
 
-		// Calling restore again with state already normal must NOT
-		// re-fire the hook — the API is state-change-driven.
 		const log2 = recordActions( hooks, LIFECYCLE_HOOKS );
 		handle.win.restore();
 		expect(
@@ -137,8 +124,8 @@ describe( 'Window — lifecycle hook firing', () => {
 	test( 'toggleMaximize enters with maximized, exits with unmaximized', () => {
 		const log = recordActions( hooks, LIFECYCLE_HOOKS );
 
-		handle.win.toggleMaximize(); // enter
-		handle.win.toggleMaximize(); // exit
+		handle.win.toggleMaximize();
+		handle.win.toggleMaximize();
 
 		const names = log
 			.filter(
@@ -173,10 +160,7 @@ describe( 'Window — lifecycle hook firing', () => {
 	} );
 
 	test( 'detach fires window.detached with { windowId, url } stripped of chromeless flags', () => {
-		// Use a URL with the chromeless param — detach should strip it
-		// and add the classic flag before emitting the payload. Must
-		// be same-origin with the test window (jsdom defaults) so
-		// detach's origin gate doesn't refuse it.
+
 		handle.cleanup();
 		handle = mountWindow(
 			baseConfig( {
@@ -185,8 +169,6 @@ describe( 'Window — lifecycle hook firing', () => {
 			} ),
 		);
 
-		// detach calls window.open — stub it so jsdom doesn't warn
-		// about the unimplemented navigation.
 		const openSpy = vi
 			.spyOn( window, 'open' )
 			.mockImplementation( () => null );
@@ -206,8 +188,7 @@ describe( 'Window — lifecycle hook firing', () => {
 	} );
 
 	test( 'detach opens the page an unreadable frame reported, not the one the window opened on', () => {
-		// Elementor's editor is isolated from the shell, and `src` still
-		// names the block editor "Edit with Elementor" navigated from.
+
 		const origin = window.location.origin;
 		handle.cleanup();
 		handle = mountWindow( baseConfig( { id: 'post-2', url: `${ origin }/wp-admin/post.php?post=2&action=edit` } ) );
@@ -227,7 +208,7 @@ describe( 'Window — lifecycle hook firing', () => {
 		handle.win.detach();
 
 		expect( openSpy ).toHaveBeenCalledWith( `${ elementor }&desktop_mode_classic=1`, '_blank', 'noopener' );
-		// Pointed elsewhere by the shell, the report no longer applies.
+
 		iframe.src = `${ origin }/wp-admin/edit.php`;
 		expect( handle.win.getCurrentUrl() ).toBe( iframe.src );
 		openSpy.mockRestore();

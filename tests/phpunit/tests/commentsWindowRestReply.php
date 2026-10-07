@@ -1,14 +1,5 @@
 <?php
-/**
- * Tests for the comments-window inline-reply REST handler — specifically
- * the per-target `edit_post` authorization gate that mirrors core's
- * `wp_ajax_replyto_comment` flow.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- */
+
 class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -41,13 +32,6 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 		return $req;
 	}
 
-	/**
-	 * A user with `edit_posts` but without `edit_post` on the target post
-	 * (a contributor replying on another author's post) must be rejected
-	 * with a 403 and no comment may be created.
-	 *
-	 * @covers ::openstation_comments_window_rest_reply
-	 */
 	public function test_reply_forbidden_without_edit_post_on_target_post() {
 		wp_set_current_user( self::$contributor_id );
 
@@ -82,11 +66,6 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 		$this->assertSame( $before, $after );
 	}
 
-	/**
-	 * A user who can edit the target post replies successfully.
-	 *
-	 * @covers ::openstation_comments_window_rest_reply
-	 */
 	public function test_reply_allowed_for_user_who_can_edit_post() {
 		wp_set_current_user( self::$admin_id );
 
@@ -111,11 +90,6 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 		$this->assertSame( (string) self::$comment_id, (string) $new->comment_parent );
 	}
 
-	/**
-	 * A missing parent comment still 404s before the capability gate.
-	 *
-	 * @covers ::openstation_comments_window_rest_reply
-	 */
 	public function test_reply_missing_parent_returns_404() {
 		wp_set_current_user( self::$admin_id );
 

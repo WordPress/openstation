@@ -1,47 +1,27 @@
-/**
- * Recycle Bin — empty-loop driver.
- *
- * The server caps `openstation_recycle_bin_empty()` at one chunk per
- * call (default 200 items) to avoid PHP timeouts on large bins. The
- * client therefore has to iterate until the server reports
- * `remaining === 0`. This helper owns that loop in isolation so the
- * window code can stay focused on UI wiring AND so we can unit-test
- * the iteration shape without spinning up a JSDOM table.
- *
- * Termination rules (in order):
- *
- *   1. `remaining === 0` — bin is empty, we're done.
- *   2. `purged === 0 && skipped > 0` — every item left is
- *      capability-blocked; further calls just re-skip the same set.
- *   3. Hard iteration ceiling (1000) — last-resort guard against a
- *      buggy server whose `remaining` never decreases despite
- *      `purged > 0`. Far above any realistic bin size.
- */
-
 import type { EmptyResponse } from './types';
 
 export interface EmptyProgress {
-	/** Items purged across all calls so far. */
+
 	purged: number;
-	/** Items skipped across all calls so far. */
+
 	skipped: number;
-	/** Snapshot of `purged + remaining` taken on the first call. */
+
 	initialTotal: number;
 }
 
 export interface EmptyLoopResult extends EmptyProgress {
-	/** Final `remaining` reported by the server on the last call. */
+
 	remaining: number;
-	/** Reason the loop stopped — useful for tests + observability. */
+
 	stoppedBecause: 'empty' | 'no-progress' | 'iteration-cap';
 }
 
 export interface EmptyLoopOptions {
-	/** Per-iteration server call. Injected so tests can stub it. */
+
 	emptyBin: () => Promise< EmptyResponse >;
-	/** Optional progress callback fired after every server call. */
+
 	onProgress?: ( progress: EmptyProgress ) => void;
-	/** Hard iteration cap. Defaults to 1000. */
+
 	maxIterations?: number;
 }
 
@@ -59,7 +39,6 @@ export async function runEmptyLoop(
 	let stoppedBecause: EmptyLoopResult[ 'stoppedBecause' ] = 'iteration-cap';
 
 	for ( let i = 0; i < maxIterations; i++ ) {
-		// eslint-disable-next-line no-await-in-loop
 		const result = await emptyBin();
 		purged += result.purged;
 		skipped += result.skipped;

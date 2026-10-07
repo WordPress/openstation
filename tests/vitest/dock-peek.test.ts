@@ -1,16 +1,3 @@
-/**
- * Tests for the dock hover-peek — the fan-out popover that replaces
- * the legacy "+" chip on multi-instance dock tiles AND surfaces
- * thumbnails for native-window system tiles.
- *
- * Covers the surface that's worth pinning: trigger condition (≥1
- * open instance), card composition (one per instance + an optional
- * Ghost Card), and the click handlers (focus existing vs spawn new).
- * Animation timing is intentionally elided — the show-delay is
- * driven by `setTimeout`, which `vi.useFakeTimers` flushes.
- *
- * @group dock
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { attachDockPeek } from '../../src/dock-peek';
 import { CONSTELLATION_FLAG } from '../../src/dock-constellation/active';
@@ -87,11 +74,6 @@ function pointerLeave( el: HTMLElement ): void {
 
 type Deps = Parameters< typeof attachDockPeek >[ 0 ];
 
-/**
- * Build a fully-stubbed deps object — tests override only the keys
- * they care about. Keeps the test file focused on behavior, not
- * scaffolding.
- */
 function makeDeps( overrides: Partial< Deps > = {} ): Deps {
 	const tile = overrides.tile ?? makeTile( true );
 	return {
@@ -132,10 +114,7 @@ describe( 'dock-peek', () => {
 	} );
 
 	test( 'native-window (system) tile peek shows a thumbnail card without a Ghost Card', () => {
-		// Native windows are singletons by convention — OS Settings,
-		// Jorvy, plugin-registered native windows. The peek shows
-		// their live thumbnail when open but suppresses the Ghost
-		// Card since "open another OS Settings" is meaningless.
+
 		const tile = makeTile( false );
 		const win = makeWindowStub( 'OS Settings', 'os-settings' );
 		attachDockPeek(
@@ -316,8 +295,6 @@ describe( 'dock-peek', () => {
 		expect( cards[ 1 ].dataset.preview ).toBe( '' );
 	} );
 
-	// Preview snap-back: after hovering an instance card, leaving
-	// returns focus to the previously-focused window.
 	test( 'hovering a non-minimized instance card then leaving returns focus to the previous window', () => {
 		const tile = makeTile( true );
 		const winA = makeWindowStub( 'All Posts', 'edit-php' );
@@ -344,13 +321,11 @@ describe( 'dock-peek', () => {
 			'.os-dock-peek__card--instance',
 		);
 
-		// Hover winB → preview.
 		pointerEnter( cards[ 1 ] );
 		expect( focus ).toHaveBeenCalledTimes( 1 );
 		expect( focus ).toHaveBeenCalledWith( winB );
 		expect( cards[ 1 ].dataset.preview ).toBe( '' );
 
-		// Leave → focus returns to winA.
 		focus.mockClear();
 		pointerLeave( cards[ 1 ] );
 		expect( getById ).toHaveBeenCalledWith( winA.id );
@@ -358,7 +333,6 @@ describe( 'dock-peek', () => {
 		expect( cards[ 1 ].dataset.preview ).toBeUndefined();
 	} );
 
-	// Hovering a minimized card restores it so the user can see it.
 	test( 'hovering a minimized instance card restores the window', () => {
 		const tile = makeTile( true );
 		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
@@ -386,8 +360,6 @@ describe( 'dock-peek', () => {
 		expect( card.dataset.state ).toBeUndefined();
 	} );
 
-	// Preview snap-back: a minimized window that was preview-restored
-	// snaps back to minimized when the pointer leaves the card.
 	test( 'hovering a minimized instance card then leaving snaps it back', () => {
 		const tile = makeTile( true );
 		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
@@ -409,13 +381,11 @@ describe( 'dock-peek', () => {
 			'.os-dock-peek__card--instance',
 		)!;
 
-		// Hover → preview restores.
 		pointerEnter( card );
 		expect( win.restore ).toHaveBeenCalledTimes( 1 );
 		expect( card.dataset.preview ).toBe( '' );
 		expect( card.dataset.state ).toBeUndefined();
 
-		// Leave → snap back to minimized.
 		pointerLeave( card );
 		expect( win.minimize ).toHaveBeenCalledTimes( 1 );
 		expect( card.dataset.preview ).toBeUndefined();
@@ -443,15 +413,11 @@ describe( 'dock-peek', () => {
 			'.os-dock-peek__card--instance',
 		)!;
 
-		// Hover → preview active.
 		pointerEnter( card );
 		expect( card.dataset.preview ).toBe( '' );
 
-		// Click → commit the preview (focus + restore), no snap-back.
 		card.click();
-		// restore was called once from the pointerenter preview;
-		// the second call from spawnFocusViewTransition is a no-op
-		// because the window is no longer minimized at that point.
+
 		expect( win.restore ).toHaveBeenCalledTimes( 1 );
 		expect( focus ).toHaveBeenCalledTimes( 1 );
 		expect( focus ).toHaveBeenCalledWith( win );
@@ -478,17 +444,14 @@ describe( 'dock-peek', () => {
 			'.os-dock-peek__card--instance',
 		)!;
 
-		// Hover the already-focused card → no preview.
 		pointerEnter( card );
 		expect( focus ).not.toHaveBeenCalled();
 		expect( card.dataset.preview ).toBeUndefined();
 
-		// Leave should also be a no-op.
 		pointerLeave( card );
 		expect( focus ).not.toHaveBeenCalled();
 	} );
 
-	// Collapsed preview: minimized cards get data-state="minimized" for CSS.
 	test( 'minimized instance card gets data-state="minimized" attribute', () => {
 		const tile = makeTile( true );
 		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
@@ -670,11 +633,7 @@ describe( 'dock-peek', () => {
 	} );
 
 	test( 'a menu tile stands down while a constellation is mounted', () => {
-		// The flyout carries the open instances this peek would have
-		// shown, plus the submenu the peek has no way to reach. Two
-		// popovers on one tile is a flicker, not a feature. Every
-		// other test in this file runs with no flyout mounted, which
-		// is the case where the peek keeps menu tiles.
+
 		document.body.setAttribute( CONSTELLATION_FLAG, '' );
 		const tile = makeTile( true );
 		attachDockPeek(

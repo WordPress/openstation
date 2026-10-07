@@ -1,35 +1,7 @@
 <?php
-/**
- * Build installer for OpenStation Beta.
- *
- * Installs a resolved build zip over the existing `desktop-mode/`
- * plugin folder — the exact overwrite-in-place WordPress performs on
- * any plugin update — and records what was installed in the
- * `openstation_beta_current` option. Switching back to stable
- * installs the latest release zip and clears the record.
- *
- * The client never supplies a download URL. It sends a
- * `{ source, id }` pair and the server resolves the URL from GitHub
- * data it fetched itself, so the only installable bytes are assets of
- * the configured repository's releases.
- *
- * @package OpenStationBeta
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Resolve a `{ source, id }` request to a download URL + install record.
- *
- * Always bypasses the discovery caches — an install must act on the
- * current head SHA, not one from five minutes ago.
- *
- * @since 0.1.0
- *
- * @param string $source One of `stable`, `trunk`, `pr`.
- * @param string $id     PR number when `$source` is `pr`; ignored otherwise.
- * @return array|WP_Error `{ url, record }` — `record` is null for stable.
- */
 function openstation_beta_resolve_target( $source, $id ) {
 	switch ( $source ) {
 		case 'stable':
@@ -93,7 +65,7 @@ function openstation_beta_resolve_target( $source, $id ) {
 					return new WP_Error(
 						'openstation_beta_build_pending',
 						sprintf(
-							/* translators: %d: Pull request number. */
+
 							__( 'No build exists yet for the latest commit of PR #%d — the build usually lands a few minutes after a push. Try again shortly.', 'openstation-beta' ),
 							$number
 						),
@@ -115,7 +87,7 @@ function openstation_beta_resolve_target( $source, $id ) {
 			return new WP_Error(
 				'openstation_beta_pr_missing',
 				sprintf(
-					/* translators: %d: Pull request number. */
+
 					__( 'PR #%d is not an open pull request on the repository.', 'openstation-beta' ),
 					$number
 				),
@@ -130,23 +102,8 @@ function openstation_beta_resolve_target( $source, $id ) {
 	);
 }
 
-/**
- * Download + install a build zip over the current OpenStation install
- * and record it. Runs in admin-ajax context (the upgrader classes are
- * admin-only; admin-ajax is the same context Core's own plugin-install
- * ajax handlers use).
- *
- * @since 0.1.0
- *
- * @param string $source One of `stable`, `trunk`, `pr`.
- * @param string $id     PR number when `$source` is `pr`.
- * @return array|WP_Error `{ record, version, messages }` on success.
- */
 function openstation_beta_switch( $source, $id ) {
-	// Refuse before any network work: overwriting a development
-	// checkout (a wp-env bind mount of the working tree) would destroy
-	// uncommitted work. See openstation_beta_install_blocked() — the
-	// `openstation_beta_allow_dev_overwrite` filter overrides.
+
 	$blocked = openstation_beta_install_blocked();
 	if ( null !== $blocked ) {
 		return new WP_Error(
@@ -205,13 +162,12 @@ function openstation_beta_switch( $source, $id ) {
 		);
 	}
 
-	// Sanity check: the zip must actually have contained OpenStation.
 	$plugin_file = (string) $upgrader->plugin_info();
 	if ( OPENSTATION_BETA_TARGET_PLUGIN !== $plugin_file ) {
 		return new WP_Error(
 			'openstation_beta_wrong_plugin',
 			sprintf(
-				/* translators: %s: Plugin file resolved from the installed zip. */
+
 				__( 'The downloaded zip installed "%s" instead of OpenStation.', 'openstation-beta' ),
 				$plugin_file
 			),
@@ -219,9 +175,6 @@ function openstation_beta_switch( $source, $id ) {
 		);
 	}
 
-	// Keep the plugin active. Overwriting an active plugin's folder
-	// leaves its activation record untouched, so this only fires when
-	// OpenStation was inactive (or absent) before the switch.
 	if ( ! is_plugin_active( OPENSTATION_BETA_TARGET_PLUGIN ) ) {
 		$activated = activate_plugin( OPENSTATION_BETA_TARGET_PLUGIN );
 		if ( is_wp_error( $activated ) ) {

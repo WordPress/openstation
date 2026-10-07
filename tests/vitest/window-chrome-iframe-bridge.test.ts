@@ -1,24 +1,8 @@
-/**
- * Phase E tests — iframe → parent chrome bridge.
- *
- * The parent's `handleWindowMessage` routes three new message types
- * (`os-chrome-theme/controls/slot`) to the matching
- * `Window.setAppearance*` methods. These tests stub a Window-shaped
- * receiver, post each message, and assert the right setter fired
- * with the right payload.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 import { handleWindowMessage } from '../../src/window/iframe-bridge';
 
-/**
- * Build a Window-shaped fake whose only job is to capture the
- * setAppearance* call that the bridge dispatches. The bridge's
- * origin gate compares against `window.location.origin`, and its
- * source gate compares against `win.iframe.contentWindow` — we
- * spoof the iframe with a contentWindow stub matching `event.source`.
- */
 function buildFakeWindow() {
 	const setAppearanceTheme = vi.fn();
 	const setAppearanceControls = vi.fn();
@@ -31,7 +15,7 @@ function buildFakeWindow() {
 			setAppearanceTheme,
 			setAppearanceControls,
 			setAppearanceSlot,
-			// Fields the bridge inspects but doesn't use in these tests.
+
 			setTitle: vi.fn(),
 		},
 		fakeContentWindow,

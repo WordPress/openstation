@@ -1,52 +1,32 @@
-/**
- * Games framework — shareable score card.
- *
- * Renders a finished run as a polished 1200×630 image on a plain
- * `<canvas>` (2D API, no assets, no network) that the player can
- * share, copy, or save. Deliberately JUST an image: the admin is a
- * private space, so there is no URL, no caption, no tracking —
- * the card itself is the whole payload.
- *
- * One-tap share prefers the native share sheet with the PNG
- * attached (`navigator.share` + files); when that is unavailable
- * it falls back to copying the image to the clipboard, and finally
- * to a plain download. `shareScoreCard()` reports which path ran
- * so the caller can toast accordingly.
- *
- * Framework-level so every game renders the same recognizable
- * card; the caller provides already-translated labels.
- */
-
 export interface ShareCardStat {
 	label: string;
 	value: string;
 }
 
 export interface ShareCardData {
-	/** Game name, e.g. "Alphabet Soup". */
+
 	gameTitle: string;
-	/** Mode + seed tag, e.g. "Daily · 18-07-2026". */
+
 	puzzleLabel: string;
-	/** Big-number headline. */
+
 	score: number;
-	/** Label under the big number, e.g. "points". */
+
 	scoreLabel: string;
-	/** Up to five supporting stats, left to right. */
+
 	stats: ShareCardStat[];
-	/** Small footer branding, e.g. "WordPress OpenStation". */
+
 	footer: string;
-	/** Accent color for the score + trims. */
+
 	accent?: string;
 }
 
 export const SHARE_CARD_WIDTH = 1200;
 export const SHARE_CARD_HEIGHT = 630;
 
-/** Decorative letter-tile positions — fixed, so cards are stable. */
 const DECO_TILES: ReadonlyArray<
 	readonly [ number, number, number, number ]
 > = [
-	// x, y, size, rotation (radians)
+
 	[ 1020, 96, 74, -0.16 ],
 	[ 1108, 210, 56, 0.22 ],
 	[ 966, 250, 44, 0.42 ],
@@ -61,10 +41,6 @@ const DECO_COLORS: readonly string[] = [
 
 const CARD_FONT = '"Trebuchet MS", "Segoe UI", Verdana, sans-serif';
 
-/**
- * Paint the card. Fixed 1200×630 backing size regardless of the
- * canvas's CSS size (callers scale it with CSS).
- */
 export function renderShareCard(
 	canvas: HTMLCanvasElement,
 	data: ShareCardData,
@@ -79,7 +55,6 @@ export function renderShareCard(
 	const w = SHARE_CARD_WIDTH;
 	const h = SHARE_CARD_HEIGHT;
 
-	// --- Backdrop: deep pot + simmering glows -----------------------
 	ctx.fillStyle = '#1c1233';
 	ctx.fillRect( 0, 0, w, h );
 	const glowA = ctx.createRadialGradient( w * 0.2, h * 0.1, 40, w * 0.2, h * 0.1, 620 );
@@ -93,7 +68,6 @@ export function renderShareCard(
 	ctx.fillStyle = glowB;
 	ctx.fillRect( 0, 0, w, h );
 
-	// --- Decorative letter tiles ------------------------------------
 	const letters = ( data.gameTitle.replace( /[^a-z]/gi, '' ) || 'ABC' ).toUpperCase();
 	DECO_TILES.forEach( ( [ x, y, size, rotation ], i ) => {
 		ctx.save();
@@ -112,7 +86,6 @@ export function renderShareCard(
 		ctx.restore();
 	} );
 
-	// --- Header: title + puzzle pill --------------------------------
 	ctx.textAlign = 'left';
 	ctx.textBaseline = 'alphabetic';
 	ctx.fillStyle = accent;
@@ -132,7 +105,6 @@ export function renderShareCard(
 	ctx.fillStyle = 'rgba(243, 239, 255, 0.85)';
 	ctx.fillText( pillText, 124, 192 );
 
-	// --- The big number ---------------------------------------------
 	const scoreText = formatScore( data.score );
 	const scoreGradient = ctx.createLinearGradient( 96, 260, 96, 420 );
 	scoreGradient.addColorStop( 0, '#ffffff' );
@@ -145,7 +117,6 @@ export function renderShareCard(
 	ctx.font = `600 30px ${ CARD_FONT }`;
 	ctx.fillText( data.scoreLabel, 100 + scoreWidth, 418 );
 
-	// --- Stat tiles --------------------------------------------------
 	const stats = data.stats.slice( 0, 5 );
 	if ( stats.length > 0 ) {
 		const gap = 18;
@@ -169,14 +140,12 @@ export function renderShareCard(
 		} );
 	}
 
-	// --- Footer branding --------------------------------------------
 	ctx.textAlign = 'right';
 	ctx.fillStyle = 'rgba(243, 239, 255, 0.5)';
 	ctx.font = `600 22px ${ CARD_FONT }`;
 	ctx.fillText( data.footer, w - 60, h - 40 );
 }
 
-/** Thousands-separated score. */
 export function formatScore( score: number ): string {
 	return Math.max( 0, Math.round( score ) ).toLocaleString();
 }
@@ -198,7 +167,6 @@ function roundRectPath(
 	ctx.closePath();
 }
 
-/** The canvas as a PNG blob (null when the browser refuses). */
 export function cardBlob(
 	canvas: HTMLCanvasElement,
 ): Promise< Blob | null > {
@@ -217,14 +185,6 @@ interface NavigatorWithShare {
 	};
 }
 
-/**
- * One-tap share: native share sheet with the PNG attached, else
- * copy the image to the clipboard, else download it.
- *
- * @param canvas   A canvas already painted by `renderShareCard()`.
- * @param filename Download filename (e.g. `alphabet-soup-score.png`).
- * @param title    Share-sheet title (some targets display it).
- */
 export async function shareScoreCard(
 	canvas: HTMLCanvasElement,
 	filename: string,
@@ -245,7 +205,7 @@ export async function shareScoreCard(
 			await nav.share( { files: [ file ], title } );
 			return 'shared';
 		} catch {
-			// Dismissed or unsupported payload — fall through.
+
 		}
 	}
 	if ( await copyCardToClipboard( blob ) ) {
@@ -255,7 +215,6 @@ export async function shareScoreCard(
 	return 'downloaded';
 }
 
-/** Copy the PNG to the clipboard. Returns whether it worked. */
 export async function copyCardToClipboard( blob: Blob ): Promise< boolean > {
 	const nav = window.navigator as NavigatorWithShare;
 	const ClipboardItemCtor = (
@@ -274,7 +233,6 @@ export async function copyCardToClipboard( blob: Blob ): Promise< boolean > {
 	}
 }
 
-/** Plain download of the card PNG. */
 export function downloadCard(
 	canvas: HTMLCanvasElement,
 	filename: string,

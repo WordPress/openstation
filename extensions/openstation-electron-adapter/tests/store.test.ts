@@ -1,11 +1,3 @@
-/**
- * The JSON state file.
- *
- * Small, but it is the thing standing between "the app remembers your
- * site" and "the app will not start". The corrupt-file case matters
- * more than the happy path.
- */
-
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -38,8 +30,7 @@ describe( 'persistence', () => {
 	} );
 
 	test( 'treats a corrupt file as no state rather than failing to boot', () => {
-		// The worst case has to be re-entering a site address, not an
-		// app that will not open.
+
 		writeFileSync( join( dir, 'openstation-desktop.json' ), '{ not json', 'utf8' );
 
 		expect( new Store( dir ).get( 'siteUrl' ) ).toBe( '' );
@@ -78,12 +69,7 @@ describe( 'hostId', () => {
 } );
 
 describe( 'agentToken', () => {
-	// The opposite of `hostId` on purpose. The host id is a *name* and
-	// has to be stable for the site to tell a reconnection from a second
-	// machine. The token is a *capability*, and the agent's port is
-	// re-issued every launch anyway — so a token that outlived the
-	// process would be the only part of the pairing with an indefinite
-	// life, sitting in a plain JSON file.
+
 	test( 'is stable within a launch', () => {
 		const store = new Store( dir );
 		const first = store.agentToken();
@@ -95,8 +81,7 @@ describe( 'agentToken', () => {
 	test( 'is new on the next launch, and never written to disk', () => {
 		const store = new Store( dir );
 		const first = store.agentToken();
-		// Force a flush, so the assertion below is "the token is absent
-		// from a file that exists" rather than "no file was written".
+
 		store.set( 'siteUrl', 'https://example.test' );
 
 		expect( readFileSync( join( dir, 'openstation-desktop.json' ), 'utf8' ) )

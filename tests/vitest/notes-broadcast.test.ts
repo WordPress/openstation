@@ -1,8 +1,3 @@
-/**
- * The Recycle Bin's icon tracks deltas off `os.<type>.changed` to know
- * whether it is holding anything. Notes never published it, so the bin
- * still looked empty after one was trashed.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { subscribe } from '../../src/broadcast';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -30,9 +25,7 @@ const NOTE: Note = {
 };
 
 describe( 'notes bin broadcast', () => {
-	// Observed on the real bus, not a `wp.os` mock: the notes module
-	// publishes through the shared `announceContentChange()` helper,
-	// which rides the module-level broadcast directly.
+
 	let published: Array< Record< string, unknown > >;
 	let unsubscribe: () => void;
 	let undoAction: ( () => void ) | null;
@@ -46,8 +39,7 @@ describe( 'notes bin broadcast', () => {
 			published.push( payload as Record< string, unknown > );
 		} );
 		undoAction = null;
-		// Merge, never assign: `installHooksStub()` above parked
-		// `wp.hooks` on the same global, and the real bus reads it.
+
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		w.wp = {
 			...( w.wp ?? {} ),
@@ -102,7 +94,7 @@ describe( 'notes bin broadcast', () => {
 	} );
 
 	test( 'the topic matches the slug the bin config ships', () => {
-		// Drift here stops the bin icon updating, silently.
+
 		expect( NOTES_POST_TYPE ).toBe( 'wpd_note' );
 	} );
 } );

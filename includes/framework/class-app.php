@@ -1,31 +1,4 @@
 <?php
-/**
- * OpenStation App Framework — the App definition.
- *
- * One object describes a whole OpenStation window: what it is
- * called, how big it opens, which buttons sit in its title bar and
- * its ⋯ menu, what state it keeps, what happens on each action, and
- * how it paints. An `.os.php` file is nothing but a `return` of one
- * of these:
- *
- *     return App::define( 'hello' )
- *         ->title( 'Hello' )
- *         ->size( 480, 320 )
- *         ->state( array( 'count' => 0 ) )
- *         ->action( 'bump', function ( State $state ) {
- *             $state->set( 'count', $state->get( 'count' ) + 1 );
- *         } )
- *         ->view( function ( State $state ) { ?>
- *             <os-display value="<?php echo esc( $state->get( 'count' ) ); ?>"></os-display>
- *             <os-button variant="primary" os-action="bump">Bump</os-button>
- *         <?php } );
- *
- * The host asks for `manifest()` to learn the window and for
- * `render()` to get its body; `App\Runtime` turns client actions into
- * state changes and re-renders. No JavaScript is written per app.
- *
- * @package OpenStation
- */
 
 namespace OpenStation;
 
@@ -34,41 +7,20 @@ use OpenStation\App\State;
 use OpenStation\App\View;
 use function OpenStation\App\Html\esc;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/**
- * A whole OpenStation window, declared in PHP.
- */
 final class App {
 
-	/**
-	 * @var string
-	 */
 	private $id;
 
-	/**
-	 * @var string
-	 */
 	private $title = '';
 
-	/**
-	 * @var string
-	 */
 	private $icon = 'dashicons-admin-generic';
 
-	/**
-	 * Icon as raw SVG markup, when the app drew its own.
-	 *
-	 * @var string
-	 */
 	private $icon_svg = '';
 
-	/**
-	 * @var array{width:int,height:int,min_width:int,min_height:int}
-	 */
 	private $size = array(
 		'width'      => 520,
 		'height'     => 400,
@@ -76,9 +28,6 @@ final class App {
 		'min_height' => 220,
 	);
 
-	/**
-	 * @var array<string,mixed>
-	 */
 	private $nav = array(
 		'admin'      => 'site',
 		'placement'  => 'dock',
@@ -88,182 +37,73 @@ final class App {
 		'autofocus'  => false,
 	);
 
-	/**
-	 * @var array<string,mixed>|null
-	 */
 	private $desktop_icon = null;
 
-	/**
-	 * @var callable|null
-	 */
 	private $gate = null;
 
-	/**
-	 * @var string[]
-	 */
 	private $capabilities = array();
 
-	/**
-	 * @var string
-	 */
 	private $style = '';
 
-	/**
-	 * @var array<string,mixed>
-	 */
 	private $defaults = array();
 
-	/**
-	 * The admin menu this window answers for, and the tabs that ARE
-	 * that menu's pages. See {@see App::menu()}.
-	 *
-	 * @var array<string,mixed>|null
-	 */
 	private $menu = null;
 
-	/**
-	 * @var callable|null
-	 */
 	private $mount = null;
 
-	/**
-	 * @var array<string,callable>
-	 */
 	private $actions = array();
 
-	/**
-	 * @var callable|null
-	 */
 	private $view = null;
 
-	/**
-	 * @var callable|null
-	 */
 	private $data = null;
 
-	/**
-	 * Built client-view script, absolute path.
-	 *
-	 * @var string
-	 */
 	private $client = '';
 
-	/**
-	 * Whether `data()` ships with the window config. See `prefetch()`.
-	 *
-	 * @var bool
-	 */
 	private $prefetch = false;
 
-	/**
-	 * @var array<int,array<string,mixed>>
-	 */
 	private $title_bar_buttons = array();
 
-	/**
-	 * @var array<int,array<string,mixed>>
-	 */
 	private $window_actions = array();
 
-	/**
-	 * Per-window chrome: `theme` tokens, `controls`, `slots`.
-	 *
-	 * @var array<string,mixed>
-	 */
 	private $appearance = array();
 
-	/**
-	 * @var array<string,mixed>
-	 */
 	private $config = array();
 
-	/**
-	 * Config callables resolved when the manifest is built.
-	 *
-	 * @var callable[]
-	 */
 	private $config_lazy = array();
 
-	/**
-	 * Extra tabs: `value => array( label, view, position )`.
-	 *
-	 * @var array<string,array<string,mixed>>
-	 */
 	private $tabs = array();
 
-	/**
-	 * Channel subscriptions: `channel => action`.
-	 *
-	 * @var array<string,string>
-	 */
 	private $channels = array();
 
-	/**
-	 * Content types whose `os.<type>.changed` broadcasts re-render
-	 * this app.
-	 *
-	 * @var string[]
-	 */
 	private $watch = array();
 
-	/**
-	 * @var string
-	 */
 	private $dir = '';
 
-	/**
-	 * @var string
-	 */
 	private $file = '';
 
-	/**
-	 * @param string $id App id — also the window id and the icon id.
-	 * @throws \InvalidArgumentException When the id is not a slug.
-	 */
 	private function __construct( $id ) {
 		$id = strtolower( trim( (string) $id ) );
 		if ( ! preg_match( '/^[a-z0-9][a-z0-9_-]*$/', $id ) ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; the host-agnostic core cannot call `esc_html()`, and Plugin Check runs its own ruleset without our `customEscapingFunctions`.
+
 			throw new \InvalidArgumentException( sprintf( 'Invalid app id "%s": use lowercase letters, digits, "-" and "_".', esc( $id ) ) );
 		}
 		$this->id = $id;
 	}
 
-	/**
-	 * Start a definition.
-	 *
-	 * @param string $id App id.
-	 * @return self
-	 */
 	public static function define( $id ) {
 		return new self( $id );
 	}
 
-	// -------------------------------------------------------- identity
-
-	/**
-	 * Window title (also the desktop icon's label by default).
-	 *
-	 * @param string $title Title.
-	 * @return self
-	 */
 	public function title( $title ) {
 		$this->title = (string) $title;
 		return $this;
 	}
 
-	/**
-	 * Icon: a Dashicons class, an image URL, or raw `<svg>` markup
-	 * drawn in `currentColor` (the shell paints it as a mask).
-	 *
-	 * @param string $icon Icon reference or SVG markup.
-	 * @return self
-	 */
 	public function icon( $icon ) {
 		$icon = trim( (string) $icon );
 		if ( 0 === strpos( $icon, '<svg' ) ) {
 			$this->icon_svg = $icon;
-			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Building a data: URI for an inline SVG icon, not obfuscating anything.
+
 			$this->icon = 'data:image/svg+xml;base64,' . base64_encode( $icon );
 		} else {
 			$this->icon_svg = '';
@@ -272,145 +112,63 @@ final class App {
 		return $this;
 	}
 
-	/**
-	 * Initial window size.
-	 *
-	 * @param int $width  Pixels.
-	 * @param int $height Pixels.
-	 * @return self
-	 */
 	public function size( $width, $height ) {
 		$this->size['width']  = max( 1, (int) $width );
 		$this->size['height'] = max( 1, (int) $height );
 		return $this;
 	}
 
-	/**
-	 * Smallest size the user can drag the window to.
-	 *
-	 * @param int $width  Pixels.
-	 * @param int $height Pixels.
-	 * @return self
-	 */
 	public function min_size( $width, $height ) {
 		$this->size['min_width']  = max( 1, (int) $width );
 		$this->size['min_height'] = max( 1, (int) $height );
 		return $this;
 	}
 
-	/**
-	 * Where the launcher goes by default: `'dock'` for a tile in the
-	 * dock, `'none'` to rely on a desktop icon or another opener.
-	 *
-	 * @param string $placement `dock` | `none`.
-	 * @return self
-	 */
 	public function placement( $placement ) {
 		$this->nav['placement'] = 'none' === $placement ? 'none' : 'dock';
 		return $this;
 	}
 
-	/**
-	 * Which admin's shell offers the window. `site` (the default) is
-	 * every site's shell and never the network admin's — right for an
-	 * app that reads the current site; `network` is the network admin's
-	 * shell only; `any` is both. On a single-site install the network
-	 * admin does not exist, so `network` there offers the app nowhere.
-	 *
-	 * @param string $admin `site` | `network` | `any`.
-	 * @return self
-	 */
 	public function admin( $admin ) {
 		$this->nav['admin'] = in_array( $admin, array( 'site', 'network', 'any' ), true ) ? $admin : 'site';
 		return $this;
 	}
 
-	/**
-	 * What the window is to the navigation model.
-	 *
-	 * @param string $kind `app` | `control`.
-	 * @return self
-	 */
 	public function nav_kind( $kind ) {
 		$this->nav['nav_kind'] = 'control' === $kind ? 'control' : 'app';
 		return $this;
 	}
 
-	/**
-	 * Sort key among dock tiles.
-	 *
-	 * @param int $order Ascending.
-	 * @return self
-	 */
 	public function dock_order( $order ) {
 		$this->nav['dock_order'] = (int) $order;
 		return $this;
 	}
 
-	/**
-	 * Let the user move or hide the dock tile from Preferences.
-	 *
-	 * @param bool $placeable Default true.
-	 * @return self
-	 */
 	public function placeable( $placeable = true ) {
 		$this->nav['placeable'] = (bool) $placeable;
 		return $this;
 	}
 
-	/**
-	 * Focus the body (or a selector inside it) once the window opens.
-	 *
-	 * @param bool|string $autofocus `true`, or a CSS selector.
-	 * @return self
-	 */
 	public function autofocus( $autofocus = true ) {
 		$this->nav['autofocus'] = is_string( $autofocus ) ? $autofocus : (bool) $autofocus;
 		return $this;
 	}
 
-	/**
-	 * Also put a shortcut on the wallpaper.
-	 *
-	 * @param array<string,mixed> $args `position` (int), `pinned` (bool), `title`, `icon`.
-	 * @return self
-	 */
 	public function desktop_icon( array $args = array() ) {
 		$this->desktop_icon = $args;
 		return $this;
 	}
 
-	// ------------------------------------------------------------ access
-
-	/**
-	 * Gate the whole app — window, icon, dispatch — behind a predicate.
-	 * Combined with `capabilities()`; both must pass.
-	 *
-	 * @param callable $gate `function ( Os $os ): bool`.
-	 * @return self
-	 */
 	public function can( callable $gate ) {
 		$this->gate = $gate;
 		return $this;
 	}
 
-	/**
-	 * Capabilities the acting user must ALL hold.
-	 *
-	 * @param string ...$capabilities Capability slugs.
-	 * @return self
-	 */
 	public function capabilities( ...$capabilities ) {
 		$this->capabilities = array_values( array_filter( array_map( 'strval', $capabilities ) ) );
 		return $this;
 	}
 
-	/**
-	 * Whether the acting user may use this app.
-	 *
-	 * @param Os $os Host handle.
-	 * @return bool
-	 */
 	public function allows( Os $os ) {
 		if ( ! $os->auth->is_logged_in() ) {
 			return false;
@@ -426,27 +184,11 @@ final class App {
 		return true;
 	}
 
-	// ------------------------------------------------------------- assets
-
-	/**
-	 * Stylesheet for the window body. Resolved by convention when
-	 * omitted: `<app dir>/<id>.css` if that file exists.
-	 *
-	 * @param string $path Absolute path to a CSS file.
-	 * @return self
-	 */
 	public function style( $path ) {
 		$this->style = (string) $path;
 		return $this;
 	}
 
-	/**
-	 * Absolute stylesheet path, or '' when the app has none. By
-	 * convention `<dir>/<id>.css`, else `<dir>/<file>.css` where
-	 * `<file>` is the definition file's name without `.os.php`.
-	 *
-	 * @return string
-	 */
 	public function style_path() {
 		if ( '' !== $this->style ) {
 			return $this->style;
@@ -466,84 +208,25 @@ final class App {
 		return '';
 	}
 
-	/**
-	 * Record where the definition file lives. Called by the loader.
-	 *
-	 * @param string $dir  Directory.
-	 * @param string $file File path.
-	 * @return self
-	 */
 	public function located_at( $dir, $file = '' ) {
 		$this->dir  = rtrim( (string) $dir, '/\\' );
 		$this->file = (string) $file;
 		return $this;
 	}
 
-	/**
-	 * Directory the definition was loaded from ('' when defined inline).
-	 *
-	 * @return string
-	 */
 	public function dir() {
 		return $this->dir;
 	}
 
-	/**
-	 * File the definition was loaded from ('' when defined inline).
-	 *
-	 * @return string
-	 */
 	public function file() {
 		return $this->file;
 	}
 
-	// ---------------------------------------------------- state & logic
-
-	/**
-	 * Declare the state and its defaults. The defaults are the schema:
-	 * only these keys exist, and each keeps its declared type.
-	 *
-	 * @param array<string,mixed> $defaults Key → default value.
-	 * @return self
-	 */
 	public function state( array $defaults ) {
 		$this->defaults = $defaults;
 		return $this;
 	}
 
-	/**
-	 * Declare the admin menu this window answers for, and the tabs
-	 * that ARE that menu's pages.
-	 *
-	 * A window that replaces an admin screen replaces its menu too:
-	 * whatever the window offers as a tab, the dock offers as a row,
-	 * with the same label and in the same order, and picking a row
-	 * opens the window on that tab. One declaration drives all three
-	 * halves of that:
-	 *
-	 *   - the dock's submenu for `$slug` becomes these tabs (the first
-	 *     is the menu's own page, so it becomes the tile's label);
-	 *   - each row's URL is the menu's own tagged `os_tab=<id>`, which
-	 *     the shell's remap reads back as the tab to open on;
-	 *   - `tab` becomes declared state, written on mount and reopen;
-	 *   - the tabs reach the client view as `menuTabs`, which its strip
-	 *     renders from, so the two lists cannot drift.
-	 *
-	 * A tab's value is its label, or `array( 'label' => …, 'page' => … )`
-	 * naming the submenu slug it replaces (`user-new.php`). That page
-	 * is which of wp-admin's own rows this window answers for — the
-	 * rest are kept, so a plugin's page under this menu stays
-	 * reachable — and what the shell routes here from anywhere else.
-	 *
-	 * @param string                       $slug    Admin menu slug, e.g. `users.php`.
-	 * @param array<string,mixed>|callable $tabs    Ordered `id => label|array`, or a
-	 *                                              callable returning one (for tabs
-	 *                                              that depend on capabilities).
-	 * @param callable|null                $enabled Optional gate — the opt-in that
-	 *                                              decides whether this window answers
-	 *                                              for the menu at all. Default: always.
-	 * @return self
-	 */
 	public function menu( $slug, $tabs, $enabled = null ) {
 		$this->menu = array(
 			'slug'    => (string) $slug,
@@ -553,17 +236,6 @@ final class App {
 		return $this;
 	}
 
-	/**
-	 * The declared menu's tabs for the CURRENT user, as an ordered
-	 * list of `array( 'id', 'label' )`. Empty when no menu is declared.
-	 *
-	 * Not gated: these are the window's tabs whoever opened it and
-	 * whatever the opt-in says, and the client view renders its strip
-	 * from them. The gate decides only whether the DOCK's submenu
-	 * becomes this list — see {@see App::menu_owns_dock()}.
-	 *
-	 * @return array<int,array<string,string>>
-	 */
 	public function menu_tabs() {
 		if ( ! $this->menu ) {
 			return array();
@@ -581,31 +253,17 @@ final class App {
 			$out[] = array(
 				'id'    => $id,
 				'label' => $label,
-				// The wp-admin submenu slug this tab stands in for,
-				// '' for a tab wp-admin has no page for.
+
 				'page'  => is_array( $tab ) ? (string) ( $tab['page'] ?? '' ) : '',
 			);
 		}
 		return $out;
 	}
 
-	/**
-	 * The admin menu slug this window answers for, `''` when none.
-	 *
-	 * @return string
-	 */
 	public function menu_slug() {
 		return $this->menu ? (string) $this->menu['slug'] : '';
 	}
 
-	/**
-	 * Whether this window is the one answering for its menu right
-	 * now — the per-user opt-in that chooses between it and the
-	 * classic screen. Only then does the dock's submenu become the
-	 * window's tabs.
-	 *
-	 * @return bool
-	 */
 	public function menu_owns_dock() {
 		if ( ! $this->menu ) {
 			return false;
@@ -613,120 +271,45 @@ final class App {
 		return ! is_callable( $this->menu['enabled'] ) || (bool) call_user_func( $this->menu['enabled'] );
 	}
 
-	/**
-	 * Runs once, before the first render, with the fresh state.
-	 *
-	 * @param callable $mount `function ( State $state, Os $os )`.
-	 * @return self
-	 */
 	public function mount( callable $mount ) {
 		$this->mount = $mount;
 		return $this;
 	}
 
-	/**
-	 * Declare an action. Markup triggers it with `os-action="<name>"`;
-	 * the handler mutates the state and the view re-renders.
-	 *
-	 * @param string   $name    Action name (`[a-z0-9_-]`).
-	 * @param callable $handler `function ( State $state, Os $os, array $args )`.
-	 * @return self
-	 * @throws \InvalidArgumentException When the name is not a slug or is reserved.
-	 */
 	public function action( $name, callable $handler ) {
 		$name = strtolower( trim( (string) $name ) );
 		if ( ! preg_match( '/^[a-z0-9_-]+$/', $name ) || App\Runtime::ACTION_MOUNT === $name ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; see the note on the id exception above.
+
 			throw new \InvalidArgumentException( sprintf( 'Invalid action name "%s".', esc( $name ) ) );
 		}
 		$this->actions[ $name ] = $handler;
 		return $this;
 	}
 
-	/**
-	 * The view: paints the body for a state. Echo markup, return a
-	 * string, or both.
-	 *
-	 * @param callable $view `function ( State $state, Os $os )`.
-	 * @return self
-	 */
 	public function view( callable $view ) {
 		$this->view = $view;
 		return $this;
 	}
 
-	/**
-	 * The data a client view (`.os.ts`) renders from — everything the
-	 * browser needs to paint the body for any state without asking
-	 * the server again: rows, options, environment facts. Computed
-	 * after every server action, from the same `( State, Os )` a view
-	 * gets, and shipped as `data` in the response. Keep it to what
-	 * the view reads; it travels on every round trip.
-	 *
-	 * @param callable $data `function ( State $state, Os $os ): array`.
-	 * @return self
-	 */
 	public function data( callable $data ) {
 		$this->data = $data;
 		return $this;
 	}
 
-	/**
-	 * Compute `data()` once at registration and ship it with the
-	 * window config, so a client view paints from the declared state
-	 * the moment the window opens instead of behind a spinner for the
-	 * length of the `mount` round trip (a WordPress request — hundreds
-	 * of milliseconds, and the first click on a spinner is a click
-	 * lost). `mount` still runs and refreshes both state and data.
-	 *
-	 * Opt-in, because the cost is paid on every shell page load for
-	 * every user who may open the app: right for a `data()` that is a
-	 * handful of capability checks and options, wrong for one that
-	 * runs queries.
-	 *
-	 * @param bool $prefetch Default true.
-	 * @return self
-	 */
 	public function prefetch( $prefetch = true ) {
 		$this->prefetch = (bool) $prefetch;
 		return $this;
 	}
 
-	/**
-	 * Whether `data()` is prefetched at registration.
-	 *
-	 * @return bool
-	 */
 	public function prefetches() {
 		return $this->prefetch && null !== $this->data;
 	}
 
-	/**
-	 * The built client-view script for this app. By convention an app
-	 * with `<dir>/<file>.os.ts` beside its `.os.php` needs no call —
-	 * the host resolves the built bundle. Third-party apps that build
-	 * their own pass the absolute path of the built file here.
-	 *
-	 * @param string $path Absolute path to a built `.js`.
-	 * @return self
-	 */
 	public function client( $path ) {
 		$this->client = (string) $path;
 		return $this;
 	}
 
-	/**
-	 * An extra tab in the window's tab strip, with its own view. The
-	 * main view is the first tab (labelled with the window title).
-	 * Each tab runs as its own session: same declared state shape,
-	 * separate values, and `$os->view` tells an action which tab
-	 * dispatched it.
-	 *
-	 * @param string              $value Tab slug (not `main`).
-	 * @param array<string,mixed> $args  `label` (required), `view` (callable, required), `position` (int, default 100).
-	 * @return self
-	 * @throws \InvalidArgumentException When the slug, label or view is missing.
-	 */
 	public function tab( $value, array $args ) {
 		$value = strtolower( (string) preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $value ) );
 		if ( '' === $value || 'main' === $value || empty( $args['label'] ) || empty( $args['view'] ) || ! is_callable( $args['view'] ) ) {
@@ -741,39 +324,11 @@ final class App {
 		return $this;
 	}
 
-	/**
-	 * Dispatch an action whenever a peer publishes on one of this
-	 * window's channels (`wp.os.connect( id ).send( channel, payload )`
-	 * or `Window.send()`). The payload arrives as `$args['payload']`.
-	 *
-	 * @param string $channel Channel name.
-	 * @param string $action  Declared action to run.
-	 * @return self
-	 */
 	public function on_channel( $channel, $action ) {
 		$this->channels[ (string) $channel ] = (string) $action;
 		return $this;
 	}
 
-	/**
-	 * Re-render whenever the named content changes ANYWHERE on the
-	 * desktop — another window trashing a post, the Recycle Bin
-	 * restoring one, a plugin announcing its own type.
-	 *
-	 * The runtime subscribes to the shell's `os.<type>.changed`
-	 * broadcasts (see `wp.os.announceContentChange`) and re-dispatches
-	 * the built-in `set` — state kept, `data()` recomputed, view
-	 * repainted. A minimized window skips the refresh and catches up
-	 * when it is restored. This is the read half of the pair whose
-	 * write half is the `$os->announce()` effect.
-	 *
-	 * @param string ...$types Content-type slugs (`post`, `page`,
-	 *                         `attachment`, or a plugin's own), or `'*'`
-	 *                         for any content change — the choice when
-	 *                         the types the app shows are only known at
-	 *                         render time (a dynamic post-type list).
-	 * @return self
-	 */
 	public function watch( ...$types ) {
 		foreach ( $types as $type ) {
 			$type = '*' === $type ? '*' : strtolower( trim( (string) $type ) );
@@ -784,45 +339,16 @@ final class App {
 		return $this;
 	}
 
-	// ------------------------------------------------------------ chrome
-
-	/**
-	 * A button in the window's title bar that dispatches an action.
-	 *
-	 * @param string              $id   Button id, unique within the app.
-	 * @param array<string,mixed> $args `label` (required), `action` (required), `icon`
-	 *                                  (Dashicons class, inline SVG, or a built-in key such
-	 *                                  as `reload`), `placement` (`left` | `right`, default
-	 *                                  `right`), `order` (int), `confirm` (see `window_action()`).
-	 * @return self
-	 */
 	public function title_bar_button( $id, array $args ) {
 		$this->title_bar_buttons[] = self::normalise_control( $id, $args, 'right' );
 		return $this;
 	}
 
-	/**
-	 * A row in the window's ⋯ menu that dispatches an action.
-	 *
-	 * `confirm` may be a string (the question) or an array with
-	 * `title`, `message`, `label`, `danger`; the shell asks before
-	 * dispatching.
-	 *
-	 * @param string              $id   Row id, unique within the app.
-	 * @param array<string,mixed> $args `label` (required), `action` (required), `icon`, `order`, `confirm`.
-	 * @return self
-	 */
 	public function window_action( $id, array $args ) {
 		$this->window_actions[] = self::normalise_control( $id, $args, '' );
 		return $this;
 	}
 
-	/**
-	 * Per-window CSS variables (`--os-window-…` tokens) — a window theme.
-	 *
-	 * @param array<string,string> $tokens Token → value.
-	 * @return self
-	 */
 	public function theme( array $tokens ) {
 		$clean = array();
 		foreach ( $tokens as $name => $value ) {
@@ -834,44 +360,16 @@ final class App {
 		return $this;
 	}
 
-	/**
-	 * Reorder or hide the standard window controls.
-	 *
-	 * @param array<string,mixed> $controls `order` (string[]), `hide` (string[]), `placement`.
-	 * @return self
-	 */
 	public function controls( array $controls ) {
 		$this->appearance['controls'] = $controls;
 		return $this;
 	}
 
-	/**
-	 * Static HTML for one of the title-bar slots (`before-titlebar`,
-	 * `after-titlebar`, `after-title`, …).
-	 *
-	 * @param string $slot Slot name.
-	 * @param string $html Markup.
-	 * @return self
-	 */
 	public function slot( $slot, $html ) {
 		$this->appearance['slots'][ (string) $slot ] = array( 'html' => (string) $html );
 		return $this;
 	}
 
-	/**
-	 * Extra values shipped to the client runtime, readable as
-	 * `wp.os.getWindowConfig( id ).extra`.
-	 *
-	 * Pass a callable — `function ( App $app ): array` — for values
-	 * that depend on who is asking (capability flags, the viewer's id,
-	 * a filtered option): it runs when the manifest is built, for the
-	 * acting user at that moment, rather than once when the definition
-	 * file loads. Keep it cheap: the manifest is built on every request
-	 * that registers windows, so memoise anything that scans.
-	 *
-	 * @param array<string,mixed>|callable $config Serialisable values, or a callable returning them.
-	 * @return self
-	 */
 	public function config( $config ) {
 		if ( is_callable( $config ) ) {
 			$this->config_lazy[] = $config;
@@ -881,20 +379,12 @@ final class App {
 		return $this;
 	}
 
-	/**
-	 * The config extra: the static values, with every lazy callable's
-	 * result merged over them in declaration order.
-	 *
-	 * @return array<string,mixed>
-	 */
 	public function resolved_config() {
 		$config = $this->config;
 		foreach ( $this->config_lazy as $callable ) {
 			$config = array_merge( $config, (array) call_user_func( $callable, $this ) );
 		}
-		// The declared menu's tabs, for a client view that renders its
-		// strip from them — the only way the strip and the dock's
-		// submenu cannot drift, since both read this list.
+
 		$tabs = $this->menu_tabs();
 		if ( $tabs ) {
 			$config['menuTabs'] = $tabs;
@@ -902,29 +392,15 @@ final class App {
 		return $config;
 	}
 
-	// ----------------------------------------------------------- readers
-
-	/**
-	 * App id.
-	 *
-	 * @return string
-	 */
 	public function id() {
 		return $this->id;
 	}
 
-	/**
-	 * Declared state defaults.
-	 *
-	 * @return array<string,mixed>
-	 */
 	public function defaults() {
 		if ( ! $this->menu || array_key_exists( 'tab', $this->defaults ) ) {
 			return $this->defaults;
 		}
-		// Declared here rather than by every app that declares a menu:
-		// the runtime writes this key from the `tab` open-time param,
-		// and a key the schema does not carry would be dropped.
+
 		$tabs = $this->menu_tabs();
 		return array_merge(
 			array( 'tab' => $tabs ? $tabs[0]['id'] : '' ),
@@ -932,74 +408,32 @@ final class App {
 		);
 	}
 
-	/**
-	 * Whether an action is declared.
-	 *
-	 * @param string $name Action name.
-	 * @return bool
-	 */
 	public function has_action( $name ) {
 		$this->ensure_menu_reopen();
 		return isset( $this->actions[ (string) $name ] );
 	}
 
-	/**
-	 * Declared action names.
-	 *
-	 * @return string[]
-	 */
 	public function action_names() {
 		$this->ensure_menu_reopen();
 		return array_keys( $this->actions );
 	}
 
-	/**
-	 * A window that declares a menu answers `reopen`, whether or not
-	 * it wrote a handler for one.
-	 *
-	 * The client dispatches a lifecycle action only when the manifest
-	 * says the app declared it, so without this the runtime's own
-	 * "land on the tab the opener named" never runs on a window that
-	 * is already open — the case a dock row for another tab IS.
-	 * Registered here rather than in {@see App::menu()} so an app's
-	 * own actions keep the order they were declared in.
-	 *
-	 * @return void
-	 */
 	private function ensure_menu_reopen() {
 		if ( $this->menu && ! isset( $this->actions['reopen'] ) ) {
 			$this->actions['reopen'] = static function () {};
 		}
 	}
 
-	/**
-	 * Run the mount hook, if any.
-	 *
-	 * @param State $state State.
-	 * @param Os    $os    Host handle.
-	 * @return void
-	 */
 	public function run_mount( State $state, Os $os ) {
 		if ( null !== $this->mount ) {
 			call_user_func( $this->mount, $state, $os );
 		}
 	}
 
-	/**
-	 * Run an action.
-	 *
-	 * @param string              $name     Action name.
-	 * @param State               $state    State.
-	 * @param Os                  $os       Host handle.
-	 * @param array<string,mixed> $args     Arguments from the trigger.
-	 * @param bool                $required Throw when the action is undeclared. Default true.
-	 * @return void
-	 * @throws \RuntimeException When `$required` and the action is undeclared.
-	 */
 	public function run_action( $name, State $state, Os $os, array $args = array(), $required = true ) {
 		if ( ! isset( $this->actions[ $name ] ) ) {
 			if ( $required ) {
-				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; see the note on the id exception above.
+
 				throw new \RuntimeException( sprintf( 'Unknown action "%s".', esc( $name ) ) );
 			}
 			return;
@@ -1007,22 +441,10 @@ final class App {
 		call_user_func( $this->actions[ $name ], $state, $os, $args );
 	}
 
-	/**
-	 * Whether the app declared a `data()` callback.
-	 *
-	 * @return bool
-	 */
 	public function has_data() {
 		return null !== $this->data;
 	}
 
-	/**
-	 * Compute the client data for a state.
-	 *
-	 * @param State $state State.
-	 * @param Os    $os    Host handle.
-	 * @return array<string,mixed>
-	 */
 	public function compute_data( State $state, Os $os ) {
 		if ( null === $this->data ) {
 			return array();
@@ -1031,21 +453,10 @@ final class App {
 		return is_array( $data ) ? $data : array();
 	}
 
-	/**
-	 * Explicit built client script path, or ''.
-	 *
-	 * @return string
-	 */
 	public function client_path() {
 		return $this->client;
 	}
 
-	/**
-	 * The `.os.ts` source beside the definition file, or '' when the
-	 * app has none. The host maps it to its built bundle.
-	 *
-	 * @return string
-	 */
 	public function client_source() {
 		if ( '' === $this->dir || '' === $this->file_base() ) {
 			return '';
@@ -1054,13 +465,6 @@ final class App {
 		return is_file( $candidate ) ? $candidate : '';
 	}
 
-	/**
-	 * The definition file's name without `.os.php` — the base every
-	 * by-convention sibling (`<base>.css`, `<base>.os.ts`) is named
-	 * after. '' for an app built in code rather than loaded from disk.
-	 *
-	 * @return string
-	 */
 	private function file_base() {
 		if ( '' === $this->file ) {
 			return '';
@@ -1068,24 +472,10 @@ final class App {
 		return (string) preg_replace( '/\.os\.php$/', '', basename( $this->file ) );
 	}
 
-	/**
-	 * Whether a view exists: `main`, or a declared tab slug.
-	 *
-	 * @param string $view View name.
-	 * @return bool
-	 */
 	public function has_view( $view ) {
 		return 'main' === $view || isset( $this->tabs[ (string) $view ] );
 	}
 
-	/**
-	 * Paint a view for a state.
-	 *
-	 * @param State  $state State.
-	 * @param Os     $os    Host handle.
-	 * @param string $view  `main` (default) or a tab slug.
-	 * @return string HTML.
-	 */
 	public function render( State $state, Os $os, $view = 'main' ) {
 		$callable = 'main' === $view || '' === (string) $view
 			? $this->view
@@ -1096,11 +486,6 @@ final class App {
 		return View::capture( $callable, $state, $os );
 	}
 
-	/**
-	 * Declared tabs, without their callables, by position.
-	 *
-	 * @return array<int,array{value:string,label:string,position:int}>
-	 */
 	public function tabs() {
 		$tabs = array_values(
 			array_map(
@@ -1123,24 +508,8 @@ final class App {
 		return $tabs;
 	}
 
-	/**
-	 * Lifecycle moments the runtime reports as actions — only when
-	 * the app declared a handler of that name.
-	 *
-	 * `reopen` fires when the window is asked to open while it is
-	 * already open — `wp.os.openWindow( id, { params } )` on a live
-	 * singleton, a deep link landing on a window that exists. The
-	 * shell writes the NEW params onto the window first, so the
-	 * handler reads them through `$os->params` and retargets.
-	 */
 	const LIFECYCLE_ACTIONS = array( 'resize', 'show', 'hide', 'focus', 'blur', 'reopen' );
 
-	/**
-	 * The whole window as data — everything a host needs to register
-	 * it and everything the client runtime needs to drive it.
-	 *
-	 * @return array<string,mixed>
-	 */
 	public function manifest() {
 		return array(
 			'id'                => $this->id,
@@ -1180,22 +549,13 @@ final class App {
 		);
 	}
 
-	/**
-	 * Normalise a title-bar button / window-action declaration.
-	 *
-	 * @param string              $id                Control id.
-	 * @param array<string,mixed> $args              Declaration.
-	 * @param string              $default_placement `right` for buttons, '' for menu rows.
-	 * @return array<string,mixed>
-	 * @throws \InvalidArgumentException When the id, label or action is missing.
-	 */
 	private static function normalise_control( $id, array $args, $default_placement ) {
 		$id = strtolower( (string) preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $id ) );
 		if ( '' === $id ) {
 			throw new \InvalidArgumentException( 'A title-bar button or window action needs an id.' );
 		}
 		if ( empty( $args['label'] ) || empty( $args['action'] ) ) {
-			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; see the note on the id exception above.
+
 			throw new \InvalidArgumentException( sprintf( 'Control "%s" needs both a label and an action.', esc( $id ) ) );
 		}
 

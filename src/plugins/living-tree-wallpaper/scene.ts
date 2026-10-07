@@ -1,20 +1,3 @@
-/**
- * The Living Tree — Pixi scene mount.
- *
- * Owns the PixiJS application, the five back→front render layers, the
- * §A.10 main loop, and teardown. The tree simulates in a fixed reference
- * space (root at the origin, up = -y) inside a `treeRoot` container; a
- * resize only re-fits that container's transform — the seed, and
- * therefore the skeleton topology, never change (§A.11).
- *
- * Flow: grow (SCA iterations per frame, bottom→top, ~3–6 s) → settle →
- * leaf-out (staggered fade) → steady state where only wind, fireflies,
- * flowers, and butterflies animate.
- *
- * Assumes `window.PIXI` is defined — the wallpaper def declares
- * `needs: ['pixijs']`, so the shell loads it before mount.
- */
-
 import {
 	createTrunkClickGesture,
 	isDeveloperModeEnabled,
@@ -55,19 +38,13 @@ import { WindField } from './wind';
 
 interface SceneOptions {
 	container: HTMLElement;
-	/** The site DNA. `null` when the snapshot fetch failed — render a sprout. */
+
 	snapshot: TreeSnapshot | null;
 	prefersReducedMotion: boolean;
 }
 
-/**
- * CSS backdrop — a plain dark fill shown only for the instant before the
- * Pixi {@link SkyLayer} paints the real time-of-day sky over it. The sky
- * sprite covers the whole canvas, so this is just a no-flash fallback.
- */
 const BACKDROP_CSS = '#141a2e';
 
-/** Fallback DNA when the snapshot fetch failed: an anonymous sprout. */
 function sproutSnapshot(): TreeSnapshot {
 	return {
 		siteUrl: window.location.origin,
@@ -87,11 +64,6 @@ function sproutSnapshot(): TreeSnapshot {
 	};
 }
 
-/**
- * Build and mount the Living Tree scene. Returns a handle for
- * pause/resume + teardown given a container, the site snapshot (or `null`
- * to render a sprout), and the reduced-motion preference.
- */
 export async function mountScene(
 	{ container, snapshot, prefersReducedMotion }: SceneOptions,
 ): Promise< SceneHandle > {
@@ -118,15 +90,6 @@ export async function mountScene(
 	} );
 	container.appendChild( app.canvas );
 
-	// ── The DNA → biology chain (§A.2–§A.5). ─────────────────────────────
-	// All of it is mutable state behind `applyDna()`: the hidden DNA tuner
-	// (developer mode) re-runs the whole chain against edited snapshots so
-	// the tree regrows live without a remount.
-	//
-	// The CANONICAL skeleton is grown to completion up front — a pure
-	// function of the seed, never of age. Age then reveals a prefix of it
-	// (`revealSkeleton`), so day N+1's tree is exactly day N's tree plus a
-	// few more nodes: gradual, monotone growth with no daily reshuffle.
 	let dna = snapshot ?? sproutSnapshot();
 	let hormones = buildHormones( dna );
 	let rng = mulberry32( hash32( `${ dna.siteUrl }|${ dna.siteName }|${ dna.installEpoch }` ) );
@@ -136,7 +99,6 @@ export async function mountScene(
 	const wind = new WindField();
 	wind.setStrength( prefersReducedMotion ? 0 : hormones.wind01 );
 
-	/** Grow the canonical skeleton to completion (one-time, ~tens of ms). */
 	const growCanonical = (): BranchNode[] => {
 		const sim = new GrowthSimulator( envelope, cfg, rng );
 		let guard = 0;
@@ -152,19 +114,14 @@ export async function mountScene(
 		countWithinDepth( fullNodes, depthCap ),
 		hormones.age01,
 	);
-	// The reveal animation counter; starts at the sprout end unless the
-	// scene must paint a finished tree immediately.
+
 	let revealCount = prefersReducedMotion ? targetCount : 2;
 	let revealed: BranchNode[] = revealSkeleton( fullNodes, revealCount, depthCap );
-	/** The finished tree of the CURRENT age — sizing derives from this. */
+
 	let finalRevealed: BranchNode[] = revealSkeleton( fullNodes, targetCount, depthCap );
 
-	// Trunk girth follows age alone. (Pages briefly modulated it, but "the
-	// trunk is arbitrarily fatter" decoded for nobody — pages render as
-	// the trunk-ivy cloak instead.)
 	const currentTrunkBase = (): number => trunkGirthForAge( hormones.age01 );
 
-	/** Bounding extent of the finished tree — drives fit + ground + hits. */
 	const finalExtent = (): { height: number; halfWidth: number } => {
 		let height = 40;
 		let halfWidth = 30;
@@ -175,16 +132,8 @@ export async function mountScene(
 		return { height: height + cfg.segLen * 2, halfWidth: halfWidth + cfg.segLen * 2 };
 	};
 
-	// ── Sky backdrop (screen space, very back). ─────────────────────────
-	// Tracks the viewer's local clock through a 24h cycle; supplies the
-	// ambient `light01` that dims the tree at night.
 	const sky = new SkyLayer( pixi, app.stage );
 
-	// ── Render layers, back → front (§A.11), inside the fitted root. ────
-	// `treeRoot` is the fitted transform. `treeBody` (ground → flowers)
-	// gets the ambient day/night dim as one unit; `fireflyLayer` rides
-	// OUTSIDE it so fireflies glow at night and fade by day (opposite of
-	// the body's dimming).
 	const treeRoot: PixiContainer = new pixi.Container();
 	const treeBody: PixiContainer = new pixi.Container();
 	const groundLayer: PixiContainer = new pixi.Container();
@@ -194,8 +143,7 @@ export async function mountScene(
 	const ivyLayer: PixiContainer = new pixi.Container();
 	const leafLayer: PixiContainer = new pixi.Container();
 	const flowerLayer: PixiContainer = new pixi.Container();
-	// Butterflies fly in FRONT of the whole plant — they're the meadow's
-	// live layer, and behind the foliage their flap disappears.
+
 	const butterflyLayer: PixiContainer = new pixi.Container();
 	const fireflyLayer: PixiContainer = new pixi.Container();
 	treeBody.addChild(
@@ -211,10 +159,6 @@ export async function mountScene(
 	treeRoot.addChild( treeBody, fireflyLayer );
 	app.stage.addChild( treeRoot );
 
-	/**
-	 * Recompute the sky for the current local hour and apply the ambient
-	 * light: `treeBody` dims into night, `fireflyLayer` brightens.
-	 */
 	const refreshSky = (): void => {
 		const state = skyForTime( currentHour() );
 		sky.applyState( state );
@@ -222,13 +166,9 @@ export async function mountScene(
 		fireflyLayer.alpha = 0.15 + 0.85 * ( 1 - state.light01 );
 	};
 
-	// The meadow the tree stands in: soil mounds, per-blade grass clumps
-	// swaying in the wind, a contact shadow, and fallen leaves near the
-	// trunk. Rebuilt on every `applyDna()` — its span scales with the
-	// tree's extent and its greens dry out with `health01`.
 	const ground = new GroundLayer( groundLayer, pixi );
 	const flowerField = new FlowerField( flowerFieldLayer, pixi );
-	/** Meadow depth (ground line → canvas bottom) — butterflies roam it. */
+
 	let meadowDepth = 20;
 	const buildGround = (): void => {
 		const scale = treeRoot.scale.x || 1;
@@ -236,8 +176,7 @@ export async function mountScene(
 		const canvasH = app.canvas.clientHeight || container.clientHeight || 600;
 		const span = finalExtent().halfWidth * 1.3 + 80;
 		const coverHalfWidth = canvasW / ( 2 * scale ) + 40;
-		// Ground-line → canvas-bottom depth, in reference units: the
-		// turf fills all of it.
+
 		meadowDepth = Math.max( 0, canvasH - treeRoot.y ) / scale + 8;
 		ground.build( {
 			span,
@@ -247,8 +186,7 @@ export async function mountScene(
 			health01: hormones.health01,
 			siteKey: `${ dna.siteUrl }|${ dna.siteName }`,
 		} );
-		// The category wildflowers grow in the same meadow, clustered in
-		// per-category patches near the tree.
+
 		flowerField.build( {
 			categories: dna.totalCategories,
 			fieldHalf: Math.min( coverHalfWidth * 0.95, span * 1.35 + 90 ),
@@ -276,10 +214,6 @@ export async function mountScene(
 	const butterflies = new ButterflyLayer( butterflyLayer, pixi );
 	const fireflies = new FireflyLayer( fireflyLayer, pixi );
 
-	// ── Fit the reference space to the canvas (resize = transform only). ─
-	// Sized to the FINISHED tree of the current age (not the mature
-	// canonical envelope), so a young tree reads small and the reveal
-	// animation grows INTO a stable frame — no camera zoom while growing.
 	const fit = (): void => {
 		const w = app.canvas.clientWidth || container.clientWidth || 800;
 		const h = app.canvas.clientHeight || container.clientHeight || 600;
@@ -287,13 +221,13 @@ export async function mountScene(
 		const scale = Math.min(
 			( h * 0.84 ) / Math.max( 160, extent.height ),
 			( w * 0.8 ) / Math.max( 160, extent.halfWidth * 2 ),
-			// Never blow a sprout up to fill a 4K desktop.
+
 			1.6,
 		);
 		treeRoot.scale.set( scale );
 		treeRoot.x = w / 2;
 		treeRoot.y = h - Math.max( 12, h * 0.04 );
-		// The sky's opaque earth band tracks the tree's ground line.
+
 		sky.resize( w, h, treeRoot.y - 4 * scale );
 	};
 	fit();
@@ -302,17 +236,14 @@ export async function mountScene(
 	const resizeObserver = new ResizeObserver( () => fit() );
 	resizeObserver.observe( container );
 
-	// ── Growth + decoration state. ───────────────────────────────────────
 	let t = 0;
 	let decorated = false;
 	let animating = ! prefersReducedMotion;
 
-	/** Once the reveal settles: girth, canopy, blossom, butterflies, fireflies. */
 	const decorate = (): void => {
 		decorated = true;
 		computeGirth( revealed, currentTrunkBase() );
-		// The skeleton is final for this DNA — bake it: one textured quad
-		// per frame instead of re-drawing every ribbon's vertices.
+
 		drawBranches( branchGraphics, currentChains(), revealed, null );
 		branchGraphics.cacheAsTexture?.( true );
 		leaves.populate( revealed, hormones, canopy, dna, rng );
@@ -320,8 +251,7 @@ export async function mountScene(
 		ivy.populate( revealed, hormones.structure01, rng );
 		bloom.apply( hormones.bloom01, leaves.placements(), rng );
 		const extent = finalExtent();
-		// Tag butterflies work the category wildflowers; their open-air
-		// waypoints span the meadow and the lower crown.
+
 		butterflies.populate(
 			dna.totalTags,
 			flowerField.targets(),
@@ -342,10 +272,6 @@ export async function mountScene(
 		fireflies.setCount( hormones.spark );
 	};
 
-	// ── The §A.10 main loop. ─────────────────────────────────────────────
-	// The sky drifts slowly — recompute it a few times a minute, not every
-	// frame (a 24h cycle moves imperceptibly frame-to-frame), while the
-	// stars twinkle every frame.
 	let skyClock = 0;
 	let foliageFlip = false;
 	let foliageDt = 0;
@@ -364,8 +290,6 @@ export async function mountScene(
 		}
 
 		if ( revealCount < targetCount ) {
-			// Growth = revealing more of the canonical skeleton, in the
-			// exact order it originally grew — bottom → top.
 			revealCount = Math.min( targetCount, revealCount + cfg.growthRate );
 			revealed = revealSkeleton( fullNodes, revealCount, depthCap );
 			computeGirth( revealed, currentTrunkBase() );
@@ -379,18 +303,7 @@ export async function mountScene(
 		if ( ! decorated ) {
 			decorate();
 		}
-		// Steady state: the WOOD and the TURF are static — re-tessellating
-		// the skeleton's ribbons (and rotating hundreds of grass clumps)
-		// every frame was the wallpaper's whole CPU bill. The foliage
-		// carries the wind: leaves flutter, blossom breathes, wildflowers
-		// sway, fireflies drift — all sprite-transform updates the GPU
-		// batches.
-		//
-		// The BIG sprite loops (canopy leaves, blossom, wildflowers) run
-		// at 30 Hz — alternate frames, accumulated dt — which halves the
-		// remaining JS cost and is imperceptible for organic flutter. The
-		// small loops (fallers, fireflies, butterflies, ivy fade) stay at
-		// full rate; the butterflies' wing-flap needs it.
+
 		foliageDt += dt;
 		foliageFlip = ! foliageFlip;
 		if ( foliageFlip ) {
@@ -407,26 +320,19 @@ export async function mountScene(
 
 	app.ticker.add( tick );
 
-	/** Jump the reveal to its target and decorate at once. */
 	const growInstantly = (): void => {
 		revealCount = targetCount;
 		revealed = revealSkeleton( fullNodes, revealCount, depthCap );
 		computeGirth( revealed, currentTrunkBase() );
 		drawBranches( branchGraphics, currentChains(), revealed, null );
 		decorate();
-		// Fast-forward the staggered reveals so the result is immediate.
+
 		leaves.update( 60, wind, t );
 		ivy.update( 60, t );
 		bloom.update( 60, t, () => ( { x: 0, y: 0 } ) );
 		flowerField.update( 60, t, () => ( { x: 0, y: 0 } ) );
 	};
 
-	/**
-	 * Re-run the full DNA → biology chain against a new snapshot — the
-	 * hidden tuner's live-preview path. Clears the old decoration, then
-	 * either regrows instantly (slider drags need immediate feedback) or
-	 * lets the ticker replay the bottom→top growth.
-	 */
 	const applyDna = ( next: TreeSnapshot, instant: boolean ): void => {
 		dna = next;
 		hormones = buildHormones( dna );
@@ -435,10 +341,7 @@ export async function mountScene(
 		cfg = buildGrowthConfig( envelope, hormones.vigor01 );
 		canopy = canopyHue( `${ dna.siteUrl }|${ dna.siteName }` );
 		wind.setStrength( prefersReducedMotion ? 0 : hormones.wind01 );
-		// Regrow the canonical skeleton (same seed → identical tree unless
-		// the tuner edited the seed inputs) and re-gate the reveal by age.
-		// Growth is about to redraw the skeleton frame by frame — release
-		// the baked texture until the new tree settles (decorate re-bakes).
+
 		branchGraphics.cacheAsTexture?.( false );
 		fullNodes = growCanonical();
 		depthCap = maxDepthForAge( hormones.age01 );
@@ -451,7 +354,7 @@ export async function mountScene(
 		revealed = revealSkeleton( fullNodes, revealCount, depthCap );
 		chainNodeCount = -1;
 		decorated = false;
-		// Strip the previous tree's decoration so the new one grows bare.
+
 		leaves.populate( [], hormones, canopy, dna, rng );
 		falling.setSources( [] );
 		ivy.populate( [], 0, rng );
@@ -471,17 +374,12 @@ export async function mountScene(
 	};
 
 	if ( prefersReducedMotion ) {
-		// Grow instantly, decorate fully, paint one still frame.
 		growInstantly();
 		animating = false;
 		app.renderer.render( app.stage );
 		app.ticker.stop();
 	}
 
-	// ── Hidden DNA tuner (developer mode only): 20 trunk clicks. ────────
-	// The wallpaper layer is pointer-events:none, so clicks are observed
-	// at the window and hit-tested geometrically against the trunk column.
-	/** Set / clear the debug time-of-day override the sky reads. */
 	const setHourOverride = ( hour: number | null ): void => {
 		const w = window as unknown as {
 			openStationLivingTreeHourOverride?: number;
@@ -503,8 +401,7 @@ export async function mountScene(
 				ly: ( clientY - rect.top - treeRoot.y ) / scale,
 			};
 		},
-		// Hit-test against the REVEALED tree's proportions, not the
-		// mature canonical envelope — a sapling's trunk is short.
+
 		isHit: ( lx, ly ) => {
 			const extent = finalExtent();
 			return isTrunkHit( lx, ly, {
@@ -527,7 +424,7 @@ export async function mountScene(
 				},
 				onClose: () => {
 					disposeTuner = null;
-					// Closing the tuner hands the sky back to the real clock.
+
 					setHourOverride( null );
 					refreshSky();
 				},
@@ -555,13 +452,7 @@ export async function mountScene(
 			flowerField.destroy();
 			ground.destroy();
 			sky.destroy();
-			// `{ removeView: true }`, NEVER `true`: a literal `true` makes
-			// Pixi's renderer run `releaseGlobalResources()`, wiping the
-			// PAGE-GLOBAL TexturePool / BigPool singletons that every other
-			// live Application shares — with the wallpaper AND its OS
-			// Settings preview both mounted, destroying one corrupted the
-			// other (batcher crash-looping in rAF, teardown throwing in
-			// `returnTexture`).
+
 			app.destroy( { removeView: true }, { children: true, texture: true } );
 			container.style.background = priorBackground;
 		},

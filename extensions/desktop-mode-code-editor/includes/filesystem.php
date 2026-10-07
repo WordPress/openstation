@@ -1,38 +1,7 @@
 <?php
-/**
- * Filesystem helpers for the Code Editor extension.
- *
- * Single-source path safety for every REST route the editor exposes.
- *
- *   - {@see openstation_code_editor_workspace_root()}      — canonical
- *                                                              absolute
- *                                                              workspace
- *                                                              root.
- *   - {@see openstation_code_editor_resolve_path()}        — turns an
- *                                                              untrusted
- *                                                              relative
- *                                                              path into
- *                                                              a canonical
- *                                                              absolute
- *                                                              one.
- *   - {@see openstation_code_editor_extension_allowlist()} — the file-
- *                                                              extension
- *                                                              allowlist.
- *
- * **All filesystem entry points MUST go through
- * {@see openstation_code_editor_resolve_path()}.** Concatenating user
- * input directly with the workspace root invites traversal bugs; the
- * resolver does `realpath()` + prefix check + symlink-escape detection
- * in one place so the rest of the editor doesn't have to think about it.
- *
- * @package OpenStationCodeEditor
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Default file-extension allowlist (lowercased, no leading dot).
- */
 const OPENSTATION_CODE_EDITOR_DEFAULT_EXTENSIONS = array(
 	'php',
 	'js',
@@ -57,65 +26,27 @@ const OPENSTATION_CODE_EDITOR_DEFAULT_EXTENSIONS = array(
 	'yaml',
 );
 
-/**
- * Whether the current site allows in-admin file editing.
- *
- * Mirrors the same gate WordPress core applies to the Theme/Plugin
- * editor: when `DISALLOW_FILE_EDIT` is true, the editor MUST NOT
- * expose any UI — it would mislead users into thinking saves work.
- *
- * @return bool
- */
 function openstation_code_editor_file_edit_allowed() {
 	return ! ( defined( 'DISALLOW_FILE_EDIT' ) && DISALLOW_FILE_EDIT );
 }
 
-/**
- * Whether the current user can use the code editor at all.
- *
- * @return bool
- */
 function openstation_code_editor_user_can_use() {
 	$can = openstation_code_editor_file_edit_allowed() && current_user_can( 'edit_plugins' );
 
-	/**
-	 * Filter whether the current user can see/use the Code Editor.
-	 *
-	 * @param bool $can Default: edit_plugins capability + DISALLOW_FILE_EDIT respected.
-	 */
 	return (bool) apply_filters( 'openstation_code_editor_user_can_use', $can );
 }
 
-/**
- * Returns the workspace root (canonical absolute path, no trailing slash).
- *
- * @return string Canonical absolute path, or '' if the root can't resolve.
- */
 function openstation_code_editor_workspace_root() {
 	$default = defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR : '';
 
-	/**
-	 * Filter the workspace root the code editor is allowed to roam in.
-	 *
-	 * @param string $root Default workspace root (absolute path).
-	 */
 	$root = (string) apply_filters( 'openstation_code_editor_workspace_root', $default );
 
 	$resolved = realpath( $root );
 	return is_string( $resolved ) ? rtrim( $resolved, DIRECTORY_SEPARATOR ) : '';
 }
 
-/**
- * Returns the file-extension allowlist (lowercased, no dots).
- *
- * @return string[]
- */
 function openstation_code_editor_extension_allowlist() {
-	/**
-	 * Filter the extensions the code editor is allowed to read/write.
-	 *
-	 * @param string[] $exts Default allowlist.
-	 */
+
 	$exts = (array) apply_filters(
 		'openstation_code_editor_extension_allowlist',
 		OPENSTATION_CODE_EDITOR_DEFAULT_EXTENSIONS
@@ -131,12 +62,6 @@ function openstation_code_editor_extension_allowlist() {
 	return array_values( array_unique( $out ) );
 }
 
-/**
- * Whether a path's extension is permitted. Always true for directories.
- *
- * @param string $absolute_path Canonical absolute path.
- * @return bool
- */
 function openstation_code_editor_extension_allowed( $absolute_path ) {
 	if ( is_dir( $absolute_path ) ) {
 		return true;
@@ -149,12 +74,6 @@ function openstation_code_editor_extension_allowed( $absolute_path ) {
 	return in_array( $ext, openstation_code_editor_extension_allowlist(), true );
 }
 
-/**
- * Resolve an untrusted relative path against the workspace root.
- *
- * @param string $rel_path Untrusted relative path.
- * @return string|WP_Error Canonical absolute path, or WP_Error.
- */
 function openstation_code_editor_resolve_path( $rel_path ) {
 	$root = openstation_code_editor_workspace_root();
 	if ( '' === $root ) {
@@ -215,35 +134,6 @@ function openstation_code_editor_resolve_path( $rel_path ) {
 	return $resolved_norm;
 }
 
-// ---------------------------------------------------------------------------
-// Write
-// ---------------------------------------------------------------------------
-
-/**
- * Write `$content` to a file inside the workspace.
- *
- * Returns:
- *
- *   array  { path, mtime, size }                                     — happy path.
- *   WP_Error 'openstation_code_editor_write_invalid_path'           — empty or
- *           non-string path supplied (500).
- *   WP_Error 'openstation_code_editor_write_target_missing'         — target file
- *           does not exist (404); the editor cannot create new files.
- *   WP_Error 'openstation_code_editor_conflict'                     — caller's
- *           expected mtime doesn't match current. Error data carries
- *           `{ server_mtime, server_content, server_size }` so the
- *           UI can offer "diff & overwrite" / "reload from disk".
- *   WP_Error 'openstation_code_editor_filesystem_unavailable'       — host needs
- *           FTP/SSH credentials we don't yet collect.
- *   WP_Error 'openstation_code_editor_write_failed'                 — generic.
- *
- * @param string $absolute_path  Result of {@see openstation_code_editor_resolve_path()}.
- * @param string $content        UTF-8 bytes to write.
- * @param int    $expected_mtime The mtime the caller read this file at; pass `0` to skip
- *                               the conflict check. (New-file creation is not supported —
- *                               the target must already exist.)
- * @return array|WP_Error
- */
 function openstation_code_editor_write_file( $absolute_path, $content, $expected_mtime = 0 ) {
 	if ( ! is_string( $absolute_path ) || '' === $absolute_path ) {
 		return new WP_Error(
@@ -264,7 +154,7 @@ function openstation_code_editor_write_file( $absolute_path, $content, $expected
 	$expected_mtime = (int) $expected_mtime;
 	$current_mtime  = (int) filemtime( $absolute_path );
 	if ( $expected_mtime > 0 && $current_mtime !== $expected_mtime ) {
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
 		$current = file_get_contents( $absolute_path );
 		return new WP_Error(
 			'openstation_code_editor_conflict',
@@ -284,13 +174,6 @@ function openstation_code_editor_write_file( $absolute_path, $content, $expected
 		'bytes' => strlen( $content ),
 	);
 
-	/**
-	 * Filter the bytes about to be written.
-	 *
-	 * @param string $content       Bytes the editor wants to write.
-	 * @param string $absolute_path Resolved absolute path.
-	 * @param array  $context       { path (rel), mtime, bytes }.
-	 */
 	$filtered = apply_filters( 'openstation_code_editor_save_content', $content, $absolute_path, $context );
 	if ( is_wp_error( $filtered ) ) {
 		return $filtered;
@@ -299,13 +182,6 @@ function openstation_code_editor_write_file( $absolute_path, $content, $expected
 		$content = $filtered;
 	}
 
-	/**
-	 * Fires before a file is written.
-	 *
-	 * @param string $absolute_path
-	 * @param string $content
-	 * @param array  $context
-	 */
 	do_action( 'openstation_code_editor_before_save', $absolute_path, $content, $context );
 
 	$fs = openstation_code_editor_get_filesystem();
@@ -322,7 +198,7 @@ function openstation_code_editor_write_file( $absolute_path, $content, $expected
 	}
 
 	if ( function_exists( 'opcache_invalidate' ) && '.php' === substr( strtolower( $absolute_path ), -4 ) ) {
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors
+
 		@opcache_invalidate( $absolute_path, true );
 	}
 
@@ -333,13 +209,6 @@ function openstation_code_editor_write_file( $absolute_path, $content, $expected
 	$context['mtime'] = $new_mtime;
 	$context['bytes'] = $new_size;
 
-	/**
-	 * Fires after a successful write.
-	 *
-	 * @param string $absolute_path
-	 * @param string $content
-	 * @param array  $context
-	 */
 	do_action( 'openstation_code_editor_after_save', $absolute_path, $content, $context );
 
 	return array(
@@ -349,11 +218,6 @@ function openstation_code_editor_write_file( $absolute_path, $content, $expected
 	);
 }
 
-/**
- * Returns an initialized WP_Filesystem global, or WP_Error.
- *
- * @return WP_Filesystem_Base|WP_Error
- */
 function openstation_code_editor_get_filesystem() {
 	global $wp_filesystem;
 
@@ -380,23 +244,10 @@ function openstation_code_editor_get_filesystem() {
 	return $wp_filesystem;
 }
 
-/**
- * @internal Filter callback for {@see openstation_code_editor_get_filesystem()} — pin to direct.
- */
 function openstation_code_editor_force_direct_filesystem() {
 	return 'direct';
 }
 
-// ---------------------------------------------------------------------------
-// Path translation
-// ---------------------------------------------------------------------------
-
-/**
- * Strip the workspace prefix from an absolute path.
- *
- * @param string $absolute_path
- * @return string
- */
 function openstation_code_editor_path_to_relative( $absolute_path ) {
 	$root = openstation_code_editor_workspace_root();
 	if ( '' === $root ) {

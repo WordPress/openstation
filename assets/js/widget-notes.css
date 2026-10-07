@@ -1,22 +1,9 @@
-/**
- * OpenStation — Note Pad widget styles.
- *
- * The pad of pastel paper on the widget card. Consumes the shared
- * pastel tokens (`--dm-note-*`) defined in `assets/css/notes.css`,
- * which is always enqueued on shell pages — this file only styles
- * the pad-specific chrome.
- */
-
 .dm-notes-pad {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 	height: 100%;
 }
-
-/* ------------------------------------------------------------------
-   The paper stack
-   ------------------------------------------------------------------ */
 
 .dm-notes-pad__stack {
 	position: relative;
@@ -45,7 +32,6 @@
 		inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-/* Peek sheets: pre-tinted with the next colors in the cycle. */
 .dm-notes-pad__under {
 	pointer-events: none;
 }
@@ -76,12 +62,10 @@
 		inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-/* Torn off — the DragManager stamps its source class at lift. */
 .dm-notes-pad__sheet.os-file-tile--dragging {
 	visibility: hidden;
 }
 
-/* The glued top edge of the pad. */
 .dm-notes-pad__peel {
 	flex: 0 0 22px;
 	display: flex;
@@ -125,7 +109,6 @@
 	line-height: 1.45;
 }
 
-/* Folded bottom-right corner — the underside peeks the NEXT color. */
 .dm-notes-pad__corner {
 	position: absolute;
 	right: 0;
@@ -157,16 +140,11 @@
 	outline-offset: 2px;
 }
 
-/* ------------------------------------------------------------------
-   Footer: swatch dots
-   ------------------------------------------------------------------ */
-
 .dm-notes-pad__footer {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	/* Breathing room under the sheet: the swatch row sat close enough
-	   to the paper's bottom edge to read as part of it. */
+
 	margin-block-start: 8px;
 }
 

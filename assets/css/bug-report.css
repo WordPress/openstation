@@ -1,13 +1,3 @@
-/**
- * OpenStation — Bug Report native window styles.
- *
- * Compact form: type radio strip + title input + two textareas + a
- * collapsible environment block + a primary submit. Designed to fit
- * the default 560×620 window without scrolling on most viewports.
- *
- * @since 0.6.2
- */
-
 .desktop-mode-bug-report {
 	display: flex;
 	flex-direction: column;
@@ -35,8 +25,7 @@
 	padding: 8px 10px;
 	border: 1px solid var( --os-ui-danger, #d63638 );
 	border-radius: 4px;
-	/* Same pairing rule as every other status wash: the surface follows
-	   the palette so its ink stays legible on it. */
+
 	background: var( --os-ui-notice-error-bg, #fcf0f1 );
 	color: var( --os-ui-danger, #b32d2e );
 	font-size: 12px;

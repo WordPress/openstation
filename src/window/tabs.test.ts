@@ -1,10 +1,3 @@
-/**
- * Tests for the submenu tab strip's active-state matching
- * (`syncActiveTab`). The strip has to stay lit while the user moves
- * around *inside* a tab's page — `nav-menus.php?action=locations`,
- * `edit.php?paged=2` — without ever letting one submenu entry claim
- * another entry's page.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	addExternalTab,
@@ -25,15 +18,10 @@ import {
 	installHooksStub,
 } from '../../tests/vitest/helpers/hooks-stub';
 
-/** Native windows the remap registry was asked to open, per test. */
 const opened: string[] = [];
 
 const ADMIN = window.location.origin + '/wp-admin/';
 
-/**
- * Build a window stub carrying a submenu tab strip. Tabs are given in
- * click order; each entry is `[ label, url ]`.
- */
 function mockTabbedWindow(
 	tabs: [ string, string ][],
 	activeTabId: string = 'primary',
@@ -53,7 +41,6 @@ function mockTabbedWindow(
 	return { element, _activeTabId: activeTabId } as unknown as Window;
 }
 
-/** Labels of every tab currently marked active. */
 function activeLabels( win: Window ): string[] {
 	return Array.from(
 		win.element.querySelectorAll( '.os-window__tab--active' ),
@@ -94,7 +81,6 @@ describe( 'syncActiveTab', () => {
 			[ 'Menus', ADMIN + 'nav-menus.php' ],
 		] );
 
-		// WP's own in-screen tabs on nav-menus.php.
 		for ( const view of [
 			'nav-menus.php?action=locations',
 			'nav-menus.php?action=edit&menu=2',
@@ -142,10 +128,6 @@ describe( 'syncActiveTab', () => {
 	} );
 
 	test( 'sibling tabs separated only by `path` stay independent', () => {
-		// The WooCommerce Analytics shape: every submenu entry shares
-		// `page=wc-admin` and differs only in `path`. `path` is an
-		// identity param, so these are distinct pages — a sub-view of
-		// one must never light another.
 		const wc = ADMIN + 'admin.php?page=wc-admin&path=';
 		const win = mockTabbedWindow( [
 			[ 'Overview', wc + '/analytics/overview' ],
@@ -159,8 +141,6 @@ describe( 'syncActiveTab', () => {
 	} );
 
 	test( 'the most specific matching tab wins', () => {
-		// A plugin registering both a landing page and a deeper `tab=`
-		// view as separate submenu entries.
 		const win = mockTabbedWindow( [
 			[ 'Mail', ADMIN + 'admin.php?page=mail' ],
 			[ 'Email Test', ADMIN + 'admin.php?page=mail&tab=test' ],
@@ -177,8 +157,6 @@ describe( 'syncActiveTab', () => {
 			[ 'Email Test', ADMIN + 'admin.php?page=mail&tab=test' ],
 		] );
 
-		// An unlisted `tab=` value belongs to the landing entry, not to
-		// the Email Test entry.
 		syncActiveTab( win, ADMIN + 'admin.php?page=mail&tab=logs' );
 
 		expect( activeLabels( win ) ).toEqual( [ 'Mail' ] );
@@ -190,21 +168,15 @@ describe( 'syncActiveTab', () => {
 			[ 'Menus', ADMIN + 'nav-menus.php' ],
 		] );
 
-		// A fresh strip stays blank — there is nothing to keep.
 		syncActiveTab( win, ADMIN + 'upload.php' );
 		expect( activeLabels( win ) ).toEqual( [] );
 
-		// A lit strip stays lit through an off-menu landing page.
 		syncActiveTab( win, ADMIN + 'themes.php' );
 		syncActiveTab( win, ADMIN + 'upload.php' );
 		expect( activeLabels( win ) ).toEqual( [ 'Appearance' ] );
 	} );
 
 	test( 'a restored window on an off-menu plugin page lights its entry tab', () => {
-		// After an F5 the window comes back parked on the redirect's
-		// landing URL, with no optimistic click highlight to keep. An
-		// `admin.php?page=…` URL off the menu is the owning plugin's
-		// own onboarding surface, so the entry (first) tab lights.
 		const win = mockTabbedWindow( [
 			[ 'Home', ADMIN + 'admin.php?page=mailpoet-homepage' ],
 			[ 'Emails', ADMIN + 'admin.php?page=mailpoet-newsletters' ],
@@ -219,8 +191,6 @@ describe( 'syncActiveTab', () => {
 	} );
 
 	test( 'an off-menu non-plugin page lights nothing', () => {
-		// `post.php`, `revision.php`, … are genuinely outside every
-		// tab — a blank strip is the honest answer there.
 		const win = mockTabbedWindow( [
 			[ 'Home', ADMIN + 'admin.php?page=mailpoet-homepage' ],
 		] );
@@ -231,18 +201,13 @@ describe( 'syncActiveTab', () => {
 	} );
 
 	test( 'an onboarding redirect keeps the clicked tab lit', () => {
-		// The MailPoet shape: until its welcome wizard is done, every
-		// MailPoet page redirects to `?page=mailpoet-landingpage`,
-		// which no submenu entry lists. The tab the user clicked has
-		// to survive the round trip.
 		const win = mockTabbedWindow( [
 			[ 'Home', ADMIN + 'admin.php?page=mailpoet-homepage' ],
 			[ 'Emails', ADMIN + 'admin.php?page=mailpoet-newsletters' ],
 		] );
 
-		// Click "Emails" — lit optimistically before the load.
 		syncActiveTab( win, ADMIN + 'admin.php?page=mailpoet-newsletters' );
-		// The load event reports the redirect's landing URL.
+
 		syncActiveTab(
 			win,
 			ADMIN + 'admin.php?page=mailpoet-landingpage&openstation_chromeless=1',
@@ -263,8 +228,6 @@ describe( 'syncActiveTab', () => {
 	} );
 
 	test( 'the site editor’s own route keeps the Editor tab lit', () => {
-		// WordPress redirects `site-editor.php` to `…&p=/`, so the URL
-		// the iframe lands on is never the URL the tab declares.
 		const win = mockTabbedWindow( [
 			[ 'Themes', ADMIN + 'themes.php' ],
 			[ 'Add Theme', ADMIN + 'theme-install.php?browse=popular' ],
@@ -341,8 +304,7 @@ describe( 'syncActiveTab', () => {
 		} as unknown as Event );
 
 		expect( opened ).toEqual( [ 'desktop-mode-posts' ] );
-		// The draft this window is holding stays put, and so does the
-		// highlight on the page it is still showing.
+
 		expect( iframe.src ).toBe( ADMIN + 'post-new.php' );
 		expect( activeLabels( win ) ).toEqual( [ 'Add New Post' ] );
 	} );
@@ -386,14 +348,9 @@ describe( 'syncActiveTab', () => {
 			stopPropagation: () => {},
 		} as unknown as Event );
 
-		// The frame is asked before anything is painted…
 		await vi.waitFor( () => expect( asked ).toHaveLength( 1 ) );
 		expect( asked[ 0 ].type ).toBe( 'os-bridge-beforeunload-query' );
 
-		// …and answering "something is holding on" starts the
-		// navigation without committing to it. The browser's own
-		// prompt is now on screen; if the user cancels it, this is the
-		// state the window is left in — the one it was already in.
 		window.dispatchEvent(
 			new MessageEvent( 'message', {
 				data: {
@@ -409,8 +366,6 @@ describe( 'syncActiveTab', () => {
 		expect( markContentLoading ).not.toHaveBeenCalled();
 		expect( activeLabels( win ) ).toEqual( [ 'Add User' ] );
 
-		// The user chose to leave after all: the frame reports a real
-		// unload and the withheld paint lands.
 		(
 			win as unknown as { _deferredNavigationCommit: () => void }
 		)._deferredNavigationCommit();
@@ -434,12 +389,6 @@ describe( 'syncActiveTab', () => {
 	} );
 } );
 
-/**
- * Build a bare strip with fixed scroll geometry. jsdom reports 0 for
- * every layout dimension, so the three properties `updateTabOverflow`
- * reads are defined outright — the function under test is the
- * arithmetic that turns them into an edge, not the layout engine.
- */
 function mockStrip( {
 	scrollWidth,
 	clientWidth,
@@ -506,9 +455,6 @@ describe( 'updateTabOverflow', () => {
 	} );
 
 	test( 'sub-pixel shortfall at the end still counts as the end', () => {
-		// A fractional clientWidth leaves scrollLeft a hair under its
-		// maximum at the true end of the strip; without the epsilon
-		// this paints a permanent "more this way" fade on the last tab.
 		const strip = mockStrip( {
 			scrollWidth: 800,
 			clientWidth: 400,
@@ -519,8 +465,6 @@ describe( 'updateTabOverflow', () => {
 	} );
 
 	test( 'RTL at the inline start hides content on the left', () => {
-		// RTL scrollLeft runs [ -max, 0 ]; at 0 the strip sits against
-		// its right edge and everything hidden is to the left.
 		const strip = mockStrip( {
 			scrollWidth: 800,
 			clientWidth: 400,
@@ -554,15 +498,6 @@ describe( 'updateTabOverflow', () => {
 	} );
 } );
 
-/**
- * The wiring, as opposed to the arithmetic above.
- *
- * `updateTabOverflow` is pure and easy to cover; `observeTabOverflow`
- * is where a regression hides, because it fails silently. A dropped
- * listener leaves a stale fade, and a teardown that misses an observer
- * keeps measuring a strip that is animating out of the document. Both
- * look fine in a screenshot.
- */
 describe( 'observeTabOverflow', () => {
 	let frames: Array< () => void >;
 	let raf: typeof window.requestAnimationFrame;
@@ -572,8 +507,7 @@ describe( 'observeTabOverflow', () => {
 		frames = [];
 		raf = window.requestAnimationFrame;
 		caf = window.cancelAnimationFrame;
-		// Hand-pumped frames — the real rAF never fires in jsdom, so the
-		// scheduled measure would never run.
+
 		window.requestAnimationFrame = ( ( cb: FrameRequestCallback ) => {
 			frames.push( () => cb( 0 ) );
 			return frames.length;
@@ -586,7 +520,6 @@ describe( 'observeTabOverflow', () => {
 		window.cancelAnimationFrame = caf;
 	} );
 
-	/** Run every frame queued so far. */
 	function flush(): void {
 		const queued = frames;
 		frames = [];
@@ -645,8 +578,6 @@ describe( 'observeTabOverflow', () => {
 	} );
 
 	test( 'the teardown stops the scroll listener', () => {
-		// `Window.close()` depends on this: the observers would
-		// otherwise keep measuring a strip that has left the document.
 		const strip = mockStrip( {
 			scrollWidth: 800,
 			clientWidth: 400,
@@ -699,8 +630,6 @@ describe( 'observeTabOverflow', () => {
 	} );
 
 	test( 'survives an environment with no observers', () => {
-		// jsdom without a shim, and older browsers. The strip keeps
-		// whatever the initial measure decided rather than throwing.
 		const strip = mockStrip( {
 			scrollWidth: 800,
 			clientWidth: 400,
@@ -708,10 +637,10 @@ describe( 'observeTabOverflow', () => {
 		} );
 		const realRO = globalThis.ResizeObserver;
 		const realMO = globalThis.MutationObserver;
-		// @ts-expect-error deliberately removing the globals
-		delete globalThis.ResizeObserver;
-		// @ts-expect-error deliberately removing the globals
-		delete globalThis.MutationObserver;
+
+		Reflect.deleteProperty( globalThis, 'ResizeObserver' );
+
+		Reflect.deleteProperty( globalThis, 'MutationObserver' );
 
 		try {
 			const stop = observeTabOverflow( strip );
@@ -725,20 +654,16 @@ describe( 'observeTabOverflow', () => {
 	} );
 } );
 
-/**
- * The readiness probe: a sub-tab whose frame has nothing to show by
- * the deadline is handed to a real browser tab instead.
- */
 describe( 'addExternalTab', () => {
 	const PERMALINK = window.location.origin + '/2026/10/02/hello-world/';
 	let open: ReturnType< typeof vi.spyOn >;
 
 	beforeEach( () => {
 		vi.useFakeTimers();
-		// The fallback's toast runs through the hook bus.
+
 		installHooksStub();
 		open = vi.spyOn( window, 'open' ).mockReturnValue( null );
-		// jsdom has no scrollIntoView.
+
 		Element.prototype.scrollIntoView = vi.fn();
 	} );
 
@@ -749,10 +674,6 @@ describe( 'addExternalTab', () => {
 		Reflect.deleteProperty( Element.prototype, 'scrollIntoView' );
 	} );
 
-	/**
-	 * Open a sub-tab on an iframe window whose frame, when the probe
-	 * runs, is showing `href` and has not fired `load`.
-	 */
 	function openSubTab( href: string ): Window {
 		const element = document.createElement( 'div' );
 		element.innerHTML =

@@ -1,39 +1,3 @@
-/**
- * My WordPress — the client half: the body, instant.
- *
- * `my-wordpress.os.php` owns the truth (sections, queries,
- * authorization, the mutating actions); this file owns everything the
- * pointer touches, and — like its PHP twin — it is deliberately just
- * the composition: the local reducers, the frame (breadcrumbs, search
- * band, status bar), and the `defineApp()` wiring. The substance
- * lives in focused parts beside it (plain `.ts` on purpose — only
- * `*.os.ts` files are app bundle entries; see "Splitting a large app"
- * in `docs/app-framework.md`):
- *
- *   parts/types.ts         The shared contracts: payload shapes, the
- *                          state schema, the per-window UI bag, the
- *                          `wp.os` shell surface.
- *   parts/helpers.ts       Pure logic: accumulation, selection math,
- *                          preview-action scoping, menu builders.
- *   parts/list-views.ts    The root grid, the tile canvas, the
- *                          context menu, quick-edit, zoom.
- *   parts/list-table.ts    The list view: the per-kind column model,
- *                          sortable headers, the row action cluster,
- *                          the column chooser.
- *   parts/rows.ts          What a tile and a row share: click,
- *                          double click, right click, the clipboard.
- *   parts/dossier-views.ts The detail pane, the navigate-into folder,
- *                          the sub-lists and the stats panes.
- *   parts/agents.ts        Agents: character system, openers, the
- *                          cast grid and the off-state preview.
- *   parts/agents-detail.ts Agents: the detail view and its panes.
- *   parts/agents-wizard.ts Agents: the five-step create wizard.
- *   parts/wire.ts          The after-render DOM wiring: drag-out,
- *                          marquee, infinite scroll, drop targets.
- *
- * @public
- */
-
 import { __, _n, applySelection, defineApp, html, sprintf, type TemplateResult } from '@openstation/app';
 import type { Agent } from '../../src/agents-types';
 import { isMobileStamped } from '../../src/mode/stamp';
@@ -61,8 +25,6 @@ import { agentDefaultRole, emptyCast, newSeed } from './parts/agents';
 import { renderAgents } from './parts/agents-wizard';
 import { afterRender, wire } from './parts/wire';
 
-// The public surface, re-exported from the parts so the tests (and
-// any plugin reading this bundle's types) keep one import path.
 export {
 	listKey,
 	resolveActions,
@@ -71,8 +33,7 @@ export {
 	withSendToHeading,
 } from './parts/helpers';
 export { columnsFor, hiddenFor, nextSort } from './parts/list-table';
-// The framework's list/selection primitives, re-exported so plugins
-// reading this bundle's types keep one import path.
+
 export { applySelection } from '@openstation/app';
 export {
 	agentDefaultRole,
@@ -105,7 +66,6 @@ export type {
 	UiState,
 } from './parts/types';
 
-/** Which body the current navigation depth paints. */
 function renderBody(
 	ctx: Ctx,
 	section: SectionDef | null,
@@ -113,8 +73,6 @@ function renderBody(
 	inSub: boolean,
 	items: ListItem[],
 ): TemplateResult {
-	// The activity footprint replaces the whole body — WP Explorer's
-	// full-width surface, whatever section it was opened from.
 	if ( ctx.state.footprint > 0 ) {
 		return renderFootprint( ctx );
 	}
@@ -130,24 +88,17 @@ function renderBody(
 	if ( inFolder ) {
 		return renderFolder( ctx );
 	}
-	// On a phone an opened item is a page of its own, pushed over the
-	// list with Back in the header — the way a phone shows the detail
-	// of a row. A pane beside the list has no room, and a sheet along
-	// the bottom read as a preview of the thing rather than the thing.
+
 	if ( ctx.state.item > 0 && ! explorerItemTrashing( section, ctx.state.item ) && isMobileStamped() ) {
 		return html`<div class="os-mywp__detail-page">${ renderDetail( ctx, section ) }</div>`;
 	}
-	// The preview pane appears beside the list once an entry is open,
-	// in both views — the list's columns scroll sideways inside their
-	// own pane rather than push it out. Until then the list has the
-	// whole window.
+
 	return splitView(
 		renderList( ctx, section, items ),
 		ctx.state.item > 0 && ! explorerItemTrashing( section, ctx.state.item ) ? renderDetail( ctx, section ) : null,
 	);
 }
 
-/** The icons / list switch — instant locally, remembered by the server. */
 function renderViewSwitch( ctx: Ctx ): TemplateResult {
 	const { state } = ctx;
 	const pick = ( e: Event ): void => {
@@ -155,8 +106,7 @@ function renderViewSwitch( ctx: Ctx ): TemplateResult {
 		if ( ( view !== 'icons' && view !== 'list' ) || view === state.view ) {
 			return;
 		}
-		// Selection and the open item are shared state, so they survive
-		// the switch; the other view scrolls them into sight.
+
 		uiOf( ctx ).revealSelection = true;
 		ctx.local( 'set-view', { view } );
 		void ctx.dispatch( 'view' );
@@ -179,8 +129,6 @@ function renderViewSwitch( ctx: Ctx ): TemplateResult {
 		</os-segmented>
 	`;
 }
-
-// ---------------------------------------------------------------- app
 
 export default defineApp< AppState, AppData >( 'my-wordpress', {
 	local: {
@@ -211,46 +159,30 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		'set-sort': ( state, args ) => {
 			state.sort = String( args.sort ?? '' );
 		},
-		// The view switch flips here, instantly; the `view` server
-		// action that follows only remembers the choice.
+
 		'set-view': ( state, args ) => {
 			state.view = args.view === 'list' ? 'list' : 'icons';
-			// The table reads top-down by id: entering it with no order
-			// picked lists the highest id first, and says so in the ID
-			// header. An order the user chose is theirs in both views.
+
 			if ( state.view === 'list' && state.sort === '' ) {
 				state.sort = 'id-desc';
 				state.page = 1;
 			}
 		},
-		// Transient UI (context menu, zoom) lives in the framework's
-		// per-view bag (`ctx.ui`) — handlers mutate it directly and
-		// call `ctx.repaint()`.
-		// ------------------------------------------------- agents
-		// The wizard's navigation and every field of the cast are
-		// local: no request until the server is asked to draft or
-		// create. The cast is DECLARED state, so the next dispatch
-		// carries it up and `agent-draft` / `agent-create` read it.
+
 		'agent-start': ( state, args, data ) => {
 			const from = ( args.from ?? null ) as Agent | null;
 			const seed = newSeed();
 			const cast = emptyCast( agentDefaultRole( data.agents?.roles ?? null ), seed );
 			if ( from ) {
-				// A copy takes the work but not the face. Two agents
-				// wearing one portrait is exactly the confusion the
-				// faces exist to remove, so the copy rolls its own.
 				cast.name = sprintf(
-					/* translators: %s: name of the agent being copied. */
+
 					__( '%s copy' ),
 					from.name,
 				);
 				cast.description = from.description;
 				cast.vibes = from.vibes;
 				cast.instructions = from.instructions;
-				// The brief IS the system prompt field, so the copied
-				// instructions land there too: Describe shows what was
-				// copied and lets it be edited, instead of an empty box
-				// over a prompt that only the summary card admits to.
+
 				cast.brief = from.instructions;
 				cast.role = from.role;
 				cast.abilities = [ ...from.abilities ];
@@ -276,11 +208,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		},
 		'agent-step': ( state, args ) => {
 			const next = Math.max( 0, Math.min( 4, Number( args.step ) ) ) as AppState[ 'wstep' ];
-			// Leaving Describe by any door — Continue, or a jump from
-			// the trail — takes the brief with it: what the textarea
-			// labelled "system prompt" says is what the agent gets.
-			// Drafting writes its rewrite back into the brief, so this
-			// never undoes a draft; it only carries the words along.
+
 			if ( state.wstep === 0 && next !== 0 && state.cast ) {
 				state.cast = {
 					...state.cast,
@@ -316,8 +244,6 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		const inFootprint = state.footprint > 0;
 		const depth = !! ( group || section ) || inFootprint;
 
-		// The trail: ancestors are links, the current segment is plain
-		// bold text — the desktop-files breadcrumb shape.
 		const link = ( label: string, go: () => void ): TemplateResult =>
 			html`<button type="button" class="os-mywp__crumb-link" @click=${ go }>${ label }</button>`;
 		const current = ( label: string ): TemplateResult =>
@@ -325,8 +251,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		const sep = (): TemplateResult => html`<span class="os-mywp__sep" aria-hidden="true">›</span>`;
 		const inFolder = section && state.into > 0;
 		const inSub = inFolder && state.relation !== '';
-		// The phone's item page (`renderBody`): one more step in the
-		// trail, and Back closes it rather than leaving the section.
+
 		const onItemPage =
 			!! section && ! inFolder && section.kind !== 'agent' && state.item > 0 && isMobileStamped();
 		const crumbs: Array< TemplateResult > = [];
@@ -381,7 +306,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		if ( inSub && payload.sub ) {
 			folderStatus = [
 				sprintf(
-					/* translators: %d: item count. */
+
 					_n( '%d item', '%d items', payload.sub.rows.length ),
 					payload.sub.rows.length,
 				),
@@ -390,7 +315,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		} else if ( inFolder && payload.folder ) {
 			folderStatus = [
 				sprintf(
-					/* translators: %d: folder count. */
+
 					__( '%d folders' ),
 					payload.folder.folders.length,
 				),
@@ -402,7 +327,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			folderStatus = payload.agents?.enabled
 				? [
 					sprintf(
-						/* translators: %d: number of agents on the site. */
+
 						_n( '%d agent', '%d agents', payload.agents.list.length ),
 						payload.agents.list.length,
 					),
@@ -411,24 +336,23 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 				: [ '', '' ];
 		}
 		if ( inFootprint ) {
-			// The footprint owns the whole status bar while it is open.
 			folderStatus = footprintStatus( ctx );
 		}
 		const statusLeft = section && ! inFolder
 			? `${ sprintf(
-				/* translators: 1: loaded count, 2: total count. */
+
 				__( '%1$d of %2$d items' ),
 				loaded,
 				payload.list?.total ?? 0,
 			) }${ selectedCount > 0
 				? ' — ' + sprintf(
-					/* translators: %d: selected count. */
+
 					__( '%d selected' ),
 					selectedCount,
 				)
 				: '' }`
 			: sprintf(
-				/* translators: %d: folder count. */
+
 				__( '%d folders' ),
 				state.group
 					? payload.sections.filter( ( s ) => s.group === state.group ).length
@@ -436,15 +360,13 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			);
 		let statusRight = section && ! inFolder
 			? sprintf(
-				/* translators: 1: current page, 2: page count. */
+
 				__( 'Page %1$d of %2$d' ),
 				payload.list?.page ?? 1,
 				payload.list?.pages ?? 1,
 			)
 			: '';
 		if ( section && ! inFolder && ! isAgents && state.view === 'list' ) {
-			// The list view says how it is ordered and what it is not
-			// showing — the two facts a table's reader keeps asking.
 			statusRight = [ hiddenStatus( ctx, section ), sortStatus( ctx ), statusRight ]
 				.filter( Boolean )
 				.join( ' · ' );
@@ -471,7 +393,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 							hide-label
 							value=${ state.query }
 							placeholder=${ sprintf(
-								/* translators: %s: section label, lowercased. */
+
 								__( 'Search %s…' ),
 								section.label.toLowerCase(),
 							) }
@@ -509,9 +431,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 	mounted: ( ctx ) => {
 		const unwire = wire( ctx );
 		const unwatchTrash = watchExplorerTrash( ctx );
-		// The body reads the shell's mode stamp (the phone's item page);
-		// a crossing between the desk and the phone band repaints
-		// nothing on its own.
+
 		const onModeChange = (): void => ctx.repaint();
 		document.addEventListener( 'os-mode-changed', onModeChange );
 		return () => {

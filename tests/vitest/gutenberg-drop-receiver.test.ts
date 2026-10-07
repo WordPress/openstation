@@ -1,9 +1,3 @@
-/**
- * Unit tests for the Gutenberg drop-receiver's payload → block
- * mapping. The receiver itself is a side-effect bundle that listens
- * on `window.message`, but the block-spec factory is a pure function
- * exported for test access.
- */
 import { describe, expect, test } from 'vitest';
 import { buildBlockSpec } from '../../src/gutenberg-drop-receiver';
 
@@ -131,7 +125,7 @@ describe( 'buildBlockSpec — post / user', () => {
 			url: 'https://example.test/x?a=1&b=<script>',
 			title: 'Mean & "quoted" <script>',
 		} );
-		// All five sensitive chars must be escaped in BOTH href and text.
+
 		expect( spec?.attributes.content ).toBe(
 			'<a href="https://example.test/x?a=1&amp;b=&lt;script&gt;">Mean &amp; &quot;quoted&quot; &lt;script&gt;</a>',
 		);
@@ -163,7 +157,7 @@ describe( 'buildBlockSpec — post / user', () => {
 			kind: 'post',
 			id: 1,
 			postType: 'post',
-			// eslint-disable-next-line no-script-url
+
 			url: 'javascript:alert(1)',
 			title: 'Bad',
 		} );

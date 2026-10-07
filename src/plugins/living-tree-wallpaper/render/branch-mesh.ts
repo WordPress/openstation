@@ -1,47 +1,23 @@
-/**
- * The Living Tree — skeleton → branch geometry.
- *
- * The skeleton renders as **continuous tapered ribbons**, not per-segment
- * strokes: parent→child runs between forks become one filled polygon
- * whose half-width follows the interpolated girth. That kills the
- * "sausage joint" artifact entirely — width changes glide along the
- * ribbon instead of stacking discs. On top of the base fill each ribbon
- * gets cheap procedural bark: a dark shade stroke along its left edge, a
- * warm dusk highlight along its right, and striation grooves on trunk-
- * grade wood. The root run gets a flare so the tree grips the ground.
- * See `docs/living-tree-algorithm.md` §A.6.
- *
- * Per-vertex wind displacement (already compliance-scaled by the caller)
- * bends the ribbons; the whole pass is redrawn only while the skeleton
- * changes or wind is non-zero.
- */
-
 import type { PixiGraphics, PixiNamespace } from '../pixi-types';
 import type { BranchNode, Vec2 } from '../types';
 
-/** Bark palette: heartwood dark → extremity light, plus accents. */
 const BARK_DARK = 0x33241a;
 const BARK_LIGHT = 0x8a6a48;
 const BARK_SHADE = 0x1f130b;
 const BARK_HIGHLIGHT = 0xd9b083;
 const BARK_GROOVE = 0x241609;
 
-/**
- * A maximal fork-free run of nodes. Chains are rebuilt only when the
- * skeleton changes; per-frame work is displacement + drawing.
- */
 export interface BranchChain {
-	/** Node indices along the run, starting at the run's anchor parent. */
+
 	nodeIdx: number[];
-	/** Mean compliance — colours the run. */
+
 	meanCompliance: number;
-	/** Mean radius — gates the shading/striation detail tiers. */
+
 	meanRadius: number;
-	/** True when the run starts at the root (gets the ground flare). */
+
 	fromRoot: boolean;
 }
 
-/** Lerp between two packed RGB colours without bitwise ops. */
 function lerpColor( a: number, b: number, t: number ): number {
 	const ar = Math.floor( a / 65536 ) % 256;
 	const ag = Math.floor( a / 256 ) % 256;
@@ -55,14 +31,6 @@ function lerpColor( a: number, b: number, t: number ): number {
 	return r * 65536 + g * 256 + bl;
 }
 
-/**
- * Split the skeleton into maximal fork-free chains. Each chain starts at
- * its parent run's fork node (or the root) so consecutive ribbons overlap
- * by one vertex and joints stay watertight.
- *
- * @param nodes The skeleton.
- * @return Chains sorted trunk-first (thick wood draws under fine twigs).
- */
 export function buildChains( nodes: BranchNode[] ): BranchChain[] {
 	if ( nodes.length < 2 ) {
 		return [];
@@ -76,7 +44,7 @@ export function buildChains( nodes: BranchNode[] ): BranchChain[] {
 	}
 
 	const chains: BranchChain[] = [];
-	// A chain begins at the root and at every fork child.
+
 	const starts: Array< { from: number; head: number } > = [];
 	for ( let i = 0; i < nodes.length; i++ ) {
 		if ( nodes[ i ].parent === null || children[ nodes[ i ].parent as number ].length > 1 ) {
@@ -109,21 +77,10 @@ export function buildChains( nodes: BranchNode[] ): BranchChain[] {
 		} );
 	}
 
-	// Thick wood first so twigs layer on top of the trunk, not under it.
 	chains.sort( ( a, b ) => b.meanRadius - a.meanRadius );
 	return chains;
 }
 
-/**
- * Create the (initially empty) Graphics the skeleton draws into. Add the
- * result to the branch layer, then call {@link drawBranches} whenever the
- * skeleton or the wind changes.
- *
- * @param nodes The skeleton (kept for signature symmetry; drawing reads
- *              it via {@link drawBranches}).
- * @param pixi  The vendor Pixi namespace.
- * @return The Graphics to mount.
- */
 export function buildBranchMesh(
 	nodes: BranchNode[],
 	pixi: PixiNamespace,
@@ -132,7 +89,6 @@ export function buildBranchMesh(
 	return new pixi.Graphics();
 }
 
-/** Per-chain displaced geometry, shared by the fill + stroke passes. */
 interface ChainGeometry {
 	chain: BranchChain;
 	px: Float64Array;
@@ -154,8 +110,6 @@ function computeChainGeometry(
 		return null;
 	}
 
-	// Displaced centerline + per-point radii (root flare on the ground
-	// run so the trunk visibly grips the soil).
 	const px = new Float64Array( count );
 	const py = new Float64Array( count );
 	const pr = new Float64Array( count );
@@ -174,14 +128,9 @@ function computeChainGeometry(
 			pr[ 1 ] *= 1.3;
 		}
 	} else {
-		// The run's first vertex sits ON the parent's centerline. Start it
-		// just a touch wider than the child's own body — enough to bury
-		// the joint inside the parent's silhouette — but NEVER at the
-		// parent's girth: that webs every fork into a melted wedge.
 		pr[ 0 ] = Math.min( pr[ 0 ], pr[ 1 ] * 1.35 + 0.6 );
 	}
 
-	// Edge offsets from per-point normals → watertight tapered rims.
 	const leftX = new Float64Array( count );
 	const leftY = new Float64Array( count );
 	const rightX = new Float64Array( count );
@@ -204,27 +153,6 @@ function computeChainGeometry(
 	return { chain, px, py, leftX, leftY, rightX, rightY, compliance };
 }
 
-/**
- * Redraw the full skeleton as shaded tapered ribbons.
- *
- * Draw order sells the joints:
- *
- * 1. **Fillet discs** at every fork, under everything — each disc has the
- *    fork node's full girth and its local colour, so the V-notch between
- *    diverging children (and the parent run's flat end cap) rounds off
- *    into a natural crotch.
- * 2. **Per chain, thick-first: wood fill, then its detail strokes.** A
- *    child's wood always paints over its parent's rim strokes, so no
- *    shade line ever slices across the base of a branch. Fills are
- *    overlapping two-segment slabs coloured by local compliance — tone
- *    glides continuously through forks with no antialiasing seams.
- *
- * @param g        The Graphics from {@link buildBranchMesh}.
- * @param chains   Chains from {@link buildChains} (rebuild on growth).
- * @param nodes    The skeleton.
- * @param displace Per-node displacement (already compliance-scaled), or
- *                 `null` for a still tree.
- */
 export function drawBranches(
 	g: PixiGraphics,
 	chains: BranchChain[],
@@ -241,7 +169,6 @@ export function drawBranches(
 		}
 	}
 
-	// Fillet discs — one per distinct fork node, under all wood.
 	const filleted = new Set< number >();
 	for ( const geo of geometries ) {
 		const forkIdx = geo.chain.nodeIdx[ 0 ];
@@ -265,7 +192,6 @@ export function drawBranches(
 		const count = geo.px.length;
 		const { px, py, leftX, leftY, rightX, rightY } = geo;
 
-		// Rounded end cap so a run never ends in a squared-off stub.
 		const last = count - 1;
 		const lastNode = nodes[ chain.nodeIdx[ last ] ];
 		g.circle(
@@ -276,9 +202,6 @@ export function drawBranches(
 			color: lerpColor( BARK_DARK, BARK_LIGHT, geo.compliance[ last ] ),
 		} );
 
-		// Wood: overlapping two-segment slabs along the run — every
-		// slab spans [i, i+2] following both rims, so the previous
-		// slab's far edge always lies INSIDE the next one.
 		for ( let i = 0; i < count - 1; i++ ) {
 			const j = Math.min( count - 1, i + 2 );
 			const mid = Math.min( count - 1, i + 1 );
@@ -297,8 +220,6 @@ export function drawBranches(
 			} );
 		}
 		if ( chain.meanRadius > 1.8 ) {
-			// Cylindrical form: shade the left rim, kiss the right rim
-			// with the warm dusk key light.
 			g.moveTo( leftX[ 0 ], leftY[ 0 ] );
 			for ( let i = 1; i < count; i++ ) {
 				g.lineTo( leftX[ i ], leftY[ i ] );
@@ -329,8 +250,6 @@ export function drawBranches(
 			} );
 		}
 		if ( chain.meanRadius > 4.5 ) {
-			// Bark grain: two grooves running with the wood, offset to
-			// either side of the centerline.
 			for ( const side of [ -0.38, 0.31 ] ) {
 				g.moveTo(
 					px[ 0 ] + ( leftX[ 0 ] - px[ 0 ] ) * side,

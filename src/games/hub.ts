@@ -1,19 +1,3 @@
-/**
- * OpenStation — Games hub window body (Steam-library style).
- *
- * Enhances the PHP template skeleton (`includes/games/window.php`):
- * a compact game grid across the top; selecting a game reveals the
- * detail panel below it — icon, title, description, **Play** and
- * **Challenge** actions, then the game's scoreboard and its
- * challenges. One surface, no tabs.
- *
- * The grid paints from the shared games registry and repaints live
- * as plugins register/unregister games mid-session; the first game
- * auto-selects so the window is never empty.
- */
-
-// Side-effect imports — register the `<os-*>` components this module
-// constructs. `defineComponent` is idempotent across bundles.
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-empty-state/os-empty-state';
 
@@ -39,9 +23,6 @@ function currentUserId(): number {
 	return Number( wpGlobal?.os?.config?.currentUserId ) || 0;
 }
 
-/**
- * Render a game icon — dashicon class, or image URL / data URI.
- */
 export function buildGameIcon( icon: string ): HTMLElement {
 	if ( icon.startsWith( 'data:' ) || /^https?:\/\//.test( icon ) ) {
 		const img = document.createElement( 'img' );
@@ -56,10 +37,6 @@ export function buildGameIcon( icon: string ): HTMLElement {
 	return span;
 }
 
-/**
- * The render callback published on
- * `window.openStationNativeWindows['desktop-mode-games']`.
- */
 export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 	const root = body.querySelector< HTMLElement >( ROOT );
 	const grid = body.querySelector< HTMLElement >( GRID );
@@ -69,7 +46,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 	}
 
 	const teardowns: Array< () => void > = [];
-	/** Teardowns owned by the current detail render. */
+
 	let detailTeardowns: Array< () => void > = [];
 	let selectedId: string | null = null;
 
@@ -78,13 +55,12 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 			try {
 				fn();
 			} catch {
-				/* one bad teardown must not strand the rest */
+
 			}
 		}
 		detailTeardowns = [];
 	};
 
-	// --- Challenge with my best score --------------------------------
 	const challengeFromBest = async (
 		game: GameRegistryEntry,
 	): Promise< void > => {
@@ -97,7 +73,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		if ( ! best ) {
 			showToast( {
 				message: sprintf(
-					/* translators: %s: game title. */
+
 					__( 'Play %s first — you need a score to challenge with.' ),
 					game.title,
 				),
@@ -112,13 +88,11 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		} );
 	};
 
-	// --- Detail panel ------------------------------------------------
 	const renderDetail = ( game: GameRegistryEntry ): void => {
 		disposeDetail();
 		detail.hidden = false;
 		detail.innerHTML = '';
 
-		// Hero row: icon + title/description + actions.
 		const hero = document.createElement( 'div' );
 		hero.className = 'os-games__hero';
 
@@ -140,10 +114,6 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 			info.appendChild( desc );
 		}
 
-		// Steam-style play-time strip — lifetime total plus the
-		// last-two-weeks figure from the daily buckets. Filled in
-		// async, hidden until the viewer actually has time on the
-		// clock for this game.
 		const playtime = document.createElement( 'div' );
 		playtime.className = 'os-games__hero-playtime';
 		playtime.hidden = true;
@@ -193,7 +163,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 				playtime.hidden = false;
 			} )
 			.catch( () => {
-				/* stays hidden — play time is decorative here */
+
 			} );
 		hero.appendChild( info );
 
@@ -233,7 +203,6 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 
 		detail.appendChild( hero );
 
-		// Scoreboard section.
 		const scoreboardSection = document.createElement( 'section' );
 		scoreboardSection.className = 'os-games__section';
 		const scoreboardHeading = document.createElement( 'h3' );
@@ -245,7 +214,6 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		detail.appendChild( scoreboardSection );
 		detailTeardowns.push( renderScoreboard( scoreboardHost, game ) );
 
-		// Challenges section (this game only).
 		const challengesSection = document.createElement( 'section' );
 		challengesSection.className = 'os-games__section';
 		const challengesHeading = document.createElement( 'h3' );
@@ -258,7 +226,6 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		detailTeardowns.push( renderChallengesView( challengesHost, game.id ) );
 	};
 
-	// --- Grid --------------------------------------------------------
 	const select = ( id: string ): void => {
 		const game = registry.get( id );
 		if ( ! game ) {
@@ -321,8 +288,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		for ( const entry of games ) {
 			grid.appendChild( buildTile( entry ) );
 		}
-		// Keep (or establish) a selection: the previous game if it
-		// still exists, the first game otherwise.
+
 		const keep =
 			selectedId && games.some( ( game ) => game.id === selectedId )
 				? selectedId
@@ -339,7 +305,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 			try {
 				fn();
 			} catch {
-				/* one bad teardown must not strand the rest */
+
 			}
 		}
 	};

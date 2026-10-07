@@ -1,15 +1,9 @@
-/**
- * A stand-in for the shell's Preferences store on `wp.os`, for tests
- * of the Preferences app — which reads and writes the settings only
- * through the public API (`getOsSettings` / `updateOsSettings` /
- * `subscribeOsSettings` / `resetOsSettings`).
- */
 import { vi } from 'vitest';
 import { cloneState, structuredDefaults } from '../../../src/settings/state';
 import type { OsSettingsState } from '../../../src/settings/types';
 
 export interface OsSettingsStub {
-	/** The live state behind the stub — assert against it, or seed it. */
+
 	state: OsSettingsState;
 	updateOsSettings: ReturnType< typeof vi.fn >;
 	resetOsSettings: ReturnType< typeof vi.fn >;

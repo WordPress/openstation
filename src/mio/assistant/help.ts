@@ -1,4 +1,3 @@
-/** Deterministic, section-aware local retrieval. No URLs outside the manifest. */
 import type { MioAbility, MioDocument } from './types';
 
 const STOP_WORDS = new Set( 'a an and are as at be by can do for from how i in is it me of on or please that the this to use we what with you your'.split( ' ' ) );

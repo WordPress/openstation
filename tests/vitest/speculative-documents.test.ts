@@ -1,22 +1,3 @@
-/**
- * Speculative documents — the load-bearing parts.
- *
- * Three things here are the difference between the feature working and
- * quietly not working, and none of them are visible in a screenshot:
- *
- *   1. **The safety predicate.** Speculation fetches a URL before the
- *      user has clicked anything. If it ever accepted a URL that
- *      *acts*, a hover would activate a plugin or empty a trash.
- *   2. **The store's promise semantics.** Holding the settled response
- *      instead of the in-flight promise made a click landing mid-fetch
- *      issue a second request for the same screen — the "5 ms vs
- *      1,001 ms" split that burned the first implementation.
- *   3. **The shell-side throttle.** A permanent "already asked" set is
- *      the obvious de-duplication and silently disables the feature
- *      after first use, because the worker's copy is single-use and
- *      expires. Repeat visits to the same screen are exactly what the
- *      feature is for.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { isSpeculatableDocument } from '../../src/pwa/sw-policy';
 import {
@@ -42,8 +23,7 @@ describe( 'isSpeculatableDocument', () => {
 	} );
 
 	test( 'requires the chromeless flag', () => {
-		// Without it the server may not render the chromeless variant,
-		// and serving the result to an iframe would be unsafe.
+
 		expect(
 			isSpeculatableDocument(
 				new URL( 'https://site.test/wp-admin/options-writing.php' ),
@@ -58,8 +38,7 @@ describe( 'isSpeculatableDocument', () => {
 	} );
 
 	test( 'refuses every URL that acts', () => {
-		// A hover must never activate a plugin, empty a trash, or apply
-		// an update.
+
 		const acting = [
 			'action=activate&plugin=foo/foo.php',
 			'action2=delete',
@@ -79,10 +58,7 @@ describe( 'isSpeculatableDocument', () => {
 	} );
 
 	test( 'refuses screens that act merely by rendering', () => {
-		// A query key is not the only way a URL does something.
-		// `post-new.php` creates an auto-draft the moment it renders, so
-		// speculating it mints a fresh orphan post per hover — invisible
-		// to the user, and cleaned up by Core only after seven days.
+
 		for ( const file of [ 'post-new.php', 'user-new.php', 'media-new.php' ] ) {
 			expect(
 				isSpeculatableDocument(
@@ -104,9 +80,7 @@ describe( 'isSpeculatableDocument', () => {
 	} );
 
 	test( 'the acts-on-load rule reads the filename, not the whole path', () => {
-		// A subdirectory install or a renamed admin folder must be
-		// handled the same way; a directory that merely ends in
-		// `-new.php` must not swallow the page inside it.
+
 		expect(
 			isSpeculatableDocument(
 				new URL(
@@ -129,11 +103,7 @@ describe( 'SpeculativeStore', () => {
 		Promise.resolve( new Response( tag ) as Response | null );
 
 	test( 'clear() drops everything for a session boundary', async () => {
-		// Held entries are fully rendered admin pages belonging to
-		// whoever was signed in. They outlived logout, so a second user
-		// on the same browser inside the 30 s window could be handed the
-		// previous user's page — their drafts, their comments, their
-		// settings.
+
 		const store = new SpeculativeStore();
 		store.put( '/a', res( 'a' ) );
 		store.put( '/b', res( 'b' ) );
@@ -154,8 +124,7 @@ describe( 'SpeculativeStore', () => {
 		} );
 
 		store.put( '/a', pending );
-		// Claimed while still in flight — this is the case that used to
-		// start a duplicate request.
+
 		const taken = store.take( '/a' );
 		expect( taken ).not.toBeNull();
 
@@ -170,8 +139,7 @@ describe( 'SpeculativeStore', () => {
 		store.put( '/a', res( 'one' ) );
 
 		expect( store.take( '/a' ) ).not.toBeNull();
-		// A document carries nonces and a moment-in-time view; replaying
-		// it would show a page that has already been superseded.
+
 		expect( store.take( '/a' ) ).toBeNull();
 	} );
 
@@ -253,15 +221,11 @@ describe( 'speculateDocument', () => {
 		vi.setSystemTime( new Date( 2_000_000 ) );
 		const url = '/wp-admin/options-writing.php' + CHROMELESS;
 
-		// A pointer crossing a tab's icon and label fires repeatedly.
 		speculateDocument( url );
 		speculateDocument( url );
 		speculateDocument( url );
 		expect( posted ).toHaveLength( 1 );
 
-		// The worker's copy is single-use and expires, so a genuine
-		// return visit must be able to ask again. A permanent "seen"
-		// set would silently make every repeat visit a no-op.
 		vi.advanceTimersByTime( 5_000 );
 		speculateDocument( url );
 		expect( posted ).toHaveLength( 2 );
@@ -305,9 +269,7 @@ describe( 'rememberRestoreTargets', () => {
 	} );
 
 	test( 'sends nothing at all when the opt-in is off', async () => {
-		// "Off by default" has to mean a user who never touched the
-		// setting does not pay so much as a postMessage. The gate lives
-		// in the session saver, so exercise it the way the saver does.
+
 		const { createSessionSaver } = await import(
 			'../../src/boot/session-saver'
 		);
@@ -317,12 +279,10 @@ describe( 'rememberRestoreTargets', () => {
 		installHooksStub();
 		const wp = ( window as unknown as { wp?: Record< string, unknown > } )
 			.wp as Record< string, unknown >;
-		// Merge rather than replace — the saver's error path needs the
-		// hooks stub installed above to still be reachable.
+
 		wp.os = {
 			getOsSettings: () => ( { windowPrewarmEnabled: false } ),
-			// The saver persists through `wp.os.fetch`; stub it so this
-			// test exercises the gate, not the network.
+
 			fetch: async () => new Response( '{}' ),
 		};
 		const manager = {

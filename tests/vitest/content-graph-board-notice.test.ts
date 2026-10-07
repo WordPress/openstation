@@ -1,13 +1,3 @@
-/**
- * Content Graph — board notice contract.
- *
- * `deriveBoardNotice` decides what a sparse board says; the renderer
- * paints exactly one notice at a time and reuses the house
- * `<os-empty-state>` for the empty cases. Copy is asserted by shape
- * (heading present, mentions threads) rather than verbatim so a
- * wording pass doesn't have to touch the tests.
- */
-
 import { afterEach, describe, expect, test } from 'vitest';
 import {
 	BOARD_EMPTY_CLASS,
@@ -43,7 +33,7 @@ describe( 'deriveBoardNotice', () => {
 				activeTypes: [ 'post' ],
 			} ),
 		).toEqual( { kind: 'no-threads' } );
-		// One lone node counts too — there is nothing for it to link to.
+
 		expect(
 			deriveBoardNotice( {
 				nodes: 1,
@@ -91,9 +81,7 @@ describe( 'deriveBoardNotice', () => {
 	} );
 
 	test( 'unknown counts (the config list) assume a hidden type has content', () => {
-		// `/post-types` failed: no descriptor carries a count. A
-		// switched-off type is then assumed to hold content, so the
-		// board blames the chips rather than claiming the site is empty.
+
 		expect(
 			deriveBoardNotice( {
 				nodes: 0,
@@ -102,7 +90,7 @@ describe( 'deriveBoardNotice', () => {
 				activeTypes: [ 'post' ],
 			} ),
 		).toEqual( { kind: 'filtered-out' } );
-		// …but with every type on, an empty board is an empty site.
+
 		expect(
 			deriveBoardNotice( {
 				nodes: 0,
@@ -180,8 +168,7 @@ describe( 'renderBoardNotice', () => {
 		const text = el?.textContent ?? '';
 		expect( text ).toMatch( /thread/i );
 		expect( text ).toMatch( /links/i );
-		// Names the relationships that appear on focus and the Group by
-		// facets as the toolbar labels them.
+
 		expect( text ).toMatch( /author/i );
 		expect( text ).toMatch( /categor/i );
 		expect( text ).toMatch( /year/i );
@@ -210,12 +197,12 @@ describe( 'renderBoardNotice', () => {
 		handle.set( { kind: 'no-threads' } );
 		handle.setSuppressed( true );
 		expect( host.children ).toHaveLength( 0 );
-		// A grouping change while suppressed must not lose the notice.
+
 		handle.set( { kind: 'no-threads' } );
 		expect( host.children ).toHaveLength( 0 );
 		handle.setSuppressed( false );
 		expect( host.querySelector( `.${ BOARD_HINT_CLASS }` ) ).not.toBeNull();
-		// Empty-board states stay visible whatever the grouping.
+
 		handle.setSuppressed( true );
 		handle.set( { kind: 'no-content' } );
 		expect( host.querySelector( `.${ BOARD_EMPTY_CLASS }` ) ).not.toBeNull();

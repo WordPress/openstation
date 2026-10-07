@@ -1,21 +1,3 @@
-/**
- * Navigation — where every registered thing shows up.
- *
- * One `<os-section>` per kind — a heading, a sentence, and a bounded
- * surface, the panel's separator system everywhere else — holding one
- * row per {@link NavItem} with a four-way pick: on a rail, on the
- * desktop, on both, or nowhere. The rail option names the rail the
- * item would actually land on — "Dock" for everything, "Sidebar" for
- * a WordPress admin menu while the split layout is on — so the label
- * never describes a surface the item is not on.
- *
- * The list is the same {@link NavItem} list the rails paint from, so
- * a row cannot claim a default the dock disagrees with. Because the
- * app repaints on every settings change, a row never shows a stale
- * placement while an EXTERNAL writer (the right-click menu) moves an
- * item either.
- */
-
 import { __, html } from '@openstation/app';
 import { renderIcon } from '../../../src/icon';
 import { slotForTileId } from '../../../src/desktop-themes/slots';
@@ -32,11 +14,6 @@ import type { OsSettingsState } from '../../../src/settings/types';
 import { update } from './store';
 import { pickedValue, type Section } from './types';
 
-/**
- * The groups, in the order they are listed. The two menu kinds are
- * one group because they are one dock zone: a plugin's admin menu and
- * a plugin's app launcher sit side by side on the rail.
- */
 const GROUPS: ReadonlyArray< {
 	kinds: readonly NavKind[];
 	heading: () => string;
@@ -59,11 +36,6 @@ const GROUPS: ReadonlyArray< {
 	},
 ];
 
-/**
- * Read the live nav items. Falls back to an empty list rather than
- * rebuilding them from the boot payload: a half-built list here would
- * offer rows whose defaults disagree with the rails.
- */
 function readNavItems(): NavItem[] {
 	const api = ( window as unknown as {
 		wp?: { os?: { getNavItems?: () => NavItem[] } };
@@ -71,13 +43,6 @@ function readNavItems(): NavItem[] {
 	return typeof api?.getNavItems === 'function' ? api.getNavItems() : [];
 }
 
-/**
- * Whether an item gets a row. Admin menus and registered icons always
- * do. A system tile has to opt in: most of them are load-bearing, and
- * the ones that are not say so with `placeable`. Two never appear —
- * Exit, which is the way out of the shell, and a transient tile,
- * which has no launcher to place.
- */
 function isListed( item: NavItem ): boolean {
 	if ( item.locked || item.transient ) {
 		return false;
@@ -88,10 +53,6 @@ function isListed( item: NavItem ): boolean {
 	return item.tile?.placeable === true;
 }
 
-/**
- * The page's opening sentence names the rails the user is actually
- * looking at, so it follows the layout.
- */
 const leadFor = ( layout: NavLayout ): string =>
 	'classic' === layout
 		? __(
@@ -101,7 +62,6 @@ const leadFor = ( layout: NavLayout ): string =>
 			'Choose where each menu shows up: on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly.',
 		);
 
-/** The four options for one row; only the rail label varies. */
 const optionsFor = ( kind: NavKind, layout: NavLayout ): Array< { id: NavPlacement; label: string } > => [
 	{
 		id: 'rail',
@@ -117,7 +77,7 @@ const row = ( item: NavItem, s: OsSettingsState ) => html`<div class="os-nav-set
 		${ renderIcon( item.icon, {
 			title: item.title,
 			className: 'os-nav-settings__icon',
-			// Preview the themed icon so this list matches the rail.
+
 			slot: slotForTileId( item.id ),
 		} ) }
 		<div class="os-nav-settings__title">${ item.title }</div>
@@ -141,10 +101,7 @@ const row = ( item: NavItem, s: OsSettingsState ) => html`<div class="os-nav-set
 
 export const renderNavigation: Section = ( s ) => {
 	const items = readNavItems().filter( isListed );
-	// The rail's own baseline order, not alphabetical: for the two
-	// menu groups that IS the admin menu's order (Dashboard, Posts,
-	// Media, Pages, …), the order the user already knows these menus
-	// in; for the controls it is the sequence they sit in on the dock.
+
 	const groups = GROUPS.map( ( group ) => ( {
 		...group,
 		rows: sortByOrder( items.filter( ( item ) => group.kinds.includes( item.kind ) ) ),

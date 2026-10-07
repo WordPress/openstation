@@ -1,11 +1,3 @@
-/**
- * Unit tests for the framework presence client.
- *
- * After the 0.5.5 event-driven refactor, the presence module
- * routes through `wp.os.heartbeat.{contribute,subscribe}`
- * (which itself wraps jQuery's heartbeat events). Tests drive
- * the flow at the bus layer rather than mocking jQuery.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import {
@@ -45,12 +37,7 @@ function installFakeJQuery(): JQueryHandlers {
 
 describe( 'presence', () => {
 	beforeEach( () => {
-		// Reset framework state so each test starts on a clean
-		// shared store, a fresh heartbeat bus, and a fresh presence
-		// probe. Install the wp.hooks stub so the activity bus has
-		// somewhere to publish (presence transitions mirror onto
-		// activity for plugin discoverability — see Item 6 of the
-		// 0.5.5 event-driven refactor).
+
 		installHooksStub();
 		_resetAllSharedStoresForTests();
 		_resetHeartbeatBusForTests();
@@ -133,7 +120,7 @@ describe( 'presence', () => {
 				newStatus: detail.newStatus,
 			} );
 		} );
-		// First tick: user 42 lands as online.
+
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
@@ -143,7 +130,7 @@ describe( 'presence', () => {
 				},
 			},
 		);
-		// Second tick: same status — should NOT re-fire.
+
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
@@ -153,7 +140,7 @@ describe( 'presence', () => {
 				},
 			},
 		);
-		// Third tick: status changes — should re-fire.
+
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
@@ -186,7 +173,7 @@ describe( 'presence', () => {
 		);
 		const out = getAll();
 		out.delete( 7 );
-		// Live store unaffected.
+
 		expect( getStatus( 7 ) ).toBe( 'online' );
 	} );
 
@@ -195,8 +182,7 @@ describe( 'presence', () => {
 		bootHeartbeatBus();
 		bootPresenceProbe();
 		bootPresenceProbe();
-		// Second boot should NOT double-register handlers — verify
-		// only one tick worth of state lands per heartbeat.
+
 		expect( () => markActive() ).not.toThrow();
 	} );
 
@@ -223,9 +209,7 @@ describe( 'presence', () => {
 	} );
 
 	test( 'public presenceApi exposes applyBatch as the canonical entry', () => {
-		// `applyBatch` is the public name for `applyPresenceBatch` —
-		// what plugins call as `wp.os.presence.applyBatch( … )`
-		// after the messages-port DX work.
+
 		expect( typeof presenceApi.applyBatch ).toBe( 'function' );
 
 		const events: Array< unknown > = [];

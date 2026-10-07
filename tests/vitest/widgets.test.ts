@@ -1,15 +1,3 @@
-/**
- * Widget registry + layer behaviour.
- *
- * Covers:
- *   - registry validation, late-wins on id conflict, filter passthrough
- *   - layer first-run seeds the clock default
- *   - add / remove idempotency + persistence
- *   - mount lifecycle hook firings (mounting → mounted)
- *   - async mount rejection fires mount-failed (not mounted)
- *   - rapid add-then-remove discards the stale mount
- *   - the picker stays inside the work area when neither side fits
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	clearHooksStub,
@@ -33,11 +21,11 @@ describe( 'widgets/registry', () => {
 	beforeEach( async () => {
 		hooks = installHooksStub();
 		vi.resetModules();
-		// Clear any persisted state between files.
+
 		try {
 			window.localStorage.removeItem( 'desktop-mode-widgets' );
 		} catch {
-			/* jsdom always supports localStorage */
+
 		}
 	} );
 
@@ -128,7 +116,7 @@ describe( 'widgets/layer', () => {
 				'desktop-mode-widgets-docked-heights',
 			);
 		} catch {
-			/* jsdom */
+
 		}
 		host = document.createElement( 'aside' );
 		document.body.appendChild( host );
@@ -199,7 +187,7 @@ describe( 'widgets/layer', () => {
 		} );
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
-		layer.remove( 'clock' ); // ensure clean
+		layer.remove( 'clock' );
 		const log = recordActions( hooks, WIDGET_HOOKS );
 
 		layer.add( 'stats' );
@@ -281,7 +269,7 @@ describe( 'widgets/layer', () => {
 			icon: 'dashicons-warning',
 			mount: () => Promise.reject( err ),
 		} );
-		// Silence the error log — mount-failed intentionally logs.
+
 		const errSpy = vi
 			.spyOn( console, 'error' )
 			.mockImplementation( () => {} );
@@ -343,7 +331,7 @@ describe( 'widgets/layer', () => {
 		const card = host.querySelector( '.os-widgets__card' )!;
 		expect( card.classList.contains( 'os-widgets__card--movable' ) ).toBe( false );
 		expect( card.querySelector( '.os-widgets__chrome' ) ).toBeNull();
-		// Corner-close stays in the DOM with the --corner modifier.
+
 		expect(
 			card.querySelector( '.os-widgets__card-close--corner' ),
 		).not.toBeNull();
@@ -388,8 +376,6 @@ describe( 'widgets/layer', () => {
 			JSON.stringify( { mov: { x: 50, y: 70, width: 240, height: 120 } } ),
 		);
 
-		// Parent for floating host — layer defaults to root.parentElement
-		// which is document.body here. That's fine for the test.
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
 
@@ -406,13 +392,7 @@ describe( 'widgets/layer', () => {
 	} );
 
 	test( 'liberating a docked widget preserves its CURRENT rendered size, not the registered default', async () => {
-		// Reproduces the user-reported "Heartbeat widget loses its
-		// 88 px compact height on drag-out" bug. The previous
-		// `def.defaultWidth ?? rect.width` precedence stretched the
-		// widget back to its registered defaultHeight even when the
-		// widget had mutated its own column-mode height (compact
-		// toggle, dynamic-content shrink, etc.). After the fix, the
-		// on-screen rect wins.
+
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );
 		registry.register( {
@@ -421,8 +401,7 @@ describe( 'widgets/layer', () => {
 			description: '',
 			icon: 'dashicons-star-filled',
 			movable: true,
-			// Mimic the Heartbeat widget: registered with 310 × 230
-			// but in column mode the widget collapses to 88 high.
+
 			defaultWidth: 310,
 			defaultHeight: 230,
 			mount: () => () => undefined,
@@ -436,12 +415,8 @@ describe( 'widgets/layer', () => {
 		)!;
 		expect( card ).toBeTruthy();
 
-		// jsdom returns zero from getBoundingClientRect /
-		// offsetWidth / offsetHeight by default — stub both on the
-		// card so the liberate snapshot AND the post-drag
-		// currentGeometry() read real numbers.
 		card.getBoundingClientRect = (): DOMRect => ( {
-			x: 100, y: 200, width: 310, height: 88, // ← compact height
+			x: 100, y: 200, width: 310, height: 88,
 			top: 200, left: 100, right: 410, bottom: 288,
 			toJSON: () => ( {} ),
 		} );
@@ -453,11 +428,6 @@ describe( 'widgets/layer', () => {
 			toJSON: () => ( {} ),
 		} );
 
-		// Synthesize the drag: pointerdown on the chrome, move past
-		// the 5 px threshold, release. jsdom doesn't have a
-		// PointerEvent constructor — use a plain Event with the
-		// fields the frame reads (same trick `drag-manager.test.ts`
-		// uses).
 		const ptr = ( type: string, x: number, y: number ): Event => {
 			const e = new Event( type, { bubbles: true } );
 			Object.defineProperty( e, 'pointerId', { value: 1 } );
@@ -469,23 +439,17 @@ describe( 'widgets/layer', () => {
 		const chrome = card.querySelector< HTMLElement >(
 			'.os-widgets__chrome',
 		)!;
-		// jsdom lacks setPointerCapture / releasePointerCapture; the
-		// frame calls both on the chrome element during a drag. Stub
-		// them as no-ops so the synthesized pointer flow doesn't
-		// throw mid-test.
+
 		( chrome as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
 		( chrome as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
 		chrome.dispatchEvent( ptr( 'pointerdown', 110, 210 ) );
 		chrome.dispatchEvent( ptr( 'pointermove', 200, 300 ) );
 		chrome.dispatchEvent( ptr( 'pointerup', 200, 300 ) );
 
-		// After liberation the card's inline height must reflect the
-		// pre-drag on-screen height (88) — NOT the registered 230.
 		expect( card.classList.contains( 'os-widgets__card--floating' ) ).toBe( true );
 		expect( card.style.height ).toBe( '88px' );
 		expect( card.style.width ).toBe( '310px' );
 
-		// Persisted geometry mirrors it.
 		const geom = JSON.parse(
 			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) || '{}',
 		);
@@ -537,8 +501,6 @@ describe( 'widgets/layer', () => {
 			mount: () => () => undefined,
 		};
 
-		// South-east corner drag by (+1000, +1000) — both axes clamp to
-		// the parent bounds from the starting (100, 100) + (300, 200).
 		const bigDrag = computeResize(
 			'se',
 			1000,
@@ -551,10 +513,9 @@ describe( 'widgets/layer', () => {
 			parent,
 			true,
 		);
-		expect( bigDrag.width ).toBe( 1000 - 100 ); // parentWidth - startLeft
-		expect( bigDrag.height ).toBe( 600 - 100 ); // parentHeight - startTop
+		expect( bigDrag.width ).toBe( 1000 - 100 );
+		expect( bigDrag.height ).toBe( 600 - 100 );
 
-		// Shrinking past min clamps at minima, not negative.
 		const tinyDrag = computeResize(
 			'se',
 			-1000,
@@ -570,8 +531,6 @@ describe( 'widgets/layer', () => {
 		expect( tinyDrag.width ).toBe( 120 );
 		expect( tinyDrag.height ).toBe( 80 );
 
-		// Non-floating (docked) widget: width/x axes are locked even
-		// though the handle was a south-east corner.
 		const docked = computeResize(
 			'se',
 			200,
@@ -605,10 +564,6 @@ describe( 'widgets/layer', () => {
 			mount: () => () => undefined,
 		};
 
-		// North-west drag by (-7, +9) from (140, 100). Freehand that
-		// lands at (133, 109); snapped it's (140, 100) again — and
-		// crucially the opposite edges (440, 300) don't move, so the
-		// size absorbs the difference.
 		const nudge = computeResize(
 			'nw', -7, 9, 140, 100, 300, 200, def, parent, true,
 		);
@@ -617,25 +572,18 @@ describe( 'widgets/layer', () => {
 		expect( nudge.x + nudge.width ).toBe( 440 );
 		expect( nudge.y + nudge.height ).toBe( 300 );
 
-		// Far enough to move a whole cell.
 		const west = computeResize(
 			'w', -33, 0, 140, 100, 300, 200, def, parent, true,
 		);
 		expect( west.x ).toBe( 100 );
 		expect( west.width ).toBe( 340 );
 
-		// Shrinking past minWidth. The naive stop is right - minW,
-		// which here is 445 - 120 = 325 and off-grid; the origin has
-		// to fall back to 320, giving 5 px more width than the
-		// minimum rather than an unaligned edge.
 		const squeezed = computeResize(
 			'w', 1000, 0, 140, 100, 305, 200, def, parent, true,
 		);
 		expect( squeezed.x ).toBe( 320 );
 		expect( squeezed.width ).toBe( 125 );
 
-		// South-east: the origin holds, the far edges snap, so the
-		// size lands on whole cells too.
 		const corner = computeResize(
 			'se', 13, -6, 140, 100, 300, 200, def, parent, true,
 		);
@@ -644,24 +592,18 @@ describe( 'widgets/layer', () => {
 		expect( corner.width ).toBe( 320 );
 		expect( corner.height ).toBe( 200 );
 
-		// East drag far enough to cross a cell boundary.
 		const east = computeResize(
 			'e', 28, 0, 140, 100, 300, 200, def, parent, true,
 		);
 		expect( east.width ).toBe( 320 );
 		expect( east.x + east.width ).toBe( 460 );
 
-		// Growing past the parent's edge stops on the last grid line
-		// inside it. 1000 is on-grid, so squeeze the widget's own max
-		// to an off-grid stop instead.
 		const capped = computeResize(
 			'e', 1000, 0, 140, 100, 300, 200,
 			{ ...def, maxWidth: 265 }, parent, true,
 		);
 		expect( capped.width ).toBe( 260 );
 
-		// Docked cards keep the old behaviour — no free position to
-		// align, and a chunky height drag would just feel worse.
 		const dockedNorth = computeResize(
 			'n', 0, -7, 140, 100, 300, 200, def, parent, false,
 		);
@@ -673,13 +615,7 @@ describe( 'widgets/layer', () => {
 	} );
 
 	test( 're-docking then resizing keeps the card in the column (no stale floating state)', async () => {
-		// Reproduces the "widget fully disappears while playing with
-		// drag / resize / re-attach" bug. The frame used to track
-		// floating state in a closure boolean that the layer's redock
-		// never reset — after re-docking, a resize still took the
-		// floating code path and wrote desktop-area coordinates into
-		// left/top on a relatively-positioned column card, flinging
-		// it off-screen with no error.
+
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );
 		registry.register( {
@@ -701,8 +637,7 @@ describe( 'widgets/layer', () => {
 
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
-		// Floating cards mount into the floating host (host's parent,
-		// i.e. document.body in this harness), not the column.
+
 		const card = document.querySelector< HTMLElement >(
 			'[data-widget-id="redock-rs"]',
 		)!;
@@ -711,16 +646,12 @@ describe( 'widgets/layer', () => {
 			card.classList.contains( 'os-widgets__card--floating' ),
 		).toBe( true );
 
-		// Put it back in the column.
 		layer.redock( 'redock-rs' );
 		expect(
 			card.classList.contains( 'os-widgets__card--floating' ),
 		).toBe( false );
 		expect( card.style.left ).toBe( '' );
 
-		// Now resize from the bottom edge, as a user would. Stub the
-		// rects jsdom won't compute: the card sits at the column's
-		// on-screen position (x≈1200) inside a 1536-wide desktop.
 		card.getBoundingClientRect = (): DOMRect => ( {
 			x: 1200, y: 40, width: 300, height: 200,
 			top: 40, left: 1200, right: 1500, bottom: 240,
@@ -748,16 +679,11 @@ describe( 'widgets/layer', () => {
 		handle.dispatchEvent( ptr( 'pointermove', 1350, 300 ) );
 		handle.dispatchEvent( ptr( 'pointerup', 1350, 300 ) );
 
-		// Height resize works…
 		expect( card.style.height ).toBe( '260px' );
-		// …but position must be untouched — before the fix left/top
-		// were written with desktop-area coords (left: 1200px on a
-		// position: relative card → off-screen).
+
 		expect( card.style.left ).toBe( '' );
 		expect( card.style.top ).toBe( '' );
-		// And no geometry record persists: a record marks the widget
-		// as floating on the next boot and would teleport it out of
-		// the column.
+
 		const geom = JSON.parse(
 			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) ||
 				'{}',
@@ -788,8 +714,6 @@ describe( 'widgets/layer', () => {
 		)!;
 		expect( card ).toBeTruthy();
 
-		// Stub the rects jsdom won't compute. `offsetHeight` mirrors
-		// the inline style the resize writes, like a real layout would.
 		card.getBoundingClientRect = (): DOMRect => ( {
 			x: 1200, y: 40, width: 300, height: 200,
 			top: 40, left: 1200, right: 1500, bottom: 240,
@@ -828,7 +752,7 @@ describe( 'widgets/layer', () => {
 			) || '{}',
 		);
 		expect( saved[ 'dock-rs' ] ).toBe( 260 );
-		// No floating-geometry record — the card must boot docked.
+
 		const geom = JSON.parse(
 			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) ||
 				'{}',
@@ -837,7 +761,6 @@ describe( 'widgets/layer', () => {
 
 		layer.disposeAll();
 
-		// Fresh boot (F5 equivalent): height re-applies, still docked.
 		const layer2 = new WidgetLayer( host, '' );
 		layer2.hydrate();
 		const card2 = host.querySelector< HTMLElement >(
@@ -862,16 +785,14 @@ describe( 'widgets/layer', () => {
 			mount: () => () => undefined,
 		} );
 		window.localStorage.setItem( 'desktop-mode-widgets', '["lost"]' );
-		// Coordinates far outside any plausible desktop — e.g. written
-		// by the stale-floating bug or a much larger prior screen.
+
 		window.localStorage.setItem(
 			'desktop-mode-widgets-geometry',
 			JSON.stringify( {
 				lost: { x: 5000, y: 4000, width: 300, height: 200 },
 			} ),
 		);
-		// The floating host (document.body here) must report a laid-out
-		// size for the mount-time clamp to engage.
+
 		Object.defineProperty( document.body, 'clientWidth', {
 			value: 1000,
 			configurable: true,
@@ -887,13 +808,12 @@ describe( 'widgets/layer', () => {
 			const card = document.querySelector< HTMLElement >(
 				'[data-widget-id="lost"]',
 			)!;
-			// Clamped to parent bounds minus the 20px margin — the card
-			// is on-screen and grabbable again.
+
 			expect( card.style.left ).toBe( `${ 1000 - 300 - 20 }px` );
 			expect( card.style.top ).toBe( `${ 600 - 200 - 20 }px` );
 			layer.disposeAll();
 		} finally {
-			// Don't leak the stubbed body metrics into later tests.
+
 			delete ( document.body as unknown as Record< string, unknown > )
 				.clientWidth;
 			delete ( document.body as unknown as Record< string, unknown > )
@@ -923,9 +843,6 @@ describe( 'widgets/layer', () => {
 		layer.remove( 'slow' );
 		const log = recordActions( hooks, WIDGET_HOOKS );
 
-		// Resolve the stale mount. Its teardown MUST run (so the
-		// widget has a chance to tidy up) but no 'mounted' hook
-		// should fire for the discarded record.
 		resolveMount!( () => {
 			teardownCalled = true;
 		} );
@@ -978,14 +895,13 @@ describe( 'widgets/layer', () => {
 			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) || '{}',
 		);
 		expect( geom.roam ).toBeUndefined();
-		// Re-parented under the column list, not the floating host.
+
 		expect(
 			host.querySelector( '.os-widgets__list .os-widgets__card' ),
 		).toBe( card );
 
-		// Idempotent — docked widget no-ops.
 		expect( () => layer.redock( 'roam' ) ).not.toThrow();
-		// Unknown id is silently ignored.
+
 		expect( () => layer.redock( 'never-registered' ) ).not.toThrow();
 
 		layer.disposeAll();
@@ -1020,7 +936,7 @@ describe( 'widgets/layer', () => {
 		entry.click();
 
 		expect( layer.getEnabledIds() ).toEqual( [ 'pick-a' ] );
-		// Panel gone, and the flag that pinned the pill with it.
+
 		expect( document.querySelector( '.os-widget-picker' ) ).toBeNull();
 		expect(
 			host.classList.contains( 'os-widgets--picking' ),
@@ -1029,7 +945,6 @@ describe( 'widgets/layer', () => {
 			host.querySelector( '.os-widgets__add' ),
 		);
 
-		// Adding a second one means opening it again.
 		layer.openPicker();
 		expect( document.querySelector( '.os-widget-picker' ) ).not.toBeNull();
 		document
@@ -1054,8 +969,6 @@ describe( 'widgets/layer', () => {
 		} );
 		window.localStorage.setItem( 'desktop-mode-widgets', '["near"]' );
 
-		// jsdom lays nothing out — pin the column's box so the
-		// proximity test has real numbers to compare against.
 		host.getBoundingClientRect = (): DOMRect => ( {
 			x: 704, y: 16, width: 320, height: 736,
 			top: 16, left: 704, right: 1024, bottom: 752,
@@ -1073,23 +986,18 @@ describe( 'widgets/layer', () => {
 			document.dispatchEvent( e );
 		};
 
-		// Far left of the desktop — nowhere near the column.
 		move( 120, 400 );
 		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( false );
 
-		// Inside the column.
 		move( 800, 400 );
 		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( true );
 
-		// Just outside, but within the approach padding.
 		move( 680, 400 );
 		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( true );
 
-		// Past the padding — hidden again.
 		move( 600, 400 );
 		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( false );
 
-		// After disposal the watch is gone and the class stops tracking.
 		layer.disposeAll();
 		move( 800, 400 );
 		expect( host.classList.contains( 'os-widgets--hovered' ) ).toBe( false );
@@ -1125,8 +1033,7 @@ describe( 'widgets/layer', () => {
 			'desktop-mode-widgets',
 			'["docked","parked","elsewhere"]',
 		);
-		// `parked` sits over the column; `elsewhere` is lower down but
-		// off to the left, so it must not drag the pill with it.
+
 		window.localStorage.setItem(
 			'desktop-mode-widgets-geometry',
 			JSON.stringify( {
@@ -1161,13 +1068,12 @@ describe( 'widgets/layer', () => {
 				),
 			].find( ( c ) => c.textContent?.includes( label ) )!;
 
-		// Parked: viewport y 300→500, i.e. 284→484 in column space.
 		rectFor( byLabel( 'Parked' ), {
 			x: 704, y: 300, width: 320, height: 200,
 			top: 300, left: 704, right: 1024, bottom: 500,
 			toJSON: () => ( {} ),
 		} as DOMRect );
-		// Elsewhere: lower, but nowhere near the column's x range.
+
 		rectFor( byLabel( 'Elsewhere' ), {
 			x: 40, y: 600, width: 320, height: 200,
 			top: 600, left: 40, right: 360, bottom: 800,
@@ -1178,7 +1084,6 @@ describe( 'widgets/layer', () => {
 			'.os-widgets__add',
 		)!;
 
-		// Re-run the measurement now that the stubs are in place.
 		const move = ( x: number, y: number ): void => {
 			const e = new Event( 'pointermove', { bubbles: true } );
 			Object.defineProperty( e, 'clientX', { value: x } );
@@ -1190,18 +1095,13 @@ describe( 'widgets/layer', () => {
 			requestAnimationFrame( () => resolve( undefined ) ),
 		);
 
-		// Parked's bottom (484 in column space) wins over the docked
-		// list (120), plus the 12 px gap.
 		expect( tile.style.top ).toBe( '496px' );
 
 		layer.disposeAll();
 	} );
 
 	test( 'the add pill follows a docked card that grows after it was placed', async () => {
-		// A card growing on its own (a notice landing after a request)
-		// is invisible to the pointer watch while the pointer is still.
-		// The layer observes every card's box; jsdom has no
-		// ResizeObserver, so hand it one whose callbacks the test fires.
+
 		const callbacks: Array< () => void > = [];
 		const observed: Element[] = [];
 		class FakeResizeObserver {
@@ -1254,7 +1154,6 @@ describe( 'widgets/layer', () => {
 			callbacks.forEach( ( cb ) => cb() );
 			expect( tile.style.top ).toBe( '132px' );
 
-			// The card's content grew; nothing moved the pointer.
 			height = 300;
 			callbacks.forEach( ( cb ) => cb() );
 			expect( tile.style.top ).toBe( '312px' );
@@ -1318,8 +1217,6 @@ describe( 'widgets/layer', () => {
 		( chrome as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
 		( chrome as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
 
-		// Drag by +37 / -23 — off-grid on both axes. From 100,100
-		// that's 137,77, which rounds to the nearest multiple of 20.
 		chrome.dispatchEvent( ptr( 'pointerdown', 0, 0 ) );
 		chrome.dispatchEvent( ptr( 'pointermove', 37, -23 ) );
 		chrome.dispatchEvent( ptr( 'pointerup', 37, -23 ) );
@@ -1327,9 +1224,6 @@ describe( 'widgets/layer', () => {
 		expect( card.style.left ).toBe( '140px' );
 		expect( card.style.top ).toBe( '80px' );
 
-		// Shove it hard against the far edges. The clamp's far bounds
-		// are parent-minus-card, which is off-grid (1024 - 240 - 20 =
-		// 764), so the post-clamp pass has to pull it back to 760.
 		chrome.dispatchEvent( ptr( 'pointerdown', 0, 0 ) );
 		chrome.dispatchEvent( ptr( 'pointermove', 5000, 5000 ) );
 		chrome.dispatchEvent( ptr( 'pointerup', 5000, 5000 ) );
@@ -1340,14 +1234,6 @@ describe( 'widgets/layer', () => {
 		layer.disposeAll();
 	} );
 
-	/*
-	 * `setVisibleIds` — the workspace primitive.
-	 *
-	 * The rule it exists to hold is that it NEVER writes: a workspace
-	 * says which widgets belong on its desk, and switching between two
-	 * of them must leave the column the user built exactly as it was.
-	 * The localStorage assertions below are the whole guarantee.
-	 */
 	test( 'setVisibleIds mounts and unmounts without writing the enabled list', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );
@@ -1375,9 +1261,6 @@ describe( 'widgets/layer', () => {
 			).map( ( el ) => el.dataset.widgetId ?? '' );
 		expect( mountedIds().sort() ).toEqual( [ 'clock', 'notes' ] );
 
-		// A workspace takes the column over. `stats` mounts even though
-		// the user never enabled it: a workspace's column is a layout,
-		// not a filter over what they picked.
 		layer.setVisibleIds( [ 'stats' ] );
 		expect( mountedIds() ).toEqual( [ 'stats' ] );
 		expect( layer.getEnabledIds().sort() ).toEqual( [ 'clock', 'notes' ] );
@@ -1385,7 +1268,6 @@ describe( 'widgets/layer', () => {
 			'["clock","notes"]',
 		);
 
-		// Leaving it hands the column back, unchanged.
 		layer.setVisibleIds( null );
 		expect( mountedIds().sort() ).toEqual( [ 'clock', 'notes' ] );
 		expect( window.localStorage.getItem( 'desktop-mode-widgets' ) ).toBe(
@@ -1412,12 +1294,9 @@ describe( 'widgets/layer', () => {
 		layer.hydrate();
 		const log = recordActions( hooks, WIDGET_HOOKS );
 
-		// A workspace's column: `stats`, which the user never enabled.
 		layer.setVisibleIds( [ 'stats' ] );
 		expect( layer.getMountedIds() ).toEqual( [ 'stats' ] );
 
-		// The picker's "Added" follows the desk, not the user's list:
-		// `clock` is theirs but not on this desk, `stats` is on it.
 		layer.openPicker();
 		const addedLabels = (): string[] =>
 			Array.from(
@@ -1430,21 +1309,17 @@ describe( 'widgets/layer', () => {
 			new KeyboardEvent( 'keydown', { key: 'Escape' } ),
 		);
 
-		// The × on it. This used to do nothing at all: `remove` looked
-		// for the id in the user's list, found nothing, and returned.
 		layer.remove( 'stats' );
 		expect( layer.getMountedIds() ).toEqual( [] );
 		expect( log.map( ( e ) => e.name ) ).toContain( 'os.widget.removed' );
-		// The user's list — and its storage — untouched.
+
 		expect( layer.getEnabledIds() ).toEqual( [ 'clock' ] );
 		expect( window.localStorage.getItem( 'desktop-mode-widgets' ) ).toBe( '["clock"]' );
 
-		// Adding on that desk goes to the desk, not the list.
 		layer.add( 'stats' );
 		expect( layer.getMountedIds() ).toEqual( [ 'stats' ] );
 		expect( layer.getEnabledIds() ).toEqual( [ 'clock' ] );
 
-		// Back on the user's own desk, their column is exactly theirs.
 		layer.setVisibleIds( null );
 		expect( layer.getMountedIds() ).toEqual( [ 'clock' ] );
 		layer.disposeAll();
@@ -1465,8 +1340,6 @@ describe( 'widgets/layer', () => {
 		layer.hydrate();
 		layer.setVisibleIds( [ 'clock' ] );
 
-		// The plugin behind `late` activates now — the user enabled it
-		// once, but this desk does not name it.
 		registry.register( {
 			id: 'late',
 			label: 'Late',
@@ -1497,8 +1370,6 @@ describe( 'widgets/layer', () => {
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
 
-		// A workspace naming a widget whose plugin was deactivated
-		// should be a shorter column, not a broken desk.
 		layer.setVisibleIds( [ 'clock', 'gone-with-its-plugin' ] );
 
 		expect(
@@ -1512,17 +1383,12 @@ describe( 'widgets/layer', () => {
 describe( 'widgets/picker placement', () => {
 	test( 'caps the panel to the taller side when neither side fits', async () => {
 		const { placeWidgetPicker } = await import( '../../src/widgets/picker' );
-		// 1280x720 with a bottom dock: the work area ends at 628 once
-		// the margin is taken. The pill sits mid-column, so a 454px
-		// panel fits neither above (360px) nor below (212px). Flipping
-		// below uncapped ran it 150px off the screen, under the dock.
+
 		const bounds = { top: 8, right: 1272, bottom: 628, left: 8 };
 		const anchor = { top: 374, right: 1170, bottom: 410, left: 1037 };
 		const placed = placeWidgetPicker( anchor, { width: 342, height: 454 }, bounds );
 		expect( placed ).toEqual( { left: 828, top: 8, maxHeight: 360 } );
 
-		// Pill high in the column, room only below: caps there instead,
-		// and a narrow work area pulls the panel back inside its edge.
 		const low = placeWidgetPicker(
 			{ top: 40, right: 400, bottom: 76, left: 270 },
 			{ width: 342, height: 454 },

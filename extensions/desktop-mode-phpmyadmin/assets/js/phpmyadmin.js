@@ -28,17 +28,12 @@
       );
       return;
     }
-    // Make the root fill the window body even when the extension's
-    // stylesheet hasn't been loaded — this happens when the plugin is
-    // activated mid-session (admin_enqueue_scripts doesn't fire for
-    // already-loaded admin pages, so phpmyadmin.css is missing until
-    // the next full reload).
+
     root.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;";
     root.innerHTML = "";
     const iframe = document.createElement("iframe");
     iframe.className = "osc-phpmyadmin__frame";
-    // Inline sizing so the iframe doesn't fall back to its 300×150
-    // user-agent default if the stylesheet is missing.
+
     iframe.style.cssText = "flex:1 1 auto;width:100%;height:100%;border:0;display:block;";
     iframe.src = cfg.vendorUrl + "/index.php?_=" + Date.now();
     iframe.title = "phpMyAdmin";
@@ -53,13 +48,6 @@
     renderPhpMyAdmin(body);
   };
 
-  // Self-recover: when this bundle is loaded lazily after openWindow has
-  // already mounted the window template (e.g. right after the plugin is
-  // activated mid-session and refreshMenu fires), the framework's
-  // synchronous mount path saw no registry entry and left the loading
-  // skeleton in place. Find any already-mounted skeleton and render
-  // into it — idempotent because renderPhpMyAdmin clears the root
-  // before injecting the iframe.
   const skeletons = document.querySelectorAll("[data-osc-phpmyadmin-loading]");
   skeletons.forEach((skel) => {
     const body = skel.closest(".os-window__body");

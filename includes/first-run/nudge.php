@@ -1,70 +1,15 @@
 <?php
-/**
- * OpenStation — the activation nudge.
- *
- * A dismissible admin notice on the Dashboard and Plugins screens,
- * for administrators, while nobody on the site has turned OpenStation
- * on and the install is young. The welcome dialog
- * (`includes/welcome-dialog.php`) is the first touch for the admin
- * who activated the plugin; this is the second, quieter one for them
- * after they dismissed the modal, and the only one for every other
- * admin. It lives where plugin admins actually look. Both stop the
- * moment anyone on the site enables.
- *
- * It is a Core admin notice and not a shell surface because, by
- * definition, the shell is not running for the people it targets.
- * Dismissal persists through the seen-intros registry (slug
- * `activation-nudge`) via the same REST route the welcome dialog
- * uses — Core's `is-dismissible` is client-only and would bring the
- * notice back on the next load.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Slug stored in `desktop_mode_seen_intros` when "Not now" is clicked. */
 const OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG = 'activation-nudge';
 
-/** The nudge stops on its own once the install is this old. */
 const OPENSTATION_ACTIVATION_NUDGE_MAX_AGE_DAYS = 14;
 
-/**
- * Screens the nudge may appear on: the Dashboard and Plugins, plus
- * their network-admin twins.
- *
- * @return string[]
- */
 function openstation_activation_nudge_screens() {
 	return array( 'dashboard', 'plugins', 'dashboard-network', 'plugins-network' );
 }
 
-/**
- * Decides whether the nudge renders on the current request.
- *
- * Every gate has to hold:
- *
- * 1. The user can `activate_plugins` — the nudge is addressed to the
- *    person who installed the plugin, not to every account.
- * 2. OpenStation is not enabled for this user.
- * 3. Nobody on the site has ever enabled it (`openstation_first_enabled_at`
- *    absent). The nudge is about an install that never activated; one
- *    enabled user is an activated install.
- * 4. The install stamp is real (`via: activation`) and under
- *    {@see OPENSTATION_ACTIVATION_NUDGE_MAX_AGE_DAYS} old. A backfilled
- *    stamp belongs to an old install, and old installs are not nagged.
- * 5. The screen is one of {@see openstation_activation_nudge_screens()}.
- * 6. The request is not chromeless (an iframe inside the shell).
- * 7. The user has not clicked "Not now".
- * 8. The welcome dialog is not rendering on this same request. The
- *    nudge is the second touch, for after the modal has been
- *    dismissed; on the first admin load both passed their gates, and
- *    "Plugin activated" came with a modal, a notice and a row action
- *    all asking for the same click.
- * 9. The `openstation_show_activation_nudge` filter agrees.
- *
- * @return bool
- */
 function openstation_should_show_activation_nudge() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'activate_plugins' ) ) {
 		return false;
@@ -90,30 +35,14 @@ function openstation_should_show_activation_nudge() {
 	if ( openstation_has_seen_intro( $user_id, OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG ) ) {
 		return false;
 	}
-	// Asked of the dialog's own gate rather than of its seen-slug: a
-	// site that filters the dialog off never records the slug, and the
-	// nudge would then wait for a dismissal that cannot happen.
+
 	if ( function_exists( 'openstation_should_show_welcome_dialog' ) && openstation_should_show_welcome_dialog() ) {
 		return false;
 	}
 
-	/**
-	 * Filters whether the activation nudge renders for the current
-	 * user on the current request. Every earlier gate (capability,
-	 * site never enabled, install age, screen, seen-state, no welcome
-	 * dialog on this request) has already passed when this fires.
-	 *
-	 * @param bool $show    Whether to render the notice. Default true.
-	 * @param int  $user_id Current user ID.
-	 */
 	return (bool) apply_filters( 'openstation_show_activation_nudge', true, $user_id );
 }
 
-/**
- * The notice's inner markup: one sentence and two actions.
- *
- * @return string HTML.
- */
 function openstation_activation_nudge_markup() {
 	$portal_url = openstation_portal_url();
 
@@ -133,17 +62,6 @@ function openstation_activation_nudge_markup() {
 	return '<p>' . $message . '</p>' . $actions;
 }
 
-/**
- * Prints the nudge on `admin_notices` / `network_admin_notices`.
- *
- * `wp_admin_notice()` when Core has it; the same `div.notice` markup
- * by hand on older versions (the plugin supports 6.0). The "Not now"
- * button carries a small inline script that POSTs the slug to the
- * seen-intros route and removes the notice, exactly as the welcome
- * dialog does.
- *
- * @return void
- */
 function openstation_render_activation_nudge() {
 	if ( ! openstation_should_show_activation_nudge() ) {
 		return;
@@ -161,7 +79,7 @@ function openstation_render_activation_nudge() {
 			)
 		);
 	} else {
-		echo '<div id="os-activation-nudge" class="notice notice-info os-activation-nudge">' . $markup . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts in openstation_activation_nudge_markup().
+		echo '<div id="os-activation-nudge" class="notice notice-info os-activation-nudge">' . $markup . '</div>';
 	}
 
 	$rest_url   = esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) );

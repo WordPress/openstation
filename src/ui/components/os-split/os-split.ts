@@ -1,4 +1,3 @@
-/** Two bounded panes with optional pointer/keyboard resizing and a narrow layout. */
 import { __ } from '../../../i18n';
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-split.styles';
@@ -48,8 +47,6 @@ export class OsSplit extends Component {
 				if ( this.isCompact() ) {
 					this.cancelDrag();
 				} else if ( this.drag ) {
-					// Continue from the last pointer position when the container
-					// reflows; an observer notification is not a user cancellation.
 					this.setPosition( position );
 					this.drag.origin = this.drag.last;
 					this.drag.position = this.positionValue();
@@ -174,9 +171,6 @@ export class OsSplit extends Component {
 
 	private onLostCapture = ( e: PointerEvent ): void => {
 		if ( this.drag?.id === e.pointerId ) {
-			// Release can lose capture without delivering pointerup here.
-			// Keep the last visible size; only an explicit cancellation
-			// rolls back. A preceding pointercancel already cleared drag.
 			this.finishDrag( true );
 		}
 	};
@@ -219,7 +213,6 @@ export class OsSplit extends Component {
 		}
 	};
 
-	/** Keep focus reachable when a narrow layout hides the focused pane or divider. */
 	private recoverFocus( mode: string ): void {
 		const hiddenSlot = mode === 'end' ? 'start' : 'end';
 		const root = this.getRootNode() as Document | ShadowRoot;

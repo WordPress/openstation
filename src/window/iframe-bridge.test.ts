@@ -1,10 +1,3 @@
-/**
- * Tests for the iframe postMessage handlers:
- * `os-ready`, `os-navigate`, and
- * `os-notification`. The older handlers (`title-change`,
- * `focus-request`, etc.) are covered by the cross-module
- * observability tests under `tests/vitest/`.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	adoptPageTitle,
@@ -54,15 +47,13 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		_iframeCloseTimeout: null,
 		_hasExplicitTitle: false,
 		config: { titleFromPage: false, title: '' } as Window[ 'config' ],
-		// Activity surface — the bridge brackets iframe requests onto
-		// the title-bar status ring, and resets on every new document.
+
 		_markActivityStart: vi.fn(),
 		_markActivitySettled: vi.fn(),
 		_resetActivity: vi.fn(),
 		_noteNavigationActivity: vi.fn(),
 		_settleNavigationActivity: vi.fn( () => false ),
-		// Release / drop for a navigation paint withheld over an
-		// unsaved-changes prompt — see `./unsaved-guard.ts`.
+
 		_commitDeferredNavigation: vi.fn(),
 		_clearDeferredNavigation: vi.fn(),
 		...overrides,
@@ -111,8 +102,7 @@ describe( 'iframe-bridge: os-ready', () => {
 		hooks.addAction( HOOKS.WINDOW_CONTENT_LOADED, 'test', ( ...args ) => {
 			seen.push( args[ 0 ] as { windowId: string } );
 		} );
-		// Construction-side mark — without it the loaded hook
-		// would correctly stay silent (no transition to surface).
+
 		markWindowContentLoading( 'test-window' );
 
 		postToWindow( win, { type: 'os-ready' } );
@@ -121,17 +111,12 @@ describe( 'iframe-bridge: os-ready', () => {
 	} );
 
 	test( 'a new document resets the activity count', () => {
-		// An iframe that navigates mid-request takes its pending
-		// `end` messages with it. Without the reset the ring stays
-		// lit for the rest of the window's life.
 		const win = mockWindow();
 		postToWindow( win, { type: 'os-ready' } );
 		expect( win._resetActivity ).toHaveBeenCalled();
 	} );
 
 	test( 'a document that answers a form submit settles it instead', () => {
-		// The submit's own outcome is on the ring — resetting here
-		// would throw away the thing the ring exists to show.
 		const win = mockWindow( {
 			_settleNavigationActivity: vi.fn( () => true ),
 		} as unknown as Partial< Window > );
@@ -143,9 +128,6 @@ describe( 'iframe-bridge: os-ready', () => {
 	} );
 
 	test( 'the head report settles it earlier, and touches nothing else', () => {
-		// Every navigation posts one, submit or not, so a window with
-		// nothing waiting comes away untouched — and it is not the
-		// closing report, which stays `os-ready`'s job.
 		const win = mockWindow();
 
 		postToWindow( win, { type: 'os-iframe-navigated' } );
@@ -157,7 +139,7 @@ describe( 'iframe-bridge: os-ready', () => {
 
 	test( 'clears the explicit-title flag so adoptPageTitle may run on the next page', () => {
 		const iframe = document.createElement( 'iframe' );
-		// Simulate a document title so adoptPageTitle has something to read.
+
 		Object.defineProperty( iframe, 'contentDocument', {
 			get: () => ( { title: 'My Page ‹ Site — WordPress' } ),
 		} );
@@ -166,21 +148,17 @@ describe( 'iframe-bridge: os-ready', () => {
 			config: { titleFromPage: true, title: 'Order #1 · John Smith' } as Window[ 'config' ],
 		} );
 
-		// The window explicitly changes its title.
 		postToWindow( win, { type: 'os-title-change', title: 'Order #1 · John Smith' } );
 		expect( win._hasExplicitTitle ).toBe( true );
 		expect( win.setTitle ).toHaveBeenCalledWith( 'Order #1 · John Smith' );
 		vi.mocked( win.setTitle ).mockClear();
 
-		// Flag is set — adoptPageTitle must be a no-op.
 		adoptPageTitle( win );
 		expect( win.setTitle ).not.toHaveBeenCalled();
 
-		// Navigation lands — flag must clear.
 		postToWindow( win, { type: 'os-iframe-navigated' } );
 		expect( win._hasExplicitTitle ).toBe( false );
 
-		// Now adoptPageTitle should adopt the page's own title.
 		adoptPageTitle( win );
 		expect( win.setTitle ).toHaveBeenCalledWith( 'My Page' );
 	} );
@@ -199,9 +177,6 @@ describe( 'iframe-bridge: os-iframe-unloading', () => {
 	} );
 
 	test( 'a paint still armed when the next document is ready is dropped, not run', () => {
-		// Overtaken: running it here would arm the overlay for a load
-		// that has already finished, and the ready edge that would
-		// have cleared it is spent.
 		const win = mockWindow();
 
 		postToWindow( win, { type: 'os-ready' } );
@@ -222,7 +197,6 @@ describe( 'iframe-bridge: os-iframe-activity', () => {
 	} );
 
 	test( 'only a navigation start waits on the next document', () => {
-		// An ordinary start has an `end` of its own coming.
 		const plain = mockWindow();
 		postToWindow( plain, { type: 'os-iframe-activity', phase: 'start' } );
 		expect( plain._noteNavigationActivity ).not.toHaveBeenCalled();
@@ -267,8 +241,6 @@ describe( 'iframe-bridge: os-iframe-activity', () => {
 	} );
 
 	test( 'a network-level failure reports no status number', () => {
-		// `status: 0` is the iframe's marker for "no response
-		// arrived" — printing it would be noise, not information.
 		const win = mockWindow();
 		postToWindow( win, {
 			type: 'os-iframe-activity',
@@ -439,12 +411,7 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	function mockAdminWindow( opts: {
 		id: string;
 		baseId?: string;
-		/**
-		 * The URL the iframe is currently showing. Diverges from the
-		 * window's opening slug once the submenu tab strip re-points
-		 * the iframe in place. Omitted → no live URL readable, which
-		 * is the pre-navigation state.
-		 */
+
 		currentUrl?: string;
 	} ): {
 		win: Window;
@@ -453,10 +420,7 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		const iframe = document.createElement( 'iframe' );
 		document.body.appendChild( iframe );
 		const assignSpy = vi.fn();
-		// JSDOM's `Location.assign` is non-configurable, so swap the
-		// whole `contentWindow` for a stub we control. The bridge
-		// only reads `contentWindow.location.assign` — no other
-		// surface needs to round-trip.
+
 		const fakeContentWindow = { location: { assign: assignSpy } };
 		Object.defineProperty( iframe, 'contentWindow', {
 			value: fakeContentWindow,
@@ -562,10 +526,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'click matching the live iframe slug navigates in place, not a new window', () => {
-		// Appearance window opened on `themes.php`, then re-pointed at
-		// `nav-menus.php` by the submenu tab strip. Its `baseId` still
-		// says `themes-php`, so the Menus screen's own tab links used
-		// to read as cross-page and spawn a window per click.
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( {
 			id: 'themes-php',
@@ -584,8 +544,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'live slug never narrows the same-page set — baseId still matches', () => {
-		// A window that navigated away from its landing page must still
-		// treat a link BACK to that landing page as in-place.
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( {
 			id: 'themes-php',
@@ -669,10 +627,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'a new-context link never drives the window it was clicked in', () => {
-		// `target="_blank"` asks for one thing: that the page it was
-		// clicked on survives. The same-slug branch would move that
-		// window instead, which is worse than the browser tab it used
-		// to get.
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( {
 			id: 'edit-php-post-type-page',
@@ -691,8 +645,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'a new-context link skips the destructive in-place branch too', () => {
-		// That branch fires on a slug MISMATCH, which is exactly the
-		// shape a `_blank` reaches the parent with.
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
 
@@ -724,13 +676,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'destructive action (trash) navigates the source iframe in place, not a new window', () => {
-		// Vanilla wp-admin treats Trash / Untrash / Delete row
-		// actions as in-place: the list refreshes with the
-		// "1 post moved to the Trash. Undo." notice. Reproducing
-		// that here keeps the source list authoritative (avoids
-		// a stale row) AND lets WP's `wp_get_referer()` resolve
-		// to the source page (Referer is the iframe's current
-		// URL during `location.assign`, not the parent shell's).
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
 
@@ -748,11 +693,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'destructive action without a nonce still opens a new window', () => {
-		// `?action=trash` with no `_wpnonce` is meaningless to WP
-		// (`check_admin_referer` would reject it). The action-name
-		// match alone isn't a reliable signal — a plugin could
-		// reuse the word for a non-destructive flow. The nonce
-		// presence is the actual disambiguator.
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
 
@@ -785,16 +725,10 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'an HPOS order opens in its own window and leaves the Orders list alone', () => {
-		// Issue #721. The real slugifier is what decides this, so the
-		// test runs it rather than the simplified fake above: under
-		// WooCommerce's High-Performance Order Storage the order
-		// editor is `admin.php?page=wc-orders&action=edit&id=N`, one
-		// `admin.php?page=` screen with the list it was clicked from.
 		const { openWindow, findDockEntry } = bindFakeDispatcher( {
 			deriveSlug: ( url ) => deriveWindowId( url, adminUrl ),
 		} );
-		// No dock tile owns an individual order — the window takes
-		// its name from the page it loads, like a post editor does.
+
 		findDockEntry.mockReturnValue( null );
 		const { win, assignSpy } = mockAdminWindow( {
 			id: 'admin-php-page-wc-orders',
@@ -821,10 +755,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'an HPOS order row action still runs in the Orders window', () => {
-		// The other half of the same rule: `action=edit` drills into
-		// an entity, every other action on that screen keeps the
-		// list's slug, so it is an in-place navigation and WP's
-		// redirect lands the user back on the list.
 		const { openWindow } = bindFakeDispatcher( {
 			deriveSlug: ( url ) => deriveWindowId( url, adminUrl ),
 		} );
@@ -842,9 +772,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'plugin-registered destructive predicate keeps cross-page URL in place', () => {
-		// The extension point: an action name OUTSIDE the built-in
-		// whitelist gets in-place behavior because a plugin
-		// registered a predicate for it.
 		_resetDestructiveAdminActionsForTests();
 		registerDestructiveAdminAction( {
 			id: 'test/woo-trash-order',
@@ -874,8 +801,7 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 			expect( openWindow ).not.toHaveBeenCalled();
 			expect( assignSpy ).toHaveBeenCalledTimes( 1 );
 			const navigated = new URL( String( assignSpy.mock.calls[ 0 ][ 0 ] ) );
-			// Still goes through `stampSourceReferer` for the same
-			// Referrer-Policy reasons as built-in destructive actions.
+
 			expect( navigated.searchParams.get( '_wp_http_referer' ) ).toBe(
 				'/wp-admin/admin.php?page=wc-orders',
 			);
@@ -928,24 +854,11 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	} );
 
 	test( 'cross-page open stamps `_wp_http_referer` from the source window URL', () => {
-		// Safety-net regression: even with the destructive-action
-		// short-circuit in place, plugin-specific side-effect URLs
-		// that DON'T match the whitelist will still open a new
-		// window — and there a fresh iframe has no prior in-frame
-		// navigation, so the browser's `Referer` header on the
-		// destination request is the desktop shell's URL. Threading
-		// `_wp_http_referer` makes `wp_get_referer()` resolve to the
-		// page the user clicked from, preventing post-action
-		// redirects from bouncing to whatever URL the shell page
-		// happens to be on.
 		const { openWindow } = bindFakeDispatcher();
 		const { win } = mockAdminWindow( { id: 'edit-php' } );
 		( win.config as unknown as { url: string } ).url =
 			window.location.origin + '/wp-admin/edit.php?openstation_chromeless=1';
 
-		// Cross-page URL with a nonce but an action name OUTSIDE
-		// the destructive whitelist — represents a plugin's custom
-		// side-effect link.
 		const target =
 			window.location.origin +
 			'/wp-admin/admin.php?page=my-plugin&action=custom-export&_wpnonce=abc';
@@ -957,25 +870,16 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		const openedUrl = String( openWindow.mock.calls[ 0 ][ 0 ].url );
 		const parsed = new URL( openedUrl );
-		// The `openstation_chromeless` flag is stripped from the
-		// referer hint — `wp_get_referer()` consumers pass the
-		// result downstream into further redirects, and a
-		// chromeless-flagged referer would loop the flag into URLs
-		// that shouldn't carry it. The post-redirect preserve
-		// filter (server-side) reattaches it where needed.
+
 		expect( parsed.searchParams.get( '_wp_http_referer' ) ).toBe(
 			'/wp-admin/edit.php',
 		);
-		// Original action params survive the rewrite.
+
 		expect( parsed.searchParams.get( 'action' ) ).toBe( 'custom-export' );
 		expect( parsed.searchParams.get( 'page' ) ).toBe( 'my-plugin' );
 	} );
 
 	test( 'destructive action in-place navigation stamps `_wp_http_referer`', () => {
-		// Real-world `Referrer-Policy` headers can downgrade the
-		// browser's `Referer` to just the origin, dropping the path
-		// WP needs to redirect back to the list. The explicit hint
-		// makes the destination resolution deterministic.
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
 		( win.config as unknown as { url: string } ).url =
@@ -996,7 +900,7 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( parsed.searchParams.get( '_wp_http_referer' ) ).toBe(
 			'/wp-admin/edit.php',
 		);
-		// Action params survive the rewrite.
+
 		expect( parsed.searchParams.get( 'action' ) ).toBe( 'trash' );
 		expect( parsed.searchParams.get( 'post' ) ).toBe( '42' );
 		expect( parsed.searchParams.get( '_wpnonce' ) ).toBe( 'abc' );
@@ -1019,14 +923,13 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		const openedUrl = String( openWindow.mock.calls[ 0 ][ 0 ].url );
 		const parsed = new URL( openedUrl );
-		// Caller-supplied referer wins — we don't overwrite.
+
 		expect( parsed.searchParams.get( '_wp_http_referer' ) ).toBe(
 			'/wp-admin/custom.php',
 		);
 	} );
 
 	test( 'unbound deps drops the click without crashing', () => {
-		// No bindFakeDispatcher() — leave deps null.
 		const { win } = mockAdminWindow( { id: 'edit-php-post-type-page' } );
 
 		expect( () => {
@@ -1151,9 +1054,6 @@ describe( 'iframe-bridge: os-bridge-beforeunload-response', () => {
 	test( 'a correlated response belongs to the navigation guard, not the close flow', async () => {
 		const win = mockWindow();
 
-		// The pre-navigation query in `unsaved-guard.ts` listens for
-		// its own reply. Reading it here too would close a window
-		// whose user only clicked a submenu tab.
 		postToWindow( win, {
 			type: 'os-bridge-beforeunload-response',
 			prevent: false,
@@ -1207,7 +1107,6 @@ describe( 'iframe-bridge: finished-screen handoff', () => {
 		return { openWindow, findDockEntry };
 	}
 
-	/** A window whose iframe reports no navigation-timing entry. */
 	function mockScreenWindow( openedUrl: string ): Window {
 		const iframe = document.createElement( 'iframe' );
 		document.body.appendChild( iframe );
@@ -1236,10 +1135,6 @@ describe( 'iframe-bridge: finished-screen handoff', () => {
 	} );
 
 	test( 'a revisions window that lands on the editor hands off and closes', () => {
-		// The restore is a `document.location` assignment in Core's
-		// revisions.js, so the shell never sees a click — WP's redirect
-		// just turns the Revisions window into a second editor next to
-		// the one it was opened from.
 		const { openWindow } = bindFakeDispatcher();
 		const win = mockScreenWindow(
 			window.location.origin + '/wp-admin/revision.php?revision=31',
@@ -1253,18 +1148,12 @@ describe( 'iframe-bridge: finished-screen handoff', () => {
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		const arg = openWindow.mock.calls[ 0 ][ 0 ];
 		expect( arg.id ).toBe( 'post-php-post-4' );
-		// `message=5` is what renders "Post restored to revision from …"
-		// in the editor — the only confirmation the restore happened.
+
 		expect( arg.url ).toContain( 'message=5' );
 		expect( win.close ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'an editor the shell cannot read hands off from its head report', () => {
-		// WordPress sends the block editor with `Document-Isolation-Policy`
-		// in Chromium, so reading the frame's location throws and the
-		// `load` listener has no URL to hand off with. Left open, the
-		// Revisions window stays a second editor, and its own "View
-		// revisions" row then navigates it instead of opening a window.
 		const { openWindow } = bindFakeDispatcher();
 		const win = mockScreenWindow(
 			window.location.origin + '/wp-admin/revision.php?revision=31',
@@ -1313,9 +1202,6 @@ describe( 'iframe-bridge: finished-screen handoff', () => {
 	} );
 
 	test( 'a window on any other screen is left alone', () => {
-		// The submenu tab strip re-points windows across slugs on
-		// purpose (Appearance → Menus); closing one out from under that
-		// click would be hostile.
 		const { openWindow } = bindFakeDispatcher();
 		const win = mockScreenWindow(
 			window.location.origin + '/wp-admin/themes.php',
@@ -1348,7 +1234,6 @@ describe( 'iframe-bridge: finished-screen handoff', () => {
 } );
 
 describe( 'iframe-bridge: adoptPageTitle', () => {
-	/** A window whose iframe document reports `documentTitle`. */
 	function mockTitledWindow(
 		config: Record< string, unknown >,
 		documentTitle: string,
@@ -1368,8 +1253,6 @@ describe( 'iframe-bridge: adoptPageTitle', () => {
 	}
 
 	test( 'a guessed title is replaced by the page’s own screen name', () => {
-		// The classic editor's revisions link reads "Browse", which
-		// says nothing about revisions once it is a window name.
 		const win = mockTitledWindow(
 			{ title: 'Browse', titleFromPage: true },
 			'Revisions ‹ My Site — WordPress',

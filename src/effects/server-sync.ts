@@ -1,18 +1,3 @@
-/**
- * Server-driven unfocus-effect sync.
- *
- * Mirrors `src/title-bar-buttons/server-sync.ts`. Plugins opt in
- * server-side with `openstation_register_unfocus_effect_script()`;
- * this module loads each opted-in script on activation, and on
- * deactivation unregisters every effect whose `owner` matches the
- * departing handle.
- *
- * Effects that don't set `owner` survive past deactivation until the
- * next page reload — graceful backwards-compat. The OS Settings
- * selector and the engine react live via the registry's subscribe
- * fan-out.
- */
-
 import { doAction, HOOKS } from '../hooks';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { unregisterUnfocusEffectsByOwner } from './registry';
@@ -34,8 +19,7 @@ export function createUnfocusEffectRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-				// The packages the bundle declares, brought in first; the
-				// document skips what it already ran.
+
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
@@ -62,7 +46,6 @@ export function createUnfocusEffectRegistrySync(): (
 			}
 		}
 
-		// Deactivation — drop effects owned by departing handles.
 		for ( const handle of Array.from( loadedHandles ) ) {
 			if ( incomingHandles.has( handle ) ) {
 				continue;
@@ -71,7 +54,6 @@ export function createUnfocusEffectRegistrySync(): (
 			loadedHandles.delete( handle );
 		}
 
-		// Activation — inject any newly-arrived scripts.
 		for ( const entry of scripts ) {
 			if ( ! entry.handle || loadedHandles.has( entry.handle ) ) {
 				continue;

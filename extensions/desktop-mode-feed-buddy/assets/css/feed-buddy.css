@@ -1,18 +1,3 @@
-/*
- * Palette.
- *
- * The widget card is declared here alongside the two content roots
- * because the shell's widget frame — the chrome header with the drag
- * grip, title, and close button — is a SIBLING of the body slot that
- * `.feed-buddy-widget` mounts into, not a descendant of it. Custom
- * properties only inherit downward, so scoping the palette to the
- * content roots alone left every `var(--feed-buddy-*)` in the card
- * and chrome rules below unresolved. An unresolvable `var()` is
- * invalid at computed-value time: `background` fell back to its
- * initial value and the title bar rendered fully transparent, with
- * the wallpaper showing through behind the (correctly white) title
- * text.
- */
 .feed-buddy-reader,
 .feed-buddy-widget,
 .os-widgets__card[data-widget-id="feed-buddy/buddy-list"] {
@@ -31,25 +16,9 @@
 	--feed-buddy-border-mid: #808080;
 	--feed-buddy-border-light: #fff;
 
-	/*
-	 * Title-bar colours, shared by the widget chrome and the native
-	 * reader window. `applyReaderTheme()` in src/index.ts installs
-	 * the same two values as `--os-titlebar-bg-focused` /
-	 * `--os-titlebar-color-focused` on the reader window —
-	 * keep the pairs in step so the two surfaces stay consistent.
-	 *
-	 * The FOCUSED colour is the one the widget uses: widget cards
-	 * have no focus state, and the blue bar is what the user sees on
-	 * the active reader window.
-	 */
 	--feed-buddy-titlebar-bg: var(--feed-buddy-blue);
 	--feed-buddy-titlebar-color: #fff;
 
-	/*
-	 * Title-bar control chips. The close button's hover is the shell's
-	 * own danger token, not one of these — see the control rules near
-	 * the bottom of the widget block.
-	 */
 	--feed-buddy-titlebar-btn-bg: #002a86;
 	--feed-buddy-titlebar-btn-bg-hover: #1a4fd0;
 }
@@ -435,12 +404,6 @@
 	box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
 
-/*
- * Widget chrome — the shell's own title bar, dressed to match the
- * native reader window's focused title bar. The shell leaves the
- * chrome background transparent by default (the card behind it
- * supplies the surface), so the colour has to be stated here.
- */
 .os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
 	.os-widgets__chrome {
 	min-height: 29px;
@@ -463,18 +426,6 @@
 	opacity: 0.8;
 }
 
-/*
- * Title-bar controls.
- *
- * The shell's own hover rules are weaker selectors than the base
- * rule right below, so they lose the cascade and the buttons had no
- * hover state at all — the resting navy simply stayed put. States
- * have to be restated at this specificity.
- *
- * Full opacity at rest, unlike the shell's dimmed default: these
- * read as solid Win2k-era controls, and the background swap (not a
- * fade) is what carries the interaction.
- */
 .os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
 	.os-widgets__card-close,
 .os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
@@ -494,13 +445,6 @@
 	color: var(--feed-buddy-titlebar-color, #fff);
 }
 
-/*
- * Close hovers to the same red wash as the reader window's close
- * control — that one is a `<os-window-button danger>`, which paints
- * `--os-ui-btn-danger-hover` on hover. Reading the same token here
- * keeps the two title bars in step, including under a desktop theme
- * that retints it.
- */
 .os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
 	.os-widgets__card-close:hover,
 .os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
@@ -514,7 +458,7 @@
 	.os-widgets__card-close:active,
 .os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
 	.os-widgets__card-redock:active {
-	/* Pressed = inset borders, the period-correct "pushed in" tell. */
+
 	border-color: var(--feed-buddy-border-dark) var(--feed-buddy-border-light)
 		var(--feed-buddy-border-light) var(--feed-buddy-border-dark);
 }

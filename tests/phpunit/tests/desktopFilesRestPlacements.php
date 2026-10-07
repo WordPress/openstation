@@ -1,14 +1,5 @@
 <?php
-/**
- * Tests for the placement REST creation handler — specifically
- * the favicon-resolver wiring that runs for `link` placements.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-files
- */
+
 class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -46,9 +37,6 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 		return $req;
 	}
 
-	/**
-	 * @covers ::openstation_files_rest_create_placement
-	 */
 	public function test_create_link_placement_stores_iconUrl_when_resolver_returns_data_uri() {
 		$synthetic = 'data:image/png;base64,SYNTH';
 		add_filter(
@@ -78,9 +66,6 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 		$this->assertSame( $synthetic, $data['meta']['iconUrl'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_rest_create_placement
-	 */
 	public function test_create_link_placement_omits_iconUrl_when_resolver_returns_null() {
 		add_filter( 'openstation_resolve_favicon', '__return_null' );
 
@@ -98,12 +83,8 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'iconUrl', (array) $data['meta'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_rest_create_placement
-	 */
 	public function test_create_link_placement_works_without_user_meta() {
-		// No client-supplied `meta` at all — resolver still attaches
-		// `iconUrl`.
+
 		add_filter(
 			'openstation_resolve_favicon',
 			static function () {
@@ -123,9 +104,6 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 		$this->assertSame( 'data:image/png;base64,XX', $data['meta']['iconUrl'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_rest_create_placement
-	 */
 	public function test_create_non_link_placement_does_not_call_resolver() {
 		$called = 0;
 		add_filter(
@@ -147,9 +125,6 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 		$this->assertSame( 0, $called );
 	}
 
-	/**
-	 * @covers ::openstation_files_rest_create_placement
-	 */
 	public function test_create_link_with_empty_ref_skips_resolver() {
 		$called = 0;
 		add_filter(
@@ -166,9 +141,6 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 			'parentId' => 0,
 		) );
 
-		// `link` file's `can_read` returns true, but `openstation_files_place`
-		// still inserts even with an empty ref because the type permits it.
-		// The point of this test is that the resolver is never invoked.
 		openstation_files_rest_create_placement( $req );
 		$this->assertSame( 0, $called );
 	}

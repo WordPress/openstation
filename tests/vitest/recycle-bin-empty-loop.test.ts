@@ -1,16 +1,3 @@
-/**
- * Tests for the recycle-bin empty-loop driver.
- *
- * The server caps each `openstation_recycle_bin_empty` call at a
- * chunk (default 200) to avoid PHP timeouts. Issue #97 was that the
- * client called the endpoint exactly once and showed success — so a
- * 250-item bin appeared "emptied" with 50 items still in it. The
- * loop driver fixes that by iterating while `remaining > 0` and
- * surfacing intermediate progress.
- *
- * @group recycle-bin
- */
-
 import { describe, expect, test, vi } from 'vitest';
 import { runEmptyLoop } from '../../apps/trash/parts/empty-loop';
 import type { EmptyResponse } from '../../apps/trash/parts/types';
@@ -72,7 +59,7 @@ describe( 'runEmptyLoop', () => {
 	} );
 
 	test( 'stops when no progress is possible (everything skipped)', async () => {
-		// Server always reports 200 skipped items the user cannot purge.
+
 		const emptyBin = vi.fn(
 			async (): Promise< EmptyResponse > => ( {
 				purged: 0,
@@ -89,8 +76,7 @@ describe( 'runEmptyLoop', () => {
 	} );
 
 	test( 'still makes progress on partial-skip chunks', async () => {
-		// First call: 199 purged, 1 skipped, 1 still remaining.
-		// Second call: that final 1 also gets skipped — bail.
+
 		let n = 0;
 		const emptyBin = vi.fn( async (): Promise< EmptyResponse > => {
 			n++;
@@ -109,8 +95,7 @@ describe( 'runEmptyLoop', () => {
 	} );
 
 	test( 'respects the iteration cap to guard against a buggy server', async () => {
-		// Server lies: claims it purged something but never reduces
-		// `remaining`. Without a cap, the loop would never exit.
+
 		const emptyBin = vi.fn(
 			async (): Promise< EmptyResponse > => ( {
 				purged: 1,

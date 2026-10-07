@@ -1,8 +1,3 @@
-/**
- * Unit tests for `apps/my-wordpress/parts/agents-rest.ts` — URL building,
- * headers, payload shapes, and error normalization for the agents
- * REST client.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	createAgent,
@@ -12,7 +7,6 @@ import {
 	listAgents,
 	updateAgent,
 } from '../../apps/my-wordpress/parts/agents-rest';
-
 
 type FetchMock = ReturnType< typeof vi.fn >;
 
@@ -30,8 +24,7 @@ function mockFetch(
 }
 
 beforeEach( () => {
-	// The client reads the SHELL config (`wp.os.config`) — the boot
-	// payload every shell page carries — not any window's blob.
+
 	( window as unknown as { wp?: unknown } ).wp = {
 		os: {
 			config: {

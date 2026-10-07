@@ -1,24 +1,10 @@
-/**
- * Plugins app — the gallery card.
- *
- * Part of the `desktop-mode-plugins` client view. Renders one wp.org
- * plugin as a clickable `<os-card>`: the whole card opens the detail
- * flyout; the CTA in its footer is the fast path (Install / Activate /
- * Active). Hover lift and image fade-in are CSS (`plugins.css`).
- * The drag-to-dock escalation is `card-drag.ts`'s job.
- *
- * @public
- */
-
 import { __, sprintf } from '@openstation/app';
-// Cards paint under `os-preserve` hosts, outside the runtime's
-// on-demand component loading — the tag registers here.
+
 import '../../../src/ui/components/os-card/os-card';
 import { decodeHTML } from '../../../src/utils';
 import { fallbackGlyph, stripHtml } from './html';
 import { isActiveStatus, type InstalledPlugin, type WpOrgBrowsePlugin } from './types';
 
-/** Installed rows keyed by wp.org slug (text domain) — what the CTA reads. */
 export type InstalledIndex = Map< string, InstalledPlugin >;
 
 export interface CardCallbacks {
@@ -27,15 +13,11 @@ export interface CardCallbacks {
 	onActivate: ( installed: InstalledPlugin, card: HTMLElement ) => Promise< void >;
 }
 
-/** Render a single card. */
 export function buildCard(
 	plugin: WpOrgBrowsePlugin,
 	installed: InstalledIndex,
 	callbacks: CardCallbacks,
 ): HTMLElement {
-	// `<os-card interactive>` handles role / tabindex / click + keyboard
-	// activation and skips `[data-noclick]` descendants — the CTA opts
-	// out through that attribute.
 	const card = document.createElement( 'os-card' );
 	card.classList.add( 'os-plugins__card' );
 	card.setAttribute( 'interactive', '' );
@@ -43,7 +25,7 @@ export function buildCard(
 	card.setAttribute(
 		'aria-label',
 		sprintf(
-			/* translators: %s: plugin name */
+
 			__( 'View details for %s', 'desktop-mode' ),
 			plugin.name,
 		),
@@ -79,7 +61,7 @@ export function buildCard(
 	const byline = document.createElement( 'p' );
 	byline.className = 'os-plugins__card-byline';
 	byline.textContent = sprintf(
-		/* translators: %s: plugin author name (HTML-stripped) */
+
 		__( 'by %s', 'desktop-mode' ),
 		stripHtml( plugin.author ?? '' ),
 	);
@@ -112,7 +94,6 @@ export function buildCard(
 	return card;
 }
 
-/** Recompute the CTA after install / activate state changes. */
 export function repaintCardCta(
 	card: HTMLElement,
 	plugin: WpOrgBrowsePlugin,
@@ -161,10 +142,6 @@ function buildCta(
 	return button;
 }
 
-/**
- * A 5-star cluster. Half-star support: ratings come back as 0–100
- * from wp.org.
- */
 export function buildStarCluster( rating0to100: number, totalRatings: number ): HTMLElement {
 	const wrap = document.createElement( 'span' );
 	wrap.className = 'os-plugins__stars';
@@ -172,7 +149,7 @@ export function buildStarCluster( rating0to100: number, totalRatings: number ): 
 	wrap.setAttribute(
 		'aria-label',
 		sprintf(
-			/* translators: %s: rating out of 5 (one decimal) */
+
 			__( 'Rated %s out of 5', 'desktop-mode' ),
 			stars5.toFixed( 1 ),
 		),
@@ -202,7 +179,6 @@ export function buildStarCluster( rating0to100: number, totalRatings: number ): 
 	return wrap;
 }
 
-/** Pick the best available icon URL (svg > 256 > 128 > 1x > default). */
 export function pickIcon( icons: Record< string, string > | undefined ): string | null {
 	if ( ! icons ) {
 		return null;
@@ -221,24 +197,20 @@ export function pickIcon( icons: Record< string, string > | undefined ): string 
 	);
 }
 
-/**
- * Format an active-installs count like wp.org does:
- * 50 → "50+ active", 1,234 → "1,000+ active", 5,000,000 → "5+ million active".
- */
 function formatInstalls( n: number ): string {
 	if ( n <= 0 ) {
 		return __( 'Fewer than 10 active', 'desktop-mode' );
 	}
 	if ( n >= 1_000_000 ) {
 		return sprintf(
-			/* translators: %d: integer number of millions of active installs */
+
 			__( '%d+ million active', 'desktop-mode' ),
 			Math.floor( n / 1_000_000 ),
 		);
 	}
 	const shown = n >= 1000 ? roundTo3SigFigs( n ) : n;
 	return sprintf(
-		/* translators: %s: comma-grouped active install count */
+
 		__( '%s+ active', 'desktop-mode' ),
 		formatThousands( shown ),
 	);
@@ -257,7 +229,6 @@ function formatThousands( n: number ): string {
 	}
 }
 
-/** A placeholder card for a page still loading. */
 export function buildSkeletonCard(): HTMLElement {
 	const card = document.createElement( 'os-card' );
 	card.classList.add( 'os-plugins__card', 'os-plugins__card--skeleton' );

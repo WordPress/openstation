@@ -1,154 +1,23 @@
-/**
- * `<os-table>` — data-driven, DX-first table.
- *
- * The pitch is "give it data + columns, get a nice table". Everything
- * else is opt-in via attributes or a single column descriptor:
- *
- * ```ts
- * const table = document.querySelector< OsTable< User > >( '#users' )!;
- * table.columns = [
- *     { key: 'name',   label: 'Name',   filter: 'text',   sortable: true, sticky: true },
- *     { key: 'email',  label: 'Email',  filter: 'text',   sortable: true },
- *     { key: 'role',   label: 'Role',   filter: 'select' },
- *     { key: 'logins', label: 'Logins', align: 'end',     sortable: true },
- * ];
- * table.data = users;
- * table.subTable = ( row ) => row.history?.length
- *     ? { columns: historyCols, data: row.history }
- *     : null;
- * ```
- *
- * ## Features at a glance
- *
- *   - **Per-column filters.** `column.filter = 'text' | 'select'`
- *     (or `true`, default text). Inputs persist across re-paints so
- *     typing never loses focus.
- *   - **Click-to-sort.** `column.sortable = true` makes the header
- *     cycle asc → desc → unsorted. Provide `column.sortValue` for
- *     custom sort keys (e.g. parse a date out of a string).
- *   - **Multi-row selection.** `selectable="single"` or
- *     `selectable="multi"` auto-prepends a checkbox column. Read /
- *     write the chosen row ids through `selection`; supply
- *     `getRowId( row, i )` for stable ids across data refreshes.
- *   - **Sticky columns.** `sticky-columns="N"` pins the first N
- *     columns. Widths are measured after layout, so variable-width
- *     columns work — RTL via `inset-inline-start`.
- *   - **Sticky header.** `sticky-header` pins the header (plus the
- *     filter row, if any) to the top of the scroll container.
- *   - **Sub-tables.** `subTable( row, index )` returns a
- *     `{ columns, data }` or any `Node` / template. An expander
- *     column is auto-prepended; sub-tables nest infinitely.
- *   - **Slot cells.** A data value shaped `{ slot: 'name', text?: 'sort text' }`,
- *     the name unique per cell (a repeated one leaves every row but the first blank),
- *     renders `<slot name="name">` in that cell, so a server view that cannot
- *     pass a `render` function (App Framework `os-prop-*` carries JSON) can
- *     still put a control in a row: paint `<os-button slot="name" os-action>`
- *     as a light-DOM child of the table. Light DOM, so the runtime's trigger
- *     walk reaches it. `text` is what sort and filter read for the cell.
- *   - **Custom cells.** `column.render( value, row, index )` returns
- *     a string, `Node`, or `html\`\`` template.
- *   - **Loading state.** `loading` paints shimmering skeleton rows.
- *   - **Empty state.** `<slot name="empty">` lets the host project a
- *     CTA; the `empty` attribute is the text fallback.
- *   - **Stacked layout.** `stacked` lays every row out as a card —
- *     the first column as its title, the others as labelled lines,
- *     a label-less column as a row of actions — for a phone or any
- *     width a table cannot fit. Same `columns`, same `data`, same
- *     selection and events; no header, no sticky columns, nothing to
- *     scroll sideways. `column.stack` overrides a column's role.
- *
- * ## Programmatic API surface
- *
- * Every interactive piece has a method-form so callers don't poke at
- * the DOM:
- *
- *   - `expand(i)`, `collapse(i)`, `expandAll()`, `collapseAll()`,
- *     `isExpanded(i)`, `expanded` (getter / setter for the full set).
- *   - `clearFilters()`, `filters` (read or pre-seed).
- *   - `sort` (read or set), `clearSort()`.
- *   - `select(id)`, `deselect(id)`, `selectAll()`, `clearSelection()`,
- *     `selection`, `selectedRows`, `getRowId`.
- *   - `scrollToRow(i)`.
- *
- * ## Why imperative paint
- *
- * The `html\`\`` template renderer parses every nested template via
- * `template.innerHTML`, which applies HTML's content-model rules — so
- * a sub-template with `<tr>`/`<td>`/`<col>` gets hoisted out of its
- * expected parent. We render an empty table skeleton via the template
- * tag, then paint headers / rows / cells imperatively. Filter inputs
- * are kept across paints so typing into one doesn't lose focus on
- * every keystroke.
- *
- * ## Events
- *
- *   - `os-table-filter-change` — `{ filters }` on filter input change.
- *   - `os-table-sort-change` — `{ sort }` (or `{ sort: null }`).
- *   - `os-table-selection-change` — `{ selection, rows }`.
- *   - `os-table-row-click` — `{ row, index, originalEvent }` (skips
- *     clicks on `data-noclick` descendants).
- *   - `os-table-expand-change` — `{ row, index, expanded }`.
- */
-
 import { Component, defineComponent, html, render as renderTemplate, type TemplateResult } from '../../core';
 import { styles } from './os-table.styles';
 
-/**
- * Per-column descriptor. The bare minimum is `{ key }`; everything
- * else is optional. Generic over the row type so `render` and
- * `sortValue` get strong types when consumers type the table.
- */
-/** One option in a column's filter dropdown when `filterOptions` is set. */
 export interface OsTableColumnFilterOption {
-	/** Value emitted in `os-table-filter-change.detail.filters[col.key]`. */
+
 	value: string;
-	/** Visible label in the dropdown. */
+
 	label: string;
 }
 
 export interface OsTableColumn< T = Record< string, unknown > > {
-	/** Property on the row to read. Also used as the column id. */
+
 	key: string;
-	/** Header text. Defaults to `key`. */
+
 	label?: string;
-	/**
-	 * Built-in filter. `true` and `'text'` give a substring match;
-	 * `'select'` builds a dropdown from the unique column values.
-	 */
+
 	filter?: boolean | 'text' | 'select';
-	/**
-	 * Explicit option list for the filter dropdown — overrides the
-	 * default "unique values pulled from the visible rows" behaviour.
-	 * Use this when the column renders an opaque value (e.g. an
-	 * author id whose label is fetched separately) or when the
-	 * server is the filter authority (e.g. a server-paginated table
-	 * that needs the dropdown to list ALL possible values, not just
-	 * the ones on the current page).
-	 *
-	 * Implies `filter: 'select'` — you do NOT also need to set
-	 * `filter` when `filterOptions` is present.
-	 */
+
 	filterOptions?: OsTableColumnFilterOption[];
-	/**
-	 * Custom filter renderer. When set, the column owns the entire
-	 * filter cell — the table calls this once per filter-row paint
-	 * to mount the control inside the `<th>` host (the same host is
-	 * reused across paints; the callback may early-return when its
-	 * control is already mounted). Use for richer filters than the
-	 * built-in `<input>` / `<select>` — e.g. multi-select chips, a
-	 * date-range picker, a slider.
-	 *
-	 * The `ctx.value` reflects the column's current filter value
-	 * (whatever was last passed to `setValue`); call `ctx.setValue`
-	 * to update it. The same `os-table-filter-change` event fires
-	 * regardless of which filter shape produced the change.
-	 *
-	 * `filterRender` columns are NOT filtered client-side — their
-	 * value is opaque to the table (could be a comma-joined id
-	 * list, JSON, anything). The consumer owns filtering: typically
-	 * by listening to `os-table-filter-change` and re-querying the
-	 * server, or by reassigning `data` with already-filtered rows.
-	 */
+
 	filterRender?: (
 		host: HTMLTableCellElement,
 		ctx: {
@@ -157,50 +26,26 @@ export interface OsTableColumn< T = Record< string, unknown > > {
 			col: OsTableColumn< T >;
 		},
 	) => void;
-	/** Make the header click-to-sort (asc → desc → unsorted cycle). */
+
 	sortable?: boolean;
-	/**
-	 * Custom value extractor for sorts. Defaults to `row[key]`. Use
-	 * for shaped sorts — e.g. parsing a date from a display string,
-	 * or sorting by a computed score.
-	 */
+
 	sortValue?: ( row: T, value: unknown ) => unknown;
-	/** Pin this column when sticky-columns covers its index. */
+
 	sticky?: boolean;
-	/** CSS text-align — `'start' | 'center' | 'end'`. */
+
 	align?: 'start' | 'center' | 'end';
-	/** Fixed CSS width — passed straight to `<col style="width">`. */
+
 	width?: string;
-	/**
-	 * Minimum CSS width — applied to body cells (`<td>`) of this
-	 * column so the column refuses to shrink below the value when
-	 * the table is squeezed horizontally. Mostly useful for cells
-	 * whose contents wrap (chip rows, multi-line previews) where a
-	 * narrow column would force every chip onto its own line.
-	 */
+
 	minWidth?: string;
-	/** Custom cell renderer. Return a string, Node, or `html\`\``. */
+
 	render?: ( value: unknown, row: T, index: number ) => string | Node | TemplateResult;
-	/**
-	 * The column's role when the table is `stacked` (a card per
-	 * row). Defaults: the first data column is the `title`, a column
-	 * with no label is the `actions` row, every other column is a
-	 * `meta` line captioned with its label. `hidden` leaves the
-	 * column out of the card without removing it from `columns`, so
-	 * the desk's table and the phone's cards share one descriptor
-	 * list.
-	 */
+
 	stack?: OsTableStackRole;
 }
 
-/** How a column presents inside a stacked row — see {@link OsTableColumn.stack}. */
 export type OsTableStackRole = 'title' | 'meta' | 'actions' | 'hidden';
 
-/**
- * Sub-table descriptor — independent of the parent's row type so a
- * sub-table can have a totally different shape than its container
- * (the typical case: an Orders table with a per-order Items sub-table).
- */
 export type OsTableSubTableResult =
 	| null
 	| undefined
@@ -209,7 +54,7 @@ export type OsTableSubTableResult =
 	| {
 		columns: OsTableColumn< Record< string, unknown > >[];
 		data: Record< string, unknown >[];
-		/** Optional — make the nested sub-table itself expandable. */
+
 		subTable?: OsTableSubTableFn;
 	};
 
@@ -218,15 +63,12 @@ export type OsTableSubTableFn< T = Record< string, unknown > > = (
 	index: number,
 ) => OsTableSubTableResult;
 
-/** Filter map — column key → input value. Empty string means no filter. */
 export type OsTableFilters = Record< string, string >;
 
-/** Active sort. `null` is "no sort applied". */
 export type OsTableSort =
 	| { key: string; direction: 'asc' | 'desc' }
 	| null;
 
-/** Stable id for a row — defaults to its index. Override via `getRowId`. */
 export type OsTableRowId = string | number;
 
 export type OsTableGetRowId< T = Record< string, unknown > > = (
@@ -238,13 +80,13 @@ const EXPANDER_KEY = '__wpd_expander__';
 const SELECT_KEY = '__wpd_select__';
 
 interface FilterInputCache {
-	/** The wrapper `<th>` cell — kept across paints. */
+
 	th: HTMLTableCellElement;
-	/** The filter `<input>` or `<select>`. `null` for custom-render columns. */
+
 	control: HTMLInputElement | HTMLSelectElement | null;
-	/** Last set of options written into a select (sorted, joined). */
+
 	optionsKey: string;
-	/** Filter kind currently mounted — re-create if it changes. */
+
 	kind: 'text' | 'select' | 'custom' | 'none';
 }
 
@@ -338,11 +180,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			{ name: '--os-ui-table-max-height' },
 			{ name: '--os-ui-table-skeleton-color' },
 		],
-		/*
-		 * `data` and `columns` are properties, not attributes, so the
-		 * markup alone renders an empty frame — which is what this
-		 * example was before `exampleInit` existed.
-		 */
+
 		example: html`<os-table striped hover></os-table>`,
 		exampleInit: ( root: HTMLElement ) => {
 			const table = root.querySelector( 'os-table' );
@@ -374,11 +212,10 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	private _selection = new Set< OsTableRowId >();
 	private _getRowId: OsTableGetRowId< T > = ( _row, index ) => index;
 
-	/** Filter input cells, keyed by column key, kept across paints. */
 	private _filterCache = new Map< string, FilterInputCache >();
 
 	private _paintScheduled = false;
-	/** `stacked` as read at the start of the current paint. */
+
 	private _stacked = false;
 	private _stickyHeaderWarned = false;
 	private _stickyRaceWarned = false;
@@ -386,30 +223,22 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	private _stickyMicroScheduled = false;
 	private _stickyRafHandle: number | null = null;
 
-	// ------------------------------------------------------------------
-	// Public properties — set from JS (use `.data=${...}` in templates).
-	// ------------------------------------------------------------------
-
-	/** The row buffer. Reassigning replaces (and clears expansion state). */
 	get data(): readonly T[] {
 		return this._data;
 	}
 	set data( next: readonly T[] | null | undefined ) {
 		this._data = Array.isArray( next ) ? next.slice() : [];
 		this._expanded.clear();
-		// Selection is intentionally NOT cleared — when callers supply a
-		// stable `getRowId`, selection survives data refreshes (the most
-		// useful behavior). Stale ids are filtered out at paint time.
+
 		this._schedulePaint();
 	}
 
-	/** Column descriptors. See {@link OsTableColumn}. */
 	get columns(): readonly OsTableColumn< T >[] {
 		return this._columns;
 	}
 	set columns( next: readonly OsTableColumn< T >[] | null | undefined ) {
 		this._columns = Array.isArray( next ) ? next.slice() : [];
-		// Drop filters / sort / cached inputs whose column went away.
+
 		const keys = new Set( this._columns.map( ( c ) => c.key ) );
 		for ( const k of Object.keys( this._filters ) ) {
 			if ( ! keys.has( k ) ) {
@@ -427,7 +256,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/** Read or replace the current filter map. */
 	get filters(): Readonly< OsTableFilters > {
 		return { ...this._filters };
 	}
@@ -436,7 +264,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/** Read or set the active sort. `null` clears it. */
 	get sort(): OsTableSort {
 		return this._sort ? { ...this._sort } : null;
 	}
@@ -445,7 +272,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/** Read or replace the selection (set of row ids). */
 	get selection(): ReadonlySet< OsTableRowId > {
 		return new Set( this._selection );
 	}
@@ -454,7 +280,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/** The currently-selected rows (resolved from `selection` + `data`). */
 	get selectedRows(): T[] {
 		const out: T[] = [];
 		this._data.forEach( ( row, i ) => {
@@ -465,25 +290,10 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		return out;
 	}
 
-	/**
-	 * The rows currently visible — i.e. passing the active client-side
-	 * filters, in data order. This is the row set `selectAll()` and
-	 * the header select-all tri-state operate on.
-	 *
-	 * Destructive bulk consumers should resolve `selection` against
-	 * THIS list rather than `data`: selection deliberately survives
-	 * `data` reassignment, and a data-driven change (a realtime
-	 * refresh editing a row so it no longer matches an active filter)
-	 * can hide a selected row without any filter event firing. Rows
-	 * the user cannot see must never be swept into a destructive
-	 * action. See `collectSelected()` in apps/trash/trash.os.ts for
-	 * the canonical consumer.
-	 */
 	get visibleRows(): T[] {
 		return this._filteredRows().map( ( entry ) => entry.row );
 	}
 
-	/** Stable row-id extractor. Default is row index. */
 	get getRowId(): OsTableGetRowId< T > {
 		return this._getRowId;
 	}
@@ -492,12 +302,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/**
-	 * Sub-table accessor. Return `null` (or omit) for rows with no
-	 * children. Return `{ columns, data }` to render a nested
-	 * `<os-table>` inline; or return any `Node` / `html\`\`` template
-	 * for fully custom expanded content.
-	 */
 	get subTable(): OsTableSubTableFn< T > | null {
 		return this._subTable;
 	}
@@ -507,7 +311,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/** Read or replace the expansion set (row indices that are open). */
 	get expanded(): ReadonlySet< number > {
 		return new Set( this._expanded );
 	}
@@ -516,11 +319,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	// ------------------------------------------------------------------
-	// Programmatic methods
-	// ------------------------------------------------------------------
-
-	/** Open a row's sub-table by index. No-op if the index is out of range. */
 	expand( index: number ): void {
 		if ( index < 0 || index >= this._data.length ) {
 			return;
@@ -537,7 +335,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/** Close a row's sub-table by index. No-op if it wasn't open. */
 	collapse( index: number ): void {
 		if ( ! this._expanded.has( index ) ) {
 			return;
@@ -551,7 +348,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/** Open every row that has children. */
 	expandAll(): void {
 		if ( ! this._subTable ) {
 			return;
@@ -571,7 +367,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 	}
 
-	/** Close every open row. */
 	collapseAll(): void {
 		if ( this._expanded.size === 0 ) {
 			return;
@@ -584,7 +379,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		return this._expanded.has( index );
 	}
 
-	/** Drop every active filter and emit `os-table-filter-change`. */
 	clearFilters(): void {
 		if ( Object.keys( this._filters ).length === 0 ) {
 			return;
@@ -594,7 +388,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/** Drop the active sort and emit `os-table-sort-change`. */
 	clearSort(): void {
 		if ( this._sort === null ) {
 			return;
@@ -604,16 +397,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._schedulePaint();
 	}
 
-	/**
-	 * Add a row id to the selection. Emits `os-table-selection-change`.
-	 *
-	 * Selection mutators (`select` / `deselect` / `selectAll` /
-	 * `clearSelection`) update the affected row in place via
-	 * {@link _syncSelectionDom} rather than re-rendering the whole
-	 * tbody — a rebuild would tear down the focused checkbox and
-	 * (because scroll-anchoring abandons a momentarily empty container)
-	 * could snap scroll back to the top.
-	 */
 	select( id: OsTableRowId ): void {
 		if ( this._selection.has( id ) ) {
 			return;
@@ -629,7 +412,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._syncSelectionDom( [ id, ...previouslySelected ] );
 	}
 
-	/** Remove a row id from the selection. */
 	deselect( id: OsTableRowId ): void {
 		if ( ! this._selection.delete( id ) ) {
 			return;
@@ -638,17 +420,11 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._syncSelectionDom( [ id ] );
 	}
 
-	/** Select every visible row — the rows passing the active client-side filters (multi-mode only). */
 	selectAll(): void {
 		if ( this._readSelectable() !== 'multi' ) {
 			return;
 		}
-		// Only the rows the user can see. Selecting the full `_data`
-		// buffer would let the header checkbox silently sweep rows a
-		// client-side column filter is hiding — and a destructive bulk
-		// action would then hit rows the user never saw. Tables without
-		// client-side filters are unaffected (`_filteredRows()` returns
-		// the full buffer).
+
 		for ( const { row, index } of this._filteredRows() ) {
 			this._selection.add( this._getRowId( row, index ) );
 		}
@@ -656,7 +432,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._syncSelectionDom( 'all' );
 	}
 
-	/** Empty the selection. */
 	clearSelection(): void {
 		if ( this._selection.size === 0 ) {
 			return;
@@ -666,16 +441,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._syncSelectionDom( 'all' );
 	}
 
-	/**
-	 * Apply a selection change to the existing tbody DOM without
-	 * rebuilding it. Updates each affected row's `is-selected` class
-	 * and `select-row-checkbox` `checked` state, then re-syncs the
-	 * header select-all checkbox (checked / indeterminate / empty).
-	 *
-	 * @param ids `'all'` to walk every row, or an iterable of row ids
-	 *            whose rows need updating. Unknown ids are silently
-	 *            skipped (row may not be in the current filter/page).
-	 */
 	private _syncSelectionDom(
 		ids: 'all' | Iterable< OsTableRowId >,
 	): void {
@@ -687,9 +452,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		if ( ! tbody ) {
 			return;
 		}
-		// String-keyed lookup matches `tr.dataset.rowId`; the row's
-		// original id (number | string) is recovered when we compare
-		// against `_selection`.
+
 		let needle: Set< string > | null = null;
 		if ( ids !== 'all' ) {
 			needle = new Set< string >();
@@ -726,8 +489,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 				cb.checked = isSelected;
 			}
 		}
-		// Re-sync the header select-all so the indeterminate / checked
-		// tri-state matches the new selection size.
+
 		const headerCb = root.querySelector< HTMLInputElement >(
 			'thead .select-all-checkbox',
 		);
@@ -738,7 +500,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 	}
 
-	/** Scroll the (filtered) row at `index` into view inside the table's scroll container. */
 	scrollToRow( index: number ): void {
 		const root = this.shadowRoot;
 		if ( ! root ) {
@@ -767,26 +528,10 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 	}
 
-	/**
-	 * Force a sticky-offsets recompute. Public escape hatch for the
-	 * rare case where layout settles after every internal hook has
-	 * fired — e.g. an out-of-band font swap or a JS-driven width
-	 * change on an ancestor that doesn't bubble through ResizeObserver.
-	 *
-	 * Usually you don't need this: the component schedules recomputes
-	 * on a microtask + animation frame after every paint, and a
-	 * ResizeObserver on the inner scroll element catches geometry
-	 * changes thereafter. Reach for `recomputeLayout()` only if you've
-	 * confirmed that all of those pathways missed your case.
-	 */
 	recomputeLayout(): void {
 		this._applyStickyOffsets();
 		this._measureHeaderHeight();
 	}
-
-	// ------------------------------------------------------------------
-	// Skeleton + paint pipeline
-	// ------------------------------------------------------------------
 
 	protected render(): TemplateResult {
 		return html`
@@ -844,10 +589,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._paintHead( thead, cols, stickyN );
 		this._paintBody( tbody, cols, stickyN );
 
-		// Synchronous pass — fixes the common case where layout is
-		// already settled at paint time. The microtask + rAF passes
-		// scheduled below catch the cases where it isn't (mid-
-		// transition mounts, font swaps, async style applies).
 		this._applyStickyOffsets();
 		this._measureHeaderHeight();
 		this._scheduleStickyOffsets();
@@ -857,16 +598,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	}
 
 	private _loadingDesyncWarned = false;
-	/**
-	 * Diagnostic for the "I set `loading` but the skeleton never
-	 * appeared" footgun. If we get here with the attribute on but no
-	 * `.skeleton` rows in `tbody`, something between attribute set and
-	 * paint went off the rails — historically this happened when the
-	 * base `Component.attributeChangedCallback` called `_scheduleRender`
-	 * directly, bypassing our `requestUpdate` override. Same pattern as
-	 * the sticky-columns 0px tripwire: should never fire, but if it
-	 * does, names the bug instead of leaving the dev guessing.
-	 */
+
 	private _maybeWarnLoadingDesync( tbody: Element ): void {
 		if ( this._loadingDesyncWarned ) {
 			return;
@@ -878,7 +610,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			return;
 		}
 		this._loadingDesyncWarned = true;
-		// eslint-disable-next-line no-console
+
 		console.warn(
 			'[os-table] `loading` attribute is set but no skeleton rows ' +
 				'rendered. Either attributeChangedCallback didn\'t route through ' +
@@ -888,19 +620,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		);
 	}
 
-	/**
-	 * Belt-and-braces sticky-offset scheduling.
-	 *
-	 *   - Microtask: cheap, fires after the current task drains. Fixes
-	 *     mounts where the synchronous read in `_paint` happened before
-	 *     a sibling style applied.
-	 *   - rAF: fires before the next paint. Catches "layout settles
-	 *     after a queued style mutation" races — the most common cause
-	 *     of "col 1 ended up at inset-inline-start: 0px".
-	 *
-	 * Both reduce to a no-op when nothing changed. The cost is two
-	 * extra DOM reads per paint; the win is the bug class disappears.
-	 */
 	private _scheduleStickyOffsets(): void {
 		if ( ! this._stickyMicroScheduled ) {
 			this._stickyMicroScheduled = true;
@@ -925,17 +644,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 	}
 
-	/**
-	 * Wire a `ResizeObserver` on the inner `.scroll` element (NOT the
-	 * host). Why: the host's outer width is often pinned by its parent
-	 * panel — a vertical scrollbar appearing inside the table changes
-	 * the inner scroll-area width by ~15px without changing the host
-	 * size. Observing the host would miss that reflow and leave sticky
-	 * offsets stale.
-	 *
-	 * Idempotent — runs once after the first paint produces a real
-	 * `.scroll` element. Disconnect happens in `disconnectedCallback`.
-	 */
 	private _ensureResizeObserver(): void {
 		if ( this._resizeObserver ) {
 			return;
@@ -955,17 +663,12 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			}
 			this._applyStickyOffsets();
 			this._measureHeaderHeight();
-			// A previously-zero scroll container that just became
-			// visible may now actually overflow — re-arm the warning
-			// so users get the heads-up the first time scroll context
-			// appears without a max-height.
+
 			this._stickyHeaderWarned = false;
 			this._maybeWarnStickyHeader();
 		} );
 		this._resizeObserver.observe( scroll );
-		// Also observe the host so panel-driven width changes (parent
-		// flex reflow, container query crossing) fire the callback.
-		// Multiple observe() calls on the same RO are allowed.
+
 		this._resizeObserver.observe( this );
 	}
 
@@ -989,13 +692,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		cols: OsTableColumn< T >[],
 		stickyN: number,
 	): void {
-		// Header row is rebuilt every paint (sort indicators change with
-		// the cycle). The filter row is preserved across paints — its
-		// `<th>` cells host live state (text input caret, mounted
-		// `filterRender` controls like `<os-multiselect>` whose popover
-		// would `_closePopover()` on `disconnectedCallback` if we tore
-		// down the row). We swap the header in place and only touch the
-		// filter row's cells when the column set changes.
 		const newHeaderRow = document.createElement( 'tr' );
 		newHeaderRow.setAttribute( 'part', 'header-row' );
 		for ( let i = 0; i < cols.length; i++ ) {
@@ -1011,10 +707,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			thead.insertBefore( newHeaderRow, thead.firstChild );
 		}
 
-		// Render the filter row if ANY column requests one — either via
-		// the legacy `filter` flag, or via an explicit `filterOptions`
-		// list (even if empty — the column's options may still be
-		// loading), or via a `filterRender` callback (custom control).
 		const hasFilter = cols.some(
 			( c ) =>
 				c.filter ||
@@ -1026,9 +718,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		);
 
 		if ( hasFilter ) {
-			// `_buildFilterCell` returns the cached `<th>` when the
-			// column's filter kind hasn't changed, so mounted controls
-			// (popovers, inputs with focus) are reused.
 			const cells: HTMLTableCellElement[] = [];
 			for ( let i = 0; i < cols.length; i++ ) {
 				cells.push( this._buildFilterCell( cols[ i ], i, stickyN ) );
@@ -1050,10 +739,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 				}
 			}
 			if ( ! same ) {
-				// Move the wanted cells into place (appending an
-				// already-attached element reparents without firing
-				// disconnectedCallback). Drop any stragglers from
-				// removed columns afterwards.
 				const wanted = new Set< Element >( cells );
 				for ( const cell of cells ) {
 					existingFilter.appendChild( cell );
@@ -1272,14 +957,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		select.value = current;
 	}
 
-	/**
-	 * Resolve the option list for a select-filter column. Explicit
-	 * `filterOptions` win — that's the contract for server-driven
-	 * tables that need the dropdown to list values not present on
-	 * the current page. Without `filterOptions`, fall back to the
-	 * unique row values in the column (legacy behaviour for
-	 * client-side tables).
-	 */
 	private _resolveFilterOptions(
 		col: OsTableColumn< T >,
 	): OsTableColumnFilterOption[] {
@@ -1291,10 +968,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			label: v,
 		} ) );
 	}
-
-	// ------------------------------------------------------------------
-	// Body
-	// ------------------------------------------------------------------
 
 	private _paintBody(
 		tbody: Element,
@@ -1336,10 +1009,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		tr.classList.add( 'empty' );
 		const td = document.createElement( 'td' );
 		td.colSpan = colspan;
-		// `<slot name="empty">` projects light-DOM content (a CTA, an
-		// illustration); when nothing is slotted, the slot's fallback
-		// is the `empty` attribute text — so we get rich-or-plain
-		// behavior from a single mount path.
+
 		const slot = document.createElement( 'slot' );
 		slot.name = 'empty';
 		slot.textContent = this.getAttribute( 'empty' ) || 'No data';
@@ -1356,10 +1026,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		tr.classList.add( 'skeleton' );
 		tr.setAttribute( 'aria-hidden', 'true' );
 		if ( this._stacked ) {
-			// A card's skeleton is a card: a title-length bar over a
-			// shorter meta bar, in one cell — one bar per column would
-			// paint a grid's worth of bars stacked in a block, which
-			// reads as a table that broke.
 			tr.classList.add( 'stack-row' );
 			const td = document.createElement( 'td' );
 			td.className = 'stack-body';
@@ -1377,8 +1043,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			const td = document.createElement( 'td' );
 			const bar = document.createElement( 'span' );
 			bar.className = 'skeleton-bar';
-			// Slight per-cell width variance so the skeleton doesn't
-			// look mechanically uniform.
+
 			const widthPct = 50 + ( ( seed * 7 + tr.children.length * 13 ) % 40 );
 			bar.style.width = `${ widthPct }%`;
 			td.appendChild( bar );
@@ -1412,16 +1077,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		return tr;
 	}
 
-	/**
-	 * One row as a card (the `stacked` layout). The system cells —
-	 * the checkbox, the expander — stay real cells along the leading
-	 * edge; every data column is painted into one `td.stack-body` as
-	 * a `.stack-cell` carrying its role (`title`, `meta`, `actions`)
-	 * and, for a meta line, the column's label as its caption. The
-	 * row keeps its id, its index, its selection class and its click,
-	 * so `_syncSelectionDom`, `scrollToRow` and the row-click event
-	 * need no second code path.
-	 */
 	private _buildStackedRow(
 		row: T,
 		rowIndex: number,
@@ -1512,10 +1167,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			} );
 			td.appendChild( cb );
 			if ( this._stacked ) {
-				// On a card the whole leading cell is the tap target
-				// (`os-table.styles.ts` gives it 44px), not the 22px box
-				// inside it: a tap beside the box toggles the row, and is
-				// not also a row click.
 				td.setAttribute( 'data-noclick', '' );
 				td.addEventListener( 'click', ( e: Event ) => {
 					if ( e.target !== td ) {
@@ -1566,7 +1217,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		return td;
 	}
 
-	/** `<slot name>` for a slot cell; the consumer's light-DOM child fills it. */
 	private _slotFor( name: string ): HTMLSlotElement {
 		const slot = document.createElement( 'slot' );
 		slot.name = name;
@@ -1621,10 +1271,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// Behavior
-	// ------------------------------------------------------------------
-
 	private _onFilterChange( key: string, value: string ): void {
 		if ( value === '' ) {
 			delete this._filters[ key ];
@@ -1632,8 +1278,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			this._filters[ key ] = value;
 		}
 		this.emit( 'os-table-filter-change', { filters: { ...this._filters } } );
-		// Re-paint body only — filter inputs themselves stay mounted
-		// (preserving focus + caret).
+
 		const root = this.shadowRoot;
 		const tbody = root?.querySelector( 'tbody' );
 		if ( tbody ) {
@@ -1695,10 +1340,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		} );
 	}
 
-	// ------------------------------------------------------------------
-	// Filtering + sorting
-	// ------------------------------------------------------------------
-
 	private _filteredRows(): Array< { row: T; index: number } > {
 		const out: Array< { row: T; index: number } > = [];
 		const active = Object.keys( this._filters ).filter(
@@ -1709,11 +1350,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			let pass = true;
 			for ( const key of active ) {
 				const col = this._columns.find( ( c ) => c.key === key );
-				// `filterRender` columns own their filter shape — value
-				// is opaque to the table (commonly a comma-joined id list
-				// for a multi-select). The consumer filters via the
-				// server or by reassigning `data`; we must not re-filter
-				// here or we drop legitimate rows.
+
 				if ( col && typeof col.filterRender === 'function' ) {
 					continue;
 				}
@@ -1771,13 +1408,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		return Array.from( seen ).sort();
 	}
 
-	/**
-	 * Selection stats over the VISIBLE (client-side-filtered) rows —
-	 * the same set `selectAll()` operates on. The header select-all
-	 * tri-state derives from these so "checked" always means "every
-	 * row the user can see is selected", even while ids of currently
-	 * hidden rows linger in the selection set.
-	 */
 	private _visibleSelectionStats(): { total: number; selected: number } {
 		let total = 0;
 		let selected = 0;
@@ -1789,10 +1419,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 		return { total, selected };
 	}
-
-	// ------------------------------------------------------------------
-	// Sticky columns + attribute reads
-	// ------------------------------------------------------------------
 
 	private _readStickyColumns(): number {
 		const raw = parseInt( this.getAttribute( 'sticky-columns' ) || '0', 10 );
@@ -1815,18 +1441,11 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		return null;
 	}
 
-	/**
-	 * Sticky-band membership. The first N columns get pinned, with two
-	 * per-column overrides: `column.sticky = true` opts in even outside
-	 * the band; `column.sticky = false` opts out within it.
-	 */
 	private _isStickyIndex(
 		index: number,
 		stickyN: number,
 		col: OsTableColumn< T >,
 	): boolean {
-		// A card has no columns to pin; `column.sticky` and the
-		// attribute both stand down while the layout is stacked.
 		if ( this._stacked || col.sticky === false ) {
 			return false;
 		}
@@ -1836,14 +1455,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		return index < stickyN;
 	}
 
-	/**
-	 * The highest column index that resolves to sticky for the current
-	 * column set. -1 when no column is sticky. The "edge" cell — the one
-	 * that gets the visible right divider — is at this index. We compute
-	 * this by scanning rather than reusing `stickyN - 1` because
-	 * `column.sticky = true` can opt a column in past the count, and
-	 * `column.sticky = false` can carve a hole inside the band.
-	 */
 	private _lastStickyIndex = -1;
 	private _computeLastStickyIndex(
 		cols: OsTableColumn< T >[],
@@ -1891,13 +1502,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			out.push( {
 				key: SELECT_KEY,
 				label: '',
-				// The descriptor width is painted onto a `<col>`
-				// element and is the authoritative column-width
-				// source in table-layout: auto — CSS `td { width }`
-				// is ignored once `<col>` has a value. Pair with
-				// the matching `td.col-select` rule (zero
-				// `padding-inline`, `text-align: center`) so the
-				// checkbox sits with breathing room on both sides.
+
 				width: '40px',
 				align: 'center',
 			} );
@@ -1906,9 +1511,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			out.push( {
 				key: EXPANDER_KEY,
 				label: '',
-				// Same contract as col-select. 36px column +
-				// 20px button + zero padding centers the chevron
-				// with ~8px on each side.
+
 				width: '36px',
 				align: 'center',
 			} );
@@ -1917,11 +1520,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		return out;
 	}
 
-	/**
-	 * Walk the header row, sum the natural widths of the sticky cells,
-	 * then write cumulative `inset-inline-start` offsets onto every
-	 * row's matching cells.
-	 */
 	private _applyStickyOffsets(): void {
 		const root = this.shadowRoot;
 		if ( ! root ) {
@@ -1952,14 +1550,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			}
 		} );
 
-		// Diagnostic: when sticky-columns >= 2, the second pinned cell
-		// MUST land at a non-zero offset (it's the cumulative width of
-		// the first). If we computed 0 and the host has a real width
-		// (so it's not just hidden), something measured pre-layout —
-		// usually a paint that happened while the panel was mid-
-		// transition. Tell the developer once, with the actual values,
-		// so they're not staring at DevTools wondering which side of
-		// the contract is broken.
 		this._maybeWarnStickyOffsetRace( ths, offsets );
 	}
 
@@ -1981,16 +1571,13 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		if ( offsets[ lastIdx ] !== 0 ) {
 			return;
 		}
-		// If the host has zero width (display: none, jsdom, hidden tab
-		// before first show), it's not a race — it's "haven't mounted
-		// visibly yet". The ResizeObserver will fire when it does, and
-		// we'll recompute correctly. Don't burn a warning on that.
+
 		if ( this.offsetWidth === 0 ) {
 			return;
 		}
 		this._stickyRaceWarned = true;
 		const w0 = ths[ 0 ]?.offsetWidth ?? 0;
-		// eslint-disable-next-line no-console
+
 		console.warn(
 			`[os-table] sticky-columns: column ${ lastIdx } resolved to ` +
 				`inset-inline-start: 0px while the host is visible. ` +
@@ -2016,13 +1603,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 	}
 
-	/**
-	 * Once-per-element warning for the most common sticky-header
-	 * mistake: forgetting to give the table a scroll container. Without
-	 * a max-height (or a scrolling ancestor), `position: sticky`
-	 * silently does nothing because there's no scrollport for it to
-	 * stick within.
-	 */
 	private _maybeWarnStickyHeader(): void {
 		if ( this._stickyHeaderWarned ) {
 			return;
@@ -2030,9 +1610,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		if ( ! this.hasAttribute( 'sticky-header' ) ) {
 			return;
 		}
-		// Need enough rows to actually need scrolling; bail on
-		// loading / tiny tables to avoid a false positive on the first
-		// paint of an async data table.
+
 		if ( this.hasAttribute( 'loading' ) || this._data.length < 8 ) {
 			return;
 		}
@@ -2042,16 +1620,13 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		if ( ! scroll ) {
 			return;
 		}
-		// If the inner content can fit without scrolling, sticky is
-		// inert. The offsetWidth check guards against zero-layout
-		// (jsdom, hidden) where every measurement is 0 and would false-
-		// positive every time.
+
 		if ( scroll.offsetWidth === 0 ) {
 			return;
 		}
 		if ( scroll.scrollHeight <= scroll.clientHeight + 1 ) {
 			this._stickyHeaderWarned = true;
-			// eslint-disable-next-line no-console
+
 			console.warn(
 				'[os-table] sticky-header is set but the table has no scroll container. ' +
 					'Set --os-ui-table-max-height on the host (or wrap it in a scrolling parent) so the header has something to stick to.',
@@ -2064,13 +1639,6 @@ function isTemplateResult( v: unknown ): v is TemplateResult {
 	return !! v && ( v as { __wpdHtml?: boolean } ).__wpdHtml === true;
 }
 
-/**
- * A column's role inside a stacked row: its own `stack` when set,
- * else the first data column is the title, a label-less column is
- * the actions row (that is what a label-less column IS in every
- * table in the shell — the trailing buttons), and the rest are
- * meta lines.
- */
 export function stackRole(
 	col: Pick< OsTableColumn, 'label' | 'stack' >,
 	dataIndex: number,
@@ -2084,13 +1652,6 @@ export function stackRole(
 	return col.label ? 'meta' : 'actions';
 }
 
-/**
- * A cell value that names a light-DOM slot instead of carrying text.
- * The name has to be unique across the table: two `<slot name="run">` in
- * one shadow root means the first takes every matching child and the
- * second gets none, so a column that reuses one name piles every control
- * into the first row and leaves the rest blank. Key it by row.
- */
 function slotName( value: unknown ): string | null {
 	if ( value && typeof value === 'object' && typeof ( value as { slot?: unknown } ).slot === 'string' ) {
 		return ( value as { slot: string } ).slot;
@@ -2098,7 +1659,6 @@ function slotName( value: unknown ): string | null {
 	return null;
 }
 
-/** The text sort, filter and the select facet read for a cell. */
 function cellText( value: unknown ): string {
 	if ( value === null || value === undefined ) {
 		return '';
@@ -2110,16 +1670,10 @@ function cellText( value: unknown ): string {
 	return String( value );
 }
 
-/** The default sort key: a slot cell sorts by its text, anything else by itself. */
 function sortKey( value: unknown ): unknown {
 	return slotName( value ) !== null ? cellText( value ) : value;
 }
 
-/**
- * Sort comparator. Numbers compare numerically; everything else falls
- * back to a locale-aware string compare. `null` / `undefined` sort
- * before any concrete value so unsorted data lands at the top.
- */
 function compareValues( a: unknown, b: unknown ): number {
 	if ( a === b ) {
 		return 0;

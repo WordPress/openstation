@@ -1,21 +1,3 @@
-/**
- * Tests for the Layer-1 theme application pipeline:
- *
- *   - `applyWindowTheme()` writes tokens to the element's inline
- *     style via `setProperty`.
- *   - Re-applying with different tokens removes stale keys (a window
- *     can switch from theme-A to theme-B without theme-A's variables
- *     leaking).
- *   - The `os.window.chrome.theme` filter mutates the
- *     resolved tokens.
- *   - The `os.window.chrome.theme-changed` action fires after
- *     a successful apply.
- *   - `clearWindowTheme()` removes every previously-written variable.
- *
- * The `Window` class is heavy (drag, resize, observers, …) — these
- * tests use a minimal duck-typed stand-in. The application pipeline
- * only reads `id`, `config`, and `element`, so the stub is fine.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -28,9 +10,6 @@ import {
 	clearWindowTheme,
 } from '../../src/window-chrome/apply';
 
-/**
- * Minimal Window stub. The apply pipeline only needs id/config/element.
- */
 function fakeWin( id: string ): unknown {
 	return {
 		id,
@@ -92,7 +71,7 @@ describe( 'applyWindowTheme', () => {
 		registerWindowTheme( {
 			id: 'plug/blue',
 			tokens: { '--os-titlebar-bg': '#00f' },
-			match: () => false, // would NOT match by predicate; the explicit id pin wins.
+			match: () => false,
 		} );
 		const win = fakeWin( 'w-1' );
 		applyWindowTheme( win as Parameters< typeof applyWindowTheme >[ 0 ], {
@@ -117,7 +96,6 @@ describe( 'applyWindowTheme', () => {
 		const win = fakeWin( 'w-1' );
 		applyWindowTheme( win as Parameters< typeof applyWindowTheme >[ 0 ] );
 
-		// Switch to a theme that doesn't carry --os-window-radius.
 		_resetWindowThemeRegistryForTests();
 		registerWindowTheme( {
 			id: 'plug/b',
@@ -131,7 +109,7 @@ describe( 'applyWindowTheme', () => {
 		expect( el.style.getPropertyValue( '--os-titlebar-bg' ) ).toBe(
 			'#fff',
 		);
-		// The radius from theme-A must NOT linger on the element.
+
 		expect( el.style.getPropertyValue( '--os-window-radius' ) ).toBe(
 			'',
 		);
@@ -152,7 +130,7 @@ describe( 'applyWindowTheme', () => {
 			tokens: { '--os-titlebar-bg': '#000' },
 			match: () => true,
 		} );
-		// Stub-side filter: forcibly add a brand colour to every theme.
+
 		window.wp!.hooks!.addFilter(
 			'os.window.chrome.theme',
 			'test/brand',

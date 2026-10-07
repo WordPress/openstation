@@ -1,13 +1,3 @@
-/**
- * Hook-firing tests for WallpaperLayer.
- *
- * Asserts that the wallpaper lifecycle actions fire at the correct
- * moments AND with the expected payload shape. Covers:
- *   - os.wallpaper.mounting (pre-mount)
- *   - os.wallpaper.mounted (post-successful-mount)
- *   - os.wallpaper.unmounting (teardown of the active canvas)
- *   - os.wallpaper.mount-failed (sync / async mount errors)
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WallpaperLayer } from '../../src/wallpapers/layer';
 import type {
@@ -35,9 +25,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 
 	beforeEach( () => {
 		hooks = installHooksStub();
-		// A detached element is fine — `WallpaperLayer` only manipulates
-		// its own DOM + the shell's `#os-shell` CSS var. We
-		// don't need the full shell markup for lifecycle tests.
+
 		element = document.createElement( 'div' );
 		document.body.appendChild( element );
 		layer = new WallpaperLayer( element, 'http://example.test/plugin' );
@@ -84,7 +72,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 				return () => undefined;
 			} ),
 		);
-		// Mount resolves on the microtask queue (Promise.resolve path).
+
 		await Promise.resolve();
 
 		const names = log.map( ( entry ) => entry.name );
@@ -145,9 +133,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 				throw new Error( 'boom' );
 			} ),
 		);
-		// `apply()` kicks mount via `depsReady.then(...)`, so even a
-		// synchronous throw inside `mount` is observed one microtask
-		// later. Drain the queue before asserting.
+
 		await Promise.resolve();
 
 		const names = log.map( ( e ) => e.name );
@@ -162,7 +148,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 		layer.apply(
 			canvasDef( () => Promise.reject( err ) ),
 		);
-		// Microtask queue drain.
+
 		await Promise.resolve();
 		await Promise.resolve();
 
@@ -176,10 +162,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 	} );
 
 	test( 'rapid switch discards the stale mount (no mounted hook for it)', async () => {
-		// Slow mount — resolves after we've already kicked off a
-		// second apply. The shell's generation counter should make
-		// the slow one clean up silently without ever emitting
-		// `mounted`.
+
 		let slowResolve: ( () => void ) | null = null;
 		const slowPromise = new Promise<void>( ( res ) => {
 			slowResolve = res;
@@ -191,7 +174,7 @@ describe( 'WallpaperLayer — hook firing', () => {
 				return () => undefined;
 			} ),
 		);
-		// Switch to CSS before the slow mount resolves.
+
 		layer.apply( cssDef() );
 
 		const log = recordActions( hooks, WALLPAPER_HOOKS );
@@ -199,8 +182,6 @@ describe( 'WallpaperLayer — hook firing', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		// Recording starts AFTER the switch-away — if the stale mount
-		// did leak a `mounted`, it would show up here. It shouldn't.
 		expect(
 			log.some( ( e ) => e.name === 'os.wallpaper.mounted' ),
 		).toBe( false );

@@ -1,8 +1,3 @@
-/**
- * Comments — the client half: the pure helpers and renders of the
- * view into jsdom (tabs and counts, the rail, the scope banner, the
- * conversation, the composer, the phone pane stamp, the live region).
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext, renderedText } from '../../src/app-runtime/testing';
 import app, {
@@ -76,7 +71,6 @@ function mount( state: Partial< AppState > = {}, payload: AppData = data(), extr
 	return { root, ctx, ui: ctx.ui( freshUi ) as UiState };
 }
 
-/** Re-render with a new payload, the way a dispatch response would. */
 function respond( ctx: ReturnType< typeof mount >[ 'ctx' ], payload: AppData, state: Partial< AppState > = {} ): void {
 	( ctx as unknown as { data: AppData; state: AppState } ).data = payload;
 	( ctx as unknown as { state: AppState } ).state = { ...ctx.state, ...state };
@@ -375,7 +369,7 @@ describe( 'conversation', () => {
 		expect( ui.draft ).toBe( '' );
 		expect( ui.replyTo ).toBe( 0 );
 		expect( clear ).toHaveBeenCalledTimes( 1 );
-		// A repaint on the same conversation leaves the field alone.
+
 		app.render( ctx );
 		expect( clear ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -433,10 +427,10 @@ describe( 'live region and identity', () => {
 		approve.click();
 		await Promise.resolve();
 		await Promise.resolve();
-		// Cleared first…
+
 		expect( ui.status ).toBe( '' );
 		vi.runAllTimers();
-		// …then set on the next tick, so a second identical outcome is a DOM change too.
+
 		expect( ui.status ).toBe( 'Comment approved.' );
 		expect( status.textContent ).toBe( 'Comment approved.' );
 		expect( ctx.dispatch ).toHaveBeenCalledTimes( 1 );

@@ -1,8 +1,3 @@
-/**
- * Unit tests for `src/games/playtime.ts` — the active-time clock
- * (pause/resume, periodic flush, remainder carry-over, failure
- * re-banking) and the display formatter.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	formatPlaytime,
@@ -46,7 +41,6 @@ describe( 'games/playtime.ts', () => {
 			expect( recordMock ).toHaveBeenCalledTimes( 1 );
 			expect( recordMock.mock.calls[ 0 ][ 1 ] ).toBe( 5 );
 
-			// The interval is gone and repeated stops don't re-flush.
 			tracker.stop();
 			vi.advanceTimersByTime( 300_000 );
 			expect( recordMock ).toHaveBeenCalledTimes( 1 );
@@ -63,17 +57,14 @@ describe( 'games/playtime.ts', () => {
 			const tracker = startPlaytimeTracker( 'inkfall' );
 			vi.advanceTimersByTime( 10_000 );
 			tracker.pause();
-			// A whole minimized minute: the tick still fires but only
-			// the pre-pause 10s are banked.
+
 			vi.advanceTimersByTime( 60_000 );
 			expect( recordMock ).toHaveBeenCalledTimes( 1 );
 			expect( recordMock.mock.calls[ 0 ][ 1 ] ).toBe( 10 );
 
-			// Still paused — nothing accrues.
 			vi.advanceTimersByTime( 60_000 );
 			expect( recordMock ).toHaveBeenCalledTimes( 1 );
 
-			// Resume at t=130s: the t=180s tick sees 50s on the clock.
 			tracker.resume();
 			vi.advanceTimersByTime( 60_000 );
 			expect( recordMock ).toHaveBeenCalledTimes( 2 );
@@ -91,15 +82,15 @@ describe( 'games/playtime.ts', () => {
 
 		test( 'sub-second remainders carry over between flushes', () => {
 			const tracker = startPlaytimeTracker( 'inkfall' );
-			// Pause 500ms into each second so flushes see x.5s banked.
+
 			vi.advanceTimersByTime( 10_500 );
 			tracker.pause();
-			vi.advanceTimersByTime( 49_500 ); // tick fires at 60s
+			vi.advanceTimersByTime( 49_500 );
 			expect( recordMock.mock.calls[ 0 ][ 1 ] ).toBe( 10 );
 			tracker.resume();
 			vi.advanceTimersByTime( 10_500 );
 			tracker.stop();
-			// 500ms carried + 10.5s new = 11s exactly.
+
 			expect( recordMock.mock.calls[ 1 ][ 1 ] ).toBe( 11 );
 		} );
 
@@ -108,7 +99,7 @@ describe( 'games/playtime.ts', () => {
 			startPlaytimeTracker( 'inkfall' );
 			vi.advanceTimersByTime( 60_000 );
 			expect( recordMock.mock.calls[ 0 ][ 1 ] ).toBe( 60 );
-			// Let the rejection settle so the re-bank happens.
+
 			await Promise.resolve();
 			await Promise.resolve();
 			vi.advanceTimersByTime( 60_000 );
@@ -119,11 +110,11 @@ describe( 'games/playtime.ts', () => {
 
 	describe( 'sumPlaytimeSince', () => {
 		const daily = {
-			'2026-07-18': 1200, // today
-			'2026-07-10': 600, // inside a 14-day window
-			'2026-07-05': 300, // day 14 of 14 — still inside
-			'2026-07-04': 900, // day 15 — outside
-			'2026-08-01': 500, // future (clock skew) — ignored
+			'2026-07-18': 1200,
+			'2026-07-10': 600,
+			'2026-07-05': 300,
+			'2026-07-04': 900,
+			'2026-08-01': 500,
 		};
 
 		test( 'sums only the trailing window ending at todayKey', () => {

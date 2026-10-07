@@ -1,38 +1,7 @@
 <?php
-/**
- * OpenStation — Agents: REST surface at /desktop-mode/v1/agents.
- *
- * One CRUD surface over the two layers (user row + definition meta) so
- * the bundle never coordinates `/wp/v2/users` and raw meta from JS.
- *
- * Routes:
- *
- *   GET    /desktop-mode/v1/agents                  list
- *   POST   /desktop-mode/v1/agents                  create
- *   GET    /desktop-mode/v1/agents/(?P<id>\d+)      get
- *   POST   /desktop-mode/v1/agents/(?P<id>\d+)      patch
- *   DELETE /desktop-mode/v1/agents/(?P<id>\d+)      delete
- *   POST   /desktop-mode/v1/agents/(?P<id>\d+)/invoke  run (chat trigger)
- *   GET    /desktop-mode/v1/agents/abilities        abilities catalogue
- *   GET    /desktop-mode/v1/agents/trigger-kinds    trigger kinds catalogue
- *   GET    /desktop-mode/v1/agents/hooks-catalogue  hook autocomplete
- *   GET    /desktop-mode/v1/agents/roles            assignable roles (writers only)
- *
- * Permissions: reads and invokes default to `edit_posts` (the same
- * audience as the WP Explorer window hosting the UI); writes require
- * `edit_users` (agents are real users — managing them is user
- * management). All three are filterable.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register REST routes on rest_api_init.
- *
- * @return void
- */
 function openstation_agents_register_rest_routes() {
 	$namespace = 'desktop-mode/v1';
 
@@ -74,11 +43,7 @@ function openstation_agents_register_rest_routes() {
 						'default' => array(),
 						'items'   => array( 'type' => 'string' ),
 					),
-					// Like `face`, deliberately schema-light. Each row
-					// is validated against the live trigger-kind
-					// catalogue by openstation_agent_sanitize_triggers(),
-					// which drops rows it does not recognise rather
-					// than rejecting the whole create.
+
 					'triggers'     => array(
 						'type'    => 'array',
 						'default' => array(),
@@ -87,11 +52,7 @@ function openstation_agents_register_rest_routes() {
 						'type'    => 'string',
 						'default' => '',
 					),
-					// `face` carries no schema beyond "object" and no
-					// sanitize_callback on purpose. The real validator is
-					// openstation_agent_sanitize_face_json(), which clamps
-					// every number; a partial JSON Schema here would only
-					// suggest the route had checked it.
+
 					'face'         => array(
 						'type'    => 'object',
 						'default' => null,
@@ -213,10 +174,7 @@ function openstation_agents_register_rest_routes() {
 					'enum'              => array( 'chat', 'drag', 'send-to' ),
 					'sanitize_callback' => 'sanitize_key',
 				),
-				// Prior conversation turns, oldest first. Without these
-				// every message is a contextless run — a follow-up like
-				// "yes, do it" would be resolved against nothing and the
-				// agent could act on the wrong entity entirely.
+
 				'history'   => array(
 					'type'    => 'array',
 					'default' => array(),
@@ -237,20 +195,6 @@ function openstation_agents_register_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_agents_register_rest_routes' );
 
-// ---------------------------------------------------------------------------
-// Permissions
-//
-// The three capability gates themselves (`openstation_agents_user_can_read`
-// / `_manage` / `_invoke`) live in bootstrap.php: the WP Explorer
-// integration loads while the feature flag is off, and this file does
-// not.
-// ---------------------------------------------------------------------------
-
-/**
- * Read-route permission callback.
- *
- * @return bool|WP_Error
- */
 function openstation_agents_rest_read_permission() {
 	if ( ! is_user_logged_in() || ! openstation_agents_user_can_read() ) {
 		return new WP_Error(
@@ -262,11 +206,6 @@ function openstation_agents_rest_read_permission() {
 	return true;
 }
 
-/**
- * Write-route permission callback.
- *
- * @return bool|WP_Error
- */
 function openstation_agents_rest_write_permission() {
 	if ( ! is_user_logged_in() || ! openstation_agents_user_can_manage() ) {
 		return new WP_Error(
@@ -278,11 +217,6 @@ function openstation_agents_rest_write_permission() {
 	return true;
 }
 
-/**
- * Invoke-route permission callback.
- *
- * @return bool|WP_Error
- */
 function openstation_agents_rest_invoke_permission() {
 	if ( ! is_user_logged_in() || ! openstation_agents_user_can_invoke() ) {
 		return new WP_Error(
@@ -294,15 +228,6 @@ function openstation_agents_rest_invoke_permission() {
 	return true;
 }
 
-// ---------------------------------------------------------------------------
-// Handlers
-// ---------------------------------------------------------------------------
-
-/**
- * GET /agents — list every agent on the site.
- *
- * @return WP_REST_Response
- */
 function openstation_agents_rest_list() {
 	$out = array();
 	foreach ( openstation_agent_get_agents() as $user ) {
@@ -312,19 +237,12 @@ function openstation_agents_rest_list() {
 		}
 	}
 	$response = rest_ensure_response( $out );
-	// Standard collection headers — WP Explorer's root grid derives
-	// its folder counts from `X-WP-Total`.
+
 	$response->header( 'X-WP-Total', (string) count( $out ) );
 	$response->header( 'X-WP-TotalPages', '1' );
 	return $response;
 }
 
-/**
- * GET /agents/:id — fetch a single agent.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_get( WP_REST_Request $request ) {
 	$user = get_userdata( (int) $request['id'] );
 	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
@@ -337,18 +255,8 @@ function openstation_agents_rest_get( WP_REST_Request $request ) {
 	return rest_ensure_response( openstation_agents_rest_shape_user( $user ) );
 }
 
-/**
- * POST /agents — create.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_create( WP_REST_Request $request ) {
-	// Every field the route declares is forwarded. `vibes`, `face` and
-	// `faceSeed` are the character half of an agent, and a create that
-	// took the name and dropped the portrait is how an agent ends up
-	// wearing the fallback glyph seconds after someone picked a face
-	// for it. `openstation_agent_create()` sanitizes each one.
+
 	$user = openstation_agent_create(
 		array(
 			'name'         => (string) $request['name'],
@@ -375,12 +283,6 @@ function openstation_agents_rest_create( WP_REST_Request $request ) {
 	return $response;
 }
 
-/**
- * POST /agents/:id — patch any subset of the definition fields.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_patch( WP_REST_Request $request ) {
 	$user = get_userdata( (int) $request['id'] );
 	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
@@ -430,12 +332,6 @@ function openstation_agents_rest_patch( WP_REST_Request $request ) {
 	);
 }
 
-/**
- * DELETE /agents/:id.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_delete( WP_REST_Request $request ) {
 	$user_id = (int) $request['id'];
 	$user    = get_userdata( $user_id );
@@ -461,12 +357,6 @@ function openstation_agents_rest_delete( WP_REST_Request $request ) {
 	);
 }
 
-/**
- * POST /agents/:id/invoke — run the agent with the supplied message.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_invoke( WP_REST_Request $request ) {
 	$user = get_userdata( (int) $request['id'] );
 	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
@@ -479,10 +369,6 @@ function openstation_agents_rest_invoke( WP_REST_Request $request ) {
 
 	$source = (string) $request['source'];
 
-	// Per-agent gate. The route's `permission_callback` cannot run this
-	// one: it has no access to the resolved agent, and the capabilities an
-	// agent requires are a property of that agent's trigger config. The
-	// gate applies all of them whatever `source` the request names.
 	if ( ! openstation_agent_user_can_invoke_agent( (int) $user->ID, $source ) ) {
 		return new WP_Error(
 			'openstation_agents_forbidden',
@@ -514,36 +400,16 @@ function openstation_agents_rest_invoke( WP_REST_Request $request ) {
 	return rest_ensure_response( $result );
 }
 
-/**
- * GET /agents/abilities — the abilities catalogue for the picker.
- *
- * @return WP_REST_Response
- */
 function openstation_agents_rest_abilities_catalogue() {
 	return rest_ensure_response( openstation_agents_abilities_catalogue() );
 }
 
-/**
- * `brief` must carry words and fit the drafting cap.
- *
- * @param mixed $value Raw param.
- * @return bool
- */
 function openstation_agents_rest_validate_brief( $value ) {
 	return is_string( $value )
 		&& '' !== trim( $value )
 		&& mb_strlen( $value ) <= OPENSTATION_AGENT_DRAFT_BRIEF_MAX;
 }
 
-/**
- * POST /agents/draft — draft a definition from a brief.
- *
- * Nothing is created: the wizard shows the draft for review and the
- * create route is still the only way an agent comes to exist.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_draft( WP_REST_Request $request ) {
 	$draft = openstation_agent_draft( (string) $request['brief'], get_current_user_id() );
 	if ( is_wp_error( $draft ) ) {
@@ -552,29 +418,14 @@ function openstation_agents_rest_draft( WP_REST_Request $request ) {
 	return rest_ensure_response( $draft );
 }
 
-/**
- * GET /agents/trigger-kinds — the trigger-kinds catalogue.
- *
- * @return WP_REST_Response
- */
 function openstation_agents_rest_trigger_kinds() {
 	return rest_ensure_response( openstation_agent_trigger_kinds() );
 }
 
-/**
- * GET /agents/hooks-catalogue — the curated WP hooks catalogue.
- *
- * @return WP_REST_Response
- */
 function openstation_agents_rest_hooks_catalogue() {
 	return rest_ensure_response( openstation_agent_hooks_catalogue() );
 }
 
-/**
- * GET /agents/roles — roles the current user may assign to an agent.
- *
- * @return WP_REST_Response
- */
 function openstation_agents_rest_roles() {
 	$names = wp_roles()->get_names();
 	$out   = array();
@@ -587,12 +438,6 @@ function openstation_agents_rest_roles() {
 	return rest_ensure_response( $out );
 }
 
-/**
- * Build the canonical REST shape for one agent.
- *
- * @param WP_User|null $user Agent user.
- * @return array|null Null when the user is not an agent.
- */
 function openstation_agents_rest_shape_user( $user ) {
 	if ( ! $user instanceof WP_User || ! openstation_agent_is_agent( $user ) ) {
 		return null;

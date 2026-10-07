@@ -1,12 +1,3 @@
-/**
- * `prewarmById` — the shell's door for the dock's hover intent on a
- * native window: the bundles into the tab, then the runtime's own
- * prewarm (`wp.os.apps.prewarm`), which sends the app's first `mount`.
- *
- * What these tests pin: the load happens before the runtime is asked,
- * an open window is never warmed, a native window that is not an app
- * gets its bundles and nothing more, and an unknown id is a plain no.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock } from '../../src/dock';
 import { createNativeWindowSync } from '../../src/native-windows';
@@ -91,7 +82,7 @@ describe( 'native-windows — prewarmById', () => {
 			loaded.push( url );
 		} );
 		runtimePrewarm = vi.fn( () => true );
-		// Beside the hooks stub, never in its place.
+
 		const wp = ( ( window as unknown as { wp?: Record< string, unknown > } ).wp ??= {} );
 		wp.os = { apps: { prewarm: runtimePrewarm } };
 		( window as unknown as { openStationNativeWindows?: unknown } ).openStationNativeWindows = {};
@@ -118,7 +109,7 @@ describe( 'native-windows — prewarmById', () => {
 		await expect( prewarmById( 'posts' ) ).resolves.toBe( true );
 		expect( loaded ).toEqual( [ 'https://example.test/posts-client.js', 'https://example.test/posts.js' ] );
 		expect( runtimePrewarm ).toHaveBeenCalledWith( 'posts' );
-		// The runtime is asked after the load — the call order is the contract.
+
 		expect( runtimePrewarm.mock.invocationCallOrder[ 0 ] ).toBeGreaterThan( 0 );
 	} );
 
@@ -142,7 +133,6 @@ describe( 'native-windows — prewarmById', () => {
 		await expect( prewarmById( 'calculator' ) ).resolves.toBe( false );
 		expect( loaded ).toEqual( [ 'https://example.test/calculator.js' ] );
 
-		// No runtime in the tab at all: still a graceful no.
 		delete ( window as unknown as Wp ).wp?.os;
 		await expect( prewarmById( 'calculator' ) ).resolves.toBe( false );
 	} );

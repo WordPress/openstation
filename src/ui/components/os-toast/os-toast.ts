@@ -1,34 +1,3 @@
-/**
- * `<os-toast-container>` + `<os-toast>` — transient top-right
- * notifications.
- *
- * Container lives as a singleton under `<body>` (created lazily by
- * `showToast()` in `src/toast.ts`) and stacks toasts vertically.
- * Each `<os-toast>` carries the message text as slotted content
- * and an optional action button via an `action` attribute + a
- * `os-toast-action` CustomEvent fired when the button is clicked.
- *
- * The fade-in / fade-out choreography is driven by a `state`
- * attribute (`'in'` → visible, `'out'` → fading) — the component's
- * stylesheet does the actual transition. JS just flips the attr.
- *
- * A `tone` (`positive | warning | critical | neutral`) paints a
- * coloured edge and a leading icon so an error reads as one before
- * the words are read. Without it the toast is the plain dark chip it
- * has always been; `showToast()` sets the tone from its `type` option
- * through the server's toast-type registry.
- *
- * A toast also reports when it is being *attended to*: pointer over
- * it, or focus somewhere inside it. It reflects that as a `held`
- * attribute and emits `os-toast-hold` on every change. The element
- * owns the detection because it is the thing being pointed at; the
- * auto-dismiss timer lives in `showToast()`, which listens and pauses.
- * A countdown that runs while the user is reading the message — or
- * worse, while their focus is parked on the Undo button — is the
- * shell deleting the control out from under them and dropping focus
- * on `<body>`.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { osIcon } from '../../icons';
 import { __ } from '../../../i18n';
@@ -67,7 +36,6 @@ export class OsToastContainer extends Component {
 }
 defineComponent( 'os-toast-container', OsToastContainer );
 
-/** The glyph each tone leads with; the colour comes from the tone tokens. */
 const TONE_ICON: Record< string, 'check' | 'warning' | 'info' > = {
 	positive: 'check',
 	warning: 'warning',
@@ -137,10 +105,8 @@ export class OsToast extends Component {
 		`,
 	} as const;
 
-	/** Pointer currently over the toast. */
 	private _hovered = false;
 
-	/** Focus currently somewhere inside the toast. */
 	private _focused = false;
 
 	connectedCallback(): void {
@@ -148,19 +114,7 @@ export class OsToast extends Component {
 		if ( ! this.hasAttribute( 'role' ) ) {
 			this.setAttribute( 'role', 'status' );
 		}
-		/*
-		 * `mouseenter` / `mouseleave` rather than `mouseover` /
-		 * `mouseout`: the enter/leave pair does not fire for moves
-		 * between the toast and its own descendants, so the hold
-		 * cannot flicker as the cursor crosses onto the action
-		 * button. Touch input is emulated onto the same pair.
-		 *
-		 * `focusin` / `focusout` are composed, so a click on the
-		 * action button inside the shadow root retargets to the host
-		 * and lands here — which is the whole point: the button and
-		 * the toast are one thing as far as "is the user on this?"
-		 * is concerned.
-		 */
+
 		this.addEventListener( 'mouseenter', this._onEnter );
 		this.addEventListener( 'mouseleave', this._onLeave );
 		this.addEventListener( 'focusin', this._onFocusIn );
@@ -190,12 +144,6 @@ export class OsToast extends Component {
 	};
 
 	private _onFocusOut = ( e: FocusEvent ): void => {
-		// Moving between the action and close buttons fires focusout
-		// before the matching focusin. Only a `relatedTarget` outside
-		// the toast — including `null`, which is focus leaving the
-		// document entirely — is a real release. Both buttons live in
-		// the shadow root, where `contains()` stops: walk the tree
-		// through the host instead.
 		const next = e.relatedTarget;
 		if ( next instanceof Node && this._containsDeep( next ) ) {
 			return;
@@ -204,27 +152,19 @@ export class OsToast extends Component {
 		this._syncHold();
 	};
 
-	/** Whether `node` is this toast or anything inside it, shadow root included. */
 	private _containsDeep( node: Node ): boolean {
 		let n: Node | null = node;
 		while ( n ) {
 			if ( n === this ) {
 				return true;
 			}
-			// Annotated: without it the assignment below makes `n`'s
-			// narrowed type depend on itself and inference gives up.
+
 			const parent: ParentNode | null = n.parentNode;
 			n = parent instanceof ShadowRoot ? parent.host : parent;
 		}
 		return false;
 	}
 
-	/**
-	 * Reflect the combined state and announce changes. Emitting only
-	 * on a real transition keeps `showToast()`'s pause/resume
-	 * bookkeeping honest — a resume per `mousemove`-adjacent event
-	 * would reset the countdown on every twitch.
-	 */
 	private _syncHold(): void {
 		const held = this._hovered || this._focused;
 		if ( held === this.hasAttribute( 'held' ) ) {
@@ -242,10 +182,7 @@ export class OsToast extends Component {
 		const action =
 			( this as unknown as { action: string | null } ).action || '';
 		const dismissible = this.hasAttribute( 'dismissible' );
-		// Always render the buttons; `?hidden` keeps them out of the
-		// accessibility tree when unused. Means a single stable
-		// template across render passes (my templater doesn't swap
-		// subtrees mid-run).
+
 		const tone = ( this as unknown as { tone: string | null } ).tone || '';
 		return html`
 			<span class="os-toast__icon" ?hidden=${ ! tone } aria-hidden="true">

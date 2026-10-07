@@ -1,23 +1,7 @@
 <?php
-/**
- * OpenStation — Content Graph: asset registration.
- *
- * Mirrors the my-wordpress / posts-window modules: the bundle script
- * + CSS handles are registered on `init` priority 5, and the
- * native-window sync lazy-loads BOTH the first time the Content Graph
- * window opens — the script via the registration's `script` arg, the
- * CSS as a `styles` companion (see the registration in `window.php`).
- * Nothing is enqueued eagerly; a session that never opens the
- * Corkboard downloads neither.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register Content Graph CSS and JS handles.
- */
 function openstation_content_graph_register_assets() {
 	$version = OPENSTATION_VERSION;
 	$suffix  = openstation_asset_suffix();

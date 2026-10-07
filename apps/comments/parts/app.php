@@ -1,16 +1,4 @@
 <?php
-/**
- * Comments app — the model: what the rail and the conversation read,
- * and what each dispatched action does to the state.
- *
- * Reads go through the in-process REST proxy against `wp/v2/comments`
- * — the same collection, the same `openstation_*` fields and the same
- * filterable `_fields` projection a browser would fetch — so a row
- * here is byte-identical to a row there. Writes go through the
- * operations in `rest.php`, shared with the public routes.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\Apps\Comments;
 
@@ -19,33 +7,11 @@ use OpenStation\App\State;
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Fields the conversation pane renders for a thread message —
- * narrower than the rail's projection: a thread message needs no
- * post title or link (the head carries them for the root) beyond the
- * root's own row, and no per-row moderation flag (the viewer's cap is
- * a config fact).
- */
 const THREAD_FIELDS = 'id,post,parent,author,author_name,author_avatar_urls,date_gmt,content,status,'
 	. 'openstation_post_title,openstation_post_link,openstation_can_edit';
 
-/**
- * The most thread pages fetched for one conversation (100 rows each).
- * A post with more replies than that is a forum, not a comment thread;
- * the pane says "showing the first N" rather than paging forever.
- */
 const THREAD_MAX_PAGES = 10;
 
-/**
- * `tab` → `wp/v2/comments` `status`. Single values only: the collection
- * declares `status` as a `sanitize_key` string, which silently STRIPS
- * commas, so a comma list reaches `WP_Comment_Query` as one nonsense
- * status and returns an empty list with a 200. `all` is approved AND
- * pending (not spam/trash); `any` is every status.
- *
- * @param string $tab Tab value.
- * @return string
- */
 function status_for_tab( $tab ) {
 	switch ( (string) $tab ) {
 		case 'all':
@@ -55,26 +21,13 @@ function status_for_tab( $tab ) {
 		case 'trash':
 			return 'trash';
 		case 'mine':
-			// Every status the viewer authored on; the author filter
-			// is applied by the caller.
+
 			return 'any';
 		default:
 			return 'hold';
 	}
 }
 
-/**
- * The rail's query: the filtered default args (`per_page` included —
- * `openstation_comments_window_query_args` is where the page size is
- * set), then the tab, page, search, viewer (Mine), post scope, and
- * `parent=0` — the rail lists conversations, so it asks the server for
- * roots rather than client-filtering a mixed page (a page of nothing
- * but replies used to render an empty rail while the badge still
- * counted them).
- *
- * @param State $state State.
- * @return array<string,mixed>
- */
 function rail_query( State $state ) {
 	$query = \openstation_comments_window_default_query_args();
 	unset( $query['status'] );
@@ -85,9 +38,7 @@ function rail_query( State $state ) {
 	if ( '' !== $search ) {
 		$query['search'] = $search;
 	}
-	// `author`, `post` and `parent` are array params on the collection
-	// (`author__in`, `post__in`, `parent__in`); `parent = [0]` is a
-	// non-empty array, so the `comment_parent IN (0)` clause applies.
+
 	if ( 'mine' === $tab && get_current_user_id() > 0 ) {
 		$query['author'] = array( get_current_user_id() );
 	}
@@ -99,15 +50,6 @@ function rail_query( State $state ) {
 	return $query;
 }
 
-/**
- * The identity of the rail's result set — what the client's page
- * accumulation is keyed on. `gen` is bumped by every mutation that
- * moves rows between views, so a moderation or a reply starts the
- * accumulation clean from page 1.
- *
- * @param State $state State.
- * @return string
- */
 function rail_key( State $state ) {
 	return implode(
 		'|',
@@ -120,16 +62,6 @@ function rail_key( State $state ) {
 	);
 }
 
-/**
- * Direct-reply counts for a set of comment ids in ONE grouped query —
- * the `openstation_replies_count` field costs a COUNT per row, which
- * on a 20-row page is twenty queries for one number each. Counts the
- * approved and pending replies, what `get_comments( status => 'all' )`
- * counts.
- *
- * @param int[] $ids Parent comment ids.
- * @return array<int,int> `id => count`, every id present.
- */
 function reply_counts( array $ids ) {
 	global $wpdb;
 	$ids = array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) );
@@ -139,7 +71,7 @@ function reply_counts( array $ids ) {
 	}
 	$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 	$rows         = $wpdb->get_results(
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- `$placeholders` is a list of `%d`; the values are bound below.
+
 		$wpdb->prepare(
 			"SELECT comment_parent, COUNT(*) AS n FROM {$wpdb->comments} WHERE comment_parent IN ( $placeholders ) AND comment_approved IN ( '1', '0' ) GROUP BY comment_parent",
 			$ids
@@ -152,17 +84,6 @@ function reply_counts( array $ids ) {
 	return $out;
 }
 
-/**
- * The rail page for a state, memoised per dispatch so an action that
- * needs the rows (to auto-select) and `data()` share one query (the
- * memo is dropped when `data()` has read it — a later dispatch in the
- * same process, as in a test, starts clean). The reply counts ride
- * each row as `openstation_replies_count`, from one grouped query
- * rather than the per-row REST field.
- *
- * @param State|null $state State; null forgets the memo.
- * @return array{items:array<int,mixed>,total:int,pages:int,page:int,perPage:int,error:string,code:string}
- */
 function rail( ?State $state ) {
 	static $memo = array();
 	if ( null === $state ) {
@@ -182,18 +103,6 @@ function rail( ?State $state ) {
 	return $memo[ $key ];
 }
 
-/**
- * Every comment on the selected conversation's post (all depths, all
- * statuses), paged in 100s — the conversation pane builds the nested
- * tree from it. `status=any` is the vocabulary for "no status clause
- * at all", so a spam or trashed reply still renders in context; it is
- * a protected collection param requiring `edit_posts`, the cap the app
- * is gated on. Null when nothing is selected or the read failed (the
- * client then paints the root alone).
- *
- * @param int $selected Selected root comment id.
- * @return array{rows:array<int,mixed>,truncated:bool}|null
- */
 function thread( $selected ) {
 	$selected = (int) $selected;
 	if ( $selected <= 0 ) {
@@ -228,8 +137,7 @@ function thread( $selected ) {
 		$rows  = array_merge( $rows, array_values( $result['data'] ) );
 		$pages = max( 1, (int) $result['pages'] );
 	}
-	// The tree build relies on sibling order being chronological —
-	// make that a property of this function rather than of the query.
+
 	usort(
 		$rows,
 		static function ( $a, $b ) {
@@ -242,16 +150,6 @@ function thread( $selected ) {
 	);
 }
 
-/**
- * The halves of `data()` an action knows it left untouched — `select`
- * changes the thread but not the rail, Load more the rail but not the
- * thread. A skipped half is omitted from the response and the client
- * keeps what it has. Scoped to one dispatch: `data()`, which runs at
- * the end of every dispatch, reads the marks and clears them.
- *
- * @param string|null $half `rail` | `thread` to mark, `'take'` to read and clear.
- * @return array<string,bool>
- */
 function skipped( $half = null ) {
 	static $skip = array();
 	if ( 'take' === $half ) {
@@ -265,12 +163,6 @@ function skipped( $half = null ) {
 	return $skip;
 }
 
-/**
- * Everything the client view paints from.
- *
- * @param State $state State.
- * @return array<string,mixed>
- */
 function data( State $state ) {
 	$skip = skipped( 'take' );
 	$out  = array( 'counts' => \openstation_comments_window_counts() );
@@ -285,25 +177,11 @@ function data( State $state ) {
 	return $out;
 }
 
-// ---------------------------------------------------------------- actions
-
-/**
- * Start a fresh result set: page 1, a new accumulation key.
- *
- * @param State $state State.
- */
 function restart( State $state ) {
 	$state->set( 'page', 1 );
 	$state->set( 'gen', (int) $state->get( 'gen' ) + 1 );
 }
 
-/**
- * Keep the selection honest against page 1: a conversation that left
- * the view gives way to the first one still in it, and an empty view
- * clears it.
- *
- * @param State $state State.
- */
 function auto_select( State $state ) {
 	if ( 1 !== (int) $state->get( 'page' ) ) {
 		return;
@@ -319,15 +197,6 @@ function auto_select( State $state ) {
 	$state->set( 'selected', $first );
 }
 
-/**
- * Scope the rail to the `post` open-time param — the
- * `edit-comments.php?p=<id>` deep link. A scoped open starts on "All"
- * so the post's whole thread is visible, not just its pending
- * comments; `0` (a plain open) clears the scope.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- */
 function scope_from_params( State $state, Os $os ) {
 	$post = max( 0, (int) $os->param( 'post', 0 ) );
 	$state->set( 'post', $post );
@@ -338,24 +207,10 @@ function scope_from_params( State $state, Os $os ) {
 	auto_select( $state );
 }
 
-/**
- * `mount` — the first render.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- */
 function mount( State $state, Os $os ) {
 	scope_from_params( $state, $os );
 }
 
-/**
- * `reopen` — a live window asked to open again. Only a CHANGED scope
- * re-scopes: a dock click, which reopens with the scope the window
- * already has, keeps its pages and its selection.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- */
 function reopen_action( State $state, Os $os ) {
 	if ( max( 0, (int) $os->param( 'post', 0 ) ) === (int) $state->get( 'post' ) ) {
 		return;
@@ -363,15 +218,6 @@ function reopen_action( State $state, Os $os ) {
 	scope_from_params( $state, $os );
 }
 
-/**
- * `filter` — the tab, the search or the post scope changed (the bound
- * value already rode up with the state; `post` may also arrive as an
- * argument, from the scope banner's Show all).
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Args.
- */
 function filter_action( State $state, Os $os, array $args ) {
 	if ( array_key_exists( 'post', $args ) ) {
 		$state->set( 'post', max( 0, (int) $args['post'] ) );
@@ -380,40 +226,16 @@ function filter_action( State $state, Os $os, array $args ) {
 	auto_select( $state );
 }
 
-/**
- * `page` — Load more: the next rail page joins the accumulation. The
- * thread on screen did not change; it is left out of the response.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  `page`.
- */
 function page_action( State $state, Os $os, array $args ) {
 	$state->set( 'page', max( 1, (int) ( $args['page'] ?? 1 ) ) );
 	skipped( 'thread' );
 }
 
-/**
- * `select` — read this conversation. The rail did not change; it is
- * left out of the response.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  `id`.
- */
 function select_action( State $state, Os $os, array $args ) {
 	$state->set( 'selected', max( 0, (int) ( $args['id'] ?? 0 ) ) );
 	skipped( 'rail' );
 }
 
-/**
- * `moderate` — approve / unapprove / spam / unspam / trash / untrash.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  `ids`, `action`.
- * @throws \RuntimeException When refused or nothing could be processed.
- */
 function moderate_action( State $state, Os $os, array $args ) {
 	if ( ! $os->can( 'moderate_comments' ) ) {
 		throw new \RuntimeException( esc_html__( 'You are not allowed to moderate comments.', 'desktop-mode' ) );
@@ -437,14 +259,6 @@ function moderate_action( State $state, Os $os, array $args ) {
 	auto_select( $state );
 }
 
-/**
- * `reply` — post a reply under a comment.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  `parent`, `content`.
- * @throws \RuntimeException When refused.
- */
 function reply_action( State $state, Os $os, array $args ) {
 	if ( ! $os->can( 'edit_posts' ) ) {
 		throw new \RuntimeException( esc_html__( 'You are not allowed to reply.', 'desktop-mode' ) );
@@ -458,19 +272,6 @@ function reply_action( State $state, Os $os, array $args ) {
 	auto_select( $state );
 }
 
-/**
- * `edit` — rewrite a comment's body, through the core controller so
- * its sanitisation and its per-target permission stay the truth. The
- * rows keep their places (a rewrite moves nothing between views), so
- * the accumulation is left alone: the thread and the current rail
- * page come back fresh, the pages before it keep their text until the
- * next reload.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  `id`, `content`.
- * @throws \RuntimeException When refused or the write failed.
- */
 function edit_action( State $state, Os $os, array $args ) {
 	$id      = (int) ( $args['id'] ?? 0 );
 	$content = (string) ( $args['content'] ?? '' );

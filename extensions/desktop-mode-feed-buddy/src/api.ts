@@ -68,7 +68,7 @@ async function request< T >( path: string, options: RequestOptions = {} ): Promi
 				message = error.message;
 			}
 		} catch {
-			// The bounded status fallback above is sufficient.
+
 		}
 		throw new Error( message );
 	}

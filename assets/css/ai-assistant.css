@@ -1,43 +1,3 @@
-/**
- * OpenStation — AI Assistant spotlight overlay.
- *
- * A system-level command palette that floats above the entire shell,
- * including the WP admin bar. Visually modeled on macOS Spotlight and
- * Linear's command menu — frosted-glass backdrop, spring-physics panel
- * entrance, large search input.
- *
- * ## How much accent the chrome shows
- *
- * Every accent-derived surface below (the header tint and its mark, the
- * search icon, a selected or hovered row, the icon tiles) mixes the
- * accent by --os-ai-accent towards a neutral. Unset that is 100%, the
- * accent-tinted panel this has always been; the OpenStation palette
- * answers 0% and lifts rows and tiles with --os-ai-row-fill and
- * --os-ai-tile-fill instead. The command icons themselves are not part
- * of it: they read the accent directly, in every palette.
- *
- * z-index 10000 puts this above --os-z-adminbar (9991) so the
- * overlay truly covers the full viewport.
- *
- * ## Desktop-theme awareness
- *
- * The overlay mounts on `document.body`, so it sits inside the
- * `body.os-desktop-theme-<slug>` half of a compiled theme's
- * doubled selector and every `--os-ui-*` token below resolves against the
- * active theme. Each site reads `var( --os-ui-x, <the literal that was
- * always there> )`, so an unthemed shell paints exactly as before.
- *
- * Getting this half-right is worse than not doing it at all: when the
- * text tones followed the theme but the panel stayed hardcoded white,
- * a dark theme's light `--os-ui-fg` landed on white and the results were
- * unreadable. Any new surface added here MUST take its background,
- * border and text from the palette — not from a literal.
- */
-
-/* ---------------------------------------------------------------------------
- * Root overlay — full viewport, fades in/out
- * ------------------------------------------------------------------------- */
-
 .os-ai {
 	position: fixed;
 	inset: 0;
@@ -47,9 +7,6 @@
 	align-items: flex-start;
 	justify-content: center;
 
-	/* Land the panel at ~16-18% from the top — feels like Spotlight.
-	   clamp keeps it 60px from the top on very short screens and caps
-	   at 180px on tall displays so it never feels too low. */
 	padding-top: clamp( 60px, 16vh, 180px );
 	padding-inline: 16px;
 	padding-bottom: 40px;
@@ -59,8 +16,6 @@
 	transition: opacity 0.18s ease;
 }
 
-/* [hidden] keeps the element out of the a11y tree between sessions.
-   Only removed while the overlay is visually visible (open or animating). */
 .os-ai[hidden] {
 	display: none;
 }
@@ -70,42 +25,31 @@
 	pointer-events: auto;
 }
 
-/* ---------------------------------------------------------------------------
- * Backdrop — frosted glass
- * ------------------------------------------------------------------------- */
-
 .os-ai__backdrop {
 	position: absolute;
 	inset: 0;
 	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.36 ) );
-	/* Desktop-theme SCRIM texture slot: unset resolves to none. */
+
 	background-image: var( --os-ui-scrim-image, none );
 	background-repeat: var( --os-ui-scrim-image-repeat, repeat );
 	background-size: var( --os-ui-scrim-image-size, auto );
 	background-position: var( --os-ui-scrim-image-position, center );
 	backdrop-filter: blur( 8px ) saturate( 0.75 );
 	-webkit-backdrop-filter: blur( 8px ) saturate( 0.75 );
-	/* Non-interactive: clicks in the dimmed area fall through to the overlay
-	   container, which closes the assistant (click-outside-to-dismiss). */
+
 	pointer-events: none;
 }
 
-/* ---------------------------------------------------------------------------
- * Panel — the visible card
- * ------------------------------------------------------------------------- */
-
 .os-ai__panel {
-	position: relative; /* sits above the backdrop */
+	position: relative;
 	width: 100%;
 	max-width: 600px;
 
-	/* Longhand on purpose: the DIALOG texture slot below owns
-	   background-image, and the shorthand would reset it. */
 	background-color: var(
 		--os-ai-panel-bg,
 		var( --os-ui-surface, rgba( 255, 255, 255, 0.97 ) )
 	);
-	/* Desktop-theme DIALOG texture slot: unset resolves to none. */
+
 	background-image: var( --os-ui-dialog-bg-image, none );
 	background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
 	background-size: var( --os-ui-dialog-bg-image-size, auto );
@@ -115,17 +59,11 @@
 	border-radius: 16px;
 	overflow: hidden;
 
-	/* Tight under-shadow + wide atmospheric shadow. The hairline ring
-	   is the panel's only edge, so it follows the palette; the two
-	   atmospheric shadows stay black because they read as depth
-	   against the wallpaper, not as part of the surface. */
 	box-shadow:
 		0 0 0 1px var( --os-ui-border, rgba( 0, 0, 0, 0.07 ) ),
 		0 4px 16px rgba( 0, 0, 0, 0.12 ),
 		0 24px 64px rgba( 0, 0, 0, 0.22 );
 
-	/* Spring-physics entrance: starts slightly small + shifted up,
-	   overshoots minimally, then settles at 1.0. */
 	transform: scale( 0.96 ) translateY( -8px );
 	transition: transform 0.28s cubic-bezier( 0.34, 1.56, 0.64, 1 );
 	will-change: transform;
@@ -135,8 +73,6 @@
 	transform: scale( 1 ) translateY( 0 );
 }
 
-/* Mode switch (Commands ↔ AI) — a small segmented pill at the end of
-   the input row. Always shown; replaces the `/` shortcut. */
 .os-ai__modes {
 	flex-shrink: 0;
 	display: inline-flex;
@@ -164,10 +100,7 @@
 }
 
 .os-ai__mode.is-active {
-	/* Elevated first: the pill sits ON the panel, which is already
-	   `--os-ui-surface`, so a theme that distinguishes the two keeps the
-	   active segment readable. Falls through to plain surface, which is
-	   the default look. */
+
 	background: var( --os-ui-surface-elevated, var( --os-ui-surface, #fff ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.12 );
@@ -178,16 +111,12 @@
 	outline-offset: 1px;
 }
 
-/* ---------------------------------------------------------------------------
- * Input row — the main interaction surface
- * ------------------------------------------------------------------------- */
-
 .os-ai__input-wrap {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	padding: 14px 16px;
-	/* Thin highlight at the bottom of the input area, visible when focused */
+
 	border-bottom: 1px solid transparent;
 	transition: border-color 0.15s ease;
 }
@@ -196,9 +125,6 @@
 	border-bottom-color: var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) );
 }
 
-/* Input-row icon: dim at rest, full strength on focus. At rest it is
-   the accent at 55% alpha, mixed by --os-ai-accent towards the faint
-   text colour; focused, the accent mixed towards the text colour. */
 .os-ai__input-icon {
 	flex-shrink: 0;
 	display: flex;
@@ -220,26 +146,6 @@
 	transform: scale( 1.08 );
 }
 
-/*
- * The search field is a raw `<input type="text">` in the parent shell,
- * so core's `forms.css` reaches it:
- *
- *   input[type="text"], …  { background-color: #fff; color: #2c3338;
- *                            border: 1px solid #8c8f94;
- *                            border-radius: 4px;
- *                            box-shadow: 0 0 0 transparent }
- *   input[type="text"]:focus { border-color: #2271b1;
- *                              box-shadow: 0 0 0 1px #2271b1 }
- *
- * That weighs (0,1,1) — one type selector plus one attribute selector —
- * which beats a bare `.os-ai__input` at (0,1,0). The result
- * was a bordered white box floating inside the panel: core's chrome,
- * core's text colour, ignoring both the design intent (a chromeless
- * Spotlight-style field) and any active desktop theme.
- *
- * Scoping to the overlay root takes the selector to (0,2,0) and wins.
- * Same fix as the native-window form-control rule in window-chrome.css.
- */
 .os-ai .os-ai__input {
 	flex: 1;
 	min-width: 0;
@@ -249,8 +155,7 @@
 	outline: none;
 	box-shadow: none;
 	padding: 0;
-	/* Matches the height core gave the control, so the row keeps its
-	   comfortable hit target now that core's box is gone. */
+
 	min-height: 30px;
 	background: transparent;
 	font: inherit;
@@ -260,8 +165,6 @@
 	color: var( --os-ui-fg, #1d2327 );
 }
 
-/* Core paints a focus border + ring on the element itself; the focus
-   affordance here is the input row's bottom hairline instead. */
 .os-ai .os-ai__input:focus {
 	border-color: transparent;
 	box-shadow: none;
@@ -273,8 +176,6 @@
 	font-weight: 400;
 }
 
-/* Submit button — hidden until the user types something, then
-   springs in via opacity + scale transition. */
 .os-ai__submit {
 	flex-shrink: 0;
 	display: flex;
@@ -284,9 +185,7 @@
 	height: 30px;
 	border: none;
 	border-radius: 8px;
-	/* An accent key at --os-ai-accent's strength. At 0 it is an icon tile
-	   like the command rows' (the neutral fill, the glyph in the accent);
-	   at 100% the filled accent button with its ink. */
+
 	background-color: color-mix(
 		in srgb,
 		var( --wp-admin-theme-color, #2271b1 ) var( --os-ai-accent, 100% ),
@@ -330,10 +229,6 @@
 	outline-offset: 2px;
 }
 
-/* ---------------------------------------------------------------------------
- * Footer — hints and keyboard shortcut legend
- * ------------------------------------------------------------------------- */
-
 .os-ai__footer {
 	display: flex;
 	align-items: center;
@@ -349,23 +244,6 @@
 	color: var( --os-ui-fg-muted, #a7aaad );
 }
 
-/* ---------------------------------------------------------------------------
- * Admin bar AI button — ⌘K badge + sparkle icon
- * Styles applied via wp_add_inline_style( 'admin-bar', ... ) in PHP.
- * The styles here are for reference; the actual output lives in
- * includes/admin-bar.php :: openstation_enqueue_toggle_assets().
- * ------------------------------------------------------------------------- */
-
-/* (The admin-bar button styles are added inline in PHP to keep them
-    on the admin-bar handle so they load even before os.js.) */
-
-/* ---------------------------------------------------------------------------
- * Results / conversation area — three render modes:
- *   • Suggestions   (empty state, example prompts)
- *   • Thinking      (spinner + "Thinking…")
- *   • Response      (assistant bubble + entity card | admin links | nothing)
- * ------------------------------------------------------------------------- */
-
 .os-ai__results {
 	border-top: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.06 ) );
 	max-height: 420px;
@@ -376,10 +254,6 @@
 	flex-direction: column;
 	gap: 12px;
 }
-
-/* -----------------------------------------------------------------
- * Suggestion chips (empty state)
- * ---------------------------------------------------------------- */
 
 .os-ai__suggestions-label {
 	margin: 0 0 4px;
@@ -415,10 +289,6 @@
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
-/* -----------------------------------------------------------------
- * Thinking / error state
- * ---------------------------------------------------------------- */
-
 .os-ai__state {
 	display: flex;
 	align-items: center;
@@ -432,10 +302,6 @@
 	align-items: flex-start;
 }
 
-/* Inline "AI Settings" link inside the "AI not enabled" error — opens
- * OS Settings on the AI tab. Styled as a link within the surrounding
- * error text, not a standalone button: inherits the error color and
- * flows with the sentence. */
 .os-ai__settings-link {
 	appearance: none;
 	border: 0;
@@ -449,18 +315,10 @@
 	text-underline-offset: 2px;
 }
 
-/* Keeps the underline and nudges the colour toward the foreground, so
-   hovering reads as a response rather than the link going away. */
 .os-ai__settings-link:hover {
 	color: color-mix( in srgb, currentColor 65%, var( --os-ui-fg, #1d2327 ) );
 }
 
-/* The shell forces `cursor: default !important` on every clickable
- * surface (see the cursor policy at the top of desktop.css). This
- * recovery link is an explicit, user-approved exception: it keeps a
- * pointer so it reads as the actionable link it is. Scoped under
- * `body.os-active` so it out-specifies the policy's
- * `!important` rule, same trick the resize-handle exceptions use. */
 body.os-active .os-ai__settings-link {
 	cursor: pointer !important;
 }
@@ -474,10 +332,6 @@ body.os-active .os-ai__settings-link {
 	flex-shrink: 0;
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
-
-/* -----------------------------------------------------------------
- * Assistant message bubble — prefix for every response
- * ---------------------------------------------------------------- */
 
 .os-ai__bubble {
 	display: flex;
@@ -506,11 +360,6 @@ body.os-active .os-ai__settings-link {
 	min-width: 0;
 }
 
-/* Markdown output inside the assistant bubble — the renderer emits
-   <p>, <ul>/<ol>/<li>, <strong>, <em>, <code>, <a>. Reset margins on
-   outer paragraphs so single-paragraph replies (the common case)
-   don't get top/bottom spacing; list items get the usual disc/decimal
-   markers inside a compact indent. */
 .os-ai__bubble-text > p,
 .os-ai__bubble-text > ul,
 .os-ai__bubble-text > ol {
@@ -545,10 +394,6 @@ body.os-active .os-ai__settings-link {
 	font-weight: 600;
 	color: var( --os-ui-fg, #1d2327 );
 }
-
-/* -----------------------------------------------------------------
- * Entity card — shown under the bubble when answer_type=entity
- * ---------------------------------------------------------------- */
 
 .os-ai__entity {
 	display: flex;
@@ -602,8 +447,6 @@ body.os-active .os-ai__settings-link {
 	color: var( --os-ui-fg-muted, #50575e );
 }
 
-/* Primary action — opens the entity in a legacy iframe window inside
-   the desktop (wp-admin edit URL). */
 .os-ai__entity-open {
 	appearance: none;
 	display: inline-flex;
@@ -638,10 +481,6 @@ body.os-active .os-ai__settings-link {
 .os-ai__entity-open svg {
 	margin-inline-start: 2px;
 }
-
-/* -----------------------------------------------------------------
- * Admin-links list — shown when answer_type=navigation
- * ---------------------------------------------------------------- */
 
 .os-ai__admin-links {
 	display: flex;
@@ -726,13 +565,6 @@ body.os-active .os-ai__settings-link {
 	transform: translateX( 2px );
 }
 
-/* -----------------------------------------------------------------
- * Command palette — shown when the user types "/" in the input.
- * Filtered list of plugin-registered slash-commands. Mirrors the
- * admin-link list's visual shape (icon + title + description) but
- * uses a dedicated set of classes so each can evolve independently.
- * ---------------------------------------------------------------- */
-
 .os-ai__cmd-list {
 	display: flex;
 	flex-direction: column;
@@ -755,20 +587,10 @@ body.os-active .os-ai__settings-link {
 	transition: background 0.1s, border-color 0.1s;
 }
 
-/*
- * Single-line rows (no `.os-ai__cmd-desc` child) need the
- * icon + label baseline-centered instead of top-aligned, otherwise
- * the label floats to the top of the taller icon tile and reads as
- * misaligned. `:has()` is widely supported in evergreen browsers the
- * desktop shell already targets.
- */
 .os-ai__cmd-item:not(:has(.os-ai__cmd-desc)) {
 	align-items: center;
 }
 
-/* The lit row: an accent wash and edge at --os-ai-accent's strength,
-   over the row fill the palette names. Shared with the args-mode rows
-   below through the same two custom properties. */
 .os-ai {
 	--_row-wash: color-mix(
 		in srgb,
@@ -798,14 +620,6 @@ body.os-active .os-ai__settings-link {
 	border-color: var( --_row-edge );
 }
 
-/*
- * When keyboard navigation is driving selection, suppress the :hover
- * style on rows. Without this, arrowing the cursor past the row that
- * happens to sit under the mouse pointer paints BOTH rows as active
- * — the keyboard target from `.is-selected` and the pointer target
- * from `:hover`. The JS toggles this class on the list container on
- * ArrowUp/Down and clears it on the next real `mousemove`.
- */
 .os-ai__cmd-list--kb-nav .os-ai__cmd-item:hover {
 	background: transparent;
 	border-color: transparent;
@@ -829,8 +643,7 @@ body.os-active .os-ai__settings-link {
 	width: 36px;
 	height: 36px;
 	font-size: 20px;
-	/* The glyph is the accent in every palette; only its tile follows
-	   --os-ai-accent. */
+
 	color: var( --wp-admin-theme-color, #2271b1 );
 	background-color: color-mix(
 		in srgb,
@@ -844,10 +657,6 @@ body.os-active .os-ai__settings-link {
 	border-radius: 7px;
 }
 
-/*
- * Dashicons ship at a 20px baseline; the tile was scaled up but
- * dashicons glyphs need explicit sizing to follow.
- */
 .os-ai__cmd-icon.dashicons {
 	font-size: 22px;
 	width: 36px;
@@ -855,12 +664,6 @@ body.os-active .os-ai__settings-link {
 	line-height: 36px;
 }
 
-/*
- * Raw-SVG icon slot (command bridge forwards rendered
- * `@wordpress/icons` markup). Constrain the inline SVG so it sits
- * centered inside the tile regardless of the viewBox the source icon
- * shipped with.
- */
 .os-ai__cmd-icon--svg svg {
 	width: 24px;
 	height: 24px;
@@ -898,17 +701,11 @@ body.os-active .os-ai__settings-link {
 	letter-spacing: 0;
 }
 
-/* Entity search results (posts, pages) — rendered in the same list as
-   commands but are navigable destinations, not actions. Use regular font
-   (not the monospace used for slash-commands) so they read as content
-   search results, matching the classic command palette UX. */
 .os-ai__cmd-item.is-entity-result .os-ai__cmd-title {
 	font-family: inherit;
 	letter-spacing: 0;
 }
 
-/* Args mode — a single row showing the locked-in command. Same
-   visual language as the list item but with an "Enter to run" hint. */
 .os-ai__cmd-active {
 	display: flex;
 	align-items: flex-start;
@@ -937,10 +734,6 @@ body.os-active .os-ai__settings-link {
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* Suggestion list shown under the locked-in command in args mode.
-   Visually identical to the command picker rows but without the
-   border-highlight — the "active" glow already lives on the command
-   header directly above. */
 .os-ai__cmd-suggest-list {
 	display: flex;
 	flex-direction: column;
@@ -977,37 +770,24 @@ body.os-active .os-ai__settings-link {
 	color: var( --os-ui-fg, #1d2327 );
 }
 
-/* Empty / "no matches" state for the palette */
 .os-ai__state--empty {
 	color: var( --os-ui-fg-muted, #8c8f94 );
 	font-size: 13px;
 }
 
-/* "Loading WordPress commands…" under the list while the Core palette
-   runtime is still in flight. Inset like a row, so the 16px spinner is
-   centred in the 36px icon column of the commands above it and the
-   label starts where their titles do. */
 .os-ai__state--loading {
 	padding: 4px 11px 4px 21px;
 	gap: 20px;
 }
 
-/* The row stays in the list's markup and is shown only while a load
-   runs; .os-ai__state's display would otherwise override [hidden]. */
 .os-ai__state--loading[hidden] {
 	display: none;
 }
 
-/* Under "No commands matching" there is no icon column to line up
-   with, so the row starts where that message does. */
 .os-ai__state--empty + .os-ai__state--loading {
 	padding-inline: 0;
 	gap: 10px;
 }
-
-/* -----------------------------------------------------------------
- * Continue button (budget-exhausted state)
- * ---------------------------------------------------------------- */
 
 .os-ai__continue-btn {
 	appearance: none;

@@ -1,71 +1,3 @@
-/**
- * `<os-form>` — declarative, robust, container-query-driven form.
- *
- * The piece that's been missing from the kit. Wraps the
- * boilerplate every plugin form ends up writing — value
- * collection, validation, busy state, error banner, responsive
- * layout, submit + reset wiring — behind a `<form>`-shaped tag
- * any caller can drop in.
- *
- * ### Quick start
- *
- * ```html
- * <os-form submit-label="Add user">
- *     <os-text-field name="username" label="Username" required></os-text-field>
- *     <os-text-field name="email" type="email" label="Email" required></os-text-field>
- *     <os-text-field name="password" label="Password" full-width></os-text-field>
- * </os-form>
- * ```
- *
- * The form auto-renders a footer with **Reset** + **Submit**
- * buttons. On submit it dispatches a cancellable
- * `os-form-submit` event whose `detail.values` is a
- * `Record<string, unknown>` keyed by each field's `name`. Pressing
- * Enter in any text field also submits.
- *
- * ### Slots
- *
- * | name              | content                                                                 |
- * |-------------------|-------------------------------------------------------------------------|
- * | (default)         | Form fields. Anything with a `name` attribute is auto-collected.        |
- * | `header`          | Title / lede / hero block above the fields.                             |
- * | `error`           | Custom error UI; replaces the default banner when filled.               |
- * | `footer-leading`  | Extras left of the action buttons (e.g. a "back" link).                 |
- * | `footer-trailing` | Extras right of the action buttons (e.g. a secondary submit).          |
- *
- * ### Layout / responsiveness
- *
- * The fields container is a **CSS container** (inline-size). It
- * collapses to one column below 480px and goes to two columns
- * above it — so `<os-form>` adapts to its window's width
- * automatically as the user drags the resize handle. Any field
- * with `full-width` spans every column. Force a fixed column count
- * via `columns="1" | "2" | "3"`.
- *
- * ### Validation
- *
- * The form scans descendants for `[required]` and `[name]`. On
- * submit it checks each required field's value (read from the
- * `value` property when defined; otherwise the `value` attribute;
- * checkboxes use `checked`). Empty required fields get the
- * `invalid` attribute set + a top-of-form summary message; the
- * cancellable `os-form-submit` event is suppressed. Hosts that
- * need richer validation can listen for `os-form-input` (every
- * keystroke), call `setFieldInvalid(name)`, or short-circuit
- * inside their `os-form-submit` handler.
- *
- * ### Public API (DOM methods on the element)
- *
- * - `getValues(): Record<string, unknown>`
- * - `setValues(patch: Record<string, unknown>): void`
- * - `setBusy(busy: boolean): void` — disables fields + flashes a spinner on submit
- * - `setError(message: string | null): void` — top-of-form banner
- * - `setFieldInvalid(name: string, invalid?: boolean, message?: string | null): void`
- * - `clearErrors(): void` — clears the top error and every per-field invalid mark
- * - `reset(): void` — restores every field to its initial-load value, fires `os-form-reset`
- * - `submit(): void` — programmatic submit (same path as the button click)
- */
-
 import {
 	Component,
 	defineComponent,
@@ -78,16 +10,11 @@ interface FieldElement extends HTMLElement {
 	checked?: boolean;
 }
 
-/**
- * Captured initial-state snapshot so `reset()` is a real reset
- * (back to load-time values) rather than "wipe to empty string."
- */
 interface InitialSnapshot {
 	value: unknown;
 	checked: boolean | null;
 }
 
-/** Copy data values so edits never share the form's reset snapshot. */
 function copySnapshotValue( value: unknown ): unknown {
 	if ( value === null || typeof value !== 'object' ) {
 		return value;
@@ -95,8 +22,6 @@ function copySnapshotValue( value: unknown ): unknown {
 	try {
 		return structuredClone( value );
 	} catch {
-		// Custom fields may expose opaque values (e.g. DOM nodes or
-		// functions). Preserve their existing identity-based contract.
 		return value;
 	}
 }
@@ -199,31 +124,18 @@ export class OsForm extends Component {
 		`,
 	} as const;
 
-	/**
-	 * Initial-value snapshot keyed by field name. Captured on first
-	 * mount AFTER the slot's children upgrade — used by `reset()`.
-	 */
 	private _initial: Map< string, InitialSnapshot > = new Map();
-	/** Whether `_initial` has been captured yet. */
+
 	private _captured = false;
 
-	/** Captured per-field-input listener so we can detach on disconnect. */
 	private _fieldChangeListener: ( ( e: Event ) => void ) | null = null;
 	private _enterSubmitListener: ( ( e: Event ) => void ) | null = null;
 
 	connectedCallback(): void {
 		super.connectedCallback();
 
-		// Capture initial values one microtask later so slotted
-		// `<os-*>` children have had a chance to upgrade and apply
-		// their own `value` attributes. The capture runs exactly once
-		// per connection — fields mounted later are not snapshotted.
 		queueMicrotask( () => this._captureInitialValues() );
 
-		// Listen for descendant input events so we can re-broadcast
-		// them as `os-form-input`. The host doesn't have to know
-		// every field's event name (`os-input-change`,
-		// `os-checkbox-change`, native `input`) — it gets one bus.
 		this._fieldChangeListener = ( e: Event ) => this._onAnyFieldInput( e );
 		this.addEventListener( 'os-input-change', this._fieldChangeListener );
 		this.addEventListener( 'os-input-commit', this._fieldChangeListener );
@@ -233,9 +145,6 @@ export class OsForm extends Component {
 		this.addEventListener( 'os-color-change', this._fieldChangeListener );
 		this.addEventListener( 'change', this._fieldChangeListener );
 
-		// Pressing Enter inside any descendant `<os-text-field>`
-		// fires `os-submit` — treat it as a form submit so keyboard
-		// users don't have to mouse over to the button.
 		this._enterSubmitListener = () => this.submit();
 		this.addEventListener( 'os-submit', this._enterSubmitListener );
 	}
@@ -268,10 +177,7 @@ export class OsForm extends Component {
 			( this as unknown as { error: string | null } ).error || '';
 		const busy =
 			( this as unknown as { busy: string | null } ).busy !== null;
-		// `show-reset` defaults to TRUE: the reset button is opt-out.
-		// Only the literal string "false" hides it — omitting the
-		// attribute keeps the button visible. The string form lets
-		// callers disable it from PHP without rendering tricks.
+
 		const showResetRaw = ( this as unknown as {
 			'show-reset': string | null;
 		} )[ 'show-reset' ];
@@ -321,13 +227,6 @@ export class OsForm extends Component {
 		`;
 	}
 
-	// ─── Public API ──────────────────────────────────────────────────
-
-	/**
-	 * Collect every named descendant's current value. Checkboxes and switches
-	 * return `boolean`; everything else returns whatever the field
-	 * surfaces on its `value` property (or attribute as fallback).
-	 */
 	getValues(): Record< string, unknown > {
 		const out: Record< string, unknown > = {};
 		for ( const field of this._namedFields() ) {
@@ -340,12 +239,6 @@ export class OsForm extends Component {
 		return out;
 	}
 
-	/**
-	 * Apply a partial values map to the matching named fields.
-	 * Structured values are assigned to the value property without stringification.
-	 * Unknown names are skipped silently (fields may not be
-	 * mounted yet).
-	 */
 	setValues( patch: Record< string, unknown > ): void {
 		for ( const [ name, value ] of Object.entries( patch ) ) {
 			const field = this._fieldByName( name );
@@ -356,7 +249,6 @@ export class OsForm extends Component {
 		}
 	}
 
-	/** Toggle the busy attribute (also re-renders to refresh the spinner). */
 	setBusy( busy: boolean ): void {
 		if ( busy ) {
 			this.setAttribute( 'busy', '' );
@@ -365,10 +257,6 @@ export class OsForm extends Component {
 		}
 	}
 
-	/**
-	 * Set the top-of-form error banner. Pass `null` (or empty
-	 * string) to clear. Equivalent to setting the `error` attribute.
-	 */
 	setError( message: string | null ): void {
 		if ( message ) {
 			this.setAttribute( 'error', message );
@@ -377,14 +265,6 @@ export class OsForm extends Component {
 		}
 	}
 
-	/**
-	 * Mark a single field invalid (or clear it). Useful for
-	 * server-returned per-field errors — e.g. "username already
-	 * exists". The optional `message` is set via the field's
-	 * `error` attribute when supported (currently a no-op for
-	 * fields that don't render one — falls back to the `invalid`
-	 * highlight only).
-	 */
 	setFieldInvalid(
 		name: string,
 		invalid: boolean = true,
@@ -405,7 +285,6 @@ export class OsForm extends Component {
 		}
 	}
 
-	/** Clear the form-level error AND every per-field invalid mark. */
 	clearErrors(): void {
 		this.setError( null );
 		for ( const field of this._namedFields() ) {
@@ -414,10 +293,6 @@ export class OsForm extends Component {
 		}
 	}
 
-	/**
-	 * Restore every field to its initial value (the snapshot taken
-	 * at first connection). Fires `os-form-reset` afterwards.
-	 */
 	reset(): void {
 		this.clearErrors();
 		for ( const [ name, snap ] of this._initial.entries() ) {
@@ -445,21 +320,11 @@ export class OsForm extends Component {
 		);
 	}
 
-	/**
-	 * Programmatic submit. Same path the submit button + Enter key
-	 * take. Runs required-field validation, then dispatches a
-	 * cancellable `os-form-submit`.
-	 */
 	submit(): void {
-		// Guard synchronously: another Enter can arrive before the busy render.
 		if ( this.hasAttribute( 'busy' ) ) {
 			return;
 		}
 
-		// Validate `required` fields. Fields the host has explicitly
-		// marked invalid via `setFieldInvalid` are also tallied so
-		// the host gets a clear "you have outstanding errors" signal
-		// instead of the form silently re-firing submit.
 		const failures: string[] = [];
 		for ( const field of this._namedFields() ) {
 			const name = field.getAttribute( 'name' );
@@ -496,12 +361,7 @@ export class OsForm extends Component {
 			detail: { values, form: this },
 		} );
 		this.dispatchEvent( event );
-		// The form is intentionally a "transport" — it doesn't
-		// actually post anything. Cancellation is just convention
-		// for hosts that want to observe but not block.
 	}
-
-	// ─── Internals ───────────────────────────────────────────────────
 
 	private _captureInitialValues(): void {
 		if ( this._captured ) {
@@ -509,11 +369,6 @@ export class OsForm extends Component {
 		}
 		const fields = this._namedFields();
 		if ( fields.length === 0 ) {
-			// No fields yet (e.g. the framework is hydrating slotted
-			// children async). Bail without marking `_captured` —
-			// nothing re-schedules the capture within this connection,
-			// so late-mounted fields are not snapshotted; the next
-			// `connectedCallback` is the only retry.
 			return;
 		}
 		for ( const field of fields ) {
@@ -536,21 +391,12 @@ export class OsForm extends Component {
 	}
 
 	private _namedFields(): FieldElement[] {
-		// Walk the LIGHT DOM — slotted descendants. `<os-*>` web
-		// components live in the host's light tree (they don't get
-		// re-parented into our shadow), so `querySelectorAll` is
-		// the right tool here.
 		return Array.from(
 			this.querySelectorAll< FieldElement >( '[name]' ),
 		);
 	}
 
 	private _fieldByName( name: string ): FieldElement | null {
-		// Escape attribute selector to defend against names with
-		// quotes / special chars. Modern browsers expose CSS.escape
-		// for exactly this — we use a tiny manual fallback for
-		// environments (jsdom test envs) that historically lacked
-		// it, but every supported runtime today has it.
 		const safe =
 			typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
 				? CSS.escape( name )
@@ -559,9 +405,6 @@ export class OsForm extends Component {
 	}
 
 	private _readField( field: FieldElement ): unknown {
-		// Prefer the property-side `value`/`checked` so we get the
-		// authoritative current state — attribute-side reflection
-		// can lag a frame behind keystroke updates.
 		const tag = field.tagName.toUpperCase();
 		const isCheckbox =
 			tag === 'OS-SWITCH' ||
@@ -599,8 +442,7 @@ export class OsForm extends Component {
 			}
 			return;
 		}
-		// JS-only values (e.g. tag arrays) belong on the property, never in
-		// a string attribute. Let the component setter own its normalization.
+
 		if ( ( value !== null && typeof value === 'object' ) ||
 			( field.value !== null && typeof field.value === 'object' ) ) {
 			field.value = value;
@@ -620,10 +462,7 @@ export class OsForm extends Component {
 		if ( ! name ) {
 			return;
 		}
-		// Re-broadcast as a single bus event so hosts only need one
-		// listener for live validation. We DON'T stop the inner
-		// event — components like `<os-text-field>` still need it
-		// for their two-way reflection.
+
 		this.dispatchEvent(
 			new CustomEvent( 'os-form-input', {
 				bubbles: true,
@@ -636,8 +475,6 @@ export class OsForm extends Component {
 			} ),
 		);
 
-		// User just touched a previously-invalid field — relax the
-		// invalid flag so the error styling clears as they type.
 		if ( target.hasAttribute( 'invalid' ) ) {
 			target.removeAttribute( 'invalid' );
 		}

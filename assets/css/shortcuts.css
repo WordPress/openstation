@@ -1,16 +1,3 @@
-/*
- * Keyboard-shortcuts window.
- *
- * Styles the window `src/shortcuts.ts` paints. Reads the palette's
- * tokens rather than the admin bar's, which is what lets a desktop
- * theme reach it.
- *
- * Every colour resolves through `var( --os-ui-*, <literal> )`, and
- * each literal is the pre-brand WordPress-admin value. That is the
- * floor if the stylesheet fails to load, and it is what the Legacy
- * snapshot collected.
- */
-
 .os-shortcuts {
 	padding: 20px 22px;
 	color: var( --os-ui-fg, #1d2327 );
@@ -31,11 +18,6 @@
 	text-transform: uppercase;
 }
 
-/*
- * The table is the one piece of content here that can outgrow a narrow
- * window: four columns of prose. It scrolls inside its own box so the
- * window body never scrolls sideways as a whole.
- */
 .os-shortcuts__scroller {
 	overflow-x: auto;
 }
@@ -113,7 +95,7 @@
 	height: 20px;
 	padding: 0 5px;
 	border: 1px solid var( --os-ui-border-strong, rgba( 0, 0, 0, 0.18 ) );
-	/* Thicker bottom edge — the one cue that makes a box read as a key. */
+
 	border-bottom-width: 2px;
 	border-radius: 4px;
 	background: var( --os-ui-surface-elevated, #fff );

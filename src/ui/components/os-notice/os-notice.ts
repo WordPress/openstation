@@ -1,33 +1,3 @@
-/**
- * `<os-notice>` — full-width banner.
- *
- * The canonical place to surface a non-blocking, contextual message
- * inside a window — release notes, a setup nudge, a deprecation
- * warning, a "your trial expires in 3 days" reminder, etc. Five
- * built-in tones map to common UI semantics (`info`, `success`,
- * `warning`, `error`, `neutral`) and a close button is rendered by
- * default. Slotted content is HTML so plugins can include links and
- * basic formatting.
- *
- * Usage:
- *
- *   <os-notice tone="info" notice-id="my-plugin/welcome">
- *     Welcome to the plugin! <a href="…">Read the docs</a>.
- *   </os-notice>
- *
- *   <os-notice tone="warning" not-dismissible>
- *     Maintenance window in 10 minutes.
- *   </os-notice>
- *
- * Persistence: when `notice-id` is set, the dismissed state is stored
- * in `localStorage` under the key
- * `os-notice-dismissed:<userId>` (a JSON map of
- * `{ noticeId: true }`). On connection the component reads the map
- * and self-hides if already dismissed. Clearing the dismissal is the
- * `<os-notice>.undismiss()` instance method, or
- * `wp.os.undismissWindowNotice( id )` for code-registered notices.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { osIcon } from '../../icons';
 import { styles } from './os-notice.styles';
@@ -129,10 +99,6 @@ export class OsNotice extends Component {
 		}
 	}
 
-	/**
-	 * Imperatively dismiss the notice — hides the host and records
-	 * the dismissal in localStorage when `notice-id` is set.
-	 */
 	dismiss(): void {
 		this.hidden = true;
 		const id = this.getAttribute( 'notice-id' );
@@ -142,10 +108,6 @@ export class OsNotice extends Component {
 		this.emit( 'os-notice-dismiss', { noticeId: id ?? undefined } );
 	}
 
-	/**
-	 * Clear a previously recorded dismissal and re-show the notice.
-	 * Useful in tests and for "Show again" affordances.
-	 */
 	undismiss(): void {
 		const id = this.getAttribute( 'notice-id' );
 		if ( id ) {

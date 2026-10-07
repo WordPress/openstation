@@ -1,4 +1,3 @@
-/** Await the existing store's save lifecycle; never tell MIO an optimistic write saved. */
 import { settings } from './store';
 import type { OsSettingsState } from '../../../src/settings/types';
 import type { OsSettingsSaveLifecycleDetail } from '../../../src/settings/state';
@@ -8,7 +7,6 @@ export function saveForMio(
 	signal: AbortSignal,
 	expected?: Partial<OsSettingsState>,
 ): Promise<unknown> {
-	// Snapshot before the optimistic store update; later prompts already see the new state.
 	const before = JSON.parse( JSON.stringify( settings() ) ) as OsSettingsState;
 	return new Promise( ( resolve, reject ) => {
 		let done = false;
@@ -47,7 +45,7 @@ export function saveForMio(
 							JSON.stringify( current[ key as keyof OsSettingsState ] ) ===
 							JSON.stringify( value ),
 					);
-				// A previous in-flight write can finish while ours is queued.
+
 				const saved = detail.savedSettings;
 				const confirmed = saved && Object.entries( expected ?? current ).every(
 					( [ key, value ] ) => JSON.stringify( saved[ key as keyof OsSettingsState ] ) === JSON.stringify( value ),

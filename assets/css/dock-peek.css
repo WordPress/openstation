@@ -1,49 +1,9 @@
-/**
- * OpenStation — Dock Peek.
- *
- * Hover-reveal popover that fans out from a multi-instance dock tile.
- * Each card is styled as a miniature window — faux titlebar with
- * traffic-light dots + the page icon + the live window title, tinted
- * body with ghosted content lines. The trailing Ghost Card matches
- * the geometry but is dashed + breathing to announce itself as the
- * "open new" affordance.
- *
- * Click an instance card → `document.startViewTransition()` morphs
- * it into the focused window. Click the Ghost Card → same API
- * morphs it into the freshly-spawned window.
- *
- * Three motion layers:
- *   1. Tile lift     — the dock icon springs up + magnifies on hover.
- *   2. Card fan-out  — cards slide in staggered, with a subtle peel.
- *   3. Ghost pulse   — the trailing card breathes until hovered.
- *
- * @since 0.6.2
- */
-
-/* ──────────────────────────────────────────────────────────────────
-   Tile lift — applied to ANY dock tile on hover. Cheap and additive
-   to the existing dock styles; doesn't depend on the peek being
-   present (the icon should feel responsive even when there's no
-   peek to show).
-   ────────────────────────────────────────────────────────────────── */
-
 .os-dock__item-primary {
 	transition:
 		transform 240ms cubic-bezier( 0.34, 1.56, 0.64, 1 ),
 		filter 240ms ease-out;
 }
 
-/* Same two glyph/wash tokens as the base hover rule in dock.css —
- * this sheet re-states hover to add the lift and the drop shadow, and
- * it wins on specificity, so a theme that only reached the base rule
- * would see its colour vanish the moment the peek sheet loaded.
- *
- * `background-color`, not the `background` shorthand it used to be:
- * the shorthand also reset `background-image`, which erased the
- * DOCK_ITEM texture from under the cursor on any theme that ships
- * one. dock.css sets the resting wash as a colour for exactly this
- * reason — "so it composes with the texture rather than erasing it" —
- * and this rule quietly undid it on hover. */
 .os-dock__item:hover .os-dock__item-primary,
 .os-dock__item[data-peek-active] .os-dock__item-primary {
 	background-color: var(
@@ -67,10 +27,6 @@
 	}
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Popover surface — glass material, body-attached.
-   ────────────────────────────────────────────────────────────────── */
-
 .os-dock-peek {
 	position: fixed;
 	z-index: 999999;
@@ -90,16 +46,11 @@
 	display: flex;
 	flex-direction: column;
 	transition: opacity 160ms ease-out;
-	/* Default (left/right docks) — vertical column. The popover caps
-	   in height; cards scroll inside. */
+
 	max-height: min( 80vh, 480px );
 	max-width: min( 90vw, 320px );
 }
 
-/* Bottom-dock orientation: cards form a horizontal reel. The popover
-   caps in WIDTH instead of height, and the cards container scrolls
-   horizontally. Visually mirrors how taskbar-style docks work — a
-   row of mini-windows above the icon, not a stack. */
 .os-dock-peek[ data-orientation = "bottom" ] {
 	max-height: none;
 	max-width: min( 92vw, 920px );
@@ -109,17 +60,6 @@
 	opacity: 1;
 }
 
-/* Anchor flips by orientation. The popover's anchor point (the
-   coordinate set in JS) sits ON the tile edge; we translate from
-   there so the popover floats off-edge with a gap. The
-   `--peek-clamp-x/y` props are added by JS when the popover would
-   otherwise overflow the viewport — they nudge it inward without
-   losing the orientation translate.
-
-   Docks: top-aligned to the tile so the popover grows downward
-   when minimized cards expand. The old vertical-centre
-   anchor pushed the top edge into the browser's bar on growth.
-   Bottom dock: stays above the tile, growing upward. */
 .os-dock-peek[ data-orientation = "left" ] {
 	transform:
 		translate(
@@ -142,33 +82,21 @@
 		);
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Cards.
-   ────────────────────────────────────────────────────────────────── */
-
 .os-dock-peek__cards {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 	min-width: 280px;
-	/* Take up whatever vertical space the popover offers and scroll
-	   internally once the cards spill beyond it. Subtract the
-	   popover's padding so the scrollbar doesn't flush against the
-	   rounded outer edge. */
+
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
 	overflow-x: hidden;
-	/* Hide the scrollbar visually until hover — the peek surface is
-	   meant to feel weightless, not "yet another panel with a
-	   scrollbar." Falls back to the platform scrollbar where the
-	   custom-scrollbar pseudo isn't supported. */
+
 	scrollbar-width: thin;
 	scrollbar-color: rgba( 255, 255, 255, 0.18 ) transparent;
 }
 
-/* Bottom dock: cards lay out as a horizontal reel and scroll on the
-   X-axis instead of Y. */
 .os-dock-peek[ data-orientation = "bottom" ] .os-dock-peek__cards {
 	flex-direction: row;
 	min-width: 0;
@@ -178,17 +106,11 @@
 }
 
 .os-dock-peek[ data-orientation = "bottom" ] .os-dock-peek__card {
-	/* Bottom-dock cards are narrower than left/right dock cards —
-	   a horizontal reel reads better with thumbnail-shaped tiles
-	   (Mission Control / Stage Manager) than with full-width
-	   sidebar-shaped ones. flex: 0 0 auto so a long reel doesn't
-	   squish each card down to nothing. */
+
 	flex: 0 0 auto;
 	width: 200px;
 	min-height: 116px;
-	/* Cards translate from BELOW into the reel (towards the dock
-	   tile they peeled off of), so the directional motion still
-	   points back at the icon. */
+
 	transform: translateY( 10px ) scale( 0.96 );
 }
 
@@ -221,7 +143,7 @@
 }
 
 .os-dock-peek__card {
-	/* Card frame — looks like a tiny window. */
+
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -236,9 +158,7 @@
 	text-align: start;
 	cursor: pointer;
 	view-transition-name: var( --peek-card-vt-name, none );
-	/* Animation start state — cards begin slightly displaced toward
-	   the tile they "peeled off of". CSS resets to identity once the
-	   `--open` class on the parent triggers the transition. */
+
 	opacity: 0;
 	transform: translateX( -10px ) scale( 0.96 );
 	transition:
@@ -253,8 +173,6 @@
 	transform: translateX( 0 ) scale( 1 );
 }
 
-/* Aero Peek hover: accent border + glow on every previewed card, not
-   just minimumzd ones.*/
 .os-dock-peek__card--instance:hover {
 	border-color: var( --os-accent, #2271b1 );
 	box-shadow:
@@ -267,19 +185,12 @@
 	outline-offset: 2px;
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Mini-window chrome — instance card faux titlebar.
-   ────────────────────────────────────────────────────────────────── */
-
 .os-dock-peek__card-titlebar {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	padding: 8px 10px;
-	/* Use the live window's titlebar background so the mini-window
-	   reads as a faithful shrink of the real window. Falls back to a
-	   neutral translucent gradient when the variable isn't set (early
-	   load, theme without the token, tests). */
+
 	background: var(
 		--os-titlebar-bg-focused,
 		linear-gradient(
@@ -337,14 +248,6 @@
 	font-weight: 500;
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Mini-window body — tinted by the page hue, ghosted content lines.
-
-   The hue comes from `hashTitleToHue(window.id || title)`, so two
-   instances of the same page (`edit.php` and `edit.php-2`) read as
-   visually distinct without us having to invent unique colors.
-   ────────────────────────────────────────────────────────────────── */
-
 .os-dock-peek__card-body {
 	flex: 1 1 auto;
 	display: flex;
@@ -376,24 +279,11 @@
 	width: 70%;
 }
 
-/* Plugin-customized body — drop the default tinted background +
-   ghost-line padding so the plugin's own markup gets a clean canvas.
-   Plugins that want the tinted look back can re-add their own
-   background; otherwise they get a transparent flex container. */
 .os-dock-peek__card-body--custom {
 	background: transparent;
 	padding: 0;
 	gap: 0;
 }
-
-/* ──────────────────────────────────────────────────────────────────
-   Built-in renderer: OS Settings.
-
-   A big tinted hero icon + a phrase + a row of three tab-icon
-   chips representing the inner Settings tabs. Tinted with the
-   user's WP profile accent so the card "belongs" to the active
-   color scheme.
-   ────────────────────────────────────────────────────────────────── */
 
 .os-dock-peek__card-body--os-settings {
 	display: flex;
@@ -444,14 +334,6 @@
 	color: rgba( 255, 255, 255, 0.92 );
 	text-align: center;
 }
-
-/* ──────────────────────────────────────────────────────────────────
-   Built-in renderer: Recycle Bin.
-
-   Empty state: a single trash icon, dim. Full state: a stack of
-   three "slips" peeking from behind the icon + a count chip in the
-   corner. The `data-empty` attribute toggles between the two.
-   ────────────────────────────────────────────────────────────────── */
 
 .os-dock-peek__card-body--recycle-bin {
 	display: flex;
@@ -538,20 +420,6 @@
 	font-weight: 600;
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   Ghost Card — the "open new" affordance.
-
-   Same geometry as instance cards (so the fan reads as one stack)
-   but visually distinct via:
-     * Dashed border (vs solid)
-     * Lower base opacity
-     * Breathing pulse (slow scale + opacity loop)
-     * Centered "+" + label, no faux titlebar / body lines
-   On hover, the dashes resolve to a solid line, the pulse stops,
-   and opacity ramps to full — the card "solidifies" into the same
-   visual weight as an instance card.
-   ────────────────────────────────────────────────────────────────── */
-
 .os-dock-peek__card--ghost {
 	display: flex;
 	align-items: center;
@@ -562,11 +430,7 @@
 	padding: 16px;
 	border-style: dashed;
 	border-color: rgba( 255, 255, 255, 0.34 );
-	/* A self-contained dark translucent fill so the white label
-	   reads on light wallpapers / light color schemes too. The
-	   popover's parent surface uses `color-mix(--os-bg)`,
-	   which goes near-white on light themes — without our own
-	   backdrop the Ghost Card was white-on-white. */
+
 	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.32 ) );
 	color: var( --os-ui-fg-on-accent, #fff );
 	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.45 );
@@ -595,10 +459,7 @@
 	font-size: 22px;
 	line-height: 1;
 	font-weight: 300;
-	/* Slightly more presence than before (was 0.42 alpha). The
-	   "+" is the only glyph the user sees in the resting state,
-	   so it has to read at a glance even against the breathing
-	   pulse's lower-opacity moments. */
+
 	color: rgba( 255, 255, 255, 0.78 );
 	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.45 );
 	transition: color 160ms ease-out;
@@ -632,14 +493,6 @@
 	}
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   View Transitions — when supported, an instance card morphs into
-   its window on click (and the Ghost Card morphs into the new
-   spawned window). The transition group is named per-card via
-   `--peek-card-vt-name`, set in JS at click time so the source +
-   destination share an identity.
-   ────────────────────────────────────────────────────────────────── */
-
 @supports ( view-transition-name: none ) {
 	::view-transition-old( root ),
 	::view-transition-new( root ) {
@@ -648,7 +501,6 @@
 	}
 }
 
-/* Collapse minimized cards to just the titlebar. */
 .os-dock-peek__card[data-state="minimized"] {
 	min-height: 0;
 	opacity: 0.85;

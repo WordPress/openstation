@@ -1,4 +1,3 @@
-/** Limits mirror the PHP transport and count the actual serialized UTF-8 bytes. */
 import type { MioTurnRequest } from './types';
 
 export const MIO_REQUEST_LIMITS = Object.freeze( { prompt: 16000, transcript: 96000, tools: 96000, request: 220000 } );
@@ -14,7 +13,6 @@ export class MioBudgetError extends Error {
 	}
 }
 
-// PHP checks tool definitions after wp_json_encode (escaped Unicode and slashes).
 const phpJsonBytes = ( value: unknown ): string => JSON.stringify( value ).replace( /\//g, '\\/' ).replace( /[^\x00-\x7f]/g, ( character ) => `\\u${ character.charCodeAt( 0 ).toString( 16 ).padStart( 4, '0' ) }` );
 
 export function assertMioRequestBudget( request: MioTurnRequest ): void {

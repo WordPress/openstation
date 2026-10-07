@@ -1,8 +1,3 @@
-/**
- * Users — the strong-password generator the Add User form and the
- * profile form share: WP core's `wp_generate_password` character set
- * with symbols enabled.
- */
 export function generateStrongPassword( length: number ): string {
 	const all = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*-_=+';
 	const buf = new Uint32Array( length );

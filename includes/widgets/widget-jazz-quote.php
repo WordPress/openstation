@@ -1,21 +1,7 @@
 <?php
-/**
- * OpenStation — Jazz Quote Widget.
- *
- * A love letter to WordPress's jazz musician release naming tradition.
- * Shows the current WP version, its jazz musician codename, and a
- * rotating daily quote from that musician.
- *
- * Requires: OpenStation 0.18.0+ (openstation_register_widget).
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register JS + CSS assets.
- */
 function openstation_register_jazz_quote_widget_assets() {
 	$suffix  = openstation_asset_suffix();
 	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
@@ -40,18 +26,6 @@ function openstation_register_jazz_quote_widget_assets() {
 }
 add_action( 'init', 'openstation_register_jazz_quote_widget_assets', 5 );
 
-/**
- * Inline the WordPress version on the MAIN desktop shell script.
- *
- * Note that wp_add_inline_script() only outputs when the attached handle is
- * actually enqueued. The widget JS loads lazily via the shell's
- * server-sync, so attaching the inline script to the widget handle
- * would mean it never appears. Instead we attach it to the main
- * desktop handle which is always enqueued on shell pages.
- *
- * window.openStationJazzQuote is therefore available from page load,
- * before the widget bundle is ever fetched.
- */
 function openstation_jazz_quote_inline_version() {
 	if ( ! openstation_is_enabled() ) {
 		return;
@@ -71,9 +45,6 @@ function openstation_jazz_quote_inline_version() {
 }
 add_action( 'admin_enqueue_scripts', 'openstation_jazz_quote_inline_version', 15 );
 
-/**
- * Eagerly enqueue the CSS on shell pages.
- */
 function openstation_enqueue_jazz_quote_widget_styles() {
 	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
@@ -85,9 +56,6 @@ function openstation_enqueue_jazz_quote_widget_styles() {
 }
 add_action( 'admin_enqueue_scripts', 'openstation_enqueue_jazz_quote_widget_styles', 20 );
 
-/**
- * Register the widget definition.
- */
 function openstation_register_jazz_quote_widget() {
 	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;

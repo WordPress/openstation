@@ -1,15 +1,3 @@
-/**
- * OpenStation — Widget registry.
- *
- * Mirrors the wallpaper registry: in-memory seed list, `os.widgets`
- * filter applied on every read, register/unregister API, defensive
- * validation of plugin-supplied defs.
- *
- * Intentionally cache-free — the filter chain is shallow and
- * `all()` is called at most when the picker opens or the layer
- * rehydrates, never per-frame.
- */
-
 import { applyFilters, HOOKS } from '../hooks';
 import {
 	collectRegistrationErrors,
@@ -17,14 +5,8 @@ import {
 } from '../registration-errors';
 import type { WidgetDef } from './types';
 
-/** Seed list — mutated by `register`, reset only in tests. */
 const seed: WidgetDef[] = [];
 
-/**
- * Append (or replace) a widget definition. Late registrations win on
- * id conflict, matching WP's `register_*` semantics and letting
- * plugins override a built-in if they really want to.
- */
 export function register( def: WidgetDef ): void {
 	throwOnRegistrationErrors(
 		'Widget',
@@ -39,7 +21,6 @@ export function register( def: WidgetDef ): void {
 	}
 }
 
-/** Remove a widget definition by id. */
 export function unregister( id: string ): void {
 	const idx = seed.findIndex( ( w ) => w.id === id );
 	if ( idx >= 0 ) {
@@ -47,11 +28,6 @@ export function unregister( id: string ): void {
 	}
 }
 
-/**
- * Produce the current widget list with the `os.widgets`
- * filter applied. Copies the seed before passing so filter callbacks
- * can't mutate the registry by reference.
- */
 export function all(): WidgetDef[] {
 	const copy = seed.slice();
 	const filtered = applyFilters<WidgetDef[]>( HOOKS.WIDGETS, copy );
@@ -67,16 +43,10 @@ export function all(): WidgetDef[] {
 	return filtered.filter( isValidDef );
 }
 
-/** Look up a widget by id, post-filter. */
 export function get( id: string ): WidgetDef | undefined {
 	return all().find( ( w ) => w.id === id );
 }
 
-/**
- * Minimum-viable validation — enforces presence of the fields the
- * layer and picker actually touch. Deeper correctness is the plugin
- * author's responsibility past this boundary.
- */
 const WIDGET_CHECKS = [
 	{
 		field: 'id',

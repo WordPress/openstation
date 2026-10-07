@@ -1,13 +1,5 @@
 <?php
-/**
- * Tests for Phase-6 sharing visibility + Heartbeat delta.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-files
- */
+
 class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -23,13 +15,7 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		openstation_files_install_schema();
-		// Some tests in this class flip the OS-Settings kill switch
-		// user meta. WP_UnitTestCase rolls back the per-test
-		// transaction in tear_down — but tests in this class also
-		// TRUNCATE their own tables, which auto-commits and breaks
-		// the wrapping transaction. Belt-and-braces clear the
-		// kill-switch meta + object cache on entry to keep each test
-		// independent of the order it runs in.
+
 		foreach ( array( self::$owner_id, self::$editor_id, self::$subscriber_id ) as $uid ) {
 			delete_user_meta( $uid, OPENSTATION_OS_SETTINGS_META_KEY );
 			wp_cache_delete( $uid, 'user_meta' );
@@ -45,18 +31,12 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_files_compute_visible_folders
-	 */
 	public function test_private_folder_is_invisible_to_non_owner() {
 		openstation_files_create_folder( self::$owner_id, array( 'name' => 'Private' ) );
 		$visible = openstation_files_get_visible_folders( self::$editor_id );
 		$this->assertSame( array(), $visible );
 	}
 
-	/**
-	 * @covers ::openstation_files_compute_visible_folders
-	 */
 	public function test_all_share_mode_is_visible_to_anyone() {
 		$id = openstation_files_create_folder( self::$owner_id, array(
 			'name'       => 'Public',
@@ -67,14 +47,8 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertContains( $id, $ids );
 	}
 
-	/**
-	 * @covers ::openstation_files_compute_visible_folders
-	 */
 	public function test_users_share_mode_filters_by_id() {
-		// Canonical flow: invite + accept. The legacy
-		// `share_meta`-only shape is no longer a visibility source
-		// (was a real revocation-bypass bug; the JSON is now
-		// diagnostic-only on the folders row).
+
 		$id    = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Shared with editor' ) );
 		$share = openstation_folder_share_invite(
 			$id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
@@ -86,14 +60,8 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotContains( $id, $visible_to_sub );
 	}
 
-	/**
-	 * @covers ::openstation_files_compute_visible_folders
-	 */
 	public function test_roles_share_mode_filters_by_role() {
-		// Canonical flow: invite the role + each member accepts
-		// independently. Subscriber doesn't have `edit_posts`, so
-		// the default eligibility filter wouldn't let us invite
-		// `subscriber` as a role — use a second editor instead.
+
 		$other_editor = self::factory()->user->create( array( 'role' => 'editor' ) );
 		$id           = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Editors only' ) );
 		$share        = openstation_folder_share_invite(
@@ -107,9 +75,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotContains( $id, $visible_to_sub );
 	}
 
-	/**
-	 * @covers ::openstation_files_compute_visible_folders
-	 */
 	public function test_owner_always_sees_their_own() {
 		$id = openstation_files_create_folder( self::$owner_id, array(
 			'name'       => 'My folder',
@@ -119,9 +84,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertContains( $id, $visible );
 	}
 
-	/**
-	 * @covers ::openstation_files_compute_heartbeat_delta
-	 */
 	public function test_heartbeat_delta_returns_new_folders_since_version() {
 		$id = openstation_files_create_folder( self::$owner_id, array(
 			'name'       => 'Public',
@@ -137,7 +99,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$folder_ids = wp_list_pluck( $delta['folders'], 'id' );
 		$this->assertContains( $id, $folder_ids );
 
-		// Pretend the client has now seen this folder.
 		$delta2 = openstation_files_compute_heartbeat_delta(
 			self::$editor_id,
 			array( (string) $id => (int) $folder['updated_at_ms'] ),
@@ -147,9 +108,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( array(), $delta2['folders'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_compute_heartbeat_delta
-	 */
 	public function test_heartbeat_delta_includes_tombstones_after_remove() {
 		$post_id = self::factory()->post->create();
 		$pid = openstation_files_place( self::$owner_id, 0, 'post', (string) $post_id );
@@ -164,11 +122,8 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertContains( $pid, $delta['removed']['placements'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_compute_heartbeat_delta
-	 */
 	public function test_heartbeat_delta_truncated_flag() {
-		// Create more folders than the cap of 5.
+
 		for ( $i = 0; $i < 7; $i++ ) {
 			openstation_files_create_folder( self::$owner_id, array(
 				'name'       => 'F' . $i,
@@ -185,17 +140,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertCount( 5, $delta['folders'] );
 	}
 
-	/**
-	 * The placement shape must carry a `canTrash` flag that mirrors
-	 * the server's `openstation_files_user_can_trash_placement`
-	 * decision. The client uses this to hide the "Move to Trash"
-	 * menu item and to make the trash drop target reject the drag
-	 * — without it, a recipient of a shared folder would attempt to
-	 * trash the owner's placement and only see a 403 logged to the
-	 * console.
-	 *
-	 * @covers ::openstation_files_shape_placement
-	 */
 	public function test_shape_placement_carries_can_trash_for_share_recipient() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -209,7 +153,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// Owner drops a post into the shared folder.
 		$post_id = self::factory()->post->create( array(
 			'post_status' => 'publish',
 			'post_author' => self::$owner_id,
@@ -223,7 +166,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotInstanceOf( WP_Error::class, $placement_id );
 		$row = openstation_files_get_placement( (int) $placement_id );
 
-		// Owner is the placement owner — must be allowed to trash.
 		wp_set_current_user( self::$owner_id );
 		$owner_shape = openstation_files_shape_placement( $row );
 		$this->assertTrue(
@@ -231,7 +173,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'Owner should be allowed to trash their own placement.'
 		);
 
-		// Recipient with read-only share — must NOT be allowed.
 		wp_set_current_user( self::$editor_id );
 		$recipient_shape = openstation_files_shape_placement( $row );
 		$this->assertFalse(
@@ -240,21 +181,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The recipient's root placement of a READ-ONLY shared folder
-	 * must report `canTrash: false`. The client uses this to hide
-	 * the "Move to Trash" tile-menu item and to reject the trash
-	 * drop target — the user is expected to use "Leave shared
-	 * folder" instead (which fires the share-leave flow, not a
-	 * destructive trash).
-	 *
-	 * Writers (recipients with `write` capability) keep the
-	 * default ownership-based behavior, since they can already
-	 * mutate the folder's contents.
-	 *
-	 * @covers ::openstation_files_share_gate_trash
-	 * @covers ::openstation_files_shape_placement
-	 */
 	public function test_root_shared_folder_placement_can_trash_respects_capability() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -268,8 +194,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// `accept` placed the folder at the recipient's desktop
-		// root (parent_id=0). Find that row.
 		$rows = openstation_files_get_for_user_folder( self::$editor_id, 0 );
 		$folder_placements = array_values( array_filter(
 			$rows,
@@ -279,7 +203,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotEmpty( $folder_placements, 'Accept should have placed the folder at recipient root.' );
 		$root_row = $folder_placements[ 0 ];
 
-		// READ-only recipient — must NOT be allowed to trash.
 		wp_set_current_user( self::$editor_id );
 		$shape = openstation_files_shape_placement( $root_row );
 		$this->assertFalse(
@@ -287,12 +210,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'Read-only recipient must not be allowed to trash the root shared-folder tile; they should use "Leave shared folder" instead.'
 		);
 
-		// Promoting the recipient to WRITE must not re-enable
-		// trash on the root placement — the rule is "any non-owner
-		// recipient uses Leave instead of Trash", regardless of
-		// capability. Trashing your root placement is semantically
-		// "leave", and forcing it through the leave flow keeps the
-		// share-state cleanup paired with the placement removal.
 		openstation_folder_share_update_capability( $share_id, self::$owner_id, 'write' );
 		$shape_writer = openstation_files_shape_placement( $root_row );
 		$this->assertFalse(
@@ -300,9 +217,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'Writer recipient still cannot trash their root placement — the correct action is "Leave shared folder".'
 		);
 
-		// Owner of the folder is unaffected — they trash their
-		// OWN placement of their OWN folder via the default
-		// ownership path.
 		$owner_placement_id = openstation_files_place(
 			self::$owner_id,
 			0,
@@ -319,15 +233,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Running `install_schema` twice in a row must not produce
-	 * "Table … already exists" errors. Reproduces a tester-reported
-	 * fatal: dbDelta's `DESCRIBE`-based existence check can return
-	 * empty for the shares table under certain MySQL configurations,
-	 * causing it to fall back to a bare CREATE that blows up.
-	 *
-	 * @covers ::openstation_files_install_schema
-	 */
 	public function test_install_schema_is_idempotent_on_repeated_calls() {
 		global $wpdb;
 		$show_prev = $wpdb->show_errors( false );
@@ -335,8 +240,7 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		openstation_files_install_schema();
 		$first_error = (string) $wpdb->last_error;
 		$wpdb->last_error = '';
-		// Second call mimics a plugin re-activation or an
-		// admin_init re-trigger after the option was cleared.
+
 		delete_option( OPENSTATION_FILES_SCHEMA_OPTION );
 		openstation_files_install_schema();
 		$second_error = (string) $wpdb->last_error;
@@ -349,14 +253,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Owner deletes a folder that has active shares: every share
-	 * row + every per-user decision + every recipient's root
-	 * placement of that folder must be cleaned up, with tombstones
-	 * so heartbeat tells connected clients the tile is gone.
-	 *
-	 * @covers ::openstation_files_delete_folder
-	 */
 	public function test_delete_folder_cascade_revokes_shares_and_recipient_placements() {
 		global $wpdb;
 		$tables = openstation_files_table_names();
@@ -364,11 +260,7 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
 		) );
-		// Second user-principal recipient via a second editor —
-		// `subscriber` / `author` lack `edit_posts` so they aren't
-		// eligible for invites by default. The cascade logic is
-		// indifferent to principal type, so two user-principals
-		// give the test the coverage it needs.
+
 		$second_editor = self::factory()->user->create( array( 'role' => 'editor' ) );
 		$user_share = openstation_folder_share_invite(
 			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
@@ -379,11 +271,8 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		openstation_folder_share_accept( $user_share, self::$editor_id );
 		openstation_folder_share_accept( $role_share, $second_editor );
 
-		// Recipients now have root placements of the folder. Owner
-		// also has their own placement (for symmetry).
 		$owner_placement = openstation_files_place( self::$owner_id, 0, 'folder', (string) $folder_id );
 
-		// Sanity: pointing placements exist for every party.
 		$pointing_before = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$tables['placements']}
@@ -395,13 +284,11 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 
 		openstation_files_delete_folder( $folder_id, self::$owner_id );
 
-		// Folder row gone.
 		$this->assertNull(
 			openstation_files_get_folder( $folder_id ),
 			'Folder row should be deleted.'
 		);
 
-		// Every pointing placement gone.
 		$pointing_after = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$tables['placements']}
@@ -411,7 +298,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		$this->assertSame( 0, $pointing_after, 'No placement should still point at the deleted folder.' );
 
-		// Every share row gone.
 		$share_rows = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$tables['shares']} WHERE folder_id = %d",
@@ -420,7 +306,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		$this->assertSame( 0, $share_rows, 'All shares for the deleted folder should be revoked.' );
 
-		// Every decision row gone.
 		$decision_rows = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$tables['decisions']} WHERE share_id IN (%d, %d)",
@@ -430,7 +315,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		$this->assertSame( 0, $decision_rows, 'All per-user decisions for the deleted folder should be gone.' );
 
-		// Heartbeat tells the recipient the placement is gone.
 		$delta = openstation_files_compute_heartbeat_delta(
 			self::$editor_id, array(), 0, 200
 		);
@@ -441,14 +325,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Owner deletes a non-shared PARENT that contains a SHARED
-	 * sub-folder. The cascade must reach the sub-folder and revoke
-	 * its shares too — recipients of the sub-folder lose access in
-	 * the same step.
-	 *
-	 * @covers ::openstation_files_delete_folder
-	 */
 	public function test_delete_parent_cascades_into_shared_subfolder() {
 		global $wpdb;
 		$tables = openstation_files_table_names();
@@ -459,14 +335,14 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$shared_sub_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Shared sub',
 		) );
-		// Place the sub-folder INSIDE the parent (owner's view).
+
 		openstation_files_place(
 			self::$owner_id,
 			$parent_id,
 			'folder',
 			(string) $shared_sub_id
 		);
-		// Share the sub-folder with editor.
+
 		$sub_share = openstation_folder_share_invite(
 			$shared_sub_id,
 			self::$owner_id,
@@ -478,14 +354,13 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 
 		openstation_files_delete_folder( $parent_id, self::$owner_id );
 
-		// Parent gone.
 		$this->assertNull( openstation_files_get_folder( $parent_id ) );
-		// Cascade: shared sub-folder also gone.
+
 		$this->assertNull(
 			openstation_files_get_folder( $shared_sub_id ),
 			'Cascade must delete the shared sub-folder when its owner-side parent is deleted.'
 		);
-		// Sub-folder's shares revoked.
+
 		$share_rows = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$tables['shares']} WHERE folder_id = %d",
@@ -495,25 +370,15 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( 0, $share_rows );
 	}
 
-	/**
-	 * A sub-folder owned by SOMEONE ELSE (e.g. a write recipient
-	 * who created their own folder inside a shared folder) must NOT
-	 * be cascade-deleted when the parent goes away. Only the
-	 * containment-placement is removed; the sub-folder survives so
-	 * its own owner can still reach it via their other placements.
-	 *
-	 * @covers ::openstation_files_delete_folder
-	 */
 	public function test_delete_parent_leaves_other_owner_subfolder_intact() {
 		$parent_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Workspace',
 		) );
-		// Editor (write recipient hypothetically) owns a folder.
+
 		$other_id = openstation_files_create_folder( self::$editor_id, array(
 			'name' => 'Editor folder',
 		) );
-		// Editor's folder ends up placed inside the owner's parent
-		// (rare but legal — e.g. through a future move flow).
+
 		openstation_files_place(
 			self::$editor_id,
 			$parent_id,
@@ -523,22 +388,14 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 
 		openstation_files_delete_folder( $parent_id, self::$owner_id );
 
-		// Parent gone.
 		$this->assertNull( openstation_files_get_folder( $parent_id ) );
-		// Editor's folder STILL EXISTS.
+
 		$this->assertNotNull(
 			openstation_files_get_folder( $other_id ),
 			'Cascade must NOT delete sub-folders owned by another user.'
 		);
 	}
 
-	/**
-	 * Renaming a folder must propagate to every placement that
-	 * points at it so connected clients see the new title on the
-	 * next heartbeat tick — no F5 required.
-	 *
-	 * @covers ::openstation_files_update_folder
-	 */
 	public function test_rename_folder_bumps_pointing_placements() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Old name',
@@ -548,20 +405,16 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// Baseline heartbeat for the recipient.
 		$baseline = openstation_files_compute_heartbeat_delta(
 			self::$editor_id, array(), 0, 200
 		);
 		$baseline_ts = (int) $baseline['serverTimeMs'];
 		usleep( 5000 );
 
-		// Owner renames.
 		openstation_files_update_folder( $folder_id, self::$owner_id, array(
 			'name' => 'New name',
 		) );
 
-		// Next heartbeat must re-deliver the recipient's placement
-		// of the folder with the fresh title.
 		$delta = openstation_files_compute_heartbeat_delta(
 			self::$editor_id,
 			array( (string) $folder_id => openstation_files_now_ms() ),
@@ -582,20 +435,8 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( 'New name', $folder_placement['file']['title'] );
 	}
 
-	/**
-	 * The v10 `updated_by` column means the If-Match 409 conflict
-	 * response names the SESSION that won the race, not the row's
-	 * static owner. Reviewer-flagged misattribution: in a shared
-	 * folder where User A owns the folder and User B (writer) moves
-	 * a placement, User C must see "User B moved this" — not "User
-	 * A moved this" (which is what the old `owner_id` fallback would
-	 * have said).
-	 *
-	 * @covers ::openstation_files_move
-	 * @covers ::openstation_files_check_if_match
-	 */
 	public function test_updated_by_attributes_conflict_to_mutator_not_row_owner() {
-		// Owner = $owner_id, writer recipient = $editor_id.
+
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
 		) );
@@ -604,20 +445,12 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// Owner places a post in the shared folder. Owner is the
-		// row's `owner_id` (creator).
 		$post_id  = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$pid      = (int) openstation_files_place( self::$owner_id, $folder_id, 'post', (string) $post_id );
 		$original = openstation_files_get_placement( $pid );
 
-		// `now_ms` has 1 ms precision and PHPUnit tests fire fast
-		// enough that consecutive calls inside the same millisecond
-		// can collide. Sleep 2 ms so the move's `updated_at_ms` is
-		// strictly greater than the placement's original.
 		usleep( 2000 );
 
-		// Writer recipient moves the placement. `updated_by` flips
-		// to the editor; `owner_id` stays as the row creator.
 		openstation_files_move( $pid, self::$editor_id, array( 'x' => 50, 'y' => 100 ) );
 		$after = openstation_files_get_placement( $pid );
 		$this->assertSame(
@@ -631,13 +464,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'owner_id (row creator) is unchanged by a move.'
 		);
 
-		// A third viewer's stale `If-Match` (pointing at the
-		// pre-move updated_at_ms) must surface a 409 whose actor is
-		// the editor, not the owner. The viewer here is the FOLDER
-		// OWNER (themselves a writer on the row, just attempting a
-		// concurrent PATCH) — they're in scope to learn the actor's
-		// identity, so the PII gate lets the name
-		// through.
 		wp_set_current_user( self::$owner_id );
 		$req = new WP_REST_Request( 'PATCH' );
 		$req->set_header( 'if_match', (string) $original['updated_at_ms'] );
@@ -651,23 +477,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	// -----------------------------------------------------------------
-	// Path independence — the sharer's location vs the recipient's
-	// location are decoupled. Both can move the folder around their
-	// own desktop without touching the other side; the share's
-	// permission contract is on the FOLDER, not on where the folder
-	// happens to be placed.
-	// -----------------------------------------------------------------
-
-	/**
-	 * Owner shares a folder that lives INSIDE another (non-shared)
-	 * folder. The recipient's placement of it must land at the
-	 * recipient's desktop ROOT (parent_id=0), not buried inside the
-	 * owner's parent folder — the recipient doesn't have access to
-	 * that parent and couldn't reach the share otherwise.
-	 *
-	 * @covers ::openstation_folder_share_accept
-	 */
 	public function test_shared_subfolder_lands_at_recipient_root() {
 		$parent_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Workspace',
@@ -675,21 +484,19 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$sub_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
 		) );
-		// Owner places the sub-folder INSIDE the parent. Owner sees
-		// Workspace → Marketing.
+
 		openstation_files_place(
 			self::$owner_id,
 			$parent_id,
 			'folder',
 			(string) $sub_id
 		);
-		// Owner shares ONLY the sub-folder.
+
 		$share_id = openstation_folder_share_invite(
 			$sub_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// Recipient's root must contain the sub-folder placement.
 		$root_rows = openstation_files_get_for_user_folder( self::$editor_id, 0 );
 		$folder_refs = array_map(
 			static fn( $r ) => (string) $r['file_ref'],
@@ -700,7 +507,7 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			$folder_refs,
 			'Shared sub-folder must appear at recipient root regardless of where the owner has it placed.'
 		);
-		// Recipient must NOT have a placement of the OWNER's parent.
+
 		$this->assertNotContains(
 			(string) $parent_id,
 			$folder_refs,
@@ -708,13 +515,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Owner moving the folder around their own desktop (e.g. from
-	 * root into another folder, or from one parent to another) must
-	 * NOT touch the recipient's placement — locations are per-user.
-	 *
-	 * @covers ::openstation_files_move
-	 */
 	public function test_owner_moving_shared_folder_does_not_touch_recipient_placement() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -725,7 +525,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// Snapshot recipient's placement BEFORE the owner moves.
 		$before = openstation_files_get_for_user_folder( self::$editor_id, 0 );
 		$recipient_row_before = null;
 		foreach ( $before as $r ) {
@@ -735,7 +534,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		}
 		$this->assertNotNull( $recipient_row_before );
 
-		// Owner now moves the folder into a new container they own.
 		$container_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Container',
 		) );
@@ -743,7 +541,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'parent_id' => $container_id,
 		) );
 
-		// Recipient's placement is untouched.
 		$after = openstation_files_get_for_user_folder( self::$editor_id, 0 );
 		$recipient_row_after = null;
 		foreach ( $after as $r ) {
@@ -763,15 +560,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( 0, (int) $recipient_row_after['parent_id'] );
 	}
 
-	/**
-	 * The recipient must be able to move their own placement around
-	 * (e.g. into one of their own folders) without affecting the
-	 * owner — and without losing access to the folder's contents,
-	 * write capability if granted, or any of the live-sync plumbing.
-	 *
-	 * @covers ::openstation_files_move
-	 * @covers ::openstation_folder_share_user_capability
-	 */
 	public function test_recipient_can_move_shared_folder_into_their_own_folder() {
 		$shared_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -781,12 +569,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// Recipient creates their own container folder at THEIR root.
 		$recipient_folder = openstation_files_create_folder( self::$editor_id, array(
 			'name' => "Editor's stuff",
 		) );
 
-		// Find recipient's placement of the shared folder.
 		$root_rows = openstation_files_get_for_user_folder( self::$editor_id, 0 );
 		$placement_id = 0;
 		foreach ( $root_rows as $r ) {
@@ -797,21 +583,14 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		}
 		$this->assertNotSame( 0, $placement_id );
 
-		// Move the shared placement into recipient's own folder.
-		// Write cap is required to move into a folder — and the
-		// recipient owns the destination, so it's allowed.
 		$moved = openstation_files_move( $placement_id, self::$editor_id, array(
 			'parent_id' => $recipient_folder,
 		) );
 		$this->assertNotInstanceOf( WP_Error::class, $moved );
 
-		// Recipient still has write cap on the shared folder — the
-		// share is on the folder, not on where it's placed.
 		$cap = openstation_folder_share_user_capability( $shared_id, self::$editor_id );
 		$this->assertSame( 'write', $cap );
 
-		// Recipient navigates INTO their own container and finds
-		// the shared folder there.
 		$container_rows = openstation_files_get_for_user_folder( self::$editor_id, $recipient_folder );
 		$found = false;
 		foreach ( $container_rows as $r ) {
@@ -824,9 +603,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			"Recipient should see the shared folder inside their own container after the move."
 		);
 
-		// Recipient enters the shared folder — contents are visible
-		// regardless of where the folder lives in their hierarchy.
-		// Sanity-add a file as the owner; recipient must see it.
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		openstation_files_place(
 			self::$owner_id, $shared_id, 'post', (string) $post_id
@@ -835,8 +611,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$post_refs = array_map( static fn( $r ) => (string) $r['file_ref'], $shared_contents );
 		$this->assertContains( (string) $post_id, $post_refs );
 
-		// Recipient adds their own file (writer cap) — works because
-		// write cap is on the folder, not on the path.
 		$own_post_id = self::factory()->post->create( array(
 			'post_status' => 'publish',
 			'post_author' => self::$editor_id,
@@ -847,15 +621,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotInstanceOf( WP_Error::class, $placement_for_add );
 	}
 
-	/**
-	 * Cascade through a SHARED sub-folder: owner has A → B → C, the
-	 * cascade from C walks the OWNER's canonical chain so the
-	 * recipient who has access to B inherits access to C through
-	 * the share cascade, regardless of where B is placed in
-	 * recipient's own hierarchy.
-	 *
-	 * @covers ::openstation_folder_share_user_capability
-	 */
 	public function test_cascade_grants_access_to_subfolders_of_shared_folder() {
 		$shared_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Workspace',
@@ -863,7 +628,7 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$nested_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Inside',
 		) );
-		// Owner places nested INSIDE shared.
+
 		openstation_files_place( self::$owner_id, $shared_id, 'folder', (string) $nested_id );
 
 		$share_id = openstation_folder_share_invite(
@@ -871,15 +636,11 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// Cascade grants access to nested via the shared ancestor.
 		$cap_shared = openstation_folder_share_user_capability( $shared_id, self::$editor_id );
 		$cap_nested = openstation_folder_share_user_capability( $nested_id, self::$editor_id );
 		$this->assertSame( 'write', $cap_shared );
 		$this->assertSame( 'write', $cap_nested, 'Cascade should grant the recipient access to sub-folders of the shared folder.' );
 
-		// Owner moves nested OUT of shared (to root). Recipient
-		// loses access to nested because the cascade chain is
-		// broken — but RETAINS access to shared itself.
 		$nested_placements = openstation_files_get_for_user_folder( self::$owner_id, $shared_id );
 		$nested_pid = 0;
 		foreach ( $nested_placements as $r ) {
@@ -902,19 +663,8 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Cascade capability lookup must collapse to a constant number
-	 * of queries regardless of ancestor chain depth. The pre-batched
-	 * implementation issued up to two queries per ancestor (32 at
-	 * the 16-level cap). The batched version uses at most three.
-	 *
-	 * Owns its own assertion budget — counts queries fired between
-	 * the snapshot and the lookup call, then guards with a hard cap.
-	 *
-	 * @covers ::openstation_folder_share_user_capability_cascade
-	 */
 	public function test_cascade_capability_is_batched_into_few_queries() {
-		// Build a deep chain: root → A → B → C → D → leaf.
+
 		$root  = openstation_files_create_folder( self::$owner_id, array( 'name' => 'root' ) );
 		$a     = openstation_files_create_folder( self::$owner_id, array( 'name' => 'a' ) );
 		$b     = openstation_files_create_folder( self::$owner_id, array( 'name' => 'b' ) );
@@ -927,8 +677,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		openstation_files_place( self::$owner_id, $c,    'folder', (string) $d );
 		openstation_files_place( self::$owner_id, $d,    'folder', (string) $leaf );
 
-		// Share the root with editor. Cascade should grant access
-		// to leaf via 5 ancestors.
 		$share = openstation_folder_share_invite(
 			$root, self::$owner_id, 'user', (string) self::$editor_id, 'write'
 		);
@@ -940,12 +688,7 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$fired  = $wpdb->num_queries - $before;
 
 		$this->assertSame( 'write', $cap, 'Cascade through 5 ancestors must inherit write.' );
-		// Ancestor walk itself fires up to 2 queries per level (one
-		// folder fetch, one placement lookup). The cascade resolver
-		// on top adds at most 3 batched queries — independent of
-		// chain length. 5 levels × 2 + 3 = 13. Pad to 20 to absorb
-		// per-test cache warmth without losing the regression
-		// signal (the old code would have fired 30–40+ here).
+
 		$this->assertLessThanOrEqual(
 			20,
 			$fired,
@@ -953,23 +696,12 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Per-user kill switch via OS Settings — flipping
-	 * `foldersSharingEnabled` to `false` must stop the heartbeat
-	 * from delivering `shares.pending` to that user, even when an
-	 * invite is actually pending in the database.
-	 *
-	 * @covers ::openstation_files_sharing_enabled_for
-	 * @covers ::openstation_files_compute_heartbeat_delta
-	 */
 	public function test_folder_sharing_kill_switch_suppresses_heartbeat_payload() {
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'X' ) );
 		openstation_folder_share_invite(
 			$folder, self::$owner_id, 'user', (string) self::$editor_id, 'read'
 		);
 
-		// Default — sharing enabled. Heartbeat surfaces the pending
-		// invite.
 		$delta = openstation_files_compute_heartbeat_delta(
 			self::$editor_id, array(), 0, 200
 		);
@@ -978,7 +710,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'Default-on sharing must surface pending invites in the heartbeat delta.'
 		);
 
-		// User flips sharing off in OS Settings.
 		update_user_meta(
 			self::$editor_id,
 			OPENSTATION_OS_SETTINGS_META_KEY,
@@ -995,14 +726,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Pending invites are seeded into the shell config on every
-	 * admin page render so the accept/deny modal opens immediately
-	 * on refresh instead of waiting for the first heartbeat tick to
-	 * deliver them.
-	 *
-	 * @covers ::openstation_files_share_inject_shell_config
-	 */
 	public function test_shell_config_seeds_pending_invites_for_recipient() {
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Brief' ) );
 		openstation_folder_share_invite(
@@ -1020,19 +743,11 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( 'Brief', $invite['folderName'] );
 		$this->assertSame( (int) self::$owner_id, (int) $invite['ownerId'] );
 
-		// Owner doesn't see their own invite seed (it's the recipient's pending list).
 		wp_set_current_user( self::$owner_id );
 		$config = apply_filters( 'openstation_shell_config', array() );
 		$this->assertSame( array(), $config['serverPendingShares'] );
 	}
 
-	/**
-	 * Recipients who flipped the kill switch off must not get pending
-	 * invites in the shell config either — same guarantee as the
-	 * heartbeat path.
-	 *
-	 * @covers ::openstation_files_share_inject_shell_config
-	 */
 	public function test_shell_config_kill_switch_suppresses_pending_invites() {
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Y' ) );
 		openstation_folder_share_invite(
@@ -1049,25 +764,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( array(), $config['serverPendingShares'] );
 	}
 
-	/**
-	 * Admin purge endpoint drops the shares + decisions tables
-	 * (and any future variant a filter registers), clears the
-	 * schema-version option so they get recreated on next admin
-	 * load.
-	 *
-	 * @covers ::openstation_files_rest_purge_sharing_tables
-	 */
 	public function test_purge_sharing_tables_drops_and_clears_version() {
 		$tables = openstation_files_table_names();
 
-		// Seed the tables with some data so we can verify the
-		// purge actually removed it — checking
-		// INFORMATION_SCHEMA in WP-test-transactional contexts is
-		// flaky (DDL auto-commits but the test wrapper's
-		// SAVEPOINT shenanigans can leave the catalog view
-		// behind). Asserting the dropped payload + cleared option
-		// + the inability to query the table proves the contract
-		// without depending on catalog timing.
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'X' ) );
 		openstation_folder_share_invite(
 			$folder, self::$owner_id, 'user', (string) self::$editor_id, 'read'
@@ -1079,29 +778,12 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			? $response->get_data()
 			: $response;
 
-		// Both expected tables in the dropped list.
 		$this->assertContains( $tables['shares'], $data['dropped'] );
 		$this->assertContains( $tables['decisions'], $data['dropped'] );
 
-		// Schema option cleared so the next admin-init re-runs
-		// install_schema and recreates the empty tables.
 		$this->assertSame( '', (string) get_option( OPENSTATION_FILES_SCHEMA_OPTION, '' ) );
 	}
 
-	/**
-	 * Share-mutation routes (`PATCH/DELETE/accept/deny`) must honor
-	 * the `{folder_id}` segment of the URL. A share id that exists
-	 * on a different folder than the URL claims must 404 — the
-	 * routes are hierarchical and a request to
-	 * `/folders/{A}/shares/{share_belonging_to_B}` is semantically
-	 * a wrong URL.
-	 *
-	 * @covers ::openstation_files_rest_resolve_share_in_folder
-	 * @covers ::openstation_files_rest_update_share
-	 * @covers ::openstation_files_rest_delete_share
-	 * @covers ::openstation_files_rest_accept_share
-	 * @covers ::openstation_files_rest_deny_share
-	 */
 	public function test_share_routes_reject_folder_id_mismatch() {
 		$folder_a = openstation_files_create_folder( self::$owner_id, array( 'name' => 'A' ) );
 		$folder_b = openstation_files_create_folder( self::$owner_id, array( 'name' => 'B' ) );
@@ -1111,7 +793,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 
 		wp_set_current_user( self::$owner_id );
 
-		// PATCH /folders/{B}/shares/{share_on_A} — mismatch.
 		$req = new WP_REST_Request( 'PATCH', "/desktop-mode/v1/files/folders/{$folder_b}/shares/{$share_a}" );
 		$req['id']      = $folder_b;
 		$req['shareId'] = $share_a;
@@ -1120,7 +801,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertWPError( $res );
 		$this->assertSame( 'openstation_files_not_found', $res->get_error_code() );
 
-		// DELETE /folders/{B}/shares/{share_on_A} — same.
 		$req = new WP_REST_Request( 'DELETE', "/desktop-mode/v1/files/folders/{$folder_b}/shares/{$share_a}" );
 		$req['id']      = $folder_b;
 		$req['shareId'] = $share_a;
@@ -1128,7 +808,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertWPError( $res );
 		$this->assertSame( 'openstation_files_not_found', $res->get_error_code() );
 
-		// Accept / deny under a mismatched folder also reject.
 		wp_set_current_user( self::$editor_id );
 		$req = new WP_REST_Request( 'POST', "/desktop-mode/v1/files/folders/{$folder_b}/shares/{$share_a}/accept" );
 		$req['id']      = $folder_b;
@@ -1140,20 +819,11 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$req['shareId'] = $share_a;
 		$this->assertWPError( openstation_files_rest_deny_share( $req ) );
 
-		// Sanity: the share is untouched on folder A — still pending.
 		$row = openstation_files_get_share( $share_a );
 		$this->assertSame( 'pending', $row['state'] );
 		$this->assertSame( 'read', $row['capability'] );
 	}
 
-	/**
-	 * The user-search response must not expose `user_login` (the
-	 * auth credential). The disambiguation handle is `user_nicename`
-	 * via the `slug` field — same shape WP's own `/wp/v2/users`
-	 * surfaces publicly.
-	 *
-	 * @covers ::openstation_files_rest_search_users
-	 */
 	public function test_user_search_does_not_leak_user_login() {
 		wp_set_current_user( self::$owner_id );
 		$req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/users/search' );
@@ -1168,14 +838,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * The picker lists eligible people only, and ineligible accounts
-	 * sorting first must not use up its page: with the eligibility
-	 * applied after the LIMIT, 20 Subscribers named "Aaron …" left
-	 * the picker empty.
-	 *
-	 * @covers ::openstation_files_rest_search_users
-	 */
 	public function test_user_search_skips_agents_and_fills_page_past_ineligible_users() {
 		for ( $i = 0; $i < 22; $i++ ) {
 			self::factory()->user->create(
@@ -1203,23 +865,13 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotContains( $agent_id, $ids );
 	}
 
-	/**
-	 * A malicious or misconfigured filter on
-	 * `openstation_files_sharing_tables_for_purge` must not be able
-	 * to drop arbitrary tables. The purge endpoint validates every
-	 * entry against an identifier regex AND the wpdb prefix —
-	 * anything that fails the validation lands in `skipped` and is
-	 * never interpolated into a `DROP TABLE` statement.
-	 *
-	 * @covers ::openstation_files_rest_purge_sharing_tables
-	 */
 	public function test_purge_filter_rejects_unsafe_table_names() {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
 		$filter = static function ( $tables ) use ( $prefix ) {
-			$tables[] = $prefix . "fake; DROP TABLE {$prefix}users; --"; // sql injection
-			$tables[] = 'evil';                                          // missing prefix
-			$tables[] = $prefix . "users' OR '1";                        // special chars
+			$tables[] = $prefix . "fake; DROP TABLE {$prefix}users; --";
+			$tables[] = 'evil';
+			$tables[] = $prefix . "users' OR '1";
 			return $tables;
 		};
 		add_filter( 'openstation_files_sharing_tables_for_purge', $filter );
@@ -1232,24 +884,16 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			? $response->get_data()
 			: $response;
 
-		// All three malicious entries land in `skipped`, never dropped.
 		$this->assertSame( 3, count( $data['skipped'] ) );
 		foreach ( $data['skipped'] as $skipped ) {
 			$this->assertNotContains( $skipped, $data['dropped'] );
 		}
-		// Critical: the users table is still here.
+
 		$users_table = $wpdb->users;
 		$row = $wpdb->get_var( "SELECT COUNT(*) FROM {$users_table}" );
 		$this->assertNotNull( $row, 'wp_users must survive a malicious filter.' );
 	}
 
-	/**
-	 * Plugin authors must be able to veto a folder delete from
-	 * `openstation_files_can_delete_folder`. The veto should keep
-	 * the folder + every share row intact.
-	 *
-	 * @covers ::openstation_files_delete_folder
-	 */
 	public function test_can_delete_folder_filter_veto_blocks_cascade() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Important',
@@ -1274,13 +918,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The cascade-delete must fire per-share
-	 * `openstation_files_share_revoked` actions AND a single
-	 * `openstation_files_after_delete_folder_cascade` summary.
-	 *
-	 * @covers ::openstation_files_delete_folder
-	 */
 	public function test_cascade_fires_share_revoked_and_summary_actions() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -1329,13 +966,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertCount( 2, $summary_captured['shares_revoked'] );
 	}
 
-	/**
-	 * Renaming a folder must fire `openstation_folder_renamed`
-	 * with both the new and old names so plugins can audit /
-	 * broadcast / refresh other surfaces.
-	 *
-	 * @covers ::openstation_files_update_folder
-	 */
 	public function test_rename_fires_folder_renamed_action() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Old name',
@@ -1357,16 +987,8 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( self::$owner_id, $captured['uid'] );
 	}
 
-	/**
-	 * Reproduces the reported regression: owner adds a NEW file
-	 * to an already-shared folder, recipient's next heartbeat
-	 * delta must include the new placement.
-	 *
-	 * @covers ::openstation_files_compute_heartbeat_delta
-	 */
 	public function test_heartbeat_surfaces_new_file_added_to_shared_folder() {
-		// 1) Owner creates a folder, invites editor (user-principal),
-		//    editor accepts.
+
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing assets',
 		) );
@@ -1380,9 +1002,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$accepted = openstation_folder_share_accept( $share_id, self::$editor_id );
 		$this->assertNotInstanceOf( WP_Error::class, $accepted );
 
-		// 2) Snapshot the heartbeat high-water at "now" — emulates
-		//    the recipient having already synced everything up to
-		//    this point.
 		$first = openstation_files_compute_heartbeat_delta(
 			self::$editor_id,
 			array(),
@@ -1391,13 +1010,8 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		$baseline_high_water = (int) $first['serverTimeMs'];
 
-		// Small sleep so the new placement's updated_at_ms is
-		// strictly greater than the baseline.
 		usleep( 5000 );
 
-		// 3) Owner adds a brand-new file (a post) to the shared
-		//    folder. This is the exact action the user reported
-		//    not propagating to recipients.
 		$post_id = self::factory()->post->create( array(
 			'post_status' => 'publish',
 			'post_author' => self::$owner_id,
@@ -1410,9 +1024,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		$this->assertNotInstanceOf( WP_Error::class, $placement_id );
 
-		// 4) Recipient's next heartbeat — should pick up the new
-		//    placement because its parent_id is a visible folder
-		//    and its updated_at_ms is fresher than the high-water.
 		$delta = openstation_files_compute_heartbeat_delta(
 			self::$editor_id,
 			array( (string) $folder_id => openstation_files_now_ms() ),
@@ -1427,34 +1038,11 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Reproduces the user-reported "new file added to shared folder
-	 * doesn't appear in the recipient's open folder until F5" bug.
-	 *
-	 * Combined scenario the user actually hit:
-	 *   - Owner invites the recipient via BOTH user-principal AND
-	 *     role-principal (same recipient, same folder).
-	 *   - Recipient accepts (user-principal flips to accepted).
-	 *   - Owner drops a new link into the shared folder.
-	 *
-	 * Expectations:
-	 *   1. REST listing of the folder contents (what F5 reloads)
-	 *      must include the new link — this is what makes the file
-	 *      appear after F5 today.
-	 *   2. The recipient's next heartbeat delta — without
-	 *      F5 — must ALSO include the new placement so the open
-	 *      folder window repaints live. This is the half the user
-	 *      reports as broken.
-	 *
-	 * @covers ::openstation_files_get_for_user_folder
-	 * @covers ::openstation_files_compute_heartbeat_delta
-	 */
 	public function test_new_file_in_shared_folder_visible_via_rest_and_heartbeat_with_both_principals() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
 		) );
 
-		// Both invites for the same recipient.
 		$user_share = openstation_folder_share_invite(
 			$folder_id,
 			self::$owner_id,
@@ -1469,11 +1057,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'editor',
 			'read'
 		);
-		// Recipient accepts via user-principal.
+
 		openstation_folder_share_accept( $user_share, self::$editor_id );
 
-		// Capture baseline heartbeat — emulates the recipient having
-		// already synced everything before the owner adds the file.
 		$first = openstation_files_compute_heartbeat_delta(
 			self::$editor_id,
 			array(),
@@ -1483,7 +1069,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$baseline_high_water = (int) $first['serverTimeMs'];
 		usleep( 5000 );
 
-		// Owner adds a new link to the shared folder.
 		$link_id = openstation_files_place(
 			self::$owner_id,
 			$folder_id,
@@ -1493,7 +1078,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		$this->assertNotInstanceOf( WP_Error::class, $link_id );
 
-		// 1) REST contents listing must include the new link.
 		$rows = openstation_files_get_for_user_folder( self::$editor_id, $folder_id );
 		$ids  = array_map( static fn( $r ) => (int) $r['id'], $rows );
 		$this->assertContains(
@@ -1502,7 +1086,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'Recipient REST listing of the shared folder must include the newly-placed link.'
 		);
 
-		// 2) Heartbeat delta must surface the same placement live.
 		$delta = openstation_files_compute_heartbeat_delta(
 			self::$editor_id,
 			array( (string) $folder_id => openstation_files_now_ms() ),
@@ -1517,13 +1100,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The other direction: the owner lists what a writer put in
-	 * their shared folder. The placements belong to the folder, not
-	 * to whoever placed them, for the owner as for every recipient.
-	 *
-	 * @covers ::openstation_files_get_for_user_folder
-	 */
 	public function test_owner_lists_what_a_writer_added_to_their_shared_folder() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -1550,19 +1126,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Reproduces the user-reported "shared folder disappears after
-	 * refresh" bug end-to-end. The trigger is the leave → re-accept
-	 * cycle: each leave used to write a tombstone for the
-	 * recipient's still-existing placement row, and the
-	 * re-acceptance reuses the same row id. The next heartbeat tick
-	 * then sends the placement as both an upsert AND in
-	 * `removed.placements`; the client applies upserts first, then
-	 * removals, so the folder vanishes on every tick.
-	 *
-	 * @covers ::openstation_files_compute_heartbeat_delta
-	 * @covers ::openstation_files_trash_folder_for_user
-	 */
 	public function test_leave_then_reaccept_does_not_send_active_placement_as_removed() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -1576,12 +1139,8 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// Recipient leaves the share — soft-trashes their placement.
 		openstation_folder_share_leave( $folder_id, self::$editor_id );
 
-		// Owner re-invites and recipient re-accepts. The accept path
-		// reuses the soft-trashed placement row (same id) via the
-		// duplicate-key handler in `openstation_files_place`.
 		$share_id2 = openstation_folder_share_invite(
 			$folder_id,
 			self::$owner_id,
@@ -1591,9 +1150,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id2, self::$editor_id );
 
-		// Fresh heartbeat with placementsVersion=0 (recipient just
-		// refreshed). The placement must NOT appear in
-		// `removed.placements` since it was just restored.
 		$delta = openstation_files_compute_heartbeat_delta(
 			self::$editor_id,
 			array(),
@@ -1612,20 +1168,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * Reproduces a user-reported bug: after the owner drops a URL
-	 * (`link` file type) into the shared folder, the FOLDER itself
-	 * vanishes from the recipient's desktop on refresh.
-	 *
-	 * Verifies:
-	 *   - the recipient's root listing still returns the folder
-	 *     placement after the new link is added; and
-	 *   - the folder remains in `openstation_files_get_visible_folders`
-	 *     for the recipient.
-	 *
-	 * @covers ::openstation_files_get_for_user_folder
-	 * @covers ::openstation_files_get_visible_folders
-	 */
 	public function test_adding_link_to_shared_folder_keeps_folder_visible_to_recipient() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Shared with links',
@@ -1639,7 +1181,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		openstation_folder_share_accept( $share_id, self::$editor_id );
 
-		// Sanity: recipient sees the folder at their root before the link.
 		$before_root = openstation_files_get_for_user_folder( self::$editor_id, 0 );
 		$folder_refs_before = array_map(
 			static fn( $p ) => (string) $p['file_ref'],
@@ -1654,7 +1195,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'Recipient should see shared folder at root before link is added.'
 		);
 
-		// Owner drops a URL into the shared folder.
 		$link_id = openstation_files_place(
 			self::$owner_id,
 			$folder_id,
@@ -1664,7 +1204,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 		$this->assertNotInstanceOf( WP_Error::class, $link_id );
 
-		// Recipient refreshes — folder must still be at root.
 		$after_root = openstation_files_get_for_user_folder( self::$editor_id, 0 );
 		$folder_refs_after = array_map(
 			static fn( $p ) => (string) $p['file_ref'],
@@ -1679,8 +1218,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'Recipient should still see shared folder at root after owner drops a link inside.'
 		);
 
-		// And it must still be in the visible-folders set the heartbeat
-		// uses to gate placement deltas.
 		$visible_ids = wp_list_pluck(
 			openstation_files_get_visible_folders( self::$editor_id ),
 			'id'
@@ -1692,12 +1229,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Same scenario but for a role-principal share. Editor was
-	 * granted access via the `editor` role, not by user id.
-	 *
-	 * @covers ::openstation_files_compute_heartbeat_delta
-	 */
 	public function test_heartbeat_surfaces_new_file_for_role_principal_recipient() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Editors workspace',

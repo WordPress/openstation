@@ -1,40 +1,7 @@
 <?php
-/**
- * Tile stylesheet cascade order.
- *
- * `desktop-files.css` declares the canonical `.os-file-tile` chrome —
- * `position: absolute`, a fixed 88x104 box, a 48px visual. Surfaces
- * that reuse `<os-tile>` in a different layout override those
- * declarations from their own stylesheet, and they do it at EQUAL
- * specificity (`.os-my-wordpress__media-tile` vs `.os-file-tile`).
- *
- * Equal specificity means the later stylesheet wins, so "later" has to
- * be guaranteed rather than assumed. It is not guaranteed by enqueue
- * priority: `WP_Dependencies::all_deps()` walks the queue in order and
- * pushes each handle's dependencies ahead of it, so a handle enqueued
- * at priority 5 that depends on a tile-restyling stylesheet drags that
- * stylesheet into `$to_do` before `openstation_enqueue_assets()` (at
- * priority 10) ever gets to enqueue `os-files`.
- *
- * That is not hypothetical. `os-my-wordpress-woocommerce` is enqueued
- * at priority 5 and depends on `desktop-mode-my-wordpress`; on a store
- * it printed `my-wordpress.css` first, `desktop-files.css` second, and
- * every tile in the Explorer's Media grid went back to
- * `position: absolute` with no offsets — the whole grid stacked in one
- * corner, one icon over another.
- *
- * The fix is a declared dependency. These tests hold it, and the last
- * one generalises it to any future stylesheet that touches a tile.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-tile-styles
- */
+
 class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 
-	/** Handle that declares the canonical tile chrome. */
 	const TILE_CHROME_HANDLE = 'os-files';
 
 	public function set_up() {
@@ -42,12 +9,6 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 		$this->ensure_styles_registered();
 	}
 
-	/**
-	 * The plugin registers its handles on `init`, which has already
-	 * fired by the time a test runs — but a sibling test class may
-	 * have emptied the registry, so re-run the registrars when the
-	 * handles we care about are gone.
-	 */
 	private function ensure_styles_registered() {
 		if ( wp_style_is( self::TILE_CHROME_HANDLE, 'registered' )
 			&& wp_style_is( 'desktop-mode-my-wordpress', 'registered' ) ) {
@@ -61,14 +22,6 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * Every handle `$handle` depends on, directly or through another
-	 * dependency.
-	 *
-	 * @param string $handle Style handle.
-	 * @param array  $seen   Recursion guard.
-	 * @return string[] Dependency handles.
-	 */
 	private function transitive_deps( $handle, &$seen = array() ) {
 		$styles = wp_styles();
 		if ( isset( $seen[ $handle ] ) || ! isset( $styles->registered[ $handle ] ) ) {
@@ -84,13 +37,6 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 		return array_values( array_unique( $deps ) );
 	}
 
-	/**
-	 * Local filesystem path for a style registered from this plugin,
-	 * or an empty string for core / third-party handles.
-	 *
-	 * @param string $handle Style handle.
-	 * @return string Absolute path, or '' when the handle isn't ours.
-	 */
 	private function plugin_css_path( $handle ) {
 		$styles = wp_styles();
 		if ( ! isset( $styles->registered[ $handle ] ) ) {
@@ -105,27 +51,11 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 		return file_exists( $path ) ? $path : '';
 	}
 
-	/**
-	 * CSS with comments stripped, so a `.os-file-tile` mentioned in a
-	 * docblock doesn't read as a rule that restyles one.
-	 *
-	 * @param string $path Absolute path to a stylesheet.
-	 * @return string
-	 */
 	private function css_without_comments( $path ) {
-		$css = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local test fixture read, not an HTTP request.
+		$css = (string) file_get_contents( $path );
 		return (string) preg_replace( '#/\*.*?\*/#s', '', $css );
 	}
 
-	/**
-	 * Order the handles would print in, given a queue.
-	 *
-	 * Mirrors what `WP_Styles::do_items()` does: resolve the queue
-	 * through `all_deps()` and read back `$to_do`.
-	 *
-	 * @param string[] $queue Handles in enqueue order.
-	 * @return string[] Handles in print order.
-	 */
 	private function print_order( array $queue ) {
 		$styles        = wp_styles();
 		$saved_to_do   = $styles->to_do;
@@ -142,13 +72,6 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 		return $order;
 	}
 
-	// --------------------------------------------------------------
-	// The declared dependency
-	// --------------------------------------------------------------
-
-	/**
-	 * @covers ::openstation_my_wordpress_register_assets
-	 */
 	public function test_my_wordpress_style_declares_the_tile_chrome_dependency() {
 		$this->assertContains(
 			self::TILE_CHROME_HANDLE,
@@ -157,15 +80,6 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 		);
 	}
 
-	// --------------------------------------------------------------
-	// The order that dependency buys
-	// --------------------------------------------------------------
-
-	/**
-	 * The plain case: the shell enqueues `os-files` first, the window
-	 * stylesheet later. This order was always fine — pinned so the
-	 * hostile case below can be read as the delta.
-	 */
 	public function test_tile_chrome_prints_before_the_window_stylesheet() {
 		$order = $this->print_order(
 			array( self::TILE_CHROME_HANDLE, 'desktop-mode-my-wordpress' )
@@ -178,14 +92,6 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The regression: a companion stylesheet enqueued EARLIER than the
-	 * shell's own assets, declaring the window stylesheet as its
-	 * dependency. This is the WooCommerce integration's shape
-	 * (`admin_enqueue_scripts` priority 5, deps
-	 * `desktop-mode-my-wordpress`), and before the declared dependency
-	 * it inverted the cascade.
-	 */
 	public function test_tile_chrome_still_prints_first_when_a_dependent_is_enqueued_ahead_of_the_shell() {
 		wp_register_style(
 			'os-test-my-wordpress-companion',
@@ -194,8 +100,6 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 			'1.0.0'
 		);
 
-		// Priority 5 companion, then the shell's priority 10 batch,
-		// then the window's own priority 30 enqueue.
 		$order = $this->print_order(
 			array(
 				'os-test-my-wordpress-companion',
@@ -218,16 +122,6 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 		wp_deregister_style( 'os-test-my-wordpress-companion' );
 	}
 
-	// --------------------------------------------------------------
-	// The general invariant
-	// --------------------------------------------------------------
-
-	/**
-	 * Any of the plugin's own stylesheets that writes a rule against
-	 * `.os-file-tile` is restyling a tile, and therefore has to print
-	 * after the file that declares one. Generalises the two tests
-	 * above to stylesheets that don't exist yet.
-	 */
 	public function test_every_stylesheet_that_restyles_a_tile_depends_on_the_tile_chrome() {
 		$offenders = array();
 

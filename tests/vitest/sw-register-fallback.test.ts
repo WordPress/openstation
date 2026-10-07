@@ -1,13 +1,3 @@
-/**
- * Extensionless SW registration fallback.
- *
- * Some hosts' web servers (WordPress.com) 404 virtual `.js` paths
- * before WordPress runs, so registering the pretty `/openstation/sw.js`
- * URL throws. `registerServiceWorker` must retry once with
- * `config.swFallbackUrl` (`/?openstation_sw=1`), and a SW registered
- * through the fallback must not be mistaken for a foreign worker on the
- * next boot.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	_resetSwRegistration,
@@ -129,10 +119,7 @@ describe( 'registerServiceWorker extensionless fallback', () => {
 	} );
 
 	test( 'a stale legacy own SW (old portal path) is replaced, not treated as foreign', async () => {
-		// The pre-portal-move endpoint. It now 404s server-side, so
-		// this worker can never self-update — the registration below
-		// must recognize it as our own and replace it by registering
-		// the current URL at the same scope.
+
 		const legacy: RegistrationLike = {
 			scope: '/',
 			active: {

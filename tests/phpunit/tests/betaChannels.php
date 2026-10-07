@@ -1,32 +1,10 @@
 <?php
-/**
- * Tests for the OpenStation Beta companion plugin's build discovery
- * and target resolution (extensions/openstation-beta/).
- *
- * The companion is a standalone plugin that is not loaded by the test
- * bootstrap — its include files are required directly below. All
- * GitHub traffic is mocked through `pre_http_request`; the asset
- * existence probe is mocked through its dedicated
- * `openstation_beta_pre_probe_assets` seam (the parallel probe path
- * talks to the Requests library directly and would bypass
- * `pre_http_request`).
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group openstation-beta
- */
+
 class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $subscriber_id;
 
-	/**
-	 * URLs the HTTP mock has served, in order.
-	 *
-	 * @var string[]
-	 */
 	protected $requested_urls = array();
 
 	public static function set_up_before_class() {
@@ -47,8 +25,7 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
-		// `update_plugins` is super-admin-only on multisite, and the
-		// beta installer swaps plugin files, which are network-wide.
+
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -62,10 +39,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 			delete_transient( 'openstation_beta_' . $key );
 		}
 	}
-
-	// -----------------------------------------------------------------
-	// Fixtures.
-	// -----------------------------------------------------------------
 
 	protected static function sha( $char ) {
 		return str_repeat( $char, 40 );
@@ -112,13 +85,13 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 					'sha' => self::sha( 'b' ),
 				),
 			),
-			// Malformed: no head SHA — must be dropped.
+
 			array(
 				'number' => 503,
 				'title'  => 'Broken payload',
 				'head'   => array( 'ref' => 'broken' ),
 			),
-			// Malformed: SHA is not 40 hex chars — must be dropped.
+
 			array(
 				'number' => 504,
 				'title'  => 'Bad sha',
@@ -143,11 +116,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Route mocked HTTP by URL substring. Unmatched URLs 404.
-	 *
-	 * @param array $routes Map url-substring → response array.
-	 */
 	protected function mock_http( $routes ) {
 		add_filter(
 			'pre_http_request',
@@ -165,11 +133,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Mock the asset existence probe.
-	 *
-	 * @param array $map Map asset name → bool.
-	 */
 	protected function mock_probe( $map ) {
 		add_filter(
 			'openstation_beta_pre_probe_assets',
@@ -178,10 +141,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 			}
 		);
 	}
-
-	// -----------------------------------------------------------------
-	// Discovery.
-	// -----------------------------------------------------------------
 
 	public function test_fetch_open_prs_maps_fields_and_drops_malformed_entries() {
 		$this->mock_http( array( '/pulls?' => self::json_response( 200, self::pr_fixture() ) ) );
@@ -276,10 +235,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 		$this->assertWPError( $prs );
 		$this->assertSame( 'openstation_beta_github_http', $prs->get_error_code() );
 	}
-
-	// -----------------------------------------------------------------
-	// Assembled state.
-	// -----------------------------------------------------------------
 
 	public function test_state_marks_build_readiness_per_pr() {
 		$this->mock_http(
@@ -390,10 +345,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 		$this->assertSame( self::sha( 'c' ), $state['current']['update']['sha'] );
 	}
 
-	// -----------------------------------------------------------------
-	// Target resolution.
-	// -----------------------------------------------------------------
-
 	public function test_resolve_target_pr_with_ready_build() {
 		$this->mock_http( array( '/pulls?' => self::json_response( 200, self::pr_fixture() ) ) );
 		$this->mock_probe( array( 'pr-501-' . self::sha( 'a' ) . '.zip' => true ) );
@@ -453,18 +404,12 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_beta_bad_source', $target->get_error_code() );
 	}
 
-	// -----------------------------------------------------------------
-	// Dev-checkout guard.
-	// -----------------------------------------------------------------
-
 	public function test_dev_checkout_marker_detects_worktree_git_file() {
 		$dir = get_temp_dir() . 'dmb-clean-' . uniqid();
 		mkdir( $dir );
 
 		$this->assertSame( '', openstation_beta_dev_checkout_marker( $dir ), 'A bare directory is not a checkout.' );
 
-		// Git worktrees have a plain-file .git, not a directory — the
-		// marker check must catch both.
 		file_put_contents( $dir . '/.git', 'gitdir: /elsewhere/.git/worktrees/x' );
 		$this->assertSame( '.git', openstation_beta_dev_checkout_marker( $dir ) );
 
@@ -474,9 +419,7 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 	}
 
 	public function test_wp_env_mount_is_detected_as_dev_checkout() {
-		// The tests instance bind-mounts this repository as the
-		// desktop-mode plugin directory — the exact hazard the guard
-		// exists for, so it must fire right here.
+
 		$this->assertNotSame( '', openstation_beta_dev_checkout_marker() );
 
 		$blocked = openstation_beta_install_blocked();
@@ -504,9 +447,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 
 		$this->assertNull( openstation_beta_install_blocked() );
 
-		// With the override on, the switch proceeds past the guard into
-		// target resolution — prove it by making GitHub fail and
-		// asserting the error is the resolver's, not the guard's.
 		$this->mock_http( array( '/releases/latest' => self::json_response( 403, array() ) ) );
 		$result = openstation_beta_switch( 'stable', '' );
 		$this->assertWPError( $result );
@@ -527,10 +467,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 		$this->assertSame( 'dev-checkout', $state['install_blocked']['code'] );
 		$this->assertNotSame( '', $state['install_blocked']['reason'] );
 	}
-
-	// -----------------------------------------------------------------
-	// Guards.
-	// -----------------------------------------------------------------
 
 	public function test_auto_updates_blocked_only_while_beta_build_installed() {
 		$item  = (object) array( 'plugin' => OPENSTATION_BETA_TARGET_PLUGIN );

@@ -1,8 +1,3 @@
-/**
- * Tests for the stored-upload menu wiring: Download on upload
- * tiles, zip download on folders (gated on server ZipArchive),
- * owner-vs-recipient share entries, and download-URL minting.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 

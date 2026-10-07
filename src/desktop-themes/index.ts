@@ -1,15 +1,3 @@
-/**
- * Desktop themes — public entry point for the module.
- *
- * A desktop theme reskins the entire shell from a ZIP of a manifest
- * plus images: every `--os-*` token, the title-bar / dock
- * / desktop textures, the window frame and corners, and a complete
- * iconset down to the window control glyphs.
- *
- * Not to be confused with WINDOW themes (`src/window-chrome/themes/`),
- * which restyle one window's chrome. See docs/desktop-themes.md.
- */
-
 export { applyDesktopTheme, DESKTOP_THEME_CHANGED_EVENT } from './apply';
 export type { DesktopThemeChangedDetail } from './apply';
 export { resolveThemedIcon } from './icons';

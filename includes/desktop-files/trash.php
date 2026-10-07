@@ -1,48 +1,7 @@
 <?php
-/**
- * OpenStation — Files-on-the-Desktop trash + restore + purge.
- *
- * Both placements and folders soft-trash before they ever hit the
- * physical row delete. Trashed rows live in the same tables (with
- * `trashed_at_ms` / `trashed_by` columns set; `trashed_via_folder`
- * on placements when the trash cascaded from a folder), so:
- *
- *   - Active queries always filter `trashed_at_ms IS NULL`.
- *   - The recycle bin lists `trashed_at_ms IS NOT NULL`.
- *   - Restore is a single column flip; no row resurrection.
- *   - Folder restore brings back its trashed-via-cascade children
- *     by their `trashed_via_folder` marker, so the original layout
- *     is preserved with no fuzzy time-window heuristics.
- *
- * Every public function gates on a permission filter and emits
- * before/after actions. Plugins can:
- *
- *   - Veto any trash / restore / purge (`*_user_can_*` filters).
- *   - Observe any state transition (`*_before_*` / `*_after_*`).
- *   - React to recycle-bin list / restore / purge of the new types
- *     via the existing recycle-bin hooks (`openstation_recycle_bin_*`).
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/*
-================================================================== *
- *  Capability gates.
- * ==================================================================
- */
-
-/**
- * Default ownership check shared by every trash / restore / purge
- * capability gate: the acting user must be the row's `owner_id`.
- *
- * @access private
- *
- * @param int   $user_id Acting user.
- * @param array $row     Placement or folder row.
- * @return bool
- */
 function openstation_files_user_owns_row( $user_id, $row ) {
 	$user_id = (int) $user_id;
 	return ( $user_id > 0 )
@@ -50,22 +9,8 @@ function openstation_files_user_owns_row( $user_id, $row ) {
 		&& (int) $row['owner_id'] === $user_id;
 }
 
-/**
- * Whether the given user can trash a placement they own. Defaults
- * to ownership; plugins can broaden via filter.
- *
- * @param int   $user_id Acting user.
- * @param array $row     Placement row (raw from DB or normalized).
- * @return bool
- */
 function openstation_files_user_can_trash_placement( $user_id, $row ) {
-	/**
-	 * Filter whether the user can trash this placement.
-	 *
-	 * @param bool  $can     Default: ownership match.
-	 * @param int   $user_id Acting user.
-	 * @param array $row     Placement row.
-	 */
+
 	return (bool) apply_filters(
 		'openstation_files_user_can_trash_placement',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -74,19 +19,8 @@ function openstation_files_user_can_trash_placement( $user_id, $row ) {
 	);
 }
 
-/**
- * Whether the given user can restore a trashed placement.
- *
- * @param int   $user_id Acting user.
- * @param array $row     Placement row (already trashed).
- * @return bool
- */
 function openstation_files_user_can_restore_placement( $user_id, $row ) {
-	/**
-	 * @param bool  $can
-	 * @param int   $user_id
-	 * @param array $row
-	 */
+
 	return (bool) apply_filters(
 		'openstation_files_user_can_restore_placement',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -95,15 +29,8 @@ function openstation_files_user_can_restore_placement( $user_id, $row ) {
 	);
 }
 
-/**
- * Whether the given user can permanently purge a trashed placement.
- */
 function openstation_files_user_can_purge_placement( $user_id, $row ) {
-	/**
-	 * @param bool  $can
-	 * @param int   $user_id
-	 * @param array $row
-	 */
+
 	return (bool) apply_filters(
 		'openstation_files_user_can_purge_placement',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -112,15 +39,8 @@ function openstation_files_user_can_purge_placement( $user_id, $row ) {
 	);
 }
 
-/**
- * Whether the given user can trash a folder. Default: folder owner.
- */
 function openstation_files_user_can_trash_folder( $user_id, $row ) {
-	/**
-	 * @param bool  $can
-	 * @param int   $user_id
-	 * @param array $row
-	 */
+
 	return (bool) apply_filters(
 		'openstation_files_user_can_trash_folder',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -129,15 +49,8 @@ function openstation_files_user_can_trash_folder( $user_id, $row ) {
 	);
 }
 
-/**
- * Whether the given user can restore a trashed folder.
- */
 function openstation_files_user_can_restore_folder( $user_id, $row ) {
-	/**
-	 * @param bool  $can
-	 * @param int   $user_id
-	 * @param array $row
-	 */
+
 	return (bool) apply_filters(
 		'openstation_files_user_can_restore_folder',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -146,15 +59,8 @@ function openstation_files_user_can_restore_folder( $user_id, $row ) {
 	);
 }
 
-/**
- * Whether the given user can permanently purge a trashed folder.
- */
 function openstation_files_user_can_purge_folder( $user_id, $row ) {
-	/**
-	 * @param bool  $can
-	 * @param int   $user_id
-	 * @param array $row
-	 */
+
 	return (bool) apply_filters(
 		'openstation_files_user_can_purge_folder',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -163,48 +69,12 @@ function openstation_files_user_can_purge_folder( $user_id, $row ) {
 	);
 }
 
-/*
-================================================================== *
- *  Ancestry snapshot + resurrection.
- *
- *  When a placement is soft-trashed we capture every folder in
- *  its parent chain into a JSON blob on `placements.trashed_meta`.
- *  Restoring later walks that chain top-down: folders that are
- *  still alive are reused, trashed folders cascade-restore, and
- *  hard-deleted folders are recreated (with new ids; the chain is
- *  rewritten as it walks). The placement comes back at the same
- *  visual position inside the (possibly resurrected) parent.
- * ==================================================================
- */
-
-/**
- * Walk up `$parent_id` through the folders + placements tables and
- * return the parent chain root-first.
- *
- * Each entry shape:
- *
- *     array(
- *         'folder_id'           => int,
- *         'folder_name'         => string,
- *         'folder_share_mode'   => string,
- *         'folder_share_meta'   => array|null,
- *         'folder_owner_id'     => int,
- *         'placement_parent_id' => int, // parent of this folder's placement
- *         'placement_x'         => int,
- *         'placement_y'         => int,
- *     )
- *
- * Returns `[]` for a root-level placement (`$parent_id === 0`).
- *
- * @param int $parent_id Immediate parent folder id.
- * @return array<int, array<string, mixed>>
- */
 function openstation_files_capture_ancestry( $parent_id ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
 	$chain  = array();
 	$cursor = (int) $parent_id;
-	$guard  = 0; // depth-bound — defends against accidental cycles.
+	$guard  = 0;
 	while ( $cursor > 0 && $guard < 32 ) {
 		++$guard;
 		$folder = $wpdb->get_row(
@@ -217,9 +87,7 @@ function openstation_files_capture_ancestry( $parent_id ) {
 		if ( ! $folder ) {
 			break;
 		}
-		// The folder's "where I sit on the desktop tree" lives on
-		// its placement row. Pick any active or trashed placement
-		// of this folder — we just need its parent_id + (x, y).
+
 		$placement      = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT parent_id, x, y FROM {$tables['placements']}
@@ -241,47 +109,30 @@ function openstation_files_capture_ancestry( $parent_id ) {
 			'placement_x'         => $placement ? (int) $placement['x'] : 0,
 			'placement_y'         => $placement ? (int) $placement['y'] : 0,
 		);
-		array_unshift( $chain, $entry ); // root-first.
+		array_unshift( $chain, $entry );
 		$cursor = $entry['placement_parent_id'];
 	}
 	return $chain;
 }
 
-/**
- * Walk an ancestry snapshot top-down and return the resolved
- * leaf folder id — every missing or trashed folder along the way
- * is resurrected. The map of `original_id => resolved_id` lets
- * downstream entries rewrite their `placement_parent_id` so a
- * deeper folder lands inside the correct (possibly recreated)
- * parent.
- *
- * @param int   $user_id  Acting user (used as owner for any
- *                        recreated folder).
- * @param array $ancestry Root-first chain captured at trash time.
- * @return int Resolved leaf parent id (0 when the placement was
- *             at desktop root).
- */
 function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 	if ( empty( $ancestry ) ) {
 		return 0;
 	}
 	$user_id  = (int) $user_id;
-	$id_map   = array(); // original_id => resolved_id.
+	$id_map   = array();
 	$resolved = 0;
 	foreach ( $ancestry as $entry ) {
 		$orig_id  = (int) $entry['folder_id'];
 		$orig_par = (int) $entry['placement_parent_id'];
-		// Rewrite: if our snapshot's recorded parent was ALSO an
-		// ancestor we recreated, use the new id.
+
 		$resolved_parent = isset( $id_map[ $orig_par ] )
 			? (int) $id_map[ $orig_par ]
 			: $orig_par;
 
 		$folder = openstation_files_get_folder( $orig_id, true );
 		if ( $folder ) {
-			// Folder still exists. If trashed, restore it (cascade
-			// brings back its own children that were trashed via
-			// folder cascade).
+
 			if ( ! empty( $folder['trashed_at_ms'] ) ) {
 				openstation_files_restore_folder( $user_id, $orig_id );
 			}
@@ -290,10 +141,6 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 			continue;
 		}
 
-		// Folder is gone — recreate it and place it under the
-		// resolved parent. Owner falls back to the acting user
-		// when the original owner can't be inferred (shared-
-		// folder edge case Phase 6 will revisit).
 		$owner_id = (int) ( $entry['folder_owner_id'] ? $entry['folder_owner_id'] : $user_id );
 		$new_id   = openstation_files_create_folder(
 			$owner_id,
@@ -304,13 +151,12 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 			)
 		);
 		if ( is_wp_error( $new_id ) ) {
-			// Fall back to root — restoring at the wrong place is
-			// strictly better than failing the restore outright.
+
 			$resolved           = $resolved_parent;
 			$id_map[ $orig_id ] = $resolved;
 			continue;
 		}
-		// Place the recreated folder where the snapshot says.
+
 		openstation_files_place(
 			$user_id,
 			$resolved_parent,
@@ -327,23 +173,6 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 	return $resolved;
 }
 
-/*
-================================================================== *
- *  Placement: trash / restore / purge.
- * ==================================================================
- */
-
-/**
- * Soft-trash a placement. Sets `trashed_at_ms`, `trashed_by`. Returns
- * `true` on success, `WP_Error` on permission failure / missing row.
- *
- * Idempotent: trashing an already-trashed placement is a no-op
- * success.
- *
- * @param int $user_id      Acting user.
- * @param int $placement_id Placement id.
- * @return true|WP_Error
- */
 function openstation_files_trash_placement( $user_id, $placement_id ) {
 	global $wpdb;
 	$user_id      = (int) $user_id;
@@ -375,13 +204,6 @@ function openstation_files_trash_placement( $user_id, $placement_id ) {
 		);
 	}
 
-	/**
-	 * Fires before a placement is trashed.
-	 *
-	 * @param int   $placement_id Placement id.
-	 * @param int   $user_id      Acting user.
-	 * @param array $row          Placement row.
-	 */
 	do_action( 'openstation_files_before_trash_placement', $placement_id, $user_id, $row );
 
 	$now      = openstation_files_now_ms();
@@ -399,11 +221,7 @@ function openstation_files_trash_placement( $user_id, $placement_id ) {
 		array( '%d', '%d', '%s', '%d' ),
 		array( '%d' )
 	);
-	// `$wpdb->update` returns `false` on schema mismatch (e.g. the
-	// migration didn't add the column the function writes to). The
-	// REST layer would otherwise translate the silent no-op into a
-	// 200 OK and the UI would show "moved to trash" with nothing
-	// actually trashed.
+
 	if ( false === $result ) {
 		return new WP_Error(
 			'openstation_files_trash_failed',
@@ -414,24 +232,11 @@ function openstation_files_trash_placement( $user_id, $placement_id ) {
 		);
 	}
 
-	/**
-	 * Fires after a placement is trashed.
-	 *
-	 * @param int $placement_id Placement id.
-	 * @param int $user_id      Acting user.
-	 */
 	do_action( 'openstation_files_after_trash_placement', $placement_id, $user_id );
 
 	return true;
 }
 
-/**
- * Restore a trashed placement back to its original folder + (x, y).
- *
- * @param int $user_id      Acting user.
- * @param int $placement_id Placement id.
- * @return true|WP_Error
- */
 function openstation_files_restore_placement( $user_id, $placement_id ) {
 	global $wpdb;
 	$user_id      = (int) $user_id;
@@ -453,7 +258,7 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 		);
 	}
 	if ( null === $row['trashed_at_ms'] || '' === $row['trashed_at_ms'] ) {
-		return true; // Already active — idempotent.
+		return true;
 	}
 	if ( ! openstation_files_user_can_restore_placement( $user_id, $row ) ) {
 		return new WP_Error(
@@ -463,22 +268,13 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 		);
 	}
 
-	// Resolve the parent folder. Three branches:
-	// - parent is alive  → reuse the same id
-	// - parent is trashed → cascade-restore it (and rest of the
-	// chain) before placing the leaf
-	// - parent is gone    → walk the captured ancestry and
-	// recreate every missing folder in
-	// the chain
 	$original_parent_id = (int) $row['parent_id'];
 	$resolved_parent_id = $original_parent_id;
 	if ( $original_parent_id > 0 ) {
 		$parent_alive = openstation_files_get_folder( $original_parent_id, true );
 		if ( $parent_alive ) {
 			if ( ! empty( $parent_alive['trashed_at_ms'] ) ) {
-				// Cascade restore — reach into the snapshot the
-				// folder itself stored at trash time so any chain
-				// above it is also resurrected.
+
 				$folder_restore = openstation_files_restore_folder( $user_id, $original_parent_id );
 				if ( is_wp_error( $folder_restore ) ) {
 					return $folder_restore;
@@ -486,8 +282,7 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 			}
 			$resolved_parent_id = $original_parent_id;
 		} else {
-			// Hard-deleted parent — read the ancestry snapshot we
-			// stored at trash time and resurrect the chain.
+
 			$meta_raw           = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
 			$decoded            = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
 			$ancestry           = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
@@ -497,13 +292,6 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 		}
 	}
 
-	/**
-	 * Fires before a placement is restored.
-	 *
-	 * @param int   $placement_id
-	 * @param int   $user_id
-	 * @param array $row
-	 */
 	do_action( 'openstation_files_before_restore_placement', $placement_id, $user_id, $row );
 
 	$wpdb->update(
@@ -521,29 +309,13 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 		array( '%d' )
 	);
 
-	// Enforce the "tombstones never refer to alive rows" invariant:
-	// a placement coming back to life must not carry lingering
-	// tombstones from an earlier (reversible) removal. Without this,
-	// every heartbeat tick would re-deliver those tombstones to the
-	// client and the row would flicker off the desktop on each tick.
 	openstation_files_clear_tombstones_for( 'placement', $placement_id );
 
-	/**
-	 * @param int $placement_id
-	 * @param int $user_id
-	 */
 	do_action( 'openstation_files_after_restore_placement', $placement_id, $user_id );
 
 	return true;
 }
 
-/**
- * Permanently delete a trashed placement.
- *
- * @param int $user_id
- * @param int $placement_id
- * @return true|WP_Error
- */
 function openstation_files_purge_placement( $user_id, $placement_id ) {
 	global $wpdb;
 	$user_id      = (int) $user_id;
@@ -558,7 +330,7 @@ function openstation_files_purge_placement( $user_id, $placement_id ) {
 		ARRAY_A
 	);
 	if ( ! $row ) {
-		return true; // Already gone — idempotent.
+		return true;
 	}
 	if ( ! openstation_files_user_can_purge_placement( $user_id, $row ) ) {
 		return new WP_Error(
@@ -568,53 +340,21 @@ function openstation_files_purge_placement( $user_id, $placement_id ) {
 		);
 	}
 
-	/**
-	 * @param int   $placement_id
-	 * @param int   $user_id
-	 * @param array $row
-	 */
 	do_action( 'openstation_files_before_purge_placement', $placement_id, $user_id, $row );
 
 	$wpdb->delete( $tables['placements'], array( 'id' => $placement_id ), array( '%d' ) );
 
-	// Mirror `openstation_files_remove()`: a purge IS a permanent
-	// removal, so the same lifecycle action fires. Load-bearing for
-	// the `upload` type — the stored-files listener deletes the real
-	// bytes when the owner's last placement goes away; without this
-	// the recycle-bin "Delete forever" path leaked them.
 	do_action(
 		'openstation_file_unplaced',
 		$placement_id,
 		openstation_files_normalize_placement_row( $row )
 	);
 
-	/**
-	 * @param int $placement_id
-	 * @param int $user_id
-	 */
 	do_action( 'openstation_files_after_purge_placement', $placement_id, $user_id );
 
 	return true;
 }
 
-/*
-================================================================== *
- *  Folder: trash / restore / purge (cascades to child placements).
- * ==================================================================
- */
-
-/**
- * Soft-trash a folder. Cascades to every child placement (any
- * placement whose `parent_id = folder_id`), marking them with
- * `trashed_via_folder = folder_id` so a later restore brings back
- * the same set without time-window heuristics.
- *
- * Idempotent on already-trashed.
- *
- * @param int $user_id
- * @param int $folder_id
- * @return true|WP_Error
- */
 function openstation_files_trash_folder( $user_id, $folder_id ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
@@ -646,17 +386,10 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 		);
 	}
 
-	/**
-	 * @param int   $folder_id
-	 * @param int   $user_id
-	 * @param array $row
-	 */
 	do_action( 'openstation_files_before_trash_folder', $folder_id, $user_id, $row );
 
 	$now = openstation_files_now_ms();
-	// Capture the folder's own placement-chain ancestry so a future
-	// restore can resurrect any parent folders that got hard-deleted
-	// while this one was sitting in trash.
+
 	$folder_placement = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT parent_id FROM {$tables['placements']}
@@ -671,7 +404,6 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 		: array();
 	$folder_meta      = wp_json_encode( array( 'ancestry' => $folder_ancestry ) );
 
-	// Trash the folder row.
 	$folder_update = $wpdb->update(
 		$tables['folders'],
 		array(
@@ -693,15 +425,7 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 			array( 'status' => 500 )
 		);
 	}
-	// Cascade to child placements that are still active. Mark
-	// `trashed_via_folder` so the restore knows which children to
-	// resurrect. Already-trashed children keep their state.
-	//
-	// Each child also gets its own ancestry snapshot so restoring
-	// just one child later (after the parent folder was hard-
-	// deleted) can still recreate the chain — same shape as a
-	// direct trash. Captured per-row because every child shares
-	// the same parent chain, so we compute once.
+
 	$ancestry = openstation_files_capture_ancestry( $folder_id );
 	$meta     = wp_json_encode( array( 'ancestry' => $ancestry ) );
 	$wpdb->query(
@@ -722,8 +446,7 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 			$folder_id
 		)
 	);
-	// Cascade trash to nested folders too. Recurses one level via
-	// IDs; deep folder trees iterate.
+
 	$child_folder_ids = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT f.id FROM {$tables['folders']} f
@@ -736,25 +459,11 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 		openstation_files_trash_folder( $user_id, (int) $child_id );
 	}
 
-	/**
-	 * @param int $folder_id
-	 * @param int $user_id
-	 */
 	do_action( 'openstation_files_after_trash_folder', $folder_id, $user_id );
 
 	return true;
 }
 
-/**
- * Restore a trashed folder + every placement that was trashed via
- * its cascade. Items that were trashed BEFORE the folder cascade
- * (i.e. `trashed_via_folder IS NULL`) stay in the recycle bin —
- * the user trashed them deliberately, separate from the folder.
- *
- * @param int $user_id
- * @param int $folder_id
- * @return true|WP_Error
- */
 function openstation_files_restore_folder( $user_id, $folder_id ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
@@ -786,17 +495,10 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 		);
 	}
 
-	/**
-	 * @param int   $folder_id
-	 * @param int   $user_id
-	 * @param array $row
-	 */
 	do_action( 'openstation_files_before_restore_folder', $folder_id, $user_id, $row );
 
 	$now = openstation_files_now_ms();
-	// Snapshot nested folder ids BEFORE we null `trashed_via_folder`
-	// on the placements — that column is the only stable link from
-	// a child folder's placement back to the parent cascade.
+
 	$nested_ids = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT DISTINCT CAST( p.file_ref AS UNSIGNED ) AS fid
@@ -821,9 +523,7 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 		array( null, null, null, '%d' ),
 		array( '%d' )
 	);
-	// If the folder's own placement points at a parent_id that's
-	// been hard-deleted in the meantime, resurrect the chain from
-	// the snapshot taken at trash time.
+
 	$meta_raw = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
 	$decoded  = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
 	$ancestry = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
@@ -859,7 +559,7 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 			}
 		}
 	}
-	// Restore placements that this folder's trash had cascaded.
+
 	$wpdb->query(
 		$wpdb->prepare(
 			"UPDATE {$tables['placements']}
@@ -873,18 +573,11 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 			$folder_id
 		)
 	);
-	// Recursively restore nested folders captured in the snapshot.
+
 	foreach ( (array) $nested_ids as $nid ) {
 		openstation_files_restore_folder( $user_id, (int) $nid );
 	}
 
-	// Enforce the "tombstones never refer to alive rows" invariant
-	// across the restored cohort: the folder itself, every cascade-
-	// restored placement that lived inside it, and every nested
-	// folder recursed into above already clears its own. Here we
-	// scrub the FOLDER's own tombstones plus those of every cascade-
-	// restored placement so a fresh heartbeat tick can't surface
-	// them as `removed.*` against the now-alive rows.
 	openstation_files_clear_tombstones_for( 'folder', $folder_id );
 	$restored_placement_ids = $wpdb->get_col(
 		$wpdb->prepare(
@@ -899,24 +592,11 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 		openstation_files_clear_tombstones_for( 'placement', (int) $rpid );
 	}
 
-	/**
-	 * @param int $folder_id
-	 * @param int $user_id
-	 */
 	do_action( 'openstation_files_after_restore_folder', $folder_id, $user_id );
 
 	return true;
 }
 
-/**
- * Permanently delete a trashed folder and all its trashed-via-
- * cascade child placements. Independent placements that landed in
- * the trash separately stay there.
- *
- * @param int $user_id
- * @param int $folder_id
- * @return true|WP_Error
- */
 function openstation_files_purge_folder( $user_id, $folder_id ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
@@ -941,26 +621,8 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 		);
 	}
 
-	/**
-	 * @param int   $folder_id
-	 * @param int   $user_id
-	 * @param array $row
-	 */
 	do_action( 'openstation_files_before_purge_folder', $folder_id, $user_id, $row );
 
-	// Cascade-revoke every share + per-user decision for the folder
-	// BEFORE deleting the folder row. Without this, purge left
-	// orphan `folder_shares` + `share_user_decisions` rows pointing
-	// at a folder id that no longer exists — `compute_visible_folders`
-	// would still join them, and the row leak grew with every
-	// recycle-bin empty. Mirrors the same cleanup
-	// `openstation_files_delete_folder_recursive` does for the
-	// "delete from desktop" path.
-	// `target_type` scoping is load-bearing: `folder_id` carries a
-	// STORED-FILE id on `target_type='file'` rows, and the two id
-	// sequences are independent — without the predicate a folder
-	// purge wipes an unrelated user's file share that happens to
-	// collide numerically.
 	$share_ids = (array) $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
@@ -969,14 +631,14 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	);
 	if ( ! empty( $share_ids ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $share_ids ), '%d' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['decisions']} WHERE share_id IN ($placeholders)",
 				$share_ids
 			)
 		);
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['shares']} WHERE id IN ($placeholders)",
@@ -985,9 +647,6 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 		);
 	}
 
-	// Drop every placement that points AT this folder (recipients'
-	// root tiles + the owner's own), with tombstones so connected
-	// clients scrub the tile via the heartbeat.
 	$pointing_ids = (array) $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['placements']}
@@ -1000,7 +659,7 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	}
 	if ( ! empty( $pointing_ids ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $pointing_ids ), '%d' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['placements']} WHERE id IN ($placeholders)",
@@ -1009,11 +668,6 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 		);
 	}
 
-	// Upload placements among the cascade-trashed children carry
-	// real bytes — run the stored-files deletion contract for them
-	// after the rows go. Direct guarded call (not the public
-	// `openstation_file_unplaced` action) so cascade hook semantics
-	// for every other type stay unchanged.
 	$cascade_upload_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['placements']}
@@ -1037,29 +691,11 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	}
 	$wpdb->delete( $tables['folders'], array( 'id' => $folder_id ), array( '%d' ) );
 
-	/**
-	 * @param int $folder_id
-	 * @param int $user_id
-	 */
 	do_action( 'openstation_files_after_purge_folder', $folder_id, $user_id );
 
 	return true;
 }
 
-/*
-================================================================== *
- *  Recycle-bin list builder.
- * ==================================================================
- */
-
-/**
- * Count of trashed placements + folders surfaced to the recycle bin
- * for `$user_id`. Mirrors `_list_trashed_for_recycle_bin`'s "skip
- * cascaded children" rule so the badge matches the visible list.
- *
- * @param int $user_id Owner.
- * @return int
- */
 function openstation_files_count_trashed_for_recycle_bin( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
@@ -1087,21 +723,12 @@ function openstation_files_count_trashed_for_recycle_bin( $user_id ) {
 	return $placements + $folders;
 }
 
-/**
- * Return the trashed placements + folders for a user, shaped as
- * recycle-bin items. Used by the recycle bin's REST list endpoint
- * to merge files-on-the-desktop trash with the WP-core trash.
- *
- * @param int $user_id Owner.
- * @return array[] List of recycle-bin item shapes.
- */
 function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
 	$tables  = openstation_files_table_names();
 	$out     = array();
 
-	// Trashed placements owned by this user.
 	$placements = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['placements']}
@@ -1112,8 +739,7 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		ARRAY_A
 	);
 	foreach ( (array) $placements as $row ) {
-		// Skip cascaded children — the parent folder represents
-		// the whole bundle in the recycle bin.
+
 		if ( ! empty( $row['trashed_via_folder'] ) ) {
 			continue;
 		}
@@ -1124,28 +750,18 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 			? openstation_plain_text_title( $file->title() )
 			: (string) $row['file_type'];
 		$icon  = $file ? (string) $file->icon() : 'dashicons-no-alt';
-		// Two recycle-bin buckets:
-		// - `shortcut`  → plugin-registered icons (file_type='shortcut')
-		// - `placement` → every other placement (post / page /
-		// attachment / user / term / comment / …)
-		// Lets the bin's type-filter tabs split "Shortcuts" from
-		// "Files" without overloading either label.
+
 		$bucket   = ( 'shortcut' === (string) $row['file_type'] )
 			? 'shortcut'
 			: 'placement';
 		$subtitle = ( 'shortcut' === $bucket )
 			? __( 'Desktop shortcut', 'desktop-mode' )
 			: sprintf(
-				/* translators: %s: file-type slug like 'post', 'attachment'. */
+
 				__( '%s on desktop', 'desktop-mode' ),
 				(string) $row['file_type']
 			);
-		// `type_label` is the short uppercase badge the JS renders
-		// inline before the title. Most placements collapse to the
-		// generic "Placement" badge (the JS humanizes the bucket
-		// slug when no label is set). `link` placements — created
-		// via "New URL" on the desktop — deserve a more specific
-		// label so they read as URL-shortcuts, not generic tiles.
+
 		$item = array(
 			'id'            => (int) $row['id'],
 			'type'          => $bucket,
@@ -1167,7 +783,6 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		$out[] = $item;
 	}
 
-	// Trashed folders owned by this user.
 	$folders = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['folders']}
@@ -1191,7 +806,7 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 			'title'         => (string) $row['name'],
 			'subtitle'      => $child_count > 0
 				? sprintf(
-					/* translators: %d: number of items inside the trashed folder. */
+
 					_n( 'Folder · %d item inside', 'Folder · %d items inside', $child_count, 'desktop-mode' ),
 					$child_count
 				)
@@ -1208,7 +823,6 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		);
 	}
 
-	// Resolve display-name for the deleted-by id once per user.
 	$user_cache = array();
 	foreach ( $out as &$item ) {
 		$uid = (int) $item['deleted_by_id'];

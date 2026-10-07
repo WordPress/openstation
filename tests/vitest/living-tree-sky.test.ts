@@ -1,10 +1,3 @@
-/**
- * The Living Tree — time-of-day sky.
- *
- * Covers the pure `skyForTime()` colour/light/luminary curve and the
- * `currentHour()` debug override. The `SkyLayer` render class needs PIXI,
- * so it's exercised visually, not here.
- */
 import { afterEach, describe, expect, test } from 'vitest';
 import { currentHour, skyForTime } from '../../src/plugins/living-tree-wallpaper/sky';
 
@@ -33,7 +26,7 @@ describe( 'living-tree skyForTime', () => {
 	test( 'the sun climbs to its peak (smallest y) around noon', () => {
 		const morning = skyForTime( 8 );
 		const noon = skyForTime( 12 );
-		// y01 is measured from the top, so a higher sun = smaller y01.
+
 		expect( noon.sunY01 ).toBeLessThan( morning.sunY01 );
 	} );
 
@@ -52,7 +45,7 @@ describe( 'living-tree skyForTime', () => {
 	test( 'the star field wheels one full turn per day, like the sun', () => {
 		expect( skyForTime( 0 ).starAngle ).toBe( 0 );
 		expect( skyForTime( 12 ).starAngle ).toBeCloseTo( Math.PI, 10 );
-		// Monotone across the night: the sky never spins backwards.
+
 		expect( skyForTime( 23 ).starAngle ).toBeGreaterThan(
 			skyForTime( 22 ).starAngle,
 		);

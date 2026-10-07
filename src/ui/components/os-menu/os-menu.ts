@@ -1,24 +1,3 @@
-/**
- * `<os-menu>` + `<os-menu-item>` — popover menu used in the
- * window title bar's ⋯ dropdown. Presentation-only: the consumer
- * (Window) owns the open/close state via the `hidden` attribute
- * and its own outside-click dismissal — the component doesn't
- * try to manage that itself, because the trigger button is OUTSIDE
- * the menu and every consumer wires it differently.
- *
- * Menu-items take one of three looks:
- *
- *   - Plain           — just a label.
- *   - With icon       — `icon="dashicons-…"` dashicon class on the
- *                       left (used by "Open another X").
- *   - Checkbox        — `role="menuitemcheckbox" ?checked=${…}`
- *                       renders a 16 px check indicator (used by
- *                       "Open on startup").
- *
- * Click on an item emits `os-menu-item-click` bubbling, with the
- * item's `value` attribute in `detail.value`.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { menuItemStyles, menuStyles } from './os-menu.styles';
 
@@ -94,11 +73,7 @@ export class OsMenuItem extends Component {
 				detail: '{ value: string | null }',
 			},
 		],
-		/*
-		 * An item has no shape outside a menu — it takes its padding,
-		 * width and surface from the parent — so the example is the
-		 * parent in miniature, showing each modifier the item has.
-		 */
+
 		example: html`
 			<os-menu>
 				<os-menu-item value="plain">Plain item</os-menu-item>
@@ -114,8 +89,7 @@ export class OsMenuItem extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-		// Default to `menuitem` role; consumer can override to
-		// `menuitemcheckbox` via the role attribute.
+
 		if ( ! this.hasAttribute( 'role' ) ) {
 			this.setAttribute( 'role', 'menuitem' );
 		}
@@ -126,8 +100,7 @@ export class OsMenuItem extends Component {
 		const isCheckbox = this.getAttribute( 'role' ) === 'menuitemcheckbox';
 		const checked =
 			( this as unknown as { checked: string | null } ).checked !== null;
-		// Sync aria-checked for checkbox variants — screen readers
-		// need the live value, not just the `checked` attribute.
+
 		if ( isCheckbox ) {
 			this.setAttribute( 'aria-checked', checked ? 'true' : 'false' );
 		}

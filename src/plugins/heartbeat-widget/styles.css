@@ -1,18 +1,8 @@
-/**
- * Heartbeat widget styles. Bundled with the widget's JS (Vite
- * emits a separate `widget-heartbeat[.min].css`); the script
- * registration enqueues this CSS alongside the JS handle so it
- * loads on demand the same way the JS does.
- */
-
 .os-widget-heartbeat {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	/* Only side padding here — the framework's `card-body` ships
-	 * with `padding: 16px` so vertical chrome already exists.
-	 * Adding more on top creates the dead-space-below-the-bar
-	 * problem. */
+
 	padding: 0 12px;
 	user-select: none;
 	-webkit-user-select: none;
@@ -22,25 +12,16 @@
 	overflow: hidden;
 }
 
-/* Push the meta row (and the bar that follows it) to the BOTTOM
- * of the widget container — any vertical slack accumulates as
- * extra breathing room around the heart, not as dead space
- * below the progress bar. */
 .os-widget-heartbeat__meta {
 	margin-top: auto;
 }
 
-/* Override the framework card-body's default `padding: 16px` —
- * the heartbeat widget owns its own layout and that padding
- * eats real estate the progress bar needs. */
 .os-widgets__card-body.os-widget-heartbeat {
 	padding: 8px;
 	min-height: 0;
 	flex: 1 1 auto;
 }
 
-/* Card-level flex so the body fills the card cleanly. Scoped to
- * cards hosting this widget so others keep their block layout. */
 .os-widgets__card.os-widgets__card--heartbeat {
 	display: flex;
 	flex-direction: column;
@@ -50,25 +31,7 @@
 .os-widget-heartbeat__stage {
 	position: relative;
 	display: block;
-	/* Stage height matches the available vertical room exactly so
-	 * the big-beat halo (the concentric glow rings around the
-	 * heart, which grow on each WP heartbeat tick) has the most
-	 * space possible without overflowing into the meta/bar row.
-	 *
-	 *   Card             230
-	 * − chrome            32   (6 + 6 padding + 20 px close icon)
-	 * − body padding      16   (8 + 8, this widget's override)
-	 * − widget padding     0   (zero vertical — see container rule)
-	 * − meta row          16
-	 * − bar               10
-	 * − 2 × 8 px gaps     16
-	 * ────────────────────
-	 *   stage = 140 px
-	 *
-	 * The heart + halo geometry in index.ts is tuned so that at
-	 * the big-beat peak (heart × 1.55, halo × 1.15) the whole
-	 * lighting effect fits comfortably inside this 140 × ~270 box
-	 * without the outer ring colliding with the stage edges. */
+
 	flex: 0 0 140px;
 	height: 140px;
 	width: 100%;
@@ -137,7 +100,6 @@
 		inset 0 -1px 0 rgba( 0, 0, 0, 0.18 );
 }
 
-/* Compact mode — right-click → "Show heart" toggled off. */
 .os-widget-heartbeat--no-heart .os-widget-heartbeat__stage {
 	display: none;
 }

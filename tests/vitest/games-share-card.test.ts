@@ -1,8 +1,3 @@
-/**
- * Unit tests for the games framework's shareable score card
- * (`src/games/share-card.ts`): score formatting and the one-tap
- * share fallback chain (share sheet → clipboard → download).
- */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	formatScore,
@@ -10,7 +5,6 @@ import {
 	shareScoreCard,
 } from '../../src/games/share-card';
 
-/** A canvas stand-in — jsdom has no real 2D context or toBlob. */
 function fakeCanvas(): HTMLCanvasElement {
 	return {
 		width: 0,
@@ -53,7 +47,7 @@ describe( 'games/share-card.ts', () => {
 				footer: 'WordPress OpenStation',
 			} ),
 		).not.toThrow();
-		// The backing size is still stamped for a later real render.
+
 		expect( canvas.width ).toBe( 1200 );
 		expect( canvas.height ).toBe( 630 );
 	} );

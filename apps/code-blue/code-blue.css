@@ -1,19 +1,8 @@
-/**
- * Code Blue — window styles.
- *
- * Only what the `<os-*>` components don't already carry: the fixed-
- * height regions, the card chrome, the stat-tile typography, the
- * issue rows. Every colour reads a token with the pre-brand admin
- * literal as its floor, and the four severity tones resolve through
- * the status tokens.
- */
-
 .os-cb {
 	block-size: 100%;
 	padding: 12px 14px;
 	box-sizing: border-box;
-	/* The window never page-scrolls: every region is fixed-height and
-	   only the issue list scrolls, so a long list can't crush the chart. */
+
 	overflow: hidden;
 }
 
@@ -21,16 +10,6 @@
 	flex: none;
 }
 
-/*
- * A narrow container — a phone, or a desktop window pulled in — has no
- * height to spare for fixed regions: the toolbar wraps to three rows,
- * the stat tiles to two, the chart keeps its height, and the issue list
- * was left its 120px minimum with its own scrollbar inside it, which a
- * thumb reads as "this does not scroll". So at this width the window
- * page-scrolls instead: every region takes its natural height and the
- * root is the one scroller. The two fields stop demanding 200px each
- * and share the row.
- */
 @container ( max-width: 640px ) {
 	.os-cb {
 		overflow-y: auto;
@@ -54,9 +33,6 @@
 	}
 }
 
-/* The same, keyed on the shell's phone mode: the phone experience at
-   any width (a wide browser previewing it, a phone turned sideways),
-   which no size query can express. */
 html[data-os-mode="mobile"] .os-cb {
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
@@ -83,16 +59,10 @@ html[data-os-mode="mobile"] .os-cb__list {
 	min-inline-size: 200px;
 }
 
-/* The toolbar aligns to its bottom edge; the switch track is shorter
-   than the buttons beside it, so lift it onto their visual centre. */
 .os-cb__auto {
 	margin-block-end: 6px;
 }
 
-/* ---------- Severity swatches ---------------------------------------- */
-
-/* The tone-to-colour mapping itself lives in app-runtime.css (the
-   shared `data-tone` contract); these consumers only read it back. */
 .os-cb-swatch {
 	display: inline-block;
 	inline-size: 10px;
@@ -102,11 +72,6 @@ html[data-os-mode="mobile"] .os-cb__list {
 	background: var( --os-app-tone, var( --os-ui-fg-muted, #646970 ) );
 }
 
-/* ---------- Stat tiles ---------------------------------------------- */
-
-/* Column count lives here rather than in a `columns` attribute so the
-   container query below can override it (the attribute writes an
-   inline style, which would win). */
 .os-cb__stats {
 	--os-ui-grid-columns: repeat( 5, minmax( 0, 1fr ) );
 }
@@ -117,16 +82,11 @@ html[data-os-mode="mobile"] .os-cb__list {
 	}
 }
 
-/* The tiles are the kit's <os-stat>; only Code Blue's variations on
-   its defaults live here: neutral (not accent) values on an elevated
-   card surface, at the old tile's size and weight. */
 .os-cb__stats os-stat {
 	--os-ui-stat-bg: var( --os-ui-surface-elevated, #fff );
 	--os-ui-stat-value-color: var( --os-ui-fg, #1d2327 );
 	--os-ui-stat-value-size: 22px;
 }
-
-/* ---------- Cards --------------------------------------------------- */
 
 .os-cb__card {
 	display: block;
@@ -159,8 +119,6 @@ html[data-os-mode="mobile"] .os-cb__list {
 	padding: 8px 6px 4px;
 }
 
-/* ---------- Issues -------------------------------------------------- */
-
 .os-cb__issues {
 	display: flex;
 	flex-direction: column;
@@ -191,14 +149,6 @@ html[data-os-mode="mobile"] .os-cb__list {
 	border-block-end: none;
 }
 
-/*
- * The whole row is the control — an error list is scanned, and asking
- * for a chevron would be asking for aim. It stays a `<button>`, which
- * means the text inside it cannot be selected: every engine suppresses
- * selection inside a form control. Copying is the detail panel's job
- * instead, where the message and the trace are `<os-code copy>` and
- * plain selectable markup rather than button content.
- */
 .os-cb-issue__row {
 	display: flex;
 	align-items: flex-start;
@@ -242,12 +192,6 @@ html[data-os-mode="mobile"] .os-cb__list {
 	text-overflow: ellipsis;
 }
 
-/*
- * The message wraps rather than ellipsising. A fatal error is
- * routinely longer than any window anyone wants to open, and reading
- * one should not cost a resize — the row grows by a line or two
- * instead, which a list that scrolls can afford.
- */
 .os-cb-issue__message {
 	flex: 1;
 	min-inline-size: 0;
@@ -275,7 +219,7 @@ html[data-os-mode="mobile"] .os-cb__list {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	direction: rtl; /* Ellipsize the start of long basenames, keep the :line end visible. */
+	direction: rtl;
 	text-align: end;
 }
 
@@ -295,11 +239,6 @@ html[data-os-mode="mobile"] .os-cb__list {
 	}
 }
 
-/*
- * The origin badge outlives the file path at narrow widths: "which
- * plugin" survives a resize that "which file" does not, and it is the
- * more useful half of the pair when only one fits.
- */
 @container ( max-width: 480px ) {
 	.os-cb-issue__origin {
 		display: none;
@@ -313,22 +252,11 @@ html[data-os-mode="mobile"] .os-cb__list {
 	padding: 4px 14px 14px 22px;
 }
 
-/*
- * The message again, in full and with a copy button — the row above
- * shows the same text, but that row is a `<button>`, so this is the
- * only place a reader can take the error away with them. Everything in
- * the detail panel is plain markup outside the control: selectable by
- * drag, and copyable by button for the two things anyone ever copies.
- */
 .os-cb-issue__full {
 	font-size: 12px;
 	--os-ui-code-block-max-block-size: 220px;
 }
 
-/*
- * Tighter than the kit default, and the values are monospace: these
- * facts are file paths and timestamps read against each other.
- */
 .os-cb-issue__facts {
 	--os-ui-facts-font-size: 12px;
 	--os-ui-facts-row-gap: 2px;
@@ -338,10 +266,6 @@ html[data-os-mode="mobile"] .os-cb__list {
 	font-family: var( --os-ui-font-mono, ui-monospace, Menlo, Consolas, monospace );
 }
 
-/*
- * The two things anyone does with an error they cannot immediately
- * fix: hand it to someone else, or go and look it up.
- */
 .os-cb-issue__actions {
 	margin-block-start: 2px;
 }
@@ -370,8 +294,6 @@ html[data-os-mode="mobile"] .os-cb__list {
 	font-size: 11px;
 	--os-ui-code-block-max-block-size: 320px;
 }
-
-/* ---------- Footer -------------------------------------------------- */
 
 .os-cb__footer {
 	font-size: 12px;

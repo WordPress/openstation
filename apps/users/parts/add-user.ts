@@ -1,10 +1,3 @@
-/**
- * Users app — the Add User tab: the `<os-form>` of `user-new.php`,
- * as a template. Its submit dispatches the `create` action; the
- * server answers with the failure (and the field it names) in the
- * state, which `syncAddUserForm()` paints onto the form.
- */
-
 import { __, html, type TemplateResult } from '@openstation/app';
 import { copyQuietly } from '../profile/client';
 import { generateStrongPassword } from './password';
@@ -15,7 +8,6 @@ function options( map: Record< string, string > ): TemplateResult[] {
 	return Object.entries( map ).map( ( [ value, label ] ) => html`<os-option value=${ value }>${ label }</os-option>` );
 }
 
-/** The form. Submit is the natural `os-form-submit` → `create` with `$args['values']`. */
 export function addUserForm( cfg: ProfileConfig, toast: ( message: string ) => void ): TemplateResult {
 	const defaultRole = cfg.defaultRole ?? 'subscriber';
 	const roles =
@@ -75,19 +67,12 @@ export function addUserForm( cfg: ProfileConfig, toast: ( message: string ) => v
 	</os-form>`;
 }
 
-/** What the form was last painted for, so a repaint that changes nothing touches nothing. */
 export interface AddUserFormSync {
 	created: number;
 	error: string;
 	field: string;
 }
 
-/**
- * Paint the server's answer onto the form after a render: the error
- * banner and the field it names, or — after a successful create —
- * a fresh form. Touches the form only when the answer changed, so a
- * selection repaint never wipes a field's invalid state.
- */
 export function syncAddUserForm( root: HTMLElement, state: UsersState, painted: AddUserFormSync ): AddUserFormSync {
 	const form = root.querySelector< OsFormElement >( '[data-os-users-add-form]' );
 	if ( ! form ) {

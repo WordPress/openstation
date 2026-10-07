@@ -1,25 +1,7 @@
 <?php
-/**
- * OpenStation — Focus Timer widget PHP registration.
- *
- * Registers the widget's JS bundle + CSS, enqueues the CSS eagerly on
- * shell pages, and announces the widget to OpenStation so it appears in
- * the widget picker. All behaviour lives in the JS
- * (src/plugins/focus-timer-widget/); this file only declares the widget.
- *
- * The timer runs entirely in the browser — no REST routes, no server
- * state, no external services — so the script declares no dependencies.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the Focus Timer widget's script + style handles.
- *
- * @return void
- */
 function openstation_register_focus_timer_widget_assets() {
 	$suffix  = openstation_asset_suffix();
 	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
@@ -44,12 +26,6 @@ function openstation_register_focus_timer_widget_assets() {
 }
 add_action( 'init', 'openstation_register_focus_timer_widget_assets', 5 );
 
-/**
- * Eagerly enqueue the CSS on OpenStation shell pages (avoids a flash of
- * unstyled content before the lazy JS mounts).
- *
- * @return void
- */
 function openstation_enqueue_focus_timer_widget_styles() {
 	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
@@ -61,11 +37,6 @@ function openstation_enqueue_focus_timer_widget_styles() {
 }
 add_action( 'admin_enqueue_scripts', 'openstation_enqueue_focus_timer_widget_styles', 20 );
 
-/**
- * Announce the widget to OpenStation.
- *
- * @return void
- */
 function openstation_register_focus_timer_widget() {
 	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;

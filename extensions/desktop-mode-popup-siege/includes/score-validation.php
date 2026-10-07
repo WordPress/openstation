@@ -1,19 +1,7 @@
 <?php
-/**
- * Server-side plausibility checks for Popup Siege scores.
- *
- * @package OpenStationPopupSiege
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Check whether score metadata has exactly the expected keys.
- *
- * @param mixed    $meta Metadata map.
- * @param string[] $keys Expected keys.
- * @return bool
- */
 function popup_siege_meta_has_exact_keys( $meta, $keys ) {
 	if ( ! is_array( $meta ) ) {
 		return false;
@@ -26,27 +14,10 @@ function popup_siege_meta_has_exact_keys( $meta, $keys ) {
 	return $actual === $keys;
 }
 
-/**
- * Check the strict non-negative integer shape emitted by the game runtime.
- *
- * @param mixed $value Candidate value.
- * @return bool
- */
 function popup_siege_is_nonnegative_integer( $value ) {
 	return is_int( $value ) && $value >= 0;
 }
 
-/**
- * Validate Popup Siege's rules-v3 terminal snapshot.
- *
- * The runtime submits one flat, exact terminal schema. This checks identities,
- * objective derivation, scoring arithmetic, and terminal invariants. It is an
- * arcade plausibility guard, not a server-authoritative replay.
- *
- * @param int   $score Submitted score.
- * @param mixed $meta  Sanitized metadata.
- * @return bool
- */
 function popup_siege_validate_terminal_meta( $score, $meta ) {
 	$keys = array(
 		'brick_points',
@@ -236,16 +207,6 @@ function popup_siege_validate_terminal_meta( $score, $meta ) {
 	return 90 === $meta['time'] && 0 === $meta['seconds_remaining'];
 }
 
-/**
- * Reject scores that do not satisfy Popup Siege's terminal contract.
- *
- * @param mixed  $pre     Existing short-circuit result.
- * @param string $game    Game id.
- * @param int    $user_id User id.
- * @param int    $score   Submitted score.
- * @param mixed  $meta    Sanitized score metadata.
- * @return mixed
- */
 function popup_siege_validate_score( $pre, $game, $user_id, $score, $meta = null ) {
 	unset( $user_id );
 

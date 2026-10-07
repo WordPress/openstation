@@ -1,12 +1,3 @@
-/**
- * Posts app — the plugin-facing surface of a mounted list window: the
- * {@link PostsWindowContext} handed to the `opened` hook and to every
- * bulk action, the bulk-action runner (confirm, run, clear, refresh),
- * and the `dataLoaded` announcement.
- *
- * @public
- */
-
 import { sprintf, type ViewContext } from '@openstation/app';
 import type { OsTable } from '../../../src/ui/components/os-table/os-table';
 import { HOOK_ACTION_DATA_LOADED } from './columns';
@@ -32,7 +23,6 @@ function currentParams( state: ListState ): PostsListParams {
 	};
 }
 
-/** The plugin-facing context — one per mounted window; the table is looked up live. */
 export function postsContext( ctx: Ctx, cache: { postsCtx: PostsWindowContext | null } ): PostsWindowContext {
 	if ( ! cache.postsCtx ) {
 		const context: PostsWindowContext = {
@@ -53,7 +43,6 @@ export function postsContext( ctx: Ctx, cache: { postsCtx: PostsWindowContext | 
 	return cache.postsCtx;
 }
 
-/** Confirm if asked, run, then clear + refresh unless the runner opted out. */
 export async function runBulkAction( ctx: Ctx, action: BulkAction, postsCtx: PostsWindowContext ): Promise< void > {
 	const ids = postsCtx.getSelectedIds();
 	if ( ids.length === 0 ) {
@@ -65,7 +54,7 @@ export async function runBulkAction( ctx: Ctx, action: BulkAction, postsCtx: Pos
 			typeof confirm === 'function'
 				? confirm( ids.length )
 				: sprintf(
-					/* translators: %d: row count. */
+
 					confirm,
 					ids.length,
 				);
@@ -79,14 +68,12 @@ export async function runBulkAction( ctx: Ctx, action: BulkAction, postsCtx: Pos
 			return;
 		}
 	} catch ( err ) {
-		// eslint-disable-next-line no-console
 		console.error( `${ LOG } bulk action "${ action.id }" failed`, err );
 	}
 	postsCtx.table.clearSelection();
 	await postsCtx.refresh();
 }
 
-/** A page of rows landed: the `dataLoaded` hook and its DOM twin. */
 export function fireDataLoaded( data: ListData ): void {
 	const detail = {
 		items: data.list.items,

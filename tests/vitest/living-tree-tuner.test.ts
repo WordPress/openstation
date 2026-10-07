@@ -1,11 +1,3 @@
-/**
- * The Living Tree — hidden DNA tuner (developer mode).
- *
- * Covers the pieces with real logic: the consecutive-click counter, the
- * trunk hit-test, the slider catalogue, the developer-mode gate, and the
- * panel's DOM contract (sliders render, dragging one emits a debounced
- * snapshot, close disposes).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	createClickCounter,
@@ -55,7 +47,7 @@ describe( 'living-tree click counter', () => {
 			expect( counter.hit( i * 100 ) ).toBe( false );
 		}
 		expect( counter.hit( 2000 ) ).toBe( true );
-		// The run resets after firing — the next click starts from 1.
+
 		expect( counter.hit( 2100 ) ).toBe( false );
 	} );
 
@@ -63,7 +55,7 @@ describe( 'living-tree click counter', () => {
 		const counter = createClickCounter( 3, 1000 );
 		expect( counter.hit( 0 ) ).toBe( false );
 		expect( counter.hit( 100 ) ).toBe( false );
-		// 2s gap → this click is #1 of a new run, not #3.
+
 		expect( counter.hit( 2200 ) ).toBe( false );
 		expect( counter.hit( 2300 ) ).toBe( false );
 		expect( counter.hit( 2400 ) ).toBe( true );
@@ -80,14 +72,14 @@ describe( 'living-tree click counter', () => {
 
 describe( 'living-tree trunk hit-test', () => {
 	test( 'hits the trunk column, misses the crown and the ground', () => {
-		// On the trunk, halfway up its clickable span.
+
 		expect( isTrunkHit( 0, -150, ENVELOPE ) ).toBe( true );
 		expect( isTrunkHit( 20, -50, ENVELOPE ) ).toBe( true );
-		// Far to the side.
+
 		expect( isTrunkHit( 200, -150, ENVELOPE ) ).toBe( false );
-		// In the crown, above the trunk span.
+
 		expect( isTrunkHit( 0, -500, ENVELOPE ) ).toBe( false );
-		// Below ground.
+
 		expect( isTrunkHit( 0, 40, ENVELOPE ) ).toBe( false );
 	} );
 
@@ -119,7 +111,7 @@ describe( 'living-tree developer-mode gate', () => {
 } );
 
 describe( 'living-tree trunk-click gesture (the 20-click easter egg, end to end)', () => {
-	/** A gesture wired like the scene wires it, with a fake clock. */
+
 	function gesture( overrides: {
 		enabled?: boolean;
 		onTrigger: () => void;
@@ -127,7 +119,7 @@ describe( 'living-tree trunk-click gesture (the 20-click easter egg, end to end)
 		let clock = 0;
 		const handler = createTrunkClickGesture( {
 			isEnabled: () => overrides.enabled ?? true,
-			// Identity mapping: tests click in reference space directly.
+
 			toLocal: ( clientX, clientY ) => ( { lx: clientX, ly: clientY } ),
 			isHit: ( lx, ly ) => isTrunkHit( lx, ly, ENVELOPE ),
 			onTrigger: overrides.onTrigger,
@@ -148,7 +140,7 @@ describe( 'living-tree trunk-click gesture (the 20-click easter egg, end to end)
 			g.click( 0, -150 );
 		}
 		expect( opened ).toBe( 1 );
-		// The very next trunk click starts a NEW run — no double-open.
+
 		g.click( 0, -150 );
 		expect( opened ).toBe( 1 );
 	} );
@@ -159,8 +151,8 @@ describe( 'living-tree trunk-click gesture (the 20-click easter egg, end to end)
 		for ( let i = 0; i < TUNER_CLICK_THRESHOLD - 1; i++ ) {
 			g.click( 0, -150 );
 		}
-		g.click( 400, -150 ); // Missed the trunk on click #20.
-		g.click( 0, -150 ); // Back on the trunk — this is click #1 again.
+		g.click( 400, -150 );
+		g.click( 0, -150 );
 		expect( opened ).toBe( 0 );
 	} );
 
@@ -168,7 +160,7 @@ describe( 'living-tree trunk-click gesture (the 20-click easter egg, end to end)
 		let opened = 0;
 		const g = gesture( { onTrigger: () => opened++ } );
 		for ( let i = 0; i < TUNER_CLICK_THRESHOLD * 2; i++ ) {
-			g.click( 0, -150, 3000 ); // Each gap exceeds the 2.5s window.
+			g.click( 0, -150, 3000 );
 		}
 		expect( opened ).toBe( 0 );
 	} );
@@ -202,8 +194,7 @@ describe( 'living-tree tuner panel', () => {
 			onChange: () => {},
 			onClose: () => {},
 		} );
-		// On body, NOT nested in a wallpaper subtree — the wallpaper layer
-		// is visible but never hit-testable under the shell's stack.
+
 		const panel = document.querySelector( '[data-living-tree-tuner]' );
 		expect( panel?.parentElement ).toBe( document.body );
 		const sliders = document.querySelectorAll( 'input[type="range"]' );
@@ -225,7 +216,7 @@ describe( 'living-tree tuner panel', () => {
 		const input = document.querySelectorAll( 'input[type="range"]' )[
 			posts
 		] as HTMLInputElement;
-		// Two rapid moves — the debounce collapses them into one change.
+
 		input.value = '1500';
 		input.dispatchEvent( new Event( 'input' ) );
 		input.value = '2000';
@@ -234,7 +225,7 @@ describe( 'living-tree tuner panel', () => {
 		vi.advanceTimersByTime( 120 );
 		expect( changes.length ).toBe( 1 );
 		expect( changes[ 0 ].totalPosts ).toBe( 2000 );
-		// Untouched fields ride along unchanged.
+
 		expect( changes[ 0 ].siteAgeDays ).toBe( 365 );
 	} );
 
@@ -252,14 +243,14 @@ describe( 'living-tree tuner panel', () => {
 		) as HTMLInputElement;
 		expect( input ).not.toBeNull();
 		expect( input.value ).toBe( '13.5' );
-		// One extra range input beyond the snapshot catalogue.
+
 		expect( document.querySelectorAll( 'input[type="range"]' ).length ).toBe(
 			SLIDER_DEFS.length + 1,
 		);
 
 		input.value = '22';
 		input.dispatchEvent( new Event( 'input' ) );
-		// No debounce — the sky must track the drag.
+
 		expect( hours ).toEqual( [ 22 ] );
 
 		const live = Array.from( document.querySelectorAll( 'button' ) ).find(

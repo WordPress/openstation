@@ -1,4 +1,3 @@
-/** Continuous content browsing over the app's existing paginated server action. */
 import { __, html, type TemplateResult } from '@openstation/app';
 import type { UsersData, UserListItem, UsersState } from './types';
 import type { ViewContext } from '@openstation/app';
@@ -19,7 +18,6 @@ export class PeopleFeed {
 	private sentinel: Element | null = null;
 	private restarting = false;
 
-	/** New queries replace the collection; continuation batches append with ID deduplication. */
 	reconcile( ctx: Ctx ): Ctx {
 		this.ctx = ctx;
 		const { state, data } = ctx;
@@ -32,7 +30,6 @@ export class PeopleFeed {
 			if ( data.list.error ) {
 				this.error = true;
 			} else if ( data.list.page > 1 && data.list.page !== this.expected ) {
-				// A refresh/watch after scrolling must refresh the whole query from its start.
 				if ( ! this.restarting ) {
 					this.restarting = true;
 					queueMicrotask( () => {
@@ -62,7 +59,6 @@ export class PeopleFeed {
 		return this.page > 0 && this.page < this.pages;
 	}
 
-	/** Single-flight, retryable continuation; never bypasses the PHP query filters. */
 	async more(): Promise< void > {
 		const ctx = this.ctx;
 		if ( ! ctx || this.disposed || this.pending || ctx.loading || ! this.hasMore ) {
@@ -96,7 +92,6 @@ export class PeopleFeed {
 		return html`<div class="os-people__continuation" data-users-feed-end role="status">${ content }</div>`;
 	}
 
-	/** The card tail auto-loads; the optional table keeps an explicit accessible continuation. */
 	observe( root: HTMLElement ): void {
 		const sentinel = root.querySelector( '.os-people__cards [data-users-feed-end]' );
 		if ( sentinel === this.sentinel ) {

@@ -1,8 +1,3 @@
-/**
- * Tests for the desktop-storage uploader: error-message mapping
- * (web-server 413s arrive as non-JSON), the hook chain, and store
- * ingest of the returned placement.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -141,7 +136,6 @@ describe( 'uploadFileToDesktop', () => {
 		expect( result.storedFileId ).toBe( 77 );
 		expect( result.placement.id ).toBe( 4242 );
 
-		// The placement was ingested into the shared files store.
 		const store = await import( '../../src/desktop-files/store' );
 		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
 		expect( rows.some( ( r ) => r.id === 4242 ) ).toBe( true );
@@ -190,8 +184,6 @@ describe( 'uploadFileToDesktop', () => {
 		expect( result.createdFolders ).toHaveLength( 1 );
 		expect( result.createdFolders[ 0 ].folder.name ).toBe( 'docs' );
 
-		// The wallpaper tile is in the store the moment the first file
-		// of the tree lands — no end-of-batch resync, no heartbeat.
 		const state = store.getFilesState();
 		expect( state.folders.get( 3 )?.name ).toBe( 'docs' );
 		expect( ( state.placementsByFolder.get( 0 ) ?? [] ).some( ( p ) => p.id === 900 ) ).toBe( true );

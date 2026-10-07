@@ -1,21 +1,3 @@
-/**
- * OpenStation — phone layer: the app switcher.
- *
- * A sheet over the app listing every open window as a card, most
- * recent first. Tap a card to go to it; swipe it sideways to close
- * it; "Close all" at the bottom.
- *
- * The cards are a deck. Each one is drawn as a small window (a title
- * bar over a body surface) and the deck is laid out bottom-up by
- * `mobile.css`, so the front card sits nearest the thumb and every
- * card behind it peeks out above with its title showing. The pile is
- * the picture of what the switcher holds: windows on top of windows.
- *
- * The switcher is a dialog: focus moves in when it opens, returns to
- * where it was when it closes, and Escape closes it. Cards are plain
- * buttons — a screen reader user closes with the × next to each,
- * the swipe is the pointer's shortcut to the same thing.
- */
 import { __, sprintf } from '../i18n';
 import { osIcon } from '../ui/icons';
 import { SWIPE_INTENT_PX, swipeOutcome } from './gestures';
@@ -25,7 +7,7 @@ export interface SwitcherCard {
 	title: string;
 	icon: string;
 	subtitle: string;
-	/** The app that is on screen right now — tapping it just dismisses the sheet. */
+
 	active?: boolean;
 }
 
@@ -34,14 +16,14 @@ export interface SwitcherDeps {
 	onPick: ( card: SwitcherCard ) => void;
 	onClose: ( card: SwitcherCard ) => void;
 	onCloseAll: () => void;
-	/** The sheet was dismissed (backdrop, ×, Escape). */
+
 	onDismiss: () => void;
 }
 
 export interface SwitcherSurface {
 	el: HTMLElement;
 	open( cards: readonly SwitcherCard[] ): void;
-	/** Repaint while open; a no-op while closed or mid-swipe. */
+
 	update( cards: readonly SwitcherCard[] ): void;
 	close(): void;
 	isOpen(): boolean;
@@ -135,8 +117,7 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 			chip.textContent = __( 'Active' );
 			title.appendChild( chip );
 		}
-		// A small window: the title bar, then the body surface the next
-		// card in the deck overlaps.
+
 		const bar = document.createElement( 'span' );
 		bar.className = 'os-mobile-card__bar';
 		bar.append( icon, text );
@@ -152,7 +133,7 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 		close.setAttribute(
 			'aria-label',
 			sprintf(
-				/* translators: %s: window title. */
+
 				__( 'Close %s' ),
 				c.title,
 			),
@@ -168,7 +149,6 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 		return wrap;
 	};
 
-	/** Slide the card out, then tell the layer. */
 	const dismissCard = ( wrap: HTMLElement, c: SwitcherCard, direction: 1 | -1 ): void => {
 		wrap.classList.add( 'os-mobile-card--out' );
 		wrap.style.setProperty( '--os-mobile-card-dir', String( direction ) );
@@ -229,7 +209,6 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 					return;
 				}
 				if ( Math.abs( dy ) > Math.abs( dx ) ) {
-					// A vertical scroll: let it be.
 					pointerId = null;
 					return;
 				}
@@ -239,7 +218,7 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 				try {
 					wrap.setPointerCapture( e.pointerId );
 				} catch {
-					// jsdom.
+
 				}
 			}
 			const dt = Math.max( 1, e.timeStamp - lastT );
@@ -260,7 +239,7 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 			const dx = e.clientX - startX;
 			const dy = e.clientY - startY;
 			const outcome = swipeOutcome( { dx, dy, velocity, width: wrap.offsetWidth } );
-			// Swallow the click the release would fire on the body.
+
 			const swallow = ( ev: Event ): void => {
 				ev.stopPropagation();
 				ev.preventDefault();
@@ -285,12 +264,6 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 		} );
 	};
 
-	/**
-	 * One deck. The DOM order stays most-recent-first (what a screen
-	 * reader hears, where focus lands); the stylesheet lays the pile
-	 * out bottom-up, which reverses the paint order, so the z-order is
-	 * set here to put the first card in front.
-	 */
 	const deck = ( cards: readonly SwitcherCard[] ): HTMLElement => {
 		const section = document.createElement( 'section' );
 		section.className = 'os-mobile-deck';
@@ -333,7 +306,7 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 			paint( cards );
 			el.hidden = false;
 			document.addEventListener( 'keydown', onKey );
-			// Focus lands on the first card, or the × when there is none.
+
 			const first = list.querySelector< HTMLElement >( '.os-mobile-card__body' );
 			( first ?? closeButton ).focus();
 		},

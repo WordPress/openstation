@@ -1,7 +1,3 @@
-/**
- * Tests for `resolveCommonActions` — the rule that decides what a
- * mixed selection is allowed to offer.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { SelectionAction } from '../../src/selection/actions';
@@ -20,11 +16,6 @@ const post: Item = { id: 1, type: 'post' };
 const attachment: Item = { id: 2, type: 'attachment' };
 const folder: Item = { id: 3, type: 'folder' };
 
-/**
- * Action lists modelled on the real file-tile menu: everything can be
- * opened and trashed; only posts navigate-into; only folders rename;
- * only attachments download.
- */
 function actionsFor( item: Item ): SelectionAction< Item >[] {
 	const list: SelectionAction< Item >[] = [
 		{
@@ -100,8 +91,7 @@ describe( 'resolveCommonActions', () => {
 		const { resolveCommonActions } = await load();
 		const own = actionsFor( post );
 		const resolved = resolveCommonActions( [ post ], () => own );
-		// Same array identity: the single-item menu is exactly what
-		// the surface built, with no relabelling and no filtering.
+
 		expect( resolved ).toBe( own );
 		expect( resolved.map( ( a ) => a.label ) ).toEqual( [
 			'Open',
@@ -117,7 +107,7 @@ describe( 'resolveCommonActions', () => {
 			actionsFor,
 		);
 		expect( resolved.map( ( a ) => a.id ) ).toEqual( [ 'open', 'trash' ] );
-		// Navigate-into is post-only; download is attachment-only.
+
 		expect( resolved.find( ( a ) => a.id === 'navigate-into' ) ).toBeUndefined();
 		expect( resolved.find( ( a ) => a.id === 'download' ) ).toBeUndefined();
 	} );
@@ -129,7 +119,7 @@ describe( 'resolveCommonActions', () => {
 		expect( trash ).toBeDefined();
 		expect( trash?.label ).toBe( 'Move 2 items to Trash' );
 		expect( trash?.danger ).toBe( true );
-		// Rename is folder-only and never reaches a mixed set.
+
 		expect( resolved.find( ( a ) => a.id === 'rename-folder' ) ).toBeUndefined();
 	} );
 
@@ -186,8 +176,7 @@ describe( 'resolveCommonActions', () => {
 		const [ action ] = resolveCommonActions( [ post, attachment ], build );
 		expect( action.disabled ).toBe( true );
 		expect( action.danger ).toBe( true );
-		// Sort takes the minimum so the merged entry sits where the
-		// earliest contributor would have put it.
+
 		expect( action.sort ).toBe( 10 );
 	} );
 
@@ -209,12 +198,7 @@ describe( 'resolveCommonActions', () => {
 	} );
 
 	test( 'merged contributors each get their OWN bulk, with their own items', async () => {
-		// `multiId` merges actions that are the same deed under
-		// different labels — and nothing says they share an
-		// implementation. Handing the whole heterogeneous set to
-		// `contributors[0].bulk` pushed folders through the file
-		// runner (or dropped them), and which one "won" depended on
-		// the order the user happened to select in.
+
 		const { resolveCommonActions } = await load();
 		const fileBulk = vi.fn();
 		const folderBulk = vi.fn();
@@ -251,9 +235,7 @@ describe( 'resolveCommonActions', () => {
 	} );
 
 	test( 'contributors sharing one runner still make a single call', async () => {
-		// What the built-ins do: the folder entry and the file entry
-		// point at the SAME function, so a mixed selection is one
-		// batch — one toast, one Undo — not two.
+
 		const { resolveCommonActions } = await load();
 		const shared = vi.fn();
 		const build = ( item: Item ): SelectionAction< Item >[] => [
@@ -342,7 +324,7 @@ describe( 'resolveCommonActions', () => {
 			build,
 		);
 		await action.onClick( new MouseEvent( 'click' ) );
-		// Each contributor's OWN closure ran, in order.
+
 		expect( calls ).toEqual( [ 1, 2, 3 ] );
 	} );
 

@@ -1,13 +1,3 @@
-/**
- * Mio soft body — the spring/pressure simulation that gives the
- * Mio its jelly.
- *
- * These are behavioural invariants rather than golden numbers: a
- * blob at rest stays round, a squashed blob re-inflates, a magnet
- * pulls it onto a window from any direction and it settles there
- * instead of through it, a throw glides, and the integrator never
- * produces NaN even when fed a hostile frame delta.
- */
 import { describe, expect, test } from 'vitest';
 import { MIO_DEFAULTS } from '../../src/mio/config';
 import { magnetPull, type Obstacle } from '../../src/mio/environment';
@@ -33,16 +23,6 @@ import type {
 
 const BOUNDS = { width: 1200, height: 800 };
 
-/**
- * The shipped physics with the rest shape forced back to a circle.
- *
- * Almost every invariant below is phrased in terms of *roundness* —
- * "an untouched blob keeps its shape", "a squashed blob re-inflates",
- * "the silhouette stays inside an annulus". Those are statements about
- * the body returning to its rest shape, and they read far more clearly
- * against a circle than against the shipped rounded triangle. The
- * profile gets its own block at the end.
- */
 const PHYSICS = {
 	...MIO_DEFAULTS.physics,
 	shapePreset: 'circle' as const,
@@ -59,7 +39,6 @@ function input( over: Partial< StepInput > = {} ): StepInput {
 	};
 }
 
-/** Run `seconds` of simulated time in 60 fps frames. */
 function run( body: SoftBody, seconds: number, over: Partial< StepInput > = {} ): void {
 	const frames = Math.round( seconds * 60 );
 	for ( let i = 0; i < frames; i++ ) {
@@ -67,10 +46,6 @@ function run( body: SoftBody, seconds: number, over: Partial< StepInput > = {} )
 	}
 }
 
-/**
- * Run with a live magnet — recomputed each frame from the obstacle
- * set, exactly as the runtime does.
- */
 function runMagnetised(
 	body: SoftBody,
 	seconds: number,
@@ -95,7 +70,6 @@ function runMagnetised(
 	}
 }
 
-/** Largest deviation of any rim point from the rest radius. */
 function radiusError( body: SoftBody ): number {
 	let worst = 0;
 	for ( const p of body.rim ) {
@@ -138,7 +112,7 @@ describe( 'createSoftBody', () => {
 
 	test( 'rest area is the inscribed polygon, not the circle', () => {
 		const body = createSoftBody( 0, 0, 50, 40 );
-		// Below πr² (7853.98) but within a couple of percent of it.
+
 		expect( body.restArea ).toBeLessThan( Math.PI * 50 * 50 );
 		expect( body.restArea ).toBeGreaterThan( Math.PI * 50 * 50 * 0.97 );
 		expect( Math.abs( polygonArea( body.rim ) ) ).toBeCloseTo( body.restArea, 6 );
@@ -156,7 +130,7 @@ describe( 'floating', () => {
 	test( 'stays airborne — no window means no net fall', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
 		run( body, 4 );
-		// Bob amplitude is 10 px; anything beyond that is a leak.
+
 		expect( Math.abs( body.core.y - 400 ) ).toBeLessThan( 45 );
 	} );
 
@@ -172,23 +146,16 @@ describe( 'floating', () => {
 		}
 		const min = Math.min( ...samples );
 		const max = Math.max( ...samples );
-		// It breathes — but softly. A perfect circle would hold
-		// width − height at 0; a flailing one would swing wildly.
+
 		expect( max - min ).toBeGreaterThan( 3 );
 		expect( max - min ).toBeLessThan( 0.6 * 2 * body.radius );
 		expect( isFiniteBody( body ) ).toBe( true );
 	} );
 
 	test( 'the wobble is smooth — every spring family agrees on the rest shape', () => {
-		// Regression guard for the flicker bug. Breathe the shape
-		// springs while the edge springs go on defending the original
-		// perimeter and the two fight at their natural frequency: the
-		// outline buzzes instead of breathing. That shows up as
-		// high-frequency content, so we measure the *second*
-		// difference of each vertex's radius — smooth motion has
-		// almost none, a spring fight has plenty.
+
 		const body = createSoftBody( 600, 400, 56, 34 );
-		run( body, 2 ); // settle
+		run( body, 2 );
 
 		const radii = (): number[] =>
 			body.rim.map( ( p ) =>
@@ -214,10 +181,8 @@ describe( 'floating', () => {
 			previous = current;
 		}
 
-		// It is moving…
 		expect( worstStep ).toBeGreaterThan( 0.005 );
-		// …but never jerking. A fighting ring lands orders of
-		// magnitude above this.
+
 		expect( worstJerk ).toBeLessThan( 0.05 );
 	} );
 
@@ -236,8 +201,7 @@ describe( 'floating', () => {
 	test( 'the wobble is deformation, not drift', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
 		run( body, 8 );
-		// Internal forces are mean-projected: breathing must never
-		// push the body across the desk.
+
 		expect( Math.abs( body.core.x - 600 ) ).toBeLessThan( 40 );
 	} );
 } );
@@ -245,7 +209,7 @@ describe( 'floating', () => {
 describe( 'stepSoftBody', () => {
 	test( 'pressure re-inflates a squashed blob', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
-		// Flatten it hard: collapse every rim point onto a thin band.
+
 		for ( const p of body.rim ) {
 			p.y = body.core.y + ( p.y - body.core.y ) * 0.06;
 		}
@@ -270,19 +234,17 @@ describe( 'stepSoftBody', () => {
 		runMagnetised( body, 5, [ window_ ] );
 
 		expect( isFiniteBody( body ) ).toBe( true );
-		// Settled on the surface, not through it.
+
 		const lowest = Math.max( ...body.rim.map( ( p ) => p.y ) );
 		expect( lowest ).toBeLessThanOrEqual( window_.y + 0.5 );
 		expect( lowest ).toBeGreaterThan( window_.y - 8 );
-		// And the centre sits a body's-worth above the surface rather
-		// than sinking to it (the failure mode a dynamic core mass
-		// produces — see the module header).
+
 		expect( body.core.y ).toBeGreaterThan( window_.y - body.radius );
 		expect( body.core.y ).toBeLessThan( window_.y - body.radius * 0.5 );
 	} );
 
 	test( 'the magnet works sideways — there is no global down', () => {
-		// A tall window to the right; Mio starts level with it.
+
 		const window_: Obstacle = {
 			id: 'window:tall',
 			kind: 'window',
@@ -295,7 +257,7 @@ describe( 'stepSoftBody', () => {
 		runMagnetised( body, 5, [ window_ ] );
 
 		expect( isFiniteBody( body ) ).toBe( true );
-		// Stuck to the left face, not fallen to the floor.
+
 		const rightmost = Math.max( ...body.rim.map( ( p ) => p.x ) );
 		expect( rightmost ).toBeLessThanOrEqual( window_.x + 0.5 );
 		expect( rightmost ).toBeGreaterThan( window_.x - 8 );
@@ -303,13 +265,7 @@ describe( 'stepSoftBody', () => {
 	} );
 
 	test( 'Mio parked in a corner comes to rest', () => {
-		// Regression guard for the corner limit cycle. A magnet that
-		// pulls with constant force has no equilibrium: it drives the
-		// body into the surface, the contact solver bounces it back,
-		// forever. Against a flat face that's invisible — the bounce
-		// is purely normal and friction eats it. In a corner the pull
-		// is diagonal, so every cycle also slides the body along one
-		// face and Mio visibly orbits the corner.
+
 		const window_: Obstacle = {
 			id: 'window:posts',
 			kind: 'window',
@@ -321,9 +277,6 @@ describe( 'stepSoftBody', () => {
 		const body = createSoftBody( 470, 370, 56, 34 );
 		runMagnetised( body, 7, [ window_ ] );
 
-		// Now watch it for two more seconds: it must be still, not
-		// cycling. The pre-fix build oscillated between 4 and 61 px/s
-		// here with a ~0.25 s period.
 		let worstSpeed = 0;
 		for ( let i = 0; i < 120; i++ ) {
 			stepSoftBody(
@@ -379,10 +332,10 @@ describe( 'stepSoftBody', () => {
 
 	test( 'moving fast stretches the body along its heading', () => {
 		const body = createSoftBody( 150, 400, 56, 34 );
-		// Drag rightwards at a steady clip, staying inside the layer.
+
 		let target = 150;
 		for ( let i = 0; i < 60; i++ ) {
-			target += 14; // ≈ 840 px/s
+			target += 14;
 			stepSoftBody(
 				body,
 				1 / 60,
@@ -390,9 +343,9 @@ describe( 'stepSoftBody', () => {
 			);
 		}
 		const moving = extents( body );
-		// Drawn out along the direction of travel…
+
 		expect( moving.width / moving.height ).toBeGreaterThan( 1.25 );
-		// …without gaining mass: the stretch is area-preserving.
+
 		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
 			body.restArea * 0.95,
 		);
@@ -418,8 +371,7 @@ describe( 'stepSoftBody', () => {
 		expect( settled.width / settled.height ).toBeLessThan(
 			moving.width / moving.height - 0.2,
 		);
-		// Back to roughly round — the idle wobble keeps it from ever
-		// being exactly 1.
+
 		expect( settled.width / settled.height ).toBeLessThan( 1.2 );
 	} );
 
@@ -433,10 +385,7 @@ describe( 'stepSoftBody', () => {
 
 	test( 'the body is never crushed flat by an out-of-bounds drag', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
-		// A caller that forgets to clamp: haul the target far past
-		// the layer's edge and hold it there. Unclamped, every rim
-		// point piles onto the same wall and the blob flattens to
-		// zero area.
+
 		run( body, 3, { dragTarget: { x: 99999, y: 99999 } } );
 		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
 			body.restArea * 0.5,
@@ -465,7 +414,7 @@ describe( 'stepSoftBody', () => {
 
 	test( 'survives a hostile frame delta without exploding', () => {
 		const body = createSoftBody( 600, 200, 56, 34 );
-		// Tab restore: a five-second delta, then a negative one.
+
 		stepSoftBody( body, 5, input() );
 		stepSoftBody( body, -1, input() );
 		stepSoftBody( body, Number.NaN, input() );
@@ -480,9 +429,9 @@ describe( 'addVelocity', () => {
 		addVelocity( body, 900, 0 );
 		expect( body.core.vx ).toBeCloseTo( 900, 6 );
 		run( body, 0.5 );
-		// Carried a long way on its own momentum…
+
 		expect( body.core.x ).toBeGreaterThan( 550 );
-		// …and stayed a blob doing it.
+
 		expect( radiusError( body ) ).toBeLessThan( 25 );
 	} );
 
@@ -495,7 +444,7 @@ describe( 'addVelocity', () => {
 } );
 
 describe( 'hard stretch limits', () => {
-	/** Every rim point's distance from the centroid, over the rest radius. */
+
 	function radialFractions( body: SoftBody ): number[] {
 		return body.rim.map(
 			( p ) =>
@@ -503,7 +452,6 @@ describe( 'hard stretch limits', () => {
 		);
 	}
 
-	/** Mangle the body far outside any legal shape. */
 	function mangle( body: SoftBody ): void {
 		body.rim.forEach( ( p, i ) => {
 			const scale = i % 2 === 0 ? 0.05 : 2.6;
@@ -513,9 +461,7 @@ describe( 'hard stretch limits', () => {
 	}
 
 	test( 'a free body is pulled inside the limits within one frame', () => {
-		// No contact anywhere: this is the exact guarantee. Springs
-		// alone would take many frames to unwind a shape this extreme,
-		// and a hard enough force could hold it there indefinitely.
+
 		const body = createSoftBody( 600, 400, 56, 34 );
 		mangle( body );
 		expect( Math.min( ...radialFractions( body ) ) ).toBeLessThan( 0.1 );
@@ -524,8 +470,7 @@ describe( 'hard stretch limits', () => {
 		stepSoftBody( body, 1 / 60, input() );
 
 		const after = radialFractions( body );
-		// A little slack for the wobble/stretch shaping of the rest
-		// radius, which the limits are relative to.
+
 		expect( Math.min( ...after ) ).toBeGreaterThan( PHYSICS.minStretch * 0.9 );
 		expect( Math.max( ...after ) ).toBeLessThan( PHYSICS.maxStretch * 1.1 );
 	} );
@@ -581,12 +526,8 @@ describe( 'hard stretch limits', () => {
 		const unlimited = worstSquash( { ...PHYSICS, limitIterations: 0 } );
 		const limited = worstSquash( PHYSICS );
 
-		// Unbounded, a slam this hard flattens the blob to a line.
 		expect( unlimited ).toBeLessThan( 0.15 );
-		// Bounded, it stays a recognisable pancake. Contact still has
-		// the final word — a rim point pinned against a window can't
-		// be pushed back out to satisfy a limit — so this is a big
-		// improvement rather than the exact floor.
+
 		expect( limited ).toBeGreaterThan( unlimited * 2 );
 		expect( limited ).toBeGreaterThan( 0.2 );
 	} );
@@ -640,17 +581,12 @@ describe( 'hard stretch limits', () => {
 				}
 			}
 		}
-		// The stretch limits themselves never do this — contact gets
-		// the last word over them. The sub-pixel residue is the
-		// angular repair, which outranks contact by design because a
-		// fold is unrecoverable and a hair of overlap is not.
+
 		expect( worstPenetration ).toBeLessThan( 1 );
 	} );
 
 	test( 'they stay out of the way in ordinary use', () => {
-		// Mio drifting onto a window under its own magnet never
-		// deforms enough for a limit to engage — they must not be
-		// quietly stiffening the everyday feel.
+
 		const window_: Obstacle = {
 			id: 'window:posts',
 			kind: 'window',
@@ -683,7 +619,7 @@ describe( 'hard stretch limits', () => {
 } );
 
 describe( 'the outline can never fold', () => {
-	/** True when no two rim edges cross. O(n²) — fine for a test. */
+
 	function isSimplePolygon( body: SoftBody ): boolean {
 		const n = body.rim.length;
 		const cross = (
@@ -712,12 +648,6 @@ describe( 'the outline can never fold', () => {
 		return true;
 	}
 
-	/**
-	 * 3000 frames of relentless abuse: hard flings in every
-	 * direction, direct rim mangling, and drags held deep inside
-	 * windows. Returns how many frames ended self-intersecting and
-	 * the smallest area the body ever reached.
-	 */
 	function torture( physics: typeof PHYSICS ): {
 		broken: number;
 		minArea: number;
@@ -738,7 +668,7 @@ describe( 'the outline can never fold', () => {
 				}
 			}
 			if ( i % 240 === 100 ) {
-				// Turn every third point inside out by hand.
+
 				body.rim.forEach( ( p, k ) => {
 					if ( k % 3 === 0 ) {
 						p.x = body.core.x - ( p.x - body.core.x ) * 1.4;
@@ -780,23 +710,20 @@ describe( 'the outline can never fold', () => {
 	test( 'survives torture without ever self-intersecting', () => {
 		const out = torture( PHYSICS );
 		expect( out.broken ).toBe( 0 );
-		// And never collapses while it's at it.
+
 		expect( out.minArea ).toBeGreaterThan( 0.3 );
 		expect( isFiniteBody as unknown ).toBeTruthy();
 	} );
 
 	test( 'without the angular constraint it folds and stays folded', () => {
-		// The bug this guards: a folded ring satisfies every
-		// distance-based constraint — radial limits, edge limits,
-		// pressure — so nothing pulls it back out and Mio is a
-		// crescent for the rest of the session.
+
 		const out = torture( { ...PHYSICS, minAngularGap: 0 } );
 		expect( out.broken ).toBeGreaterThan( 100 );
 	} );
 
 	test( 'a hand-folded body untangles itself', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
-		// Reflect half the rim through the centre: a textbook fold.
+
 		body.rim.forEach( ( p, i ) => {
 			if ( i < 17 ) {
 				p.x = body.core.x - ( p.x - body.core.x );
@@ -811,10 +738,7 @@ describe( 'the outline can never fold', () => {
 	} );
 
 	test( 'repairing a fold does not walk Mio across the desk', () => {
-		// Individual points must move a long way to unfold — that's
-		// the repair working. The *body* must not: the corrections
-		// are rotations about the centroid and their mean angular
-		// drift is projected out, so nothing translates or spins.
+
 		const body = createSoftBody( 600, 400, 56, 34 );
 		body.rim.forEach( ( p, i ) => {
 			if ( i % 2 === 0 ) {
@@ -822,8 +746,7 @@ describe( 'the outline can never fold', () => {
 				p.y = body.core.y - ( p.y - body.core.y ) * 0.8;
 			}
 		} );
-		// Mangling moves the centroid; measure the drift from where
-		// the body actually is, not from where it was built.
+
 		syncCore( body );
 		const start = { x: body.core.x, y: body.core.y };
 		const calm = { ...PHYSICS, idleWobble: 0, floatAmplitude: 0 };
@@ -831,16 +754,12 @@ describe( 'the outline can never fold', () => {
 
 		expect( Math.hypot( body.core.x - start.x, body.core.y - start.y ) )
 			.toBeLessThan( 15 );
-		// And it recovered its shape rather than settling deformed.
+
 		expect( radiusError( body ) ).toBeLessThan( 12 );
 	} );
 
 	test( 'the repair never fires on a healthy body', () => {
-		// It must be a no-op in the common case, or it would be
-		// quietly regularising the silhouette every frame and killing
-		// the soft look. Proven by trajectory equivalence: a body
-		// that never folds behaves identically with the constraint
-		// switched off.
+
 		const withRepair = createSoftBody( 600, 400, 56, 34 );
 		const without = createSoftBody( 600, 400, 56, 34 );
 		for ( let i = 0; i < 600; i++ ) {
@@ -869,7 +788,7 @@ describe( 'dragging against windows', () => {
 			height: 250,
 		};
 		const body = createSoftBody( 750, 300, 56, 34 );
-		// Hold the cursor deep inside the window and lean on it.
+
 		let worstPenetration = 0;
 		for ( let i = 0; i < 600; i++ ) {
 			stepSoftBody(
@@ -900,11 +819,9 @@ describe( 'dragging against windows', () => {
 				}
 			}
 		}
-		// Sub-pixel: the angular repair can carry a point a hair
-		// across an edge, and that trade is deliberate — see the
-		// solver's closing comment.
+
 		expect( worstPenetration ).toBeLessThan( 2 );
-		// It stops at the surface instead of sinking in.
+
 		expect( body.core.y ).toBeLessThan( window_.y );
 	} );
 
@@ -931,7 +848,7 @@ describe( 'dragging against windows', () => {
 			);
 			minHeight = Math.min( minHeight, extents( body ).height );
 		}
-		// Squashed against the glass — but still a blob, not a line.
+
 		expect( minHeight ).toBeGreaterThan( 56 * 0.6 );
 		expect( minHeight ).toBeLessThan( 56 * 1.9 );
 	} );
@@ -940,9 +857,7 @@ describe( 'dragging against windows', () => {
 describe( 'resetBody', () => {
 	test( 're-forms a mangled body as a clean circle at rest', () => {
 		const body = createSoftBody( 100, 100, 50, 24 );
-		// Mangle it: shove alternating points in opposite directions,
-		// the shape the contact solver produces when a window opens on
-		// top of Mio.
+
 		body.rim.forEach( ( p, i ) => {
 			p.x += i % 2 === 0 ? 60 : -60;
 			p.vx = 500;
@@ -961,9 +876,7 @@ describe( 'resetBody', () => {
 describe( 'helpers', () => {
 	test( 'translateBody lands the centroid on the target, deformation intact', () => {
 		const body = createSoftBody( 100, 100, 50, 12 );
-		// Dent the rim so the centroid no longer matches the
-		// construction centre — translateBody must resync, not trust
-		// the stale cached centre.
+
 		body.rim[ 0 ].x += 17;
 		const centroidBefore = rimCentroid( body.rim );
 		const offsets = body.rim.map( ( p ) => ( {
@@ -993,12 +906,10 @@ describe( 'the rest shape', () => {
 	const TRIANGLE = MIO_DEFAULTS.physics;
 	const profile = ( angle: number ): number => shapeProfile( angle, TRIANGLE );
 
-	/** The shipped physics with one silhouette swapped in. */
 	function withPreset( shapePreset: MioShapePreset ): MioPhysics {
 		return { ...MIO_DEFAULTS.physics, shapePreset };
 	}
 
-	/** Sample a preset's silhouette all the way round. */
 	function sweep(
 		physics: MioPhysics,
 		steps = 720,
@@ -1011,7 +922,6 @@ describe( 'the rest shape', () => {
 		return out;
 	}
 
-	/** Radius of the rim point nearest `angle`, relative to the rest radius. */
 	function radiusAt( body: SoftBody, angle: number ): number {
 		let best = body.rim[ 0 ];
 		let bestGap = Infinity;
@@ -1038,7 +948,6 @@ describe( 'the rest shape', () => {
 		}
 	} );
 
-	/** Every silhouette there is, `circle` excepted where noted. */
 	const ALL_PRESETS = [
 		'blob',
 		'ghost',
@@ -1053,8 +962,7 @@ describe( 'the rest shape', () => {
 	] as const;
 
 	test( 'zero amount is a circle whatever the preset', () => {
-		// The one guarantee that has to hold across all of them, or
-		// `shapeAmount` means something different per preset.
+
 		for ( const p of ALL_PRESETS ) {
 			const flat = { ...withPreset( p ), shapeAmount: 0 };
 			for ( const { r } of sweep( flat, 60 ) ) {
@@ -1064,9 +972,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'every preset stays inside the limits the solver assumes', () => {
-		// `minStretch` / `maxStretch` bound the rim to an annulus around
-		// the rest shape. A preset that pushed past them on its own would
-		// be permanently fighting the relaxation pass.
+
 		for ( const p of ALL_PRESETS ) {
 			for ( const { r } of sweep( withPreset( p ) ) ) {
 				expect( r ).toBeGreaterThan( MIO_DEFAULTS.physics.minStretch );
@@ -1076,11 +982,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'every preset is a shape you can actually see', () => {
-		// The prominence guarantee. `circle` is the deliberate flat one;
-		// `blob` is the reference silhouette and is meant to be subtle.
-		// Everything else exists to be recognised across a desktop, and
-		// a preset whose deviation rounds to nothing is a shuffle that
-		// looks like a bug.
+
 		for ( const p of ALL_PRESETS ) {
 			if ( p === 'blob' ) {
 				continue;
@@ -1092,9 +994,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'no preset is upside down', () => {
-		// Each of these was authored with one named feature at the
-		// crown. Screen coordinates put the crown at −π/2, and the sign
-		// is easy to drop — this is the test that catches it.
+
 		const crownIsHighest = ( p: MioShapePreset ): boolean => {
 			const at = ( angle: number ): number =>
 				shapeProfile( angle, withPreset( p ) );
@@ -1102,13 +1002,11 @@ describe( 'the rest shape', () => {
 			const foot = at( Math.PI / 2 );
 			return crown > foot;
 		};
-		// A point up: star, teardrop, and the cloud's middle billow.
+
 		for ( const p of [ 'star', 'drop', 'cloud' ] as const ) {
 			expect( crownIsHighest( p ) ).toBe( true );
 		}
-		// The diamond points up *and* down, so it has no higher end —
-		// what it must not do is point at the diagonals instead, which
-		// is what a half-lobe phase error would produce.
+
 		const diamond = withPreset( 'diamond' );
 		expect( shapeProfile( -Math.PI / 2, diamond ) ).toBeGreaterThan(
 			shapeProfile( -Math.PI / 4, diamond ),
@@ -1120,8 +1018,7 @@ describe( 'the rest shape', () => {
 		const heart = withPreset( 'heart' );
 		expect( shapeProfile( -Math.PI / 2, heart ) ).toBeLessThan( 1 );
 		expect( shapeProfile( Math.PI / 2, heart ) ).toBeGreaterThan( 1 );
-		// …and its two lobes are mirror images, not two bumps that
-		// drifted apart.
+
 		for ( let i = 1; i < 12; i++ ) {
 			const off = ( i / 12 ) * Math.PI;
 			expect( shapeProfile( -Math.PI / 2 + off, heart ) ).toBeCloseTo(
@@ -1132,8 +1029,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the star has five points, the flower six petals', () => {
-		// Count local maxima the same way the eye does: a crest is a
-		// sample higher than both its neighbours.
+
 		const crests = ( p: MioShapePreset ): number => {
 			const radii = sweep( withPreset( p ), 360 ).map( ( s ) => s.r );
 			let count = 0;
@@ -1153,8 +1049,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'a star point is narrower than a flower petal', () => {
-		// What separates the two shapes is not lobe count, it is crest
-		// width: the star spends most of its perimeter in the valleys.
+
 		const aboveMean = ( p: MioShapePreset ): number => {
 			const radii = sweep( withPreset( p ), 720 ).map( ( s ) => s.r );
 			const mean = radii.reduce( ( a, b ) => a + b, 0 ) / radii.length;
@@ -1172,10 +1067,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'custom at amount 1 is the flat-sided limit for any lobe count', () => {
-		// `1 + a·cos(kθ)` has zero curvature at its side midpoints when
-		// a = 1/(1 + k²). That is what `shapeAmount: 1` has to mean, or
-		// the knob means something different for a triangle than for a
-		// hexagon.
+
 		for ( const k of [ 3, 4, 6 ] ) {
 			const at = ( angle: number ): number =>
 				shapeProfile( angle, {
@@ -1184,7 +1076,7 @@ describe( 'the rest shape', () => {
 					shapeAmount: 1,
 					shapeAngle: 0,
 				} );
-			// Corner (θ = 0) and side midpoint (θ = π/k).
+
 			expect( at( 0 ) - 1 ).toBeCloseTo( 1 / ( 1 + k * k ), 12 );
 			expect( 1 - at( Math.PI / k ) ).toBeCloseTo( 1 / ( 1 + k * k ), 12 );
 		}
@@ -1192,15 +1084,12 @@ describe( 'the rest shape', () => {
 
 	test( 'the ghost is a dome on top and feet underneath', () => {
 		const ghost = withPreset( 'ghost' );
-		// Top half: a clean circle, because both the squaring and the
-		// scallops are windowed to the underside. Anything else and it
-		// reads as a gear rather than a ghost.
+
 		for ( let i = 0; i <= 20; i++ ) {
 			const angle = -Math.PI + ( i / 20 ) * Math.PI;
 			expect( shapeProfile( angle, ghost ) ).toBeCloseTo( 1, 9 );
 		}
-		// Three feet along the bottom, at π/6, π/2 and 5π/6, with
-		// notches between them.
+
 		for ( const foot of [ Math.PI / 6, Math.PI / 2, ( 5 * Math.PI ) / 6 ] ) {
 			for ( const notch of [ Math.PI / 3, ( 2 * Math.PI ) / 3 ] ) {
 				expect( shapeProfile( foot, ghost ) ).toBeGreaterThan(
@@ -1208,16 +1097,13 @@ describe( 'the rest shape', () => {
 				);
 			}
 		}
-		// Square shoulders: the lower diagonals push out well past the
-		// circle the top half traces.
+
 		expect( shapeProfile( Math.PI / 4, ghost ) ).toBeGreaterThan( 1.1 );
 	} );
 
 	test( 'the potato has no symmetry to speak of', () => {
 		const potato = withPreset( 'potato' );
-		// Mirror symmetry about any axis would mean r(θ) = r(2φ − θ) for
-		// some φ. Sample a spread of candidate axes and require every one
-		// of them to fail — a potato with an axis is a lemon.
+
 		for ( let a = 0; a < 12; a++ ) {
 			const axis = ( a / 12 ) * Math.PI;
 			let worst = 0;
@@ -1236,7 +1122,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the blob preset puts a corner up and a flat side down', () => {
-		// Screen coordinates: -90° is up, +90° is down.
+
 		const up = shapeProfile( -Math.PI / 2, TRIANGLE );
 		const down = shapeProfile( Math.PI / 2, TRIANGLE );
 		expect( up ).toBeGreaterThan( 1 );
@@ -1251,10 +1137,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the springs hold the shape rather than relaxing it away', () => {
-		// The real test of a rest-length implementation: leave it alone
-		// for two seconds and the corners must still be corners. A shape
-		// applied as a one-off displacement would have been eaten by the
-		// edge and pressure terms long before this.
+
 		const body = createSoftBody( 600, 400, 56, 36, profile );
 		run( body, 2, { physics: TRIANGLE } );
 		expect( radiusAt( body, -Math.PI / 2 ) ).toBeGreaterThan(
@@ -1263,9 +1146,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'a disc pulled into shape reaches the same silhouette', () => {
-		// No profile at build time, so this one starts as a circle and
-		// has to be dragged into a triangle by the springs alone. It is
-		// how a live `setConfig` shape change plays out.
+
 		const morphed = createSoftBody( 600, 400, 56, 36 );
 		run( morphed, 3, { physics: TRIANGLE } );
 		const born = createSoftBody( 600, 400, 56, 36, profile );
@@ -1298,9 +1179,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'every preset survives being simulated', () => {
-		// The presets are the one place a silhouette is authored by hand,
-		// so each one gets run through the solver: no NaN, no collapse,
-		// and the shape still standing at the end.
+
 		for ( const p of [ 'circle', 'ghost', 'potato' ] as const ) {
 			const physics = withPreset( p );
 			const body = createSoftBody( 600, 400, 56, 36, ( a ) =>
@@ -1315,9 +1194,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the outline never folds, even at a clover amount', () => {
-		// Past the flat-sided limit the sides bow inward. The angular
-		// gap constraint still has to hold: a self-intersecting rim is
-		// the one failure the body cannot recover from.
+
 		const clover = { ...withPreset( 'custom' ), shapeAmount: 1.4 };
 		const body = createSoftBody( 600, 400, 56, 36, ( a ) =>
 			shapeProfile( a, clover ),
@@ -1330,10 +1207,7 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the pointed presets hold their shape under the springs', () => {
-		// A star is the hardest thing the solver is asked to hold: five
-		// concave valleys, and the pressure term pushing outward on
-		// every one of them. If the springs can settle into it and stay
-		// there, everything gentler is safe.
+
 		for ( const p of [ 'star', 'heart', 'drop', 'flower' ] as const ) {
 			const physics = {
 				...withPreset( p ),
@@ -1349,8 +1223,6 @@ describe( 'the rest shape', () => {
 			run( body, 3, { physics } );
 			expect( isFiniteBody( body ) ).toBe( true );
 
-			// Still the shape it was born as: the deepest valley is
-			// still meaningfully deeper than the tallest crest.
 			const radii = body.rim.map( ( q ) =>
 				Math.hypot( q.x - body.core.x, q.y - body.core.y ),
 			);
@@ -1363,20 +1235,17 @@ describe( 'the rest shape', () => {
 
 describe( 'rim resolution', () => {
 	test( 'a preset asks for the resolution its detail needs', () => {
-		// The floor is what the shipped Mio runs at; the detailed
-		// silhouettes need more, or their features fall below what a
-		// twelve-point ring can represent at all.
+
 		const at = ( shapePreset: MioShapePreset ): number =>
 			presetRimPoints( { ...MIO_DEFAULTS.physics, shapePreset } );
 
 		expect( at( 'circle' ) ).toBe( 12 );
 		expect( at( 'blob' ) ).toBe( 12 );
-		// Roughly six samples per feature: a five-pointed star needs
-		// far more ring than a three-lobed blob.
+
 		expect( at( 'star' ) ).toBeGreaterThanOrEqual( 5 * 6 );
 		expect( at( 'flower' ) ).toBeGreaterThanOrEqual( 6 * 6 );
 		expect( at( 'star' ) ).toBeGreaterThan( at( 'potato' ) );
-		// `custom` scales with the lobe count it is handed.
+
 		expect(
 			presetRimPoints( {
 				...MIO_DEFAULTS.physics,
@@ -1393,14 +1262,7 @@ describe( 'rim resolution', () => {
 	} );
 
 	test( 'a star is unrecognisable at the shipped resolution', () => {
-		// The bug the whole mechanism exists for. Twelve points give a
-		// five-lobed profile 2.4 samples per point — below the two it
-		// takes to represent one at all — so consecutive mass points
-		// land more than half a lobe apart and the ring they describe
-		// is not a faint star, it is a different, jagged shape.
-		//
-		// Measured as the worst gap between the ring the points
-		// describe and the silhouette they were sampled from.
+
 		const physics = { ...MIO_DEFAULTS.physics, shapePreset: 'star' as const };
 		const worstError = ( count: number ): number => {
 			const sampled: number[] = [];
@@ -1410,8 +1272,7 @@ describe( 'rim resolution', () => {
 			let worst = 0;
 			for ( let i = 0; i < 720; i++ ) {
 				const angle = ( i / 720 ) * Math.PI * 2;
-				// Where the ring sits at this angle, between the two mass
-				// points bracketing it.
+
 				const u = ( angle / ( Math.PI * 2 ) ) * count;
 				const lo = Math.floor( u );
 				const t = u - lo;
@@ -1424,9 +1285,9 @@ describe( 'rim resolution', () => {
 			}
 			return worst;
 		};
-		// A quarter of the rest radius out of place: not a star.
+
 		expect( worstError( 12 ) ).toBeGreaterThan( 0.25 );
-		// At the resolution the preset asks for, within a few percent.
+
 		expect( worstError( presetRimPoints( physics ) ) ).toBeLessThan( 0.05 );
 	} );
 
@@ -1440,26 +1301,21 @@ describe( 'rim resolution', () => {
 		resampleBody( body, 40 );
 
 		expect( body.rim ).toHaveLength( 40 );
-		// Sub-pixel: the radial re-projection nudges the centroid a
-		// little, which is the price of not letting the body deflate.
+
 		expect( body.core.x ).toBeCloseTo( before.x, 1 );
 		expect( body.core.y ).toBeCloseTo( before.y, 1 );
-		// Within a percent: new points are re-projected onto the
-		// outline's own radius rather than left on the chords, which is
-		// what stops a body that reshapes all day from deflating.
+
 		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
 			areaBefore * 0.99,
 		);
-		// Rest angles are evenly spaced again, or every spring family
-		// would be reading a rest length for the wrong place on the ring.
+
 		body.rim.forEach( ( p, i ) => {
 			expect( p.angle ).toBeCloseTo( ( i / 40 ) * Math.PI * 2, 12 );
 		} );
 	} );
 
 	test( 'resampling up and down again does not shrink Mio', () => {
-		// A shuffle between a star and a circle resamples twice a
-		// minute, all day. Any per-resample loss compounds.
+
 		const body = createSoftBody( 600, 400, 56, 12 );
 		const area = Math.abs( polygonArea( body.rim ) );
 		for ( let i = 0; i < 20; i++ ) {
@@ -1472,9 +1328,7 @@ describe( 'rim resolution', () => {
 	} );
 
 	test( 'the rest area follows the resolution', () => {
-		// It is the inscribed n-gon's area, not the circle's. Leave it
-		// stale and the pressure term inflates Mio to match a polygon it
-		// is no longer made of.
+
 		const body = createSoftBody( 600, 400, 56, 12 );
 		resampleBody( body, 48 );
 		expect( body.restArea ).toBeCloseTo(

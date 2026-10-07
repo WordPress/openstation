@@ -1,21 +1,3 @@
-/**
- * Two shell-integrity guards that share a symptom — a window that is
- * in the DOM but cannot be used — and nothing else.
- *
- * 1. `WindowManager.focus()` accepts an id, and refuses anything that
- *    is neither an id nor a Window. It pushes its argument onto
- *    `_stack` and then calls `setZIndex()` across every member, so an
- *    unresolvable argument used to leave a non-Window wedged in the
- *    stack — after which EVERY later focus() threw on it and the
- *    whole desktop went unclickable until a reload.
- *
- * 2. `.os-window--opening` always comes off. Its animation's `from`
- *    frame is what makes a window transparent and undersized, so a
- *    class whose removal hangs on a single unfiltered `animationend`
- *    is a window that can stay invisible — which is exactly what a
- *    hidden document (no animation frames, no `animationend`) does to
- *    it.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -57,13 +39,6 @@ function makeDesktop(): HTMLElement {
 	return desktop;
 }
 
-/**
- * jsdom implements no CSS animations and ships no `AnimationEvent`
- * constructor, so build the event by hand: a plain `Event` of the
- * right type carrying an `animationName`. That is the whole surface
- * the listener reads (`event.type`, `event.target`,
- * `event.animationName`).
- */
 function animationEvent(
 	type: 'animationend' | 'animationcancel',
 	animationName: string,
@@ -77,7 +52,6 @@ function animationEvent(
 	return event;
 }
 
-/** Force `document.hidden` for the duration of one test. */
 function setHidden( hidden: boolean ): void {
 	Object.defineProperty( document, 'hidden', {
 		value: hidden,
@@ -127,7 +101,7 @@ describe( 'WindowManager.focus() — argument guard', () => {
 
 		expect( b.isFocused() ).toBe( true );
 		expect( a.isFocused() ).toBe( false );
-		// A closed-window race is routine, not a programming error.
+
 		expect( warn ).not.toHaveBeenCalled();
 	} );
 
@@ -135,17 +109,13 @@ describe( 'WindowManager.focus() — argument guard', () => {
 		const a = await manager.open( cfg( 'a' ) );
 		const b = await manager.open( cfg( 'b' ) );
 
-		// The regression: this pushed a junk entry, then threw on it
-		// here and on every subsequent focus() call.
 		expect( () =>
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 			manager.focus( { id: 'fake' } as any ),
 		).not.toThrow();
 
-		// The stack still holds exactly the two real windows...
 		expect( manager.getAll().map( ( w ) => w.id ) ).toEqual( [ 'a', 'b' ] );
-		// ...and normal focusing still works, which is the part that
-		// used to be permanently broken.
+
 		expect( () => manager.focus( a ) ).not.toThrow();
 		expect( a.isFocused() ).toBe( true );
 		expect( () => manager.focus( b ) ).not.toThrow();
@@ -208,10 +178,6 @@ describe( 'Window — the opening class always comes off', () => {
 		) as HTMLElement;
 		expect( body ).toBeTruthy();
 
-		// A spinner / shimmer / holo drift inside the window finishing
-		// first. `animationend` bubbles, so before the animationName +
-		// target filter this consumed the once-only listener and cut
-		// the open animation short.
 		body.dispatchEvent(
 			animationEvent( 'animationend', 'os-spinner-rotate', true ),
 		);
@@ -246,9 +212,6 @@ describe( 'Window — the opening class always comes off', () => {
 			true,
 		);
 
-		// The reported failure: no compositor, so no `animationend`,
-		// ever. The window stayed at the animation's `from` frame —
-		// present, focused, invisible.
 		vi.advanceTimersByTime( 1000 );
 
 		expect( win.element.classList.contains( 'os-window--opening' ) ).toBe(
@@ -262,20 +225,12 @@ describe( 'Window — the opening class always comes off', () => {
 
 		vi.advanceTimersByTime( 1000 );
 
-		// The deadline has already fired — there is nothing to cancel,
-		// and cancelling anyway is what made this flaky. A timer that
-		// outlives its document (a torn-down jsdom environment, a
-		// closing tab) finds no `window` global to reach for, and the
-		// callback dies with a ReferenceError nobody catches.
 		expect( clearSpy ).not.toHaveBeenCalled();
 		clearSpy.mockRestore();
 	} );
 
 	test( 'destroying the window cancels the pending deadline', async () => {
-		// Watch for the deadline specifically rather than counting
-		// pending timers: a window arms several on the way up, and
-		// one of them (`scheduleLoadingOverlayShow`'s) deliberately
-		// keeps no cancel bookkeeping at all.
+
 		const setSpy = vi.spyOn( window, 'setTimeout' );
 		const win = await manager.open( cfg( 'a' ) );
 		const deadlineIds = setSpy.mock.results
@@ -287,10 +242,6 @@ describe( 'Window — the opening class always comes off', () => {
 		const clearSpy = vi.spyOn( window, 'clearTimeout' );
 		win.destroy();
 
-		// A 300ms callback surviving a destroy is scheduled against a
-		// document on its way out — in this suite, a jsdom
-		// environment torn down the moment the file's last test
-		// returns.
 		expect( clearSpy ).toHaveBeenCalledWith( deadlineIds[ 0 ] );
 		clearSpy.mockRestore();
 		expect( () => vi.advanceTimersByTime( 1000 ) ).not.toThrow();

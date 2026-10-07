@@ -1,26 +1,4 @@
 #!/usr/bin/env node
-/**
- * Measure what a shell boot document actually costs, deterministically.
- *
- * Logs into a local WordPress, fetches one document, then fetches every
- * `<script src>` and `<link rel=stylesheet>` the SERVER printed into it and
- * reports request count plus raw and gzipped bytes, grouped by owner
- * (WordPress core / a plugin / this plugin).
- *
- * The point is that it measures the server's output, not the browser's
- * behaviour. DevTools' footer totals move with cache state, how long the tab
- * sat there polling, and how many windows you opened, which makes them
- * useless for comparing two builds. This does not: same code in, same
- * numbers out.
- *
- * Two modes:
- *
- *   measure   node bin/boot-cost.mjs --out before.json
- *   diff      node bin/boot-cost.mjs --diff before.json after.json
- *
- * See docs/DEVELOPMENT.md, "Measuring boot cost", for the trunk-vs-branch
- * workflow and the traps worth knowing about.
- */
 
 import { gzipSync } from 'node:zlib';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -34,7 +12,6 @@ const DEFAULTS = {
 	concurrency: 8,
 };
 
-/** Owner buckets, in match order. First hit wins. */
 const OWNERS = [
 	[ /\/plugins\/desktop-mode\//, 'desktop-mode' ],
 	[ /\/wp-content\/plugins\/([^/]+)\//, ( m ) => `plugin: ${ m[ 1 ] }` ],
@@ -52,21 +29,6 @@ function ownerOf( url ) {
 	return 'other';
 }
 
-/* -------------------------------------------------------------------------
- * A cookie jar just big enough for wp-login. `fetch()` has none of its own,
- * and the login flow needs the test cookie from the GET to survive into the
- * POST, and the auth cookies from the POST to survive the redirect chain.
- * ---------------------------------------------------------------------- */
-
-/**
- * The jar is bound to ONE origin: the site being measured. Cookies are
- * only sent to, and only accepted from, that origin, and a `Secure`
- * cookie only travels over https. Assets frequently live on another host
- * (a CDN, a different hostname for the same site), and the WordPress
- * auth cookies must never go there. A static asset needs no cookie anyway.
- *
- * Map of name -> { value, secure }.
- */
 const jar = new Map();
 let jarOrigin = null;
 
@@ -104,15 +66,6 @@ function jarStore( url, response ) {
 	}
 }
 
-/**
- * fetch() with the jar wired in and redirects followed by hand, so cookies
- * set mid-chain are carried forward.
- *
- * @param {string} url
- * @param {RequestInit} init
- * @param {number} maxHops
- * @return {Promise<{ response: Response, url: string }>}
- */
 async function hop( url, init = {}, maxHops = 10 ) {
 	let current = url;
 	for ( let i = 0; i <= maxHops; i++ ) {
@@ -133,8 +86,7 @@ async function hop( url, init = {}, maxHops = 10 ) {
 			return { response, url: current };
 		}
 		current = new URL( location, current ).toString();
-		// Only the first request carries the body; a redirected POST
-		// becomes a GET, which is what a browser does too.
+
 		init = { method: 'GET' };
 	}
 	throw new Error( `too many redirects starting at ${ url }` );
@@ -143,8 +95,6 @@ async function hop( url, init = {}, maxHops = 10 ) {
 async function login( base, user, password ) {
 	jarBind( base );
 
-	// Priming GET: this is what sets the test cookie the POST is checked
-	// against. Skipping it makes the login silently fail.
 	await hop( `${ base }/wp-login.php` );
 
 	const body = new URLSearchParams( {
@@ -168,8 +118,6 @@ async function login( base, user, password ) {
 	}
 }
 
-/* ---------------------------------------------------------------------- */
-
 const STYLE_TAG = /<link\b[^>]*?rel=(['"])stylesheet\1[^>]*?>/gi;
 const HREF = /href=(['"])(.*?)\1/i;
 const SCRIPT_SRC = /<script\b[^>]*?\bsrc=(['"])(.*?)\1[^>]*?>/gi;
@@ -184,7 +132,6 @@ function sumInline( html, re ) {
 	return total;
 }
 
-/** Fetch one asset uncompressed, and gzip it locally so the number is ours. */
 async function sizeOf( url ) {
 	try {
 		const { response } = await hop( url, {
@@ -202,7 +149,6 @@ async function sizeOf( url ) {
 	}
 }
 
-/** Run `jobs` with a fixed worker count, preserving input order. */
 async function pool( jobs, workers ) {
 	const out = new Array( jobs.length );
 	let next = 0;
@@ -263,8 +209,6 @@ async function measure( opts ) {
 	};
 }
 
-/* ---------------------------------------------------------------------- */
-
 const kb = ( n ) => ( n / 1024 ).toFixed( 1 );
 const mb = ( n ) => ( n / 1024 / 1024 ).toFixed( 2 );
 
@@ -319,7 +263,6 @@ function report( result ) {
 	}
 }
 
-/** Strip `?ver=` so the same file across two builds compares equal. */
 const identity = ( url ) => url.replace( /\?ver=[^&]*/, '' );
 
 function diff( beforeFile, afterFile ) {
@@ -395,11 +338,8 @@ function diff( beforeFile, afterFile ) {
 	list( 'ADDED to the boot document', added, afterMap );
 }
 
-/* ---------------------------------------------------------------------- */
-
 function parseArgs( argv, env = process.env ) {
-	// Credentials: flag beats environment beats the wp-env default. The
-	// environment route keeps a password out of shell history and `ps`.
+
 	const opts = {
 		...DEFAULTS,
 		user: env.BOOT_COST_USER ?? DEFAULTS.user,

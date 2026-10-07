@@ -1,36 +1,3 @@
-/**
- * OpenStation — cross-window broadcast bus.
- *
- * Generic pub/sub primitive. Any module can call
- * `wp.os.broadcast( topic, payload )`; every subscriber on the
- * topic — whether in the parent shell, in a native window's render
- * callback, or inside any open iframe — receives the payload.
- *
- * The connection bridge in `src/connection/` is point-to-point —
- * "I want to talk to *that* window." This module is fan-out:
- * "something happened, anyone who cares about <topic> should
- * react." First use case: the Recycle Bin publishes
- * `os.data-changed` whenever it restores or permanently
- * deletes an item, so the Posts list, Media Library, etc. can
- * repaint themselves without polling.
- *
- * Wire model:
- *   - **In-shell delivery:** `document.dispatchEvent` on the
- *     parent document with `CustomEvent( 'os-broadcast',
- *     { detail: { topic, payload } } )`. Cheap, synchronous.
- *   - **To iframes:** the parent walks every open window's
- *     `iframe.contentWindow` and posts `{ type:
- *     'os-broadcast', topic, payload }`. Same-origin
- *     check on the receive side.
- *   - **From iframes:** the chromeless bridge in `render.php`
- *     listens for incoming `os-broadcast` messages and
- *     re-dispatches the CustomEvent on the iframe's own
- *     `document`. Iframe-side admin pages subscribe with
- *     `document.addEventListener( 'os-broadcast', … )`.
- *
- * @public
- */
-
 import { activity } from './activity';
 import { applyFilters, doAction, HOOKS } from './hooks';
 import type { WindowManager } from './window-manager';
@@ -49,40 +16,14 @@ export type BroadcastSubscriber< T = unknown > = (
 	meta: { topic: string },
 ) => void;
 
-/** One handle from `subscribe()` — call it to detach. */
 export type BroadcastUnsubscribe = () => void;
 
 let _manager: WindowManager | null = null;
 
-/**
- * Wire the broadcast bus to the live window manager. Called once
- * by `desktop.ts` during shell init — the bus needs the manager to
- * enumerate open iframes when fanning out.
- *
- * @internal
- *
- * @param manager Live window manager.
- */
 export function attachBroadcastBus( manager: WindowManager ): void {
 	_manager = manager;
 }
 
-/**
- * Publish a payload on a topic. Synchronous — every in-shell
- * subscriber is invoked before this returns; iframes receive the
- * payload one tick later (postMessage is always async).
- *
- * The topic is filterable via `os.broadcast.topic` and the
- * payload via `os.broadcast.payload`, so plugins can
- * mute / rewrite traffic without forking the source.
- *
- * @public
- *
- * @param topic   Slash- or dot-separated identifier (e.g.
- *                `os.data-changed`). Subscribers match by
- *                exact string OR by the wildcard `'*'`.
- * @param payload Anything structured-clone-safe.
- */
 export function broadcast< T = unknown >( topic: string, payload: T ): void {
 	const filteredTopic = String(
 		applyFilters( 'os.broadcast.topic', topic, { payload } ) ?? topic,
@@ -98,23 +39,14 @@ export function broadcast< T = unknown >( topic: string, payload: T ): void {
 		payload: filteredPayload,
 	};
 
-	// In-shell — synchronous.
 	document.dispatchEvent( new CustomEvent( EVENT_NAME, { detail } ) );
 	doAction( HOOKS.BROADCAST, detail );
 
-	// Mirror onto the framework activity bus so in-tab consumers
-	// can subscribe via the unified `wp.os.activity.subscribe`
-	// surface instead of having to know about the broadcast bus.
-	// The cross-iframe postMessage fanout below stays the broadcast
-	// module's job — activity is in-tab only by design.
 	activity.publish(
 		filteredTopic as `${ string }/${ string }`,
 		filteredPayload,
 	);
 
-	// Fan out to every open iframe. Catch-and-continue: a single
-	// iframe's `contentWindow` going stale (cross-origin nav,
-	// detach race) must not abort the rest of the fanout.
 	if ( ! _manager ) {
 		return;
 	}
@@ -131,35 +63,11 @@ export function broadcast< T = unknown >( topic: string, payload: T ): void {
 		try {
 			target.postMessage( message, ORIGIN );
 		} catch ( err ) {
-			// Cross-origin iframe (rare in our flow — chromeless
-			// is same-origin), or the iframe was just navigated
-			// and the contentWindow is stale. Either way, skip.
 			void err;
 		}
 	}
 }
 
-/**
- * Subscribe to a topic. The callback fires for every `broadcast()`
- * with a matching topic. Returns an unsubscribe handle.
- *
- * Use the literal string `'*'` to receive every payload — useful
- * for debugging and observability subscribers, expensive in hot
- * paths.
- *
- * Works identically inside an iframe (the chromeless bridge
- * re-dispatches incoming broadcasts as the same CustomEvent on
- * the iframe document) — iframe-side admin pages can call this
- * via `wp.os.subscribe(...)` if they enqueue
- * `os-iframe-bridge`, or they can listen on `document`
- * directly for `os-broadcast`.
- *
- * @public
- *
- * @param topic Topic name, or `'*'` for the wildcard.
- * @param cb    Receives `( payload, { topic } )`.
- * @return Unsubscribe handle.
- */
 export function subscribe< T = unknown >(
 	topic: string,
 	cb: BroadcastSubscriber< T >,
@@ -175,9 +83,6 @@ export function subscribe< T = unknown >(
 		try {
 			cb( detail.payload, { topic: detail.topic } );
 		} catch ( err ) {
-			// One subscriber's bug must not break the bus for
-			// every other subscriber. Surface to the shell
-			// error channel so DevTools can see it.
 			doAction( HOOKS.SHELL_ERROR, {
 				scope: 'broadcast-subscriber',
 				topic: detail.topic,
@@ -189,21 +94,6 @@ export function subscribe< T = unknown >(
 	return () => document.removeEventListener( EVENT_NAME, handler );
 }
 
-/**
- * Install the parent-side receiver that converts incoming
- * `postMessage` broadcasts (from iframes that publish via the
- * iframe-bridge or from arbitrary `window.parent.postMessage`)
- * into local `broadcast()` calls. Same-origin check enforced.
- *
- * Messages carrying `_fromParent: true` are ignored — a reserved
- * loop guard. No current sender sets it (the fanout in
- * `broadcast()` doesn't tag, and the chromeless bridge never
- * echoes parent messages back), but any relay that re-posts a
- * parent-originated broadcast upstream should set it so the bus
- * doesn't loop.
- *
- * @internal
- */
 export function installBroadcastReceiver(): void {
 	window.addEventListener( 'message', ( e: MessageEvent ) => {
 		if ( e.origin !== ORIGIN ) {
@@ -221,11 +111,7 @@ export function installBroadcastReceiver(): void {
 		if ( ! data || data.type !== POSTMESSAGE_TYPE ) {
 			return;
 		}
-		// Reserved loop guard. Nothing in-tree sets `_fromParent`
-		// today — the fanout in `broadcast()` doesn't tag, and the
-		// chromeless bridge never echoes parent messages back — but
-		// any relay that re-posts a parent-originated broadcast
-		// upstream must set it so the bus doesn't loop.
+
 		if ( data._fromParent ) {
 			return;
 		}
@@ -236,10 +122,6 @@ export function installBroadcastReceiver(): void {
 	} );
 }
 
-/**
- * The verbs the shell's content-change subscribers understand —
- * the same set `includes/content-changes.php` records server-side.
- */
 export type ContentChangeAction =
 	| 'created'
 	| 'updated'
@@ -247,40 +129,6 @@ export type ContentChangeAction =
 	| 'untrashed'
 	| 'deleted';
 
-/**
- * Announce that content of one type changed — the cooperative half
- * of the shell's real-time story.
- *
- * The shell can only see mutations it performs itself. A window
- * that trashes, restores or deletes content through **its own REST
- * endpoints** is invisible to every other open window until the
- * Heartbeat catch-all drips the change in (15–60 s later): the
- * Recycle Bin keeps listing a form the builder just trashed, the
- * bin icon stays empty-looking while it is holding something.
- * Announcing is how a window tells the rest of the desktop *now*.
- *
- * This is a thin, typed wrapper over
- * `broadcast( 'os.<type>.changed', { source, action, ids } )` — the
- * exact topic and payload the Recycle Bin window, the bin's dock
- * icon, and the shell's iframe-reload subscriber already listen
- * for. It exists so producers stop hand-rolling the envelope: two
- * in-tree modules (pinned notes, files-on-desktop) and every
- * third-party window need the same five lines, and a drifted
- * payload fails silently.
- *
- * No-ops on an empty or invalid id list, so callers can pass a
- * server response's ids straight through without guarding.
- *
- * @public
- *
- * @param type   Post type (or bin entity kind: `comment`,
- *               `placement`, `shortcut`, `folder`) that changed.
- * @param action What happened to it.
- * @param ids    Affected id, or list of ids.
- * @param source Optional producer tag (e.g. `'my-plugin'`), so a
- *               producer that also subscribes can skip its own
- *               emissions.
- */
 export function announceContentChange(
 	type: string,
 	action: ContentChangeAction,

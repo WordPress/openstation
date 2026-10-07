@@ -1,6 +1,3 @@
-/**
- * Folder window status bar tests.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -66,7 +63,7 @@ describe( 'folder status bar', () => {
 			upload( 1, 20 * 1024 * 1024 ),
 			upload( 2, 3.2 * 1024 * 1024 ),
 			placement( 3, 'folder', 7 ),
-			placement( 4, 'post', 7 ), // Reference tile — weighs nothing.
+			placement( 4, 'post', 7 ),
 		] );
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
@@ -147,8 +144,7 @@ describe( 'folder status bar', () => {
 				},
 			},
 		} );
-		// Nothing selected — no segment at all. A permanent
-		// "0 selected" would be noise on a glanceable bar.
+
 		expect(
 			host.querySelector( '[data-segment-id="selection"]' ),
 		).toBeNull();
@@ -201,7 +197,7 @@ describe( 'folder status bar', () => {
 		expect( host.querySelector( '.os-folder-status-bar' ) ).not.toBeNull();
 		handle.dispose();
 		expect( host.querySelector( '.os-folder-status-bar' ) ).toBeNull();
-		// Subsequent store mutation must not re-create the bar.
+
 		store.setFolderPlacements( 0, [ placement( 9 ) ] );
 		expect( host.querySelector( '.os-folder-status-bar' ) ).toBeNull();
 	} );

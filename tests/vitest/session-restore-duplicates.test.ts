@@ -1,19 +1,3 @@
-/**
- * Session restore must recreate EVERY saved window, under the id it
- * was saved with.
- *
- * `restoreSession` used to replay each saved window through
- * `WindowManager.open()`, which matches on `baseId`. A session holding
- * two instances of the same page (`edit-php` + `edit-php-2`, both
- * baseId `edit-php`) therefore collapsed on reload: the second call
- * found the first instance, focused it, and returned it — one window
- * came back instead of two. When the two instances had been navigated
- * apart, the URL-aware reuse check then dragged the survivor to the
- * SECOND window's URL, so the first page was lost as well.
- *
- * Restore now goes through `openNew()`, which always constructs and
- * honours a free caller-supplied instance id verbatim.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { restoreSession } from '../../src/boot/session';
 import type { NativeWindowRestoreState } from '../../src/native-windows';
@@ -120,8 +104,7 @@ describe( 'restoreSession — duplicate instances', () => {
 			'edit-php',
 			'edit-php-2',
 		] );
-		// Both share the grouping key, so the dock instance rail and
-		// "Open another" still see them as one app.
+
 		expect( manager.getAllByBaseId( 'edit-php' ) ).toHaveLength( 2 );
 	} );
 
@@ -235,11 +218,6 @@ describe( 'restoreSession — native windows', () => {
 			...patch,
 		} );
 
-	/**
-	 * Stand-in for the shell's `openNativeWindowById` — same contract:
-	 * resolve the saved instance through a known base id, return false
-	 * for anything the registry no longer knows about.
-	 */
 	const opener = ( known: string[] ) => (
 		id: string,
 		baseId = id,
@@ -306,8 +284,7 @@ describe( 'restoreSession — native windows', () => {
 			desktop,
 			opener( [ 'desktop-mode-os-settings' ] ),
 		);
-		// `applyInitialState` defers a frame so the opening transition
-		// doesn't animate from the un-maximized bounds.
+
 		await new Promise< void >( ( resolve ) =>
 			requestAnimationFrame( () => resolve() ),
 		);

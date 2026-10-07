@@ -1,23 +1,7 @@
 <?php
-/**
- * OpenStation — Network identity: what one install tells another about
- * itself, and the request layer the two sides share.
- *
- * `GET /desktop-mode/v1/network/identity` is public: a site's name,
- * its URL, its shell screen and its public key are what a hub pins
- * when pairing and what a member pins about its hub. Nothing secret is
- * in it, and nothing in it is trusted until it has been pinned.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * This install's identity: the facts another install pins about it.
- *
- * @return array{url:string,name:string,shellUrl:string,publicKey:string,multisite:bool}
- */
 function openstation_network_identity() {
 	$screen = 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG;
 	if ( is_multisite() ) {
@@ -39,14 +23,6 @@ function openstation_network_identity() {
 	);
 }
 
-/**
- * Whether a remote install may be reached over this URL: HTTPS, unless
- * the install itself runs in a local or development environment, where
- * plain HTTP between two containers is the whole point.
- *
- * @param string $url URL.
- * @return bool
- */
 function openstation_network_url_allowed( $url ) {
 	$scheme = wp_parse_url( (string) $url, PHP_URL_SCHEME );
 	if ( 'https' === $scheme ) {
@@ -55,15 +31,6 @@ function openstation_network_url_allowed( $url ) {
 	return 'http' === $scheme && in_array( wp_get_environment_type(), array( 'local', 'development' ), true );
 }
 
-/**
- * A GET to another install's REST route, with the URL it is actually
- * reached by.
- *
- * @param string               $base    The other install's URL (its home).
- * @param string               $route   REST route, `/desktop-mode/v1/network/identity`.
- * @param array<string,string> $headers Extra headers (a signature).
- * @return array|WP_Error Decoded JSON body, or the error.
- */
 function openstation_network_remote_get( $base, $route, array $headers = array() ) {
 	$base = untrailingslashit( (string) $base );
 	if ( ! openstation_network_url_allowed( $base ) ) {
@@ -71,26 +38,13 @@ function openstation_network_remote_get( $base, $route, array $headers = array()
 	}
 	$url = $base . '/wp-json' . $route;
 
-	/**
-	 * Filters the URL one install reaches another by.
-	 *
-	 * The address a site is known by is not always the address its
-	 * server can be reached at: an internal hostname behind a proxy, a
-	 * container beside another container. The identity and the pinned
-	 * key stay keyed by the public URL; only the wire address changes.
-	 *
-	 * @param string $url  The URL about to be requested.
-	 * @param string $base The install's public URL.
-	 */
 	$url = (string) apply_filters( 'openstation_network_request_url', $url, $base );
 
 	$response = wp_remote_get(
 		$url,
 		array(
 			'timeout'     => 8,
-			// An identity or list request never moves; a redirect is a
-			// misconfigured host (a multisite sending an unknown Host to
-			// signup) and is reported as such rather than followed.
+
 			'redirection' => 0,
 			'headers'     => array_merge( array( 'Accept' => 'application/json' ), $headers ),
 		)
@@ -106,19 +60,13 @@ function openstation_network_remote_get( $base, $route, array $headers = array()
 			'openstation_network_http_' . $code,
 			'' !== $message
 				? $message
-				/* translators: %d: HTTP status code. */
+
 				: sprintf( __( 'The site answered with HTTP %d.', 'desktop-mode' ), $code )
 		);
 	}
 	return $body;
 }
 
-/**
- * Fetch and validate another install's identity.
- *
- * @param string $url The install's URL.
- * @return array|WP_Error Identity, or the error.
- */
 function openstation_network_fetch_identity( $url ) {
 	$identity = openstation_network_remote_get( $url, '/desktop-mode/v1/network/identity' );
 	if ( is_wp_error( $identity ) ) {
@@ -141,9 +89,6 @@ function openstation_network_fetch_identity( $url ) {
 	);
 }
 
-/**
- * Register the identity route.
- */
 function openstation_network_register_identity_route() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -157,11 +102,6 @@ function openstation_network_register_identity_route() {
 }
 add_action( 'rest_api_init', 'openstation_network_register_identity_route' );
 
-/**
- * GET /desktop-mode/v1/network/identity
- *
- * @return WP_REST_Response
- */
 function openstation_rest_network_identity() {
 	return rest_ensure_response( openstation_network_identity() );
 }

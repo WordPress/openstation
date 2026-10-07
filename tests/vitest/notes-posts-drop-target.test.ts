@@ -1,11 +1,3 @@
-/**
- * Regression test for the "convert note to post" DOCK drop target.
- *
- * The bug this guards: the dock tile's `data-menu-slug` for the core
- * Posts menu is `menu-posts` (WP's `$menu[5][5]`), NOT `edit.php` — the
- * first selector never matched, so the target never registered and a
- * note dragged onto the Posts icon fell through to "Can't pin here".
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import type { DropTarget } from '../../src/drag';
@@ -84,8 +76,7 @@ describe( 'notes → posts dock drop target', () => {
 			get: ( id: number ) => ( id === 7 ? { note: NOTE } : undefined ),
 			convertNote,
 		};
-		// `installHooksStub()` mounted `window.wp.hooks`; add `desktop`
-		// alongside it rather than clobbering the whole `wp` object.
+
 		( window as unknown as { wp: { os?: unknown } } ).wp.os = {
 			dragManager: fakeDragManager(),
 		};
@@ -148,9 +139,6 @@ describe( 'notes → posts dock drop target', () => {
 		expect( targets ).toHaveLength( 0 );
 	} );
 
-	// Surface 3: the Spatial-layout Posts shortcut file-tile, handled via
-	// the files-layer tile-payload seam (the tile is claimed by the files
-	// layer, so we can't register our own DropTarget there).
 	test( 'registers a tile-payload handler scoped to the Posts shortcut', () => {
 		makeTile( 'menu-posts' );
 		installNotesPostsDropTarget( layer as never );
@@ -182,7 +170,6 @@ describe( 'notes → posts dock drop target', () => {
 			data: { noteId: 7, canEdit: true },
 		};
 
-		// Posts list → claimed + accepted; Pages / Media → not claimed.
 		expect( tilePayloadAcceptLabel( 'note', shortcut( '/wp-admin/edit.php' ) ) ).toBe(
 			'Convert to post',
 		);
@@ -192,7 +179,6 @@ describe( 'notes → posts dock drop target', () => {
 		).toBe( false );
 		expect( tilePayloadAcceptLabel( 'note', shortcut( '/wp-admin/upload.php' ) ) ).toBeUndefined();
 
-		// Drop over the Posts shortcut converts the dragged note.
 		tilePayloadDrop(
 			{ payload: notePayload } as never,
 			{ clientX: 0, clientY: 0 },

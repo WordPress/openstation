@@ -1,9 +1,3 @@
-/**
- * Tests for `src/mobile/gestures.ts` — the phone gestures.
- *
- * The decisions are pure (`swipeOutcome`, `edgeSwipeProgress`); the
- * binders are driven with synthetic PointerEvents in jsdom.
- */
 import { describe, expect, test, vi } from 'vitest';
 import {
 	bindEdgeBack,
@@ -17,8 +11,7 @@ import {
 } from '../../src/mobile/gestures';
 
 function pointer( type: string, init: { x: number; y: number; id?: number; pointerType?: string } ): PointerEvent {
-	// jsdom lacks a PointerEvent constructor with the pointer fields;
-	// a MouseEvent carrying them is enough for the binders.
+
 	const e = new MouseEvent( type, { bubbles: true, clientX: init.x, clientY: init.y } ) as unknown as PointerEvent;
 	Object.defineProperties( e, {
 		pointerId: { value: init.id ?? 1 },
@@ -67,7 +60,6 @@ describe( 'bindEdgeBack', () => {
 		expect( onCommit ).toHaveBeenCalledTimes( 1 );
 		expect( onProgress ).toHaveBeenLastCalledWith( 0 );
 
-		// A scroll that started at the edge.
 		zone.dispatchEvent( pointer( 'pointerdown', { x: 4, y: 100 } ) );
 		zone.dispatchEvent( pointer( 'pointermove', { x: 8, y: 140 } ) );
 		zone.dispatchEvent( pointer( 'pointerup', { x: 90, y: 200 } ) );
@@ -89,7 +81,6 @@ describe( 'bindHistorySwipeGuard', () => {
 		zone.dispatchEvent( start );
 		expect( start.defaultPrevented ).toBe( true );
 
-		// A non-cancelable start (the browser already committed) is left alone.
 		const late = new Event( 'touchstart', { bubbles: true, cancelable: false } );
 		zone.dispatchEvent( late );
 		expect( late.defaultPrevented ).toBe( false );
@@ -121,7 +112,7 @@ describe( 'bindSwipeUp', () => {
 		button.dispatchEvent( pointer( 'pointerup', { x: 54, y: 400 } ) );
 		button.click();
 		expect( clicked ).not.toHaveBeenCalled();
-		// The next tap is a real tap again.
+
 		button.click();
 		expect( clicked ).toHaveBeenCalledTimes( 1 );
 		bar.remove();
@@ -136,7 +127,7 @@ describe( 'bindSwipeUp', () => {
 		expect( onCommit ).not.toHaveBeenCalled();
 		bar.dispatchEvent( pointer( 'pointermove', { x: 54, y: 70 } ) );
 		expect( onCommit ).toHaveBeenCalledTimes( 1 );
-		// An upward flick on the same binder does nothing.
+
 		bar.dispatchEvent( pointer( 'pointerup', { x: 54, y: 70 } ) );
 		bar.dispatchEvent( pointer( 'pointerdown', { x: 50, y: 200 } ) );
 		bar.dispatchEvent( pointer( 'pointermove', { x: 50, y: 100 } ) );

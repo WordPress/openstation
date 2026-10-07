@@ -1,139 +1,31 @@
 <?php
-/**
- * OpenStation — Agents: definition store (user meta on the agent row).
- *
- * Everything that defines an agent beyond its `wp_users` row lives as
- * user meta on that row, in one `_openstation_agent_*` key family:
- *
- *   - `_desktop_mode_agent`              marker ('1') — the existence test
- *   - `_desktop_mode_agent_description`  "when to use" short text
- *   - `_desktop_mode_agent_instructions` system prompt (markdown)
- *   - `_desktop_mode_agent_abilities`    JSON array of ability slugs
- *   - `_desktop_mode_agent_triggers`     JSON array of { kind, config }
- *   - `_desktop_mode_agent_model`        model override (unused by the
- *                                        runner until the Core AI Client
- *                                        exposes model selection)
- *   - `_desktop_mode_agent_rate_limit`   invocations/hour, 0 = default
- *   - `_desktop_mode_agent_created_by`   creating user id (audit aid)
- *
- * User meta has no revisions — the audit trail for definition changes
- * is the `openstation_agent_{created,updated,deleted}` actions fired
- * from this module's orchestrators, each carrying before/after values
- * so logging plugins can persist a history.
- *
- * This module owns every key: constants, `register_meta()` calls,
- * sanitization, getters/setters, and the create/update orchestrators
- * the REST surface calls. `identity.php` owns the user row itself.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
 require_once OPENSTATION_DIR . 'includes/agents/guard.php';
 
-/**
- * Meta keys owned by the agents store. Constants so the other layer
- * files reuse them instead of typing the literals.
- *
- * `OPENSTATION_AGENT_USER_MARKER_META` is the exception — it lives in
- * guard.php, which loads unconditionally, because the agent test has to
- * resolve even when this module does not load.
- *
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
 const OPENSTATION_AGENT_DESCRIPTION_META = '_desktop_mode_agent_description';
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
+
 const OPENSTATION_AGENT_INSTRUCTIONS_META = '_desktop_mode_agent_instructions';
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
+
 const OPENSTATION_AGENT_ABILITIES_META = '_desktop_mode_agent_abilities';
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
+
 const OPENSTATION_AGENT_TRIGGERS_META = '_desktop_mode_agent_triggers';
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
+
 const OPENSTATION_AGENT_MODEL_META = '_desktop_mode_agent_model';
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
+
 const OPENSTATION_AGENT_RATE_LIMIT_META = '_desktop_mode_agent_rate_limit';
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
+
 const OPENSTATION_AGENT_CREATED_BY_META = '_desktop_mode_agent_created_by';
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
+
 const OPENSTATION_AGENT_VIBES_META = '_desktop_mode_agent_vibes';
 
-/**
- * Longest voice line an agent may carry.
- *
- * Short enough that it stays a voice rather than becoming a second
- * instruction block by volume.
- */
 const OPENSTATION_AGENT_VIBES_MAX_LENGTH = 120;
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
+
 const OPENSTATION_AGENT_FACE_META = '_desktop_mode_agent_face';
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
+
 const OPENSTATION_AGENT_FACE_SEED_META = '_desktop_mode_agent_face_seed';
 
-/**
- * Every meta key the store writes — the privacy eraser and any future
- * cleanup path iterate this list instead of re-typing the constants.
- *
- * @return string[]
- */
 function openstation_agent_meta_keys() {
 	return array(
 		OPENSTATION_AGENT_USER_MARKER_META,
@@ -150,15 +42,6 @@ function openstation_agent_meta_keys() {
 	);
 }
 
-/**
- * Register the user-meta keys.
- *
- * `show_in_rest` stays false on every key — the module's own REST
- * surface (rest.php) is the only reader/writer; core `wp/v2/users`
- * never exposes agent definitions.
- *
- * @return void
- */
 function openstation_agents_register_user_meta() {
 	$auth = static function () {
 		return current_user_can( 'edit_users' );
@@ -275,16 +158,6 @@ function openstation_agents_register_user_meta() {
 }
 add_action( 'init', 'openstation_agents_register_user_meta' );
 
-// ---------------------------------------------------------------------------
-// Sanitizers
-// ---------------------------------------------------------------------------
-
-/**
- * Normalize an ability-slug list: strings only, trimmed, deduped.
- *
- * @param mixed $value Incoming list.
- * @return string[]
- */
 function openstation_agents_sanitize_ability_slugs( $value ) {
 	if ( is_string( $value ) ) {
 		$decoded = json_decode( $value, true );
@@ -307,40 +180,10 @@ function openstation_agents_sanitize_ability_slugs( $value ) {
 	return array_values( array_unique( $out ) );
 }
 
-/**
- * `register_meta` sanitize callback — abilities land on disk as a JSON
- * string so a read is one meta row and no PHP-serialized arrays exist.
- *
- * @param mixed $value Incoming value (array or JSON string).
- * @return string JSON-encoded slug list.
- */
 function openstation_agent_sanitize_abilities_json( $value ) {
 	return (string) wp_json_encode( openstation_agents_sanitize_ability_slugs( $value ) );
 }
 
-/**
- * Sanitize an agent's voice line.
- *
- * One short line of character: "blunt, precise, no sugarcoating". It
- * is appended to the agent's instructions at run time, so it reaches a
- * language model.
- *
- * **That is not a new privilege boundary.** Writing it needs
- * `edit_users`, the same capability that already lets you write
- * `instructions`, which is the entire system prompt. A 120-character
- * tone line is strictly less reach than that, so it deliberately sits
- * behind the same gate rather than a stricter one, and this note
- * exists so nobody "hardens" it later into a confusing split.
- *
- * Two structural guards it does need. `sanitize_text_field()` strips
- * line breaks, which is load-bearing: the runner marks operator turns
- * in the composed prompt, and a multi-line voice line could otherwise
- * fake a turn boundary. And the length cap keeps a "voice" from
- * becoming a second instruction block by volume.
- *
- * @param mixed $value Incoming line.
- * @return string
- */
 function openstation_agent_sanitize_vibes( $value ) {
 	if ( ! is_scalar( $value ) ) {
 		return '';
@@ -349,20 +192,6 @@ function openstation_agent_sanitize_vibes( $value ) {
 	return mb_substr( $clean, 0, OPENSTATION_AGENT_VIBES_MAX_LENGTH );
 }
 
-/**
- * Sanitize an agent's face for storage.
- *
- * The narrowing itself is `openstation_mio_narrow_look()`, which the
- * WP Explorer config also calls to preview the shipped cast while the
- * feature flag is off. Shared on purpose: two copies of "clamp, then
- * keep what was carried" is how a preview starts drawing a face the
- * seeder would never store. What this adds on top is the storage
- * shape — a JSON string, and an empty one when nothing was set, so an
- * agent with no opinion keeps no row at all rather than an empty blob.
- *
- * @param mixed $value Incoming look (array or JSON string).
- * @return string JSON, or an empty string when nothing was set.
- */
 function openstation_agent_sanitize_face_json( $value ) {
 	if ( is_string( $value ) ) {
 		$decoded = json_decode( $value, true );
@@ -375,28 +204,10 @@ function openstation_agent_sanitize_face_json( $value ) {
 	return (string) wp_json_encode( $out );
 }
 
-/**
- * Read an agent's voice line.
- *
- * @param int $user_id Agent user id.
- * @return string
- */
 function openstation_agent_get_vibes( $user_id ) {
 	return (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_VIBES_META, true );
 }
 
-/**
- * Read an agent's stored face.
- *
- * A partial look: only what was overridden. Empty means "no face
- * chosen", which the avatar resolver reads as the shipped robot.
- *
- * @param int $user_id Agent user id.
- * @return array {
- *     @type array $appearance Partial appearance overrides.
- *     @type array $physics    Partial silhouette overrides.
- * }
- */
 function openstation_agent_get_face( $user_id ) {
 	$raw = (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_FACE_META, true );
 	if ( '' === $raw ) {
@@ -408,31 +219,10 @@ function openstation_agent_get_face( $user_id ) {
 	return openstation_sanitize_mio_look( json_decode( $raw, true ) );
 }
 
-/**
- * Read the seed an agent's face was rolled from.
- *
- * Kept alongside the face rather than instead of it. The face is what
- * gets drawn; the seed is provenance, and it is what lets a future
- * change to the randomizer's ranges re-roll every agent in one
- * migration instead of stranding them on an old palette.
- *
- * @param int $user_id Agent user id.
- * @return int Seed, or 0 when none was recorded.
- */
 function openstation_agent_get_face_seed( $user_id ) {
 	return (int) get_user_meta( (int) $user_id, OPENSTATION_AGENT_FACE_SEED_META, true );
 }
 
-/**
- * Sanitize the triggers array.
- *
- * Validates each row against the kind catalogue. Drops any row that
- * doesn't match a known kind — one bad row never rejects the whole
- * array.
- *
- * @param mixed $value Incoming triggers array (or JSON string).
- * @return array
- */
 function openstation_agent_sanitize_triggers( $value ) {
 	if ( is_string( $value ) ) {
 		$decoded = json_decode( $value, true );
@@ -469,28 +259,10 @@ function openstation_agent_sanitize_triggers( $value ) {
 	return $out;
 }
 
-/**
- * `register_meta` sanitize callback — triggers land on disk as JSON.
- *
- * @param mixed $value Incoming value.
- * @return string JSON-encoded triggers list.
- */
 function openstation_agent_sanitize_triggers_json( $value ) {
 	return (string) wp_json_encode( openstation_agent_sanitize_triggers( $value ) );
 }
 
-/**
- * Recursively coerce trigger-config values into safe primitives.
- *
- * Keys are camelCase by convention (`entityKinds`, `mimeTypes`,
- * `fromAgents`) because they round-trip through the JS REST adapter
- * verbatim — so the case is preserved and only non-identifier
- * characters are stripped. `sanitize_key()` would lower-case
- * everything, breaking the contract with the client.
- *
- * @param mixed $value Arbitrary input.
- * @return mixed
- */
 function openstation_agent_sanitize_trigger_config_deep( $value ) {
 	if ( is_array( $value ) ) {
 		$out = array();
@@ -519,23 +291,6 @@ function openstation_agent_sanitize_trigger_config_deep( $value ) {
 	return null;
 }
 
-// ---------------------------------------------------------------------------
-// Catalogues
-// ---------------------------------------------------------------------------
-
-/**
- * Built-in trigger kinds.
- *
- * `chat`, `send-to`, and `drag` are wired; the other kinds are declared so the
- * Triggers pane can already store configuration for them, and later
- * phases add the intake plumbing without a storage migration.
- *
- * Plugins can extend the list via the `openstation_agent_trigger_kinds`
- * filter — each entry must declare a `slug`, `label`, and a JSON-Schema
- * `config_schema` describing the shape of `trigger.config`.
- *
- * @return array<int, array{slug:string,wired:bool,label:string,description:string,icon:string,config_schema:array}>
- */
 function openstation_agent_trigger_kinds() {
 	$kinds = array(
 		array(
@@ -640,11 +395,6 @@ function openstation_agent_trigger_kinds() {
 		),
 	);
 
-	/**
-	 * Filter the trigger kinds available to agents.
-	 *
-	 * @param array $kinds Default trigger kinds.
-	 */
 	$filtered = apply_filters( 'openstation_agent_trigger_kinds', $kinds );
 	if ( ! is_array( $filtered ) ) {
 		return $kinds;
@@ -652,15 +402,6 @@ function openstation_agent_trigger_kinds() {
 	return array_values( $filtered );
 }
 
-/**
- * Curated catalogue of WordPress hooks suggested for the Hook trigger.
- *
- * Not exhaustive — just the ones agents are most likely to subscribe
- * to. The renderer offers it as an autocomplete; the user can type any
- * hook name.
- *
- * @return array<int, array{hook:string, when:string}>
- */
 function openstation_agent_hooks_catalogue() {
 	$hooks = array(
 		array(
@@ -697,41 +438,10 @@ function openstation_agent_hooks_catalogue() {
 		),
 	);
 
-	/**
-	 * Filter the curated catalogue of suggested hooks for the Hook
-	 * trigger configurator.
-	 *
-	 * @param array $hooks Default catalogue.
-	 */
 	$filtered = apply_filters( 'openstation_agent_hooks_catalogue', $hooks );
 	return is_array( $filtered ) ? array_values( $filtered ) : $hooks;
 }
 
-/**
- * Whether the acting user may grant `$role` to an agent.
- *
- * An agent runs with its role's capabilities, so granting a role IS
- * granting capability — it has to be gated like the promotion it is.
- * Three constraints, all of which must hold:
- *
- *  1. `promote_users` — the capability wp-admin requires to set anyone's
- *     role. `edit_users` alone is not enough: role plugins hand
- *     `edit_users` to shop-manager-shaped roles routinely.
- *  2. `get_editable_roles()` — core's extension point for "roles this
- *     install lets you hand out". NOTE this is a site-wide filtered
- *     list, NOT a per-user one: core's implementation is a bare
- *     `apply_filters( 'editable_roles', wp_roles()->roles )` with no
- *     reference to the current user. It is a useful constraint because
- *     plugins like WooCommerce filter it, but on a stock install it
- *     excludes nothing, so it cannot be the only gate.
- *  3. `administrator` additionally requires the actor to genuinely be
- *     an administrator (super admin on multisite). This is the one that
- *     stops an `edit_users`-capable non-admin minting an agent that
- *     outranks them — the capability the agent would then act with.
- *
- * @param string $role Role slug being assigned.
- * @return bool
- */
 function openstation_agent_actor_can_assign_role( $role ) {
 	$role = sanitize_key( (string) $role );
 	$can  = current_user_can( 'promote_users' );
@@ -742,21 +452,6 @@ function openstation_agent_actor_can_assign_role( $role ) {
 			: ( current_user_can( 'manage_options' ) && current_user_can( 'create_users' ) );
 	}
 
-	/**
-	 * Filter whether the acting user may assign a role to an agent.
-	 *
-	 * The seam for automation that legitimately creates agents outside
-	 * a request context (an activation routine, WP-CLI, a scheduled
-	 * provisioning job), where there is no current user and the default
-	 * answer is therefore a hard no.
-	 *
-	 * Granting a role here grants the capabilities an agent will act
-	 * with — widen it only for code paths you control.
-	 *
-	 * @param bool   $can     Whether the assignment is allowed.
-	 * @param string $role    Role slug being assigned.
-	 * @param int    $user_id Acting user id (0 when there is none).
-	 */
 	return (bool) apply_filters(
 		'openstation_agent_actor_can_assign_role',
 		$can,
@@ -765,30 +460,9 @@ function openstation_agent_actor_can_assign_role( $role ) {
 	);
 }
 
-/**
- * Roles an agent may be assigned, constrained to what the acting user
- * can actually hand out.
- *
- * The whitelist keeps agents in the standard content-role band; each
- * survivor is then run through
- * {@see openstation_agent_actor_can_assign_role()}, which is where the
- * real gating lives.
- *
- * @return string[] Role slugs.
- */
 function openstation_agent_allowed_roles() {
 	$whitelist = array( 'administrator', 'editor', 'author', 'contributor' );
 
-	/**
-	 * Filter the roles an agent may be assigned.
-	 *
-	 * The result is always intersected with `get_editable_roles()` and
-	 * then filtered through the per-role actor check — this filter can
-	 * narrow or extend the candidate list, but a role it adds still has
-	 * to clear both constraints.
-	 *
-	 * @param string[] $whitelist Default role slugs.
-	 */
 	$whitelist = apply_filters( 'openstation_agent_allowed_roles', $whitelist );
 	if ( ! is_array( $whitelist ) ) {
 		return array();
@@ -811,36 +485,14 @@ function openstation_agent_allowed_roles() {
 	return array_values( $allowed );
 }
 
-// ---------------------------------------------------------------------------
-// Getters / setters
-// ---------------------------------------------------------------------------
-
-/**
- * Read the "when to use" description.
- *
- * @param int $user_id Agent user id.
- * @return string
- */
 function openstation_agent_get_description( $user_id ) {
 	return (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_DESCRIPTION_META, true );
 }
 
-/**
- * Read the system prompt.
- *
- * @param int $user_id Agent user id.
- * @return string
- */
 function openstation_agent_get_instructions( $user_id ) {
 	return (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_INSTRUCTIONS_META, true );
 }
 
-/**
- * Read the ability allowlist.
- *
- * @param int $user_id Agent user id.
- * @return string[]
- */
 function openstation_agent_get_abilities( $user_id ) {
 	$raw = get_user_meta( (int) $user_id, OPENSTATION_AGENT_ABILITIES_META, true );
 	if ( '' === $raw || null === $raw ) {
@@ -849,12 +501,6 @@ function openstation_agent_get_abilities( $user_id ) {
 	return openstation_agents_sanitize_ability_slugs( $raw );
 }
 
-/**
- * Read triggers.
- *
- * @param int $user_id Agent user id.
- * @return array
- */
 function openstation_agent_get_triggers( $user_id ) {
 	$raw = get_user_meta( (int) $user_id, OPENSTATION_AGENT_TRIGGERS_META, true );
 	if ( '' === $raw || null === $raw ) {
@@ -863,44 +509,14 @@ function openstation_agent_get_triggers( $user_id ) {
 	return openstation_agent_sanitize_triggers( $raw );
 }
 
-/**
- * Read the model override.
- *
- * @param int $user_id Agent user id.
- * @return string Empty string if not set.
- */
 function openstation_agent_get_model( $user_id ) {
 	return (string) get_user_meta( (int) $user_id, OPENSTATION_AGENT_MODEL_META, true );
 }
 
-/**
- * Read the rate limit (invocations per hour).
- *
- * @param int $user_id Agent user id.
- * @return int Zero when no per-agent override is set.
- */
 function openstation_agent_get_rate_limit( $user_id ) {
 	return (int) get_user_meta( (int) $user_id, OPENSTATION_AGENT_RATE_LIMIT_META, true );
 }
 
-// ---------------------------------------------------------------------------
-// Per-agent invocation gate
-// ---------------------------------------------------------------------------
-
-/**
- * The agent's trigger row for a given invocation source, if any.
- *
- * Source slugs on the invoke route map 1:1 onto trigger kinds
- * (`chat`, `drag`, `send-to`). The row is context for the invocation
- * filter; it does not decide which capabilities the invocation gate
- * requires, which is every capability on every trigger (see
- * `openstation_agent_user_can_invoke_agent()`).
- *
- * @param int    $agent_user_id Agent user id.
- * @param string $source        Invocation source slug.
- * @return array|null Trigger row, or null when the agent declares none
- *                    for this source.
- */
 function openstation_agent_trigger_for_source( $agent_user_id, $source ) {
 	$source = sanitize_key( (string) $source );
 	foreach ( openstation_agent_get_triggers( (int) $agent_user_id ) as $trigger ) {
@@ -911,36 +527,6 @@ function openstation_agent_trigger_for_source( $agent_user_id, $source ) {
 	return null;
 }
 
-/**
- * Whether the current user may invoke THIS agent.
- *
- * The route-level `openstation_agents_user_can_invoke()` check is
- * site-wide — it answers "may this user invoke agents at all". This is
- * the per-agent half: a trigger may declare a `capability` in its
- * config, and the Triggers pane collects it and the store persists it,
- * so an administrator restricting an agent to `manage_options` has
- * every reason to believe it took effect.
- *
- * The caller must hold EVERY capability declared on ANY of the agent's
- * triggers, whichever source the request names. The source is supplied
- * by the client (the invoke route takes it as a request parameter), so
- * it describes how the request says it arrived, not what it is allowed
- * to reach: a capability scoped to one trigger kind would be satisfied
- * by naming another. A capability configured on an agent is therefore
- * a property of the agent.
- *
- * An agent whose triggers declare no capability (including one with no
- * triggers at all) is left to the route-level check — requiring a
- * configured trigger would lock out every agent created before triggers
- * were set up, which is all of them by default.
- *
- * @param int    $agent_user_id Agent user id.
- * @param string $source        Invocation source slug the request names
- *                              (`chat`, `drag`, `send-to`). Context for
- *                              the filter only; it does not select which
- *                              capabilities apply.
- * @return bool
- */
 function openstation_agent_user_can_invoke_agent( $agent_user_id, $source = 'chat' ) {
 	$can = true;
 	foreach ( openstation_agent_get_triggers( (int) $agent_user_id ) as $row ) {
@@ -954,22 +540,6 @@ function openstation_agent_user_can_invoke_agent( $agent_user_id, $source = 'cha
 		}
 	}
 
-	/**
-	 * Filter whether the current user may invoke a specific agent.
-	 *
-	 * @param bool       $can           Whether invocation is allowed: the
-	 *                                  caller holds every capability
-	 *                                  declared on any of the agent's
-	 *                                  triggers.
-	 * @param int        $agent_user_id Agent user id.
-	 * @param string     $source        Invocation source slug the request
-	 *                                  names. Client-supplied on the invoke
-	 *                                  route, so context rather than proof
-	 *                                  of how the request arrived.
-	 * @param array|null $trigger       The trigger row whose kind matches
-	 *                                  `$source`, if any. Context only: it
-	 *                                  is not what decided `$can`.
-	 */
 	return (bool) apply_filters(
 		'openstation_agent_user_can_invoke_agent',
 		$can,
@@ -979,20 +549,10 @@ function openstation_agent_user_can_invoke_agent( $agent_user_id, $source = 'cha
 	);
 }
 
-// ---------------------------------------------------------------------------
-// List helper
-// ---------------------------------------------------------------------------
-
-/**
- * Every agent on the site, ordered by display name.
- *
- * @param array $args Optional overrides merged into the `get_users()` query.
- * @return WP_User[]
- */
 function openstation_agent_get_agents( $args = array() ) {
 	$defaults = array(
-		'meta_key'   => OPENSTATION_AGENT_USER_MARKER_META, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-		'meta_value' => '1', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+		'meta_key'   => OPENSTATION_AGENT_USER_MARKER_META,
+		'meta_value' => '1',
 		'orderby'    => 'display_name',
 		'order'      => 'ASC',
 		'number'     => 200,
@@ -1000,16 +560,6 @@ function openstation_agent_get_agents( $args = array() ) {
 	return get_users( array_merge( $defaults, is_array( $args ) ? $args : array() ) );
 }
 
-// ---------------------------------------------------------------------------
-// Orchestrators — the only write paths, each firing one audit action
-// ---------------------------------------------------------------------------
-
-/**
- * Create an agent: synthetic user row + definition meta.
- *
- * @param array{name:string, role:string, slug?:string, description?:string, instructions?:string, abilities?:array, triggers?:array, vibes?:string, face?:array|string, faceSeed?:int} $args Creation args.
- * @return WP_User|WP_Error
- */
 function openstation_agent_create( $args ) {
 	$role    = isset( $args['role'] ) ? sanitize_key( (string) $args['role'] ) : '';
 	$allowed = openstation_agent_allowed_roles();
@@ -1031,10 +581,7 @@ function openstation_agent_create( $args ) {
 	$triggers     = isset( $args['triggers'] ) ? openstation_agent_sanitize_triggers( $args['triggers'] ) : array();
 	$vibes        = isset( $args['vibes'] ) ? openstation_agent_sanitize_vibes( $args['vibes'] ) : '';
 	$face         = isset( $args['face'] ) ? openstation_agent_sanitize_face_json( $args['face'] ) : '';
-	// Every agent gets a seed even when nobody chose a face, so the
-	// backfill has something deterministic to roll from and two admins
-	// racing it land on the same portrait. `crc32` of the login is
-	// stable, cheap, and already unique per agent.
+
 	$seed = isset( $args['faceSeed'] ) ? absint( $args['faceSeed'] ) : 0;
 	if ( 0 === $seed ) {
 		$seed = crc32( (string) $user->user_login );
@@ -1061,14 +608,6 @@ function openstation_agent_create( $args ) {
 	update_user_meta( $user->ID, OPENSTATION_AGENT_FACE_SEED_META, $seed );
 	update_user_meta( $user->ID, OPENSTATION_AGENT_CREATED_BY_META, get_current_user_id() );
 
-	/**
-	 * Fires after an agent is created.
-	 *
-	 * @param int   $user_id  Agent user id.
-	 * @param array $args     Sanitized creation fields (name, role,
-	 *                        description, instructions, abilities).
-	 * @param int   $actor_id User who created the agent.
-	 */
 	do_action(
 		'openstation_agent_created',
 		(int) $user->ID,
@@ -1088,19 +627,6 @@ function openstation_agent_create( $args ) {
 	return $user;
 }
 
-/**
- * Update an agent's definition. Accepts any subset of the recognized
- * fields, applies the valid ones, and fires `openstation_agent_updated`
- * once with a before/after map of everything that changed.
- *
- * Recognized fields: `name`, `role`, `description`, `instructions`,
- * `abilities`, `triggers`, `model`, `rateLimit`, `vibes`, `face`,
- * `faceSeed`.
- *
- * @param int   $user_id Agent user id.
- * @param array $fields  Field map.
- * @return true|WP_Error
- */
 function openstation_agent_update( $user_id, array $fields ) {
 	$user = get_userdata( (int) $user_id );
 	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
@@ -1120,9 +646,7 @@ function openstation_agent_update( $user_id, array $fields ) {
 				__( 'Agent name cannot be empty.', 'desktop-mode' )
 			);
 		}
-		// Compared as plain text: the stored name carries entities
-		// (`&amp;`), and the client sends back the decoded one it was
-		// given on every save. Raw, that reads as a rename.
+
 		if ( openstation_plain_text_title( $name ) !== openstation_plain_text_title( $user->display_name ) ) {
 			$changed['name'] = array(
 				'from' => (string) $user->display_name,
@@ -1281,16 +805,7 @@ function openstation_agent_update( $user_id, array $fields ) {
 	}
 
 	if ( ! empty( $changed ) ) {
-		/**
-		 * Fires after an agent's definition changed.
-		 *
-		 * User meta has no revisions, so this action IS the audit
-		 * trail — each changed field carries its before/after value.
-		 *
-		 * @param int   $user_id  Agent user id.
-		 * @param array $changed  Map of field => { from, to }.
-		 * @param int   $actor_id User who made the change.
-		 */
+
 		do_action( 'openstation_agent_updated', (int) $user->ID, $changed, get_current_user_id() );
 	}
 

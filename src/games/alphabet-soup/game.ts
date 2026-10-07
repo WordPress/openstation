@@ -1,21 +1,3 @@
-/**
- * Alphabet Soup — game orchestrator.
- *
- * Owns the run lifecycle (loading → menu → playing → paused →
- * over), the two mode clocks (count-up for Daily, countdown for
- * Time Attack), the wave loop, the drag-to-select input, the HUD +
- * find-list side panel, and the game-over share card. Everything
- * async double-checks `disposed` so closing the window mid-load
- * never leaks a Pixi app.
- *
- * Pixi lifecycle follows the Inkfall precedent: PixiJS from
- * `wp.os.loadModules(['pixijs'])`, `sharedTicker: false`, and
- * the options-object destroy — never `destroy( true )`.
- *
- * The puzzle itself is seeded by the current date (`dd-mm-yyyy`) —
- * see `seed.ts` — so every player worldwide stirs the same soup.
- */
-
 import { __, sprintf } from '../../i18n';
 import { desktopGlobal } from '../desktop-like';
 import { loadDictionary, type Dictionary } from '../dictionary';
@@ -63,25 +45,14 @@ import {
 
 type RunState = 'loading' | 'menu' | 'playing' | 'paused' | 'over';
 
-/** localStorage key remembering the last mode pick. */
 const MODE_STORAGE_KEY = 'desktop-mode/alphabet-soup-mode';
 
-/** localStorage key remembering the last board-size pick. */
 const SIZE_STORAGE_KEY = 'desktop-mode/alphabet-soup-size';
 
-/**
- * localStorage key for the played-today ledger. Each (mode, size)
- * puzzle is meant to be played for real ONCE — the word positions
- * can be memorized, so only the first run earns a share card.
- * Shape: `{ "date": "19-07-2026", "seeds": [ "<runSeedString>" ] }`;
- * entries from earlier days are discarded on read.
- */
 const PLAYED_STORAGE_KEY = 'desktop-mode/alphabet-soup-played';
 
-/** Cap a frame delta so a background-tab hiccup can't eat the clock. */
 const MAX_FRAME_SECONDS = 0.05;
 
-/** Seconds between clearing a wave and serving the next one. */
 const WAVE_TRANSITION_SECONDS = 1.4;
 
 function modeLabel( mode: SoupMode ): string {
@@ -92,7 +63,7 @@ function modeHint( mode: SoupMode ): string {
 	return 'time-attack' === mode
 		? __( '90 seconds on the clock — every word buys you more.' )
 		: sprintf(
-			/* translators: %s: number of waves in a Daily run. */
+
 			__( '%s relaxed waves. No clock pressure, just streaks.' ),
 			String( DAILY_WAVE_COUNT ),
 		);
@@ -109,7 +80,6 @@ function sizeLabel( size: SoupSize ): string {
 	}
 }
 
-/** The board dimensions as a label, e.g. `12×12`. */
 function sizeDims( size: SoupSize ): string {
 	const cells = sizeCells( size );
 	return `${ cells }×${ cells }`;
@@ -122,7 +92,7 @@ function readStoredMode(): SoupMode {
 			return stored as SoupMode;
 		}
 	} catch {
-		/* storage unavailable — default */
+
 	}
 	return 'daily';
 }
@@ -131,7 +101,7 @@ function storeMode( mode: SoupMode ): void {
 	try {
 		window.localStorage.setItem( MODE_STORAGE_KEY, mode );
 	} catch {
-		/* storage unavailable — best effort */
+
 	}
 }
 
@@ -142,7 +112,7 @@ function readStoredSize(): SoupSize {
 			return stored as SoupSize;
 		}
 	} catch {
-		/* storage unavailable — default */
+
 	}
 	return 'small';
 }
@@ -151,11 +121,10 @@ function storeSize( size: SoupSize ): void {
 	try {
 		window.localStorage.setItem( SIZE_STORAGE_KEY, size );
 	} catch {
-		/* storage unavailable — best effort */
+
 	}
 }
 
-/** The seeds already played today (earlier days are discarded). */
 function readPlayedToday( dateSeed: string ): Set< string > {
 	try {
 		const raw = window.localStorage.getItem( PLAYED_STORAGE_KEY );
@@ -184,7 +153,7 @@ function markPlayed( dateSeed: string, seed: string ): void {
 			JSON.stringify( { date: dateSeed, seeds: [ ...seeds ] } ),
 		);
 	} catch {
-		/* storage unavailable — every run counts as the first */
+
 	}
 }
 
@@ -204,7 +173,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 	root.className = 'soup';
 	ctx.container.appendChild( root );
 
-	// --- HUD (DOM, above the canvas) --------------------------------
 	const audio = createSoupAudio();
 
 	const hud = document.createElement( 'div' );
@@ -243,18 +211,17 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		const ribbon = document.createElement( 'span' );
 		ribbon.className = 'soup__hud-ribbon';
 		ribbon.textContent = sprintf(
-			/* translators: 1: challenger display name, 2: score to beat. */
+
 			__( 'Beat %1$s: %2$s' ),
 			ctx.challenge.challengerName,
 			String( ctx.challenge.scoreToBeat ),
 		);
 		hud.appendChild( ribbon );
 	}
-	// Last child — CSS pins it to the far end of the HUD.
+
 	hud.appendChild( soundToggle );
 	root.appendChild( hud );
 
-	// --- Stage + find-list side panel -------------------------------
 	const body = document.createElement( 'div' );
 	body.className = 'soup__body';
 	root.appendChild( body );
@@ -287,7 +254,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 	};
 	showMessage( __( 'Warming up the soup…' ) );
 
-	// --- Run state --------------------------------------------------
 	let disposed = false;
 	let state: RunState = 'loading';
 	let app: PixiApp | null = null;
@@ -303,7 +269,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 	let size: SoupSize = readStoredSize();
 	const dateSeed = formatDailySeed( new Date() );
 	let seedString = runSeedString( dateSeed, mode, size );
-	/** Whether the current run is the puzzle's first (shareable) one. */
+
 	let officialRun = true;
 	let scores: SoupScoreState = createSoupScore();
 	let grid: SoupGrid | null = null;
@@ -316,7 +282,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 	let lastWholeSecond = -1;
 	let waveTransition = -1;
 
-	// Live selection drag.
 	let anchor: SoupCell | null = null;
 	let selection: SoupCell[] = [];
 
@@ -325,7 +290,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 
 	const paintHud = (): void => {
 		scoreEl.textContent = sprintf(
-			/* translators: %s: current score. */
+
 			__( 'Score %s' ),
 			String( scores.score ),
 		);
@@ -342,7 +307,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 				timeLeft <= LOW_TIME_SECONDS,
 		);
 		waveEl.textContent = sprintf(
-			/* translators: 1: current wave number, 2: mode label. */
+
 			__( 'Wave %1$s · %2$s' ),
 			String( wave ),
 			modeLabel( mode ),
@@ -357,7 +322,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			return;
 		}
 		wordsHeading.textContent = sprintf(
-			/* translators: %s: number of hidden words. */
+
 			__( 'Find %s words' ),
 			String( grid.words.length ),
 		);
@@ -401,7 +366,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		renderChips();
 		fx.banner(
 			sprintf(
-				/* translators: %s: wave number. */
+
 				__( 'Wave %s' ),
 				String( wave ),
 			),
@@ -478,7 +443,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		paintHud();
 	};
 
-	// --- Game over + share card -------------------------------------
 	const gameOver = ( completed: boolean ): void => {
 		state = 'over';
 		anchor = null;
@@ -514,7 +478,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		const stats = document.createElement( 'p' );
 		stats.className = 'soup__over-stats';
 		stats.textContent = sprintf(
-			/* translators: 1: score, 2: words found, 3: accuracy percent, 4: best streak, 5: wave reached. */
+
 			__( 'Score %1$s — %2$s words, %3$s%% accuracy, best streak %4$s, wave %5$s.' ),
 			String( row.score ),
 			String( scores.wordsFound ),
@@ -525,8 +489,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		panel.appendChild( stats );
 
 		if ( officialRun ) {
-			// The shareable score card — first run of this puzzle only
-			// (replays could be memorized), and just a generated image.
 			const shareData: ShareCardData = {
 				gameTitle: __( 'Alphabet Soup' ),
 				puzzleLabel: `${ modeLabel( mode ) } · ${ sizeDims( size ) } · ${ dateSeed }`,
@@ -635,7 +597,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		overlay.appendChild( panel );
 	};
 
-	// --- Run control ------------------------------------------------
 	const startRun = ( picked: SoupMode, pickedSize: SoupSize ): void => {
 		mode = picked;
 		size = pickedSize;
@@ -643,8 +604,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		storeSize( pickedSize );
 		seedString = runSeedString( dateSeed, mode, size );
 		officialRun = ! readPlayedToday( dateSeed ).has( seedString );
-		// The ledger marks the puzzle the moment the board shows —
-		// quitting mid-run and restarting is still a replay.
+
 		markPlayed( dateSeed, seedString );
 		scores = createSoupScore();
 		colorCounter = 0;
@@ -659,10 +619,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		startWave( 1 );
 	};
 
-	/**
-	 * Gate a run start: replaying an already-played puzzle gets an
-	 * upfront heads-up that the run cannot post a share card.
-	 */
 	const requestRun = async (
 		picked: SoupMode,
 		pickedSize: SoupSize,
@@ -674,7 +630,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 				const proceed = await confirm( {
 					title: __( 'Replay today’s soup?' ),
 					message: sprintf(
-						/* translators: 1: mode label (Daily / Time Attack), 2: board dimensions (e.g. 12×12). */
+
 						__( 'You already played today’s %1$s (%2$s). The word positions can be memorized, so replays don’t earn a share card — that stays with your first run.' ),
 						modeLabel( picked ),
 						sizeDims( pickedSize ),
@@ -690,7 +646,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		startRun( picked, pickedSize );
 	};
 
-	/** The pre-game mode menu. Also the "Change mode" target. */
 	const showMenu = (): void => {
 		state = 'menu';
 		grid = null;
@@ -710,7 +665,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		const tagline = document.createElement( 'p' );
 		tagline.className = 'soup__over-stats';
 		tagline.textContent = sprintf(
-			/* translators: %s: today's puzzle date (dd-mm-yyyy). */
+
 			__( 'One pot, whole world: everyone gets the same soup today (%s). Drag across the letters to fish the words out.' ),
 			dateSeed,
 		);
@@ -720,7 +675,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			const note = document.createElement( 'p' );
 			note.className = 'soup__over-stats';
 			note.textContent = sprintf(
-				/* translators: 1: challenger display name, 2: score to beat. */
+
 				__( 'Challenge from %1$s — beat %2$s.' ),
 				ctx.challenge.challengerName,
 				String( ctx.challenge.scoreToBeat ),
@@ -728,7 +683,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			panel.appendChild( note );
 		}
 
-		// Pot-size picker — each size is its own worldwide puzzle.
 		const sizes = document.createElement( 'div' );
 		sizes.className = 'soup__menu-sizes';
 		sizes.setAttribute( 'role', 'group' );
@@ -817,7 +771,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		}
 	} );
 
-	// --- Tick -------------------------------------------------------
 	const tick = (): void => {
 		if ( ! app || ! fx || ! board ) {
 			return;
@@ -859,7 +812,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		}
 	};
 
-	// --- Pointer input ----------------------------------------------
 	const canvasPoint = (
 		event: PointerEvent,
 	): { x: number; y: number } | null => {
@@ -933,7 +885,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		}
 	};
 
-	// --- Async boot -------------------------------------------------
 	const boot = async (): Promise< void > => {
 		const desktop = desktopGlobal();
 		if ( typeof desktop.loadModules !== 'function' ) {
@@ -968,8 +919,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			antialias: true,
 			autoDensity: true,
 			resolution: Math.min( window.devicePixelRatio || 1, 2 ),
-			// Own ticker — sharing `Ticker.shared` across bundles
-			// crashes `Batcher.break()` (see content-graph/scene.ts).
+
 			sharedTicker: false,
 		} );
 		if ( disposed ) {
@@ -989,8 +939,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			if ( ! app || ! board ) {
 				return;
 			}
-			// Pixi's ResizePlugin only reacts to `window` resize —
-			// resizing the openstation window never fires that.
+
 			app.resize();
 			board.relayout( fieldWidth(), fieldHeight() );
 		} );
@@ -1028,7 +977,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		}
 	} );
 
-	// --- Teardown ---------------------------------------------------
 	return () => {
 		if ( disposed ) {
 			return;
@@ -1048,8 +996,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			app.ticker.stop();
 			fx?.clear();
 			board?.destroy();
-			// Options-object destroy — never `destroy( true )` (Pixi
-			// global-pool footgun shared with the wallpapers).
+
 			app.destroy( { removeView: true }, { children: true, texture: true } );
 			app = null;
 		}

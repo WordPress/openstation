@@ -1,9 +1,3 @@
-/**
- * `<os-category-picker>` — shadow-DOM styles. The host renders a
- * compact chip row with an optional inline trigger + popover. The
- * tree-style picker lives inside the popover; collapsible branches,
- * indent guides, search, keyboard nav.
- */
 import { css } from '../../core';
 
 export const styles = css`
@@ -34,9 +28,6 @@ export const styles = css`
 		min-width: 0;
 	}
 
-	/* Multiple breadcrumb chains stack as flex rows that can wrap;
-	 * a small gap keeps vertical separation when chains break onto
-	 * two lines so they don't read as a single solid block. */
 	.os-cat__chains {
 		display: flex;
 		flex-wrap: wrap;
@@ -44,27 +35,6 @@ export const styles = css`
 		min-width: 0;
 	}
 
-
-	/* --- In-cell tree visualization ------------------------------
-	 * The cell renders an inline SVG of the user's selected category
-	 * tree as a horizontal phylogenetic diagram. Root → leaves grow
-	 * left → right, connected by smooth cubic-bezier curves. Each
-	 * top-level category gets its own hashed hue so every node and
-	 * connector under it shares one color, providing the visual
-	 * grouping cue at a glance.
-	 *
-	 * Selected leaves are large filled circles with the accent
-	 * glow; on-path ancestors that the user did NOT pick are
-	 * smaller dim outline circles. The TREE itself, drawn in
-	 * vectors, is the hierarchy — typography stays minimal and the
-	 * eye reads structure from shapes and connectors instead of
-	 * indentation or text decorations.
-	 *
-	 * Click anywhere on the cell to open the picker. Click a leaf
-	 * node directly to toggle that leaf without leaving the cell.
-	 * Hover any node to glow its path-to-root, so dense trees
-	 * remain readable.
-	 */
 	.os-cat__viz-host {
 		display: flex;
 		align-items: center;
@@ -134,8 +104,6 @@ export const styles = css`
 		font-style: italic;
 	}
 
-/* Trigger — minimal compact button. Doubles as overflow indicator
-	 * when there are more selected categories than fit. */
 	.os-cat__trigger {
 		appearance: none;
 		display: inline-flex;
@@ -171,9 +139,6 @@ export const styles = css`
 		display: block;
 	}
 
-	/* Uncategorized sentinel — same shape as the trigger but with
-	 * "is-empty" affordance: muted color, no hover lift, signals
-	 * "this is the fallback, not a chosen tag". */
 	.os-cat__uncategorized {
 		display: inline-flex;
 		align-items: center;
@@ -190,17 +155,6 @@ export const styles = css`
 		font-style: italic;
 	}
 
-	/* --- Popover ------------------------------------------------- */
-
-	/*
-	 * position: fixed so the popover escapes the table cell's
-	 * overflow: auto clip plus the os-table shadow-DOM scrolling
-	 * container. JS measures the trigger and the viewport, then
-	 * sets top / left (or bottom / right for flips) inline — see
-	 * _positionPopover() in os-category-picker.ts. The default
-	 * values below place it at the top-left corner; the JS
-	 * overrides on every open.
-	 */
 	.os-cat__popover {
 		position: fixed;
 		top: 0;
@@ -248,18 +202,10 @@ export const styles = css`
 		padding: 4px 0;
 	}
 
-	/* Wrapper around a tree row + its trailing always-visible
-	 * "add child" input. display:contents keeps layout identical
-	 * to the unwrapped pair, but gives the row+input a single
-	 * top-level node so the template engine can dispose them as a
-	 * unit (avoids orphaned create-rows when the items list grows
-	 * and the engine remounts the array). */
 	.os-cat__row-block {
 		display: contents;
 	}
 
-	/* One row in the tree. Indent is a CSS variable applied via
-	 * inline style when the row is built (depth-based padding). */
 	.os-cat__row {
 		display: flex;
 		align-items: center;
@@ -280,9 +226,6 @@ export const styles = css`
 		font-weight: 600;
 	}
 
-	/* Indent guides — a faint vertical line per nesting level so
-	 * the eye reads the hierarchy without having to count
-	 * indentation pixels. */
 	.os-cat__row::before {
 		content: '';
 		position: absolute;
@@ -321,13 +264,6 @@ export const styles = css`
 		visibility: hidden;
 	}
 
-	/* Always-visible inline create input. One sits at the very top
-	 * of the popover for "add root", and one sits beneath every
-	 * visible row for "add child of that row". The wrap is the
-	 * focus-ring host so the embedded "+" submit button visually
-	 * lives inside the input chrome. Default state is quiet; on
-	 * hover/focus the wrap picks up the WordPress admin theme
-	 * color. */
 	.os-cat__create-row {
 		display: flex;
 		align-items: center;
@@ -376,7 +312,7 @@ export const styles = css`
 		min-width: 0;
 		appearance: none;
 		font: inherit;
-		/* A compact field; the phone layer raises it to 16px (see os-text-field). */
+
 		font-size: var( --os-ui-field-font-size-compact, 12px );
 		padding: 3px 6px;
 		border: 0;
@@ -464,13 +400,6 @@ export const styles = css`
 		white-space: nowrap;
 	}
 
-	/* Per-row delete button. Only visible when the row is hovered
-	 * or keyboard-focused — invisible at rest so the tree reads as
-	 * a flat list of selectable terms, not a "danger surface". The
-	 * button emits os-categories-delete; the consumer is
-	 * responsible for confirming + REST. Suppressed for
-	 * Uncategorized in the row template, since core's fallback
-	 * term must not be deletable. */
 	.os-cat__delete {
 		display: inline-flex;
 		align-items: center;
@@ -502,9 +431,6 @@ export const styles = css`
 		height: 14px;
 	}
 
-	/* Search-match highlight inside labels. A wash rather than a fill,
-	   so the label keeps its own colour and stays readable on either
-	   a light or a dark surface. */
 	.os-cat__match {
 		background: var( --os-ui-search-highlight-bg, rgba( 252, 211, 77, 0.45 ) );
 		border-radius: 2px;

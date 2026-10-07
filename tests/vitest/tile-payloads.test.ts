@@ -1,7 +1,3 @@
-/**
- * The files-layer tile-payload seam: a feature opts a payload type into
- * a non-folder tile the files layer would otherwise hard-reject.
- */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	registerTilePayloadHandler,
@@ -56,8 +52,7 @@ describe( 'tile-payload seam', () => {
 		expect( tilePayloadAccepts( notePayload, ctx ) ).toBe( true );
 		expect( tilePayloadAccepts( filePayload, ctx ) ).toBe( false );
 		expect( tilePayloadAcceptLabel( 'note', ctx ) ).toBe( 'Convert to post' );
-		// Keyed by payload type: a type with no handler has no label,
-		// even on a tile another handler claims.
+
 		expect( tilePayloadAcceptLabel( 'desktop-file', ctx ) ).toBeUndefined();
 	} );
 
@@ -121,12 +116,7 @@ describe( 'tile-payload seam', () => {
 	} );
 
 	describe( 'several handlers per payload type', () => {
-		// Handlers are scoped to the tiles they recognize, so more
-		// than one feature can want the same payload type on different
-		// icons — `'shortcut'` alone is claimed by the agent drop
-		// targets in-tree and by any plugin accepting files on its own
-		// wallpaper icon. One handler per type meant the last
-		// registration silently replaced the others.
+
 		const forRef = ( ref: string, onDrop = vi.fn() ) => ( {
 			appliesTo: ( ctx: TilePayloadContext ) =>
 				ctx.placement.file.ref === ref,

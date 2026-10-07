@@ -1,23 +1,7 @@
 <?php
-/**
- * Tests for the command-palette admin-menu map builder.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- *
- * @covers ::openstation_build_command_menu_map
- */
+
 class Tests_OpenStation_CommandMenuMap extends WP_UnitTestCase {
 
-	/**
-	 * Legacy file-path slugs (WP-Sweep's `wp-sweep/admin.php`,
-	 * registered via `add_management_page()`) contain `.php` yet are
-	 * registered plugin pages — the map must route them through
-	 * `menu_page_url()` (→ `tools.php?page=wp-sweep/admin.php`), not
-	 * treat them as a raw file link that 404s.
-	 */
 	public function test_registered_file_path_slug_routes_through_parent() {
 		global $menu, $submenu, $_parent_pages;
 		$menu_backup    = $menu;
@@ -53,10 +37,6 @@ class Tests_OpenStation_CommandMenuMap extends WP_UnitTestCase {
 		$this->assertSame( 'wp-sweep/admin.php', $args['page'] );
 	}
 
-	/**
-	 * Plain `.php` file slugs with no page registration keep the
-	 * direct-link behavior.
-	 */
 	public function test_unregistered_file_slug_stays_direct_link() {
 		global $menu, $submenu;
 		$menu_backup    = $menu;
@@ -83,14 +63,6 @@ class Tests_OpenStation_CommandMenuMap extends WP_UnitTestCase {
 		$this->assertSame( 'edit.php', $posts['url'] );
 	}
 
-	/**
-	 * URL-style slugs registered via `add_menu_page()` (ACF's
-	 * `edit.php?post_type=acf-field-group`) sit in `$_parent_pages`
-	 * yet reference a real `wp-admin/` file — they must keep the
-	 * direct-link behavior. Routing them through `menu_page_url()`
-	 * yields `admin.php?page=edit.php?post_type=…`, which core's
-	 * dispatcher rejects with "Cannot load …" (GH#367).
-	 */
 	public function test_registered_url_style_slug_stays_direct_link() {
 		global $menu, $submenu, $_parent_pages;
 		$menu_backup    = $menu;

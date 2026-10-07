@@ -1,19 +1,3 @@
-/**
- * What the document has already run — including what Core hid.
- *
- * WordPress concatenates every script below `wp-includes/js/` and
- * `wp-admin/js/` into a single `load-scripts.php` response, and does
- * so by default in wp-admin. The packages inside it have no
- * `<script src>` of their own, so a path-only presence test says
- * "not here" for `wp-hooks` on a stock admin screen, the lazy loader
- * appends it, and re-running it replaces `window.wp.hooks` — every
- * subscriber registered at boot goes deaf while the actions keep
- * firing on the new registry.
- *
- * The blob names its handles in its own query string. These pin that
- * we read them back the way `wp-admin/load-scripts.php` does.
- */
-
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	concatenatedScriptHandles,
@@ -22,17 +6,12 @@ import {
 	printedScriptHandleInDocument,
 } from '../../src/script-presence';
 
-/** Append a `<script src>` exactly as the document would carry it. */
 function printScript( src: string ): void {
 	const tag = document.createElement( 'script' );
 	tag.src = src;
 	document.head.append( tag );
 }
 
-/**
- * The concat blob `_print_scripts()` emits: the comma-joined handle
- * list, cut into `chunk_N` query params every 128 characters.
- */
 function printConcatBlob( handles: string[] ): void {
 	const list = handles.join( ',' );
 	const chunks = list.match( /.{1,128}/g ) ?? [];
@@ -58,10 +37,7 @@ describe( 'concatenatedScriptHandles', () => {
 	} );
 
 	it( 'joins the chunks before splitting on commas', () => {
-		// `_print_scripts()` cuts the list every 128 characters with
-		// no regard for handle boundaries, so a name routinely spans
-		// two chunks. Splitting each chunk on its own would yield
-		// `wp-ho` and `oks` and match nothing.
+
 		const handles = [
 			...Array.from( { length: 12 }, ( _, i ) => `filler-handle-${ i }` ),
 			'wp-hooks',
@@ -73,10 +49,7 @@ describe( 'concatenatedScriptHandles', () => {
 	} );
 
 	it( 'orders chunks numerically, not lexicographically', () => {
-		// Past `chunk_9` a string sort interleaves `chunk_10` between
-		// `chunk_1` and `chunk_2`, which rejoins the list in the wrong
-		// order and mangles the names at every seam. The comma count
-		// survives either way, so only the names themselves show it.
+
 		const handles = Array.from(
 			{ length: 90 },
 			( _, i ) => `some-plugin-handle-${ i }`,
@@ -116,8 +89,7 @@ describe( 'isScriptInDocument', () => {
 	} );
 
 	it( 'matches a concatenated package by handle', () => {
-		// The reported break: nothing in the DOM has this path, and
-		// the package is in the tab all the same.
+
 		printConcatBlob( [ 'wp-hooks', 'wp-i18n' ] );
 
 		expect(
@@ -178,7 +150,7 @@ describe( 'isScriptInDocument', () => {
 } );
 
 describe( 'printedScriptHandleInDocument', () => {
-	/** An inline tag exactly as `WP_Scripts::print_inline_script()` prints it. */
+
 	function printInline( id: string, code: string ): void {
 		const tag = document.createElement( 'script' );
 		tag.id = id;
@@ -187,8 +159,7 @@ describe( 'printedScriptHandleInDocument', () => {
 	}
 
 	it( 'sees an alias handle through the inline tag Core printed for it', () => {
-		// `wp_register_script( $h, false )` + `wp_add_inline_script()`:
-		// no file, no concat blob, only this.
+
 		printInline( 'acme-config-js-before', 'window.acmeConfig={};' );
 
 		expect( printedScriptHandleInDocument( 'acme-config' ) ).toBe( true );

@@ -1,13 +1,4 @@
 <?php
-/**
- * Tests for the OpenStation journal RSS cache and normalization boundary.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-about-feed
- */
 
 class OpenStation_About_Feed_Test_Author {
 	private $name;
@@ -81,10 +72,6 @@ class OpenStation_About_Feed_Test_Feed {
 	}
 }
 
-/**
- * @group openstation
- * @group os-about-feed
- */
 class Tests_OpenStation_AboutFeed extends WP_UnitTestCase {
 
 	public function tear_down() {
@@ -94,9 +81,6 @@ class Tests_OpenStation_AboutFeed extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_normalize_about_feed
-	 */
 	public function test_normalizes_remote_markup_and_caps_the_feed() {
 		$items = array();
 		for ( $index = 1; $index <= 6; $index++ ) {
@@ -123,9 +107,6 @@ class Tests_OpenStation_AboutFeed extends WP_UnitTestCase {
 		$this->assertFalse( $payload['stale'] );
 	}
 
-	/**
-	 * @covers ::openstation_get_about_feed
-	 */
 	public function test_returns_the_fresh_application_cache_without_fetching() {
 		$payload = array(
 			'title' => 'Cached journal',
@@ -137,9 +118,6 @@ class Tests_OpenStation_AboutFeed extends WP_UnitTestCase {
 		$this->assertSame( $payload, openstation_get_about_feed() );
 	}
 
-	/**
-	 * @covers ::openstation_get_about_feed
-	 */
 	public function test_returns_a_marked_stale_copy_during_failure_backoff() {
 		$payload = array(
 			'title' => 'Last known journal',

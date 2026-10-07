@@ -1,13 +1,3 @@
-/**
- * Posts app — the Categories mind map's force simulation: repulsion
- * between every pair, a spring to the parent, a weak pull to the
- * origin for roots, a strong outward shove out of the spotlight zone
- * while a node is focused, and a gentle pull toward the radial slot.
- * Pinned nodes (roots, the dragged one) ease straight to their targets.
- *
- * @public
- */
-
 import type { MindNode } from './mindmap-draw';
 
 const REPULSION_K = 5500;
@@ -56,8 +46,7 @@ export function physicsStep( nodes: Map< number, MindNode >, dt: number, ctx: Ph
 			fx += -a.x * 0.0008;
 			fy += -a.y * 0.0008;
 		}
-		// Spotlight nudge: a strong outward impulse while inside the
-		// keep-out zone, nothing outside it.
+
 		if ( ctx.nudge && a.id !== ctx.focusId ) {
 			const ndx = a.x - ctx.nudge.x;
 			const ndy = a.y - ctx.nudge.y;
@@ -70,8 +59,6 @@ export function physicsStep( nodes: Map< number, MindNode >, dt: number, ctx: Ph
 			}
 		}
 		if ( a !== ctx.dragNode ) {
-			// Physics eased over dt, blended with a gentle pull toward
-			// the radial slot.
 			a.x += fx * dt * 0.001 + ( a.tx - a.x ) * 0.02;
 			a.y += fy * dt * 0.001 + ( a.ty - a.y ) * 0.02;
 		}
@@ -80,7 +67,6 @@ export function physicsStep( nodes: Map< number, MindNode >, dt: number, ctx: Ph
 	}
 }
 
-/** Converge while the stage is still hidden, then lock the equilibrium in as the targets. */
 export function preSettle( nodes: Map< number, MindNode >, iterations: number ): void {
 	const ctx: PhysicsContext = { dragNode: null, focusId: null, nudge: null };
 	for ( let i = 0; i < iterations; i++ ) {

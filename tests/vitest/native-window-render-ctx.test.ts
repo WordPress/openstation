@@ -1,17 +1,3 @@
-/**
- * Tests for the `NativeRenderContext` second arg passed to native-
- * window render callbacks. Pins the contract that
- *
- *   render: ( body, ctx ) => { ... }
- *
- * sees a ctx with the channel API (`ctx.window.send/on`),
- * `markLoading` / `markReady` (top-level + nested), an
- * `AbortSignal` that aborts on close, and `onResize` / `onHide` /
- * `onShow` subscribers wired to the per-window hook bus.
- *
- * Backwards-compat: legacy unary callbacks (`render: ( body ) => ...`)
- * keep working — JS just ignores the extra arg.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { HOOKS, doAction } from '../../src/hooks';
@@ -46,9 +32,7 @@ describe( 'native-window render ctx', async () => {
 	} );
 
 	afterEach( async () => {
-		// `destroy()` runs the same cleanup as `close()` but skips
-		// the fade-out animation + the safety-net `setTimeout` that
-		// would otherwise leak past the test environment teardown.
+
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -125,7 +109,6 @@ describe( 'native-window render ctx', async () => {
 			},
 		} );
 
-		// Fire for a different window — listener should NOT see it.
 		doAction( HOOKS.WINDOW_BODY_RESIZED, {
 			windowId: 'someone-else',
 			width: 999,
@@ -133,7 +116,6 @@ describe( 'native-window render ctx', async () => {
 		} );
 		expect( got.length ).toBe( 0 );
 
-		// Fire for our window — listener SHOULD see it.
 		doAction( HOOKS.WINDOW_BODY_RESIZED, {
 			windowId: 'resize-test',
 			width: 800,
@@ -163,7 +145,6 @@ describe( 'native-window render ctx', async () => {
 		expect( hideCount ).toBe( 1 );
 		expect( showCount ).toBe( 1 );
 
-		// Wrong windowId — no fire.
 		doAction( HOOKS.WINDOW_MINIMIZED, { windowId: 'somebody-else' } );
 		expect( hideCount ).toBe( 1 );
 	} );
@@ -177,7 +158,7 @@ describe( 'native-window render ctx', async () => {
 			native: true,
 			render: ( _body, ctx ) => {
 				const off = ctx!.onResize( ( w ) => got.push( w ) );
-				// Detach immediately.
+
 				off();
 			},
 		} );
@@ -200,7 +181,7 @@ describe( 'native-window render ctx', async () => {
 				ctx!.onResize( () => resizeFired++ );
 			},
 		} );
-		// Confirm the listener is wired.
+
 		doAction( HOOKS.WINDOW_BODY_RESIZED, {
 			windowId: 'auto-detach',
 			width: 100,
@@ -210,8 +191,6 @@ describe( 'native-window render ctx', async () => {
 
 		win.close();
 
-		// After close, the listener should be gone — firing again
-		// must not invoke the callback.
 		doAction( HOOKS.WINDOW_BODY_RESIZED, {
 			windowId: 'auto-detach',
 			width: 200,
@@ -237,14 +216,11 @@ describe( 'native-window render ctx', async () => {
 
 		win.destroy();
 
-		// All synchronous: no animation, no deferred timer, no
-		// "wait one tick" required.
 		expect( signal!.aborted ).toBe( true );
 		expect( teardownCalls ).toEqual( [ 'user-teardown' ] );
-		// Element is removed from the DOM.
+
 		expect( win.element.isConnected ).toBe( false );
 
-		// Idempotent — destroying twice is a no-op, never re-fires teardown.
 		win.destroy();
 		expect( teardownCalls ).toEqual( [ 'user-teardown' ] );
 	} );
@@ -259,16 +235,11 @@ describe( 'native-window render ctx', async () => {
 			render: () => () => teardownCalls.push( 'user-teardown' ) as unknown as void,
 		} );
 
-		// close() schedules the deferred finalize via animation
-		// listener + 300ms safety-net timer.
 		win.close();
-		// Element is still in the DOM (animation hasn't run in jsdom).
+
 		expect( win.element.isConnected ).toBe( true );
 		expect( teardownCalls ).toEqual( [] );
 
-		// destroy() short-circuits — cancels the pending timer and
-		// finalises immediately. No race between this call and the
-		// 300ms timer firing later.
 		win.destroy();
 		expect( win.element.isConnected ).toBe( false );
 		expect( teardownCalls ).toEqual( [ 'user-teardown' ] );
@@ -285,9 +256,7 @@ describe( 'native-window render ctx', async () => {
 				captured = ctx ?? null;
 			},
 		} );
-		// The shell schedules WINDOW_CONTENT_LOADED on rAF after a
-		// sync render returns, so wait one rAF before exercising
-		// a fresh markLoading transition.
+
 		await new Promise< void >( ( resolve ) =>
 			requestAnimationFrame( () => resolve() ),
 		);

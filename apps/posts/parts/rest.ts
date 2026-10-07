@@ -1,18 +1,3 @@
-/**
- * Posts app — the REST client for everything the list row and the
- * term canvases mutate on demand: tags and categories (search,
- * create, assign, rename, reparent, delete), the author and tag
- * filter options, and the term-count / co-occurrence routes the
- * canvases read.
- *
- * The list itself no longer lives here — it is the app's `data()`
- * (`parts/query.php`), refreshed by the framework on every dispatch.
- * Every call goes through the framework's `ctx.fetch`, so the nonce
- * rides along and the request is attributed to the window's spinner.
- *
- * @public
- */
-
 import { decodeHTML } from '../../../src/utils';
 import type {
 	AuthorOption,
@@ -25,11 +10,10 @@ import type {
 	TermsListParams,
 } from './types';
 
-/** `ctx.fetch` — a relative path resolves against the REST root. */
 export type RestFetch = ( path: string, init?: RequestInit, options?: { silent?: boolean } ) => Promise< Response >;
 
 interface RequestOptions extends RequestInit {
-	/** Set to `false` to skip `response.json()` (a `DELETE` with no body). */
+
 	expectJson?: boolean;
 }
 
@@ -55,13 +39,7 @@ export interface PostsRestClient {
 		categoryIds: number[],
 	): Promise< { id: number; categories: number[] } >;
 	fetchTerms( taxonomy: 'categories' | 'tags', params?: TermsListParams ): Promise< TermsListPage >;
-	/**
-	 * Every term of a taxonomy, 100 per page up to five pages — what a
-	 * canvas mounts from. Counts are Core's publish-only numbers here;
-	 * the canvases replace them with the any-status map from
-	 * `fetchTermCounts()` right after (one cached query instead of one
-	 * COUNT per term).
-	 */
+
 	fetchAllTerms( taxonomy: 'categories' | 'tags' ): Promise< TermRow[] >;
 	fetchTagCooccurrence(
 		taxonomy?: 'tags' | 'categories',
@@ -73,30 +51,17 @@ export interface PostsRestClient {
 		patch: Partial< Pick< TermRow, 'name' | 'slug' | 'description' | 'parent' > >,
 	): Promise< TermRow >;
 	deleteTerm( taxonomy: 'categories' | 'tags', id: number ): Promise< void >;
-	/**
-	 * The posts attached to one term — the satellite fan the canvases
-	 * deploy around a focused node. `X-WP-Total` is the authoritative
-	 * count (the same query the table runs).
-	 */
+
 	fetchTermPosts(
 		param: 'categories' | 'tags',
 		termId: number,
 		page: number,
 		perPage: number,
 	): Promise< { items: Array< { id: number; title: string } >; totalPages: number; total: number } >;
-	/** `{ term_id: count }` for a batch of ids — `/desktop-mode/v1/term-counts`. */
+
 	fetchTermCounts( taxonomy: 'category' | 'post_tag', ids: number[] ): Promise< Record< string, number > >;
 }
 
-/**
- * Notify other parts of the shell that a term was created, updated
- * or deleted. Subscribers (the post-row category picker caches the
- * full tree per window-open) clear their caches so they pick up the
- * change without an F5.
- *
- * Channel: `os.term.changed`. Payload:
- * `{ source: 'posts-window', taxonomy: 'category' | 'post_tag', action, id }`.
- */
 function broadcastTermChange(
 	taxonomy: 'category' | 'post_tag',
 	action: 'created' | 'updated' | 'deleted',
@@ -119,11 +84,6 @@ function qs( params: Record< string, string | number | undefined > ): string {
 	return out ? `?${ out }` : '';
 }
 
-/**
- * Build the client over the framework's fetch. A REST error surfaces
- * the `WP_Error` message (not the bare status line) so a toast can
- * say what the server actually complained about.
- */
 export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 	const request = async < T >( path: string, init: RequestOptions = {} ): Promise< RequestResult< T > > => {
 		const response = await restFetch( path, {
@@ -141,7 +101,7 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 					message = json.message;
 				}
 			} catch {
-				// Non-JSON body: the status line will do.
+
 			}
 			throw new Error( message );
 		}
@@ -174,8 +134,6 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 	};
 
 	const termRow = ( t: Partial< TermRow >, fallbackId = 0 ): TermRow => {
-		// A response that carries the any-status count (a third-party
-		// projection) wins over core's publish-only `count`.
 		const anyCount = ( t as { openstation_count?: number } ).openstation_count;
 		return {
 			id: ( t.id as number ) ?? fallbackId,
@@ -189,10 +147,6 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 	};
 
 	const fetchTerms = async ( taxonomy: 'categories' | 'tags', params: TermsListParams = {} ): Promise< TermsListPage > => {
-		// `openstation_count` is deliberately NOT requested: it costs one
-		// COUNT query per term, and the bulk `/term-counts` map the
-		// canvases fetch right after answers for every term from one
-		// cached query. `openstation_is_default` is one option read.
 		const { data, headers } = await request< Array< Partial< TermRow > > >(
 			`wp/v2/${ taxonomy }${ qs( {
 				per_page: params.perPage ?? 50,
@@ -225,8 +179,6 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 				broadcastTermChange( 'post_tag', 'created', data.id );
 				return data;
 			} catch ( err ) {
-				// Core answers `term_exists` with the existing id — recover
-				// by finding that term and returning it as the "created" one.
 				const message = err instanceof Error ? err.message : String( err );
 				if ( /term[\s_]?exists/i.test( message ) ) {
 					const exact = ( await searchTags( name ) ).find(
@@ -256,8 +208,6 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 				);
 				return Array.isArray( data ) ? data.map( ( author ) => ( { ...author, name: decodeHTML( author.name ) } ) ) : [];
 			} catch {
-				// A capability-gated 401/403 means "no filter dropdown",
-				// never a dead table.
 				return [];
 			}
 		},
@@ -338,7 +288,7 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 
 		async fetchTagCooccurrence( taxonomy = 'tags', limit = 8 ) {
 			const { data } = await request< { pairs?: Record< string, TermNeighbor[] > } | TermNeighbor[] >(
-				// The server speaks WP taxonomy slugs, not the wp/v2 plural.
+
 				`desktop-mode/v1/tag-cooccurrence${ qs( { taxonomy: taxonomy === 'tags' ? 'post_tag' : 'category', limit } ) }`,
 				{ method: 'GET' },
 			);

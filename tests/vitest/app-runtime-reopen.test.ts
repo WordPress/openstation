@@ -1,12 +1,3 @@
-/**
- * App Framework runtime — a singleton reopened on another subject.
- *
- * `wp.os.openWindow( id, { params } )` on a live window writes the new
- * params onto it and fires `os-window-reopened`; the runtime adopts
- * them on the session (every later dispatch carries them, so
- * `$os->params` answers with the new subject) and dispatches the
- * `reopen` lifecycle action when the app declared one.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSession } from '../../src/app-runtime/session';
 import type { AppConfig, RuntimeHost } from '../../src/app-runtime/types';

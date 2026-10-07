@@ -1,13 +1,3 @@
-/**
- * About — the OpenStation journal, sourced from the public RSS feed.
- *
- * The browser does not call the cross-origin feed directly. PHP
- * fetches and normalizes it behind an authenticated admin-AJAX URL,
- * and the app only asks for it the first time the About page is
- * actually shown — most sessions never are, and the shell's boot path
- * stays independent from the remote blog.
- */
-
 import { __, html, sprintf, type TemplateResult } from '@openstation/app';
 import { extraOf, uiOf, type Ctx, type Section } from './types';
 
@@ -37,7 +27,6 @@ export type AboutFeedState =
 	| { kind: 'ready'; feed: AboutFeed }
 	| { kind: 'error' };
 
-/** Accept only browser-safe HTTP(S) links from the remote payload. */
 function httpUrl( value: unknown ): string {
 	if ( typeof value !== 'string' || value === '' ) {
 		return '';
@@ -52,7 +41,6 @@ function httpUrl( value: unknown ): string {
 
 const text = ( value: unknown ): string => ( typeof value === 'string' ? value.trim() : '' );
 
-/** Runtime-check the private AJAX response before threading it into the DOM. */
 export function normalizeAboutFeed( value: unknown ): AboutFeed | null {
 	if ( ! value || typeof value !== 'object' ) {
 		return null;
@@ -104,7 +92,6 @@ function formatDate( iso: string ): string {
 function postMeta( item: AboutFeedItem ): string {
 	const date = formatDate( item.publishedAt );
 	if ( date && item.author ) {
-		/* translators: 1: publication date, 2: post author. */
 		return sprintf( '%1$s · %2$s', date, item.author );
 	}
 	return date || item.author;
@@ -188,7 +175,6 @@ function feedBody( state: AboutFeedState ): TemplateResult {
 	`;
 }
 
-/** One complete state of the About page. Exported for DOM coverage. */
 export function renderAbout(
 	config: { pluginUrl?: string; pluginVersion?: string },
 	state: AboutFeedState,
@@ -249,11 +235,9 @@ export function renderAbout(
 	`;
 }
 
-/** The page: whatever state the feed is in (loading until first shown). */
 export const renderAboutPage: Section = ( _s, ctx ) =>
 	html`<div class="os-settings__about">${ renderAbout( extraOf( ctx ), uiOf( ctx ).about ?? { kind: 'loading' } ) }</div>`;
 
-/** Fetch the feed the first time the page is on screen. Called after every paint. */
 export function ensureAboutLoaded( ctx: Ctx ): void {
 	const ui = uiOf( ctx );
 	if ( ctx.state.tab !== 'about' || ui.about !== null ) {
@@ -279,7 +263,6 @@ export function ensureAboutLoaded( ctx: Ctx ): void {
 			}
 			ui.about = { kind: 'ready', feed };
 		} catch ( error ) {
-			// eslint-disable-next-line no-console
 			console.error( '[openstation/about] journal feed failed:', error );
 			ui.about = { kind: 'error' };
 		}

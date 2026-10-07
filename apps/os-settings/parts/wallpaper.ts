@@ -1,17 +1,3 @@
-/**
- * Wallpaper — the registry-driven swatch grid, the selected
- * wallpaper's inline editor, its settings dialog, and the drawer that
- * holds the custom-image picker.
- *
- * The grid is a function of the registry and the settings. Two things
- * are not: a wallpaper's `renderEditor` and `renderConfig` are
- * callbacks that receive a plain `HTMLElement` to own (that is the
- * contract with third-party wallpapers), so the editor lives in an
- * island the app's renderer never touches — mounted and torn down
- * from `syncEditor()` after every paint — and the dialog is an
- * `<os-modal>` on `document.body`.
- */
-
 import { __, html, sprintf } from '@openstation/app';
 import * as registry from '../../../src/wallpapers/registry';
 import {
@@ -25,8 +11,7 @@ import type {
 	WallpaperTeardown,
 } from '../../../src/wallpapers/types';
 import { render } from '../../../src/ui/core';
-// The dialog builds its chrome imperatively, so the elements have to
-// be registered in THIS bundle (`defineComponent` is idempotent).
+
 import '../../../src/ui/components/os-modal/os-modal';
 import '../../../src/ui/components/os-button/os-button';
 import { CUSTOM_GRADIENT_ID, CUSTOM_IMAGE_ID } from '../../../src/settings/constants';
@@ -38,7 +23,6 @@ import { pickedValue, uiOf, type Ctx, type Section } from './types';
 
 const EDITOR_SLOT = '[data-os-editor-slot]';
 
-/** The context a wallpaper's editor or dialog receives. */
 function wallpaperContext( id: string ) {
 	return {
 		id,
@@ -51,22 +35,6 @@ function wallpaperContext( id: string ) {
 	};
 }
 
-// ------------------------------------------------------------ editor
-
-/**
- * Keep the editor island in step with the selection: tear down the
- * previous wallpaper's editor, mount the selected one's into a
- * brand-new inner element.
- *
- * A fresh element every time, not a recycled one. Recycling looks
- * equivalent, but breaks any editor that keeps per-container state
- * keyed on element identity — the framework's own `render()` caches
- * its mounted parts per container, so a cleared-then-reused element
- * takes the update fast path against detached nodes and paints
- * nothing (that was the "custom gradient can't be edited after
- * switching away and back" bug). Third-party editors built on
- * lit-html carry the same per-container cache.
- */
 export function syncEditor( ctx: Ctx ): void {
 	const slot = ctx.root.querySelector< HTMLElement >( EDITOR_SLOT );
 	if ( ! slot ) {
@@ -74,8 +42,7 @@ export function syncEditor( ctx: Ctx ): void {
 	}
 	const ui = uiOf( ctx );
 	const id = settings().wallpaper;
-	// A repaint that remounted the slot (a registry change reshaped
-	// the page) loses the island with it; so does a selection change.
+
 	if ( ui.editor.id === id && slot.firstElementChild ) {
 		return;
 	}
@@ -100,7 +67,6 @@ export function syncEditor( ctx: Ctx ): void {
 			ui.editor.teardown = result;
 		}
 	} catch ( err ) {
-		// eslint-disable-next-line no-console
 		console.error( `[openstation] Wallpaper "${ def.id }" renderEditor threw:`, err );
 	}
 }
@@ -111,20 +77,12 @@ export function teardownEditor( ctx: Ctx ): void {
 		try {
 			ui.editor.teardown();
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( '[openstation] Wallpaper editor teardown threw:', err );
 		}
 	}
 	ui.editor = { id: '', teardown: null };
 }
 
-/**
- * The built-in custom gradient's inline editor: two colours and an
- * angle, written straight to the store. The app registers it onto the
- * gradient's def when it mounts — the shell registered the def
- * without one, so the colour and range fields stay out of the boot
- * bundle.
- */
 export function renderGradientEditor( container: HTMLElement ): WallpaperTeardown {
 	container.classList.add( 'os-settings__gradient-editor-inner' );
 	const write = ( patch: Partial< ReturnType< typeof settings >[ 'customGradient' ] > ): void => {
@@ -163,23 +121,10 @@ export function renderGradientEditor( container: HTMLElement ): WallpaperTeardow
 		);
 	};
 	paint();
-	// Nothing long-lived to release; the slot clears the container.
+
 	return () => undefined;
 }
 
-// ------------------------------------------------------------ dialog
-
-/**
- * Open the wallpaper's settings dialog: an `<os-modal>` on
- * `document.body` whose body is handed to the def's `renderConfig`.
- * The shell owns the chrome (title, focus trap, Done button, ESC /
- * click-outside); the wallpaper owns the form.
- *
- * `setSettings` merges into the persisted per-wallpaper bag through
- * the store and publishes to the shared runtime store — which fires
- * `os.wallpaper.settings-changed` so a mounted instance of the
- * wallpaper live-applies without a remount.
- */
 export function openWallpaperConfigDialog( def: WallpaperDef ): void {
 	if ( typeof def.renderConfig !== 'function' ) {
 		return;
@@ -189,7 +134,7 @@ export function openWallpaperConfigDialog( def: WallpaperDef ): void {
 	modal.setAttribute(
 		'title',
 		sprintf(
-			/* translators: %s: wallpaper name. */
+
 			__( '%s settings' ),
 			def.label,
 		),
@@ -215,7 +160,6 @@ export function openWallpaperConfigDialog( def: WallpaperDef ): void {
 		try {
 			configTeardown?.();
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( `[openstation] Wallpaper "${ def.id }" config teardown threw:`, err );
 		}
 		configTeardown = null;
@@ -245,11 +189,10 @@ export function openWallpaperConfigDialog( def: WallpaperDef ): void {
 		if ( isPromise( result ) ) {
 			result.then( ( teardown: WallpaperTeardown ) => {
 				if ( closed ) {
-					// Closed before the async render resolved — release now.
 					try {
 						teardown();
 					} catch {
-						/* best-effort */
+
 					}
 					return;
 				}
@@ -259,25 +202,11 @@ export function openWallpaperConfigDialog( def: WallpaperDef ): void {
 			configTeardown = result;
 		}
 	} catch ( err ) {
-		// eslint-disable-next-line no-console
 		console.error( `[openstation] Wallpaper "${ def.id }" renderConfig threw:`, err );
 		close();
 	}
 }
 
-// -------------------------------------------------------------- grid
-
-/**
- * The picker. Presets from the registry, the custom gradient last
- * among them (it is the only tile that is a DOOR rather than a choice:
- * picking it opens an editor below the grid), and "Use your own
- * image" as the final, dashed tile — one of the ways to answer "what
- * is behind my windows", so it belongs in the row of answers.
- *
- * Everything that opens under the grid — the settings button, the
- * editor, the image picker — opens the same way: a slot whose
- * `data-expanded` the stylesheet animates from 0fr to 1fr.
- */
 export const wallpaperSection: Section = ( s, ctx ) => {
 	const ui = uiOf( ctx );
 	const active = registry.get( s.wallpaper );
@@ -292,8 +221,7 @@ export const wallpaperSection: Section = ( s, ctx ) => {
 	const tiles = registry
 		.all()
 		.filter( ( def ) => def.id !== CUSTOM_IMAGE_ID )
-		// `filter()` already returned a fresh array, so a stable sort
-		// here cannot disturb registry order for anyone else.
+
 		.sort(
 			( a, b ) =>
 				Number( a.id === CUSTOM_GRADIENT_ID ) - Number( b.id === CUSTOM_GRADIENT_ID ),

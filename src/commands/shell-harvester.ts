@@ -1,34 +1,3 @@
-/**
- * Shell-side harvester for `wp.data.select('core/commands')`.
- *
- * The chromeless iframe bridge already harvests the focused iframe's
- * command registry and re-publishes it to the parent palette under
- * `owner: 'iframe:<windowId>'`. That covers per-window extras (Gutenberg
- * "Duplicate block", pattern commands, etc.), but it leaves the shell
- * empty whenever the focused window is a native window — Posts, Files,
- * Comments, Plugins — because native windows have no iframe and no
- * `core/commands` runtime to subscribe to.
- *
- * This module fixes that by registering the *baseline* WordPress command
- * set (Add new post, Manage plugins, Switch theme, Browse patterns, …)
- * directly from the shell's own runtime. `includes/render/assets.php`
- * force-enqueues `wp-core-commands` on the shell page, which seeds the
- * `core/commands` store with the same baseline a real admin user would
- * see. We mount a hidden React harvester here, classify each command
- * (navigation → opens a desktop window; action → invokes the callback
- * in-place), and register the result with `owner: 'global'` so the
- * commands are visible in the palette regardless of which window has
- * focus.
- *
- * Note on plugin install/activate: the React harvester re-runs on every
- * `core/commands` store tick automatically, so any command added to the
- * store after boot (rare, but happens) shows up without intervention.
- * A freshly *activated* plugin's commands won't appear until the shell
- * page is reloaded — the plugin's JS isn't injected into the live shell.
- * The per-window iframe harvester (`iframe-bridge.ts`) covers that gap
- * for any screen the user navigates into.
- */
-
 import {
 	registerCommand,
 	unregisterByOwner,
@@ -41,40 +10,19 @@ import { deriveWindowId, sanitizeIconSvg } from './../utils';
 
 const OWNER = 'global';
 
-// `core/commands` callbacks for navigation are written as direct
-// assignments to `document.location` (with `.href` or without). We
-// classify by reading the callback source — never by execution.
-// `document.location` and `Location.prototype` members are
-// `[LegacyUnforgeable]` in WebIDL, so a runtime intercept via
-// `Object.defineProperty` is silently rejected by the browser; an
-// undetected nav callback would therefore navigate the SHELL and
-// trigger the "leave site?" dialog on every iframe under it.
 const NAV_HREF_LITERAL_RE =
 	/(?:document\.location\.href|window\.location\.href|location\.href)\s*=\s*['"]([^'"$]+?)['"]/;
 const NAV_ASSIGN_LITERAL_RE =
 	/(?:document\.location|window\.location|location)\s*=\s*['"]([^'"$]+?)['"]/;
 const NAV_CALL_LITERAL_RE =
 	/location\.(?:assign|replace)\s*\(\s*['"]([^'"$]+?)['"]\s*\)/;
-// Broad "this callback writes to location somehow" detector. Used to
-// flag callbacks whose URL we couldn't extract statically — they're
-// either safely re-routable (site-editor special case below) or unsafe
-// to register at all.
+
 const NAV_INTENT_RE =
 	/(?:document\.location|window\.location|location)\s*(?:\.href\s*)?=|location\.(?:assign|replace)\s*\(/;
-// Site-editor navigation pattern — the callback references the WP
-// helpers that build a site-editor URL. We can't read the captured
-// `templateType` / `record.id` from the closure, but the command
-// `name` encodes both as `<type>-<id>` (e.g. `wp_template_part-
-// twentytwentyfive//footer-columns`). When this matches, we synthesize
-// the URL ourselves and treat the command as a safe navigate.
+
 const SITE_EDITOR_INTENT_RE = /getSiteEditorPage\s*\(|site-editor\.php/;
 const SITE_EDITOR_NAME_RE = /^(wp_template_part|wp_template|wp_navigation|wp_block)-(.+)$/;
 
-/**
- * What picking a site-editor entity command does, shown as the row's
- * description. Core labels these with the entity's bare title ("Page:
- * 404", "Footer"), which says what the row is but not what it opens.
- */
 function siteEditorDescription( name: string ): string | undefined {
 	const type = name.match( SITE_EDITOR_NAME_RE )?.[ 1 ];
 	return {
@@ -85,17 +33,9 @@ function siteEditorDescription( name: string ): string | undefined {
 	}[ type ?? '' ];
 }
 
-/**
- * Look up a command name in the stashed `menu_commands` array (set by
- * `includes/render/assets.php` as an inline script before our bundle).
- * Each entry has shape `{ label, url, name }`. Returns the full entry
- * (so callers can also adopt the clean label — "Posts" — instead of
- * the harvested "Go to: Posts" used in the palette row).
- */
 function lookupMenuCommand(
 	name: string,
 ): { label: string; url: string } | null {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const list = ( window as any ).__openStationMenuCommands;
 	if ( ! Array.isArray( list ) ) {
 		return null;
@@ -131,19 +71,10 @@ interface Classified {
 	label: string;
 	icon?: string;
 	iconSvg?: string;
-	// `navigate` — safe to open as a desktop window (URL was extracted).
-	// `action` — pure JS callback that doesn't touch `location`; safe to
-	//   run inline in the shell.
-	// `skip` — callback navigates dynamically and we couldn't recover a
-	//   URL; registering would risk navigating the shell. Excluded from
-	//   the registry.
+
 	kind: 'navigate' | 'action' | 'skip';
 	url?: string;
-	// Title for the desktop window the command opens. Distinct from
-	// the palette row's `label` (which keeps the "Go to: Posts" form
-	// the user types). For admin-menu navigation we adopt the clean
-	// menu label ("Posts") so the window's title bar matches what
-	// the user clicked in the menu, not the palette phrasing.
+
 	windowTitle?: string;
 	callback?: ( ...args: unknown[] ) => void;
 }
@@ -151,11 +82,7 @@ interface Classified {
 export interface ShellCommandHarvesterOptions {
 	manager: WindowManager;
 	adminUrl: string;
-	/**
-	 * The menu's name for an admin URL, when the menu lists it: the dock
-	 * tile's for the page a tile opens, the submenu row's otherwise.
-	 * Session restore titles the window with it on the next boot.
-	 */
+
 	titleForUrl?: ( url: string ) => string | undefined;
 }
 
@@ -166,7 +93,7 @@ export class ShellCommandHarvester {
 
 	private mounted = false;
 	private host: HTMLDivElement | null = null;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 	private root: any = null;
 	private kindCache: Record< string, { kind: 'navigate' | 'action' | 'skip'; url?: string; iconSvg?: string; windowTitle?: string } > =
 		Object.create( null );
@@ -180,7 +107,6 @@ export class ShellCommandHarvester {
 		this.titleForUrl = opts.titleForUrl;
 	}
 
-	/** Mount the harvester. Idempotent. Safe to call before `wp.data` loads. */
 	public install(): void {
 		this.tryMount( 0 );
 	}
@@ -189,7 +115,7 @@ export class ShellCommandHarvester {
 		if ( this.mounted ) {
 			return;
 		}
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 		const wp = ( window as any ).wp;
 		if ( ! wp || ! wp.data || ! wp.element || typeof wp.data.subscribe !== 'function' ) {
 			if ( attempt < 40 ) {
@@ -201,7 +127,6 @@ export class ShellCommandHarvester {
 	}
 
 	private mount(): void {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const wp = ( window as any ).wp;
 		const el = wp.element;
 		const data = wp.data;
@@ -229,11 +154,6 @@ export class ShellCommandHarvester {
 		( document.body || document.documentElement ).appendChild( host );
 		this.host = host;
 
-		// Ref-based aggregation bucket — see the chromeless bridge's
-		// `__wpdMountReactHarvester` for the full rationale. A
-		// `setState` inside the effect would loop with the hook's
-		// fresh-reference renders. Refs don't re-render, so the loop
-		// is broken even when hooks churn references.
 		const bucket: {
 			perLoader: Record< string, RawCommand[] >;
 			statics: RawCommand[];
@@ -267,9 +187,7 @@ export class ShellCommandHarvester {
 			if ( Array.isArray( bucket.statics ) ) {
 				merged = merged.concat( bucket.statics );
 			}
-			// Refresh the callback cache off the same snapshot we're
-			// about to publish — loader-returned commands close over
-			// React state that's only valid this render pass.
+
 			this.callbackCache = Object.create( null );
 			for ( const cc of merged ) {
 				if ( cc && cc.name && typeof cc.callback === 'function' ) {
@@ -279,20 +197,13 @@ export class ShellCommandHarvester {
 			this.publish( merged );
 		};
 
-		/* eslint-disable react-hooks/exhaustive-deps --
-		   Dependency arrays intentionally key off the fingerprint
-		   (or are deliberately empty) rather than tracking the raw
-		   arrays / props that hooks return fresh on every render. A
-		   "complete" dependency list would re-fire the effects every
-		   render → re-publish → infinite loop. Same trick as the
-		   chromeless bridge's harvester. */
 		const LoaderSlot = ( props: { loader: { name: string; hook: ( a: { search: string } ) => { commands?: RawCommand[] } } } ) => {
 			const loader = props.loader;
 			let result: { commands?: RawCommand[] } | null = null;
 			try {
 				result = loader.hook( { search: '' } );
 			} catch {
-				/* a buggy loader shouldn't take the harvester down */
+
 			}
 			const cmds: RawCommand[] =
 				result && Array.isArray( result.commands ) ? result.commands : [];
@@ -314,18 +225,7 @@ export class ShellCommandHarvester {
 		};
 
 		const Harvester = () => {
-			// `core/commands` `getCommands( contextual )` partitions the
-			// store: `true` returns commands whose `command.context`
-			// matches the current `state.context`, `false` returns the
-			// non-contextual rest. The WP-wide baseline registered by
-			// `wp.coreCommands.initializeCommandPalette()` (Add new
-			// post, Manage plugins, …) carries no `context`, so it
-			// sits in the non-contextual bucket. The shell has no
-			// context set, so we want both buckets concatenated:
-			// non-contextual covers the baseline; contextual covers
-			// the rare case where a plugin sets a global context.
 			const loaders = useSelect( ( s: ( store: string ) => unknown ) => {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const ss = s( 'core/commands' ) as any;
 				if ( ! ss || typeof ss.getCommandLoaders !== 'function' ) {
 					return [];
@@ -336,7 +236,6 @@ export class ShellCommandHarvester {
 				];
 			}, [] );
 			const staticCmds = useSelect( ( s: ( store: string ) => unknown ) => {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const ss = s( 'core/commands' ) as any;
 				if ( ! ss || typeof ss.getCommands !== 'function' ) {
 					return [];
@@ -381,7 +280,6 @@ export class ShellCommandHarvester {
 			}
 			return createEl( el.Fragment || 'div', null, children );
 		};
-		/* eslint-enable react-hooks/exhaustive-deps */
 
 		try {
 			this.root = el.createRoot( host );
@@ -397,9 +295,6 @@ export class ShellCommandHarvester {
 	}
 
 	private publish( raw: RawCommand[] ): void {
-		// Dedupe + finalize. Same shape as the chromeless harvester's
-		// `__wpdFinalizeCommands` — drop disabled, drop duplicates,
-		// drop entries missing name/label.
 		const seen: Record< string, boolean > = Object.create( null );
 		const classified: Classified[] = [];
 		for ( const cmd of raw ) {
@@ -416,9 +311,6 @@ export class ShellCommandHarvester {
 			classified.push( this.classify( cmd ) );
 		}
 
-		// Cheap fingerprint dedupe — `core/commands` ticks on every
-		// unrelated preference change. Re-registering an identical
-		// list every tick would notify subscribers for no reason.
 		let key = '';
 		for ( const c of classified ) {
 			key += `${ c.name }|${ c.kind }|${ c.url || '' }\n`;
@@ -431,9 +323,6 @@ export class ShellCommandHarvester {
 		unregisterByOwner( OWNER );
 
 		for ( const c of classified ) {
-			// `skip` commands navigate dynamically and we couldn't
-			// recover the URL — registering them would let a /search
-			// pick navigate the shell out of OpenStation. Drop.
 			if ( c.kind === 'skip' ) {
 				continue;
 			}
@@ -446,16 +335,7 @@ export class ShellCommandHarvester {
 				icon,
 				iconSvg: c.iconSvg && c.iconSvg !== '' ? sanitizeIconSvg( c.iconSvg ) : undefined,
 				owner: OWNER,
-				// NOT eager. The palette splits the registry into two
-				// disjoint surfaces: `eager` commands show on empty
-				// input (and are excluded from slash search at
-				// `src/ai-assistant/impl.ts:494`); non-eager commands
-				// show when the user types `/<query>`. The WP baseline
-				// is large (~150 entries) and meant to be searched —
-				// surfacing it eagerly would drown the iframe-harvested
-				// contextual shortcuts on every open. Slash-search is
-				// the right surface for it, matching the native WP
-				// palette UX (open, type, find).
+
 				run: c.kind === 'navigate' && c.url
 					? this.runNavigate( c.url, c.windowTitle || c.label, icon )
 					: this.runInvoke( c.name ),
@@ -463,7 +343,6 @@ export class ShellCommandHarvester {
 			try {
 				registerCommand( def );
 			} catch ( err ) {
-				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] shell-harvester: dropping bad command',
 					def,
@@ -493,28 +372,10 @@ export class ShellCommandHarvester {
 			return out;
 		}
 
-		// Flatten React-element icons to a static SVG string once per
-		// command name — Gutenberg ships icons as `@wordpress/icons`
-		// React elements that the palette can't render directly.
 		if ( cmd.icon && typeof cmd.icon !== 'string' ) {
 			out.iconSvg = this.renderIcon( cmd.icon );
 		}
 
-		// Tier 0 — known admin-menu navigation.
-		// (See class doc-block above.)
-		//
-		// WP's `useCommands` wraps every command's `callback` in a stable
-		// ref before exposing it through the store; the source we read
-		// via `Function.prototype.toString` is the wrapper, not the
-		// real handler that does `document.location = menuCommand.url`.
-		// Source-regex classification therefore can never identify
-		// these commands. Instead, check the PHP-built menu map
-		// (`window.__openStationMenuCommands`, injected by
-		// `includes/render/assets.php` from the live `$menu`/
-		// `$submenu` globals). If the command name matches an entry,
-		// we know the URL and can safely route it through the window
-		// manager. Skip source inspection for these — the URL is the
-		// source of truth, the callback would just navigate the shell.
 		const menuEntry = lookupMenuCommand( out.name );
 		if ( menuEntry ) {
 			try {
@@ -543,7 +404,6 @@ export class ShellCommandHarvester {
 				src = '';
 			}
 
-			// Tier 1 — literal URL extractable from the callback source.
 			const literal =
 				src.match( NAV_HREF_LITERAL_RE ) ||
 				src.match( NAV_ASSIGN_LITERAL_RE ) ||
@@ -556,19 +416,6 @@ export class ShellCommandHarvester {
 					out.kind = 'action';
 				}
 			} else if ( NAV_INTENT_RE.test( src ) ) {
-				// Callback writes to `location` but the URL isn't a
-				// string literal — could be `addQueryArgs(...)`,
-				// template literal, captured closure, etc. We can't
-				// safely execute (shell would navigate). Admin-menu
-				// nav was already handled above via Tier 0; the
-				// remaining recoverable case is site-editor template
-				// navigation.
-
-				// Site-editor template navigation. The callback uses
-				// `getSiteEditorPage()` / `site-editor.php`, and the
-				// command name encodes `<entityType>-<entityId>`
-				// (e.g. `wp_template_part-twentytwentyfive//footer-
-				// columns`). Rebuild the URL from the name.
 				const isSiteEditorIntent = SITE_EDITOR_INTENT_RE.test( src );
 				const nameMatch = isSiteEditorIntent
 					? out.name.match( SITE_EDITOR_NAME_RE )
@@ -587,27 +434,9 @@ export class ShellCommandHarvester {
 						out.kind = 'skip';
 					}
 				} else {
-					// Unrecoverable nav. Skip rather than register
-					// a command that would unload the shell.
 					out.kind = 'skip';
 				}
 			}
-			// else: pure JS action (no `location` writes detected).
-			// Keep `kind: 'action'` — `runInvoke` executes the callback
-			// in the shell. Toggles, dispatches, modal opens all land
-			// here and work fine.
-			//
-			// The detection is textual and therefore only as good as
-			// the callback's own body: a handler that navigates
-			// through a helper (`callback: ( a ) => goTo( url,
-			// a.close )`) mentions no sink here and is classified an
-			// action. There is no runtime net under it — `location`
-			// cannot be shadowed (see the note at the top of this
-			// file) — so such a command navigates the shell for real
-			// when it runs. Widening the regexes past the callback's
-			// own source is not possible; what IS possible is that the
-			// command says so, which is why `runInvoke` no longer
-			// swallows what the callback does or throws.
 		}
 
 		this.kindCache[ out.name ] = {
@@ -619,7 +448,6 @@ export class ShellCommandHarvester {
 	}
 
 	private renderIcon( icon: unknown ): string {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const wp = ( window as any ).wp;
 		if ( ! wp || ! wp.element || typeof wp.element.renderToString !== 'function' ) {
 			return '';
@@ -633,7 +461,7 @@ export class ShellCommandHarvester {
 				return rendered;
 			}
 		} catch {
-			/* swallow */
+
 		}
 		return '';
 	}
@@ -652,12 +480,7 @@ export class ShellCommandHarvester {
 	): DesktopCommand[ 'run' ] {
 		return ( _args, ctx ) => {
 			ctx.close();
-			// Consult the native URL remap registry first — if a
-			// native window claims this URL (e.g. the Posts window
-			// for `edit.php`, the Plugins window for `plugins.php`),
-			// open that instead of spawning an iframe. Falls through
-			// to plain iframe-window opening when no remap matches
-			// or the remap's gate refuses the current user.
+
 			if ( tryNativeUrlRemap( url ) ) {
 				return;
 			}
@@ -666,61 +489,19 @@ export class ShellCommandHarvester {
 		};
 	}
 
-	/**
-	 * Run an `action`-classified command by calling the callback the
-	 * store handed us.
-	 *
-	 * Two things here are the command's own to decide, and neither is
-	 * ours to invent:
-	 *
-	 * **The callback gets the palette's real `close`.** WordPress
-	 * documents the handler as `callback( { close } )`, and every
-	 * command written against that contract calls it — usually first,
-	 * before the work, so the overlay is gone by the time anything
-	 * happens. Handing it a no-op stub instead ran the command with
-	 * the palette still sitting over the result.
-	 *
-	 * **A callback that throws is the command failing.** It reaches
-	 * `_runCommand`, which renders "Command /x failed: …" and fires
-	 * `HOOKS.COMMAND_ERROR`. Swallowing it produced the exact bug
-	 * this method was reported for: a third-party command that
-	 * listed, highlighted and picked, and then did nothing at all —
-	 * no error, no console line, nothing to tell the author their
-	 * handler had thrown on its first statement.
-	 *
-	 * Note what is deliberately NOT here: an attempt to sandbox
-	 * `location` around the call. `location` is `[LegacyUnforgeable]`
-	 * (see the classification note at the top of this file), so
-	 * `Object.defineProperty( document | window, 'location', … )`
-	 * throws `TypeError: Cannot redefine property: location` and the
-	 * guard it was meant to install never existed. Classification is
-	 * the only line of defence against a callback navigating the
-	 * shell, which is what `docs/architecture.md` has said all along:
-	 * callbacks are never executed to classify.
-	 */
 	private runInvoke( name: string ): DesktopCommand[ 'run' ] {
 		return ( _args, ctx ) => {
 			const cb = this.callbackCache[ name ];
 			if ( typeof cb !== 'function' ) {
-				// The cache is rebuilt from each harvest, so a name that
-				// is registered but uncached means the two went out of
-				// step. Say so — the alternative (close and return) is
-				// indistinguishable from a command that ran fine.
 				throw new Error(
 					sprintf(
-						/* translators: %s: the `core/commands` command name. */
+
 						__( 'No live callback for command “%s” — the palette and the command registry are out of step. Reload the page.' ),
 						name,
 					),
 				);
 			}
 			cb( { close: () => ctx.close() } );
-			// The palette stays open unless the command closed it. A
-			// pure JS action (e.g. "View site" → window.open in a new
-			// tab) has its effect elsewhere, and closing on its behalf
-			// means returning to this tab finds the overlay mid-close
-			// (the fade was throttled while the tab was backgrounded)
-			// and it vanishes.
 		};
 	}
 }

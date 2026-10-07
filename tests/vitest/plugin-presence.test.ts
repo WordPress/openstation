@@ -1,16 +1,3 @@
-/**
- * Unit tests for the "OpenStation stopped being active" watcher.
- *
- * The whole point of the module is that triggers may be wrong and the
- * confirmation is what decides, so most of these assert the NEGATIVE:
- * a healthy page, a front-end page, a cross-origin frame, a bare 404
- * and a network error must all leave the shell alone.
- *
- * `fetch` is stubbed on the global rather than mocking the
- * `tracked-fetch` module, so the real helper (and its `wp.os.fetch`
- * lookup) stays in the path — same approach as
- * `agents-dispatch.test.ts`.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	noteFrameLoaded,
@@ -25,7 +12,6 @@ const NAMESPACE_URL = 'http://localhost/wp-json/desktop-mode/v1';
 let fetchMock: ReturnType< typeof vi.fn >;
 let assign: ReturnType< typeof vi.fn >;
 
-/** The body WordPress returns for an unregistered namespace. */
 function goneResponse(): unknown {
 	return {
 		status: 404,
@@ -37,7 +23,6 @@ function aliveResponse(): unknown {
 	return { status: 200, json: () => Promise.resolve( {} ) };
 }
 
-/** Stand-in for an iframe whose document we control. */
 function frameWith( options: {
 	pathname: string;
 	chromeless: boolean;
@@ -46,14 +31,11 @@ function frameWith( options: {
 	if ( options.chromeless ) {
 		body.classList.add( 'os-chromeless' );
 	}
-	// A plain stand-in rather than a real Document: jsdom's
-	// `document.location` is non-configurable, so it can't be pointed
-	// at an arbitrary path.
+
 	const doc = { body, location: { pathname: options.pathname } };
 	return { contentDocument: doc } as unknown as HTMLIFrameElement;
 }
 
-/** An iframe that throws on `contentDocument`, like a cross-origin one. */
 function crossOriginFrame(): HTMLIFrameElement {
 	return {
 		get contentDocument(): Document {
@@ -69,7 +51,6 @@ function adminFrame(): HTMLIFrameElement {
 	} );
 }
 
-/** Install a jQuery stub and return the registered `heartbeat-tick` handler. */
 function bootWithHeartbeat(): ( ...args: unknown[] ) => void {
 	let handler: ( ( ...args: unknown[] ) => void ) | null = null;
 	( window as unknown as { jQuery?: unknown } ).jQuery = () => ( {
@@ -149,7 +130,7 @@ describe( 'plugin-presence', () => {
 	} );
 
 	test( 'a 404 without rest_no_route leaves the shell alone', async () => {
-		// A hardening plugin or a firewall rule on /wp-json.
+
 		fetchMock.mockResolvedValue( {
 			status: 404,
 			json: () => Promise.resolve( { code: 'rest_forbidden' } ),
@@ -172,8 +153,7 @@ describe( 'plugin-presence', () => {
 	} );
 
 	test( 'rest_no_route navigates the top frame to the dashboard', async () => {
-		// Fake timers so the read-the-toast delay before the
-		// navigation doesn't have to be waited out for real.
+
 		vi.useFakeTimers();
 		fetchMock.mockResolvedValue( goneResponse() );
 		noteFrameLoaded( adminFrame() );
@@ -238,7 +218,7 @@ describe( 'plugin-presence', () => {
 			noteFrameLoaded( adminFrame() );
 			await vi.runAllTimersAsync();
 			await vi.advanceTimersByTimeAsync( 31_000 );
-			// A healthy chromeless page in between.
+
 			noteFrameLoaded(
 				frameWith( {
 					pathname: '/wp-admin/index.php',

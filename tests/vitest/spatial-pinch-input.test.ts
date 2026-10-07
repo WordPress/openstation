@@ -20,7 +20,6 @@ function surface() {
 	return stage;
 }
 
-/** jsdom lacks PointerEvent; preserve its DOM dispatch and pointer-specific fields. */
 function pointer( target: EventTarget, type: string, id: number, x: number, y = 100, pointerType = 'touch' ) {
 	const event = new MouseEvent( type, { bubbles: true, composed: true, cancelable: true, clientX: x + 10, clientY: y + 20, button: 0 } );
 	Object.defineProperties( event, { pointerId: { value: id }, pointerType: { value: pointerType } } );
@@ -47,7 +46,7 @@ describe( 'touch input shared by spatial views', () => {
 		pointer( stage.firstElementChild!, 'pointerdown', 2, 200 );
 		pointer( window, 'pointermove', 2, 300 );
 		expect( camera() ).toEqual( { scale: 2, x: -100, y: -100 } );
-		// The world point under the old midpoint (150,100) stays under the new one (200,100).
+
 		expect( 150 * camera().scale + camera().x ).toBe( 200 );
 		pointer( window, 'pointermove', 2, 150 );
 		expect( camera() ).toEqual( { scale: .5, x: 50, y: 50 } );

@@ -1,31 +1,3 @@
-/**
- * Usage feedback — the prompt card.
- *
- * A titled card pinned to the bottom corner of the work area, asking
- * whether the user has two minutes to say how OpenStation is going.
- * Deliberately more than a toast and less than a dialog: it does not
- * block the desk or take focus, but it does not time out either, it
- * has no small close button to swat, and it stays until the user
- * picks one of its two answers. Its accent halo beats twice on
- * arrival so it is noticed once; reduced motion skips all of it.
- *
- * "No thanks" reports `dismissed`. "Sure" swaps the card for the form
- * (`form.ts`), whose own outcome is reported instead. Either way
- * `onAnswered` fires exactly once and the caller records it; this
- * module keeps no state beyond the card being on screen.
- *
- * Placement reads the work area, not the viewport: the card mounts
- * inside `#os-shell`, where `src/work-area/` publishes the
- * `--os-work-area-inset-*` tokens, so a bottom dock or a side rail
- * never covers it.
- *
- * The card is a dark chip whatever the admin colour scheme says, the
- * same constraint the toast and the dialog surface have, so it chains
- * through the `--os-ui-modal-*` tokens and re-points the shared text
- * and hover tokens for the `<os-button>`s inside it, as `<os-modal>`
- * does for its slotted controls.
- */
-
 import { __ } from '../i18n';
 import '../ui/components/os-button/os-button';
 import { openUsageFeedbackForm } from './form';
@@ -36,12 +8,7 @@ const CARD_CLASS = 'os-usage-feedback-prompt';
 const TITLE_ID = 'os-usage-feedback-prompt-title';
 
 const STYLES = `
-/* The role is in the selector to outrank one rule: the WordPress
-   components stylesheet sets position relative on every region, at the
-   same specificity as a bare class. It loads on demand (the assistant
-   brings it in), so it lands after these styles and won: the card
-   dropped out of its corner to the bottom-left of the shell, partly
-   off screen, the moment the user pressed the palette shortcut. */
+
 .${ CARD_CLASS }[role='region'] {
 	--os-ui-fg: var( --os-ui-modal-text, #f0f0f1 );
 	--os-ui-fg-muted: var( --os-ui-modal-text-muted, #a7aaad );
@@ -67,9 +34,7 @@ const STYLES = `
 	font-family: var( --os-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif );
 	font-size: 14px;
 	line-height: 1.45;
-	/* Arrives on a spring, then the accent halo beats twice and
-	   settles: enough to be noticed once, not a nag that keeps
-	   moving in the corner of the eye. */
+
 	animation:
 		osUsageFeedbackPromptIn 0.45s cubic-bezier( 0.2, 1.2, 0.35, 1 ) both,
 		osUsageFeedbackPromptBeat 1.4s ease-in-out 0.7s 2;
@@ -117,7 +82,6 @@ function ensureStyles( doc: Document ): void {
 	doc.head.appendChild( el );
 }
 
-/** Show the card. A second call while one is on screen is ignored. */
 export function showUsageFeedbackPrompt( opts: UsageFeedbackPromptOptions ): void {
 	const doc = document;
 	if ( doc.querySelector( `.${ CARD_CLASS }` ) ) {
@@ -125,8 +89,6 @@ export function showUsageFeedbackPrompt( opts: UsageFeedbackPromptOptions ): voi
 	}
 	ensureStyles( doc );
 
-	// A region, not a dialog: it sits beside the work without taking
-	// focus or trapping it.
 	const card = doc.createElement( 'section' );
 	card.className = CARD_CLASS;
 	card.setAttribute( 'role', 'region' );
@@ -183,7 +145,5 @@ export function showUsageFeedbackPrompt( opts: UsageFeedbackPromptOptions ): voi
 		} );
 	} );
 
-	// Inside the shell root so the work-area tokens resolve; the body
-	// is the fallback for a document without one.
 	( doc.getElementById( 'os-shell' ) ?? doc.body ).appendChild( card );
 }

@@ -1,21 +1,3 @@
-/**
- * What the overview top bar can do with workspaces.
- *
- * Three rules this file exists to hold:
- *
- * 1. **Nothing appears on the desk.** Creating, editing and restoring
- *    are controls in the overview bar; shell chrome floating over the
- *    user's windows is not the shape this feature takes.
- * 2. **Without an installed shell, the bar is exactly what it was.**
- *    Every export answers `false` before the install and after
- *    teardown, so the `+` leaves the user on the plain new desk it
- *    made and every existing overview test still builds the bar it
- *    always did.
- * 3. **One door.** The `+` opens the wizard; there is no second
- *    control that creates desks. The wizard's own escape hatch — a
- *    blank desk one Enter away — is tested in `workspaces-wizard`.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
@@ -59,10 +41,7 @@ describe( 'workspaces — overview top bar', () => {
 		setVisibleWidgets = vi.fn();
 		deps = {
 			manager,
-			// One item, so a launch entry naming `edit.php` resolves.
-			// An entry that matches nothing is skipped by design — see
-			// `resolveLaunches` — and a stub returning `[]` would make
-			// the restore test pass for the wrong reason.
+
 			getNavItems: () => [
 				{
 					id: 'edit-php',
@@ -123,8 +102,7 @@ describe( 'workspaces — overview top bar', () => {
 		expect( createWorkspaceFromOverview( 'desktop-1' ) ).toBe( true );
 
 		expect( openCreator ).toHaveBeenCalledWith( 'desktop-1' );
-		// The desk already exists — the bar made it and landed on it.
-		// This door only dresses it.
+
 		expect( manager.getDesktops() ).toHaveLength( before );
 	} );
 
@@ -135,9 +113,6 @@ describe( 'workspaces — overview top bar', () => {
 			'.os-overview-top-bar__tile--add',
 		)!.click();
 
-		// The canvas the wizard dresses is the one in front of the
-		// user: made, switched to, and out of overview before the
-		// modal opens.
 		expect( manager.getDesktops() ).toHaveLength( 2 );
 		const created = manager.getDesktops()[ 1 ]!;
 		expect( manager.getActiveDesktopId() ).toBe( created.id );
@@ -162,8 +137,7 @@ describe( 'workspaces — overview top bar', () => {
 	} );
 
 	test( 'a plain Space has nothing to restore', () => {
-		// A button that visibly does nothing is worse than no button,
-		// so its absence is information: this desk holds no workspace.
+
 		expect(
 			workspaceCanRestore( { id: 'desktop-1', label: 'Desktop 1' } ),
 		).toBe( false );
@@ -222,8 +196,7 @@ describe( 'workspaces — overview top bar', () => {
 
 	test( 'restore switches to the desk and rebuilds it', () => {
 		install();
-		// Restore is a forced provision, and provisioning opens one
-		// window per declared entry — `openNew`, never a focus.
+
 		const open = vi
 			.spyOn( manager, 'openNew' )
 			.mockResolvedValue( {} as never );
@@ -238,9 +211,7 @@ describe( 'workspaces — overview top bar', () => {
 				appearance: { wallpaper: 'mono' },
 				windows: [ { match: 'edit.php', url: 'edit.php' } ],
 				layout: 'columns',
-				// Already provisioned — the desk the user has since
-				// tidied is exactly the case this button is for, and
-				// the once-per-workspace guard must not refuse them.
+
 				provisioned: true,
 			},
 		} );
@@ -259,10 +230,7 @@ describe( 'workspaces — overview top bar', () => {
 		install();
 		createWorkspaceFromOverview( 'desktop-1' );
 		editWorkspaceFromOverview( 'desktop-1' );
-		// Every door hands off to the shell's wizard. Opening one must
-		// not put anything on the desk or in the document — shell
-		// chrome floating over the user's windows is exactly the shape
-		// this feature does not take.
+
 		expect( desktop.children ).toHaveLength( 0 );
 		expect( document.querySelector( '.os-workspace-switcher' ) ).toBeNull();
 		expect( document.querySelector( 'os-select' ) ).toBeNull();

@@ -1,20 +1,3 @@
-/**
- * The title bar renders no app icon.
- *
- * It used to, through `renderIcon`, in every shape a window can
- * register — and the result was a copy of the window's own dock tile
- * a few hundred pixels above it. A title bar has room for one mark of
- * that size and it is now the status ring, which reports something
- * the dock tile can't.
- *
- * What this file pins is the *absence*, in the shapes that used to be
- * rendered here — a regression that reinstated the icon would show up
- * as a second copy of the dock tile, which is exactly the thing that
- * looks fine in a screenshot and wrong in use. The `renderIcon`
- * dispatcher itself is unaffected and still covered by
- * `icon-data-uri.test.ts`; the icon SLOT is still here for plugins
- * and desktop themes that render into it deliberately.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { createWindowElement } from '../../src/window/dom';
 import { _resetWindowChannelsForTests } from '../../src/window-channels';
@@ -59,8 +42,7 @@ describe( 'createWindowElement — the title bar has no app icon', () => {
 	} );
 
 	test( 'the icon slot host is present and empty', () => {
-		// Empty, not removed: a plugin's `appearance.slots.icon` and a
-		// desktop theme's per-window icon slot both still land here.
+
 		const host = makeWindow( 'dashicons-admin-post' ).querySelector(
 			'.os-window__slot--icon',
 		);

@@ -1,77 +1,42 @@
-/**
- * OpenStation — Wallpaper context menu (CMO).
- *
- * Clicking empty wallpaper used to call `manager.toggleShowDesktop()`
- * directly. Phase 4 replaces that with a small floating menu —
- * the desktop-OS equivalent of the right-click "Create folder /
- * New URL / Sort by / Show desktop / OS Settings" affordance.
- *
- * Plugins extend the menu via the `os.wallpaper-context-menu`
- * filter (JS) or the `openstation_wallpaper_context_menu_items`
- * filter (PHP, carried in the shell payload as
- * `serverWallpaperMenuItems`). Both lists are merged at click time.
- */
-
 import { applyFilters, doAction } from '../hooks';
-// Side-effect import: registers `<os-context-menu>` +
-// `<os-context-menu-option>` so the menu DOM upgrades.
+
 import { openWithShellOverlays } from '../shell-overlays/loader';
 import { clampToViewport, positionFlyout } from '../ui/util/menu-position';
 import { attachDismissable } from './dismissable';
 
-/**
- * Where the user right-clicked, in viewport coordinates. Items that
- * place something on the wallpaper need it: `onClick` receives a
- * synthetic `MouseEvent` carrying no position.
- */
 export interface WallpaperMenuContext {
 	x: number;
 	y: number;
 }
 
-/** Public shape of a menu item. Plugins build these via the filter. */
 export interface WallpaperMenuItem {
-	/** Stable id; useful for tests + telemetry. */
+
 	id: string;
-	/** Visible label. */
+
 	label: string;
-	/** Optional dashicon class (e.g. `'dashicons-portfolio'`). */
+
 	icon?: string;
-	/** Sort order — lower wins. Default 100. */
+
 	sort?: number;
-	/** Whether the item should render as disabled. */
+
 	disabled?: boolean;
-	/**
-	 * Optional non-clickable section heading. Renders as a small
-	 * uppercase label between groups of items. Headings ignore
-	 * `onClick` and `icon`. Use `id` for test selectors.
-	 */
+
 	heading?: boolean;
-	/**
-	 * Optional submenu items. When present, the item renders with
-	 * a trailing chevron and opens a flyout on hover/focus to the
-	 * right (left in RTL). The parent's `onClick` is not invoked
-	 * when `children` is non-empty — the flyout takes over.
-	 */
+
 	children?: WallpaperMenuItem[];
-	/**
-	 * Render a leading check mark on the option (radio-style — used
-	 * for the active Sort By order). Cosmetic; doesn't change the
-	 * click path.
-	 */
+
 	checked?: boolean;
-	/** Click handler. Receives the event for `preventDefault` etc. */
+
 	onClick: ( e: MouseEvent ) => void | Promise< void >;
 }
 
-/** Server-shipped item shape. PHP can preload basic items here. */
 export interface ServerWallpaperMenuItem {
 	id: string;
 	label: string;
 	icon?: string;
 	sort?: number;
 	disabled?: boolean;
-	/** Optional callback id resolved on the JS side. Plugins ship a JS handler under the same id. */
+
 	callbackId?: string;
 }
 
@@ -80,36 +45,16 @@ const MENU_CLASS = 'os-wallpaper-menu';
 let activeMenu: HTMLElement | null = null;
 
 export interface OpenWallpaperMenuOptions {
-	/**
-	 * Element whose clicks should NOT auto-close the menu. The
-	 * wallpaper-click toggle path passes the desktop area here so
-	 * a second click on the wallpaper can run the toggle handler
-	 * (close-and-don't-reopen) instead of being eaten by the
-	 * outside-click dismisser.
-	 */
+
 	excludeOutsideTarget?: HTMLElement;
 }
 
-/** Whether a wallpaper context menu is currently mounted. */
 export function isWallpaperMenuOpen(): boolean {
 	return activeMenu !== null;
 }
 
-/**
- * Generation counter to drop superseded openWallpaperMenu calls
- * that come in while the shell-overlays bundle is still loading
- * (only relevant on the first menu open before the post-first-
- * paint preload has landed).
- */
 let openGeneration = 0;
 
-/**
- * Build and show the menu at viewport coordinates `{ x, y }`.
- * The menu is dismissed on outside click or on Escape.
- *
- * Construction is deferred behind the shell-overlays loader so
- * the `<os-context-menu>` class ships in the lazy bundle.
- */
 export function openWallpaperMenu(
 	host: HTMLElement,
 	pos: { x: number; y: number },
@@ -143,8 +88,6 @@ function openWallpaperMenuImmediate(
 		return a.label.localeCompare( b.label );
 	} );
 
-	// Use the framework's `<os-context-menu>` component for the
-	// host so styling + roles come from the shared primitive.
 	const menu = document.createElement( 'os-context-menu' );
 	menu.setAttribute( 'open', '' );
 	menu.classList.add( MENU_CLASS );
@@ -191,8 +134,6 @@ function openWallpaperMenuImmediate(
 		menu.appendChild( opt );
 	}
 
-	// One delegated `os-context-menu-pick` listener handles every
-	// option in the parent menu (and its flyout — events bubble).
 	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string; value: string } > ).detail;
 		const item = itemById.get( detail.id ) ?? null;
@@ -200,7 +141,6 @@ function openWallpaperMenuImmediate(
 			return;
 		}
 		if ( Array.isArray( item.children ) && item.children.length > 0 ) {
-			// Toggle the flyout; clicking the parent doesn't dismiss the menu.
 			e.stopPropagation();
 			if ( activeFlyoutParent && activeFlyoutParent.id === item.id ) {
 				closeActiveFlyout();
@@ -264,9 +204,6 @@ function openWallpaperMenuImmediate(
 	host.appendChild( menu );
 	activeMenu = menu;
 
-	// Clamp to viewport so a click near the edge doesn't open
-	// half-off-screen. Measured a frame later, once the component
-	// has rendered. See `src/ui/util/menu-position.ts`.
 	clampToViewport( menu );
 
 	const detach = attachDismissable( menu, {
@@ -279,12 +216,11 @@ function openWallpaperMenuImmediate(
 	doAction( 'os.wallpaper-menu.opened', { items: items.map( ( i ) => i.id ) } );
 }
 
-/** Close the active menu (no-op when nothing is open). */
 export function closeWallpaperMenu(): void {
 	if ( ! activeMenu ) {
 		return;
 	}
-	// Sweep any floating flyouts owned by this menu.
+
 	document
 		.querySelectorAll( `.${ MENU_CLASS }--flyout` )
 		.forEach( ( el ) => el.remove() );
@@ -294,11 +230,6 @@ export function closeWallpaperMenu(): void {
 	doAction( 'os.wallpaper-menu.closed', {} );
 }
 
-/**
- * Build the merged item list — built-ins ⊕ server items ⊕
- * filter — and run it through the filter so plugins can reorder,
- * hide, or splice in extras.
- */
 export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 	const builtIn: WallpaperMenuItem[] = [
 		{
@@ -319,9 +250,7 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 			id: 'add-widget',
 			label: deps.labels.addWidget,
 			icon: 'dashicons-screenoptions',
-			// 15, not 14: the pinned-notes layer contributes
-			// `new-note` at 14 through the filter, and a tie would
-			// leave the order down to which list got merged first.
+
 			sort: 15,
 			onClick: () => deps.addWidget(),
 		},
@@ -414,8 +343,7 @@ function serverItemToMenuItem(
 					return cb();
 				}
 			}
-			// Plugins that didn't ship a JS callback fall through to
-			// a doAction so they can subscribe in their own bundle.
+
 			doAction( 'os.wallpaper-context-menu.activated', {
 				id: server.id,
 				callbackId: server.callbackId ?? '',
@@ -429,26 +357,16 @@ export type SortMode = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc';
 export interface WallpaperMenuDeps {
 	createFolder: () => void;
 	createUrl: () => void;
-	/** Opens the widget picker, same panel the add pill opens. */
+
 	addWidget: () => void;
 	toggleShowDesktop: () => void;
 	openOsSettings: () => void;
 	sortIcons: ( mode: SortMode ) => void;
-	/**
-	 * Currently-active sort mode, or `null` when the desktop is in
-	 * free-placement mode (the user has dragged tiles manually). The
-	 * matching Sort By submenu entry renders with a leading check
-	 * so users see at a glance which order is auto-arranging.
-	 */
+
 	currentSortMode?: SortMode | null;
-	/**
-	 * Whether to render the built-in "Show desktop" entry. When `false`,
-	 * the caller has wired the wallpaper's left-click to drive the same
-	 * toggle (macOS-style) and the menu entry would be redundant.
-	 * Default `true`.
-	 */
+
 	includeShowDesktop?: boolean;
-	/** Forwarded to the filter. Omitted, it sees `{ 0, 0 }`. */
+
 	position?: { x: number; y: number };
 	labels: {
 		createFolder: string;

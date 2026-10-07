@@ -1,20 +1,3 @@
-/**
- * Unit tests for the editor-preview ("eye") title-bar button
- * (`src/editor-preview/`):
- *
- *   - button registration through the public title-bar registry and
- *     the `match` predicate following the identity's `previewUrl`
- *   - click flow: snap-left, autosave transport, companion window
- *     opened snapped-right + ephemeral, singleton id per post,
- *     fresh-autosave previewUrl preferred over the identity's
- *   - the `os.editor-preview.window-config` filter
- *   - toggle-off on second click
- *   - lifecycle: editor close destroys the companion, preview close
- *     only clears the pairing, content change to a different post
- *     closes the companion
- *   - save-driven reload: matching broadcast reloads (debounced),
- *     changed previewUrl navigates instead
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { HOOKS } from '../../src/hooks';
@@ -64,7 +47,6 @@ function fakeWin( id: string ): FakeWin {
 	};
 }
 
-/** A capture-only stand-in for the editor window's iframe. */
 function fakeIframe() {
 	const postMessage = vi.fn();
 	return {
@@ -73,10 +55,6 @@ function fakeIframe() {
 	};
 }
 
-/**
- * A manager fake: `open()` records the config, creates a fake window
- * under the config id, and returns it.
- */
 function fakeManager() {
 	const windows = new Map< string, FakeWin >();
 	const open = vi.fn(
@@ -116,13 +94,6 @@ afterEach( () => {
 	document.body.innerHTML = '';
 } );
 
-/**
- * Boot the module against a fresh fake manager + stubbed transport.
- * The default transport answers `not-dirty` — nothing saved, so the
- * click flow schedules no post-open refresh and lifecycle tests stay
- * free of stray debounce timers. Tests exercising the refresh pass
- * an explicit `saved` result.
- */
 async function boot(
 	transportResult: import( '../../src/editor-preview/autosave' ).AutosaveResult = {
 		status: 'not-dirty',
@@ -139,7 +110,6 @@ async function boot(
 	return { ...api, manager, transport, def };
 }
 
-/** Render the eye onto a host and click it, awaiting the async flow. */
 async function clickEye(
 	def: {
 		render?: ( host: HTMLElement, win: never ) => void;
@@ -150,8 +120,7 @@ async function clickEye(
 	document.body.appendChild( host );
 	def.render!( host, win as never );
 	host.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
-	// The click handler awaits the autosave transport + manager.open —
-	// flush the microtask chain.
+
 	for ( let i = 0; i < 6; i++ ) {
 		await Promise.resolve();
 	}
@@ -181,7 +150,6 @@ describe( 'bootEditorPreview', () => {
 		} );
 		expect( def.match( win as never ) ).toBe( true );
 
-		// No previewUrl (list table, non-viewable type) — no eye.
 		setWindowContent( 'w1', { type: 'post', id: 1 } );
 		expect( def.match( win as never ) ).toBe( false );
 	} );
@@ -279,12 +247,8 @@ describe( 'eye click', () => {
 		vi.useFakeTimers();
 		await clickEye( def, editor );
 
-		// The companion opens immediately at the identity link — it
-		// never waits for the autosave round-trip…
 		expect( manager.open.mock.calls[ 0 ][ 0 ].url ).toBe( PREVIEW_URL );
 
-		// …and the landed save refreshes it at the fresher one,
-		// debounced and silent.
 		const preview = manager.getById( 'editor-preview-post-1' )!;
 		expect( preview.swapReload ).not.toHaveBeenCalled();
 		vi.advanceTimersByTime( 500 );
@@ -308,7 +272,6 @@ describe( 'eye click', () => {
 
 		expect( manager.open.mock.calls[ 0 ][ 0 ].url ).toBe( PREVIEW_URL );
 
-		// Nothing was saved — no refresh gets scheduled.
 		const preview = manager.getById( 'editor-preview-post-1' )!;
 		vi.advanceTimersByTime( 5000 );
 		expect( preview.swapReload ).not.toHaveBeenCalled();
@@ -335,19 +298,14 @@ describe( 'eye click', () => {
 
 		await clickEye( api.def, editor );
 
-		// The save round-trip is still in flight — the companion is
-		// already open and the pairing recorded (a slow save used to
-		// read as a hang: nothing on screen reacted until it landed).
 		expect( api.manager.open ).toHaveBeenCalledTimes( 1 );
 		expect( api.manager.getById( 'editor-preview-post-1' ) ).toBeTruthy();
 
-		// The eye pulses while the save settles…
 		const host = document.createElement( 'os-window-button' );
 		api.def.render!( host, editor as never );
 		expect( host.getAttribute( 'aria-busy' ) ).toBe( 'true' );
 		expect( host.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 
-		// …and stops once it lands.
 		release( { status: 'saved' } );
 		for ( let i = 0; i < 6; i++ ) {
 			await Promise.resolve();
@@ -460,7 +418,6 @@ describe( 'eye click', () => {
 			previewUrl: PREVIEW_URL,
 		} );
 
-		// Hold manager.open() open so the editor can close mid-flight.
 		let release: () => void = () => undefined;
 		const gate = new Promise< void >( ( resolve ) => {
 			release = resolve;
@@ -478,20 +435,18 @@ describe( 'eye click', () => {
 		document.body.appendChild( host );
 		def.render!( host, editor as never );
 		host.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
-		// Let the flow reach manager.open().
+
 		for ( let i = 0; i < 6; i++ ) {
 			await Promise.resolve();
 		}
 		expect( manager.open ).toHaveBeenCalledTimes( 1 );
 
-		// The editor closes while the companion is still opening.
 		manager.remove( 'w1' );
 		release();
 		for ( let i = 0; i < 6; i++ ) {
 			await Promise.resolve();
 		}
 
-		// The orphaned companion is destroyed, no pairing recorded.
 		const preview = manager.getById( 'editor-preview-post-1' )!;
 		expect( preview.destroy ).toHaveBeenCalledTimes( 1 );
 		expect( log ).toHaveLength( 0 );
@@ -509,7 +464,7 @@ describe( 'eye click', () => {
 
 		const host = document.createElement( 'os-window-button' );
 		def.render!( host, editor as never );
-		// The editor vanished between render and click (stale button).
+
 		manager.remove( 'w1' );
 		host.dispatchEvent( new MouseEvent( 'click' ) );
 		for ( let i = 0; i < 6; i++ ) {
@@ -542,13 +497,10 @@ describe( 'eye click', () => {
 		await clickEye( api.def, editor );
 		const preview = api.manager.getById( 'editor-preview-post-1' )!;
 
-		// The editor closes while the save is still on the wire — the
-		// normal lifecycle takes the companion down with it.
 		api.manager.remove( 'w1' );
 		hooks.doAction( HOOKS.WINDOW_CLOSED, { windowId: 'w1' } );
 		expect( preview.destroy ).toHaveBeenCalledTimes( 1 );
 
-		// The late save must not resurrect a reload on the dead pairing.
 		vi.useFakeTimers();
 		release( { status: 'saved' } );
 		for ( let i = 0; i < 6; i++ ) {
@@ -603,7 +555,7 @@ describe( 'pairing lifecycle', () => {
 		expect( log[ 0 ].args[ 0 ] ).toMatchObject( {
 			reason: 'preview-closed',
 		} );
-		// The eye un-presses via a repaint of the editor's buttons.
+
 		expect( editor.renderCustomTitleBarButtons ).toHaveBeenCalled();
 	} );
 
@@ -665,7 +617,7 @@ describe( 'save-driven reload', () => {
 
 		expect( preview.swapReload ).not.toHaveBeenCalled();
 		vi.advanceTimersByTime( 500 );
-		// The silent double-buffered swap — never the overlay reload.
+
 		expect( preview.swapReload ).toHaveBeenCalledTimes( 1 );
 		expect( preview.swapReload ).toHaveBeenCalledWith( undefined );
 		expect( preview.reload ).not.toHaveBeenCalled();
@@ -731,7 +683,6 @@ describe( 'save-driven reload', () => {
 		await clickEye( api.def, editor );
 		const preview = api.manager.getById( 'editor-preview-post-1' )!;
 
-		// The save-watcher refetched the identity — new permalink.
 		const published = '/hello-world/?preview_nonce=ccc&preview=true';
 		api.setWindowContent( 'w1', {
 			type: 'post',
@@ -764,7 +715,6 @@ describe( 'save-driven reload', () => {
 		await clickEye( api.def, editor );
 		const preview = api.manager.getById( 'editor-preview-post-1' )!;
 
-		// The pairing asked the editor iframe to start a live watch.
 		const watchMsg = frame.postMessage.mock.calls
 			.map( ( c ) => c[ 0 ] as { type?: string; watchId?: string; debounceMs?: number } )
 			.find( ( m ) => m.type === 'os-editor-live-watch' );
@@ -799,7 +749,7 @@ describe( 'save-driven reload', () => {
 		} );
 		await clickEye( api.def, editor );
 
-		await clickEye( api.def, editor ); // Toggle off.
+		await clickEye( api.def, editor );
 
 		const types = frame.postMessage.mock.calls.map(
 			( c ) => ( c[ 0 ] as { type?: string } ).type,
@@ -827,23 +777,17 @@ describe( 'save-driven reload', () => {
 		expect( watchMsgs() ).toHaveLength( 1 );
 		const firstId = watchMsgs()[ 0 ].watchId;
 
-		// The editor page reloaded (the classic editor does on every
-		// manual save) — readiness re-announces, and the watch, which
-		// died with the old page, must be re-armed under a fresh id.
 		hooks.doAction( HOOKS.IFRAME_READY, { windowId: 'w1' } );
 
 		expect( watchMsgs() ).toHaveLength( 2 );
 		const secondId = watchMsgs()[ 1 ].watchId;
 		expect( secondId ).not.toBe( firstId );
 
-		// The previous id was unwatched first, so a page that never
-		// reloaded doesn't end up autosaving twice per pause.
 		const unwatch = frame.postMessage.mock.calls
 			.map( ( c ) => c[ 0 ] as { type?: string; watchId?: string } )
 			.find( ( m ) => m.type === 'os-editor-live-unwatch' );
 		expect( unwatch?.watchId ).toBe( firstId );
 
-		// A live-saved under the new id still reloads the companion.
 		const preview = api.manager.getById( 'editor-preview-post-1' )!;
 		vi.useFakeTimers();
 		window.dispatchEvent(
@@ -895,7 +839,6 @@ describe( 'save-driven reload', () => {
 		await clickEye( api.def, editor );
 		const preview = api.manager.getById( 'editor-preview-post-1' )!;
 
-		// Toggle off, then broadcast — nothing may reload.
 		await clickEye( api.def, editor );
 		vi.useFakeTimers();
 		api.broadcast( 'os.post.changed', {

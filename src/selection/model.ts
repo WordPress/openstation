@@ -1,56 +1,28 @@
-/**
- * OpenStation — selection model.
- *
- * A set of keys plus an anchor, with the four gestures every
- * desktop file manager shares: replace, toggle, extend-from-anchor,
- * select-all. Nothing here touches the DOM — `controller.ts` owns
- * that half — so the semantics can be tested as plain data.
- *
- * Deliberately NOT a `createSharedStore`: a selection belongs to one
- * canvas inside one window. Two folder windows showing the same
- * folder each have their own, the same way two Finder windows do.
- * Cross-bundle sharing would fuse them.
- *
- * `order()` is the surface's visual order — DOM order for flow
- * lists, row-major geometry for absolute-positioned canvases. Range
- * selection means "everything between the anchor and the clicked
- * key IN THAT ORDER", so a surface that reports a different order
- * than the user sees produces ranges that look arbitrary.
- */
-
 export interface SelectionModelOptions< K > {
-	/** Current keys in visual order. Re-read on every range op. */
+
 	order: () => K[];
-	/** Fired after any mutation that actually changed the set. */
+
 	onChange?: ( keys: K[] ) => void;
 }
 
 export interface SelectionModel< K > {
-	/** Selected keys, in the order `order()` reports them. */
+
 	keys: () => K[];
 	has: ( key: K ) => boolean;
 	size: () => number;
-	/** The last key the user acted on — the origin for `selectRange`. */
+
 	anchor: () => K | null;
-	/** Replace the whole set. Anchor becomes the last key passed. */
+
 	set: ( keys: readonly K[] ) => void;
 	add: ( key: K ) => void;
 	remove: ( key: K ) => void;
-	/** Toggle one key (Ctrl / Cmd click). Anchor follows the key. */
+
 	toggle: ( key: K ) => void;
-	/**
-	 * Select everything between the anchor and `key` inclusive.
-	 * Without an anchor this degrades to selecting `key` alone.
-	 * `additive` keeps the pre-existing selection (Ctrl+Shift click).
-	 */
+
 	selectRange: ( key: K, additive?: boolean ) => void;
 	selectAll: () => void;
 	clear: () => void;
-	/**
-	 * Drop keys that are no longer in `order()` — called after a
-	 * repaint so a deleted item doesn't linger in the set.
-	 * Returns true when something was actually pruned.
-	 */
+
 	prune: () => boolean;
 	subscribe: ( cb: ( keys: K[] ) => void ) => () => void;
 }
@@ -75,15 +47,11 @@ export function createSelectionModel< K >(
 			try {
 				cb( snapshot );
 			} catch ( err ) {
-				// A misbehaving consumer must not strand the gesture —
-				// the tiles are already painted by the time we get here.
-				// eslint-disable-next-line no-console
 				console.error( '[openstation] selection listener threw:', err );
 			}
 		}
 	};
 
-	/** Run `mutate`, notify only when the membership actually moved. */
 	const commit = ( mutate: () => void ): void => {
 		const before = selected.size;
 		const beforeKeys = Array.from( selected );
@@ -142,10 +110,7 @@ export function createSelectionModel< K >(
 			if ( to < 0 ) {
 				return;
 			}
-			// No usable anchor (first click of the session, or the
-			// anchor was deleted) — Shift+click behaves like a plain
-			// click rather than doing nothing, which is what both
-			// Finder and Explorer do.
+
 			if ( from < 0 ) {
 				commit( () => {
 					if ( ! additive ) {
@@ -166,8 +131,6 @@ export function createSelectionModel< K >(
 					selected.add( all[ i ] );
 				}
 			} );
-			// Anchor deliberately stays put — successive Shift+clicks
-			// re-extend from the same origin instead of walking.
 		},
 		selectAll() {
 			const all = options.order();

@@ -1,17 +1,3 @@
-/**
- * Minimal in-memory implementation of the `@wordpress/hooks` API that
- * our production code reaches via `window.wp.hooks`. Mounting this
- * on `window.wp.hooks` in a test's `beforeEach` gives every module
- * under test a real (if tiny) hook bus to call against — no jest-
- * style module mocking, no stubbed wrappers. Tests can then assert
- * on observed side-effects (doAction fired, applyFilters returned
- * the mutated value, etc.).
- *
- * The real `@wordpress/hooks` ships many more features — priority
- * numbers, removable hooks, private namespaces, did-count for
- * filters, etc. This stub covers what our code actually uses: add/
- * remove, apply/do, did-count for actions.
- */
 export interface FakeWpHooks {
 	addFilter: ( name: string, ns: string, cb: ( ...a: unknown[] ) => unknown, priority?: number ) => void;
 	addAction: ( name: string, ns: string, cb: ( ...a: unknown[] ) => void, priority?: number ) => void;
@@ -25,14 +11,6 @@ export interface FakeWpHooks {
 	hasFilter: ( name: string, ns?: string ) => boolean | number;
 }
 
-/**
- * The same validation the real `@wordpress/hooks` applies before
- * registering a handler. `addAction`/`addFilter` silently bail on an
- * invalid name while `doAction`/`applyFilters` still run against an
- * empty handler list, so a stub that skips this reports a working
- * bus where a browser would register nothing. Throwing (rather than
- * WordPress's console.error) turns that into a red test.
- */
 function assertValidHookName( name: string ): void {
 	if ( ! /^[a-zA-Z][a-zA-Z0-9_.-]*$/.test( name ) || /^__/.test( name ) ) {
 		throw new Error(
@@ -43,7 +21,6 @@ function assertValidHookName( name: string ): void {
 	}
 }
 
-/** Namespaces use a looser charset than hook names. */
 function assertValidNamespace( ns: string ): void {
 	if ( ! /^[a-zA-Z][a-zA-Z0-9_.\-/]*$/.test( ns ) ) {
 		throw new Error( `Invalid hook namespace "${ ns }".` );
@@ -131,26 +108,17 @@ export function createHooksStub(): FakeWpHooks {
 	};
 }
 
-/** Install the stub on `window.wp.hooks`. Returns the instance. */
 export function installHooksStub(): FakeWpHooks {
 	const stub = createHooksStub();
-	// Tests may run back-to-back with cached module state; clear
-	// anything else under `window.wp` so getter leakage can't occur.
+
 	( window as unknown as { wp?: unknown } ).wp = { hooks: stub };
 	return stub;
 }
 
-/** Clear `window.wp` so the next test starts fresh. */
 export function clearHooksStub(): void {
 	delete ( window as unknown as { wp?: unknown } ).wp;
 }
 
-/**
- * Subscribe a spy to one or more action hooks, returning a growing
- * array of the `{ name, args }` records captured in firing order.
- * Lets tests assert "X fired before Y" plus inspect the payload
- * without cluttering each test with boilerplate addAction wiring.
- */
 export function recordActions(
 	hooks: FakeWpHooks,
 	names: readonly string[],

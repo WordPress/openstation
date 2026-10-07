@@ -1,24 +1,7 @@
 <?php
-/**
- * OpenStation — Living Tree: wallpaper registration.
- *
- * Registers the `wp-living-tree` canvas wallpaper through the same public
- * API third-party canvas wallpapers use (`openstation_register_wallpaper()`).
- * The `script` is the handle registered in `assets.php`; the shell's
- * wallpaper sync injects its URL when the def is needed. Mirrors the
- * animated-logo registration in `includes/wallpapers.php`.
- *
- * Hooked on `init` priority 6 — after the asset handle is registered
- * (priority 5) so the handle exists when the wallpaper references it.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the Living Tree canvas wallpaper.
- */
 function openstation_living_tree_register_wallpaper() {
 	openstation_register_wallpaper(
 		'wp-living-tree',

@@ -1,71 +1,21 @@
 <?php
-/**
- * OpenStation — Agents: persisted chat conversations.
- *
- * Each conversation is one post of the private `desktop_mode_chat`
- * post type: `post_author` is the human who held the conversation,
- * the messages live as JSON in `post_content`, the agent's user id in
- * post meta, and the title is derived from the first user message.
- * The posts table is the WordPress-native store for per-user document
- * lists — user meta was rejected because WordPress loads all of a
- * user's meta into cache on any meta read, so fat transcripts would
- * tax every request that touches the user.
- *
- * Access is strictly owner-only: conversations are private
- * correspondence, so not even administrators can read another user's
- * chats through this API.
- *
- * REST surface (all under `desktop-mode/v1`):
- *   GET    /agents/conversations       — the caller's list, newest first
- *   POST   /agents/conversations       — create ({agentId, messages})
- *   GET    /agents/conversations/:id   — one conversation with messages
- *   PUT    /agents/conversations/:id   — replace messages ({messages})
- *   DELETE /agents/conversations/:id   — delete
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Post type holding one conversation per post.
- *
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
 const OPENSTATION_AGENT_CHAT_POST_TYPE = 'desktop_mode_chat';
 
-/** Newest conversations kept per user — creating past the cap prunes the oldest. */
 const OPENSTATION_AGENT_CONVERSATION_CAP = 100;
 
-/** Newest messages kept per conversation — updates past the cap trim the oldest. */
 const OPENSTATION_AGENT_CONVERSATION_MESSAGE_CAP = 200;
 
-/** Stored per-message text cap. Wider than the runner's replay cap so long answers reload intact. */
 const OPENSTATION_AGENT_CONVERSATION_TEXT_CAP = 20000;
 
-/** Characters of the last message shown as the sidebar's second line. */
 const OPENSTATION_AGENT_CONVERSATION_PREVIEW_CAP = 80;
 
-/**
- * Entity kinds a message attachment may reference — mirrors the
- * client's `DroppedEntityKind` and the drag-trigger config enum.
- *
- * @return string[]
- */
 function openstation_agent_conversation_attachment_kinds() {
 	return array( 'post', 'page', 'media', 'user', 'comment' );
 }
 
-/**
- * Register the conversation post type. Private plumbing: no admin UI,
- * no front-end queries, no revisions; rows die with their author.
- *
- * @return void
- */
 function openstation_agent_conversations_register_post_type() {
 	register_post_type(
 		OPENSTATION_AGENT_CHAT_POST_TYPE,
@@ -85,22 +35,6 @@ function openstation_agent_conversations_register_post_type() {
 }
 add_action( 'init', 'openstation_agent_conversations_register_post_type', 5 );
 
-/**
- * Normalize caller-supplied messages for storage.
- *
- * Rows: `role` in user|agent|error, non-empty `text` (capped), `at`
- * timestamp. Tool calls keep name/args/error for the transcript
- * display but DROP `output` — tool outputs can embed entire post
- * bodies and are never rendered.
- *
- * An `attachment` block survives too: the entity a drop or a "Send
- * to" pick carried into the conversation, so a reopened transcript
- * still renders the clickable object card instead of only the
- * boilerplate sentence the model was handed.
- *
- * @param mixed $messages Incoming message rows.
- * @return array<int, array<string, mixed>>
- */
 function openstation_agent_conversation_sanitize_messages( $messages ) {
 	if ( ! is_array( $messages ) ) {
 		return array();
@@ -126,9 +60,6 @@ function openstation_agent_conversation_sanitize_messages( $messages ) {
 			'at'   => isset( $row['at'] ) ? (int) $row['at'] : 0,
 		);
 
-		// Call-to-action buttons survive with the message so a reopened
-		// conversation still shows them (spent ones stay disabled via
-		// `ctaUsed`). Reuses the runner's sanitizer — same caps.
 		if ( isset( $row['callToActions'] ) && function_exists( 'openstation_agent_sanitize_call_to_actions' ) ) {
 			$ctas = openstation_agent_sanitize_call_to_actions( $row['callToActions'] );
 			if ( ! empty( $ctas ) ) {
@@ -174,18 +105,6 @@ function openstation_agent_conversation_sanitize_messages( $messages ) {
 	return $clean;
 }
 
-/**
- * Normalize one message attachment, or null when the block does not
- * describe an entity this site understands.
- *
- * Only the identity triple is stored — kind, id, title. The client
- * resolves the object's URL at click time from the kind, so a
- * renamed or re-permalinked entity never leaves a stale link behind
- * in an old transcript.
- *
- * @param mixed $raw Incoming attachment block.
- * @return array<string, mixed>|null
- */
 function openstation_agent_conversation_sanitize_attachment( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return null;
@@ -203,12 +122,6 @@ function openstation_agent_conversation_sanitize_attachment( $raw ) {
 	);
 }
 
-/**
- * Derive a list title from the first user message.
- *
- * @param array $messages Sanitized messages.
- * @return string
- */
 function openstation_agent_conversation_title( array $messages ) {
 	foreach ( $messages as $row ) {
 		if ( 'user' === $row['role'] ) {
@@ -218,19 +131,6 @@ function openstation_agent_conversation_title( array $messages ) {
 	return __( 'Conversation', 'desktop-mode' );
 }
 
-/**
- * The sidebar's second line: the TAIL of the last message.
- *
- * The title is derived from the FIRST user message, which makes every
- * conversation with the same opener look identical in the list. The
- * preview answers the other question — "where did this one get to?" —
- * so it reads from the end ("…and search relevance.") rather than the
- * beginning. An attachment-carrying row previews the object instead of
- * the boilerplate sentence the model was handed.
- *
- * @param array $messages Sanitized messages.
- * @return string
- */
 function openstation_agent_conversation_preview( array $messages ) {
 	$last = empty( $messages ) ? null : $messages[ count( $messages ) - 1 ];
 	if ( ! is_array( $last ) ) {
@@ -250,13 +150,6 @@ function openstation_agent_conversation_preview( array $messages ) {
 	return '…' . mb_substr( $text, -OPENSTATION_AGENT_CONVERSATION_PREVIEW_CAP );
 }
 
-/**
- * The conversation post for `$id` when it exists AND belongs to the
- * current user; null otherwise. Ownership is the whole access model.
- *
- * @param int $id Post id.
- * @return WP_Post|null
- */
 function openstation_agent_conversation_get_own( $id ) {
 	$post = get_post( (int) $id );
 	if ( ! $post || OPENSTATION_AGENT_CHAT_POST_TYPE !== $post->post_type ) {
@@ -268,15 +161,6 @@ function openstation_agent_conversation_get_own( $id ) {
 	return $post;
 }
 
-/**
- * Project a conversation post onto the REST shape. The agent block is
- * resolved live so the sidebar can paint the avatar + reopen the chat
- * header; a deleted agent degrades to a labelled placeholder.
- *
- * @param WP_Post $post          Conversation post.
- * @param bool    $with_messages Include the decoded messages array.
- * @return array<string, mixed>
- */
 function openstation_agent_conversation_prepare( WP_Post $post, $with_messages = false ) {
 	$agent_id = (int) get_post_meta( $post->ID, '_desktop_mode_agent_chat_agent_id', true );
 	$agent    = $agent_id > 0 ? get_userdata( $agent_id ) : false;
@@ -295,8 +179,7 @@ function openstation_agent_conversation_prepare( WP_Post $post, $with_messages =
 		'agentDescription' => $agent ? (string) get_user_meta( $agent_id, '_desktop_mode_agent_description', true ) : '',
 		'agentAvatarUrl'   => function_exists( 'openstation_agent_avatar_url' ) ? openstation_agent_avatar_url( $agent_id ) : '',
 		'title'            => (string) $post->post_title,
-		// Second sidebar line + who spoke last, so the list can say
-		// where each conversation got to instead of repeating its opener.
+
 		'preview'          => openstation_agent_conversation_preview( $messages ),
 		'lastRole'         => is_array( $last ) && isset( $last['role'] ) ? (string) $last['role'] : '',
 		'messageCount'     => count( $messages ),
@@ -309,15 +192,6 @@ function openstation_agent_conversation_prepare( WP_Post $post, $with_messages =
 	return $out;
 }
 
-/**
- * Register the conversation routes.
- *
- * Invoke-level permission gates the surface (anyone who can talk to
- * agents can keep their own history); ownership checks inside each
- * handler scope every read and write to the caller's rows.
- *
- * @return void
- */
 function openstation_agent_conversations_register_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -377,13 +251,6 @@ function openstation_agent_conversations_register_routes() {
 }
 add_action( 'rest_api_init', 'openstation_agent_conversations_register_routes' );
 
-/**
- * GET /agents/conversations — the caller's conversations, most
- * recently updated first, without message bodies (the list must stay
- * light; the sidebar fetches bodies on click).
- *
- * @return WP_REST_Response
- */
 function openstation_agents_rest_conversations_list() {
 	$posts = get_posts(
 		array(
@@ -402,24 +269,6 @@ function openstation_agents_rest_conversations_list() {
 	);
 }
 
-/**
- * Keep the save filters off a conversation's title and transcript,
- * the way `WP_Customize_Manager` does for changeset JSON. Hooked only
- * while one of the handlers below saves.
- *
- * Both are text the client paints as text, never HTML that WordPress
- * echoes, yet `title_save_pre` and `content_save_pre` rewrite them as
- * HTML. For a user without `unfiltered_html`, kses turns `&` into
- * `&amp;`, drops whatever sits between a `<` and a `>`, and unescapes
- * an attribute's quotes. On a site that balances tags, `balanceTags`
- * appends closing tags for every role. Those last two leave JSON that
- * no longer decodes.
- *
- * @param array $data                Slashed, sanitized post data.
- * @param array $postarr             Sanitized post data.
- * @param array $unsanitized_postarr Slashed post data as passed to `wp_insert_post()`.
- * @return array
- */
 function openstation_agent_conversation_preserve_text( $data, $postarr, $unsanitized_postarr ) {
 	global $wpdb;
 
@@ -431,9 +280,7 @@ function openstation_agent_conversation_preserve_text( $data, $postarr, $unsanit
 			continue;
 		}
 		$data[ $field ] = $unsanitized_postarr[ $field ];
-		// `wp_insert_post()` has already swapped emoji for entities
-		// where the column is utf8mb3, which rejects them and fails
-		// the save. Redo it on the restored text.
+
 		if ( in_array( $wpdb->get_col_charset( $wpdb->posts, $field ), array( 'utf8', 'utf8mb3' ), true ) ) {
 			$data[ $field ] = wp_encode_emoji( $data[ $field ] );
 		}
@@ -441,12 +288,6 @@ function openstation_agent_conversation_preserve_text( $data, $postarr, $unsanit
 	return $data;
 }
 
-/**
- * POST /agents/conversations — create from {agentId, messages}.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_conversations_create( WP_REST_Request $request ) {
 	$agent_id = (int) $request['agentId'];
 	if ( ! function_exists( 'openstation_agent_is_agent' ) || ! openstation_agent_is_agent( $agent_id ) ) {
@@ -472,7 +313,7 @@ function openstation_agents_rest_conversations_create( WP_REST_Request $request 
 			'post_type'    => OPENSTATION_AGENT_CHAT_POST_TYPE,
 			'post_status'  => 'publish',
 			'post_author'  => get_current_user_id(),
-			// Both survive the insert-path unslashing only when slashed.
+
 			'post_title'   => wp_slash( openstation_agent_conversation_title( $messages ) ),
 			'post_content' => wp_slash( (string) wp_json_encode( $messages ) ),
 		),
@@ -491,12 +332,6 @@ function openstation_agents_rest_conversations_create( WP_REST_Request $request 
 	);
 }
 
-/**
- * GET /agents/conversations/:id — one conversation with messages.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_conversations_get( WP_REST_Request $request ) {
 	$post = openstation_agent_conversation_get_own( (int) $request['id'] );
 	if ( ! $post ) {
@@ -507,14 +342,6 @@ function openstation_agents_rest_conversations_get( WP_REST_Request $request ) {
 	);
 }
 
-/**
- * PUT /agents/conversations/:id — replace the messages. The client
- * owns the in-memory transcript, so full replacement after each
- * exchange is simpler and idempotent compared to append semantics.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_conversations_update( WP_REST_Request $request ) {
 	$post = openstation_agent_conversation_get_own( (int) $request['id'] );
 	if ( ! $post ) {
@@ -549,12 +376,6 @@ function openstation_agents_rest_conversations_update( WP_REST_Request $request 
 	);
 }
 
-/**
- * DELETE /agents/conversations/:id.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_agents_rest_conversations_delete( WP_REST_Request $request ) {
 	$post = openstation_agent_conversation_get_own( (int) $request['id'] );
 	if ( ! $post ) {
@@ -564,12 +385,6 @@ function openstation_agents_rest_conversations_delete( WP_REST_Request $request 
 	return rest_ensure_response( array( 'deleted' => true ) );
 }
 
-/**
- * Shared 404 for missing/foreign conversations — the same error for
- * "does not exist" and "not yours" so ids can't be probed.
- *
- * @return WP_Error
- */
 function openstation_agent_conversation_not_found() {
 	return new WP_Error(
 		'openstation_agent_conversation_not_found',
@@ -578,27 +393,11 @@ function openstation_agent_conversation_not_found() {
 	);
 }
 
-/**
- * The effective per-user conversation cap.
- *
- * @return int
- */
 function openstation_agent_conversation_cap() {
-	/**
-	 * Filters how many conversations are kept per user. Creating past
-	 * the cap prunes the least recently updated rows.
-	 *
-	 * @param int $cap Maximum stored conversations per user.
-	 */
+
 	return max( 1, (int) apply_filters( 'openstation_agent_conversation_cap', OPENSTATION_AGENT_CONVERSATION_CAP ) );
 }
 
-/**
- * Drop the user's oldest conversations beyond the cap.
- *
- * @param int $user_id Owner.
- * @return void
- */
 function openstation_agent_conversations_prune( $user_id ) {
 	$cap   = openstation_agent_conversation_cap();
 	$posts = get_posts(
@@ -606,10 +405,9 @@ function openstation_agent_conversations_prune( $user_id ) {
 			'post_type'        => OPENSTATION_AGENT_CHAT_POST_TYPE,
 			'post_status'      => 'publish',
 			'author'           => (int) $user_id,
-			// One page past the cap is plenty — pruning runs on every create.
+
 			'numberposts'      => $cap + 10,
-			// The ID tie-break matters: same-second rows are otherwise
-			// unordered and the prune could eat the row just created.
+
 			'orderby'          => array(
 				'modified' => 'DESC',
 				'ID'       => 'DESC',

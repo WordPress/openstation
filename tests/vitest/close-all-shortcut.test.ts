@@ -1,13 +1,3 @@
-/**
- * Tests for the "close all windows" chord (`Ctrl/Cmd + Alt + W`):
- * which key combinations claim it, that it routes through
- * `WindowManager.closeAll()` behind a confirmation, and that the
- * chromeless bridge's forwarded `os-window-close-all` message reaches
- * the same path a local keypress does.
- *
- * `osConfirm` is mocked — the real one lazy-loads the shell-overlays
- * bundle over the network, which jsdom has no business fetching.
- */
 import {
 	afterEach,
 	beforeEach,
@@ -77,20 +67,18 @@ describe( 'close-all shortcut — chord matching', () => {
 	} );
 
 	test( 'ignores near misses', () => {
-		// No Alt — that is the browser's own close-window chord.
+
 		expect( isCloseAllChord( chord( { altKey: false } ) ) ).toBe( false );
-		// No Ctrl/Cmd — bare Alt+W is a menu mnemonic on Windows.
+
 		expect( isCloseAllChord( chord( { ctrlKey: false } ) ) ).toBe( false );
-		// Shift excluded rather than ignored.
+
 		expect( isCloseAllChord( chord( { shiftKey: true } ) ) ).toBe( false );
-		// Another key entirely.
+
 		expect( isCloseAllChord( chord( { code: 'KeyQ' } ) ) ).toBe( false );
 	} );
 
 	test( 'ignores AltGr, which Windows and Linux report as Ctrl+Alt', () => {
-		// A German/French/Polish/Nordic layout composes characters with
-		// AltGr, and the browser synthesises ctrlKey + altKey for it.
-		// Only getModifierState tells the two apart.
+
 		const altGr = new KeyboardEvent( 'keydown', {
 			code: 'KeyW',
 			ctrlKey: true,
@@ -101,7 +89,6 @@ describe( 'close-all shortcut — chord matching', () => {
 		} );
 		expect( isCloseAllChord( altGr ) ).toBe( false );
 
-		// The same event without the AltGraph state is the real chord.
 		const real = chord();
 		Object.defineProperty( real, 'getModifierState', {
 			value: () => false,
@@ -110,7 +97,7 @@ describe( 'close-all shortcut — chord matching', () => {
 	} );
 
 	test( 'reads the physical key, not the typed character', () => {
-		// Option+W on macOS types `∑`; `code` stays KeyW.
+
 		const e = new KeyboardEvent( 'keydown', {
 			code: 'KeyW',
 			key: '∑',
@@ -231,7 +218,6 @@ describe( 'close-all shortcut — closing', async () => {
 		const setAsk = vi.fn();
 		const prefs = { shouldAsk: () => true, setAsk };
 
-		// Ticked + confirmed → persisted.
 		await manager.open( openConfig( 'a' ) );
 		confirmMock.mockImplementation( async ( options ) => {
 			options.onRemember?.( true );
@@ -240,7 +226,6 @@ describe( 'close-all shortcut — closing', async () => {
 		await closeAllWindows( manager, prefs );
 		expect( setAsk ).toHaveBeenCalledWith( false );
 
-		// Confirmed with the box left alone → nothing persisted.
 		setAsk.mockClear();
 		await manager.open( openConfig( 'b' ) );
 		confirmMock.mockImplementation( async ( options ) => {
@@ -287,8 +272,6 @@ describe( 'close-all shortcut — closing', async () => {
 
 		await closeAllWindows( manager );
 
-		// Asked about the two on the desktop being looked at, not the
-		// three that exist.
 		expect( confirmMock.mock.calls[ 0 ][ 0 ].message ).toContain( '2' );
 	} );
 

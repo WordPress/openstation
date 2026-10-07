@@ -1,12 +1,3 @@
-/**
- * OpenStation — Pinned notes trash flow.
- *
- * Soft-trash a note (`wp_trash_post` server-side) with optimistic
- * eviction + an Undo toast, mirroring the desktop-files trash UX
- * (`src/desktop-files/trash.ts`). The layer injects eviction/restore
- * callbacks so this module stays DOM-free.
- */
-
 import { beginTrashChange, trashItem } from '../desktop-files/trash-optimistic';
 import { toastRestFailure } from '../core/rest-failure';
 import { shellToast } from '../core/shell-toast';
@@ -16,16 +7,12 @@ import { deleteNote, restoreNote } from './rest';
 import { NOTES_POST_TYPE, type Note } from './types';
 
 export interface TrashNoteCallbacks {
-	/** Remove the note from the wall (optimistic). */
+
 	onEvict( noteId: number ): void;
-	/** Put a restored note back (Undo succeeded). */
+
 	onRestore( note: Note ): void;
 }
 
-/**
- * Trash with Undo. Rollback on REST failure calls `onRestore` with
- * the original note so the wall stays truthful.
- */
 export async function trashNoteWithUndo(
 	note: Note,
 	callbacks: TrashNoteCallbacks,
@@ -37,7 +24,7 @@ export async function trashNoteWithUndo(
 	callbacks.onEvict( note.id );
 	try {
 		await deleteNote( note.id );
-		// The bin gained an item — tell its icon.
+
 		broadcastNotesChange( 'trashed', [ note.id ] );
 		void optimistic.finish( true );
 		shellToast( {
@@ -55,13 +42,12 @@ export async function trashNoteWithUndo(
 						} )
 						.catch( ( err: unknown ) => {
 							void undo?.finish( false );
-							// eslint-disable-next-line no-console
+
 							console.error(
 								'[openstation] notes: restore failed:',
 								err,
 							);
-							// The Undo toast is gone by now; say why the
-							// note did not come back rather than nothing.
+
 							toastRestFailure( shellToast, err, {
 								fallback: __( 'Could not restore the note.', 'desktop-mode' ),
 								duration: 5000,
@@ -71,7 +57,6 @@ export async function trashNoteWithUndo(
 			},
 		} );
 	} catch ( err ) {
-		// eslint-disable-next-line no-console
 		console.error( '[openstation] notes: trash failed:', err );
 		void optimistic.finish( false );
 		callbacks.onRestore( note );

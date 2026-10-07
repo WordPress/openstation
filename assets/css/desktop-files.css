@@ -1,44 +1,7 @@
-/**
- * OpenStation — Files-on-the-Desktop tile + layer styles.
- *
- * The layer is an absolutely-positioned container inside
- * `#os-area`; tiles inside use absolute positioning
- * keyed off `(x, y)` coordinates persisted server-side.
- *
- * Tiles are intentionally close to the look of `os-icon`
- * (the plugin-shortcut tiles) so the desktop reads as one
- * coherent surface — but they live in their own class namespace
- * (`os-file-tile`) so plugins can theme each rail
- * independently.
- *
- * @since 0.9.0
- */
-
-/*
- * Unified rail (since 0.9.0): plugin shortcuts now ride on the
- * same files layer as folders / posts / etc — they're a
- * `'shortcut'` file type. The legacy `.os-icons` DIV
- * still renders for backwards compatibility (existing tests and
- * non-files-active code paths), but when a files layer is
- * mounted as a sibling we hide it so we don't end up with two
- * rails competing for the same wallpaper.
- */
 #os-area:has( > .os-files-layer ) > .os-icons {
 	display: none;
 }
 
-/*
- * Drop-target highlight — the `data-files-drop-active` attribute
- * is set on the FilesLayer host (desktop area or folder window
- * body) while a shortcut payload is being dragged over it.
- *
- * A quiet inner glow only. This used to be a dashed, animated
- * marching-ants frame around the whole wallpaper, and on a full
- * desktop that read as a large moving grid behind the tile in hand
- * — loud, and design asked for it to go. The ghost's accept /
- * reject chip and the per-cell drop preview already say where the
- * tile will land; the glow just confirms the surface is listening.
- */
 [ data-files-drop-active ] {
 	position: relative;
 	box-shadow: inset 0 0 32px 4px rgba( 34, 113, 177, 0.12 );
@@ -49,29 +12,10 @@
 	position: absolute;
 	inset: 0;
 	z-index: 0;
-	/*
-	 * Layer doesn't intercept pointer events itself — tiles and
-	 * the wallpaper own that. Phase 4's wallpaper context menu
-	 * binds clicks on the parent `#os-area`, which is
-	 * unblocked because of this rule.
-	 */
+
 	pointer-events: none;
 }
 
-/*
- * Live drop-cell preview. A soft outline that hovers at the cell
- * the dropped tile will land in, so the user can predict where the
- * grid snap will place it before releasing. Positioned absolutely
- * inside the files layer; `translate3d` updated from JS on every
- * pointermove while a desktop-file drag hovers the canvas.
- *
- * The tile dimensions are baked into `grid.ts` (88 × 96 visual,
- * 96 × 110 cell pitch). The outline matches the cell pitch — slightly
- * larger than the tile — so the highlight reads as "this slot" rather
- * than "this tile."
- *
- * @since 0.20.0
- */
 .os-files-drop-preview {
 	position: absolute;
 	top: 0;
@@ -92,10 +36,7 @@
 		);
 	transition: transform 90ms ease-out;
 	will-change: transform;
-	/* Sit BELOW tiles so a tile being dragged over the cell isn't
-	 * visually clipped by the dashed outline; the outline still reads
-	 * because the tile is semi-transparent during drag (`--dragging`
-	 * sets `opacity: 0.4`). */
+
 	z-index: 0;
 }
 
@@ -113,32 +54,15 @@
 	align-items: center;
 	justify-content: flex-start;
 	gap: 6px;
-	/*
-	 * `box-sizing` is load-bearing, not housekeeping. Without it the
-	 * horizontal padding is ADDED to the declared width, so an 88px
-	 * tile occupies 96px — which was exactly the desktop's old cell
-	 * pitch, and why icons sat edge to edge with no gap at all while
-	 * the maths insisted there were 8px between them.
-	 *
-	 * The tile is the size the grid says it is. Padding lives inside.
-	 */
+
 	box-sizing: border-box;
 	width: var( --os-tile-w, 88px );
-	/*
-	 * Fixed, not minimum. The tile box IS the selection ring, and a
-	 * box that grows with its label gives a row of selected icons a
-	 * ragged top edge — one height per label that happened to wrap
-	 * to two lines. Every tile occupies its cell; short labels leave
-	 * the slack inside the ring, where it reads as padding.
-	 */
+
 	height: var( --os-tile-h, 104px );
 	padding: 8px 4px;
 	border: 0;
 	background: transparent;
-	/* Tile foreground driven by `--os-tile-fg` so any
-	 * light-on-dark surface (folder window, My WordPress preview)
-	 * can retint tiles by overriding the variable in its scope —
-	 * no per-surface selectors needed here. */
+
 	color: var( --os-tile-fg, var( --os-fg, #fff ) );
 	cursor: pointer;
 	border-radius: 8px;
@@ -146,17 +70,7 @@
 	-webkit-user-select: none;
 	user-select: none;
 	touch-action: none;
-	/* Soft fade-in on mount — each tile carries its own randomised
-	 * `--enter-delay` / `--enter-duration` (set inline by the
-	 * tile builder), so a freshly-painted grid reads as a cascade
-	 * rather than a synchronised pop-in. Both values land in the
-	 * decimal-of-a-second range — perceivable, never sluggish.
-	 *
-	 * `backwards` keeps the tile invisible during its delay so the
-	 * cascade is honest; the animation runs once, leaves the tile
-	 * at its static `opacity: 1`, and never re-fires from later
-	 * state changes (drag, hover, drop-target).
-	 */
+
 	animation: os-file-tile-enter
 		var( --os-file-tile-enter-duration, 0.4s )
 		ease-out
@@ -189,20 +103,11 @@
 }
 
 .os-file-tile:focus-visible {
-	/* Inset focus ring — outset rings extended past the tile and
-	 * visually overlapped the colindant icon when the canvas cell
-	 * pitch is tight (96 px cell, 88 px tile → only 4 px clearance
-	 * per side). Inset keeps the ring fully inside the tile. */
+
 	box-shadow: inset 0 0 0 2px
 		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 
-/* Status ribbon sizing inside tiles. The `<os-ribbon>` defaults
- * are tuned for cards (~90 px clipping window); 88 px-wide tiles
- * need a tighter footprint or the ribbon dominates the icon. We
- * override the component's CSS custom-property theming surface so
- * the ribbon stays a small accent in the corner. Authors who want
- * different sizing can override per-tile or per-section. */
 .os-file-tile > os-ribbon {
 	--os-ui-ribbon-size: 48px;
 	--os-ui-ribbon-banner-width: 72px;
@@ -215,37 +120,15 @@
 }
 
 .os-file-tile--dragging {
-	/* The DragManager renders a separate ghost element that follows
-	 * the pointer; the SOURCE tile stays in place but is dimmed so
-	 * the user has a stable reference for "this is what I'm
-	 * dragging."
-	 *
-	 * @since 0.18.0
-	 */
+
 	opacity: 0.4;
 	cursor: grabbing;
 }
 
-/* Pinned tiles ("My WordPress", Recycle Bin) anchor to a fixed slot
- * and DO NOT wire drag — but they look + behave identically to any
- * other tile until the user attempts a drag (which silently fails).
- * No upfront visual cue: feedback now happens at the moment of the
- * gesture, not before, per @since 0.9.0 design feedback.
- *
- * Default `cursor: pointer` from the base `.os-file-tile`
- * rule covers click-to-open. Touch interactions stay as
- * `touch-action: auto` so the OS scroll gesture works on top of
- * the tile.
- */
 .os-file-tile--pinned {
 	touch-action: auto;
 }
 
-/* Folder tile is the drop target during a cross-window shortcut
- * drag — the user dragged a post / page / user tile out of My
- * WordPress and is hovering over a folder. Bright outline, soft
- * pulse, and a slight scale so the folder reads unmistakably as
- * "yes, drop here." @since 0.8.0; pulse added 0.20.0. */
 @keyframes os-drop-target-pulse {
 	0% {
 		box-shadow:
@@ -275,14 +158,6 @@
 	}
 }
 
-/* Drop-hint chip — floats next to the cursor during a drag and
- * shows context-aware text ("Drop here to create shortcut",
- * "Can't drop here", etc.). The chip text is owned by the
- * ghost module (`src/drag/ghost.ts`); these styles control the
- * appearance per accept/reject/neutral mode.
- *
- * @since 0.20.0
- */
 .os-drag-hint {
 	position: fixed;
 	top: 0;
@@ -319,10 +194,7 @@
 }
 
 .os-drag-hint--accept::before {
-	/* Tiny checkmark chevron prefix so "Drop here" reads as an
-	 * actionable affirmation rather than a passive label. The
-	 * checkmark is a real character (U+2713) so screen readers
-	 * skip past it via the `aria-hidden` on the host chip. */
+
 	content: '✓ ';
 }
 
@@ -338,34 +210,6 @@
 	content: '⊘ ';
 }
 
-/*
- * No body-level cursor swap during drag — the user prefers the
- * default arrow cursor regardless of state, so the accept/reject
- * feedback lives entirely in the hint chip + outline animation.
- * Don't reintroduce a `cursor: grabbing/copy/no-drop` here.
- */
-
-/* Shortcut overlay — small arrow badge in the BOTTOM-RIGHT corner
- * of the icon visual on any tile that's a reference to an external
- * entity (post, attachment, comment, user, term — anything that
- * ISN'T a folder or a plugin shortcut). Mirrors the macOS / Windows
- * convention of an arrow decoration on alias/shortcut icons.
- *
- * The geometry: tile is 88px wide with `padding: 8px 4px`. The icon
- * visual is 48×48 centered horizontally, so the icon's bottom-right
- * corner lands at roughly (68, 56) from the tile's top-left. The
- * 18×18 arrow circle is anchored just inside that corner so it
- * reads as part of the icon, not floating off in space.
- *
- * @since 0.8.0
- */
-/* Only real placements get the badge — i.e. tiles built by
- * `buildTile(placement)` on the desktop / folder windows, which
- * are the only surface where "this is a shortcut" actually means
- * something. Tiles in My WordPress grids (and any future content
- * surface) are the entity, not a shortcut to it, so the arrow
- * would just be noise. `[data-placement-id]` is the canonical
- * placement marker. */
 .os-file-tile[ data-placement-id ][ data-file-type="post" ]::after,
 .os-file-tile[ data-placement-id ][ data-file-type="attachment" ]::after,
 .os-file-tile[ data-placement-id ][ data-file-type="comment" ]::after,
@@ -390,23 +234,10 @@
 	pointer-events: none;
 }
 
-/*
- * Missing files (the underlying entity was deleted but the
- * placement still exists) render the tile dimmed so the user
- * can right-click → Remove without confusing it for an active
- * file. Phase 6's per-placement permission re-check uses the
- * same affordance for "you can't see this" placeholders.
- */
 .os-file-tile--missing {
 	opacity: 0.5;
 }
 
-/**
- * Access-gated tile — the recipient sees the icon (the owner
- * shared the folder containing it) but lacks `can_read` on the
- * underlying entity. Dim the tile, kill the pointer affordance,
- * and overlay a lock badge so the state reads at a glance.
- */
 .os-file-tile--access-gated {
 	opacity: 0.65;
 	cursor: not-allowed;
@@ -435,11 +266,6 @@
 	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.5 );
 }
 
-/**
- * Preview-pane empty state when a recipient selects a tile they
- * can't open. Big lock ring + clear copy + secondary hint. Designed
- * to read at a glance in the otherwise-busy preview column.
- */
 .os-files__access-gated {
 	display: flex;
 	flex-direction: column;
@@ -523,38 +349,15 @@
 	border-radius: 4px;
 }
 
-/* `<img>` defaults to `draggable=true`, which lets the browser
- * start a native HTML5 image-drag from a pointerdown — that
- * pre-empts the DragManager's pointer-event-driven tile rearrange
- * and the tile silently refuses to move. The renderer also sets
- * `draggable="false"` on every `<img>` it produces; this CSS rule
- * covers anything injected later (plugin filters, decorators)
- * without having to remember the attribute. */
 .os-file-tile img {
 	-webkit-user-drag: none;
 	user-select: none;
 }
 
-/*
- * Wallpaper + tile context menus use `<os-context-menu>` and
- * `<os-context-menu-option>` (Phase 4 / 0.9.0). Their host-level
- * styles live inside the component shadow DOM — see
- * `src/ui/components/os-context-menu/os-context-menu.styles.ts`.
- * No project CSS rules needed here; the legacy `.os-
- * wallpaper-menu*` rules were removed when the components landed.
- */
-
-/*
- * Folder native window — the body of `os-folder-<id>`
- * contains a `FilesLayer` rendering that folder's contents.
- * We ensure the body has positioning context so absolutely-
- * positioned tiles inside the layer anchor correctly.
- */
 .desktop-mode-folder-window {
 	position: relative;
 	min-height: 200px;
-	/* Same window background recipe as My WordPress — defaults to
-	 * the standard window bg (#fff) and themable per-window. */
+
 	background: var(
 		--os-folder-window-bg,
 		var( --os-window-bg, #fff )
@@ -562,36 +365,21 @@
 	color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
 	display: flex;
 	flex-direction: column;
-	/* Light-on-dark context: the folder window opens inside a
-	 * standard window chrome whose body is white-ish. Retint the
-	 * tile color tokens here so dashicons + labels read against
-	 * a light background. Plugins / themes can override these
-	 * same variables at any scope to retint further. */
+
 	--os-tile-fg: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
-	/* Chains through the palette for the same reason as
-	 * `--os-tile-fg` beside it: a bare literal here outranks the
-	 * palette's own value and pins every tile's secondary line to
-	 * near-black, which disappears the moment the surface is dark.
-	 * The literal stays as the pre-brand floor. */
+
 	--os-tile-fg-muted: var(
 		--os-folder-window-fg-muted,
 		var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.55 ) )
 	);
 	--os-tile-hover-bg: rgba( 0, 0, 0, 0.06 );
-	/* Light-context label rendering — share the same recipe with
-	 * every other light-bg tile surface (My WordPress, future
-	 * windows). One set of tokens, no per-surface duplication. */
+
 	--os-tile-label-shadow: none;
 	--os-tile-label-weight: 500;
 	--os-tile-label-smoothing: antialiased;
 	--os-tile-label-color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
 }
 
-/* Folder window's bottom status bar — paint with the same light-
- * context treatment My WordPress uses (transparent bg, soft border,
- * muted dark text). Without this, the wallpaper-targeted defaults
- * (`background: rgba(0,0,0,0.18); color: white`) would show as a
- * dark band against the white window bg. */
 .desktop-mode-folder-window .os-folder-status-bar {
 	border-top: 1px solid var( --os-ui-border, #dcdcde );
 	background: transparent;
@@ -604,15 +392,6 @@
 	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 }
 
-/* Generic breadcrumb header — any surface that grows a navigation
- * stack (folder window, My WordPress folder, future drill-down
- * windows) renders one of these via `renderBreadcrumbs` from
- * `src/desktop-files/breadcrumbs.ts`. Visual vocabulary: small
- * icon-only Back button on the left, `›`-separated crumb buttons,
- * current segment is bold + non-interactive.
- *
- * @since 0.8.0
- */
 .os-breadcrumbs {
 	display: flex;
 	align-items: center;
@@ -702,11 +481,6 @@
 	overflow: auto;
 }
 
-/* Two-pane shell — left: tile canvas, right: preview pane that
- * reflects the currently-selected tile. Same model as the My
- * WordPress two-pane view so the UX is unified.
- *
- * @since 0.8.0 */
 .os-folder-window__split {
 	display: grid;
 	grid-template-columns: minmax( 240px, 60% ) minmax( 0, 1fr );
@@ -722,10 +496,6 @@
 	color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
 }
 
-/* Selected file tile — a fill, and an inset accent ring whose width
- * the palette decides (0 on OpenStation's, which lifts the tile with
- * the fill alone; 1px on Legacy). Variable-driven so plugins can
- * retune. */
 .os-file-tile--selected,
 .os-file-tile--selected:hover {
 	background: var(
@@ -736,45 +506,20 @@
 		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
 
-/* Inside a folder window the selected highlight should read on
- * white. */
 .desktop-mode-folder-window {
 	--os-tile-selected-bg: rgba( 34, 113, 177, 0.12 );
 }
 
-/* Type breakdown under a multi-selection's count in a folder
- * window's preview pane. The count is the headline; this is the
- * detail that tells you which actions the menu will offer. */
 .os-files-preview__selection-breakdown {
 	font-size: 12px;
 	opacity: 0.75;
 }
 
-/* While a rubber band is live, nothing in the shell is selectable.
- *
- * The band starts on bare canvas, which — unlike a tile — IS
- * selectable, so the browser begins its own text selection on the
- * same press and keeps extending it as the pointer travels. Inside
- * the canvas that stays invisible; drag out over another window and
- * it starts highlighting that window's text in blue, mid-gesture.
- *
- * The controller also refuses `selectstart` outright while the band
- * is up. This rule is the second half: it covers anything already
- * selectable that the event route misses. */
 body[ data-os-marquee ] {
 	-webkit-user-select: none;
 	user-select: none;
 }
 
-/* Marquee (rubber-band) selection box. Painted by the shared
- * selection controller on any canvas that opts into it — the
- * wallpaper, folder windows, every My WordPress list — so this one
- * declaration dresses all of them.
- *
- * `pointer-events: none` is load-bearing: the box tracks under the
- * cursor for the whole gesture, and without it every hit-test
- * (drop targets, the controller's own tile lookup) would land on
- * the box instead of what's beneath it. */
 .os-selection-marquee {
 	position: absolute;
 	z-index: 5;
@@ -782,12 +527,7 @@ body[ data-os-marquee ] {
 	border: 1px solid
 		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 	border-radius: 2px;
-	/* A WASH, not a fill — the whole point of a rubber band is that
-	 * you can see what it is about to catch. `--os-ui-accent-dim` is a
-	 * solid hex (Pulse, one step back), so reaching for it directly
-	 * paints an opaque rectangle over the icons; `--os-ui-accent-soft`
-	 * is that same colour already taken down to a 14% wash, which is
-	 * what every other ambient accent surface in the shell uses. */
+
 	background: var(
 		--os-selection-marquee-bg,
 		var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.14 ) )
@@ -838,13 +578,6 @@ button.os-folder-status-bar__segment:hover {
 	font-size: 14px;
 }
 
-/*
- * File Associations OS Settings tab (Phase 5). One row per file
- * type: label on the left, a `<os-select>` of compatible
- * openers on the right. Color tokens use the OS-Settings-canonical
- * `--os-ui-fg-muted` so the tab inherits theme colors instead of
- * falling back to white-on-light invisibility.
- */
 .os-file-associations__intro {
 	display: block;
 	margin: 0 0 16px;
@@ -884,34 +617,11 @@ button.os-folder-status-bar__segment:hover {
 	font-size: 12px;
 }
 
-/*
- * The shell's two built-in modals — "New folder" / "Rename", and the
- * web-link dialog, which reuses this class set for its surface. Both
- * are light-DOM overlays that slot `<os-text-field>` +
- * `<os-button>` for their controls.
- *
- * The surface reads the same `--os-ui-modal-*` family that
- * `<os-modal>` and `<os-confirm-dialog>` do, so the three look like
- * one dialog system and answer to a desktop theme together. Two
- * things it must NOT do, both of which it used to:
- *
- *   - Paint from `--os-bg`. That is the WALLPAPER token: the desk
- *     default is a gradient and the wallpaper layer overwrites it
- *     with whatever artwork is active. A dialog is a surface, not a
- *     desk. Same note as `os-modal.styles.ts`.
- *   - Style raw form controls. Core's `forms.css` reaches every
- *     `<input>` in the parent shell through `input[type="text"]` —
- *     (0,1,1), which outranks a single class of ours — so a plain
- *     input rendered as a white core-chrome box on this dark
- *     surface no matter what we declared. The controls live in
- *     shadow DOM now, where that sheet cannot follow.
- */
 .os-create-folder-dialog__overlay {
 	position: fixed;
 	inset: 0;
 	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
-	/* Desktop-theme texture slot: unset resolves to none. Mirrors
-	   the scrim treatment in os-modal. */
+
 	background-image: var( --os-ui-scrim-image, none );
 	background-repeat: var( --os-ui-scrim-image-repeat, repeat );
 	background-size: var( --os-ui-scrim-image-size, auto );
@@ -924,19 +634,7 @@ button.os-folder-status-bar__segment:hover {
 }
 
 .os-create-folder-dialog {
-	/*
-	 * Re-point the shared control tokens for a dark dialog surface,
-	 * exactly as `<os-modal>` does on its host. The slotted
-	 * `<os-text-field>` / `<os-button>` inherit these across the
-	 * shadow boundary, so the field resolves a dark input with light
-	 * ink instead of the light-admin defaults (`--os-window-bg` is
-	 * `#fff` in an unthemed shell, which under a light `--os-ui-fg`
-	 * is the invisible-value trap the modal styles call out).
-	 *
-	 * Each reads a palette-owned `--os-ui-modal-*` name first, so a
-	 * desktop theme can still reach every one of them; the literals
-	 * are only the floor for a shell whose stylesheet never loaded.
-	 */
+
 	--os-ui-fg: var( --os-ui-modal-text, #f0f0f1 );
 	--os-ui-fg-muted: var( --os-ui-modal-text-muted, #a7aaad );
 	--os-ui-border: var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
@@ -947,9 +645,7 @@ button.os-folder-status-bar__segment:hover {
 	);
 
 	width: min( 420px, 92vw );
-	/* Longhand, and a literal fallback: the shorthand would reset the
-	   texture slot below, and a gradient is invalid as a
-	   background-color — it would leave the dialog transparent. */
+
 	background-color: var( --os-ui-modal-bg, #1d2327 );
 	background-image: var( --os-ui-dialog-bg-image, none );
 	background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
@@ -992,26 +688,14 @@ button.os-folder-status-bar__segment:hover {
 	margin-top: 6px;
 }
 
-/* The busy state dims the whole form area rather than the input
-   alone — the buttons carry their own disabled treatment from
-   os-button, and dimming one control of three read as a glitch. */
 .os-create-folder-dialog--busy .os-create-folder-dialog__field {
 	opacity: 0.7;
 }
 
-/*
- * Single label rule for every tile, regardless of host surface.
- * Visual properties read from `--os-tile-label-*`
- * tokens — defined in `variables.css` for the dark wallpaper and
- * rebound by any light-context scope (folder window, My
- * WordPress, …) so all surfaces share one source of truth.
- */
 .os-file-tile__label {
 	font-size: 12px;
 	line-height: 1.2;
-	/* Follows the tile rather than restating its width, so a section
-	 * that re-points `--os-tile-w` (image-led sections do) gets a
-	 * label that grows with the tile instead of staying narrow. */
+
 	max-width: calc( var( --os-tile-w, 88px ) - 4px );
 	text-align: center;
 	overflow: hidden;
@@ -1026,19 +710,6 @@ button.os-folder-status-bar__segment:hover {
 	-moz-osx-font-smoothing: grayscale;
 }
 
-/*
- * DragManager ghost element (the visual that follows the cursor
- * during a drag). Cloned from the source by `mountGhost()` and
- * pinned to the body with `position: fixed` + transform-based
- * movement. `pointer-events: none` ensures the ghost itself
- * never obscures the drop targets underneath during hit-testing.
- *
- * The accept / reject classes are toggled on each hover transition
- * so the cursor matches the drop semantics: `copy` over an
- * accepting target, `no-drop` over rejecting (or no) target.
- *
- * @since 0.18.0
- */
 .os-drag-ghost {
 	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.45 );
 	border-radius: 6px;
@@ -1054,17 +725,8 @@ button.os-folder-status-bar__segment:hover {
 	cursor: no-drop;
 }
 
-/* Multi-item drag ghost: the grabbed tile, with the rest of the set
- * implied by two offset cards behind it and stated by a count badge.
- * The stack is drawn with pseudo-elements rather than real clones —
- * three cloned tiles cost three subtree copies per lift, and only
- * the top one is ever legible. */
 .os-drag-stack {
-	/* The drag manager overwrites this with `position: fixed` when it
-	 * mounts the ghost. It stays declared so the stack still composes
-	 * correctly if the helper is used outside a live drag — both
-	 * values establish the containing block the cards and the badge
-	 * are placed against. */
+
 	position: relative;
 }
 
@@ -1112,16 +774,6 @@ button.os-folder-status-bar__segment:hover {
 	line-height: 1;
 	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.4 );
 }
-
-/* ============================================================ *
- *  Upload progress HUD (since 0.31.0)
- *
- *  Pinned floating panel that surfaces the OS-file-drop manager's
- *  in-flight uploads. One row per file with a `<os-progress-bar>`,
- *  a filename + status, and a Cancel/Dismiss action. The panel
- *  hides itself when there are no rows; it's purely reactive to
- *  the four upload-lifecycle hooks.
- * ============================================================ */
 
 .os-upload-hud {
 	position: fixed;

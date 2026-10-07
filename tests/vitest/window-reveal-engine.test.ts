@@ -1,13 +1,3 @@
-/**
- * Unit tests for `src/reveals/engine.ts`.
- *
- * The engine's whole job is to answer "which reveal is active right
- * now?" for a shell bundle that is not the bundle where the user
- * picked it. That crossing is the part worth testing: the selection is
- * made in the lazy OS-Settings-panel bundle and read in the main shell
- * bundle, which is why the id lives in a shared store rather than in
- * module state (see AGENTS.md → "Cross-bundle state").
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -19,13 +9,11 @@ type Engine = typeof import( '../../src/reveals/engine' );
 async function loadEngine(): Promise< Engine > {
 	_resetAllSharedStoresForTests();
 	vi.resetModules();
-	// The registry has to be evaluated so the built-ins are seeded —
-	// the engine resolves ids through it.
+
 	await import( '../../src/reveals/registry' );
 	return import( '../../src/reveals/engine' );
 }
 
-/** Minimal OsSettings stand-in: a snapshot plus a subscriber list. */
 function makeOsSettings( initial: string ): {
 	osSettings: OsSettings;
 	emit: ( windowReveal: string ) => void;
@@ -87,8 +75,7 @@ describe( 'reveals/engine.ts', () => {
 		const { setActiveWindowRevealId, getActiveWindowRevealId, getActiveWindowReveal } =
 			await loadEngine();
 		setActiveWindowRevealId( 'ghost/not-registered' );
-		// The id is KEPT — a plugin that registers later starts working
-		// without the user having to re-pick it.
+
 		expect( getActiveWindowRevealId() ).toBe( 'ghost/not-registered' );
 		expect( getActiveWindowReveal() ).toBeNull();
 	} );

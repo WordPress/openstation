@@ -1,11 +1,3 @@
-/**
- * The `html` tag inside tables. The HTML parser foster-parents stray
- * text out of `<table>`, `<tbody>` and `<tr>`; a text marker between
- * two `<td>`s therefore landed AFTER the table and every cell rendered
- * there with it. Child-position slots are marked with comments now,
- * which the parser leaves where they are. Attribute and raw-text
- * slots keep their text markers.
- */
 import { describe, expect, it } from 'vitest';
 import { html, render } from './html';
 
@@ -16,7 +8,7 @@ describe( 'html — slots in table context', () => {
 		render( html`<table><tbody><tr class="r">${ [ 'a', 'b' ].map( cell ) }</tr></tbody></table>`, root );
 		expect( root.querySelectorAll( 'tr.r > td' ) ).toHaveLength( 2 );
 		expect( root.querySelector( 'tr.r > td.b' )?.textContent ).toBe( 'xb' );
-		// Nothing escaped the table.
+
 		expect( root.children ).toHaveLength( 1 );
 		expect( root.firstElementChild?.tagName ).toBe( 'TABLE' );
 	} );
@@ -31,7 +23,7 @@ describe( 'html — slots in table context', () => {
 		const first = root.querySelector( 'tr[data-id="1"]' );
 		render( rows( [ 1, 2, 3 ] ), root );
 		expect( root.querySelectorAll( 'tbody > tr' ) ).toHaveLength( 3 );
-		// The same node survives the re-render — the diff kept it.
+
 		expect( root.querySelector( 'tr[data-id="1"]' ) ).toBe( first );
 		render( rows( [] ), root );
 		expect( root.querySelectorAll( 'tbody > tr' ) ).toHaveLength( 0 );
@@ -55,7 +47,7 @@ describe( 'html — slots in table context', () => {
 		render( html`<div><!-- ${ 'ignored' } --><textarea>${ 'typed' }</textarea><style>${ '.x{color:red}' }</style></div>`, root );
 		expect( root.querySelector( 'textarea' )?.textContent ).toBe( 'typed' );
 		expect( root.querySelector( 'style' )?.textContent ).toBe( '.x{color:red}' );
-		// The comment kept its marker text verbatim — no part was built for it.
+
 		expect( root.innerHTML ).toContain( '<!-- $$wpd$$0$$ -->' );
 	} );
 

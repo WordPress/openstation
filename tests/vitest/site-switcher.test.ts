@@ -1,8 +1,3 @@
-/**
- * The site switcher: on a network every site is its own OpenStation,
- * and the row above overview's desktop tiles is how you reach another.
- */
-
 import { describe, expect, test, vi } from 'vitest';
 import {
 	HOP_FROM_ARG,
@@ -34,7 +29,7 @@ const config = ( over: Partial< MultisiteConfig > = {} ): MultisiteConfig => ( {
 	current: '1',
 	sites: [
 		{ id: '1', name: 'Main', shellUrl: MAIN_SHELL },
-		// Another install: a switch there mints a login token.
+
 		{ id: '2', name: 'Shop', shellUrl: SHOP_SHELL, foreign: true },
 	],
 	...over,
@@ -69,7 +64,7 @@ describe( 'the site switcher', () => {
 			} ),
 		);
 		const children = Array.from( el?.children ?? [] ).map( ( c ) => c.tagName.toLowerCase() + ( c.hasAttribute( 'data-external' ) ? '[external]' : '' ) );
-		// The line once, before the first external site; the network's own sites carry nothing.
+
 		expect( children ).toEqual( [ 'os-segment', 'os-segment', 'span', 'os-segment[external]', 'os-segment[external]' ] );
 		const divider = el?.querySelector( '.os-site-switcher__divider' );
 		expect( divider?.getAttribute( 'role' ) ).toBe( 'separator' );
@@ -77,7 +72,7 @@ describe( 'the site switcher', () => {
 		const studio = el?.querySelector( 'os-segment[value="member:abc"]' ) as HTMLElement;
 		expect( studio.title ).toBe( 'External site' );
 		expect( studio.querySelector( '.os-site-switcher__mark' )?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-		// The name stays the visible label; the mark and the spoken prefix ride before it.
+
 		expect( studio.textContent ).toBe( 'External site: Studio' );
 		expect( ( el?.querySelector( 'os-segment[value="1"]' ) as HTMLElement ).title ).toBe( '' );
 		expect( siteSwitcherEntries( config() ).map( ( e ) => e.external ) ).toEqual( [ false, false, false ] );
@@ -103,22 +98,19 @@ describe( 'the site switcher', () => {
 		expect( blog.hasAttribute( 'data-opens-tab' ) ).toBe( true );
 		expect( blog.querySelector( '.os-site-switcher__mark' ) ).not.toBeNull();
 		expect( blog.textContent ).toBe( 'Opens in a new tab: Blog' );
-		// It is still this network's site: no divider.
+
 		expect( el?.querySelector( '.os-site-switcher__divider' ) ).toBeNull();
 
-		// A plain click opens the admin beside this shell and never re-selects.
 		const click = new MouseEvent( 'click', { bubbles: true, cancelable: true } );
 		blog.dispatchEvent( click );
 		expect( click.defaultPrevented ).toBe( true );
 		expect( open ).toHaveBeenCalledWith( 'http://example.test/blog/wp-admin/', '_blank', 'noopener' );
 		expect( picked ).not.toHaveBeenCalled();
 
-		// Reached any other way, it still never hops to the missing shell.
 		open.mockClear();
 		expect( switchToSite( multisite, '3', { hop } ) ).toBe( true );
 		expect( open ).toHaveBeenCalledWith( 'http://example.test/blog/wp-admin/', '_blank', 'noopener' );
 
-		// Tab steps over it, to the next site with a shell.
 		open.mockClear();
 		const teardown = installSiteSwitcherKeys( { multisite: () => multisite, isShown: () => true, hop } );
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Tab', bubbles: true, cancelable: true } ) );
@@ -141,7 +133,7 @@ describe( 'the site switcher', () => {
 		expect( sessionStorage.getItem( 'openstation-hop-direction' ) ).toBe( 'next' );
 
 		hop.mockClear();
-		// This very shell, and a value the switcher never offered: no hop.
+
 		expect( switchToSite( config(), '1', { hop } ) ).toBe( false );
 		expect( switchToSite( config(), 'member:nope', { hop } ) ).toBe( false );
 		await settle();
@@ -160,7 +152,6 @@ describe( 'the site switcher', () => {
 			return e;
 		};
 
-		// The row: Network Admin, Main (this one), Shop.
 		let e = press();
 		await settle();
 		expect( e.defaultPrevented ).toBe( true );
@@ -171,14 +162,12 @@ describe( 'the site switcher', () => {
 		await settle();
 		expect( hop ).toHaveBeenCalledWith( NETWORK_SHELL + '&openstation_overview=1&openstation_hop_from=prev' );
 
-		// The ends wrap.
 		hop.mockClear();
 		multisite = config( { current: '2' } );
 		press();
 		await settle();
 		expect( hop ).toHaveBeenCalledWith( expect.stringContaining( NETWORK_SHELL ) );
 
-		// Not displayed: the browser keeps its Tab.
 		hop.mockClear();
 		shown = false;
 		e = press();
@@ -186,7 +175,6 @@ describe( 'the site switcher', () => {
 		expect( e.defaultPrevented ).toBe( false );
 		expect( hop ).not.toHaveBeenCalled();
 
-		// Displayed, but the user is typing (a desk being renamed).
 		shown = true;
 		const field = document.createElement( 'input' );
 		document.body.appendChild( field );
@@ -197,14 +185,10 @@ describe( 'the site switcher', () => {
 		expect( hop ).not.toHaveBeenCalled();
 		field.remove();
 
-		// Modified Tab is not this key.
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Tab', ctrlKey: true, bubbles: true, cancelable: true } ) );
 		await settle();
 		expect( hop ).not.toHaveBeenCalled();
 
-		// Focus on another control of the top bar (a tile's close, the
-		// "+") keeps the browser's Tab, so those stay reachable; focus
-		// back on the switcher hands Tab back to the sites.
 		const bar = document.createElement( 'div' );
 		bar.className = 'os-overview-top-bar';
 		bar.innerHTML = '<div class="os-site-switcher"><button class="segment">Main</button></div><button class="tile">Close</button>';
@@ -230,7 +214,7 @@ describe( 'the site switcher', () => {
 	} );
 
 	test( 'a lone instance gets no row', () => {
-		// A site admin on one site: nothing to switch between.
+
 		expect(
 			buildSiteSwitcher(
 				config( { networkAdmin: null, sites: config().sites.slice( 0, 1 ) } ),
@@ -245,13 +229,12 @@ describe( 'the site switcher', () => {
 		const settle = () => new Promise( ( r ) => setTimeout( r, 0 ) );
 
 		el?.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: '2' } } ) );
-		// The desk slides out first; the navigation follows.
+
 		expect( hop ).not.toHaveBeenCalled();
 		await settle();
-		// example.test is another origin than this document, so the
-		// direction rides on the URL too: sessionStorage stays here.
+
 		expect( hop ).toHaveBeenCalledWith( SHOP_SHELL + '&openstation_overview=1&openstation_hop_from=next' );
-		// Shop sits after this site in the row, so the next shell enters from the right.
+
 		expect( sessionStorage.getItem( 'openstation-hop-direction' ) ).toBe( 'next' );
 
 		hop.mockClear();
@@ -260,7 +243,6 @@ describe( 'the site switcher', () => {
 		expect( hop ).toHaveBeenCalledWith( NETWORK_SHELL + '&openstation_overview=1&openstation_hop_from=prev' );
 		expect( sessionStorage.getItem( 'openstation-hop-direction' ) ).toBe( 'prev' );
 
-		// This site is where the user already stands.
 		hop.mockClear();
 		el?.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: '1' } } ) );
 		await settle();
@@ -304,14 +286,13 @@ describe( 'the site switcher', () => {
 		document.body.appendChild( el as HTMLElement );
 
 		el?.querySelector( 'os-segment[value="member:abc"]' )?.dispatchEvent( new MouseEvent( 'click', { metaKey: true, bubbles: true, cancelable: true } ) );
-		// The tab is open before anything awaits: that is what keeps it from being a popup.
+
 		expect( open ).toHaveBeenCalledWith( '', '_blank' );
 		expect( tab.location.href ).toBe( '' );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		expect( tab.location.href ).toContain( 'openstation_hop=tok' );
 		expect( hop ).not.toHaveBeenCalled();
 
-		// A mint that fails still lands the tab on the plain shell.
 		mint.mockRejectedValueOnce( new Error( 'no' ) );
 		tab.location.href = '';
 		el?.querySelector( 'os-segment[value="member:abc"]' )?.dispatchEvent( new MouseEvent( 'click', { metaKey: true, bubbles: true, cancelable: true } ) );
@@ -326,7 +307,7 @@ describe( 'the site switcher', () => {
 		const url = shellUrlInOverview( MAIN_SHELL );
 		expect( new URL( url ).searchParams.get( OVERVIEW_ARG ) ).toBe( '1' );
 		expect( shellUrlWithoutBootArgs( url ) ).toBe( MAIN_SHELL );
-		// So are the hop token and the direction it lands with.
+
 		expect(
 			shellUrlWithoutBootArgs( MAIN_SHELL + '&openstation_hop=abc.def&' + HOP_FROM_ARG + '=next' ),
 		).toBe( MAIN_SHELL );
@@ -337,8 +318,7 @@ describe( 'the site switcher', () => {
 		const twin = window.location.origin + '/site-b/wp-admin/admin.php?page=openstation';
 		expect( isOtherOrigin( here ) ).toBe( false );
 		expect( isOtherOrigin( SHOP_SHELL ) ).toBe( true );
-		// The direction arg rides only across origins: on this one the
-		// sessionStorage hint follows the navigation by itself.
+
 		expect( shellUrlInOverview( here, 'next' ) ).toBe( here + '&openstation_overview=1' );
 
 		const hop = vi.fn();
@@ -358,7 +338,6 @@ describe( 'the site switcher', () => {
 		expect( mint ).not.toHaveBeenCalled();
 		expect( hop ).toHaveBeenCalledWith( here + '&openstation_overview=1' );
 
-		// Same hostname, separate install: a token all the same.
 		hop.mockClear();
 		el?.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'member:twin' } } ) );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
@@ -377,8 +356,6 @@ describe( 'the site switcher', () => {
 		expect( mint ).toHaveBeenCalledWith( SHOP_SHELL, 'next' );
 		expect( hop ).toHaveBeenCalledWith( SHOP_SHELL + '&openstation_overview=1&openstation_hop=signed' );
 
-		// The route is down, or refused: the plain hop, and the login
-		// screen over there, never a dead switch.
 		hop.mockClear();
 		mint.mockRejectedValueOnce( new Error( 'no' ) );
 		el?.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'network' } } ) );

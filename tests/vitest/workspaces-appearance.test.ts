@@ -1,22 +1,6 @@
-/**
- * A workspace's look is a VIEW over the user's settings.
- *
- * This file exists for one guarantee: **switching to a workspace and
- * back leaves the user's settings byte-identical.** Everything about
- * the feature is reversible only because of it — a desk they delete
- * must cost them nothing, and a wallpaper they never chose must not
- * quietly become theirs.
- *
- * The awkward case is the one at the bottom: a user opens Preferences
- * ON an overridden desk and changes something. That edit is theirs and
- * has to be saved; every key they did NOT touch has to go back to
- * what it was.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
-/** The state `saveState` was last called with. */
 let saved: Record< string, unknown > | null = null;
 
 vi.mock( '../../src/settings/state', async () => {
@@ -31,7 +15,6 @@ vi.mock( '../../src/settings/state', async () => {
 	};
 } );
 
-/** A settings instance with only the pieces these tests touch. */
 async function makeSettings() {
 	const { OsSettings } = await import( '../../src/settings' );
 	const shell = document.createElement( 'div' );
@@ -48,8 +31,7 @@ async function makeSettings() {
 		},
 		{ apply: () => undefined } as never,
 	);
-	// `apply()` paints the real shell; these tests are about state, so
-	// it is stubbed to keep them from depending on the wallpaper layer.
+
 	settings.apply = () => undefined;
 	return { settings, shell };
 }
@@ -64,7 +46,7 @@ describe( 'workspace appearance — a view, never a write', () => {
 		try {
 			window.localStorage.clear();
 		} catch {
-			/* jsdom */
+
 		}
 		( { settings, shell } = await makeSettings() );
 	} );
@@ -99,8 +81,7 @@ describe( 'workspace appearance — a view, never a write', () => {
 			wallpaper: 'mono',
 			accent: 'rose',
 		} );
-		// The second desk only names a wallpaper. Its accent must come
-		// from the USER, not from the desk they just left.
+
 		settings.setWorkspaceAppearance( { wallpaper: 'aurora' } );
 
 		expect( settings.state.wallpaper ).toBe( 'aurora' );
@@ -125,12 +106,9 @@ describe( 'workspace appearance — a view, never a write', () => {
 
 		settings.save();
 
-		// The whole guarantee: a workspace's wallpaper must not quietly
-		// become the user's own just because a save happened while
-		// they were standing on that desk.
 		expect( saved?.wallpaper ).toBe( 'galaxy' );
 		expect( saved?.accent ).toBe( 'pulse' );
-		// …and the desk still looks the way the workspace asked.
+
 		expect( settings.state.wallpaper ).toBe( 'mono' );
 	} );
 
@@ -142,12 +120,9 @@ describe( 'workspace appearance — a view, never a write', () => {
 			accent: 'rose',
 		} );
 
-		// The user opens Preferences here and picks a new accent.
 		settings.state.accent = 'teal';
 		settings.save();
 
-		// Their edit is theirs. The wallpaper they never touched goes
-		// back to what it was.
 		expect( saved?.accent ).toBe( 'teal' );
 		expect( saved?.wallpaper ).toBe( 'galaxy' );
 	} );
@@ -157,9 +132,6 @@ describe( 'workspace appearance — a view, never a write', () => {
 		settings.state.accent = 'pulse';
 		settings.setWorkspaceAppearance( { accent: 'rose' } );
 
-		// The user picks a wallpaper on this desk. It is saved as theirs,
-		// so the copy kept aside to hand back on exit has to carry it too, or
-		// leaving the desk paints the wallpaper they had on the way in.
 		settings.update( { wallpaper: 'aurora' } );
 		expect( saved?.wallpaper ).toBe( 'aurora' );
 
@@ -169,16 +141,12 @@ describe( 'workspace appearance — a view, never a write', () => {
 	} );
 
 	test( 'an edit made IN PLACE on an overridden object key is still the user’s', () => {
-		// The wallpaper settings editor merges into
-		// `wallpaperSettings[ id ]` rather than replacing the record,
-		// so the edit never changes a reference. A comparison by
-		// identity called it "untouched" and dropped it on save.
+
 		settings.state.wallpaperSettings = { 'living-tree': { density: 1 } };
 		settings.setWorkspaceAppearance( {
 			wallpaperSettings: { 'living-tree': { density: 3 } },
 		} );
 
-		// The user opens the editor on this desk and turns density up.
 		settings.state.wallpaperSettings[ 'living-tree' ] = {
 			...settings.state.wallpaperSettings[ 'living-tree' ],
 			density: 5,
@@ -195,7 +163,7 @@ describe( 'workspace appearance — a view, never a write', () => {
 		} );
 		settings.save();
 		expect( saved?.wallpaperSettings ).toEqual( { 'living-tree': { density: 1 } } );
-		// And the desk still shows the workspace's.
+
 		expect( settings.state.wallpaperSettings ).toEqual( { 'living-tree': { density: 3 } } );
 	} );
 

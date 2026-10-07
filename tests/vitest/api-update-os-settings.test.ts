@@ -1,13 +1,3 @@
-/**
- * `wp.os.updateOsSettings()` / `resetOsSettings()` — the public write
- * path, which is the Preferences app's own write path.
- *
- * Every `OsSettingsState` key is accepted and coerced by the same
- * sanitizer that reads user meta, with the CURRENT value as the
- * fallback: an invalid field is ignored, an unknown key never lands,
- * the seeded-theme ledger stays shell-owned. Presentation keys apply
- * as well as save; activating a theme seeds its recommendations once.
- */
 import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub } from './helpers/hooks-stub';
 import { OsSettings } from '../../src/settings';
@@ -16,9 +6,6 @@ import type { BuildPublicApiDeps } from '../../src/api/facade';
 
 type BuildPublicApi = typeof import( '../../src/api/facade' )[ 'buildPublicApi' ];
 
-// The facade's import graph registers hooks at module-evaluation
-// time, so the hooks stub has to exist BEFORE the module is pulled
-// in — hence the dynamic import.
 let buildPublicApi: BuildPublicApi;
 
 interface Harness {
@@ -32,8 +19,7 @@ function harness(): Harness {
 	const store = new OsSettings( { apply: vi.fn() } as unknown as WallpaperLayer );
 	const save = vi.spyOn( store, 'save' ).mockImplementation( () => undefined );
 	const apply = vi.spyOn( store, 'apply' ).mockImplementation( () => undefined );
-	// Only `osSettings` is exercised here; the rest of the dependency
-	// bag is never reached by the settings members.
+
 	const api = buildPublicApi( {
 		osSettings: store,
 		manager: {},
@@ -112,7 +98,7 @@ describe( 'updateOsSettings — writers', () => {
 		expect( h.store.state.confirmCloseAllWindows ).toBe( false );
 		expect( h.store.state.mioEnabled ).toBe( true );
 		expect( h.store.state.mioApiEnabled ).toBe( true );
-		// `null` is a real value for the image: "no image".
+
 		h.api.updateOsSettings( { customImage: null } );
 		expect( h.store.state.customImage ).toBeNull();
 	} );
@@ -151,8 +137,7 @@ describe( 'updateOsSettings — writers', () => {
 			appliedThemeRecommendations: [ 'tampered' ],
 		} as never );
 		expect( ( h.store.state as unknown as Record< string, unknown > ).madeUpKey ).toBeUndefined();
-		// The seeded-theme ledger is shell-owned: writing it from the
-		// public API would let a caller re-arm a theme's one-time seed.
+
 		expect( h.store.state.appliedThemeRecommendations ).toEqual( [] );
 	} );
 } );
@@ -178,8 +163,7 @@ describe( 'updateOsSettings — persist and apply', () => {
 	} );
 
 	test( 'skips apply for a patch that touches no presentation key', () => {
-		// `unfocusEffect` rides `subscribeOsSettings` (fired by save),
-		// and `apply()` knows nothing about it.
+
 		h.api.updateOsSettings( { unfocusEffect: 'none' } );
 		expect( h.save ).toHaveBeenCalledTimes( 1 );
 		expect( h.apply ).not.toHaveBeenCalled();
@@ -206,7 +190,7 @@ describe( 'updateOsSettings — theme activation', () => {
 		h.api.updateOsSettings( { accent: 'teal', desktopTheme: 'acme-neon' } );
 		expect( h.store.state.accent ).toBe( 'teal' );
 		expect( h.store.state.desktopTheme ).toBe( 'acme-neon' );
-		// Switching to another theme preserves the custom accent.
+
 		h.api.updateOsSettings( { desktopTheme: '' } );
 		expect( h.store.state.desktopTheme ).toBe( '' );
 		expect( h.store.state.accent ).toBe( 'teal' );

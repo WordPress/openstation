@@ -1,21 +1,9 @@
-/**
- * Unit tests for the centralized DragManager.
- *
- * Exercises the state machine: lift threshold, single-session
- * invariant, drop-target hit-testing + claim-boundary, ghost
- * lifecycle, click-only fallback for sub-threshold gestures.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { DragManager } from '../../src/drag/manager';
 import { __resetRecoveryForTests } from '../../src/drag/recovery';
 import type { DragPayload, DropTarget } from '../../src/drag/types';
 
-/**
- * jsdom doesn't construct `PointerEvent`s, so we synthesize a plain
- * Event with the fields the manager reads. Same trick `drag-unstate.test.ts`
- * uses for the title-bar drag tests.
- */
 function pointerEvent(
 	type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
 	clientX: number,
@@ -53,9 +41,7 @@ function makeTargetElement( id: string, rect: { x: number; y: number; w: number;
 	el.style.width = `${ rect.w }px`;
 	el.style.height = `${ rect.h }px`;
 	document.body.appendChild( el );
-	// jsdom doesn't compute layouts, so `elementFromPoint` returns
-	// nothing useful by default. Stub it on `document` to walk our
-	// targets and return the first whose stored rect contains (x, y).
+
 	return el;
 }
 
@@ -64,8 +50,7 @@ interface Rect { x: number; y: number; w: number; h: number }
 function installElementFromPointStub( regions: Array< { el: Element; rect: Rect } > ): void {
 	const ordered = [ ...regions ];
 	document.elementFromPoint = ( x: number, y: number ): Element | null => {
-		// Search in REVERSE registration order so later registrations
-		// win on overlap (matches "last appended is on top" intuition).
+
 		for ( let i = ordered.length - 1; i >= 0; i -= 1 ) {
 			const { el, rect } = ordered[ i ];
 			if (
@@ -85,9 +70,7 @@ describe( 'DragManager', () => {
 	beforeEach( () => {
 		installHooksStub();
 		__resetRecoveryForTests();
-		// jsdom default: no elementFromPoint. Tests that need a
-		// specific hit-test result call `installElementFromPointStub`
-		// to override; everything else gets null (no target found).
+
 		document.elementFromPoint = () => null;
 	} );
 
@@ -110,14 +93,12 @@ describe( 'DragManager', () => {
 			onCommit,
 		} );
 		expect( session ).not.toBeNull();
-		expect( manager.isDragging() ).toBe( false ); // not lifted yet
+		expect( manager.isDragging() ).toBe( false );
 
-		// Move 2px — below threshold.
 		document.dispatchEvent( pointerEvent( 'pointermove', 102, 100 ) );
 		expect( manager.isDragging() ).toBe( false );
 		expect( document.querySelector( '.os-drag-ghost' ) ).toBeNull();
 
-		// Release.
 		document.dispatchEvent( pointerEvent( 'pointerup', 102, 100 ) );
 		expect( onClickOnly ).toHaveBeenCalledTimes( 1 );
 		expect( onCommit ).not.toHaveBeenCalled();
@@ -140,7 +121,7 @@ describe( 'DragManager', () => {
 		expect( ghost ).not.toBeNull();
 
 		document.dispatchEvent( pointerEvent( 'pointerup', 110, 100 ) );
-		// Cleanup.
+
 		expect( source.classList.contains( 'os-file-tile--dragging' ) ).toBe( false );
 		expect( document.querySelector( '.os-drag-ghost' ) ).toBeNull();
 	} );
@@ -209,7 +190,7 @@ describe( 'DragManager', () => {
 		manager.registerDropTarget( {
 			id: 'tgt',
 			element: targetEl,
-			accept: () => false, // rejects
+			accept: () => false,
 			onDrop,
 		} );
 
@@ -248,8 +229,6 @@ describe( 'DragManager', () => {
 		document.dispatchEvent( pointerEvent( 'pointermove', 250, 250 ) );
 		document.dispatchEvent( pointerEvent( 'pointerup', 250, 250 ) );
 
-		// Synthesized click that fires after pointerup must see the
-		// marker stamped — gates the wallpaper Show-Desktop toggle.
 		expect( manager.recentlyEndedDrag() ).toBe( true );
 		expect( manager.recentlyEndedDrag( 0 ) ).toBe( false );
 	} );
@@ -266,8 +245,6 @@ describe( 'DragManager', () => {
 		document.dispatchEvent( pointerEvent( 'pointermove', 250, 250 ) );
 		document.dispatchEvent( pointerEvent( 'pointerup', 250, 250 ) );
 
-		// No drop target — drag ended via the `_cancel` path. The
-		// marker still gates the post-drag click on the wallpaper.
 		expect( manager.recentlyEndedDrag() ).toBe( true );
 	} );
 
@@ -281,8 +258,7 @@ describe( 'DragManager', () => {
 			origin: pointerEvent( 'pointerdown', 50, 50, source ),
 			onClickOnly,
 		} );
-		// Release without crossing the lift threshold — it's a click,
-		// not a drag. The wallpaper toggle SHOULD fire normally.
+
 		document.dispatchEvent( pointerEvent( 'pointerup', 51, 51 ) );
 
 		expect( onClickOnly ).toHaveBeenCalled();
@@ -364,7 +340,7 @@ describe( 'DragManager', () => {
 		} );
 		document.dispatchEvent( pointerEvent( 'pointermove', 60, 50 ) );
 		session?.cancel();
-		session?.cancel(); // second call
+		session?.cancel();
 		expect( onCancel ).toHaveBeenCalledTimes( 1 );
 	} );
 
@@ -392,11 +368,11 @@ describe( 'DragManager', () => {
 			payload: { type: 'desktop-file', source, data: {} },
 			origin: pointerEvent( 'pointerdown', 50, 50, source ),
 		} );
-		document.dispatchEvent( pointerEvent( 'pointermove', 250, 50 ) ); // over A
+		document.dispatchEvent( pointerEvent( 'pointermove', 250, 50 ) );
 		expect( aEnter ).toHaveBeenCalledTimes( 1 );
-		document.dispatchEvent( pointerEvent( 'pointermove', 260, 50 ) ); // still over A
+		document.dispatchEvent( pointerEvent( 'pointermove', 260, 50 ) );
 		expect( aEnter ).toHaveBeenCalledTimes( 1 );
-		document.dispatchEvent( pointerEvent( 'pointermove', 450, 50 ) ); // over B
+		document.dispatchEvent( pointerEvent( 'pointermove', 450, 50 ) );
 		expect( aLeave ).toHaveBeenCalledTimes( 1 );
 		expect( bEnter ).toHaveBeenCalledTimes( 1 );
 	} );

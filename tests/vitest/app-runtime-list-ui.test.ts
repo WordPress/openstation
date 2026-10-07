@@ -1,7 +1,3 @@
-/**
- * The list-window furniture every list app shares — `statusControl`,
- * `pager` and `mountMenuCheckboxes` from `@openstation/app`.
- */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import '../../src/ui/components/os-select/os-select';
 import { render } from '../../src/ui/core/html';
@@ -154,7 +150,6 @@ describe( 'mountMenuCheckboxes', () => {
 		expect( onToggle ).toHaveBeenCalledWith( 'date' );
 		expect( items[ 1 ].hasAttribute( 'checked' ) ).toBe( true );
 
-		// Another app's rows in the same panel are not ours.
 		panel.dispatchEvent(
 			new CustomEvent( 'os-menu-item-click', { detail: { value: 'users:date' } } ),
 		);

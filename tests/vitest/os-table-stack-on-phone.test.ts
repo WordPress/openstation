@@ -1,8 +1,3 @@
-/**
- * `stackOnPhone()` — the one decision every list window makes about
- * its `<os-table>` on a phone: cards on, sticky columns off, and the
- * grid back (sticky columns included) once the stamp is gone.
- */
 import { describe, expect, test } from 'vitest';
 import { stackOnPhone } from '../../src/ui/components/os-table/stack-on-phone';
 

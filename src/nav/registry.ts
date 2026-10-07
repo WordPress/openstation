@@ -1,42 +1,23 @@
-/**
- * Build the flat {@link NavItem} list from the four registration
- * paths, collapsing anything registered more than once into a single
- * entry.
- *
- * The collapse is the load-bearing part. `openstation_register_icon()`
- * and `openstation_register_window()` are documented as orthogonal —
- * "a single plugin can register a window AND an icon that opens it" —
- * so an app legitimately arrives here twice. One id, one item, one
- * default, one answer.
- */
-
 import type { DockItem, SystemDockItem } from '../dock';
 import type { DesktopIconServerEntry } from '../types';
 import type { NavItem, NavKind } from './types';
 
-/** A system tile plus the kind its registration declared. */
 export interface NavSystemTile {
 	item: SystemDockItem;
-	/** A launcher, a shell affordance, or a stand-in for a WP menu. */
+
 	kind: Extract< NavKind, 'core' | 'app' | 'control' >;
-	/** Exit OpenStation. Never movable, never hideable. */
+
 	locked?: boolean;
 }
 
 export interface NavSources {
-	/** Admin menus from the server payload, core and plugin alike. */
+
 	menuItems: readonly DockItem[];
-	/** JS-registered tiles: native-window launchers and shell tiles. */
+
 	systemTiles: readonly NavSystemTile[];
-	/** `openstation_register_icon()` entries. */
+
 	icons: readonly DesktopIconServerEntry[];
-	/**
-	 * Window-manager key for an admin menu, so the running indicator
-	 * finds the window a tile actually opens. Supplied by the caller
-	 * because it depends on the native-window URL remaps
-	 * (`nativePostsEnabled` and friends), which nav has no business
-	 * knowing about.
-	 */
+
 	resolveMenuWindowId?: ( item: DockItem ) => string;
 }
 
@@ -87,10 +68,6 @@ export function buildNavItems( sources: NavSources ): NavItem[] {
 		} );
 	}
 
-	// Icons last, and they merge rather than append: an icon whose
-	// `window` names a tile already in the list is the same app seen
-	// from the wallpaper. Games is the shipped case — it registers a
-	// native window with a dock tile and a desktop icon under one id.
 	for ( const entry of sources.icons ) {
 		const target = entry.window
 			? byId.get( entry.id ) ?? byId.get( entry.window )

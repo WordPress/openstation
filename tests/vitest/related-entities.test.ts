@@ -1,19 +1,3 @@
-/**
- * Unit tests for the related-entities title-bar button
- * (`src/related-entities/`):
- *
- *   - `resolveRelatedItems`: identity `related` list as the base, the
- *     `os.related-entities.items` filter applied on every
- *     resolve, malformed filter output dropped item-wise, non-array
- *     output falling back to the identity list
- *   - button registration through the public title-bar registry and
- *     the `match` predicate following the resolved list
- *   - targeted repaint on `WINDOW_CONTENT_CHANGED`
- *   - menu construction: group ordering, section headers, count
- *     suffix, pick wiring
- *   - open/close lifecycle: click opens, pick opens the URL and
- *     closes, Escape closes
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { HOOKS } from '../../src/hooks';
@@ -43,7 +27,6 @@ const ITEM: RelatedEntityItem = {
 	count: 3,
 };
 
-/** A window fake that satisfies the registry's structural needs. */
 function fakeWindow( id: string ) {
 	const element = document.createElement( 'div' );
 	const titleBar = document.createElement( 'div' );
@@ -135,7 +118,6 @@ describe( 'resolveRelatedItems', () => {
 			await load();
 		setWindowContent( 'w1', { type: 'post', id: 1, related: [ ITEM ] } );
 
-		// The documented idiom: mutate in place, return the array.
 		hooks.addFilter(
 			HOOKS.RELATED_ENTITIES_ITEMS,
 			'vitest/push',
@@ -150,7 +132,6 @@ describe( 'resolveRelatedItems', () => {
 			},
 		);
 
-		// Repeated resolves (every repaint runs one) must not compound.
 		expect( resolveRelatedItems( 'w1' ) ).toHaveLength( 2 );
 		expect( resolveRelatedItems( 'w1' ) ).toHaveLength( 2 );
 		expect( getWindowContent( 'w1' )?.related ).toHaveLength( 1 );
@@ -177,10 +158,6 @@ describe( 'resolveRelatedItems', () => {
 		const { resolveRelatedItems, setWindowContent } = await load();
 		setWindowContent( 'w1', { type: 'post', id: 1, related: [] } );
 
-		// A native window has no admin URL. Before `windowId`, the
-		// only way to point here was to register a URL for the
-		// window, remap that URL back to it, and encode the scoping
-		// into a query string on the way through.
 		const native = {
 			id: 'entries',
 			group: 'forms',
@@ -309,10 +286,7 @@ describe( 'bootRelatedEntities', () => {
 			'.os-window__related-panel',
 		);
 		expect( panel ).not.toBeNull();
-		// Load-bearing: `menu-panel` is what the title-bar drag tracker
-		// excludes (src/window/pointer.ts) and what positions the panel
-		// as an absolute dropdown — without it a pointerdown on a menu
-		// item starts a window drag that swallows the click.
+
 		expect(
 			panel!.classList.contains( 'os-window__menu-panel' ),
 		).toBe( true );
@@ -370,7 +344,6 @@ describe( 'bootRelatedEntities', () => {
 		document.body.appendChild( element );
 		setWindowContent( 'w1', { type: 'post', id: 1, related: [ ITEM ] } );
 
-		// Stand-in for the window's dblclick-to-maximize handler.
 		const maximize = vi.fn();
 		titleBar.addEventListener( 'dblclick', maximize );
 
@@ -382,9 +355,6 @@ describe( 'bootRelatedEntities', () => {
 				new CustomEvent( 'os-menu-item-click', { bubbles: true } ),
 			);
 
-		// The double-click's second click lands on the now-bare title
-		// bar — the guard must swallow the resulting dblclick so the
-		// window doesn't maximize.
 		titleBar.dispatchEvent( new Event( 'dblclick', { bubbles: true } ) );
 		expect( maximize ).not.toHaveBeenCalled();
 	} );
@@ -422,7 +392,7 @@ describe( 'bootRelatedEntities', () => {
 		const rows = Array.from(
 			panel.querySelectorAll< HTMLElement >( '[role="menuitem"]' ),
 		);
-		// First row is focused on open (hosts carry tabindex="-1").
+
 		expect( document.activeElement ).toBe( rows[ 0 ] );
 
 		panel.dispatchEvent(
@@ -462,8 +432,6 @@ describe( 'bootRelatedEntities', () => {
 			element.querySelector( '.os-window__related-panel' ),
 		).not.toBeNull();
 
-		// Registry-change repaint: the shell builds a NEW host and runs
-		// render() again — the stale panel must not survive it.
 		const replacement = document.createElement( 'os-window-button' );
 		titleBar.appendChild( replacement );
 		def.render!( replacement, win );

@@ -1,25 +1,3 @@
-/**
- * `<os-cluster>` — horizontal flex layout with a gap and wrap.
- * The sibling of `<os-stack>`: when you want a row of controls
- * rather than a column of sections.
- *
- * Usage:
- *
- *   <os-cluster gap="8" justify="end">
- *     <os-button>Cancel</os-button>
- *     <os-button variant="primary">Save</os-button>
- *   </os-cluster>
- *
- * `gap` is attribute-driven (pixels). Default 8.
- * `justify` follows CSS `justify-content` ( `start` | `center` |
- *   `end` | `space-between` | `space-around` ). Default `start`.
- * `align` follows CSS `align-items`. Default `center` — most
- *   toolbars want button text baselines to line up.
- *
- * Children wrap to a new line when the container narrows, so a
- * cluster in a resizable window degrades gracefully.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-cluster.styles';
 

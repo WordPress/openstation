@@ -1,29 +1,7 @@
 <?php
-/**
- * Tests for the `nativePostsEnabled` field on `OsSettingsState`.
- *
- * The sanitizer is the gatekeeper between the JS layer and user meta —
- * a field that's not in its allow-list silently disappears on every
- * round-trip. This file guards against the per-user opt-in for the
- * native Posts window vanishing when, say, a future field rename
- * forgets to thread `nativePostsEnabled` through.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-posts-window
- */
+
 class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 
-	/**
-	 * The native Posts window is opt-in Beta — fresh
-	 * installs land on the classic iframe and users explicitly turn
-	 * the native window ON. This guards against an accidental flip
-	 * back to opt-out (default ON) semantics.
-	 *
-	 * @covers ::openstation_default_os_settings
-	 */
 	public function test_default_includes_native_posts_enabled() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'nativePostsEnabled', $defaults );
@@ -33,9 +11,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_os_settings
-	 */
 	public function test_sanitize_keeps_true_value() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'nativePostsEnabled' => true )
@@ -43,9 +18,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertTrue( $clean['nativePostsEnabled'] );
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_os_settings
-	 */
 	public function test_sanitize_keeps_false_value() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'nativePostsEnabled' => false )
@@ -53,9 +25,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertFalse( $clean['nativePostsEnabled'] );
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_os_settings
-	 */
 	public function test_sanitize_coerces_truthy_strings() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'nativePostsEnabled' => '1' )
@@ -63,9 +32,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertTrue( $clean['nativePostsEnabled'] );
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_os_settings
-	 */
 	public function test_sanitize_coerces_falsy_values() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'nativePostsEnabled' => 0 )
@@ -78,9 +44,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertFalse( $clean['nativePostsEnabled'] );
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_os_settings
-	 */
 	public function test_sanitize_falls_back_when_missing() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'wallpaper' => 'dark' )
@@ -91,16 +54,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The regression this guards against: `openstation_save_os_settings()`
-	 * (REST POST handler) writes a sanitized payload to user meta, then
-	 * `openstation_get_os_settings()` (boot path / GET handler) reads
-	 * it back. If the sanitizer drops the field, the user "saves" the
-	 * toggle but it silently flips back off on the next page load.
-	 *
-	 * @covers ::openstation_save_os_settings
-	 * @covers ::openstation_get_os_settings
-	 */
 	public function test_user_meta_round_trip_keeps_native_posts_enabled() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings(
@@ -114,16 +67,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertTrue( $loaded['nativePostsEnabled'] );
 	}
 
-	/**
-	 * Toggling off must persist too — explicit `false` should round-trip
-	 * the same as `true`. (Tests the read-then-merge path; a previous
-	 * implementation defaulted to off when the key was missing AND
-	 * when the key was explicitly false, which was correct only by
-	 * accident.)
-	 *
-	 * @covers ::openstation_save_os_settings
-	 * @covers ::openstation_get_os_settings
-	 */
 	public function test_user_meta_round_trip_keeps_explicit_false() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings(
@@ -138,9 +81,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertFalse( $loaded['nativePostsEnabled'] );
 	}
 
-	/**
-	 * @covers ::openstation_default_os_settings
-	 */
 	public function test_default_includes_hidden_columns() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'nativePostsHiddenColumns', $defaults );
@@ -149,9 +89,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertSame( array(), $defaults['nativePagesHiddenColumns'] );
 	}
 
-	/**
-	 * @covers ::openstation_sanitize_os_settings
-	 */
 	public function test_sanitize_hidden_columns() {
 		$clean = openstation_sanitize_os_settings(
 			array(
@@ -163,10 +100,6 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertSame( array( 'author', 'parent' ), $clean['nativePagesHiddenColumns'] );
 	}
 
-	/**
-	 * @covers ::openstation_save_os_settings
-	 * @covers ::openstation_get_os_settings
-	 */
 	public function test_user_meta_round_trip_keeps_hidden_columns_independently() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings(

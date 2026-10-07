@@ -1,39 +1,3 @@
-/**
- * Server-driven command-palette sync.
- *
- * Mirrors `src/widgets/server-sync.ts` and `src/wallpapers/server-sync.ts`
- * for the command registry. Plugins opt in server-side with
- * `openstation_register_command_script()` (and optionally
- * `openstation_register_command()`); this module receives the list of
- * registered script URLs on every live refresh (plugins.php bridge or
- * boot-time from `config`) and:
- *
- *   - Injects each new `scriptUrl` into the shell page via
- *     `loadVendorScript`. The plugin's JS runs and calls
- *     `wp.os.registerCommand()` as normal. The command registry's
- *     existing `subscribeCommands` fan-out repaints any open palette —
- *     no palette-specific wiring needed here.
- *
- *   - On deactivation (a previously-seen `handle` is missing from the
- *     incoming payload), unregisters every command attributable to
- *     that handle. Attribution comes from two sources, unioned:
- *       1. The `owner` field set by the plugin's JS when calling
- *          `registerCommand({ …, owner: 'my-script-handle' })`.
- *       2. The slug↔handle mapping captured from the *previous*
- *          `serverCommands` payload. Plugins that declare their
- *          metadata via `openstation_register_command()` with a
- *          `script` arg get this for free — no JS change required.
- *
- *     Plugins using neither mechanism keep their commands until the
- *     next page reload (graceful backwards-compat).
- *
- * We deliberately do NOT remove the `<script>` tag from the DOM on
- * deactivation: code that's been evaluated cannot be un-evaluated, so
- * the cleanup is a best-effort scope to the registry rather than the
- * runtime. Re-activating the plugin re-registers commands on the next
- * full page load through the usual enqueue path.
- */
-
 import { doAction, HOOKS } from './../hooks';
 import { loadVendorScript } from './../wallpapers/vendor-loader';
 import { listCommands, unregisterCommand } from './../commands';
@@ -48,8 +12,7 @@ export function createCommandRegistrySync(): (
 ) => Promise< void > {
 	const loadedHandles = new Set< string >();
 	const loadedUrls = new Set< string >();
-	// Snapshot of the previous payload's slug↔handle mapping, used to
-	// look up slugs declared by a handle that's about to leave.
+
 	let prevSlugsByHandle = new Map< string, Set< string > >();
 
 	const ensureScript = async (
@@ -62,8 +25,7 @@ export function createCommandRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-				// The packages the bundle declares, brought in first; the
-				// document skips what it already ran.
+
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
@@ -107,13 +69,13 @@ export function createCommandRegistrySync(): (
 		handle: string,
 	): Set< string > => {
 		const slugs = new Set< string >();
-		// (B) owner-tagged JS registrations.
+
 		for ( const cmd of listCommands() ) {
 			if ( cmd.owner === handle ) {
 				slugs.add( cmd.slug );
 			}
 		}
-		// (A) PHP-declared metadata from the last known payload.
+
 		const declared = prevSlugsByHandle.get( handle );
 		if ( declared ) {
 			for ( const slug of declared ) {
@@ -148,9 +110,6 @@ export function createCommandRegistrySync(): (
 			await ensureScript( entry );
 		}
 
-		// Refresh the metadata snapshot AFTER processing removals so
-		// `collectSlugsToRemove` reads the previous mapping, not the
-		// new (post-deactivation) one.
 		prevSlugsByHandle = slugsByHandleFrom( commands );
 	};
 }

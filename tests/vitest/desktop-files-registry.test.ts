@@ -1,10 +1,3 @@
-/**
- * Unit tests for the JS-side files registry — the registerType /
- * resolve / getTypes surface that mirrors the PHP file-type
- * registry. These tests cover Phase 0: registry behavior only.
- * Higher-phase tests (opener resolution, REST round-trips, layer
- * rendering) live in their own files.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -162,7 +155,7 @@ describe( 'desktop-files registry', () => {
 	test( 'built-in types register on importing the index module', async () => {
 		vi.resetModules();
 		const reg = await import( '../../src/desktop-files/registry' );
-		// Importing index has side effects.
+
 		await import( '../../src/desktop-files/index' );
 		const types = reg.getTypes().map( ( t ) => t.type );
 		expect( types ).toEqual(

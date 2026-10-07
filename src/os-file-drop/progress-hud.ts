@@ -1,29 +1,3 @@
-/**
- * OS-file drop manager — floating upload-progress HUD.
- *
- * A pinned bottom-right panel that shows one row per in-flight
- * upload. Each row is a `<os-progress-bar>` plus a filename and a
- * Cancel / Dismiss action. The HUD subscribes to the four upload-
- * lifecycle hooks and owns nothing else — its lifecycle is purely
- * reactive:
- *
- *   - `upload-started`  → add row, store `abort` handle, indeterminate.
- *   - `upload-progress` → update value / max on the matching row.
- *   - `after-upload`    → mark success, auto-dismiss after a short
- *                         linger so the user sees the green state.
- *   - `upload-failed`   → mark failed, keep visible until dismissed.
- *
- * The panel renders into `document.body`, ignores window stacking,
- * and uses `pointer-events: auto` on the panel only so drops still
- * land on the wallpaper / windows behind it.
- *
- * Plugins can take this UI over entirely:
- *   - Set `data-os-suppress-upload-hud` on `document.body`
- *     before the shell boots to prevent the default panel from
- *     mounting — useful when a plugin wants to handle the same
- *     hook surface with its own UI.
- */
-
 import { addAction } from '../hooks';
 import { activity } from '../activity';
 import { formatBytes } from './format-bytes';
@@ -47,13 +21,6 @@ interface HudRow {
 const ROWS = new Map< File, HudRow >();
 let panel: HTMLElement | null = null;
 
-/**
- * Mount the HUD once. Idempotent — subsequent calls are no-ops.
- *
- * Called from `bootOsFileDrop`. Subscribers are attached lazily on
- * the very first started event so the cost is zero when no one ever
- * drops a file.
- */
 export function mountUploadProgressHud(): void {
 	if ( document.body.hasAttribute( 'data-os-suppress-upload-hud' ) ) {
 		return;
@@ -164,11 +131,6 @@ function onStarted(
 			return;
 		}
 		if ( r.state === 'running' ) {
-			// Mark the row immediately so the user gets feedback even
-			// when we're in the "late cancel" path (server already
-			// received the body; we have to wait for its response so
-			// we know the attachment id to delete). The actual state
-			// flip to `aborted` happens when UPLOAD_FAILED fires.
 			r.statusEl.textContent = 'Cancelling…';
 			( r.cancelBtn as unknown as { disabled: boolean } ).disabled = true;
 			r.abort();
@@ -220,10 +182,6 @@ function onComplete(
 	fields: DropDialogFields,
 	result: DropUploadResult,
 ): void {
-	// Match by File identity — two drops of `photo.jpg` from
-	// different folders would otherwise route each other's success
-	// event to the wrong row and leave one stuck in "running"
-	// forever.
 	const r = ROWS.get( file );
 	if ( ! r ) {
 		return;
@@ -298,8 +256,6 @@ function ensurePanel(): HTMLElement {
 	closeBtn.setAttribute( 'aria-label', 'Hide upload panel' );
 	closeBtn.textContent = '×';
 	closeBtn.addEventListener( 'click', () => {
-		// Dismiss every finished row, hide the panel. In-flight uploads
-		// stay running — the user must click each row's Cancel to abort.
 		for ( const r of [ ...ROWS.values() ] ) {
 			if ( r.state !== 'running' ) {
 				dismissRow( r );
@@ -345,4 +301,3 @@ function updateHeader(): void {
 		title.textContent = 'Uploads';
 	}
 }
-

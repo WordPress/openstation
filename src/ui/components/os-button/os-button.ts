@@ -1,63 +1,6 @@
-/**
- * `<os-button>` — thin wrapper around `<button>` with consistent
- * variant styling + a slot for the label.
- *
- * Variants (Stable, will not be renamed within a major release):
- *
- *   - `holo`      — the hero CTA. Filled with the brand's Holomesh,
- *                   Void ink on top, and a Pulse glow; the fill tilts
- *                   under the pointer the way a foil card does. The
- *                   brand reserves meshes for hero surfaces, so this
- *                   is at most one per surface — often none.
- *   - `primary`   — accent-colored, attention-grabbing action. One
- *                   per surface.
- *   - `secondary` — neutral filled control. Quiet action in a row
- *                   of mostly-primary controls (Save / Cancel;
- *                   AC / ± / % on a calculator).
- *   - `danger`    — destructive action. Red outline → red fill on hover.
- *   - `ghost`     — default. Transparent background, 1 px border.
- *   - `link`      — underline only, no chrome.
- *
- * Every variant except `link` and `danger` also carries the kit's
- * holographic hairline and hover film — invisible at rest, lit under
- * the pointer and on focus. `danger` keeps its red border all the way
- * through the hover, because that border is the only warning the user
- * gets and an iridescent one says the wrong thing.
- *
- * An icon-only button names itself through `aria-label` on the host.
- * The focusable element is the `<button>` inside the shadow root, and
- * the host is a custom element with no role, so a name left on the
- * host alone is inert; the component forwards `aria-label` onto the
- * inner button and keeps it in sync when the host is relabelled.
- *
- * `fill-cell` boolean attribute makes the host fill its parent
- * cell (flex / grid item), growing width AND the inner button
- * height. Intended for grid-based surfaces like a calculator
- * keypad where every key should tile flush.
- *
- * CSS custom-property surface (documented in
- * `docs/components-reference.md`):
- *
- *   --os-ui-button-bg              — background color
- *   --os-ui-button-bg-hover        — hover wash (ghost + secondary)
- *   --os-ui-button-fg              — text color
- *   --os-ui-button-border          — shorthand for the border
- *   --os-ui-button-border-radius   — corner radius (default 6px)
- *   --os-ui-button-padding         — shorthand for padding (default "6px 12px")
- *   --os-ui-button-min-height      — minimum height when `fill-cell` is set
- *
- * Shadow parts (author hook — use with `::part(button)`):
- *
- *   button — the underlying `<button>` element.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-button.styles';
 
-/**
- * Stable string enum of recognised variants. Exported so
- * plugin-side TS can narrow.
- */
 export type OsButtonVariant =
 	| 'holo'
 	| 'primary'
@@ -70,18 +13,6 @@ export class OsButton extends Component {
 	static props = [ 'variant', 'disabled', 'type', 'busy', 'fill-cell' ] as const;
 	static styles = [ styles ];
 
-	/**
-	 * `aria-label` is observed but deliberately NOT a prop, for the
-	 * same reason as `<os-window-button>`: focus lands on the shadow
-	 * `<button>`, so a name on the host has to be forwarded there, and
-	 * observing it is what re-renders when a caller relabels a control
-	 * mid-life. It stays out of `static props` so the base class
-	 * doesn't install a prop accessor over
-	 * `HTMLElement.prototype.ariaLabel` and break the native ARIA
-	 * reflection. `aria-labelledby` / `aria-describedby` are not
-	 * forwarded: an IDREF on a shadow-tree element resolves inside
-	 * that shadow root only, so a copy would name nothing.
-	 */
 	static get observedAttributes(): string[] {
 		return [ ...super.observedAttributes, 'aria-label' ];
 	}
@@ -163,10 +94,7 @@ export class OsButton extends Component {
 		const busy =
 			( this as unknown as { busy: string | null } ).busy !== null;
 		const type = ( this as unknown as { type: string | null } ).type || 'button';
-		// Forward the host's `aria-label` onto the shadow `<button>`, the
-		// element focus lands on. The renderer drops an attribute whose
-		// composed value is empty, so a host without one leaves the
-		// inner button without one too.
+
 		const ariaLabel = this.getAttribute( 'aria-label' ) || '';
 		return html`
 			<button
@@ -181,13 +109,7 @@ export class OsButton extends Component {
 					? html`<span class="os-button__spinner" aria-hidden="true"></span>`
 					: '' }
 				<slot></slot>
-				<!--
-					The two motion layers. Elements rather than
-					pseudo-elements because the sheen and the hairline
-					have already taken this button's ::before and
-					::after — see the pseudo-element budget note in
-					src/ui/holo.ts. Both are inert and aria-hidden.
-				-->
+
 				<span class="os-holo-glint" aria-hidden="true"></span>
 				<span class="os-holo-ring" aria-hidden="true"></span>
 			</button>

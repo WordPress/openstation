@@ -1,59 +1,15 @@
-/**
- * OpenStation — PWA install affordance.
- *
- * Offers the install action as a row of the System dock tile's menu.
- * Choosing it dispatches the browser's install prompt when the site is
- * currently installable; otherwise it shows a contextual toast.
- *
- * UX policy:
- *
- *   - **Offered whenever installing could be useful.** desktop.ts
- *     builds the row unless the shell is already running standalone or
- *     `getInstalledRelatedApps()` reports the app installed; on
- *     platforms without those signals (Safari, Firefox) the row
- *     remains as a fallback. The menu's rows are built on every
- *     hover, so that answer is re-asked each time. The row is the
- *     *entry point*, not the *trigger*; the trigger is whatever the
- *     browser will let us do when the user clicks.
- *
- *   - **Click → context-aware action.**
- *       - Installable now (we have a deferred `beforeinstallprompt`):
- *         show the browser dialog.
- *       - Already installed (`display-mode: standalone`): toast
- *         "<site> is already installed".
- *       - Not yet installable (no event fired): toast suggesting the
- *         user keep using the page; Chrome's heuristic fires the
- *         event after a few seconds of engagement.
- *
- *   - **Survives page reloads.** The row is built from JS on each
- *     boot, so it is present whether or not a prior session ever saw
- *     `beforeinstallprompt`.
- *
- *   - **Safari (iOS / iPadOS)** still gets the row — choosing it shows
- *     a "your browser doesn't support automatic install" toast;
- *     users use Share → Add to Home Screen for the actual install.
- *     The `apple-mobile-web-app-*` meta tags emitted from PHP make
- *     that work.
- */
-
 import { __, sprintf } from '../i18n';
 import type { ToastOptions } from '../toast';
 import { getSwRegistrationStatus } from './sw-register';
 
-/** Stable id for the tile — exported so tests can assert against it. */
 export const PWA_INSTALL_TILE_ID = 'os-pwa-install';
 
-/**
- * Subset of the spec-shaped `BeforeInstallPromptEvent`. Typed locally
- * because TS's lib.dom.d.ts doesn't ship the type — Chromium-only.
- */
 interface BeforeInstallPromptEvent extends Event {
 	readonly platforms: string[];
 	prompt: () => Promise< void >;
 	userChoice: Promise< { outcome: 'accepted' | 'dismissed' } >;
 }
 
-/** Detect whether the browser thinks we're already running standalone. */
 export function isStandaloneDisplay(): boolean {
 	if ( typeof window === 'undefined' ) {
 		return false;
@@ -61,31 +17,11 @@ export function isStandaloneDisplay(): boolean {
 	if ( window.matchMedia?.( '(display-mode: standalone)' ).matches ) {
 		return true;
 	}
-	// Safari-specific — `navigator.standalone` is non-standard but the
-	// only signal iOS exposes for "added to home screen".
+
 	const nav = window.navigator as unknown as { standalone?: boolean };
 	return nav.standalone === true;
 }
 
-/**
- * Best-effort "is this PWA installed in the current browser profile?"
- * detector, working from a regular browser tab (not the standalone
- * window). Two signals are checked, in order:
- *
- *   1. `display-mode: standalone` — current document is the PWA
- *      window itself.
- *   2. `navigator.getInstalledRelatedApps()` — Chrome / Edge surface
- *      that returns the PWAs installed at this origin. Requires the
- *      manifest to list the site under `related_applications`
- *      (we add that automatically in the PHP manifest builder).
- *
- * Returns `false` when neither signal fires — which is also the case
- * on Safari and any platform without `getInstalledRelatedApps`. The
- * caller falls back to a generic "install option unavailable" toast,
- * which is still a better message than the previous "try again later"
- * because it acknowledges the most common cause (already installed)
- * without falsely claiming we know the answer.
- */
 export async function isLikelyInstalled(): Promise< boolean > {
 	if ( isStandaloneDisplay() ) {
 		return true;
@@ -108,18 +44,6 @@ export async function isLikelyInstalled(): Promise< boolean > {
 
 let _deferred: BeforeInstallPromptEvent | null = null;
 
-/**
- * Wire up install detection. Attaches the `beforeinstallprompt` and
- * `appinstalled` window listeners so the rest of the module can react
- * to install state changes.
- *
- * Surfacing the action is **separate** — see {@link getInstallTileDef}.
- * desktop.ts reads its `title` and `onOpen` into a row of the System
- * tile's menu, which keeps `install.ts` framework-agnostic: it does
- * not need to know about `layoutDispatcher`, rails or menus.
- *
- * Idempotent — a second call de-dupes listeners.
- */
 export function installPwaInstallAffordance(
 	siteName: string,
 	showToast: ( opts: ToastOptions ) => () => void,
@@ -141,20 +65,16 @@ export function installPwaInstallAffordance(
 	window.addEventListener( 'appinstalled', _handleAppInstalled );
 
 	function _handleBeforeInstall( ev: Event ): void {
-		// `preventDefault` suppresses Chromium's mini-info-bar — we'd
-		// rather route the install through the System menu than have
-		// two affordances fighting for the user's attention.
 		ev.preventDefault();
 		_deferred = ev as BeforeInstallPromptEvent;
 	}
 
 	function _handleAppInstalled(): void {
 		_deferred = null;
-		// Soft confirmation. The browser also emits its own UI in
-		// many cases; one toast on top of that is fine.
+
 		showToast( {
 			message: sprintf(
-				/* translators: %s: site name */
+
 				__( 'Installed %s as an app.' ),
 				siteName,
 			),
@@ -162,11 +82,6 @@ export function installPwaInstallAffordance(
 	}
 }
 
-/**
- * Build the install affordance's definition. `SystemDockItem`-shaped;
- * desktop.ts reads its `title` and `onOpen` into a row of the System
- * tile's menu, alongside Preferences and Report a bug.
- */
 export function getInstallTileDef(
 	siteName: string,
 	showToast: ( opts: ToastOptions ) => () => void,
@@ -178,15 +93,9 @@ export function getInstallTileDef(
 } {
 	return {
 		id: PWA_INSTALL_TILE_ID,
-		// No site name: this is a row in the System menu, which is
-		// already unambiguously about this site. Interpolating the
-		// title would also grow the row unbounded, next to rows that
-		// are two or three words.
+
 		title: __( 'Install web app' ),
-		// Dashicons class — the dock renderer prefers Dashicons
-		// strings. `dashicons-download` is the closest match for
-		// "install" in the WordPress glyph set without shipping
-		// bespoke artwork.
+
 		icon: 'dashicons-download',
 		onOpen: () => {
 			void onTileClick( siteName, showToast );
@@ -200,17 +109,12 @@ async function onTileClick(
 ): Promise< void > {
 	if ( _deferred ) {
 		const event = _deferred;
-		// `prompt()` may only be called once per
-		// `beforeinstallprompt`; drop the reference so a double-click
-		// during the race window doesn't violate the spec.
+
 		_deferred = null;
 		try {
 			await event.prompt();
 			const choice = await event.userChoice;
 			if ( choice.outcome === 'dismissed' ) {
-				// "Not now" — leave the tile in place; the browser
-				// may re-fire `beforeinstallprompt` on a future
-				// visit.
 				showToast( {
 					message: __( 'Install cancelled.' ),
 				} );
@@ -229,7 +133,7 @@ async function onTileClick(
 	if ( await isLikelyInstalled() ) {
 		showToast( {
 			message: sprintf(
-				/* translators: %s: site name */
+
 				__(
 					'%s is already installed. Open it from your apps menu or home screen.',
 				),
@@ -239,11 +143,6 @@ async function onTileClick(
 		return;
 	}
 
-	// Foreign service worker blocked our registration → Chromium will
-	// never fire `beforeinstallprompt` because the installability
-	// criterion requires OUR SW to be controlling. The generic "not
-	// available" fallback leaves the user with no path forward; this
-	// branch names the cause and points at the operator-side knob.
 	if ( getSwRegistrationStatus() === 'foreign-sw' ) {
 		showToast( {
 			message: __(
@@ -260,13 +159,6 @@ async function onTileClick(
 	} );
 }
 
-/**
- * Programmatic re-trigger — exposed on the public API so a plugin
- * settings tab can offer "Install as app" without going through the
- * dock tile. Resolves to `'unavailable'` when no deferred event is
- * cached (browser hasn't fired one, app is already installed, or
- * platform doesn't support installable web apps).
- */
 export async function promptInstall(): Promise<
 	'accepted' | 'dismissed' | 'unavailable'
 	> {
@@ -284,23 +176,12 @@ export async function promptInstall(): Promise<
 	}
 }
 
-/**
- * Reset the dismissal flag — kept as a public no-op-ish helper for
- * plugin authors who already wrote code against the v0.8.0 dismiss
- * surface. The framework no longer renders a dismissable pill, so
- * the flag is essentially decorative now, but the REST round-trip
- * still happens for forwards-compat with a possible future
- * "minimised" tile state.
- */
 export function undismissInstallHint(): void {
-	// Defer to the state module dynamically to avoid a hard import
-	// loop with the rest of the PWA bundle.
 	import( './state' ).then( ( m ) => {
 		m.updatePwaState( { installHintDismissed: false } );
 	} );
 }
 
-/** Test-only: clear the deferred event reference. */
 export function _resetInstallAffordance(): void {
 	_deferred = null;
 }

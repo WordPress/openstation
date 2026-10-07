@@ -1,12 +1,3 @@
-/**
- * OpenStation — Folder shares shared store.
- *
- * Tracks every share row the active session has touched, plus the
- * set of pending invites the current user has received via the
- * heartbeat. The store is `createSharedStore`-backed so every
- * bundle (main + lazy + future plugin bundles) sees the same data.
- */
-
 import { createSharedStore, type SharedStore } from '../shared-store';
 import type { RestShareShape } from './rest';
 
@@ -15,27 +6,24 @@ export interface PendingInvite extends RestShareShape {
 	ownerId?: number;
 	ownerName?: string;
 	ownerAvatar?: string;
-	/**
-	 * `'file'` for single-file share invites (`target_type='file'`);
-	 * absent/`'folder'` for classic folder invites.
-	 */
+
 	targetType?: 'folder' | 'file' | string;
-	/** Stored-file id (file invites only). */
+
 	fileId?: number;
-	/** Stored-file display name (file invites only). */
+
 	fileName?: string;
 }
 
 export interface SharesState {
-	/** Keyed by folder id — full share list for any folder the user has loaded. */
+
 	byFolder: Map< number, RestShareShape[] >;
-	/** Pending invites this user has not yet decided. */
+
 	pending: PendingInvite[];
-	/** Highwater mark for heartbeat sync. */
+
 	sharesVersion: number;
-	/** Folder ids the user has explicitly denied (suppresses re-prompt). */
+
 	deniedFolders: Set< number >;
-	/** Stored-file ids the user has explicitly denied. */
+
 	deniedFiles: Set< number >;
 }
 
@@ -86,13 +74,6 @@ export function removeShare( folderId: number, shareId: number ): void {
 	s.notify();
 }
 
-/**
- * Compare two invites for byte-equivalence on the fields the UI
- * reads. Used by {@link ingestPendingInvites} to skip notify()
- * calls when the server re-sends an unchanged row (every
- * heartbeat tick re-delivers all pending invites — we don't want
- * each one to wake every subscriber).
- */
 function inviteEquals( a: PendingInvite, b: PendingInvite ): boolean {
 	return (
 		a.id === b.id &&
@@ -110,14 +91,11 @@ export function ingestPendingInvites( invites: PendingInvite[] ): void {
 	const existingById = new Map( s.state.pending.map( ( p ) => [ p.id, p ] ) );
 	let mutated = false;
 	for ( const raw of invites ) {
-		// File-share shapes carry `fileId`, not `folderId` — pin a
-		// numeric folderId so downstream consumers typed against the
-		// folder shape never see `undefined`.
 		const inv: PendingInvite =
 			raw.targetType === 'file' && typeof raw.folderId !== 'number'
 				? { ...raw, folderId: 0 }
 				: raw;
-		// Suppress re-prompt for previously-denied targets.
+
 		if ( inv.targetType === 'file' ) {
 			if ( typeof inv.fileId === 'number' && s.state.deniedFiles.has( inv.fileId ) ) {
 				continue;
@@ -127,10 +105,6 @@ export function ingestPendingInvites( invites: PendingInvite[] ): void {
 		}
 		const existing = existingById.get( inv.id );
 		if ( existing ) {
-			// Skip byte-identical re-deliveries — the heartbeat
-			// re-sends every pending invite each tick; without this
-			// guard the subscribers fire on every tick even when
-			// nothing changed.
 			if ( inviteEquals( existing, inv ) ) {
 				continue;
 			}

@@ -1,27 +1,5 @@
 <?php declare(strict_types = 1);
 
-/**
- * A phpMyAdmin DBI extension for the MySQL-on-SQLite driver.
- *
- * Originally written by the WordPress Studio team as part of their
- * phpMyAdmin bundle (`wp-files/phpmyadmin/libraries/classes/Dbal/
- * DbiMysqli.php`). Adapted here for openstation so the bundled
- * phpMyAdmin works against the WordPress sqlite-database-integration
- * plugin in any WordPress install — not just inside Studio.
- *
- * Loader differences vs. Studio's original:
- *   - Studio loads via `/internal/shared/wp-env.php` (Studio-specific).
- *     We load via `wp-content/db.php` (the standard SQLite drop-in
- *     that sqlite-database-integration installs).
- *   - Studio reads `$wp_env['db']['path']` for the SQLite file path.
- *     We read the `FQDB` constant the integration plugin defines.
- *
- * The class body is unchanged from Studio's original.
- *
- * @see https://github.com/phpmyadmin/phpmyadmin/blob/962857e4f63d42e38f11ff4d63f5e722018add76/libraries/classes/Dbal/DbiMysqli.php
- * @see https://github.com/phpmyadmin/phpmyadmin/blob/142c0cf3be84c346174b730b6aa3ebcf44029256/src/Dbal/MysqliResult.php
- */
-
 namespace PhpMyAdmin\Dbal;
 
 use Closure;
@@ -33,10 +11,6 @@ use Throwable;
 use WP_SQLite_Connection;
 use WP_SQLite_Driver;
 
-// Load the SQLite driver via the standard WP drop-in. The drop-in at
-// wp-content/db.php (installed by sqlite-database-integration) chains
-// into the plugin's own bootstrap which loads WP_SQLite_Driver,
-// WP_SQLite_Connection, and defines the FQDB constant we use below.
 if (!class_exists('WP_SQLite_Driver') && defined('WP_CONTENT_DIR')) {
 	$osc_pma_dropin = WP_CONTENT_DIR . '/db.php';
 	if (is_readable($osc_pma_dropin)) {
@@ -49,8 +23,6 @@ if (!class_exists('WP_SQLite_Driver')) {
 	die('phpMyAdmin SQLite adapter (openstation): WP_SQLite_Driver class not found. Is the sqlite-database-integration plugin active?');
 }
 
-// Supress the following phpMyAdmin warning:
-//   "The mysqlnd extension is missing. Please check your PHP configuration."
 Closure::bind(
 	function () {
 		$this->errors = array_values(
@@ -70,7 +42,6 @@ Closure::bind(
 	$GLOBALS['errorHandler']
 )();
 
-// Ensure MySQLi type constants are defined for phpMyAdmin.
 if (!defined('MYSQLI_TYPE_DECIMAL')) define('MYSQLI_TYPE_DECIMAL', 0);
 if (!defined('MYSQLI_TYPE_TINY')) define('MYSQLI_TYPE_TINY', 1);
 if (!defined('MYSQLI_TYPE_CHAR')) define('MYSQLI_TYPE_CHAR', 1);
@@ -101,7 +72,6 @@ if (!defined('MYSQLI_TYPE_VAR_STRING')) define('MYSQLI_TYPE_VAR_STRING', 253);
 if (!defined('MYSQLI_TYPE_STRING')) define('MYSQLI_TYPE_STRING', 243);
 if (!defined('MYSQLI_TYPE_GEOMETRY')) define('MYSQLI_TYPE_GEOMETRY', 255);
 
-// Ensure MySQLi flags constants are defined for phpMyAdmin.
 if (!defined('MYSQLI_NOT_NULL_FLAG')) define('MYSQLI_NOT_NULL_FLAG', 1);
 if (!defined('MYSQLI_PRI_KEY_FLAG')) define('MYSQLI_PRI_KEY_FLAG', 2);
 if (!defined('MYSQLI_UNIQUE_KEY_FLAG')) define('MYSQLI_UNIQUE_KEY_FLAG', 4);
@@ -120,21 +90,12 @@ if (!defined('MYSQLI_PART_KEY_FLAG')) define('MYSQLI_PART_KEY_FLAG', 16384);
 if (!defined('MYSQLI_NUM_FLAG')) define('MYSQLI_NUM_FLAG', 32768);
 if (!defined('MYSQLI_GROUP_FLAG')) define('MYSQLI_GROUP_FLAG', 32768);
 
-/**
- * A custom result class for the MySQL-on-SQLite driver.
- *
- * This implementation is based on the original PhpMyAdmin\Dbal\MysqliResult class.
- *
- * @see https://github.com/phpmyadmin/phpmyadmin/blob/142c0cf3be84c346174b730b6aa3ebcf44029256/src/Dbal/MysqliResult.php
- */
 class Result implements ResultInterface {
-	/** @var array */
+
 	private $rows = array();
 
-	/** @var array */
 	private $columns = array();
 
-	/** @var int */
 	private $row_offset = 0;
 
 	public function __construct($rows, $columns) {
@@ -200,16 +161,12 @@ class Result implements ResultInterface {
 		foreach ($this->columns as $column) {
 			$flags = $column['flags'] ?? array();
 
-			// PhpMyAdmin expects MySQLi-like column metadata rather than PDO syntax.
-			// The SQLite driver provides it in "mysqli:" prefixed metadata keys.
 			foreach ($column as $key => $value) {
 				if (strpos($key, 'mysqli:') === 0) {
 					$column[substr($key, 7)] = $value;
 				}
 			}
 
-			// Convert PDO-style flags array to MySQLi-style integer bitmask.
-			// TODO: Remove this when the driver implements "mysqli:flags".
 			$mysqli_flags = 0;
 			foreach ($flags as $flag) {
 				switch ($flag) {
@@ -259,21 +216,12 @@ class Result implements ResultInterface {
 	}
 }
 
-/**
- * A custom DBI extension for the MySQL-on-SQLite driver.
- *
- * This implementation is based on the original PhpMyAdmin\Dbal\DbiMysqli class.
- *
- * @see https://github.com/phpmyadmin/phpmyadmin/blob/962857e4f63d42e38f11ff4d63f5e722018add76/libraries/classes/Dbal/DbiMysqli.php
- */
 class DbiMysqli implements DbiExtension {
-	/** @var WP_SQLite_Driver */
+
     private $driver;
 
-	/** @var string */
 	private $last_error_message = '';
 
-	/** @var int */
 	private $last_error_number = 0;
 
     public function connect($user, $password, array $server) {
@@ -307,19 +255,19 @@ class DbiMysqli implements DbiExtension {
     }
 
     public function realMultiQuery($link, $query): bool {
-		return false; // Multi-query not implemented.
+		return false;
     }
 
     public function moreResults($link): bool {
-		return false; // Multi-query not implemented.
+		return false;
     }
 
     public function nextResult($link): bool {
-		return false; // Multi-query not implemented.
+		return false;
     }
 
     public function storeResult($link) {
-		return false; // Multi-query not implemented.
+		return false;
     }
 
     public function getHostInfo($link) {
@@ -351,8 +299,7 @@ class DbiMysqli implements DbiExtension {
     }
 
     public function escapeString($link, $string) {
-		// For some reason, using "$link->get_connection()->quote($string)"
-		// causes the strings to be double-quoted. Let's skip the quoting.
+
 		return $string;
     }
 

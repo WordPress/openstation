@@ -1,40 +1,7 @@
 <?php
-/**
- * OpenStation — upload REST intake.
- *
- * One route:
- *
- *   POST /desktop-mode/v1/files/uploads
- *       multipart/form-data with ONE file part (`file`) plus:
- *       `parentId`     target folder id (0 = desktop root)
- *       `relativePath` optional `a/b/c.txt`-style path from a
- *                      folder-tree upload; the server resolves the
- *                      directory segments to folder rows mkdir-p
- *                      style (deduped by parent + name)
- *       `x`, `y`       optional tile coordinates (root drops)
- *
- * One file per request on purpose: per-file retry, per-file
- * progress, and no interaction with `max_file_uploads` /
- * `post_max_size` aggregates. Internally the handler is split into
- * receive (bytes → disk) and register (row + placement) so a future
- * resumable-upload layer can feed the same register step.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Extensions that must never be accepted regardless of the MIME
- * policy — server- or config-executable files. Matched against
- * EVERY dot-segment of the client filename (`shell.php.gif` is
- * rejected even though its final extension is fine), per the
- * OWASP double-extension guidance. Belt and suspenders: the WP
- * MIME policy would reject most of these anyway, and the stored
- * disk name is an extensionless UUID that no handler dispatches.
- *
- * @return string[]
- */
 function openstation_stored_files_denied_extensions() {
 	$denied = array(
 		'php',
@@ -54,28 +21,17 @@ function openstation_stored_files_denied_extensions() {
 		'jsp',
 		'shtml',
 	);
-	/**
-	 * Filters the hard-denied extension list. Narrowing this below
-	 * the shipped set is strongly discouraged.
-	 *
-	 * @param string[] $denied Lowercase extensions.
-	 */
+
 	return (array) apply_filters( 'openstation_stored_files_denied_extensions', $denied );
 }
 
-/**
- * Whole-filename denylist (dotfiles / server config).
- *
- * @param string $name Client filename.
- * @return bool True when the name is forbidden.
- */
 function openstation_stored_files_is_denied_filename( $name ) {
 	$name = strtolower( trim( (string) $name ) );
 	if ( in_array( $name, array( '.htaccess', '.user.ini', 'web.config' ), true ) ) {
 		return true;
 	}
 	$segments = explode( '.', $name );
-	array_shift( $segments ); // Everything after the first dot is an "extension" segment.
+	array_shift( $segments );
 	$denied = openstation_stored_files_denied_extensions();
 	foreach ( $segments as $segment ) {
 		if ( in_array( $segment, $denied, true ) ) {
@@ -85,28 +41,12 @@ function openstation_stored_files_is_denied_filename( $name ) {
 	return false;
 }
 
-/**
- * Effective per-file size cap in bytes.
- *
- * @param int $user_id User.
- * @return int
- */
 function openstation_stored_files_max_upload_bytes( $user_id ) {
 	$max = (int) wp_max_upload_size();
-	/**
-	 * Filters the per-file upload cap for desktop storage. May only
-	 * effectively lower it below the server limits — PHP discards
-	 * larger bodies before WordPress runs.
-	 *
-	 * @param int $max     Cap in bytes. Default `wp_max_upload_size()`.
-	 * @param int $user_id User.
-	 */
+
 	return max( 0, (int) apply_filters( 'openstation_stored_files_max_upload_bytes', $max, (int) $user_id ) );
 }
 
-/**
- * Permission: base files gate + the upload capability.
- */
 function openstation_files_rest_uploads_permission() {
 	$base = openstation_files_rest_permission();
 	if ( is_wp_error( $base ) ) {
@@ -122,16 +62,12 @@ function openstation_files_rest_uploads_permission() {
 	return true;
 }
 
-/**
- * Register the upload route.
- */
 function openstation_files_register_upload_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/files/uploads',
 		array(
-			// POST only — PHP parses multipart into $_FILES for real
-			// POST requests exclusively.
+
 			'methods'             => WP_REST_Server::CREATABLE,
 			'permission_callback' => 'openstation_files_rest_uploads_permission',
 			'callback'            => 'openstation_files_rest_upload',
@@ -145,8 +81,7 @@ function openstation_files_register_upload_rest_routes() {
 					'type'    => 'string',
 					'default' => '',
 				),
-				// No defaults on x/y on purpose: absent coords mean
-				// "server picks the next free grid slot".
+
 				'x'            => array(
 					'type'     => 'integer',
 					'required' => false,
@@ -197,22 +132,13 @@ function openstation_files_register_upload_rest_routes() {
 	);
 }
 
-/**
- * POST /files/uploads/paths — mkdir-p a directory path with no
- * file attached. Used by folder-tree drops to preserve EMPTY
- * directories (the drag-drop Entries API sees them; files-only
- * transports lose them).
- *
- * @param WP_REST_Request $req Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_files_rest_ensure_upload_path( WP_REST_Request $req ) {
 	$rel = (string) $req->get_param( 'relativePath' );
 	if ( '' === trim( $rel, " \t/" ) ) {
 		return new WP_Error( 'openstation_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 	if ( '/' !== substr( $rel, -1 ) ) {
-		$rel .= '/'; // Whole string is a directory path.
+		$rel .= '/';
 	}
 	$created   = array();
 	$folder_id = openstation_files_resolve_relative_path(
@@ -232,13 +158,6 @@ function openstation_files_rest_ensure_upload_path( WP_REST_Request $req ) {
 	);
 }
 
-/**
- * PATCH /files/uploads/<id> — rename (owner only). Not-found and
- * not-owner are both 404 (existence masking, same as downloads).
- *
- * @param WP_REST_Request $req Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_files_rest_rename_upload( WP_REST_Request $req ) {
 	$file_id = (int) $req['id'];
 	$user_id = get_current_user_id();
@@ -262,20 +181,10 @@ function openstation_files_rest_rename_upload( WP_REST_Request $req ) {
 }
 add_action( 'rest_api_init', 'openstation_files_register_upload_rest_routes' );
 
-/**
- * POST /files/uploads
- *
- * @param WP_REST_Request $req Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_files_rest_upload( WP_REST_Request $req ) {
 	$user_id = get_current_user_id();
 	$files   = $req->get_file_params();
 
-	// A body larger than `post_max_size` reaches PHP as a paramless
-	// request: $_POST and $_FILES both empty while CONTENT_LENGTH
-	// says bytes were sent. Answer a clear 413 instead of the
-	// baffling "missing parameter" default.
 	if ( empty( $files ) ) {
 		$content_length = isset( $_SERVER['CONTENT_LENGTH'] ) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
 		if ( $content_length > 0 ) {
@@ -321,7 +230,7 @@ function openstation_files_rest_upload( WP_REST_Request $req ) {
 		$coords
 	);
 	if ( is_wp_error( $registered ) ) {
-		// Bytes are already on disk; don't leak them.
+
 		if ( ! empty( $received['path'] ) && file_exists( $received['path'] ) ) {
 			wp_delete_file( $received['path'] );
 		}
@@ -338,21 +247,6 @@ function openstation_files_rest_upload( WP_REST_Request $req ) {
 	);
 }
 
-/**
- * Shape the folders a request created mkdir-p style so the client
- * can paint their tiles the moment they exist. Each entry carries
- * the folder row AND its placement in the parent the client is
- * looking at — the per-file `placement` in the same response only
- * describes the file inside the leaf folder, which is why the
- * wallpaper tile used to wait for the end-of-batch resync (or the
- * next Heartbeat delta) after a folder-tree drop.
- *
- * @internal
- *
- * @param array $created `{ folder_id, placement_id }` rows from
- *                       `openstation_files_resolve_relative_path()`.
- * @return array<int,array{folder:array,placement:array}>
- */
 function openstation_files_shape_created_folders( $created ) {
 	$out = array();
 	foreach ( (array) $created as $entry ) {
@@ -372,18 +266,6 @@ function openstation_files_shape_created_folders( $created ) {
 	return $out;
 }
 
-/**
- * Receive step: validate and move the bytes into the owner's
- * storage dir under a fresh UUID disk name. Returns
- * `{ path, disk_name, display_name, size_bytes, mime }` or an
- * error. No DB writes happen here.
- *
- * @internal
- *
- * @param array $file    Single `$_FILES`-shaped entry.
- * @param int   $user_id Uploader.
- * @return array|WP_Error
- */
 function openstation_files_upload_receive( $file, $user_id ) {
 	$user_id     = (int) $user_id;
 	$client_name = isset( $file['name'] ) ? (string) $file['name'] : '';
@@ -402,7 +284,7 @@ function openstation_files_upload_receive( $file, $user_id ) {
 		return new WP_Error(
 			'openstation_stored_files_too_large',
 			sprintf(
-				/* translators: %s: formatted maximum file size. */
+
 				__( 'That file is larger than the allowed maximum of %s.', 'desktop-mode' ),
 				size_format( $max )
 			),
@@ -426,16 +308,6 @@ function openstation_files_upload_receive( $file, $user_id ) {
 
 	require_once ABSPATH . 'wp-admin/includes/file.php';
 
-	/**
-	 * Filters the `ext => mime` allowlist for desktop-storage
-	 * uploads. Defaults to the user-scoped WordPress policy.
-	 * Additions here genuinely widen the policy (the scoped
-	 * `upload_mimes` hook below keeps core's re-check in
-	 * `wp_check_filetype_and_ext()` in agreement).
-	 *
-	 * @param array<string,string> $mimes   Allowed map.
-	 * @param int                  $user_id Uploader.
-	 */
 	$mimes = (array) apply_filters(
 		'openstation_stored_files_allowed_mimes',
 		get_allowed_mime_types( $user_id ),
@@ -449,10 +321,7 @@ function openstation_files_upload_receive( $file, $user_id ) {
 	$name_cb     = static function ( $dir_unused, $name_unused, $ext_unused ) use ( $disk_name ) {
 		return $disk_name;
 	};
-	// Resolve the target paths BEFORE hooking `upload_dir` and close
-	// over plain strings — `openstation_stored_files_dir()` calls
-	// `wp_get_upload_dir()`, which applies the `upload_dir` filter,
-	// so calling it from inside the closure would recurse infinitely.
+
 	$target_base = openstation_stored_files_dir();
 	$target_dir  = openstation_stored_files_dir( $user_id );
 	$redirect    = static function ( $dirs ) use ( $user_id, $target_base, $target_dir ) {
@@ -464,15 +333,6 @@ function openstation_files_upload_receive( $file, $user_id ) {
 		return $dirs;
 	};
 
-	/**
-	 * Filters the `wp_handle_upload()` overrides for desktop-storage
-	 * uploads. Exists mainly so tests (and future resumable layers
-	 * feeding pre-staged files) can switch `action` to the sideload
-	 * variant — never remove `test_form => false`.
-	 *
-	 * @param array $overrides Overrides array.
-	 * @param int   $user_id   Uploader.
-	 */
 	$overrides = (array) apply_filters(
 		'openstation_stored_files_upload_overrides',
 		array(
@@ -507,24 +367,6 @@ function openstation_files_upload_receive( $file, $user_id ) {
 	);
 }
 
-/**
- * Register step: stored-file row + folder resolution + placement.
- *
- * @internal
- *
- * @param int        $user_id       Uploader.
- * @param array      $received      Return value of the receive step.
- * @param int        $parent_id     Base target folder (0 = root).
- * @param string     $relative_path Optional `a/b/c.ext` path; directory
- *                                  segments are resolved under `$parent_id`.
- * @param array|null $coords        `x`, `y` for the placement, or null
- *                                  to auto-place at the next free slot.
- * @return array|WP_Error `{ file_id, placement_id, created_folders }` —
- *                        `created_folders` lists the `{ folder_id,
- *                        placement_id }` pairs the relative path
- *                        created (empty for flat uploads and for
- *                        segments that already existed).
- */
 function openstation_files_upload_register( $user_id, $received, $parent_id, $relative_path = '', $coords = null ) {
 	$parent_id = max( 0, (int) $parent_id );
 	$created   = array();
@@ -562,9 +404,7 @@ function openstation_files_upload_register( $user_id, $received, $parent_id, $re
 			)
 		);
 	} else {
-		// No coords sent (folder-tree members, batch files after
-		// the first) — the server picks the next free grid slot so
-		// tiles never stack at the origin.
+
 		$placement_id = openstation_files_place_at_next_free_slot(
 			(int) $user_id,
 			$parent_id,
@@ -573,22 +413,11 @@ function openstation_files_upload_register( $user_id, $received, $parent_id, $re
 		);
 	}
 	if ( is_wp_error( $placement_id ) ) {
-		// Roll back through the store primitive so the documented
-		// `openstation_stored_file_created` / `_deleted` action pair
-		// stays balanced for subscribers (and the bytes go with the
-		// row — the caller's outer cleanup guard becomes a no-op).
+
 		openstation_stored_files_delete( (int) $file_id );
 		return $placement_id;
 	}
 
-	/**
-	 * Fires after an upload lands (bytes, row, and placement all
-	 * exist).
-	 *
-	 * @param int $file_id      Stored-file id.
-	 * @param int $placement_id Placement id.
-	 * @param int $user_id      Uploader.
-	 */
 	do_action( 'openstation_stored_file_uploaded', (int) $file_id, (int) $placement_id, (int) $user_id );
 
 	return array(
@@ -598,29 +427,6 @@ function openstation_files_upload_register( $user_id, $received, $parent_id, $re
 	);
 }
 
-/**
- * Resolve the DIRECTORY part of `a/b/c.ext` to a folder id under
- * `$base_parent_id`, creating folder rows + placements mkdir-p
- * style. Existing folders are reused when the acting user already
- * has a live folder of that name in that parent (dedupe — parallel
- * uploads of one tree share segments instead of racing).
- *
- * The final path segment is the FILE name and is ignored here.
- *
- * @param int    $user_id        Acting user.
- * @param int    $base_parent_id Folder to resolve under (0 = root).
- * @param string $relative_path  `a/b/c.ext` or `a/b/` (trailing
- *                               slash = pure directory path, e.g.
- *                               an empty folder from a drag).
- * @param array  $created        Optional, by reference. Receives one
- *                               `{ folder_id, placement_id }` entry per
- *                               folder this call created, outermost
- *                               first, so the caller can hand the new
- *                               tiles to the client in the same
- *                               response. Reused segments are not
- *                               listed.
- * @return int|WP_Error Folder id to place the file in.
- */
 function openstation_files_resolve_relative_path( $user_id, $base_parent_id, $relative_path, &$created = null ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
@@ -634,7 +440,7 @@ function openstation_files_resolve_relative_path( $user_id, $base_parent_id, $re
 	$is_dir_path = '/' === substr( $path, -1 );
 	$segments    = array_values( array_filter( explode( '/', $path ), 'strlen' ) );
 	if ( ! $is_dir_path ) {
-		array_pop( $segments ); // Last segment is the file name.
+		array_pop( $segments );
 	}
 	if ( empty( $segments ) ) {
 		return $parent_id;
@@ -653,8 +459,6 @@ function openstation_files_resolve_relative_path( $user_id, $base_parent_id, $re
 			return new WP_Error( 'openstation_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 
-		// Dedupe: a live folder of this name, placed in this parent,
-		// owned by the acting user.
 		$existing = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT f.id FROM {$tables['folders']} f
@@ -683,10 +487,7 @@ function openstation_files_resolve_relative_path( $user_id, $base_parent_id, $re
 		if ( is_wp_error( $folder_id ) ) {
 			return $folder_id;
 		}
-		// Next free slot, same as the file placements below: a bare
-		// `openstation_files_place()` pins the tile at 0,0, which the
-		// layer only displaces client-side — the stored coordinates
-		// stay wrong and the tile jumps on the next repaint.
+
 		$placement = openstation_files_place_at_next_free_slot( $user_id, $parent_id, 'folder', (string) $folder_id );
 		if ( is_wp_error( $placement ) ) {
 			return $placement;
@@ -702,13 +503,6 @@ function openstation_files_resolve_relative_path( $user_id, $base_parent_id, $re
 	return $parent_id;
 }
 
-/**
- * Shell-config injection: what the client upload/download UX needs
- * to know up front.
- *
- * @param array $config Shell config.
- * @return array
- */
 function openstation_stored_files_inject_shell_config( $config ) {
 	$user_id                  = get_current_user_id();
 	$config['desktopStorage'] = array(

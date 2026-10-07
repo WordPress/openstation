@@ -1,10 +1,3 @@
-/**
- * Server-driven custom-chrome sync.
- *
- * Same shape as themes / controls / slots server-syncs. Marked
- * Experimental — chrome render contract may change.
- */
-
 import { doAction, HOOKS } from '../../hooks';
 import { loadVendorScript } from '../../wallpapers/vendor-loader';
 import {
@@ -35,8 +28,7 @@ export function createWindowChromeRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-				// The packages the bundle declares, brought in first; the
-				// document skips what it already ran.
+
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,

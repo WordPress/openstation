@@ -1,13 +1,3 @@
-/**
- * Posts app — the sidebar editor's building blocks: the header dot +
- * label, the labelled inputs (a slug input normalises as you type),
- * the meta line, the actions row, the empty state, and the two-click
- * armed Delete. Both canvases compose their draft and editor forms
- * from these.
- *
- * @public
- */
-
 import { __ } from '@openstation/app';
 import { CANVAS_PREFIX, canvasButton } from './chrome';
 
@@ -34,7 +24,6 @@ function labelFor( sidebar: HTMLElement, text: string ): void {
 	sidebar.appendChild( label );
 }
 
-/** A labelled text input. */
 export function sidebarInput( sidebar: HTMLElement, label: string, value: string, placeholder: string ): HTMLInputElement {
 	labelFor( sidebar, label );
 	const input = document.createElement( 'input' );
@@ -46,11 +35,6 @@ export function sidebarInput( sidebar: HTMLElement, label: string, value: string
 	return input;
 }
 
-/**
- * The slug input: lowercase, `[a-z0-9-]`, normalised eagerly so the
- * user sees what will actually be saved; `autocapitalize="off"` keeps
- * phone keyboards from capitalising the first character.
- */
 export function sidebarSlugInput( sidebar: HTMLElement, value: string ): HTMLInputElement {
 	const input = sidebarInput( sidebar, __( 'Slug' ), value, __( 'auto-from-name' ) );
 	input.spellcheck = false;
@@ -96,7 +80,6 @@ export function sidebarActions( sidebar: HTMLElement, buttons: HTMLElement[] ): 
 	sidebar.appendChild( actions );
 }
 
-/** The empty state when nothing is focused. */
 export function sidebarEmpty( sidebar: HTMLElement, icon: string, title: string, hint: string ): void {
 	const empty = document.createElement( 'div' );
 	empty.className = `${ P }__sidebar-empty`;
@@ -115,10 +98,6 @@ export function sidebarEmpty( sidebar: HTMLElement, icon: string, title: string,
 	sidebar.appendChild( empty );
 }
 
-/**
- * Delete as a two-click gesture: the first click arms the button
- * ("Click again to delete") for 2.5s, the second runs it.
- */
 export function armedDeleteButton( onDelete: () => Promise< void > ): HTMLButtonElement {
 	const delBtn = canvasButton( 'danger', __( 'Delete' ) );
 	let armResetTimer: number | null = null;
@@ -145,7 +124,6 @@ export function armedDeleteButton( onDelete: () => Promise< void > ): HTMLButton
 	return delBtn;
 }
 
-/** Enter commits, Escape cancels — the muscle memory of every "new item" form in wp-admin. */
 export function bindDraftKeys( input: HTMLInputElement, commit: () => void, cancel: () => void ): void {
 	input.addEventListener( 'keydown', ( e ) => {
 		if ( e.key === 'Enter' ) {

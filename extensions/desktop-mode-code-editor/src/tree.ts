@@ -1,29 +1,14 @@
-/**
- * Code Editor — file-tree component.
- *
- * Hand-rolled recursive tree, lazy-expanding. Each folder fetches
- * its children on first expand; subsequent expand/collapse cycles
- * just toggle visibility. Click on a folder row toggles. Click on
- * a file row fires the host's `onOpen( path )` callback.
- *
- * No dedicated `<os-tree>` primitive yet — this is rolled here so
- * the editor isn't blocked on a component-kit addition. If a third
- * plugin needs the same shape, promote.
- *
- * @internal
- */
-
 import { fetchTree, type TreeEntry } from './rest';
 
 export interface FileTreeOptions {
-	/** Mount node — the tree's `<ul>` becomes a child of this. */
+
 	mount: HTMLElement;
-	/** Called when the user clicks a file row that's `allowed`. */
+
 	onOpen: ( path: string ) => void;
 }
 
 export interface FileTreeHandle {
-	/** Tear down listeners + DOM. */
+
 	dispose(): void;
 }
 
@@ -69,14 +54,9 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 	mount.classList.add( 'osc-tree' );
 	mount.replaceChildren();
 
-	// Map of path → its child <ul> so collapse-then-re-expand doesn't
-	// re-fetch. Closures over a single `expanded` Set keep state.
 	const childrenByPath = new Map< string, HTMLUListElement >();
 	const expanded = new Set< string >();
 
-	// Single AbortController per expanding path so a fast double-click
-	// (expand → collapse → expand) cancels the in-flight request
-	// instead of racing.
 	const inflight = new Map< string, AbortController >();
 
 	const renderRow = ( entry: TreeEntry ): HTMLLIElement => {
@@ -115,8 +95,7 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 				if ( ! entry.allowed ) {
 					return;
 				}
-				// Visual selection — single-select, light enough we
-				// don't need a separate state machine.
+
 				mount
 					.querySelectorAll< HTMLElement >( '.osc-tree__row--active' )
 					.forEach( ( el ) =>
@@ -128,7 +107,6 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 			return li;
 		}
 
-		// Directory.
 		const childUl = document.createElement( 'ul' );
 		childUl.className = 'osc-tree__children';
 		childUl.hidden = true;
@@ -152,8 +130,6 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 			expanded.add( entry.path );
 			setExpanded( true );
 
-			// Fetch only on first expansion. Subsequent toggles use
-			// the cached <ul>.
 			if ( childrenByPath.has( entry.path ) ) {
 				return;
 			}

@@ -1,13 +1,5 @@
 #!/usr/bin/env node
-/**
- * Build every app client view — `apps/<dir>/<name>.os.ts` — into
- * `assets/js/apps/<name>[.min].js`.
- *
- * `vite.config.js` discovers the same files and exposes each as the
- * target `app:<name>`; this script just runs Vite once per target in
- * both modes, the way the `build:*` scripts do for the fixed bundles.
- * Adding a new `.os.ts` needs no registration anywhere.
- */
+
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';

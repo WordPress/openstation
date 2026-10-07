@@ -1,14 +1,3 @@
-/*
- * Station Home — Editorial Flight Deck.
- *
- * The selected Imagegen direction sets the hierarchy and proportion. This
- * stylesheet translates it to live, theme-aware DOM: one identity mesh, no
- * card shadows, generous editorial rhythm, and a compact top-band fallback.
- *
- * Loaded by the App Framework as the app's stylesheet (`<app dir>/
- * station-home.css`), on the window's first open.
- */
-
 .desktop-mode-station-home {
 	container: station-home / inline-size;
 	box-sizing: border-box;
@@ -89,32 +78,11 @@
 .os-station-home__mesh {
 	position: absolute;
 	z-index: 0;
-	/*
-	 * The aurora fills the rail; the gradient stops place it, not the
-	 * element box. Sizing the box to the shape is what gave this an
-	 * outline to find, and an outline is what made people read a
-	 * mascot in it.
-	 */
+
 	inset: 0;
-	/*
-	 * Read through the kit's themeable name, NOT `--os-mesh-holo`.
-	 * A theme that suppresses the meshes sets every `--os-mesh-*` to
-	 * `none`; because the property IS declared, the literal below
-	 * would never fire and this would paint nothing at all rather
-	 * than a quieter self.
-	 *
-	 * `--os-ui-hero-mesh` rather than `--os-ui-holo-fill` because
-	 * this is a field, not a control. See the token's note in
-	 * `variables.css` for why a field carries its alpha in the stops.
-	 */
+
 	background: var( --os-ui-hero-mesh, radial-gradient( ellipse 38% 26% at 24% 20%, rgba( 170, 103, 255, 0.55 ) 0%, rgba( 170, 103, 255, 0 ) 72% ) );
-	/*
-	 * No `opacity` here. The strength is in the stops, so dimming the
-	 * whole layer would only pull every hue back toward the surface
-	 * behind it — the exact thing this token exists to avoid. The
-	 * mask fades the two ends so the field never meets the brand mark
-	 * above it or the quick actions below on a hard line.
-	 */
+
 	mask-image: linear-gradient( to bottom, transparent, #000 9%, #000 88%, transparent );
 }
 
@@ -144,24 +112,6 @@ a.os-station-home__action {
 	text-decoration: none;
 }
 
-/*
- * Hover and focus are scoped to the LINKS.
- *
- * A quick action is an `<a>` when it navigates and an `<os-button>`
- * when it calls into the shell, which is not a difference the user
- * has any business seeing — the five rows are one list. Left
- * unscoped, these two rules land on the component hosts as well and
- * stack on top of the chrome the kit already draws: the host's
- * background paints under a shadow button that is separately painting
- * `--os-ui-button-bg-hover`, so two low-alpha films compound and the
- * component-backed rows hover visibly darker than their neighbours;
- * and the host's `box-shadow` doubles the focus ring the button draws
- * from the same token. `border-color` on a host is simply dead — no
- * border-width or style there to recolour.
- *
- * So the links keep these, and the buttons are matched through the
- * `--os-ui-button-*` tokens below instead.
- */
 a.os-station-home__action:hover {
 	background: var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) );
 	border-color: var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
@@ -180,55 +130,18 @@ os-button.os-station-home__action {
 	--os-ui-button-fg: var( --os-ui-fg, #fffbff );
 	--os-ui-button-bg-hover: var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) );
 	--os-ui-button-border-radius: 8px;
-	/*
-	 * Quiet the iridescent layers for these two.
-	 *
-	 * Every `<os-button>` carries `os-holo-edge os-holo-sheen` on its
-	 * inner button whatever the variant, so a ghost button in this
-	 * list lights a gradient hairline and a hover film that its three
-	 * `<a>` siblings have no way to match. The hairline is a genuine
-	 * 1px all the way round — `holoEdge` builds it from `padding: 1px`
-	 * and `mask-composite: exclude` — but it is painted with a 124deg
-	 * gradient running 0.85 alpha at one end and 0.6 at the other, so
-	 * it reads as changing WIDTH around the corner. In a row of five
-	 * it just looks like two of them are wrong.
-	 *
-	 * Quieted here rather than in the component: the edge is exactly
-	 * right for a button that stands on its own, and the holographic
-	 * state is meant to be spent on identity moments, not on every
-	 * item in a nav list. The `:active` glint and ring stay — those
-	 * are press feedback, not resting chrome.
-	 */
+
 	--os-ui-holo-edge: none;
 	--os-ui-holo-edge-quiet: none;
 	--os-ui-holo-sheen: none;
 	text-align: start;
 }
 
-/*
- * Left-align the row, and match the links' icon gap.
- *
- * `<os-button>` centres its content — right for a button, wrong for a
- * nav row, and invisible until `fill-cell` gives the button a width
- * bigger than its label to centre WITHIN. The result is two rows that
- * look indented against three that start at the padding edge.
- *
- * Neither justification nor gap has a `--os-ui-button-*` token, so
- * this goes through `::part( button )`, which the component documents
- * as an author hook for exactly this. `text-align` on the host cannot
- * do it — the content is laid out by flex, which `text-align` does
- * not reach.
- */
 os-button.os-station-home__action::part( button ) {
 	justify-content: flex-start;
 	gap: 12px;
 }
 
-/*
- * The border the `<a>` rule gets from `border-color`, which cannot
- * reach a component host. The shadow button reads this token, so the
- * hairline appears on hover exactly as it does on the links.
- */
 os-button.os-station-home__action:hover {
 	--os-ui-button-border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
 }
@@ -353,15 +266,7 @@ os-button.os-station-home__action:hover {
 	overflow: hidden;
 	font-size: clamp( 17px, 1.7vw, 22px );
 	font-weight: 620;
-	/*
-	 * `overflow: hidden` clips to the LINE BOX, not the glyphs, and
-	 * `line-height: normal` is a font-metrics number that several
-	 * families set tighter than their own descender depth. Every
-	 * `g`, `p`, `y` and `j` then loses its tail — legibly enough to
-	 * pass a glance and wrong in every screenshot. The overflow is
-	 * here for the ellipsis, so the line box has to be told to make
-	 * room rather than left to the font.
-	 */
+
 	line-height: 1.35;
 	letter-spacing: -0.025em;
 	text-overflow: ellipsis;
@@ -410,7 +315,7 @@ os-button.os-station-home__action:hover {
 
 .os-station-home__metric-label span:last-child {
 	overflow: hidden;
-	/* Same descender clip as `__row-title`; see the note there. */
+
 	line-height: 1.35;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -560,7 +465,7 @@ a.os-station-home__card:focus-visible {
 .os-station-home__card-head strong {
 	overflow: hidden;
 	font-size: 15px;
-	/* Same descender clip as `__row-title`; see the note there. */
+
 	line-height: 1.35;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -671,12 +576,7 @@ a.os-station-home__card:focus-visible {
 	}
 
 	.os-station-home__mesh {
-		/*
-		 * The rail is a top band here, so the field fills that
-		 * instead and the fade turns to run along it. No `opacity`
-		 * override: the base rule dropped it, and re-introducing it
-		 * would knock the aurora's chroma back down.
-		 */
+
 		inset: 0;
 		mask-image: linear-gradient( 90deg, transparent, #000 24%, #000 76%, transparent );
 	}

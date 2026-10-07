@@ -1,25 +1,3 @@
-/**
- * OpenStation — Related-entities title-bar button.
- *
- * Registers the built-in "Related" button through the very same
- * public surface a plugin would use (`registerTitleBarButton`). The
- * button appears only on windows whose content identity carries
- * related navigation targets — for posts/pages those are built
- * server-side (comments, assigned terms, attached media; see
- * `openstation_window_related_entities_for_post()` in
- * `includes/window-links.php`) and travel with the
- * `os-content-identity` bridge payload. Clicking an item
- * opens the target admin URL as its own desktop window.
- *
- * Developer surface: the `openstation_window_related_entities` PHP
- * filter adds items for any screen; the
- * `os.related-entities.items` JS filter
- * ({@link HOOKS.RELATED_ENTITIES_ITEMS}) rewrites the resolved list
- * per window. Both feed a single resolver used for the button's
- * `match` predicate AND the menu build, so visibility and menu
- * content can never disagree.
- */
-
 import { addAction, applyFilters, HOOKS } from '../hooks';
 import { __ } from '../i18n';
 import { registerTitleBarButton } from '../title-bar-buttons/registry';
@@ -29,30 +7,19 @@ import { buildRelatedMenu } from './menu';
 
 import type { Window as DesktopWindow } from '../window';
 
-/**
- * The slice of a `Window` instance the repaint hook touches —
- * structural so the main-bundle boot never imports the lazy
- * window-system bundle's classes.
- */
 interface RelatedEntitiesWindowLike {
 	renderCustomTitleBarButtons?: () => void;
 	element?: HTMLElement;
 }
 
-/**
- * The subset of the window manager the module needs — structural so
- * tests can hand in a tiny fake.
- */
 interface RelatedEntitiesManager {
 	getById: (
 		id: string,
 	) => RelatedEntitiesWindowLike | null | undefined;
 }
 
-/** Callback that opens a picked related entity as a desktop window. */
 export type OpenRelatedEntity = ( item: RelatedEntityItem ) => void;
 
-/** Well-formed check for a single filter-supplied item. */
 function isValidItem( item: unknown ): item is RelatedEntityItem {
 	if ( ! item || typeof item !== 'object' ) {
 		return false;
@@ -64,12 +31,7 @@ function isValidItem( item: unknown ): item is RelatedEntityItem {
 		requiredString( candidate.id ) &&
 		requiredString( candidate.group ) &&
 		requiredString( candidate.label ) &&
-		// A destination, either way round. `url` was the only one
-		// for a long time, so it stays valid alone; `windowId` alone
-		// is how an item points at a native window, which has no URL
-		// to name. Both together is the belt-and-braces form: open
-		// the window, fall back to the page if the plugin that owned
-		// the window is gone.
+
 		( requiredString( candidate.url ) ||
 			requiredString( candidate.windowId ) ) &&
 		( candidate.url === undefined ||
@@ -88,26 +50,12 @@ function isValidItem( item: unknown ): item is RelatedEntityItem {
 	);
 }
 
-/**
- * Resolve the related-entity items for a window: the identity's
- * server-built `related` list run through the
- * `os.related-entities.items` filter, with malformed
- * filter output dropped item-wise (a plugin's one bad entry must not
- * hide the rest of the menu).
- *
- * @param windowId Target window id.
- * @return Well-formed items, possibly empty.
- */
 export function resolveRelatedItems(
 	windowId: string,
 ): RelatedEntityItem[] {
 	const content: WindowContentRef | null =
 		getWindowContent( windowId ) ?? null;
-	// Shallow-copied items, NOT the live stored array: the resolver
-	// runs on every repaint, and the documented filter idiom is
-	// `items.push( … ); return items` — handing filters the engine's
-	// stored array would make that push persist into the identity and
-	// duplicate the item on every subsequent resolve.
+
 	const base =
 		content && Array.isArray( content.related )
 			? content.related.map( ( item ) => ( { ...item } ) )
@@ -129,15 +77,8 @@ export function resolveRelatedItems(
 	return filtered.filter( isValidItem );
 }
 
-/**
- * A Related panel element with its close routine attached, so every
- * removal path (button toggle, content-change repaint, outside click)
- * runs the same teardown — including the document-level dismiss
- * listener that a bare `.remove()` would leak.
- */
 type RelatedPanelElement = HTMLElement & { _wpdRelatedClose?: () => void };
 
-/** Close any open Related panel inside a window's element. */
 function closePanels( root: HTMLElement | undefined ): void {
 	root
 		?.querySelectorAll< RelatedPanelElement >(
@@ -152,13 +93,6 @@ function closePanels( root: HTMLElement | undefined ): void {
 		} );
 }
 
-/**
- * Swallow the dblclick that a double-click's SECOND click would
- * produce right after a menu pick. The first click removes the panel,
- * so the second lands on the bare title bar — without this guard the
- * title bar's dblclick-to-maximize handler fires and the window
- * unexpectedly maximizes.
- */
 function suppressNextDblclick( titleBar: HTMLElement ): void {
 	const swallow = ( e: Event ): void => {
 		e.stopImmediatePropagation();
@@ -169,12 +103,6 @@ function suppressNextDblclick( titleBar: HTMLElement ): void {
 	}, 500 );
 }
 
-/**
- * Open the Related dropdown for a window, wiring outside-pointerdown
- * dismissal (capture phase, next microtask — same recipe as
- * `src/window/menus.ts`) and Escape-to-close returning focus to the
- * trigger.
- */
 function openRelatedMenu(
 	host: HTMLElement,
 	win: DesktopWindow,
@@ -202,12 +130,6 @@ function openRelatedMenu(
 		host.setAttribute( 'aria-expanded', 'false' );
 	};
 
-	// Escape-to-close, bound on the TITLE BAR rather than the panel:
-	// the shadow roots here don't delegate focus, so after opening the
-	// menu the keyboard focus stays on the trigger button — a keydown
-	// there bubbles through the title bar but never enters the sibling
-	// panel. The title bar sees Escape from both the trigger and the
-	// panel's items.
 	const onTitleBarKeydown = ( e: Event ): void => {
 		if ( ( e as KeyboardEvent ).key === 'Escape' ) {
 			e.stopPropagation();
@@ -236,8 +158,7 @@ function openRelatedMenu(
 		}
 		close();
 	};
-	// Attach on the next microtask so the pointerdown that opened the
-	// menu doesn't immediately close it.
+
 	setTimeout( () => {
 		if ( onDocPointerDown ) {
 			document.addEventListener( 'pointerdown', onDocPointerDown, true );
@@ -247,23 +168,6 @@ function openRelatedMenu(
 	panel.querySelector< HTMLElement >( '[role="menuitem"]' )?.focus();
 }
 
-/**
- * Register the built-in "Related" title-bar button and wire the
- * repaint-on-content-change subscription. Called once from the
- * `desktop.ts` boot after the window manager exists.
- *
- * The repaint hook is load-bearing: the title-bar-button registry
- * only repaints windows on register/unregister, but a window's
- * content identity arrives asynchronously (the chromeless bridge
- * announces it after the iframe loads, and again on every in-window
- * navigation) — without the targeted repaint the button would never
- * appear on a freshly opened post window, nor disappear when the
- * user navigates the window to a list table.
- *
- * @param opts         Options bag.
- * @param opts.manager Window manager (structural subset).
- * @param opts.openUrl Opens a picked item as a desktop window.
- */
 export function bootRelatedEntities( {
 	manager,
 	openUrl,
@@ -279,11 +183,6 @@ export function bootRelatedEntities( {
 		order: 60,
 		match: ( win ) => resolveRelatedItems( win.id ).length > 0,
 		render: ( host, win ) => {
-			// Repaints REPLACE the host element (the registry fan-out
-			// fires on any title-bar-button registration, not just our
-			// content-change hook) — an open panel would otherwise
-			// survive with its close routine pointing at the detached
-			// old host, reading as a stuck-open menu.
 			closePanels( win.element );
 			host.setAttribute( 'aria-haspopup', 'menu' );
 			host.setAttribute( 'aria-expanded', 'false' );
@@ -312,9 +211,7 @@ export function bootRelatedEntities( {
 			if ( ! win ) {
 				return;
 			}
-			// A stale open panel would list the previous content's
-			// entities — drop it before the repaint decides whether the
-			// button still applies.
+
 			closePanels( win.element );
 			win.renderCustomTitleBarButtons?.();
 		},

@@ -1,12 +1,3 @@
-/**
- * Integration tests for the desktop-theme substitution points.
- *
- * `src/desktop-themes/` can be perfectly correct and the feature can
- * still do nothing visible, because the value only lands where a
- * render path actually consults a slot. These tests pin the seams:
- * `renderIcon`, `<os-window-button icon-src>`, the OS-settings state
- * parser, and the live-refresh payload forwarding.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -58,10 +49,6 @@ afterEach( () => {
 	_resetAllSharedStoresForTests();
 } );
 
-// ---------------------------------------------------------------
-// renderIcon.
-// ---------------------------------------------------------------
-
 describe( 'renderIcon — slot substitution', () => {
 	test( 'without a slot, behaviour is unchanged', () => {
 		activate( { OS_SETTINGS: 'dashicons-themed' } );
@@ -88,8 +75,7 @@ describe( 'renderIcon — slot substitution', () => {
 	} );
 
 	test( 'substitution happens BEFORE the shape dispatcher', () => {
-		// A theme swapping a dashicon for a URL must get the <img>
-		// branch — that only works if substitution precedes dispatch.
+
 		activate( { OS_SETTINGS: 'https://x.test/settings.svg' } );
 		const el = renderIcon( 'dashicons-original', {
 			title: 'Settings',
@@ -109,12 +95,8 @@ describe( 'renderIcon — slot substitution', () => {
 	} );
 } );
 
-// ---------------------------------------------------------------
-// <os-window-button icon-src>.
-// ---------------------------------------------------------------
-
 describe( '<os-window-button icon-src>', () => {
-	/** The component paints on a microtask; flush it. */
+
 	async function flush() {
 		await Promise.resolve();
 		await Promise.resolve();
@@ -128,8 +110,7 @@ describe( '<os-window-button icon-src>', () => {
 
 		const span = btn.shadowRoot?.querySelector( '.themed-icon' ) as HTMLElement;
 		expect( span ).toBeTruthy();
-		// The `mask` shorthand is what makes the glyph inherit
-		// `--os-ui-btn-color`; an <img> would ignore it entirely.
+
 		expect( span.getAttribute( 'style' ) ).toContain( 'https://x.test/close.svg' );
 		expect( btn.shadowRoot?.querySelector( 'svg' ) ).toBeNull();
 	} );
@@ -170,8 +151,7 @@ describe( '<os-window-button icon-src>', () => {
 		await flush();
 
 		expect( btn.shadowRoot?.querySelector( '.themed-icon' ) ).toBeNull();
-		// Rejected values fall through to the built-in glyph rather
-		// than leaving a blank button.
+
 		expect( btn.shadowRoot?.querySelector( 'svg' ) ).toBeTruthy();
 	} );
 
@@ -184,10 +164,6 @@ describe( '<os-window-button icon-src>', () => {
 		expect( btn.shadowRoot?.querySelector( '.themed-icon' ) ).toBeTruthy();
 	} );
 } );
-
-// ---------------------------------------------------------------
-// Live-refresh forwarding.
-// ---------------------------------------------------------------
 
 describe( 'menu-refresh-apply — serverDesktopThemes', () => {
 	function makeDeps(
@@ -214,7 +190,6 @@ describe( 'menu-refresh-apply — serverDesktopThemes', () => {
 		} as MenuRefreshDeps;
 	}
 
-	/** The applier bails on an empty dock list, so every payload needs one. */
 	const DOCK = [ { id: 'index-php', title: 'Dashboard' } ];
 
 	test( 'forwards the payload key and mirrors it onto config', () => {
@@ -249,7 +224,7 @@ describe( 'menu-refresh-apply — serverDesktopThemes', () => {
 	} );
 
 	test( 'callers that predate desktop themes still work', () => {
-		// The dep is optional so older wiring (and tests) keep passing.
+
 		const apply = createApplyPayload( makeDeps() );
 		expect( () =>
 			apply( { dockItems: DOCK, serverDesktopThemes: [ rawTheme( {} ) ] } ),

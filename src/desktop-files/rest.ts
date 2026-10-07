@@ -1,11 +1,3 @@
-/**
- * OpenStation — Files REST client.
- *
- * Thin wrapper around `fetch` that adds the WP nonce and the
- * desktop's REST base URL. Returns parsed JSON; throws on
- * non-2xx with the `WP_Error.code`/`message` shape WP serves.
- */
-
 import { trackedFetch } from '../tracked-fetch';
 import { createFeatureClient, restErrorFromResponse } from '../core/api-client';
 import { joinRestUrl } from '../rest-url';
@@ -28,29 +20,9 @@ export interface RestPlacementShape {
 		exists: boolean;
 		[ key: string ]: unknown;
 	};
-	/**
-	 * True when this placement is visible to the viewer (because
-	 * the owner shared the parent folder) but the viewer doesn't
-	 * have read access on the underlying entity. The tile renderer
-	 * paints a lock overlay + tooltip and the click handler shows
-	 * a toast explaining the permission gap instead of routing to
-	 * the opener.
-	 */
+
 	accessGated?: boolean;
-	/**
-	 * Server's "can this viewer trash this placement?" answer. Set
-	 * from `openstation_files_user_can_trash_placement` at shape
-	 * time so the client can suppress trash affordances upfront —
-	 * hiding the "Move to recycle bin" tile-menu entry AND making
-	 * the trash drop target reject the drag — instead of letting
-	 * the user attempt the action and surface a 403 in the
-	 * console.
-	 *
-	 * Always `true` for placements the viewer owns; falsy for
-	 * placements inside a shared folder where the viewer lacks
-	 * write capability, plus anything a `openstation_files_user_can_trash_placement`
-	 * filter customisation has vetoed.
-	 */
+
 	canTrash?: boolean;
 }
 
@@ -61,17 +33,7 @@ export interface RestFolderShape {
 	shareMode: 'private' | 'users' | 'roles' | 'all' | string;
 	shareMeta: { users?: number[]; roles?: string[] } | null;
 	updatedAtMs: number;
-	/**
-	 * Cheap summary for tile rendering. Avoids loading the full
-	 * `listShares()` response just to paint the "this folder is
-	 * shared" overlay badge.
-	 *
-	 * `shared` is viewer-agnostic, but `recipientCount` is
-	 * owner-scoped: the server returns the real count only when
-	 * the viewer can manage the folder's shares (per
-	 * `openstation_files_share_can_manage`) and `0` for every
-	 * other viewer, keeping the wire shape stable.
-	 */
+
 	shareSummary?: { shared: boolean; recipientCount: number };
 }
 
@@ -110,15 +72,11 @@ export interface FilesRestDeps {
 	nonce: string;
 }
 
-// A shared store, not a module-level `let`: the `files-overlays` and
-// `file-drop` bundles compile their own copy of this module, and only
-// the shell bundle installs the deps.
 const depsStore = createSharedStore< { deps: FilesRestDeps | null } >(
 	'desktop-files/rest-deps',
 	() => ( { deps: null } ),
 );
 
-/** Install REST deps. Called once from `desktop.ts` at boot. */
 export function installRestDeps( next: FilesRestDeps ): void {
 	depsStore.state.deps = next;
 }
@@ -131,21 +89,10 @@ function ensureDeps(): FilesRestDeps {
 	return deps;
 }
 
-/**
- * Read-only view of the installed deps. Used by the desktop-storage
- * upload/download paths, which need the raw base URL + nonce (XHR
- * progress uploads and `_wpnonce`-in-query download navigations
- * can't ride the JSON `call()` wrapper).
- */
 export function getFilesRestDeps(): FilesRestDeps {
 	return ensureDeps();
 }
 
-/**
- * Conflict body the server returns on 409. The `actor` is the
- * user whose mutation won the race; `current` is the row's new
- * state after that mutation. Clients surface this in a toast.
- */
 export interface FilesConflictDetail {
 	reason: 'parent_changed' | 'trashed' | 'forbidden' | 'gone' | string;
 	actor: { id: number; name: string; avatar: string };
@@ -165,11 +112,6 @@ export class FilesConflictError extends Error {
 	}
 }
 
-/**
- * Any other failure is a `RestError` whose console line keeps the
- * `[openstation] files REST <status>: …` shape; a 409 with a conflict
- * payload is a `FilesConflictError`.
- */
 const call = createFeatureClient( {
 	prefix: '[openstation] files REST',
 	source: 'desktop-mode/files',
@@ -181,10 +123,6 @@ const call = createFeatureClient( {
 		return data && typeof data === 'object' ? new FilesConflictError( data as FilesConflictDetail ) : null;
 	},
 } );
-
-// ---------------------------------------------------------------------------
-// Placements
-// ---------------------------------------------------------------------------
 
 export interface ListPlacementsResponse {
 	placements: RestPlacementShape[];
@@ -225,21 +163,12 @@ export function deletePlacement( id: number ): Promise< { deleted: true } > {
 	return call< { deleted: true } >( `/placements/${ id }`, { method: 'DELETE' } );
 }
 
-/**
- * Restore a soft-trashed placement (or folder) via the
- * recycle-bin REST endpoint. The `type` field routes to the
- * correct trash module on the server side
- * (`openstation_files_restore_placement` /
- * `openstation_files_restore_folder`).
- */
 export async function restoreTrashedItem(
 	id: number,
 	type: 'placement' | 'folder',
 ): Promise< { ok: number[]; errors: unknown[] } > {
 	const { baseUrl, nonce } = ensureDeps();
-	// `baseUrl` ends with `/desktop-mode/v1/files`; swap the last
-	// segment for `/recycle-bin/restore` to reach the bin's bulk
-	// restore endpoint without a second config.
+
 	const root = baseUrl.replace( /\/files\/?$/, '' );
 	const url = `${ root }/recycle-bin/restore`;
 	const res = await trackedFetch(
@@ -260,10 +189,6 @@ export async function restoreTrashedItem(
 	}
 	return ( await res.json() ) as { ok: number[]; errors: unknown[] };
 }
-
-// ---------------------------------------------------------------------------
-// Folders
-// ---------------------------------------------------------------------------
 
 export interface ListFoldersResponse {
 	folders: RestFolderShape[];
@@ -300,10 +225,6 @@ export function deleteFolder( id: number ): Promise< { deleted: true } > {
 	return call< { deleted: true } >( `/folders/${ id }`, { method: 'DELETE' } );
 }
 
-// ---------------------------------------------------------------------------
-// Associations
-// ---------------------------------------------------------------------------
-
 export interface SaveAssociationsResponse {
 	associations: Record< string, string >;
 }
@@ -316,10 +237,6 @@ export function saveAssociations(
 		body: JSON.stringify( { associations } ),
 	} );
 }
-
-// ---------------------------------------------------------------------------
-// Folder shares
-// ---------------------------------------------------------------------------
 
 export interface RestShareShape {
 	id: number;
@@ -397,11 +314,6 @@ export function denyShare(
 	} );
 }
 
-/**
- * Recipient-initiated leave. Different from `denyShare` because
- * it can target a role-principal share without affecting other
- * role members — the server writes a per-user decision row.
- */
 export function leaveShare(
 	folderId: number,
 ): Promise< { left: true } > {
@@ -410,12 +322,6 @@ export function leaveShare(
 	} );
 }
 
-/**
- * Site-admin only: drop the folder-sharing tables outright. Used
- * by the OS Settings → Features → "Delete folder sharing data"
- * action. Server permission callback enforces `manage_options`;
- * non-admins get a 403.
- */
 export function purgeFolderSharingTables(): Promise< { dropped: string[] } > {
 	return call< { dropped: string[] } >(
 		'/folder-sharing-tables/purge',
@@ -423,15 +329,6 @@ export function purgeFolderSharingTables(): Promise< { dropped: string[] } > {
 	);
 }
 
-// ---------------------------------------------------------------------------
-// Stored uploads (real per-user file storage — DESKMOD-45)
-// ---------------------------------------------------------------------------
-
-/**
- * Wire shape of a `target_type='file'` share row (single uploaded
- * file shared read-only with a specific user). Distinguished from
- * folder shares by `targetType`.
- */
 export interface RestFileShareShape {
 	id: number;
 	targetType: 'file';
@@ -504,9 +401,6 @@ export function leaveFileShare( fileId: number ): Promise< { left: true } > {
 	} );
 }
 
-/**
- * Rename an uploaded file's display name (owner only).
- */
 export function renameUpload(
 	fileId: number,
 	name: string,
@@ -517,11 +411,6 @@ export function renameUpload(
 	);
 }
 
-/**
- * The Media Library copy of a stored file, as both media routes
- * describe it. `created` is false when the attachment already
- * existed — the copy is idempotent per stored file.
- */
 export interface RestMediaAttachmentShape {
 	attachmentId: number;
 	created: boolean;
@@ -530,10 +419,6 @@ export interface RestMediaAttachmentShape {
 	editUrl: string;
 }
 
-/**
- * Copy a stored file into the Media Library. Returns the existing
- * attachment when the file was added before.
- */
 export function addUploadToMediaLibrary(
 	fileId: number,
 ): Promise< RestMediaAttachmentShape > {
@@ -542,11 +427,6 @@ export function addUploadToMediaLibrary(
 	} );
 }
 
-/**
- * Start a new post (or page) whose content is the stored file's
- * Media Library copy. The server creates an `auto-draft` — the same
- * thing `post-new.php` does — and returns its edit URL.
- */
 export function startPostFromUpload(
 	fileId: number,
 	postType: string,
@@ -567,26 +447,17 @@ export function startPostFromUpload(
 	} );
 }
 
-/**
- * What putting stored files into an existing post did.
- */
 export interface RestAttachToPostShape {
 	postId: number;
 	title: string;
 	editUrl: string;
-	/** Whether block markup was appended (the post type has an editor). */
+
 	appended: boolean;
-	/** Whether the first image became the featured image. */
+
 	featuredImageSet: boolean;
 	attachments: RestMediaAttachmentShape[];
 }
 
-/**
- * Put stored files into an existing post: each is copied into the
- * Media Library (idempotently), appended to the content as a block,
- * attached to the post, and the first image becomes the featured
- * image when the post has none.
- */
 export function attachUploadsToPost(
 	postId: number,
 	fileIds: number[],
@@ -597,24 +468,11 @@ export function attachUploadsToPost(
 	} );
 }
 
-/**
- * A folder a request created mkdir-p style, with the placement that
- * shows it in the parent the client is looking at. Carried by the
- * upload and `ensureUploadPath()` responses so the tile can be
- * ingested the moment the folder exists, instead of waiting for the
- * end-of-batch resync (or a Heartbeat delta) after a tree drop.
- */
 export interface RestCreatedFolderShape {
 	folder: RestFolderShape;
 	placement: RestPlacementShape;
 }
 
-/**
- * Ensure a directory path exists under `parentId` (mkdir-p) and
- * return the leaf folder id. Used by tree drops to preserve empty
- * directories. `createdFolders` lists the segments this call
- * created (outermost first); reused segments are not listed.
- */
 export function ensureUploadPath(
 	parentId: number,
 	relativePath: string,
@@ -628,22 +486,12 @@ export function ensureUploadPath(
 	);
 }
 
-/**
- * Mint a download URL for a stored file. Cookie auth rides the
- * same-origin navigation; the `_wpnonce` query param satisfies the
- * REST CSRF check (the officially supported GET form). Mint at
- * click time — nonces expire, so never persist these URLs.
- */
 export function getUploadDownloadUrl( fileId: number ): string {
 	const { baseUrl, nonce } = ensureDeps();
 	const base = joinRestUrl( baseUrl, `/uploads/${ fileId }/download` );
 	return `${ base }${ base.includes( '?' ) ? '&' : '?' }_wpnonce=${ encodeURIComponent( nonce ) }`;
 }
 
-/**
- * Mint the on-demand folder-zip download URL. Same auth shape as
- * {@link getUploadDownloadUrl}.
- */
 export function getFolderZipUrl( folderId: number ): string {
 	const { baseUrl, nonce } = ensureDeps();
 	const base = joinRestUrl( baseUrl, `/folders/${ folderId }/download` );

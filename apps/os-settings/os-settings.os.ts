@@ -1,28 +1,3 @@
-/**
- * OpenStation Preferences — the client view of the Preferences app.
- *
- * The 1:1 rebuild of the legacy panel bundle, which it replaced
- * whole: the same sidebar, search, pages, sections, wallpaper editor
- * island, image picker, theme grid, component reference and journal.
- * What the framework absorbed: the lazy-bundle loader and its retry
- * affordance (the app's script is a window companion), the per-section
- * `paint()` closures and registry-subscription teardown observers
- * (the view is a function of the settings; `mounted()` subscribes
- * once and returns one teardown), the REST clients and their nonce
- * plumbing (`ctx.fetch`), the confirm dialogs (`os-confirm`), and the
- * save-failure re-render (the store notifies, the app repaints).
- *
- * The settings themselves are NOT app state. They are the shell's,
- * applied before the first paint and written by more than this
- * window, so the app edits them through the same public API a
- * third-party tab uses — `wp.os.getOsSettings()` in, `updateOsSettings()`
- * out, `subscribeOsSettings()` to repaint (see `parts/store.ts`). The
- * declared state is the page; everything else the window remembers
- * between paints is client-only, in `ctx.ui()`.
- *
- * @public
- */
-
 import { mountPreferencesMio } from './parts/mio';
 import { __, defineApp, html } from '@openstation/app';
 import * as wallpapers from '../../src/wallpapers/registry';
@@ -52,14 +27,10 @@ import { highlightSearchMatch, searchSettings } from './parts/search';
 import { APP_ID, reset, settings, subscribe } from './parts/store';
 import { uiOf, type AppData, type AppState, type Ctx, type UiState } from './parts/types';
 
-/** The default page, and where an unknown deep link lands. */
 const DEFAULT_TAB = 'appearance';
 
-/** A row's sidebar glyph — one node per row, made once. */
 function glyph( ui: UiState, row: PageRow ): SVGSVGElement | unknown {
 	if ( ! row.icon ) {
-		// A registry tab that named no icon (or an unknown one). The
-		// spacer keeps its label on the same line as every other label.
 		return html`<span class="os-settings__nav-glyph-blank" aria-hidden="true"></span>`;
 	}
 	let node = ui.glyphs.get( row.id );
@@ -70,14 +41,6 @@ function glyph( ui: UiState, row: PageRow ): SVGSVGElement | unknown {
 	return node;
 }
 
-/**
- * The search field, the strip and the panes are SIBLINGS, and that is
- * a hard constraint rather than a layout preference: `<os-tabs>` finds
- * the panes it drives by looking for `os-tabpanel` children of its
- * own parent, so wrapping the strip in a sidebar div puts every pane
- * out of its reach. The column is assembled by the grid in
- * `os-settings.css` instead.
- */
 function frame( ctx: Ctx ) {
 	const s = settings();
 	const ui = uiOf( ctx );
@@ -113,9 +76,6 @@ function frame( ctx: Ctx ) {
 				os-bind="tab"
 			>
 				${ rows.map( ( r, i ) => {
-					// The first row of a band opens a new group. Compared
-					// against the PREVIOUS row rather than counted, so a
-					// band with nothing in it leaves no orphan gap behind.
 					const startsGroup = i > 0 && navGroup( r.order ) !== navGroup( rows[ i - 1 ].order );
 					const hit = matches( r );
 					if ( hit ) {
@@ -131,13 +91,9 @@ function frame( ctx: Ctx ) {
 			<p class="os-settings__search-empty" ?hidden=${ query === '' || visible > 0 }>
 				${ __( 'No settings match that.' ) }
 			</p>
-			${ /*
-			 * The same pages as a picker, for a container too narrow for
-			 * a column of them (a phone). Only one of the two is ever
-			 * shown — `os-settings.css` swaps them at the width — and both
-			 * write the same state, so the strip above still drives the
-			 * panes after a pick here.
-			 */ '' }
+			${
+
+       '' }
 			<os-select
 				class="os-settings__page-select"
 				label=${ __( 'Settings section' ) }
@@ -160,8 +116,7 @@ function frame( ctx: Ctx ) {
 
 export default defineApp< AppState, AppData >( APP_ID, {
 	local: {
-		// `wp.os.openOsSettings( { tabId } )` on an already-open window:
-		// the shell tells the session which page to show.
+
 		tab: ( state, args ) => {
 			const value = String( args.value ?? '' );
 			if ( value !== '' ) {
@@ -174,32 +129,21 @@ export default defineApp< AppState, AppData >( APP_ID, {
 
 	mounted: ( ctx ) => {
 		const ui = uiOf( ctx );
-		// Splice the inline editor onto the custom gradient's def. The
-		// shell registered it without one so the colour and range
-		// fields never reach the boot bundle; "late registrations win".
+
 		registerCustomGradient( settings, renderGradientEditor );
 		ui.previews = createWallpaperPreviewManager( ctx.root );
-		// Pull in the bundles for every wallpaper still registered as a
-		// metadata-only stub: live tile previews, the inline editor and
-		// the settings dialog all live on the real def. Not awaited —
-		// each def that lands wakes the registry subscription below.
+
 		void hydrateAll();
-		// The built-in window-link renderer registers as a side effect
-		// of the visuals bundle, which the shell only fetches once two
-		// windows relate; until then the Windows page's dropdown would
-		// show a blank for the value actually in force.
+
 		void ensureWindowLinkVisuals().catch( () => undefined );
 
 		const repaint = (): void => ctx.repaint();
-		// The phone layer leaves out what only makes sense on the desk
-		// ("Take the tour"), so a flip either way is a different page.
+
 		document.addEventListener( 'os-mode-changed', repaint );
 		const offs = [
 			() => document.removeEventListener( 'os-mode-changed', repaint ),
 			mountPreferencesMio( ctx ),
-			// Any settings change, whoever made it — this window, the
-			// right-click menu, `wp.os.updateOsSettings()`, the rollback
-			// after a failed save.
+
 			subscribe( repaint ),
 			wallpapers.subscribe( repaint ),
 			subscribeDockRailRenderers( repaint ),
@@ -220,10 +164,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 	},
 
 	updated: ( ctx ) => {
-		// The islands the renderer does not paint: the selected
-		// wallpaper's editor, the live tile previews, the media library
-		// on first sight, the registry tabs, the component example, the
-		// journal on first sight, and the page config's AI mirrors.
 		syncEditor( ctx );
 		uiOf( ctx ).previews?.sync();
 		syncLibrary( ctx );

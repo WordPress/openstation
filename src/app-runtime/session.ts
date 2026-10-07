@@ -1,17 +1,3 @@
-/**
- * App Framework runtime — one mounted view.
- *
- * A session owns the client half of a view's state cycle: it keeps
- * the state bag the server last returned, serialises dispatches so
- * two quick clicks can't race each other, morphs each response into
- * the root, assigns `os-prop-*` properties, performs the effects,
- * and keeps `os-poll` timers alive for exactly as long as their
- * elements are rendered. A window with tabs has one session per tab
- * panel; `view` tells the server which one is asking.
- *
- * @public
- */
-
 import { __ } from '../i18n';
 import { RestError, restErrorFromResponse } from '../core/api-client';
 import { toastRestFailure } from '../core/rest-failure';
@@ -43,18 +29,13 @@ export interface SessionDeps {
 	config: AppConfig;
 	windowId: string;
 	host: RuntimeHost;
-	/** `main` or a tab slug. */
+
 	view?: string;
-	/** The window's open-time params, sent with every dispatch. */
+
 	params?: Record< string, string | number | boolean >;
-	/** Fires when the window closes; aborts in-flight requests. */
+
 	signal?: AbortSignal;
-	/**
-	 * The app's `.os.ts` half, when it shipped one. With a client, the
-	 * body is rendered in the browser from `( state, data )`, `local`
-	 * actions and `os-bind` writes never leave the tab, and a server
-	 * response refreshes `data` instead of morphing HTML.
-	 */
+
 	client?: ClientApp;
 }
 
@@ -67,45 +48,29 @@ export interface Session {
 	readonly appId: string;
 	readonly windowId: string;
 	readonly view: string;
-	/** State as last confirmed by the server (plus local writes). */
+
 	readonly state: Record< string, unknown >;
-	/** What `App::data()` returned on the last server response (client apps). */
+
 	readonly data: unknown;
-	/** Run an action. Resolves `true` once its response was applied. */
+
 	dispatch: (
 		action: string,
 		args?: Record< string, unknown >,
 		options?: DispatchOptions,
 	) => Promise< boolean >;
-	/** Run a client-side action; re-renders without a request. */
+
 	local: ( action: string, args?: Record< string, unknown > ) => void;
-	/**
-	 * Paint the client view NOW from the declared state and either the
-	 * data the config prefetched (`App::prefetch()`) or the client's own
-	 * `placeholder`, before `mount` has answered. False when the session
-	 * has no client view, or neither — the caller then waits for
-	 * `mount` as usual.
-	 */
+
 	paintEagerly: () => boolean;
-	/** Whether the window is paused (minimized / hidden tab). */
+
 	setPaused: ( paused: boolean ) => void;
-	/**
-	 * Adopt new open-time params — a singleton reopened on another
-	 * subject. Every dispatch after this carries them, so `$os->params`
-	 * answers with what the window shows NOW.
-	 */
+
 	setParams: ( params: Record< string, string | number | boolean > ) => void;
 	dispose: () => void;
 }
 
-/**
- * Windows whose sessions log every dispatch to the console —
- * `wp.os.apps.debug( windowId | '*' )` flips them. Module-level so
- * one call covers every session of a window, tabs included.
- */
 const debugWindows = new Set< string >();
 
-/** Enable/disable the dispatch trace for one window (or `'*'`). */
 export function setSessionDebug( windowId: string, on = true ): void {
 	if ( on ) {
 		debugWindows.add( windowId );
@@ -114,17 +79,13 @@ export function setSessionDebug( windowId: string, on = true ): void {
 	}
 }
 
-/**
- * One warning per (app, subject) per page — a guard that fires on
- * every render would bury the console it is trying to help.
- */
 const warnedOnce = new Set< string >();
 function warnOnce( key: string, message: string ): void {
 	if ( warnedOnce.has( key ) ) {
 		return;
 	}
 	warnedOnce.add( key );
-	// eslint-disable-next-line no-console
+
 	console.warn( message );
 }
 
@@ -135,9 +96,9 @@ export function createSession( deps: SessionDeps ): Session {
 
 	let state: Record< string, unknown > = { ...config.state };
 	let data: unknown;
-	/** `data` is the client's `placeholder`: painted before any server answer. */
+
 	let loading = false;
-	/** `undefined` until the client view first painted; then its teardown or null. */
+
 	let clientTeardown: ( () => void ) | null | undefined;
 	let disposed = false;
 	let paused = false;
@@ -149,13 +110,6 @@ export function createSession( deps: SessionDeps ): Session {
 	const propsSeen = new WeakMap< Element, Record< string, string > >();
 	const listeners: Array< () => void > = [];
 
-	// ------------------------------------------------------- dev guards
-
-	// The two silent failure modes a new app author hits first: a
-	// trigger naming an action nothing implements (a typo no-ops until
-	// the click 400s), and a write to a state key the schema does not
-	// declare (works locally, vanishes on the next round trip). Both
-	// warn once, at the moment the mistake is visible.
 	const declaredKeys = new Set( Object.keys( config.state ?? {} ) );
 	const declaredActions = new Set( [
 		'mount',
@@ -166,11 +120,7 @@ export function createSession( deps: SessionDeps ): Session {
 	] );
 	const debugging = (): boolean => debugWindows.has( '*' ) || debugWindows.has( windowId );
 
-	/** Flag rendered triggers whose action nothing implements. */
 	const auditTriggers = (): void => {
-		// An older config blob without the action list cannot tell a
-		// typo from a legitimate action — stay quiet rather than cry
-		// wolf on everything.
 		if ( ! config.actions || config.actions.length === 0 ) {
 			return;
 		}
@@ -186,7 +136,6 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 	};
 
-	/** Flag a write to a key the state schema does not declare. */
 	const auditStateKeys = ( wrote: string ): void => {
 		for ( const key of Object.keys( state ) ) {
 			if ( ! declaredKeys.has( key ) ) {
@@ -198,30 +147,20 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 	};
 
-	// ------------------------------------------------------- transport
-
 	const send = async ( action: string, args: Record< string, unknown >, trigger: Element | null ): Promise< boolean > => {
 		if ( disposed ) {
 			return false;
 		}
-		// eslint-disable-next-line @wordpress/no-unused-vars-before-return -- the trace must clock the WHOLE dispatch; the guards above return before any work exists to time.
+
 		const startedAt = Date.now();
 		inFlight++;
 		root.setAttribute( 'aria-busy', 'true' );
 		if ( trigger && trigger.tagName.toLowerCase() === 'os-button' ) {
 			trigger.setAttribute( 'busy', '' );
 		}
-		// The snapshot this request carries. `apply()` diffs the live
-		// state against it when the response lands: any key written
-		// locally while the request was in flight is newer than the
-		// echo and must survive it.
+
 		const sentState = state;
 		try {
-			// A hover on the dock tile may have sent this window's first
-			// `mount` already (`wp.os.apps.prewarm`); the answer is taken
-			// once, for the default open only — a deep link derives its
-			// state on the server. A warm that failed falls through to
-			// the request it stood in for.
 			if ( action === 'mount' && view === 'main' && Object.keys( params ).length === 0 ) {
 				const warmed = await takePrewarm( config.id );
 				if ( disposed ) {
@@ -264,13 +203,6 @@ export function createSession( deps: SessionDeps ): Session {
 				return false;
 			}
 			if ( ! payload || payload.ok !== true ) {
-				// A 200 whose body says no: the runtime's own failure shape
-				// (`{ ok: false, error, message, status }`), or something
-				// that is not a dispatch response at all. Thrown as the
-				// error it is, so the one catch below says why. The shape
-				// carries the HTTP status the host should have used; a
-				// body with a message but no status is still a refusal, and
-				// a body with neither is an unreadable reply.
 				const failed = ( payload ?? {} ) as {
 					message?: unknown;
 					error?: unknown;
@@ -292,17 +224,17 @@ export function createSession( deps: SessionDeps ): Session {
 			apply( payload, sentState );
 			if ( debugging() ) {
 				const changed = Object.keys( state ).filter( ( key ) => state[ key ] !== sentState[ key ] );
-				// eslint-disable-next-line no-console
+
 				console.groupCollapsed(
 					`[openstation:${ config.id }] ${ action } · ${ Date.now() - startedAt }ms`,
 				);
-				// eslint-disable-next-line no-console
+
 				console.log( 'args', args );
-				// eslint-disable-next-line no-console
+
 				console.log( 'state Δ', changed, changed.length > 0 ? Object.fromEntries( changed.map( ( key ) => [ key, state[ key ] ] ) ) : '' );
-				// eslint-disable-next-line no-console
+
 				console.log( 'effects', payload.effects ?? [] );
-				// eslint-disable-next-line no-console
+
 				console.groupEnd();
 			}
 			return true;
@@ -311,7 +243,6 @@ export function createSession( deps: SessionDeps ): Session {
 				return false;
 			}
 			if ( debugging() ) {
-				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation:${ config.id }] ${ action } FAILED after ${ Date.now() - startedAt }ms:`,
 					err,
@@ -355,22 +286,12 @@ export function createSession( deps: SessionDeps ): Session {
 				return false;
 			}
 		}
-		// Serialise: every dispatch reads `state` at send time, so a
-		// bind that landed while another request was in flight is
-		// carried by the next one instead of being overwritten.
+
 		const run = chain.then( () => send( action, args, options.trigger ?? null ) );
 		chain = run.catch( () => undefined );
 		return run;
 	};
 
-	// ------------------------------------------------------------ apply
-
-	/**
-	 * The one pass that follows EVERY paint, server or local: assign
-	 * `os-prop-*` properties, lazy-load any `os-*` component the new
-	 * markup uses that is not defined yet, and start/stop `os-poll`
-	 * timers to match what is rendered.
-	 */
 	const finishRender = (): void => {
 		applyProps( root, propsSeen );
 		void ensureComponents();
@@ -379,15 +300,6 @@ export function createSession( deps: SessionDeps ): Session {
 	};
 
 	const apply = ( payload: DispatchResponse, sentState: Record< string, unknown >, placeholder = false ): void => {
-		// The response echoes the state AS OF when its request was
-		// sent. Anything written locally since — an os-bind keystroke,
-		// a `local` reducer — is newer than that echo, and adopting the
-		// echo wholesale would visibly revert it (a search box snapping
-		// back mid-word during a watch refresh) and then LOSE it, since
-		// the next queued dispatch reads state at its own send time.
-		// So: adopt the server's answer, but every key whose live value
-		// diverged from this request's snapshot keeps the local value —
-		// the serialisation chain carries it up on the next dispatch.
 		const next = { ...payload.state };
 		for ( const key of Object.keys( state ) ) {
 			if ( state[ key ] !== sentState[ key ] ) {
@@ -401,8 +313,7 @@ export function createSession( deps: SessionDeps ): Session {
 			const first = clientTeardown === undefined;
 			client.render( viewContext() );
 			finishRender();
-			// After finishRender, so a mounted() hook reads a complete
-			// DOM: os-prop properties assigned, polls running.
+
 			if ( first ) {
 				const teardown = client.mounted( viewContext() );
 				clientTeardown = typeof teardown === 'function' ? teardown : null;
@@ -416,9 +327,6 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 	};
 
-	// ----------------------------------------------------- client view
-
-	/** The per-view client-only bag `ctx.ui( factory )` serves. */
 	let uiBag: unknown;
 	const uiOf = < T >( factory: () => T ): T => {
 		if ( uiBag === undefined ) {
@@ -427,7 +335,6 @@ export function createSession( deps: SessionDeps ): Session {
 		return uiBag as T;
 	};
 
-	/** Re-render the client view with no action and no request. */
 	const repaint = (): void => {
 		if ( ! client || disposed ) {
 			return;
@@ -436,12 +343,6 @@ export function createSession( deps: SessionDeps ): Session {
 		finishRender();
 	};
 
-	/**
-	 * `ctx.fetch` — a REST request the framework way: the path is
-	 * resolved against the site's REST root, the nonce and a JSON
-	 * Accept header ride along unless the caller set their own, and
-	 * the request is attributed to this window so its spinner shows.
-	 */
 	const restFetch = ( path: string, init: RequestInit = {}, options: { silent?: boolean } = {} ): Promise< Response > => {
 		const url = /^https?:\/\//i.test( path )
 			? path
@@ -460,13 +361,6 @@ export function createSession( deps: SessionDeps ): Session {
 		);
 	};
 
-	// `state` and `data` are LIVE getters, not snapshots: a `mounted()`
-	// hook installs listeners that outlive every render, and a
-	// captured context that froze the mount-time state would make
-	// them silently blind to everything the user did since (a
-	// drag-out reading the selection as it was at mount, an Escape
-	// handler reading the mount-time navigation). Reading through the
-	// context always answers with the current values.
 	const viewContext = () => ( {
 		get state() {
 			return state;
@@ -492,7 +386,6 @@ export function createSession( deps: SessionDeps ): Session {
 		extra: ( config.extra ?? {} ) as Record< string, unknown >,
 	} );
 
-	/** A client-side action: reduce, re-render, no request. */
 	const runLocal = ( action: string, args: Record< string, unknown > ): void => {
 		if ( ! client || disposed ) {
 			return;
@@ -501,7 +394,6 @@ export function createSession( deps: SessionDeps ): Session {
 			state = client.runLocal( action, state, args, data );
 			auditStateKeys( `local action "${ action }"` );
 			if ( debugging() ) {
-				// eslint-disable-next-line no-console
 				console.debug( `[openstation:${ config.id }] local ${ action }`, args );
 			}
 		}
@@ -509,13 +401,6 @@ export function createSession( deps: SessionDeps ): Session {
 		finishRender();
 	};
 
-	/**
-	 * Tags this session already asked the shell for. A tag that is
-	 * still undefined after a load is not a component (the Components
-	 * tab renders two such tags on purpose, for its warner demo), and
-	 * asking again on every repaint would log the loader's error on
-	 * every repaint.
-	 */
 	const requestedTags = new Set< string >();
 
 	const ensureComponents = async (): Promise< void > => {
@@ -525,10 +410,7 @@ export function createSession( deps: SessionDeps ): Session {
 		const missing = new Set< string >();
 		for ( const el of Array.from( root.querySelectorAll( '*' ) ) ) {
 			const tag = el.tagName.toLowerCase();
-			// An `os-preserve` subtree is the app's own, in every sense:
-			// the morph never touches it, and neither does this scan (the
-			// Components tab renders two deliberately bogus tags there
-			// for its warner demo).
+
 			if ( ! tag.startsWith( 'os-' ) || customElements.get( tag ) || el.closest( '[os-preserve]' ) ) {
 				continue;
 			}
@@ -539,10 +421,7 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 		if ( missing.size > 0 ) {
 			await host.loadComponents( Array.from( missing ) );
-			// Property-driven components upgraded after the assignment
-			// pass keep the values (they live on the element), but a
-			// component that reads them only at connect time gets a
-			// second chance now that it exists.
+
 			applyProps( root, new WeakMap() );
 		}
 	};
@@ -611,8 +490,6 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 	};
 
-	// ------------------------------------------------------------ polls
-
 	const reconcilePolls = (): void => {
 		const wanted = new Map( readPolls( root ).map( ( poll ) => [ poll.key, poll ] ) );
 		for ( const [ key, timer ] of polls ) {
@@ -637,8 +514,6 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 	};
 
-	// ----------------------------------------------------------- events
-
 	const trigger = ( binding: Binding, el: Element ): void => {
 		if ( binding.bind ) {
 			if ( ! declaredKeys.has( binding.bind ) ) {
@@ -652,8 +527,7 @@ export function createSession( deps: SessionDeps ): Session {
 				state = { ...state, [ binding.bind ]: value };
 			}
 		}
-		// With a client view, a bound write and a `local` action never
-		// leave the browser: reduce, re-render, done.
+
 		const isLocal =
 			!! client && ( client.hasLocal( binding.action ) || ( binding.action === 'set' && binding.bind !== null ) );
 		const fire = (): void => {
@@ -718,14 +592,6 @@ export function createSession( deps: SessionDeps ): Session {
 		listeners.push( () => root.removeEventListener( type, onEvent, capture ) );
 	}
 
-	// ------------------------------------------------------------ watch
-
-	/**
-	 * `App::watch( ...$types )` — re-render when watched content
-	 * changes anywhere on the desktop. A burst of broadcasts coalesces
-	 * into one queued refresh; a paused (minimized) window marks
-	 * itself stale instead and catches up on restore.
-	 */
 	let stale = false;
 	let refreshQueued = false;
 	const refresh = (): void => {
@@ -741,19 +607,13 @@ export function createSession( deps: SessionDeps ): Session {
 			refreshQueued = false;
 		} );
 	};
-	// A broadcast this very window produced — the `announce` effect of
-	// its own action, or `ctx.host.announce` from its client view — is
-	// an echo: the dispatch that announced it already returned the
-	// fresh `data()`, and a second round trip would only repaint what
-	// is on screen (and tear down every cell the user just edited).
+
 	const ownSource = appAnnounceSource( windowId );
 	const isOwnEcho = ( payload: unknown ): boolean =>
 		!! payload && typeof payload === 'object' && ( payload as { source?: unknown } ).source === ownSource;
 	if ( host.onBroadcast ) {
 		for ( const type of config.watch ?? [] ) {
 			if ( type === '*' ) {
-				// Any content change: the wildcard subscription hears every
-				// broadcast, so filter down to the content-change envelope.
 				listeners.push( host.onBroadcast( '*', ( topic, payload ) => {
 					if ( /^os\..+\.changed$/.test( topic ) && ! isOwnEcho( payload ) ) {
 						refresh();
@@ -768,8 +628,6 @@ export function createSession( deps: SessionDeps ): Session {
 			} ) );
 		}
 	}
-
-	// ---------------------------------------------------------- session
 
 	const session: Session = {
 		appId: config.id,
@@ -787,18 +645,14 @@ export function createSession( deps: SessionDeps ): Session {
 			if ( ! client || disposed || clientTeardown !== undefined ) {
 				return false;
 			}
-			// Prefetched data is the real thing; a placeholder is the
-			// app's own stand-in until `mount` answers, and the view is
-			// told so through `ctx.loading`.
+
 			const prefetched = config.data !== undefined;
 			if ( ! prefetched && ! client.placeholder ) {
 				return false;
 			}
 			const declared = { ...config.state };
 			const payload = prefetched ? config.data : client.placeholder?.( declared );
-			// The same path a response takes, fed the declared state and
-			// that data: `mounted()` runs now, and the `mount` answer that
-			// follows refreshes both without a second mount.
+
 			apply( { ok: true, state: declared, html: '', data: payload, effects: [] }, state, ! prefetched );
 			return true;
 		},

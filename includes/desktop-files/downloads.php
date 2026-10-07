@@ -1,40 +1,7 @@
 <?php
-/**
- * OpenStation — authenticated downloads for stored files.
- *
- * Two routes:
- *
- *   GET /desktop-mode/v1/files/uploads/(?P<id>\d+)/download
- *       Streams one stored file's bytes, unmodified.
- *   GET /desktop-mode/v1/files/folders/(?P<id>\d+)/download
- *       Builds an on-demand .zip of the folder's STORED-FILE
- *       contents (reference-type placements are skipped) and
- *       streams it.
- *
- * Auth: cookie + `_wpnonce` query parameter (the officially
- * supported GET form — an `<a>` navigation can't set the
- * `X-WP-Nonce` header). URLs are minted client-side at click time
- * and never persisted. The route also reads an optional `token`
- * param reserved for a future signed-link layer; it is currently
- * ignored.
- *
- * Byte serving happens in a `rest_pre_serve_request` short-circuit
- * — the REST server has already sent its JSON Content-Type header
- * by dispatch time, and `header()` replacement inside the filter is
- * the sanctioned way to take over the response (the same route
- * still keeps `permission_callback`, error JSON, and logging).
- *
- * Not-found and no-access are both 404 — a download probe must not
- * reveal that a file exists (the Drive behavior).
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the download routes.
- */
 function openstation_files_register_download_rest_routes() {
 	$ns = 'desktop-mode/v1';
 	register_rest_route(
@@ -58,12 +25,6 @@ function openstation_files_register_download_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_files_register_download_rest_routes' );
 
-/**
- * The masked not-found error shared by every failure path that
- * must not leak existence.
- *
- * @return WP_Error
- */
 function openstation_files_download_not_found() {
 	return new WP_Error(
 		'openstation_files_not_found',
@@ -72,12 +33,6 @@ function openstation_files_download_not_found() {
 	);
 }
 
-/**
- * GET /files/uploads/<id>/download
- *
- * @param WP_REST_Request $req Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_files_rest_download_file( WP_REST_Request $req ) {
 	$file_id = (int) $req['id'];
 	$user_id = get_current_user_id();
@@ -90,12 +45,6 @@ function openstation_files_rest_download_file( WP_REST_Request $req ) {
 		return openstation_files_download_not_found();
 	}
 
-	/**
-	 * Fires when a stored-file download is about to be served.
-	 *
-	 * @param int $file_id Stored-file id.
-	 * @param int $user_id Downloader.
-	 */
 	do_action( 'openstation_stored_file_downloaded', $file_id, $user_id );
 
 	return openstation_files_download_stream_response(
@@ -106,12 +55,6 @@ function openstation_files_rest_download_file( WP_REST_Request $req ) {
 	);
 }
 
-/**
- * GET /files/folders/<id>/download — zip the folder's stored files.
- *
- * @param WP_REST_Request $req Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	$folder_id = (int) $req['id'];
 	$user_id   = get_current_user_id();
@@ -137,8 +80,8 @@ function openstation_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	}
 
 	$manifest = array(
-		'entries'     => array(), // path-in-zip => absolute path.
-		'empty_dirs'  => array(), // path-in-zip (with trailing /).
+		'entries'     => array(),
+		'empty_dirs'  => array(),
 		'total_bytes' => 0,
 	);
 	$result   = openstation_files_collect_zip_entries( $folder_id, $user_id, '', $manifest, array( $folder_id => true ), 0 );
@@ -152,8 +95,7 @@ function openstation_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	if ( ! $tmp ) {
 		return new WP_Error( 'openstation_stored_files_zip_failed', __( 'Could not create the archive.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
-	// Belt and braces for aborted connections — the normal path
-	// deletes right after streaming.
+
 	register_shutdown_function( 'wp_delete_file', $tmp );
 
 	$zip = new ZipArchive();
@@ -167,67 +109,34 @@ function openstation_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	foreach ( $manifest['entries'] as $entry_name => $abs_path ) {
 		$zip->addFile( $abs_path, $entry_name );
 		if ( method_exists( $zip, 'setCompressionName' ) ) {
-			// Media / archives are already compressed; STORE saves
-			// CPU for nothing lost. Cheap heuristic on the entry name.
+
 			if ( preg_match( '/\.(zip|gz|bz2|7z|rar|jpe?g|png|gif|webp|avif|mp3|mp4|m4a|mov|webm|ogg|pdf)$/i', $entry_name ) ) {
 				$zip->setCompressionName( $entry_name, ZipArchive::CM_STORE );
 			}
 		}
 	}
-	// libzip deletes an archive with no entries on close instead of
-	// writing it, and a folder holding only references (posts,
-	// products) has none.
+
 	$is_empty = 0 === $zip->numFiles;
 	if ( ! $zip->close() ) {
 		wp_delete_file( $tmp );
 		return new WP_Error( 'openstation_stored_files_zip_failed', __( 'Could not finish the archive (disk full?).', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 	if ( $is_empty ) {
-		// An empty zip is its end-of-central-directory record alone.
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
 		file_put_contents( $tmp, "PK\x05\x06" . str_repeat( "\0", 18 ) );
 	}
 
-	/**
-	 * Fires when a folder-zip download is about to be served.
-	 *
-	 * @param int $folder_id Folder id.
-	 * @param int $user_id   Downloader.
-	 * @param int $count     Number of files in the archive.
-	 */
 	do_action( 'openstation_folder_zip_downloaded', $folder_id, $user_id, count( $manifest['entries'] ) );
 
 	$zip_name = sanitize_file_name( '' !== (string) $folder['name'] ? (string) $folder['name'] : 'folder' ) . '.zip';
 	return openstation_files_download_stream_response( $tmp, $zip_name, 'application/zip', true );
 }
 
-/**
- * Recursive manifest collector. Walks the folder's placements
- * (shared-namespace: every owner's rows), adds stored files the
- * viewer can read, recurses into sub-folders, records empty
- * directories, and enforces the caps.
- *
- * @internal
- *
- * @param int    $folder_id Folder to walk.
- * @param int    $user_id   Viewer.
- * @param string $prefix   Path prefix inside the zip ('' at root).
- * @param array  $manifest  Accumulator (entries / empty_dirs / total_bytes).
- * @param array  $visited   Folder ids already on the walk path (cycle guard).
- * @param int    $depth     Current depth.
- * @return array|WP_Error The updated manifest.
- */
 function openstation_files_collect_zip_entries( $folder_id, $user_id, $prefix, $manifest, $visited, $depth ) {
 	if ( $depth > 32 ) {
-		return $manifest; // Depth cap — quietly stop descending.
+		return $manifest;
 	}
 
-	/**
-	 * Filters the zip caps. `max_entries` bounds file count,
-	 * `max_bytes` bounds the SUM of input sizes.
-	 *
-	 * @param array $caps `{ max_entries: int, max_bytes: int }`.
-	 */
 	$caps = (array) apply_filters(
 		'openstation_stored_files_zip_caps',
 		array(
@@ -237,7 +146,7 @@ function openstation_files_collect_zip_entries( $folder_id, $user_id, $prefix, $
 	);
 
 	$rows       = openstation_files_get_for_user_folder( $user_id, $folder_id );
-	$used_names = array(); // lowercase name => count, per directory.
+	$used_names = array();
 	$had_child  = false;
 
 	foreach ( $rows as $row ) {
@@ -262,14 +171,13 @@ function openstation_files_collect_zip_entries( $folder_id, $user_id, $prefix, $
 				return $manifest;
 			}
 			if ( count( $manifest['entries'] ) + count( $manifest['empty_dirs'] ) === $before ) {
-				// Nothing inside — record the empty directory so the
-				// tree round-trips.
+
 				$manifest['empty_dirs'][] = $prefix . $dir_name . '/';
 			}
 			continue;
 		}
 		if ( 'upload' !== $row['file_type'] ) {
-			continue; // References are not bytes; skipped by design.
+			continue;
 		}
 		$file_id = (int) $row['file_ref'];
 		$file    = openstation_stored_files_get( $file_id );
@@ -304,25 +212,11 @@ function openstation_files_collect_zip_entries( $folder_id, $user_id, $prefix, $
 		$manifest['entries'][ $prefix . $entry_name ] = $path;
 	}
 
-	// An entirely empty folder at the walk root still yields a
-	// well-formed (empty) zip; sub-folder emptiness is recorded by
-	// the caller. Nothing to do here when $had_child is false.
 	unset( $had_child );
 
 	return $manifest;
 }
 
-/**
- * Per-directory case-insensitive dedupe: `report.pdf`,
- * `Report.pdf` → `report.pdf`, `Report (2).pdf` so extraction on
- * case-folding filesystems (Windows, macOS) never collides.
- *
- * @internal
- *
- * @param string $name       Sanitized candidate name.
- * @param array  $used_names By-ref lowercase tally for the directory.
- * @return string
- */
 function openstation_files_zip_unique_name( $name, &$used_names ) {
 	$key = strtolower( $name );
 	if ( ! isset( $used_names[ $key ] ) ) {
@@ -338,19 +232,6 @@ function openstation_files_zip_unique_name( $name, &$used_names ) {
 	return substr( $name, 0, $dot ) . " ($n)" . substr( $name, $dot );
 }
 
-/**
- * Build the marker response the `rest_pre_serve_request` filter
- * streams. The marker payload never reaches the client — the
- * filter takes over the output entirely.
- *
- * @internal
- *
- * @param string $path         Absolute file path.
- * @param string $name         Download filename shown to the user.
- * @param string $mime         MIME type ('' = octet-stream).
- * @param bool   $delete_after Delete `$path` after streaming (zip temp).
- * @return WP_REST_Response
- */
 function openstation_files_download_stream_response( $path, $name, $mime, $delete_after ) {
 	return new WP_REST_Response(
 		array(
@@ -365,16 +246,6 @@ function openstation_files_download_stream_response( $path, $name, $mime, $delet
 	);
 }
 
-/**
- * `rest_pre_serve_request` short-circuit: stream the file the
- * download callbacks resolved. Non-stream results (errors included)
- * fall through to normal JSON serving.
- *
- * @param bool             $served  Whether the request is already served.
- * @param WP_HTTP_Response $result  Result to send.
- * @param WP_REST_Request  $request Request used.
- * @return bool
- */
 function openstation_files_serve_download( $served, $result, $request ) {
 	if ( $served || ! $result instanceof WP_HTTP_Response ) {
 		return $served;
@@ -385,7 +256,7 @@ function openstation_files_serve_download( $served, $result, $request ) {
 	}
 	$data = $result->get_data();
 	if ( ! is_array( $data ) || empty( $data['__openstation_stream'] ) || 200 !== $result->get_status() ) {
-		return $served; // Error shapes serialize as normal JSON.
+		return $served;
 	}
 	$stream = $data['__openstation_stream'];
 	$path   = (string) $stream['path'];
@@ -402,32 +273,18 @@ function openstation_files_serve_download( $served, $result, $request ) {
 }
 add_filter( 'rest_pre_serve_request', 'openstation_files_serve_download', 10, 3 );
 
-/**
- * Send the headers and the bytes. Split out so PHPUnit can target
- * the header/name logic without hijacking output.
- *
- * @internal
- *
- * @param string $path Absolute file path.
- * @param string $name Download filename.
- * @param string $mime MIME type.
- */
 function openstation_files_emit_download( $path, $name, $mime ) {
 	$size = (int) filesize( $path );
 
-	// Kill every output buffer + compression layer so
-	// Content-Length stays exact and readfile streams instead of
-	// ballooning through a buffer.
-	// phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 	while ( ob_get_level() > 0 ) {
 		ob_end_clean();
 	}
 	if ( function_exists( 'apache_setenv' ) ) {
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+
 		@apache_setenv( 'no-gzip', '1' );
 	}
-	// phpcs:ignore WordPress.PHP.IniSet.Risky
-	@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+
+	@ini_set( 'zlib.output_compression', 'Off' );
 
 	nocache_headers();
 	header( 'X-Content-Type-Options: nosniff' );
@@ -435,9 +292,6 @@ function openstation_files_emit_download( $path, $name, $mime ) {
 	header( 'Content-Length: ' . $size );
 	header( 'Accept-Ranges: none' );
 
-	// RFC 6266: ASCII fallback + RFC 5987 UTF-8 form. Always
-	// `attachment` — uploaded SVG/HTML must never render from this
-	// origin.
 	$ascii = preg_replace( '/[^\x20-\x7E]/', '_', $name );
 	$ascii = str_replace( array( '"', '\\' ), '_', (string) $ascii );
 	header(
@@ -445,14 +299,9 @@ function openstation_files_emit_download( $path, $name, $mime ) {
 		. "; filename*=UTF-8''" . rawurlencode( $name )
 	);
 
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 	readfile( $path );
 }
 
-/**
- * Daily sweep of stale zip temp files (aborted downloads whose
- * shutdown cleanup never ran).
- */
 function openstation_stored_files_sweep_zip_temps() {
 	$entries = glob( trailingslashit( get_temp_dir() ) . 'os-folder-zip*' );
 	foreach ( (array) $entries as $entry ) {

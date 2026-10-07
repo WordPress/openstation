@@ -1,10 +1,5 @@
 <?php
-/**
- * Complete, bounded and site-isolated role summaries.
- *
- * @group openstation
- * @group users-roles-summary
- */
+
 class Tests_OpenStation_UsersRolesSummary extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
@@ -25,13 +20,13 @@ class Tests_OpenStation_UsersRolesSummary extends WP_UnitTestCase {
 		$this->assertNotWPError( $summary );
 		return array_column( $summary['groups'], null, 'role' );
 	}
-	/** @covers ::openstation_users_window_roles_summary */
+
 	public function test_complete_counts_bounded_samples_and_one_aggregate_query() {
 		$before = openstation_users_window_roles_summary()['total'];
 		$ids = self::factory()->user->create_many( 13, array( 'role' => 'summary_alpha' ) );
 		$user = get_userdata( $ids[0] );
 		$user->add_role( 'summary_beta' );
-		// Duplicate metadata must not inflate totals or repeat sample members.
+
 		global $wpdb;
 		$key = $wpdb->get_blog_prefix() . 'capabilities';
 		add_user_meta( $ids[0], $key, get_user_meta( $ids[0], $key, true ) );
@@ -46,7 +41,7 @@ class Tests_OpenStation_UsersRolesSummary extends WP_UnitTestCase {
 		$groups = $this->groups( $summary );
 		$this->assertCount( 1, $queries );
 		$this->assertSame( count( openstation_users_window_all_roles_map() ) + 2, substr_count( $queries[0], "FROM {$wpdb->users} u" ), 'One shared count scan plus one bounded scan per role, including No role.' );
-		// SQLite has no parenthesised UNION members; every member must start with SELECT.
+
 		$this->assertSame( substr_count( $queries[0], 'UNION ALL' ), preg_match_all( '/UNION ALL\s+SELECT\b/', $queries[0] ) );
 		$this->assertStringNotContainsString( ') UNION ALL (', $queries[0] );
 		$this->assertSame( $before + 13, $summary['total'] );
@@ -62,7 +57,7 @@ class Tests_OpenStation_UsersRolesSummary extends WP_UnitTestCase {
 			}
 		}
 	}
-	/** @covers ::openstation_users_window_roles_summary */
+
 	public function test_empty_roles_and_users_without_registered_roles() {
 		$id = self::factory()->user->create( array( 'role' => '' ) );
 		if ( is_multisite() ) {
@@ -73,7 +68,7 @@ class Tests_OpenStation_UsersRolesSummary extends WP_UnitTestCase {
 		$this->assertSame( array(), $groups['summary_alpha']['members'] );
 		$this->assertContains( $id, array_column( $groups['']['members'], 'id' ) );
 	}
-	/** @covers ::openstation_users_window_roles_summary */
+
 	public function test_role_sql_metacharacters_and_like_wildcards_are_literal() {
 		$role = 'summary_%_\' OR 1=1 --';
 		add_role( $role, 'Unusual role', array( 'read' => true ) );
@@ -88,9 +83,7 @@ class Tests_OpenStation_UsersRolesSummary extends WP_UnitTestCase {
 			$this->assertSame( array( $id ), array_column( $groups[$role]['members'], 'id' ) );
 		} finally { remove_role( $role ); remove_role( $lookalike ); }
 	}
-	/** @covers ::openstation_users_window_register_roles_summary_route
-	 *  @covers ::openstation_users_window_roles_summary
-	 */
+
 	public function test_route_and_direct_function_require_list_users() {
 		foreach ( array( 0, self::factory()->user->create( array( 'role' => 'subscriber' ) ) ) as $id ) {
 			wp_set_current_user( $id );
@@ -99,7 +92,7 @@ class Tests_OpenStation_UsersRolesSummary extends WP_UnitTestCase {
 			$this->assertContains( $response->get_status(), array( 401, 403 ) );
 		}
 	}
-	/** @covers ::openstation_users_window_roles_summary */
+
 	public function test_other_site_members_never_enter_this_summary() {
 		if ( ! is_multisite() ) { $this->markTestSkipped( 'Multisite only.' ); }
 		$site = self::factory()->blog->create();
@@ -111,7 +104,7 @@ class Tests_OpenStation_UsersRolesSummary extends WP_UnitTestCase {
 			$this->assertNotContains( $id, array_column( $group['members'], 'id' ) );
 		}
 	}
-	/** @covers ::openstation_users_window_roles_summary */
+
 	public function test_summary_hook_receives_complete_groups() {
 		$called = false;
 		$filter = static function ( $summary ) use ( &$called ) { $called = isset( $summary['total'], $summary['groups'] ); return $summary; };

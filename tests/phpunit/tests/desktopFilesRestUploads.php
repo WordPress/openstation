@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the upload REST intake: validation (denylist, size,
- * quota, capability), the receive/register pipeline, relativePath
- * folder resolution, and the rename route.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-files
- */
+
 class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -26,9 +16,7 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 		parent::set_up();
 		openstation_files_install_schema();
 		wp_set_current_user( self::$admin_id );
-		// Route the origin test through the sideload branch —
-		// `is_uploaded_file()` is always false for files fabricated
-		// by tests (they didn't arrive via HTTP POST).
+
 		add_filter( 'openstation_stored_files_upload_overrides', array( $this, 'use_sideload_action' ) );
 	}
 
@@ -63,9 +51,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 		rmdir( $dir );
 	}
 
-	/**
-	 * Build a REST request carrying one fabricated uploaded file.
-	 */
 	private function upload_request( $filename, $contents, $params = array() ) {
 		$tmp = wp_tempnam( $filename );
 		file_put_contents( $tmp, $contents );
@@ -104,14 +89,12 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 		$this->assertSame( 11, $row['size_bytes'] );
 		$this->assertSame( 'text/plain', $row['mime'] );
 
-		// Bytes on disk, under an extensionless UUID name.
 		$path = openstation_stored_file_path( $row );
 		$this->assertFileExists( $path );
 		$this->assertSame( 'hello world', file_get_contents( $path ) );
 		$this->assertMatchesRegularExpression( '/^[a-f0-9-]+$/', basename( $path ) );
 		$this->assertStringNotContainsString( '.', basename( $path ) );
 
-		// Placement shape carries the upload file shape.
 		$this->assertSame( 'upload', $data['placement']['file']['type'] );
 		$this->assertSame( (string) $file_id, $data['placement']['file']['ref'] );
 	}
@@ -126,7 +109,7 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 	}
 
 	public function test_disallowed_mime_rejected_by_wp_policy() {
-		// `.exe` is never in get_allowed_mime_types().
+
 		$req = $this->upload_request( 'setup.exe', 'MZbinary' );
 		$res = openstation_files_rest_upload( $req );
 		$this->assertWPError( $res );
@@ -164,8 +147,7 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 	}
 
 	public function test_subscriber_fails_permission_gate() {
-		// Enable OpenStation so the CAPABILITY layer (not the base
-		// enabled gate) is what rejects.
+
 		update_user_meta( self::$subscriber_id, 'desktop_mode_mode', '1' );
 		wp_set_current_user( self::$subscriber_id );
 		$result = openstation_files_rest_uploads_permission();
@@ -207,8 +189,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 			$deleted++;
 		} );
 
-		// Read-only recipient uploading into a shared folder: receive
-		// succeeds, place() fails, rollback runs.
 		$folder_id = openstation_files_create_folder( self::$admin_id, array( 'name' => 'RO' ) );
 		openstation_files_place( self::$admin_id, 0, 'folder', (string) $folder_id );
 		$share_id = openstation_folder_share_invite( (int) $folder_id, self::$admin_id, 'user', (string) self::$editor_id, 'read' );
@@ -247,16 +227,11 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 			'docs + reports, each exactly once'
 		);
 
-		// Both placements share the same leaf folder.
 		$p1 = $res1->get_data()['placement']['parentId'];
 		$p2 = $res2->get_data()['placement']['parentId'];
 		$this->assertSame( $p1, $p2 );
 		$this->assertGreaterThan( 0, $p1 );
 
-		// The first request reports the folders it created, outermost
-		// first, each with the placement that shows it in its parent —
-		// the client paints the `docs` tile from this, without waiting
-		// for the end-of-batch resync.
 		$created = $res1->get_data()['createdFolders'];
 		$this->assertCount( 2, $created );
 		$this->assertSame( 'docs', $created[0]['folder']['name'] );
@@ -267,7 +242,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 		$this->assertSame( $created[0]['folder']['id'], $created[1]['placement']['parentId'] );
 		$this->assertSame( $created[1]['folder']['id'], $p1 );
 
-		// Reused segments are not reported again.
 		$this->assertSame( array(), $res2->get_data()['createdFolders'] );
 	}
 
@@ -278,8 +252,7 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 	}
 
 	public function test_created_folders_take_distinct_grid_slots() {
-		// A bare `openstation_files_place()` pinned every mkdir-p
-		// folder at 0,0; sibling trees must land on different cells.
+
 		$res_a = openstation_files_rest_upload( $this->upload_request( 'a.pdf', '%PDF-1.4 fake', array( 'relativePath' => 'alpha/a.pdf' ) ) );
 		$res_b = openstation_files_rest_upload( $this->upload_request( 'b.pdf', '%PDF-1.4 fake', array( 'relativePath' => 'beta/b.pdf' ) ) );
 		$this->assertNotWPError( $res_a );
@@ -305,7 +278,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 		$this->assertSame( 'nested', $data['createdFolders'][1]['folder']['name'] );
 		$this->assertSame( $data['createdFolders'][1]['folder']['id'], $data['folderId'] );
 
-		// Second call: everything exists, nothing reported.
 		$again = openstation_files_rest_ensure_upload_path( $req );
 		$this->assertNotWPError( $again );
 		$this->assertSame( $data['folderId'], $again->get_data()['folderId'] );
@@ -335,8 +307,7 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 	}
 
 	public function test_rename_route_owner_only() {
-		// Body long enough for finfo to sniff text/plain — a one-byte
-		// file sniffs as octet-stream and fails the text/* match.
+
 		$res = openstation_files_rest_upload( $this->upload_request( 'old.txt', 'rename me please' ) );
 		$this->assertNotWPError( $res );
 		$file_id = (int) $res->get_data()['storedFileId'];
@@ -348,7 +319,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 		$this->assertNotWPError( $out );
 		$this->assertSame( 'new.txt', $out->get_data()['name'] );
 
-		// Non-owner: masked 404.
 		wp_set_current_user( self::$editor_id );
 		$req2 = new WP_REST_Request( 'PATCH', '/desktop-mode/v1/files/uploads/' . $file_id );
 		$req2['id'] = $file_id;

@@ -1,6 +1,3 @@
-/**
- * `<os-role-picker>` tests.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 async function load() {
@@ -52,8 +49,8 @@ describe( 'os-role-picker', () => {
 		await new Promise( ( r ) => queueMicrotask( () => r( null ) ) );
 
 		const chips = el.shadowRoot!.querySelectorAll< HTMLButtonElement >( '.chip' );
-		chips[ 0 ].click(); // editor → deselect
-		chips[ 1 ].click(); // author → select
+		chips[ 0 ].click();
+		chips[ 1 ].click();
 		expect( events ).toEqual( [
 			{ slug: 'editor', selected: false },
 			{ slug: 'author', selected: true },

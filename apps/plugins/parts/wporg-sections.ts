@@ -1,18 +1,6 @@
-/**
- * Plugins app — the Changelog and FAQ sections of a wp.org payload.
- *
- * Part of the `desktop-mode-plugins` client view. wp.org ships both
- * as loose HTML — `<h4>1.2.3</h4>` or `= 1.2.3 =` headings for a
- * changelog, malformed `<dt>Question</h4><p>Answer` for a FAQ — so the
- * detail panel parses them into version cards and an accordion, and
- * falls back to the sanitised HTML when no structure is found.
- *
- * @public
- */
-
 import { __ } from '@openstation/app';
 import { osIconSvg } from '../../../src/ui/icons';
-// Painted inside `<os-table>`'s shadow root — the tags register here.
+
 import '../../../src/ui/components/os-badge/os-badge';
 import '../../../src/ui/components/os-card/os-card';
 import '../../../src/ui/components/os-stack/os-stack';
@@ -32,11 +20,6 @@ export interface FaqPair {
 
 const detailHtml = ( html: string ): HTMLElement => htmlBlock( html, 'os-plugins__detail-html' );
 
-/**
- * Group nodes under each recognised version heading (an `<hN>` whose
- * text carries a version number, `=` fences stripped). No heading
- * means an empty list, and the caller shows the plain HTML.
- */
 export function parseChangelogEntries( html: string ): ChangelogEntry[] {
 	const body = parseHtml( html );
 	const entries: ChangelogEntry[] = [];
@@ -81,14 +64,6 @@ function appendText( current: { html: string }, text: string ): void {
 	current.html += `<p>${ escapeHtml( text ) }</p>`;
 }
 
-/**
- * wp.org ships MALFORMED HTML for FAQ: `<dt>Question</h4><p><p>Answer…`
- * — the HTML5 parser opens a `<dt>`, ignores the stray close tag, and
- * files the answer paragraphs as children of the `<dt>` until the next
- * `<dt>`. Strategy 1 splits every top-level `<dt>` on its first child
- * element. Real `<dl><dt>…</dt><dd>…</dd></dl>` pairs and conventional
- * `<h4>Q</h4><p>A</p>` siblings are handled as fallbacks.
- */
 export function parseFaqPairs( html: string ): FaqPair[] {
 	const body = parseHtml( html );
 
@@ -147,7 +122,6 @@ export function parseFaqPairs( html: string ): FaqPair[] {
 	return pairs.filter( ( p ) => p.question !== '' );
 }
 
-/** Leading text is the question; from the first substantive element on, the answer. */
 function splitDtIntoPair( dt: Element ): FaqPair {
 	let question = '';
 	let answerHtml = '';
@@ -166,7 +140,7 @@ function splitDtIntoPair( dt: Element ): FaqPair {
 			continue;
 		}
 		const el = child as Element;
-		// Empty `<p></p>` fragments left by the broken nesting.
+
 		if ( el.tagName === 'P' && ( el.textContent ?? '' ).trim() === '' ) {
 			continue;
 		}
@@ -176,7 +150,6 @@ function splitDtIntoPair( dt: Element ): FaqPair {
 	return { question: question.replace( /\s+/g, ' ' ).trim(), answer: answerHtml.trim() };
 }
 
-/** The Changelog tab: a card per version, the latest badged. */
 export function renderChangelog( info: WpOrgPluginInfo | null ): HTMLElement {
 	if ( ! info ) {
 		return loadingLine( __( 'Loading from WordPress.org…', 'desktop-mode' ) );
@@ -215,7 +188,6 @@ export function renderChangelog( info: WpOrgPluginInfo | null ): HTMLElement {
 	return stack;
 }
 
-/** The FAQ tab: an accordion, the first question open. */
 export function renderFaq( info: WpOrgPluginInfo | null ): HTMLElement {
 	if ( ! info ) {
 		return loadingLine( __( 'Loading from WordPress.org…', 'desktop-mode' ) );

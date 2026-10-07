@@ -10,7 +10,7 @@ export const peopleStyles = css`
 .os-people__tools os-text-field { flex: 1; min-inline-size: 150px; }
 .os-people__tools os-select { inline-size: 140px; }
 .os-people__options { display: none; }
-/* A familiar landscape member credential, with a quiet printed-paper pattern. */
+
 .os-people__cards { flex: 1; min-block-size: 0; min-inline-size: 0; overflow: auto; padding: 20px 24px; display: grid; grid-template-columns: repeat(auto-fill,minmax(min(100%,350px),1fr)); gap: 18px; align-content: start; overscroll-behavior: contain; }
 .os-people__card { position: relative; isolation: isolate; box-sizing: border-box; display: grid; grid-template-rows: auto 1fr auto auto; gap: 10px; aspect-ratio: 1.586; min-inline-size: 0; border: 1px solid var( --os-ui-border, #dcdcde ); border-radius: 15px; padding: 14px 16px 8px; background: var( --os-ui-surface, #fff ); box-shadow: 0 2px 4px var( --os-ui-surface-subtle, #f0f0f1 ); }
 .os-people__card::before { content: ''; position: absolute; z-index: -1; pointer-events: none; inset: 0; border-radius: inherit; background: repeating-radial-gradient(ellipse at 105% 15%, transparent 0 8px, var( --os-ui-surface-subtle, #f0f0f1 ) 9px 10px, transparent 11px 16px); opacity: .55; mask-image: linear-gradient(to left, #000, transparent 70%); }

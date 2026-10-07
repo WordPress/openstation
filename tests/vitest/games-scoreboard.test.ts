@@ -1,12 +1,3 @@
-/**
- * Unit tests for `src/games/scoreboard.ts`: the live refresh that
- * keeps the Games hub's leaderboard in step with runs finishing in
- * the game's own window, plus the `time` column formatter.
- *
- * The REST client is mocked so the tests assert on refetches rather
- * than on painted rows; `<os-table>` is left to its real
- * implementation (it only has to accept the assignments).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { GameRegistryEntry, GameScoreRow } from '../../src/games/types';
@@ -49,7 +40,6 @@ const makeRow = ( overrides: Partial< GameScoreRow > = {} ): GameScoreRow => ( {
 	...overrides,
 } );
 
-/** A leaderboard page big enough to paginate (PER_PAGE is 25). */
 const page = ( total: number ): { scores: GameScoreRow[]; total: number } => ( {
 	scores: [ makeRow() ],
 	total,
@@ -77,7 +67,7 @@ describe( 'games/scoreboard.ts', () => {
 		expect( scoreboard.formatTimeValue( 0 ) ).toBe( '0:00' );
 		expect( scoreboard.formatTimeValue( 9 ) ).toBe( '0:09' );
 		expect( scoreboard.formatTimeValue( 125 ) ).toBe( '2:05' );
-		// Junk and negatives floor at zero rather than rendering NaN.
+
 		expect( scoreboard.formatTimeValue( -5 ) ).toBe( '0:00' );
 		expect( scoreboard.formatTimeValue( 'nope' ) ).toBe( '0:00' );
 	} );
@@ -123,14 +113,13 @@ describe( 'games/scoreboard.ts', () => {
 
 	test( 'the refresh reloads the page being viewed, not page 1', async () => {
 		const { activity, scoreboard } = await loadModules();
-		// 60 rows over a 25-per-page board, enough for a page 3.
+
 		fetchScoresSpy.mockResolvedValue( page( 60 ) );
 		const teardown = scoreboard.renderScoreboard( container, GAME );
 		await vi.waitFor( () =>
 			expect( fetchScoresSpy ).toHaveBeenCalledTimes( 1 ),
 		);
 
-		// Walk to page 2 the way the pager does.
 		const next = Array.from(
 			container.querySelectorAll( 'os-button' ),
 		).find( ( btn ) => 'Next' === btn.textContent );

@@ -1,4 +1,3 @@
-/** App body with persistent header, toolbar and footer around a bounded content region. */
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-app-frame.styles';
 

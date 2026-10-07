@@ -1,15 +1,3 @@
-/**
- * Pure list of `<os-*>` tag names — no side effects, no class imports.
- *
- * Split out from `index.ts` so consumers that only need the tag list
- * (the COMPONENTS_REGISTERED action payload, the help-screen iterator,
- * tooling) do not drag every component module into their bundle.
- *
- * Keep in sync with the components actually defined under
- * `src/ui/components/`. The order matches the export order in
- * `index.ts`.
- */
-
 export const OS_COMPONENT_TAGS = [
 	'os-section',
 	'os-button',

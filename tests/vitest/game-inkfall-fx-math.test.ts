@@ -1,7 +1,3 @@
-/**
- * Unit tests for Inkfall's scatter math
- * (`src/games/inkfall/fx-math.ts`).
- */
 import { describe, expect, test } from 'vitest';
 import {
 	SCATTER_GRAVITY,
@@ -18,11 +14,11 @@ describe( 'inkfall/fx-math.ts', () => {
 	test( 'velocities fan outward from the word center', () => {
 		const particles = scatterVelocities( 5, zeroRng );
 		expect( particles ).toHaveLength( 5 );
-		// Leftmost kicks left, middle stays put, rightmost kicks right.
+
 		expect( particles[ 0 ].vx ).toBeLessThan( 0 );
 		expect( particles[ 2 ].vx ).toBe( 0 );
 		expect( particles[ 4 ].vx ).toBeGreaterThan( 0 );
-		// Everyone pops upward first.
+
 		for ( const particle of particles ) {
 			expect( particle.vy ).toBeLessThan( 0 );
 		}
@@ -49,7 +45,7 @@ describe( 'inkfall/fx-math.ts', () => {
 		const step = integrateStep( particle, 0.1 );
 		expect( step.dx ).toBeCloseTo( 1 );
 		expect( step.vyNext ).toBeCloseTo( -100 + SCATTER_GRAVITY * 0.1 );
-		// Trapezoidal: dy uses the average of old/new vy.
+
 		expect( step.dy ).toBeCloseTo( ( ( -100 + step.vyNext ) / 2 ) * 0.1 );
 		expect( step.dRotation ).toBeCloseTo( 0.2 );
 	} );

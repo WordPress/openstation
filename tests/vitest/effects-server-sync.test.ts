@@ -1,13 +1,3 @@
-/**
- * Unit tests for `src/effects/server-sync.ts`.
- *
- * The sync module bridges the `serverUnfocusEffectScripts` payload
- * (built in PHP, arrives via `applyPayload`) and the effect registry.
- * It mirrors `commands/server-sync.ts`, so we exercise the same three
- * behaviours: fresh scripts inject, re-sync is idempotent, and a
- * departing handle unregisters owner-tagged effects while untagged
- * ones survive.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -74,7 +64,6 @@ describe( 'effects/server-sync.ts', () => {
 		const run = sync.createUnfocusEffectRegistrySync();
 		await run( [ { handle: 'plugin-a', scriptUrl: 'https://example.test/a.js' } ] );
 
-		// Simulate plugin-a's just-loaded JS registering its effects.
 		registry.registerUnfocusEffect( {
 			id: 'a-glow',
 			label: 'Glow',
@@ -89,11 +78,10 @@ describe( 'effects/server-sync.ts', () => {
 
 		expect( registry.getUnfocusEffect( 'a-glow' ) ).toBeDefined();
 
-		// Plugin-a deactivates — sync with an empty payload.
 		await run( [] );
 
 		expect( registry.getUnfocusEffect( 'a-glow' ) ).toBeUndefined();
-		// Untagged effect survives (graceful backwards-compat).
+
 		expect( registry.getUnfocusEffect( 'untagged' ) ).toBeDefined();
 	} );
 

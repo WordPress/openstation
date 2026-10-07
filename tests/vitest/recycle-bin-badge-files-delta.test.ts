@@ -1,13 +1,3 @@
-/**
- * Regression test — files-on-desktop trash broadcast shape.
- *
- * Trashing a URL placement (or plugin shortcut / folder) MUST emit
- * the cross-window convention payload `{ source, action, ids }` so
- * the dock badge can delta-update synchronously. Before this fix
- * the helper emitted `{ reason: 'trash' }`, which the badge
- * subscriber couldn't decode — the badge then waited up to a full
- * Heartbeat tick (15–60 s) to learn there was a new item in trash.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
@@ -48,11 +38,7 @@ function makePlacement( id: number, type = 'link' ) {
 describe( 'desktop-files trash — broadcast shape', () => {
 	beforeEach( async () => {
 		installHooksStub();
-		// Mount a thin `wp.os.broadcast` shim that forwards to
-		// the module-level broadcast — production wires this in
-		// `desktop.ts` boot, but our test loads the trash helper in
-		// isolation. Without it the broadcaster silently no-ops and
-		// the bug we're regression-testing is invisible.
+
 		const { bc } = await load();
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		w.wp = {

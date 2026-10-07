@@ -1,17 +1,3 @@
-/**
- * Cross-state transition tests for {@link Window}.
- *
- * The four state-changing entry points (`maximize`, `toggleMaximize`,
- * `toggleFullscreen`, `minimize` + `restore`) all mutate a shared
- * `state` field AND a small set of CSS modifier classes on the window
- * root. Earlier revisions of the class let those drift out of sync: a
- * toggle would add its modifier without removing the existing one,
- * silently flipping `state` while the visual stayed unchanged because
- * the leftover class still carried the heavier styling. This file
- * exercises every "from-state × action" pair so any regression that
- * stacks classes, loses the saved floating geometry, or forgets the
- * pre-minimize state surfaces as a hard failure.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Window } from '../../src/window';
 import type { WindowConfig } from '../../src/types';
@@ -37,18 +23,6 @@ function baseConfig( overrides: Partial< WindowConfig > = {} ): WindowConfig {
 	};
 }
 
-/**
- * JSDOM returns 0 for every `offsetLeft / offsetTop / offsetWidth /
- * offsetHeight` regardless of the inline styles the Window writes, so
- * the saved-geometry assertions need explicit stubs to be meaningful.
- * Without these stubs, the "did we preserve the original floating
- * geometry?" tests reduce to `0 === 0` and pass for the wrong reason.
- *
- * The stubs are read by every code path that captures geometry
- * (`maximize()`, `toggleFullscreen()`, `_savedFullscreenState`,
- * `applySnap` callers) so they form the ground truth of "what does
- * 'the current rect' resolve to" for this test fixture.
- */
 function mountWindow(
 	cfg: WindowConfig,
 	rect: { left: number; top: number; width: number; height: number } = {
@@ -89,7 +63,6 @@ function mountWindow(
 	};
 }
 
-/** Read the active state class from the element (there should be exactly one or none). */
 function activeStateClasses( el: HTMLElement ): string[] {
 	const all = [
 		'os-window--maximized',
@@ -125,19 +98,16 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.toggleMaximize();
 
 		expect( handle.win.state ).toBe( 'maximized' );
-		// Only the maximized class — fullscreen must be stripped, no
-		// stacking. This is the exact bug the user reported: clicking
-		// maximize while in fullscreen produced no visible change
-		// because `--fullscreen` (with !important) was still active.
+
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
 			'os-window--maximized',
 		] );
 	} );
 
 	test( 'fullscreen → maximize → fullscreen: re-enters fullscreen cleanly', () => {
-		handle.win.toggleFullscreen(); // normal → fullscreen
-		handle.win.toggleMaximize(); // fullscreen → maximized
-		handle.win.toggleFullscreen(); // maximized → fullscreen
+		handle.win.toggleFullscreen();
+		handle.win.toggleMaximize();
+		handle.win.toggleFullscreen();
 
 		expect( handle.win.state ).toBe( 'fullscreen' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
@@ -150,7 +120,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.toggleFullscreen();
 		expect( handle.win.state ).toBe( 'fullscreen' );
 
-		handle.win.toggleFullscreen(); // exit fullscreen
+		handle.win.toggleFullscreen();
 
 		expect( handle.win.state ).toBe( 'maximized' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
@@ -159,12 +129,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'normal → fullscreen → exit fullscreen: returns to normal with original geometry', () => {
-		// The stubbed `offsetLeft/Top/Width/Height` from `mountWindow`
-		// are the ground truth for "current rect" — `toggleFullscreen`
-		// captures them into `_savedFullscreenState`, and the exit
-		// path writes them back to inline styles. Assertions compare
-		// inline styles against the known stubbed values so the test
-		// fails loudly if the save/restore round-trip drops anything.
+
 		handle.win.toggleFullscreen();
 		handle.win.toggleFullscreen();
 
@@ -182,7 +147,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 		handle.win.toggleFullscreen();
 		expect( handle.win.state ).toBe( 'fullscreen' );
-		// Snap class must not leak alongside fullscreen.
+
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
 			'os-window--fullscreen',
 		] );
@@ -212,9 +177,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 		handle.win.restore();
 
-		// Pre-fix: restore() unconditionally set state='normal' while
-		// leaving --maximized on the element. Now the underlying state
-		// is preserved across the minimize/restore round trip.
 		expect( handle.win.state ).toBe( 'maximized' );
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
 			'os-window--maximized',
@@ -229,30 +191,20 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.restore();
 
 		expect( handle.win.state ).toBe( 'fullscreen' );
-		// `--fullscreen` must persist through the minimize/restore
-		// round-trip (minimize composed `--minimized` on top); restore
-		// strips `--minimized` and leaves the underlying state class.
+
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
 			'os-window--fullscreen',
 		] );
 	} );
 
 	test( 'fullscreen → minimize → restore: refreshes fullscreen body class', () => {
-		// Regression guard for the observation that `restore()` to a
-		// fullscreen state used to leave UI side-effects stale. The
-		// body class controls admin-bar hiding (see
-		// `assets/css/desktop.css` rule on
-		// `body.os-has-fullscreen-window`) — if it falls out
-		// of sync after restore, the admin bar reappears on top of a
-		// supposedly-fullscreen window.
+
 		handle.win.toggleFullscreen();
 		expect(
 			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( true );
 		handle.win.minimize();
-		// Simulate something else clearing the body class while the
-		// window was hidden (a re-render race, a sibling window's
-		// close path, etc.). Restore must rebuild it.
+
 		document.body.classList.remove( 'os-has-fullscreen-window' );
 
 		handle.win.restore();
@@ -263,13 +215,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'fullscreen → minimize: clears fullscreen body class while minimized', () => {
-		// Regression guard for the admin-bar bug: minimizing a
-		// fullscreen window used to leave
-		// `body.os-has-fullscreen-window` in place, keeping
-		// the admin bar hidden even though no fullscreen window was
-		// visible. `updateFullscreenBodyClass()` now ignores windows
-		// that are fullscreen *and* minimized, and `minimize()` re-runs
-		// it for the fullscreen path.
+
 		handle.win.toggleFullscreen();
 		expect(
 			document.body.classList.contains( 'os-has-fullscreen-window' ),
@@ -283,11 +229,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'minimizing one fullscreen window keeps body class for another visible fullscreen window', () => {
-		// The `:not(--minimized)` selector must count *visible*
-		// fullscreen windows only — but any one of them is enough to
-		// keep the class. Guards against a "simplification" that keys
-		// the class off the window being minimized instead of scanning
-		// the document.
+
 		const other = mountWindow( baseConfig( { id: 'w2' } ) );
 		try {
 			handle.win.toggleFullscreen();
@@ -310,11 +252,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'fullscreen → minimize → restore: refreshes focus-button aria-pressed/label', () => {
-		// The focus (fullscreen) title-bar button is rendered by the
-		// controls system, so the easiest reliable way to assert its
-		// state is to seed the element with a button matching the
-		// selector `updateFocusButtonState` queries, then verify the
-		// attributes after the round-trip.
+
 		const btn = document.createElement( 'button' );
 		btn.className = 'os-window__btn os-window__btn--focus';
 		handle.win.element.appendChild( btn );
@@ -322,8 +260,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.toggleFullscreen();
 		expect( btn.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 		handle.win.minimize();
-		// Simulate a re-render that reset the button to its default
-		// "not pressed" state during the minimized period.
+
 		btn.setAttribute( 'aria-pressed', 'false' );
 		btn.classList.remove( 'os-window__btn--active' );
 
@@ -336,12 +273,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'restore() to maximized fires WINDOW_RESTORED but NOT WINDOW_MAXIMIZED', () => {
-		// Documents the intentional semantic from the doc note: a
-		// minimize/restore round-trip is treated as a visibility
-		// change, not a state transition. The window never left
-		// 'maximized' from the framework's perspective; firing
-		// WINDOW_MAXIMIZED again would mislead plugin authors who use
-		// it to detect "entered maximize for the first time."
+
 		const fired: string[] = [];
 		hooks.addAction(
 			'os.window.restored',
@@ -367,7 +299,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'restore() to fullscreen fires WINDOW_RESTORED but NOT WINDOW_FULLSCREEN_ENTERED', () => {
-		// Same semantic for the fullscreen path.
+
 		const fired: string[] = [];
 		hooks.addAction(
 			'os.window.restored',
@@ -404,10 +336,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	test( 'minimize is a no-op when already minimized — saved state not clobbered', () => {
 		handle.win.toggleMaximize();
 		handle.win.minimize();
-		// A second minimize() — could come from a redundant click on
-		// the taskbar tile or a state-restoration race — must not
-		// overwrite _stateBeforeMinimize with 'minimized' (which would
-		// then leak into restore and break the round-trip).
+
 		handle.win.minimize();
 
 		handle.win.restore();
@@ -417,14 +346,9 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 	test( 'normal → fullscreen → maximize → toggle-off: returns to original floating geometry', () => {
 		handle.win.toggleFullscreen();
-		handle.win.toggleMaximize(); // fullscreen → maximized
-		handle.win.toggleMaximize(); // maximized → normal
+		handle.win.toggleMaximize();
+		handle.win.toggleMaximize();
 
-		// The original floating geometry (stubbed via `mountWindow`)
-		// must survive the chain — at each transition the saved
-		// geometry rule "capture only when leaving 'normal'" prevents
-		// the maximized 0,0,parentW,parentH from overwriting the real
-		// pre-flight rect.
 		expect( handle.win.state ).toBe( 'normal' );
 		expect( handle.win.element.style.left ).toBe( '40px' );
 		expect( handle.win.element.style.top ).toBe( '60px' );
@@ -433,17 +357,11 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'maximize → fullscreen → toggle-off fullscreen → toggle-off maximize: lands on original geometry', () => {
-		handle.win.toggleMaximize(); // normal → maximized (geo saved)
-		handle.win.toggleFullscreen(); // maximized → fullscreen (geo stays)
-		handle.win.toggleFullscreen(); // fullscreen → maximized
-		handle.win.toggleMaximize(); // maximized → normal
+		handle.win.toggleMaximize();
+		handle.win.toggleFullscreen();
+		handle.win.toggleFullscreen();
+		handle.win.toggleMaximize();
 
-		// This is the exact case the bug 2 review flagged: when exiting
-		// fullscreen via the "saved state was maximized" branch, an
-		// earlier revision re-saved `_savedGeometry` from the inline
-		// maximized rect (0,0,parentW,parentH). The final
-		// toggle-off-maximize would then restore to the desktop area's
-		// full bounds rather than the original 40,60 / 800×600.
 		expect( handle.win.state ).toBe( 'normal' );
 		expect( handle.win.element.style.left ).toBe( '40px' );
 		expect( handle.win.element.style.top ).toBe( '60px' );
@@ -453,10 +371,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 	test( 'maximize() one-way does not overwrite saved geometry when called from fullscreen', () => {
 		handle.win.toggleFullscreen();
-		// Direct call to one-way maximize — exercises the
-		// "state !== 'normal' → don't re-save" branch. After the
-		// transition the toggle-off should still land us on the
-		// original floating rect.
+
 		handle.win.maximize();
 		handle.win.toggleMaximize();
 
@@ -468,9 +383,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'fullscreen exit-to-maximized emits state-change exactly once', () => {
-		// Bug-3 regression guard. The exit-to-maximized path used to
-		// call `this.maximize()` (which `_emitChange`s) and then the
-		// shared tail also `_emitChange`d — two events per transition.
+
 		handle.win.toggleMaximize();
 		handle.win.toggleFullscreen();
 
@@ -479,17 +392,14 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 			events.push( e );
 		};
 		document.addEventListener( 'os-window-changed', listener );
-		handle.win.toggleFullscreen(); // exit fullscreen → restore to maximized
+		handle.win.toggleFullscreen();
 		document.removeEventListener( 'os-window-changed', listener );
 
 		expect( events ).toHaveLength( 1 );
 	} );
 
 	test( 'fullscreen → maximize via Maximize button fires FULLSCREEN_EXITED then MAXIMIZED, in that order', () => {
-		// Bug-5 regression guard — the two code paths that produce a
-		// fullscreen → maximized transition must fire actions in the
-		// same order so plugin authors get a predictable sequence
-		// regardless of which button the user clicked.
+
 		const fired: string[] = [];
 		hooks.addAction(
 			'os.window.fullscreen-exited',
@@ -507,16 +417,14 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		);
 
 		handle.win.toggleFullscreen();
-		fired.length = 0; // reset — we only care about what the next click fires
+		fired.length = 0;
 		handle.win.toggleMaximize();
 
 		expect( fired ).toEqual( [ 'fullscreen-exited', 'maximized' ] );
 	} );
 
 	test( 'fullscreen → exit-to-maximized via Focus button fires same hook sequence', () => {
-		// Symmetric to the previous test — exiting fullscreen with a
-		// saved maximized prior state should produce the same hook
-		// order as toggleMaximize-from-fullscreen.
+
 		const fired: string[] = [];
 		hooks.addAction(
 			'os.window.fullscreen-exited',
@@ -533,20 +441,16 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 			},
 		);
 
-		handle.win.toggleMaximize(); // normal → maximized
-		handle.win.toggleFullscreen(); // maximized → fullscreen
+		handle.win.toggleMaximize();
+		handle.win.toggleFullscreen();
 		fired.length = 0;
-		handle.win.toggleFullscreen(); // fullscreen → maximized (restore)
+		handle.win.toggleFullscreen();
 
 		expect( fired ).toEqual( [ 'fullscreen-exited', 'maximized' ] );
 	} );
 
 	test( 'subscribers reading state in FULLSCREEN_EXITED handler see the new state, not stale fullscreen', () => {
-		// Bug 5 sibling concern — when the exit hook fires, `win.state`
-		// must already reflect the post-transition value. Otherwise a
-		// plugin author who branches on state inside their handler
-		// gets inconsistent results depending on which code path
-		// triggered the exit.
+
 		const observed: string[] = [];
 		hooks.addAction(
 			'os.window.fullscreen-exited',
@@ -556,11 +460,10 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 			},
 		);
 
-		// Path A: toggleFullscreen exit when saved was maximized.
 		handle.win.toggleMaximize();
 		handle.win.toggleFullscreen();
 		handle.win.toggleFullscreen();
-		// Path B: toggleMaximize from fullscreen.
+
 		handle.win.toggleFullscreen();
 		handle.win.toggleMaximize();
 
@@ -568,10 +471,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'minimize and restore invoke WAAPI flight animation when dock tile is present', () => {
-		// WAAPI flight drives the scale-to-dock motion when geometry and
-		// an animation engine are available. `--minimizing` and `--restoring`
-		// keep the window interactive/visible during flight before the final
-		// state class lands.
+
 		const dockEl = document.createElement( 'div' );
 		dockEl.className = 'os-dock__item';
 		dockEl.setAttribute( 'data-os-window-base-id', 'w1' );
@@ -619,8 +519,7 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'minimize skips WAAPI animation when prefers-reduced-motion is active', () => {
-		// Accessibility guard: when reduced motion is requested, genie
-		// flight must be bypassed so the window minimizes immediately.
+
 		const origMatchMedia = window.matchMedia;
 		window.matchMedia = vi.fn().mockReturnValue( { matches: true } );
 

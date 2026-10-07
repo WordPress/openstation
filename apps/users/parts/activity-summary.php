@@ -1,21 +1,14 @@
 <?php
-/** Complete activity totals with bounded profile samples. @package OpenStation */
+
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Reduce compact site-member facts in one pass. Full WP_User objects and avatars
- * are loaded only for the bounded lists the dashboard actually displays.
- *
- * @return array|WP_Error Complete snapshot or a capability/database error.
- */
 function openstation_users_window_activity_summary() {
 	global $wpdb;
 	if ( ! current_user_can( 'list_users' ) ) {
 		return new WP_Error( 'openstation_users_forbidden', __( 'You are not allowed to list users.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	$scope = is_multisite() ? $wpdb->prepare( "EXISTS (SELECT 1 FROM {$wpdb->usermeta} membership WHERE membership.user_id = u.ID AND membership.meta_key = %s)", $wpdb->get_blog_prefix() . 'capabilities' ) : '1=1';
-	// The only interpolated identifiers belong to wpdb. Scope is prepared above.
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Trusted identifiers and a prepared membership predicate.
+
 	$sql = $wpdb->prepare(
 		"SELECT u.ID, u.display_name, u.user_registered, COALESCE(l.login, 0) AS login, COALESCE(p.posts, 0) AS posts, COALESCE(p.pages, 0) AS pages, COALESCE(c.comments, 0) AS comments
 		FROM {$wpdb->users} u
@@ -25,7 +18,7 @@ function openstation_users_window_activity_summary() {
 		WHERE {$scope}",
 		OPENSTATION_LAST_LOGIN_META_KEY
 	);
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared immediately above.
+
 	$rows = $wpdb->get_results( $sql, ARRAY_A );
 	if ( null === $rows || $wpdb->last_error ) {
 		return new WP_Error( 'openstation_users_activity_failed', __( 'Activity could not be loaded.', 'desktop-mode' ), array( 'status' => 500 ) );
@@ -141,18 +134,10 @@ function openstation_users_window_activity_summary() {
 			$out[ $key ] = $list;
 		}
 	}
-	/** Filter the complete totals and bounded profile samples. @param array $summary Activity snapshot. */
+
 	return apply_filters( 'openstation_users_window_activity_summary', $out );
 }
 
-/**
- * Keep only the best bounded samples while reducing the population.
- *
- * @param array $list Samples, updated in place.
- * @param array $person Compact profile.
- * @param int   $score Sort metric.
- * @param int   $limit Maximum retained profiles.
- */
 function openstation_users_activity_sample( array &$list, array $person, $score, $limit ) {
 	$person['_score'] = $score;
 	$list[]           = $person;
@@ -170,7 +155,6 @@ function openstation_users_activity_sample( array &$list, array $person, $score,
 	$list = array_slice( $list, 0, $limit );
 }
 
-/** Register the authenticated read-only activity snapshot. */
 function openstation_users_window_register_activity_summary_route() {
 	register_rest_route(
 		'desktop-mode/v1',

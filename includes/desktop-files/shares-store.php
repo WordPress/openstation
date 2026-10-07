@@ -1,48 +1,7 @@
 <?php
-/**
- * OpenStation — Folder shares store.
- *
- * CRUD + ACL resolver for the v8 `_desktop_mode_folder_shares`
- * table. Each row is a single (folder, principal) grant carrying:
- *
- *   - `capability` (`read` | `write`) — what the recipient may do
- *     to the FOLDER ICON (move it, trash it, place icons inside).
- *     This is intentionally orthogonal to capabilities on the
- *     underlying item (sharing a folder that contains a post does
- *     NOT grant edit_posts on that post).
- *
- *   - `state` (`pending` | `accepted` | `denied`) — opt-in marker.
- *     A pending grant is visible to the recipient via the
- *     heartbeat `shares.pending` channel only; the folder itself
- *     does not appear in `compute_visible_folders` until accept.
- *
- * The owner of a folder (folders.owner_id) is the implicit "admin"
- * of its shares: always writes, never visible in the shares table.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Whether the folder-sharing feature is enabled for a viewer.
- *
- * Reads `foldersSharingEnabled` from the user's OS Settings
- * (defaults to true). Gates every share-related delivery and REST
- * route — when a user has it off:
- *
- *   - The heartbeat skips the `shares.pending` payload for them.
- *   - The REST share routes return 404 (look the same as a
- *     plugin that doesn't ship the feature, no information leak).
- *   - The client suppresses every share UI surface.
- *
- * Plugins can short-circuit via the
- * `openstation_files_sharing_enabled_for` filter (e.g. force-off
- * on a multisite subsite, gate by capability, etc.).
- *
- * @param int $user_id Viewer id. `0` is treated as disabled.
- * @return bool
- */
 function openstation_files_sharing_enabled_for( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
@@ -53,72 +12,20 @@ function openstation_files_sharing_enabled_for( $user_id ) {
 		$settings = openstation_get_os_settings( $user_id );
 		$enabled  = ! empty( $settings['foldersSharingEnabled'] );
 	}
-	/**
-	 * Filter the per-user folder-sharing kill switch.
-	 *
-	 * @param bool $enabled Default reads from OS Settings.
-	 * @param int  $user_id Viewer.
-	 */
+
 	return (bool) apply_filters( 'openstation_files_sharing_enabled_for', $enabled, $user_id );
 }
 
-/** Allowed principal-type values. */
 function openstation_files_share_principal_types() {
 	return array( 'user', 'role' );
 }
 
-/**
- * Target types that support sharing. The shares table carries a
- * `target_type` column on every row; this filter declares which
- * values the framework will accept on `openstation_share_invite`
- * + friends.
- *
- * Default ships with `'folder'`. A plugin that wants to add
- * shareable posts (or any other entity) registers their type plus
- * an owner resolver:
- *
- * ```php
- * add_filter( 'openstation_files_shareable_types', function ( $types ) {
- *     $types[] = 'post';
- *     return $types;
- * } );
- * add_filter( 'openstation_files_share_target_owner', function ( $owner_id, $type, $ref ) {
- *     if ( 'post' === $type ) {
- *         return (int) get_post_field( 'post_author', (int) $ref );
- *     }
- *     return $owner_id;
- * }, 10, 3 );
- * ```
- *
- * v1 of the share-settings modal only knows about folders; the
- * REST routes live at `/folders/{id}/shares`. A future modal
- * generalisation (or a per-type opener) can hit the same store
- * functions with a different `$target_type`.
- *
- * @return string[]
- */
 function openstation_files_shareable_types() {
-	/**
-	 * Filter the list of target types that support sharing.
-	 *
-	 * @param string[] $types Default `[ 'folder', 'file' ]` ('file'
-	 *                        = stored uploads).
-	 */
+
 	$types = (array) apply_filters( 'openstation_files_shareable_types', array( 'folder', 'file' ) );
 	return array_values( array_unique( array_filter( array_map( 'strval', $types ) ) ) );
 }
 
-/**
- * Owner of a shareable target. Defaults to the folder owner when
- * `$target_type === 'folder'`. Plugins extending the system to a
- * new type register a filter that returns the correct owner id.
- *
- * @param string $target_type Target type slug.
- * @param string $target_id   Target id (stringified — folder ids
- *                            are integers, but custom types may
- *                            use slugs).
- * @return int Owner user id, or 0 if unknown.
- */
 function openstation_files_share_target_owner( $target_type, $target_id ) {
 	$owner = 0;
 	if ( 'folder' === $target_type ) {
@@ -132,34 +39,18 @@ function openstation_files_share_target_owner( $target_type, $target_id ) {
 			$owner = (int) $file['owner_id'];
 		}
 	}
-	/**
-	 * Filter the owner of a shareable target.
-	 *
-	 * @param int    $owner       Default owner. 0 = unknown.
-	 * @param string $target_type Target type slug.
-	 * @param string $target_id   Target id.
-	 */
+
 	return (int) apply_filters( 'openstation_files_share_target_owner', $owner, (string) $target_type, (string) $target_id );
 }
 
-/** Allowed capability values. */
 function openstation_files_share_capabilities() {
 	return array( 'read', 'write' );
 }
 
-/** Allowed state values. */
 function openstation_files_share_states() {
 	return array( 'pending', 'accepted', 'denied' );
 }
 
-/**
- * Roles eligible to appear in the share picker. Defaults to every
- * role on the site that carries `edit_posts`. Plugins can override
- * via the `openstation_files_share_eligible_roles` filter — site
- * owners typically use this to whitelist a custom team role.
- *
- * @return array<int, array{ slug:string, name:string }>
- */
 function openstation_files_share_eligible_roles() {
 	$out   = array();
 	$roles = wp_roles();
@@ -174,27 +65,11 @@ function openstation_files_share_eligible_roles() {
 			}
 		}
 	}
-	/**
-	 * Filter the roles eligible to appear in the folder share picker.
-	 *
-	 * @param array<int, array{ slug:string, name:string }> $roles Default = roles with `edit_posts`.
-	 */
+
 	$out = (array) apply_filters( 'openstation_files_share_eligible_roles', $out );
 	return $out;
 }
 
-/**
- * Whether a user may be named as a share recipient: a person with
- * `edit_posts`, never an agent. Agents are synthetic accounts that
- * cannot log in (see `openstation_agent_is_agent()`), so an invite to
- * one would sit pending forever and only clutter the picker. Folder
- * invites, file invites and the share picker's user search all ask
- * this one question, so the picker never offers someone the invite
- * routes would refuse.
- *
- * @param WP_User $user Candidate recipient.
- * @return bool
- */
 function openstation_files_share_user_is_eligible( $user ) {
 	if ( ! $user instanceof WP_User || ! $user->exists() ) {
 		return false;
@@ -202,44 +77,17 @@ function openstation_files_share_user_is_eligible( $user ) {
 	return user_can( $user, 'edit_posts' ) && ! openstation_agent_is_agent( $user );
 }
 
-/**
- * Whether `$user_id` may manage the share rules of `$folder_id`.
- * Default: only the folder's owner. Plugins (e.g. a team-admin
- * extension) can broaden this via the filter.
- *
- * @param int $folder_id Folder id.
- * @param int $user_id   Viewer.
- * @return bool
- */
 function openstation_files_share_can_manage( $folder_id, $user_id ) {
 	$folder = openstation_files_get_folder( (int) $folder_id );
 	$can    = $folder && (int) $folder['owner_id'] === (int) $user_id;
-	/**
-	 * Filter who can manage a folder's share rules.
-	 *
-	 * @param bool       $can     Default: owner-only.
-	 * @param int        $folder_id Folder id.
-	 * @param int        $user_id   Viewer.
-	 * @param array|null $folder    Normalized folder row (null when missing).
-	 */
+
 	return (bool) apply_filters( 'openstation_files_share_can_manage', $can, (int) $folder_id, (int) $user_id, $folder );
 }
 
-/**
- * Coerce a raw wpdb shares row to typed values.
- *
- * @internal
- *
- * @param array $row Raw wpdb row.
- * @return array
- */
 function openstation_files_normalize_share_row( $row ) {
 	return array(
 		'id'             => (int) $row['id'],
-		// `target_type` defaults to 'folder' for rows that predate
-		// the column. The `folder_id` column carries the TARGET id —
-		// a folder id for folder shares, a stored-file id for
-		// `target_type='file'` rows (historical column name).
+
 		'target_type'    => isset( $row['target_type'] ) && '' !== (string) $row['target_type']
 			? (string) $row['target_type']
 			: 'folder',
@@ -256,12 +104,6 @@ function openstation_files_normalize_share_row( $row ) {
 	);
 }
 
-/**
- * Read a single share row by id.
- *
- * @param int $share_id Share id.
- * @return array|null
- */
 function openstation_files_get_share( $share_id ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
@@ -275,27 +117,6 @@ function openstation_files_get_share( $share_id ) {
 	return openstation_files_normalize_share_row( $row );
 }
 
-/**
- * The cheap "is this folder shared" summary the desktop paints tiles
- * from, so a tile never has to load the full share roster to decide
- * whether to wear a badge.
- *
- * `shared` is deliberately viewer-agnostic — a recipient needs to
- * see the badge on a folder someone shared with them just as much as
- * the owner does. `recipientCount` is not: the full roster is
- * owner-internal, so only a viewer who can manage the folder's
- * shares gets a real number. Everyone else gets `0`, which keeps the
- * wire shape stable rather than making the key conditional.
- *
- * Lives here rather than inline in the two callers because both the
- * folder response shape and the `folder` file type serialize it, and
- * a badge that appeared on one path but not the other is exactly the
- * bug this consolidates away.
- *
- * @param array|null $folder_row Normalized folder row.
- * @param int|null   $viewer_id  Viewer; defaults to the current user.
- * @return array{shared: bool, recipientCount: int}
- */
 function openstation_files_folder_share_summary( $folder_row, $viewer_id = null ) {
 	$summary = array(
 		'shared'         => false,
@@ -317,22 +138,13 @@ function openstation_files_folder_share_summary( $folder_row, $viewer_id = null 
 	}
 
 	$summary['shared'] = $has_all || $accepted > 0;
-	// The manage check costs a folder read of its own, and an
-	// unshared folder counts zero recipients for everyone anyway —
-	// so only pay for it when there is something to count. Every
-	// folder tile on the desktop serializes through here.
+
 	if ( $summary['shared'] && openstation_files_share_can_manage( $folder_id, $viewer_id ) ) {
 		$summary['recipientCount'] = $accepted + ( $has_all ? 1 : 0 );
 	}
 	return $summary;
 }
 
-/**
- * Every share row for a folder. Owner-internal view.
- *
- * @param int $folder_id Folder id.
- * @return array[]
- */
 function openstation_files_get_folder_shares( $folder_id ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
@@ -350,16 +162,6 @@ function openstation_files_get_folder_shares( $folder_id ) {
 	return $out;
 }
 
-/**
- * Invite a principal to a folder.
- *
- * @param int    $folder_id      Folder id.
- * @param int    $actor_id       Actor (must be able to manage the folder).
- * @param string $principal_type 'user' | 'role'.
- * @param string $principal_ref  User id (stringified) or role slug.
- * @param string $capability     'read' | 'write'.
- * @return int|WP_Error Share id on success.
- */
 function openstation_folder_share_invite( $folder_id, $actor_id, $principal_type, $principal_ref, $capability = 'read' ) {
 	global $wpdb;
 	$folder_id      = (int) $folder_id;
@@ -378,12 +180,6 @@ function openstation_folder_share_invite( $folder_id, $actor_id, $principal_type
 		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot manage shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
-	// Eligibility gate. Users must pass
-	// `openstation_files_share_user_is_eligible()` (`edit_posts`, not
-	// an agent); roles must appear in the eligible-roles list. This
-	// is the only place the "exclude low-tier roles" rule is
-	// enforced — visibility
-	// is computed downstream from accepted rows on this table.
 	if ( 'user' === $principal_type ) {
 		$uid = (int) $principal_ref;
 		if ( $uid <= 0 ) {
@@ -412,10 +208,6 @@ function openstation_folder_share_invite( $folder_id, $actor_id, $principal_type
 	$tables = openstation_files_table_names();
 	$now    = openstation_files_now_ms();
 
-	// Idempotent invite: a pre-existing row with state='denied'
-	// becomes 'pending' again (owner re-inviting after a no);
-	// a pre-existing 'pending' or 'accepted' row keeps its state
-	// but may have its capability bumped to the new value.
 	$existing = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['shares']}
@@ -467,25 +259,11 @@ function openstation_folder_share_invite( $folder_id, $actor_id, $principal_type
 
 	openstation_files_bump_folder_updated_at( $folder_id );
 
-	/**
-	 * Fires after a share is invited (or re-invited).
-	 *
-	 * @param int   $share_id Share id.
-	 * @param array $row      Share row.
-	 * @param int   $actor_id Acting user.
-	 */
 	do_action( 'openstation_files_share_invited', $id, $row, $actor_id );
 
 	return $id;
 }
 
-/**
- * Revoke a share. Owner-side action.
- *
- * @param int $share_id Share id.
- * @param int $actor_id Actor.
- * @return true|WP_Error
- */
 function openstation_folder_share_revoke( $share_id, $actor_id ) {
 	global $wpdb;
 	$share_id = (int) $share_id;
@@ -500,17 +278,11 @@ function openstation_folder_share_revoke( $share_id, $actor_id ) {
 
 	$tables = openstation_files_table_names();
 	$wpdb->delete( $tables['shares'], array( 'id' => $share_id ), array( '%d' ) );
-	// Drop any per-user decision rows attached to this share so
-	// they don't leak past the row deletion.
+
 	$wpdb->delete( $tables['decisions'], array( 'share_id' => $share_id ), array( '%d' ) );
 
 	openstation_files_bump_folder_updated_at( $row['folder_id'] );
 
-	// Scrub recipient's local view. For user-principal grants
-	// that's the single recipient; for role-principal grants we
-	// scrub every user who had a decision row (i.e. interacted
-	// with the share). Users in the role who never interacted
-	// also lose visibility but have no local placement to trash.
 	if ( 'user' === $row['principal_type'] && 'accepted' === $row['state'] ) {
 		$uid = (int) $row['principal_ref'];
 		if ( $uid > 0 ) {
@@ -528,26 +300,11 @@ function openstation_folder_share_revoke( $share_id, $actor_id ) {
 		}
 	}
 
-	/**
-	 * Fires after a share is revoked.
-	 *
-	 * @param int   $share_id Share id.
-	 * @param array $row      Share row (last-known state).
-	 * @param int   $actor_id Acting user.
-	 */
 	do_action( 'openstation_files_share_revoked', $share_id, $row, $actor_id );
 
 	return true;
 }
 
-/**
- * Update the capability on a share. Owner-side action.
- *
- * @param int    $share_id   Share id.
- * @param int    $actor_id   Actor.
- * @param string $capability New capability.
- * @return true|WP_Error
- */
 function openstation_folder_share_update_capability( $share_id, $actor_id, $capability ) {
 	global $wpdb;
 	$share_id   = (int) $share_id;
@@ -572,28 +329,11 @@ function openstation_folder_share_update_capability( $share_id, $actor_id, $capa
 
 	$next = openstation_files_get_share( $share_id );
 
-	/**
-	 * Fires after a share's capability is changed.
-	 *
-	 * @param int   $share_id Share id.
-	 * @param array $next     Row after.
-	 * @param array $prev     Row before.
-	 * @param int   $actor_id Acting user.
-	 */
 	do_action( 'openstation_files_share_capability_changed', $share_id, $next, $row, $actor_id );
 
 	return true;
 }
 
-/**
- * Read this user's decision row for a share (role-principal only).
- *
- * @internal
- *
- * @param int $share_id Share id.
- * @param int $user_id  User.
- * @return array|null Normalized decision row or null.
- */
 function openstation_files_get_user_decision( $share_id, $user_id ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
@@ -617,15 +357,6 @@ function openstation_files_get_user_decision( $share_id, $user_id ) {
 	);
 }
 
-/**
- * Upsert a per-user decision (role-principal opt-in state).
- *
- * @internal
- *
- * @param int    $share_id Share id.
- * @param int    $user_id  User.
- * @param string $state    'pending' | 'accepted' | 'denied'.
- */
 function openstation_files_upsert_user_decision( $share_id, $user_id, $state ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
@@ -644,17 +375,6 @@ function openstation_files_upsert_user_decision( $share_id, $user_id, $state ) {
 	);
 }
 
-/**
- * Resolve this user's effective state on a share:
- *
- *   - user-principal: state lives on the share row itself.
- *   - role-principal: state lives on the per-user decisions
- *     table. Absence = 'pending' (user hasn't decided yet).
- *
- * @param array $share_row Normalized share row.
- * @param int   $user_id   Viewer.
- * @return string 'pending' | 'accepted' | 'denied'
- */
 function openstation_files_share_user_state( $share_row, $user_id ) {
 	if ( 'user' === $share_row['principal_type'] ) {
 		return (string) $share_row['state'];
@@ -669,14 +389,6 @@ function openstation_files_share_user_state( $share_row, $user_id ) {
 	return 'pending';
 }
 
-/**
- * Recipient accepts a share. Creates the recipient's placement of
- * the folder at their desktop root.
- *
- * @param int $share_id Share id.
- * @param int $user_id  Acting user (must be the share's principal).
- * @return array|WP_Error Share row on success.
- */
 function openstation_folder_share_accept( $share_id, $user_id ) {
 	global $wpdb;
 	$share_id = (int) $share_id;
@@ -716,31 +428,16 @@ function openstation_folder_share_accept( $share_id, $user_id ) {
 
 	openstation_files_bump_folder_updated_at( $row['folder_id'] );
 
-	// Place the folder on the recipient's desktop root.
 	$parent_id = (int) apply_filters( 'openstation_folder_share_accept_default_parent', 0, $row['folder_id'], $user_id, $row );
 	openstation_files_place_at_next_free_slot( $user_id, $parent_id, 'folder', (string) $row['folder_id'] );
 
 	$next = openstation_files_get_share( $share_id );
 
-	/**
-	 * Fires after a share is accepted by its recipient.
-	 *
-	 * @param int   $share_id Share id.
-	 * @param array $row      Updated share row.
-	 * @param int   $user_id  Acting user (recipient).
-	 */
 	do_action( 'openstation_files_share_accepted', $share_id, $next, $user_id );
 
 	return $next;
 }
 
-/**
- * Recipient denies a share.
- *
- * @param int $share_id Share id.
- * @param int $user_id  Recipient.
- * @return array|WP_Error Share row on success.
- */
 function openstation_folder_share_deny( $share_id, $user_id ) {
 	global $wpdb;
 	$share_id = (int) $share_id;
@@ -772,44 +469,23 @@ function openstation_folder_share_deny( $share_id, $user_id ) {
 			array( '%d' )
 		);
 	} else {
-		// Role-principal: per-user decision keeps other role members untouched.
+
 		openstation_files_upsert_user_decision( $share_id, $user_id, 'denied' );
 	}
 
 	openstation_files_bump_folder_updated_at( $row['folder_id'] );
 
-	// If the recipient had previously accepted and is now denying
-	// (e.g. they hit deny on a placeholder they already opened),
-	// scrub their local placement too. Works for BOTH user- and
-	// role-principals since the trash helper is user-scoped.
 	if ( 'accepted' === $state ) {
 		openstation_files_trash_folder_for_user( $row['folder_id'], $user_id );
 	}
 
 	$next = openstation_files_get_share( $share_id );
 
-	/**
-	 * Fires after a share is denied.
-	 *
-	 * @param int   $share_id Share id.
-	 * @param array $row      Updated share row.
-	 * @param int   $user_id  Acting user (recipient).
-	 */
 	do_action( 'openstation_files_share_denied', $share_id, $next, $user_id );
 
 	return $next;
 }
 
-/**
- * Recipient-initiated leave. Finds whichever share row grants
- * the user access to `$folder_id` (user-principal or matching
- * role-principal) and marks them as denied, then scrubs their
- * local placements. Idempotent — no-op if the user has no share.
- *
- * @param int $folder_id Folder id.
- * @param int $user_id   Recipient leaving.
- * @return true|WP_Error
- */
 function openstation_folder_share_leave( $folder_id, $user_id ) {
 	global $wpdb;
 	$folder_id = (int) $folder_id;
@@ -857,21 +533,10 @@ function openstation_folder_share_leave( $folder_id, $user_id ) {
 			openstation_files_upsert_user_decision( $row['id'], $user_id, 'denied' );
 		}
 		++$touched;
-		/**
-		 * Fires after a recipient leaves a shared folder. Distinct
-		 * from `_denied` (owner-side audit) because this is always
-		 * recipient-initiated, after acceptance.
-		 *
-		 * @param int   $share_id Share id.
-		 * @param array $row      Share row (last-known).
-		 * @param int   $user_id  Recipient leaving.
-		 */
+
 		do_action( 'openstation_files_share_left', $row['id'], $row, $user_id );
 	}
 
-	// Scrub the recipient's view regardless of whether a share row
-	// matched (the user might have a placement from a previously
-	// revoked share that lingered).
 	openstation_files_trash_folder_for_user( $folder_id, $user_id );
 	openstation_files_bump_folder_updated_at( $folder_id );
 
@@ -881,15 +546,6 @@ function openstation_folder_share_leave( $folder_id, $user_id ) {
 	return true;
 }
 
-/**
- * Does `$share_row` target `$user_id` (directly or by role)?
- *
- * @internal
- *
- * @param array $share_row Normalized share row.
- * @param int   $user_id   User to test.
- * @return bool
- */
 function openstation_files_share_principal_matches_user( $share_row, $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
@@ -908,15 +564,6 @@ function openstation_files_share_principal_matches_user( $share_row, $user_id ) 
 	return false;
 }
 
-/**
- * Capability `$user_id` holds on `$folder_id`. `write` beats `read`
- * beats `none`. Owner always returns `'write'`. `share_mode='all'`
- * yields a default of `'read'` (filterable).
- *
- * @param int $folder_id Folder id.
- * @param int $user_id   Viewer.
- * @return string 'none' | 'read' | 'write'
- */
 function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 	$folder_id = (int) $folder_id;
 	$user_id   = (int) $user_id;
@@ -932,9 +579,6 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 		return 'write';
 	}
 
-	// Cascade — walk the folder's ancestor chain. A folder nested
-	// inside a shared folder inherits the share. The most permissive
-	// ancestor cap wins. Bail out as soon as we hit 'write'.
 	$cascade_cap = openstation_folder_share_user_capability_cascade( $folder_id, $user_id );
 	if ( 'write' === $cascade_cap ) {
 		return 'write';
@@ -942,13 +586,7 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 
 	$cap = 'none';
 	if ( 'all' === $folder['share_mode'] ) {
-		/**
-		 * Filter the default capability for `share_mode='all'`.
-		 *
-		 * @param string $cap     Default 'read'.
-		 * @param int    $folder_id Folder id.
-		 * @param int    $user_id   Viewer.
-		 */
+
 		$cap = (string) apply_filters( 'openstation_files_share_all_default_capability', 'read', $folder_id, $user_id );
 	}
 
@@ -960,7 +598,7 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 
 	global $wpdb;
 	$tables = openstation_files_table_names();
-	// User-principal grants — state lives on the shares row.
+
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id, principal_type, principal_ref, capability FROM {$tables['shares']}
@@ -969,9 +607,7 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 		),
 		ARRAY_A
 	);
-	// Role-principal grants — opt-in is per-user via the decisions
-	// table. We join so a role member only gets a hit if they've
-	// individually accepted (no "first to click decides for all").
+
 	$role_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT s.id, s.principal_type, s.principal_ref, s.capability
@@ -995,7 +631,7 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 			$row_cap = (string) $row['capability'];
 			if ( 'write' === $row_cap ) {
 				$cap = 'write';
-				break; // Most permissive wins; can't beat 'write'.
+				break;
 			}
 			if ( 'read' === $row_cap && 'none' === $cap ) {
 				$cap = 'read';
@@ -1003,48 +639,13 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 		}
 	}
 
-	// Fold the cascaded ancestor cap into the result if it beats
-	// what direct shares granted. (`cascade_cap` was computed above
-	// before the early-write-bail — we already know it's not 'write'
-	// at this point, otherwise we returned earlier.)
 	if ( 'read' === $cascade_cap && 'none' === $cap ) {
 		$cap = 'read';
 	}
 
-	/**
-	 * Filter the resolved capability.
-	 *
-	 * @param string $cap     'none' | 'read' | 'write'.
-	 * @param int    $folder_id Folder id.
-	 * @param int    $user_id   Viewer.
-	 * @param array  $folder    Normalized folder row.
-	 */
 	return (string) apply_filters( 'openstation_folder_share_user_capability', $cap, $folder_id, $user_id, $folder );
 }
 
-/**
- * Walk the ancestor chain of `$folder_id` and return the most
- * permissive DIRECT share cap any ancestor has for `$user_id`.
- * Used by `openstation_folder_share_user_capability` to cascade
- * a share grant from a parent folder into every folder nested
- * inside it.
- *
- * "Direct" means the share row exists for that ancestor — we
- * don't recurse the cascade resolver to avoid infinite loops
- * and quadratic complexity.
- *
- * Performance: collapses the per-ancestor capability check into
- * three batched queries regardless of chain depth — one
- * `folders IN (…)` for ownership + `'all'` share-mode, one
- * `shares IN (…)` for user-principal accepted rows, one
- * `shares IN (…) JOIN decisions` for role-principal accepted
- * rows. Replaces the previous loop that fired up to two queries
- * per ancestor (32 on cold caches at the 16-level cap).
- *
- * @param int $folder_id Folder whose ancestors to walk.
- * @param int $user_id   Viewer.
- * @return string 'none' | 'read' | 'write'
- */
 function openstation_folder_share_user_capability_cascade( $folder_id, $user_id ) {
 	$user_id   = (int) $user_id;
 	$ancestors = openstation_folder_ancestors( (int) $folder_id );
@@ -1055,15 +656,9 @@ function openstation_folder_share_user_capability_cascade( $folder_id, $user_id 
 	global $wpdb;
 	$tables = openstation_files_table_names();
 
-	// Coerce + dedupe to keep the IN clause small and safe to
-	// interpolate. Every value is an int by the time it lands
-	// in the SQL.
 	$ancestor_ids = array_values( array_unique( array_map( 'intval', $ancestors ) ) );
 	$ids_csv      = implode( ',', $ancestor_ids );
 
-	// One query for ancestor folder rows — covers ownership
-	// short-circuit AND `share_mode='all'` ancestors.
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ids are intval'd above.
 	$folder_rows = $wpdb->get_results(
 		"SELECT id, owner_id, share_mode FROM {$tables['folders']} WHERE id IN ($ids_csv)",
 		ARRAY_A
@@ -1090,8 +685,6 @@ function openstation_folder_share_user_capability_cascade( $folder_id, $user_id 
 		}
 	}
 
-	// User-principal accepted shares across every ancestor.
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- ids cast above.
 	$user_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT folder_id, capability FROM {$tables['shares']}
@@ -1114,14 +707,12 @@ function openstation_folder_share_user_capability_cascade( $folder_id, $user_id 
 		}
 	}
 
-	// Role-principal accepted shares — one query only when the
-	// user actually has roles to match.
 	$user       = get_userdata( $user_id );
 	$user_roles = $user ? (array) $user->roles : array();
 	if ( ! empty( $user_roles ) ) {
 		$role_placeholders = implode( ',', array_fill( 0, count( $user_roles ), '%s' ) );
 		$args              = array_merge( array( $user_id ), $user_roles );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- placeholders generated above; ids intval'd.
+
 		$role_rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT s.folder_id, s.capability
@@ -1149,19 +740,6 @@ function openstation_folder_share_user_capability_cascade( $folder_id, $user_id 
 	return $cap;
 }
 
-/**
- * Direct (non-cascading) capability resolver. Same logic as
- * `openstation_folder_share_user_capability` minus the cascade
- * walk — owner / share rows / role decisions only.
- *
- * Currently uncalled: the cascade resolver
- * (`openstation_folder_share_user_capability_cascade`) resolves
- * every ancestor via three batched `IN (…)` queries instead of
- * querying ancestors one at a time. Kept as a single-folder,
- * non-cascading resolver.
- *
- * @internal
- */
 function openstation_folder_share_user_capability_direct( $folder_id, $user_id ) {
 	$folder_id = (int) $folder_id;
 	$user_id   = (int) $user_id;
@@ -1227,22 +805,6 @@ function openstation_folder_share_user_capability_direct( $folder_id, $user_id )
 	return $cap;
 }
 
-/**
- * Return the chain of ancestor folder ids above `$folder_id`,
- * walking the owner's canonical placement. The first element is
- * the immediate parent; the last is the root-most ancestor.
- *
- * Why owner's placement: a folder can be placed in multiple
- * locations (one per user), so "parent" is ambiguous. The owner's
- * placement is the canonical one (the owner decides the tree).
- *
- * Hard-capped at 16 levels deep + a visited set to make pathological
- * inputs (cycles, deep nests) bounded.
- *
- * @param int $folder_id Folder whose ancestors to walk.
- * @param int $limit     Max ancestor count (default 16).
- * @return int[]
- */
 function openstation_folder_ancestors( $folder_id, $limit = 16 ) {
 	global $wpdb;
 	$folder_id = (int) $folder_id;
@@ -1292,14 +854,6 @@ function openstation_folder_ancestors( $folder_id, $limit = 16 ) {
 	return $ancestors;
 }
 
-/**
- * Pending invites for `$user_id` across every folder. Used by the
- * heartbeat `shares.pending` payload.
- *
- * @param int $user_id Viewer.
- * @param int $since_ms Optional. Only include rows with `invited_at_ms > since`.
- * @return array[]
- */
 function openstation_files_get_pending_shares_for_user( $user_id, $since_ms = 0 ) {
 	global $wpdb;
 	$user_id  = (int) $user_id;
@@ -1315,8 +869,6 @@ function openstation_files_get_pending_shares_for_user( $user_id, $since_ms = 0 
 
 	$tables = openstation_files_table_names();
 
-	// User-principal: state lives on the share row. Surface where
-	// state='pending' AND principal_ref matches the user.
 	$user_pending = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT s.* FROM {$tables['shares']} s
@@ -1333,14 +885,11 @@ function openstation_files_get_pending_shares_for_user( $user_id, $since_ms = 0 
 		ARRAY_A
 	);
 
-	// Role-principal: surface every role-share the user matches
-	// where they have NO decision row yet OR their decision is
-	// 'pending'. Denied/accepted decisions suppress the prompt.
 	$role_pending = array();
 	if ( ! empty( $roles ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $roles ), '%s' ) );
 		$prepare      = array_merge( array( $user_id, $since_ms ), $roles );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
 		$role_pending = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT s.* FROM {$tables['shares']} s
@@ -1365,15 +914,6 @@ function openstation_files_get_pending_shares_for_user( $user_id, $since_ms = 0 
 	return $out;
 }
 
-/**
- * Bump a folder's `updated_at_ms`. Internal helper — every share
- * mutation should bump the parent folder so heartbeat clients pick
- * up the change in the same delta window.
- *
- * @internal
- *
- * @param int $folder_id Folder id.
- */
 function openstation_files_bump_folder_updated_at( $folder_id ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
@@ -1386,15 +926,6 @@ function openstation_files_bump_folder_updated_at( $folder_id ) {
 	);
 }
 
-/**
- * Recipient-scoped trash. Removes the recipient's placement of the
- * folder + their placements INSIDE the folder. Does NOT cascade
- * into the shared icon namespace (other users' placements survive).
- *
- * @param int $folder_id Folder id.
- * @param int $user_id   Recipient.
- * @return int Number of placement rows trashed.
- */
 function openstation_files_trash_folder_for_user( $folder_id, $user_id ) {
 	global $wpdb;
 	$folder_id = (int) $folder_id;
@@ -1405,9 +936,6 @@ function openstation_files_trash_folder_for_user( $folder_id, $user_id ) {
 	$tables = openstation_files_table_names();
 	$now    = openstation_files_now_ms();
 
-	// The recipient's folder-shortcut placement (parent_id=0,
-	// file_type='folder', file_ref=$folder_id) + every placement
-	// they own INSIDE this folder (parent_id=$folder_id).
 	$rows  = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['placements']}
@@ -1436,50 +964,16 @@ function openstation_files_trash_folder_for_user( $folder_id, $user_id ) {
 			array( '%d', '%d' ),
 			array( '%d' )
 		);
-		// Soft-trash only — DO NOT write a tombstone here.
-		// Tombstones represent permanent removal (hard delete); the
-		// heartbeat already surfaces soft-trashed rows via the
-		// `trashed_at_ms IS NOT NULL` query in
-		// `openstation_files_compute_heartbeat_delta`. Writing a
-		// tombstone on every soft-trash conflates the two states and,
-		// when the row is later restored (e.g. the recipient re-
-		// accepts the same share), the lingering tombstone keeps
-		// telling clients "this is gone" while the same placement
-		// row is also being upserted as alive — causing the row to
-		// disappear from the desktop on every heartbeat tick. See
-		// the user-reported "shared folder vanishes after refresh"
-		// bug.
+
 		++$count;
 	}
 	return $count;
 }
 
-/**
- * Hook into the trash gate so a read-only recipient cannot trash
- * placements they "own" inside a shared folder. The ownership
- * check at the placement level passes (each user has their own
- * placement row), so the gate needs an extra read-only veto.
- *
- * @param bool  $can     Default decision (ownership match).
- * @param int   $user_id Acting user.
- * @param array $row     Placement row.
- * @return bool
- */
 function openstation_files_share_gate_trash( $can, $user_id, $row ) {
 	$parent_id = isset( $row['parent_id'] ) ? (int) $row['parent_id'] : 0;
 	$user_id   = (int) $user_id;
 
-	// Root-level placement of a SHARED FOLDER (the recipient's
-	// desktop copy of a folder owned by someone else). The
-	// recipient technically "owns" their placement row, so the
-	// default ownership rule grants trash — but the destructive
-	// "Move to Trash" affordance is misleading here. The correct
-	// action is "Leave shared folder", which fires the share-leave
-	// flow (revokes their decision, scrubs the placement, leaves
-	// the original intact). Veto the trash gate when the viewer
-	// has no WRITE cap on the folder so the client suppresses
-	// "Move to Trash" + rejects the trash drop, leaving "Leave
-	// shared folder" as the only way out.
 	if (
 		$parent_id <= 0 &&
 		isset( $row['file_type'] ) &&
@@ -1493,14 +987,7 @@ function openstation_files_share_gate_trash( $can, $user_id, $row ) {
 				$folder_row &&
 				(int) $folder_row['owner_id'] !== $user_id
 			) {
-				// ANY non-owner recipient of a shared folder is
-				// blocked from trashing their root placement — the
-				// correct action is "Leave shared folder". This
-				// applies equally to read-only AND write recipients:
-				// a writer's destructive intent should be expressed
-				// via the leave flow (which scrubs their own
-				// placement) instead of via Move to Trash (which is
-				// reserved for the owner's destructive cascade).
+
 				$root_cap = openstation_folder_share_user_capability( $folder_ref, $user_id );
 				if ( 'none' !== $root_cap ) {
 					return false;
@@ -1511,8 +998,7 @@ function openstation_files_share_gate_trash( $can, $user_id, $row ) {
 	}
 
 	if ( $parent_id <= 0 ) {
-		// Any other root placement (not a shared-folder tile) —
-		// default ownership rule stands.
+
 		return $can;
 	}
 	$folder = openstation_files_get_folder( $parent_id );
@@ -1522,26 +1008,14 @@ function openstation_files_share_gate_trash( $can, $user_id, $row ) {
 	$is_owner = (int) $folder['owner_id'] === $user_id;
 	$cap      = openstation_folder_share_user_capability( $parent_id, $user_id );
 
-	// Folder owner can always trash anything inside their folder.
 	if ( $is_owner ) {
 		return true;
 	}
-	// Non-owner: require write cap on the folder, regardless of
-	// who originally placed the row. This is the upgrade path —
-	// writers can trash any icon in the shared folder. Readers
-	// can't trash anything (even their own placement in this folder).
+
 	return 'write' === $cap;
 }
 add_filter( 'openstation_files_user_can_trash_placement', 'openstation_files_share_gate_trash', 10, 3 );
 
-/**
- * Inject share-related state into the shell config so the share
- * settings modal + role picker have what they need without
- * round-tripping.
- *
- * @param array $config Shell config.
- * @return array
- */
 function openstation_files_share_inject_shell_config( $config ) {
 	if ( ! is_array( $config ) ) {
 		$config = array();
@@ -1554,12 +1028,6 @@ function openstation_files_share_inject_shell_config( $config ) {
 		$config['currentUserId'] = $user_id;
 	}
 
-	// Seed the shares store with the viewer's current pending invites
-	// on the first paint, so the accept/deny modal opens immediately
-	// on refresh instead of waiting for the first heartbeat tick to
-	// deliver them. Same kill-switch + shape as the heartbeat path —
-	// see `openstation_files_collect_heartbeat_delta()` for the
-	// canonical builder.
 	$pending         = array();
 	$sharing_enabled = function_exists( 'openstation_files_sharing_enabled_for' )
 		? openstation_files_sharing_enabled_for( $user_id )
@@ -1589,21 +1057,6 @@ function openstation_files_share_inject_shell_config( $config ) {
 }
 add_filter( 'openstation_shell_config', 'openstation_files_share_inject_shell_config', 20 );
 
-/**
- * Place an icon at the next free slot in a user's view of
- * `$parent_id`. Internal helper used by share-accept and fan-out.
- *
- * "Next free" follows the destination's own reading order — columns
- * on the desktop, rows in a folder — so a shared thing arriving
- * unannounced lands where the next tile the user created would have.
- * Grid math lives in `includes/desktop-files/grid.php`.
- *
- * @param int    $user_id   Viewer.
- * @param int    $parent_id Folder id (0 = desktop root).
- * @param string $type      File-type slug.
- * @param string $ref       Entity reference.
- * @return int|WP_Error Placement id or error.
- */
 function openstation_files_place_at_next_free_slot( $user_id, $parent_id, $type, $ref ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;

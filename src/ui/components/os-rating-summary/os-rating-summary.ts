@@ -1,26 +1,6 @@
-/**
- * `<os-rating-summary>` — wp.org-style rating distribution.
- *
- * Renders a two-pane summary card: the average rating + 5-star
- * cluster + total-ratings count on the left; one animated bar per
- * star bucket on the right. Designed for the Reviews surface of the
- * Plugins window but stays generic so future surfaces (theme
- * directory, product reviews) can reuse it.
- *
- * Usage:
- *
- *   const el = document.createElement( 'os-rating-summary' );
- *   el.rating = 92;        // 0–100 (wp.org convention)
- *   el.ratings = { '5': 320, '4': 80, '3': 12, '2': 4, '1': 6 };
- *   parent.appendChild( el );
- *
- * `total` is auto-summed from `ratings` when omitted.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-rating-summary.styles';
 
-/** Bucket-keyed rating counts. Missing keys are treated as zero. */
 export type OsRatingBuckets = Partial<
 	Record< '1' | '2' | '3' | '4' | '5', number >
 >;
@@ -58,12 +38,7 @@ export class OsRatingSummary extends Component {
 			{ name: '--os-ui-rating-fg', description: 'Primary text color.' },
 			{ name: '--os-ui-rating-fg-muted', description: 'Secondary text color.' },
 		],
-		/*
-		 * `rating` is an attribute but the per-star bars come from the
-		 * `ratings` PROPERTY, so the attribute-only example drew the
-		 * stars above five empty tracks — the half of this component
-		 * that is actually interesting.
-		 */
+
 		example: html`<os-rating-summary rating="92" total="184"></os-rating-summary>`,
 		exampleInit: ( root: HTMLElement ) => {
 			const summary = root.querySelector( 'os-rating-summary' );
@@ -81,10 +56,6 @@ export class OsRatingSummary extends Component {
 
 	private _ratings: OsRatingBuckets = {};
 
-	/**
-	 * Per-star counts. Setting this triggers a re-render so consumers
-	 * can swap data without recreating the element.
-	 */
 	get ratings(): OsRatingBuckets {
 		return { ...this._ratings };
 	}

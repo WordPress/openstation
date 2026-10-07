@@ -1,18 +1,3 @@
-/**
- * OS Settings → Appearance → Dock size, at the apply pass.
- *
- * The same precedence trap as the window radius: a desktop theme can
- * declare `--os-dock-width` and `--os-dock-icon-size` in its tokens
- * (Legacy does — `56px` and `20px`), and the compiled stylesheet
- * writes them on the shell root, an ANCESTOR of the dock. A write on
- * <body> reaches the dock by inheritance only, so with a theme worn
- * the pick moved the admin bar's logo slot and nothing else.
- *
- * Hence the inline write on the shell element, alongside the body one
- * the admin bar (a sibling of the shell) still needs. Deleting either
- * makes these fail; the user-visible symptom of losing the shell one is
- * "Dock size is not doing anything".
- */
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { OsSettings } from '../../src/settings';
@@ -62,11 +47,9 @@ describe( 'apply() — dock size', () => {
 		const settings = makeSettings();
 		settings.apply();
 
-		// The admin bar's logo slot reads these off <body>.
 		expect( document.body.style.getPropertyValue( WIDTH_VAR ) ).toBe( width );
 		expect( document.body.style.getPropertyValue( ICON_VAR ) ).toBe( icon );
-		// The dock reads them off the nearest declaring ancestor, and
-		// with a theme worn that is the shell — so the shell it is.
+
 		expect( shellEl().style.getPropertyValue( WIDTH_VAR ) ).toBe( width );
 		expect( shellEl().style.getPropertyValue( ICON_VAR ) ).toBe( icon );
 	} );

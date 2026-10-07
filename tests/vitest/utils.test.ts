@@ -1,8 +1,3 @@
-/**
- * Unit tests for `src/utils.ts` — pure helper functions. No hooks
- * stub needed; these functions only touch DOM-parser primitives
- * (URL) and string methods.
- */
 import { describe, expect, test } from 'vitest';
 import {
 	deriveWindowId,
@@ -60,10 +55,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates individual post edit URLs by the `post` query arg', () => {
-		// Regression: without `post` in the identity set, every
-		// post.php?post=X&action=edit URL collapses to `post-php`, so
-		// clicking a second post in the Posts window just refocuses
-		// the first post's window.
+
 		const first = deriveWindowId(
 			`${ ADMIN }post.php?post=123&action=edit`,
 			ADMIN,
@@ -77,9 +69,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'keeps the generic `id` query arg transient (plugin row actions)', () => {
-		// `admin.php?page=foo&action=duplicate&id=3` is a row action on
-		// the foo LIST screen — it must resolve to the list window's id
-		// so the action navigates in place instead of spawning a window.
+
 		const list = deriveWindowId( `${ ADMIN }admin.php?page=foo`, ADMIN );
 		const action = deriveWindowId(
 			`${ ADMIN }admin.php?page=foo&action=duplicate&id=3`,
@@ -89,13 +79,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates an admin.php entity editor from its list by `id`', () => {
-		// Regression (issue #721): WooCommerce's High-Performance
-		// Order Storage moves the order editor from
-		// `post.php?post=N&action=edit` to
-		// `admin.php?page=wc-orders&action=edit&id=N`. Without the
-		// scoped `id` rule that URL derives the LIST's window id, so
-		// clicking an order navigated the Orders window away from the
-		// list and the only route back was closing the window.
+
 		const list = deriveWindowId(
 			`${ ADMIN }admin.php?page=wc-orders`,
 			ADMIN,
@@ -127,9 +111,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'the entity-editor rule is scoped to admin.php screens with a `page`', () => {
-		// `id` stays transient everywhere else — it is a generic
-		// param and a bare `admin.php?action=edit&id=N` is not a
-		// plugin screen.
+
 		expect(
 			deriveWindowId( `${ ADMIN }admin.php?action=edit&id=3`, ADMIN ),
 		).toBe( deriveWindowId( `${ ADMIN }admin.php`, ADMIN ) );
@@ -139,9 +121,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'row actions on an admin.php screen still resolve to the list window', () => {
-		// Only `edit` / `new` drill into an entity. Trash, duplicate,
-		// export and friends are side-effects that redirect back to
-		// the list, so they must keep the list's id and run in place.
+
 		const list = deriveWindowId( `${ ADMIN }admin.php?page=foo`, ADMIN );
 		expect(
 			deriveWindowId(
@@ -158,10 +138,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates individual term edit URLs by the `tag_ID` query arg', () => {
-		// Regression: without `tag_ID` in the identity set, every
-		// term.php URL of the same taxonomy collapses to one window, so
-		// opening a second category from a post's Related menu just
-		// refocuses the first term's window.
+
 		const first = deriveWindowId(
 			`${ ADMIN }term.php?taxonomy=category&tag_ID=3`,
 			ADMIN,
@@ -174,9 +151,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates media detail deep links by the `item` query arg', () => {
-		// Regression: without `item` in the identity set, every
-		// upload.php?item=X URL collapses to `upload-php`, so opening a
-		// second image from a post's Related menu refocuses the first.
+
 		const first = deriveWindowId( `${ ADMIN }upload.php?item=5`, ADMIN );
 		const second = deriveWindowId( `${ ADMIN }upload.php?item=9`, ADMIN );
 		expect( first ).not.toBe( second );
@@ -184,10 +159,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates individual comment edit URLs by the `c` query arg', () => {
-		// Regression: without `c` in the identity set, every
-		// comment.php?action=editcomment&c=X URL collapses to
-		// `comment-php`, so opening a second comment replaces the first
-		// comment's window instead of opening its own.
+
 		const first = deriveWindowId(
 			`${ ADMIN }comment.php?action=editcomment&c=500`,
 			ADMIN,
@@ -213,7 +185,7 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates site-editor entities by the `p` route', () => {
-		// The counterpart to `pageIdentityKey` dropping `p`.
+
 		const home = deriveWindowId(
 			`${ ADMIN }site-editor.php?p=/wp_template/twentytwentyfive//home`,
 			ADMIN,
@@ -278,9 +250,7 @@ describe( 'utils/urlMatchKey', () => {
 	} );
 
 	test( 'unparseable input falls back to the raw string', () => {
-		// `new URL()` throws on a malformed string with no base-relative
-		// interpretation available; the function promises to return the
-		// input as-is rather than bubbling up a TypeError.
+
 		const weird = 'not a\0 url';
 		expect( urlMatchKey( weird ) ).toBeTypeOf( 'string' );
 	} );
@@ -333,8 +303,7 @@ describe( 'utils/sanitizeIconSvg', () => {
 	} );
 
 	test( 'returns empty string for malformed markup', () => {
-		// Parse error path — the function bails rather than returning
-		// partially-recovered output.
+
 		const out = sanitizeIconSvg( '<svg><path' );
 		expect( out ).toBe( '' );
 	} );

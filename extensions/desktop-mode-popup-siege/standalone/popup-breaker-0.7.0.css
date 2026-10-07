@@ -1,14 +1,4 @@
-/*
- * Popup Siege UI System 0.7.0
- *
- * The 0.7 presentation owner preserves the approved right-side appliance,
- * restores honest optical and interaction floors, and supplies hooks for the
- * archive-receipt and restoration beats introduced by the 0.7 runtime.
- */
-
 @import url("./popup-breaker-0.6.1.css");
-
-/* 1. Current-system tokens ------------------------------------------------ */
 
 #popup-breaker-preview
 	.siege-game.siege-game--design-system-050.siege-game--experience-070 {
@@ -39,8 +29,6 @@
 	overflow: hidden;
 	contain: layout paint;
 }
-
-/* 2. Right-side console is an invariant, not a breakpoint suggestion ------ */
 
 #popup-breaker-preview
 	.siege-game.siege-game--design-system-050.siege-game--experience-070
@@ -138,8 +126,6 @@
 	min-height: 0;
 }
 
-/* 3. Optical type roles --------------------------------------------------- */
-
 #popup-breaker-preview
 	.siege-game.siege-game--design-system-050.siege-game--experience-070
 	.siege-brand__eyebrow {
@@ -187,11 +173,6 @@
 	white-space: nowrap;
 }
 
-/*
- * Six score digits are the limiting HUD string. The measured font is not
- * assumed here: the explicit 0.76 painted-width contract keeps the string
- * inside the 43.81px instrument cell projected at the supported minimum.
- */
 #popup-breaker-preview
 	.siege-game.siege-game--design-system-050.siege-game--experience-070
 	.siege-hud
@@ -256,8 +237,6 @@
 	font-size: var(--siege-ui-type-browser-rail);
 	line-height: 1;
 }
-
-/* 4. Live target and contrast contract ----------------------------------- */
 
 #popup-breaker-preview
 	.siege-game.siege-game--design-system-050.siege-game--experience-070
@@ -333,8 +312,6 @@
 		linear-gradient(180deg, #d78315, #c77710);
 	filter: none;
 }
-
-/* 5. Explicit phases, off, and focus ------------------------------------- */
 
 #popup-breaker-preview
 	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="menu"]
@@ -453,8 +430,6 @@
 	outline-offset: 3px;
 }
 
-/* 6. Quieter, non-modal level announcement ------------------------------- */
-
 #popup-breaker-preview
 	.siege-game.siege-game--design-system-050.siege-game--experience-070
 	.siege-level-toast {
@@ -498,8 +473,6 @@
 	font-size: clamp(10px, 1.8cqh, 12px);
 	line-height: 1.2;
 }
-
-/* 7. Target priority and close-beat hooks -------------------------------- */
 
 #popup-breaker-preview
 	.siege-game.siege-game--design-system-050.siege-game--experience-070
@@ -601,8 +574,6 @@
 		transform: translate(-50%, -50%) scale(1.18);
 	}
 }
-
-/* 8. Restored-page reveal and concise archive receipt -------------------- */
 
 #popup-breaker-preview
 	.siege-game.siege-game--design-system-050.siege-game--experience-070
@@ -798,8 +769,6 @@
 	gap: 0.5rem;
 }
 
-/* 9. Unsupported undersize containment; never stack the side console ------ */
-
 @container popup-siege (max-width: 519px) {
 	#popup-breaker-preview
 		.siege-game.siege-game--design-system-050.siege-game--experience-070
@@ -848,8 +817,6 @@
 		max-height: calc(100% - 4px);
 	}
 }
-
-/* 10. Motion and system-color modes -------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
 	#popup-breaker-preview

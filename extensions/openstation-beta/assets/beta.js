@@ -1,22 +1,3 @@
-/**
- * OpenStation Beta — build picker UI.
- *
- * One script, two render contexts, selected by the localized
- * `openStationBetaConfig.context`:
- *
- *   - `shell` — registers an OS Settings "Beta" tab through
- *     `wp.os.registerSettingsTab()` and renders with the
- *     framework's `<wpd-*>` components.
- *   - `admin` — paints the plain Tools → OpenStation Beta page with
- *     classic wp-admin markup. No OpenStation APIs are touched here
- *     on purpose: this page must keep working when a broken branch
- *     build takes the shell down.
- *
- * All GitHub-derived strings are inserted via `textContent` — never
- * concatenated into HTML.
- *
- * @package OpenStationBeta
- */
 ( function () {
 	'use strict';
 
@@ -32,15 +13,6 @@
 					return text;
 			  };
 
-	/**
-	 * POST an admin-ajax action. Routes through `wp.os.fetch` when
-	 * the shell is present so the request feeds the activity bus; falls
-	 * back to plain fetch on the standalone admin page.
-	 *
-	 * @param {string} action Action suffix (`state` | `switch`).
-	 * @param {Object} params Extra body params.
-	 * @return {Promise<Object>} Resolves with the `data` payload.
-	 */
 	function request( action, params ) {
 		var body = new URLSearchParams();
 		body.set( 'action', 'openstation_beta_' + action );
@@ -78,14 +50,6 @@
 			} );
 	}
 
-	/**
-	 * DOM builder. Children that are strings become text nodes.
-	 *
-	 * @param {string}        tag      Tag name.
-	 * @param {Object}        attrs    Attribute map (`style` allowed).
-	 * @param {Array|Node|string} children Children.
-	 * @return {HTMLElement}
-	 */
 	function el( tag, attrs, children ) {
 		var node = document.createElement( tag );
 		Object.keys( attrs || {} ).forEach( function ( name ) {
@@ -121,10 +85,6 @@
 				: new Date( value );
 		return isNaN( date.getTime() ) ? '' : date.toLocaleString();
 	}
-
-	// -----------------------------------------------------------------
-	// Skins — tiny element factories per context.
-	// -----------------------------------------------------------------
 
 	var shellSkin = {
 		section: function ( heading, description ) {
@@ -239,19 +199,6 @@
 		},
 	};
 
-	// -----------------------------------------------------------------
-	// Confirmation.
-	// -----------------------------------------------------------------
-
-	/**
-	 * Ask before switching. Uses the framework confirm dialog when the
-	 * shell is present; otherwise arms the pressed button for a second,
-	 * explicit click (no native dialogs — they block the page).
-	 *
-	 * @param {string}      message Confirmation copy.
-	 * @param {HTMLElement} button  The button that was pressed.
-	 * @return {Promise<boolean>}
-	 */
 	function confirmSwitch( message, button ) {
 		var os = window.wp && window.wp.os;
 		if ( os && typeof os.confirm === 'function' ) {
@@ -279,16 +226,6 @@
 		return Promise.resolve( false );
 	}
 
-	// -----------------------------------------------------------------
-	// App.
-	// -----------------------------------------------------------------
-
-	/**
-	 * Mount the picker into a root node.
-	 *
-	 * @param {HTMLElement} root Container to paint into.
-	 * @param {Object}      skin Element factory for the context.
-	 */
 	function mount( root, skin ) {
 		var busy = false;
 		var lastError = null;
@@ -373,7 +310,7 @@
 				return __( 'Trunk (bleeding edge)' );
 			}
 			if ( 'pr' === current.source ) {
-				/* translators: %s: pull request number */
+
 				return __( 'Pull request #' ) + current.id;
 			}
 			return current.source;
@@ -383,10 +320,6 @@
 			root.textContent = '';
 			var current = state.current;
 
-			// A non-null install_blocked (e.g. the installed plugin is a
-			// development checkout) or a missing capability disables
-			// every switch action — the server refuses regardless, this
-			// just explains it up front instead of at click time.
 			var blockedReason = null;
 			if ( state.install_blocked ) {
 				blockedReason = state.install_blocked.reason;
@@ -397,7 +330,6 @@
 			}
 			var canSwitch = ! blockedReason;
 
-			// --- Current build ------------------------------------
 			var currentSection = skin.section(
 				__( 'Current build' ),
 				__( 'The OpenStation version this site is running.' )
@@ -511,7 +443,6 @@
 				root.append( skin.warning( blockedReason ) );
 			}
 
-			// --- Stable + trunk channels --------------------------
 			var channels = skin.section(
 				__( 'Channels' ),
 				__( 'Fixed channels published by the CI pipeline.' )
@@ -586,7 +517,6 @@
 			}
 			root.append( channels );
 
-			// --- Pull request branches ----------------------------
 			var prSection = skin.section(
 				__( 'Pull request branches' ),
 				__(
@@ -659,10 +589,6 @@
 
 		load( false );
 	}
-
-	// -----------------------------------------------------------------
-	// Entry points.
-	// -----------------------------------------------------------------
 
 	if ( 'shell' === config.context ) {
 		var os = window.wp && window.wp.os;

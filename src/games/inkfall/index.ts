@@ -1,15 +1,3 @@
-/**
- * Inkfall — bundle entry.
- *
- * Lazy-loaded by the games framework the first time Inkfall
- * launches. Publishes the game def on `window.openStationGames`
- * (the games analogue of `window.openStationWallpapers`); the
- * framework merges the server-registered metadata with the `render`
- * callback + window sizing declared here.
- *
- * @public
- */
-
 import { __ } from '../../i18n';
 import type { GameDef } from '../types';
 import { mountInkfall } from './game';

@@ -1,22 +1,3 @@
-/**
- * Wallpaper shortcuts and the native-window remap registry.
- *
- * A shortcut placement knows only a URL. The Spatial layout
- * synthesizes one for every core dock item
- * (`settings/desktop-shortcuts-sync.ts` → `file.shortcutUrl`), so the
- * wallpaper tile for Posts and the dock tile for Posts start from the
- * same `edit.php` — but the dock asks `tryNativeUrlRemap()` first and
- * the shortcut opener did not. A user who had explicitly enabled
- * native Posts, Pages, Comments, Plugins or Users got the classic
- * iframe from the wallpaper and the native app from the dock: same
- * app, two answers, depending on which surface they clicked.
- *
- * The contract pinned here is that the shortcut opener consults the
- * registry, and — just as importantly — that it still falls through
- * to the iframe when the registry's `enabled` gate says the native
- * window is off. The gate reads the live OS Settings snapshot, so
- * this is what makes the feature toggle keep working.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -27,8 +8,6 @@ type Modules = {
 	remap: typeof import( '../../src/native-url-remap' );
 };
 
-// Must be same-origin with jsdom's document, or the opener sends
-// the URL to a new browser tab before any remap is consulted.
 const ADMIN_URL = `${ window.location.origin }/wp-admin/`;
 
 async function load(): Promise< Modules > {
@@ -41,7 +20,6 @@ async function load(): Promise< Modules > {
 	};
 }
 
-/** A synthesized dock-item promotion, as Spatial puts on the wallpaper. */
 function shortcutFile(
 	url: string,
 	mod: Modules[ 'file' ],
@@ -79,7 +57,6 @@ function installShellApi(): void {
 	};
 }
 
-/** Register the Posts remap, gated on the native-Posts preference. */
 function registerPostsRemap(
 	mod: Modules[ 'remap' ],
 	enabled: boolean,
@@ -105,7 +82,6 @@ function registerPostsRemap(
 	return openById;
 }
 
-/** Run the built-in shortcut opener against a file. */
 function openShortcut( mods: Modules, url: string ): void {
 	mods.builtIn.registerBuiltInFileOpeners();
 	const opener = mods.openers.getOpener( 'desktop-mode-shortcut-opener' );
@@ -138,8 +114,7 @@ describe( 'wallpaper shortcut → native window', () => {
 		openShortcut( mods, `${ ADMIN_URL }edit.php` );
 
 		expect( openById ).toHaveBeenCalledWith( 'desktop-mode-posts' );
-		// The whole point: no classic iframe alongside (or instead of)
-		// the native app.
+
 		expect( windowManagerOpen ).not.toHaveBeenCalled();
 
 		mods.remap._resetNativeUrlRemap();

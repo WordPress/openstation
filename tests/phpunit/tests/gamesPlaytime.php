@@ -1,14 +1,5 @@
 <?php
-/**
- * Tests for the games play-time store + REST endpoints: accumulation,
- * clamping, the veto filter, and per-user isolation.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group desktop-mode-games
- */
+
 class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 
 	protected static $player_a;
@@ -42,10 +33,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_games_add_playtime
-	 * @covers ::openstation_games_get_playtime
-	 */
 	public function test_playtime_accumulates_per_game() {
 		$this->assertSame( 45, openstation_games_add_playtime( 'test-game', self::$player_a, 45 ) );
 		$this->assertSame( 105, openstation_games_add_playtime( 'test-game', self::$player_a, 60 ) );
@@ -53,9 +40,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( array( 'test-game' => 105 ), openstation_games_get_playtime( self::$player_a ) );
 	}
 
-	/**
-	 * @covers ::openstation_games_add_playtime
-	 */
 	public function test_playtime_is_per_user() {
 		openstation_games_add_playtime( 'test-game', self::$player_a, 30 );
 		openstation_games_add_playtime( 'test-game', self::$player_b, 90 );
@@ -63,9 +47,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( 90, openstation_games_get_playtime( self::$player_b, 'test-game' ) );
 	}
 
-	/**
-	 * @covers ::openstation_games_add_playtime
-	 */
 	public function test_playtime_rejects_unknown_game_and_bad_input() {
 		$unknown = openstation_games_add_playtime( 'nope', self::$player_a, 30 );
 		$this->assertWPError( $unknown );
@@ -83,11 +64,8 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_user', $ghost->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_games_add_playtime
-	 */
 	public function test_playtime_increment_is_clamped() {
-		// One request cannot mint more than the (filterable) cap.
+
 		$this->assertSame( 900, openstation_games_add_playtime( 'test-game', self::$player_a, WEEK_IN_SECONDS ) );
 
 		add_filter(
@@ -99,9 +77,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( 960, openstation_games_add_playtime( 'test-game', self::$player_a, 5000 ) );
 	}
 
-	/**
-	 * @covers ::openstation_games_add_playtime
-	 */
 	public function test_pre_record_filter_vetoes() {
 		add_filter(
 			'openstation_game_playtime_pre_record',
@@ -115,9 +90,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( 0, openstation_games_get_playtime( self::$player_a, 'test-game' ) );
 	}
 
-	/**
-	 * @covers ::openstation_games_get_playtime
-	 */
 	public function test_get_playtime_survives_corrupt_meta() {
 		update_user_meta( self::$player_a, OPENSTATION_GAMES_PLAYTIME_META, 'not-an-array' );
 		$this->assertSame( array(), openstation_games_get_playtime( self::$player_a ) );
@@ -127,10 +99,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( array( 'test-game' => 0 ), openstation_games_get_playtime( self::$player_a ) );
 	}
 
-	/**
-	 * @covers ::openstation_games_add_playtime
-	 * @covers ::openstation_games_get_playtime_daily
-	 */
 	public function test_playtime_buckets_by_day() {
 		$today = openstation_games_playtime_today_key();
 		openstation_games_add_playtime( 'test-game', self::$player_a, 45 );
@@ -144,9 +112,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_games_add_playtime
-	 */
 	public function test_playtime_daily_buckets_are_pruned() {
 		$today = openstation_games_playtime_today_key();
 		$stale = current_datetime()->modify( '-60 days' )->format( 'Y-m-d' );
@@ -164,13 +129,9 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( 120, $days[ $kept ] );
 		$this->assertSame( 30, $days[ $today ] );
 
-		// The lifetime total is untouched by pruning.
 		$this->assertSame( 30, openstation_games_get_playtime( self::$player_a, 'test-game' ) );
 	}
 
-	/**
-	 * @covers ::openstation_games_get_playtime_daily
-	 */
 	public function test_get_playtime_daily_survives_corrupt_meta() {
 		update_user_meta( self::$player_a, OPENSTATION_GAMES_PLAYTIME_DAYS_META, 'nope' );
 		$this->assertSame( array(), openstation_games_get_playtime_daily( self::$player_a ) );
@@ -186,10 +147,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_record_playtime
-	 * @covers ::openstation_games_rest_get_playtime
-	 */
 	public function test_rest_record_then_get() {
 		$req = new WP_REST_Request( 'POST', '/desktop-mode/v1/games/test-game/playtime' );
 		$req->set_param( 'game', 'test-game' );
@@ -199,8 +156,7 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( 75, $resp->get_data()['total'] );
 
 		$data = openstation_games_rest_get_playtime()->get_data();
-		// Cast: the map is emitted as an object so an empty map JSON-
-		// encodes as `{}` rather than `[]`.
+
 		$this->assertSame( 75, ( (array) $data['playtime'] )['test-game'] );
 
 		$today = openstation_games_playtime_today_key();
@@ -209,9 +165,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( 75, ( (array) $daily['test-game'] )[ $today ] );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_record_playtime
-	 */
 	public function test_rest_record_404s_unknown_game() {
 		$req = new WP_REST_Request( 'POST', '/desktop-mode/v1/games/nope/playtime' );
 		$req->set_param( 'game', 'nope' );
@@ -221,9 +174,6 @@ class Tests_OpenStation_GamesPlaytime extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_unknown_game', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_get_playtime
-	 */
 	public function test_rest_get_empty_map_encodes_as_object() {
 		$data = openstation_games_rest_get_playtime()->get_data();
 		$this->assertSame( '{}', wp_json_encode( $data['playtime'] ) );

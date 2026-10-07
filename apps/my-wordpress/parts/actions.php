@@ -1,90 +1,32 @@
 <?php
-/**
- * My WordPress — the content actions.
- *
- * Part of the `my-wordpress` app: required by `my-wordpress.os.php`,
- * same namespace, plain `.php` on purpose — only `*.os.php` files are
- * app entries to the framework loader. This part owns everything a
- * dispatch DOES to the content surface: navigation (go / back / into /
- * relation), list controls (search / sort / paging), and the mutations
- * (open-in-editor, trash, bulk trash, quick edit) with their per-item
- * authorization. The agent actions live in `parts/agents.php`.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\Apps\MyWordPress;
 
 use OpenStation\App\Os;
 use OpenStation\App\State;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/** The two ways a section lists. */
 const VIEWS = array( 'icons', 'list' );
 
-/**
- * The storage key of the per-section hidden-column map.
- */
 const COLUMNS_KEY = 'hidden-columns';
 
-/**
- * Mount: restore the remembered view mode (the client's first dispatch
- * carries the schema default; the stored preference wins), then land
- * on the person a `footprint` open-time param names. Deriving that
- * here is what keeps the first paint honest: a window opened with
- * params waits for `mount`, so the footprint is the first thing the
- * body shows — not the folder grid for a beat and a second request.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- * @return void
- */
 function mount( State $state, Os $os ) {
 	$stored = (string) $os->stored( 'view', 'icons' );
 	$state->set( 'view', in_array( $stored, VIEWS, true ) ? $stored : 'icons' );
 	footprint_from_params( $state, $os );
 }
 
-/**
- * `reopen`: the live window was asked to open from another surface
- * (`wp.os.openWindow( 'my-wordpress', { params } )`). A named person
- * replaces whatever the body showed; a plain reopen changes nothing.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- * @return void
- */
 function reopen_action( State $state, Os $os ) {
 	footprint_from_params( $state, $os );
 }
 
-/**
- * The footprint the open-time params name — `footprint` (user id) and
- * `fpName` (breadcrumb placeholder), as the footprint open target
- * passes them.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- * @return void
- */
 function footprint_from_params( State $state, Os $os ) {
 	open_footprint( $state, (int) $os->param( 'footprint', 0 ), (string) $os->param( 'fpName', '' ) );
 }
 
-/**
- * Put one person's footprint over the body. The id is validated (the
- * payload route re-checks the viewer); the name is only ever breadcrumb
- * text, so the entities the sanitiser writes for a `<` are decoded.
- *
- * @param State  $state State.
- * @param int    $user  User id; 0 or unknown opens nothing.
- * @param string $name  Display name, or ''.
- * @return void
- */
 function open_footprint( State $state, $user, $name ) {
 	if ( $user <= 0 || false === get_userdata( $user ) ) {
 		return;
@@ -94,15 +36,6 @@ function open_footprint( State $state, $user, $name ) {
 		->set( 'item', 0 )->set( 'into', 0 )->set( 'relation', '' );
 }
 
-/**
- * `view`: the mode switch. The bound value already arrived with the
- * state (the client flips locally first, so the switch is instant);
- * this validates it and remembers it for the next window.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- * @return void
- */
 function view_action( State $state, Os $os ) {
 	$view = (string) $state->get( 'view' );
 	if ( ! in_array( $view, VIEWS, true ) ) {
@@ -112,15 +45,6 @@ function view_action( State $state, Os $os ) {
 	$os->store( 'view', $view );
 }
 
-/**
- * The per-section map of hidden list columns, as stored: section id
- * → column ids. Columns are declared client-side (plugins add their
- * own through the `os.my-wordpress.list-columns` filter), so the
- * server keeps the user's choice as opaque, sanitised keys.
- *
- * @param Os $os Host handle.
- * @return array<string,string[]>
- */
 function hidden_columns( Os $os ) {
 	$stored = $os->stored( COLUMNS_KEY, array() );
 	$map    = array();
@@ -134,18 +58,6 @@ function hidden_columns( Os $os ) {
 	return $map;
 }
 
-/**
- * `set-columns`: remember which columns the current section hides.
- * The client sends the whole hidden list (`hidden`), because only it
- * knows the default set — a column a plugin added last week is not
- * something the server can name. An empty list is a choice too
- * ("show everything"); `reset` is what forgets the section.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args (`hidden` | `reset`).
- * @return void
- */
 function set_columns_action( State $state, Os $os, array $args ) {
 	$section = sanitize_key( (string) $state->get( 'section' ) );
 	if ( '' === $section ) {
@@ -164,8 +76,7 @@ function set_columns_action( State $state, Os $os, array $args ) {
 			)
 		);
 	}
-	// A bounded map: the sections a person actually tuned, never a
-	// growing log of every folder they ever opened.
+
 	$map = array_slice( $map, -40, 40, true );
 	if ( array() === $map ) {
 		$os->forget( COLUMNS_KEY );
@@ -174,14 +85,6 @@ function set_columns_action( State $state, Os $os, array $args ) {
 	}
 }
 
-/**
- * `go`: open a root folder or a section, resetting the whole trail.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function go_action( State $state, Os $os, array $args ) {
 	$state->set( 'group', isset( $args['group'] ) ? (string) $args['group'] : '' );
 	$state->set( 'section', isset( $args['section'] ) ? (string) $args['section'] : '' );
@@ -193,15 +96,9 @@ function go_action( State $state, Os $os, array $args ) {
 		->reset( 'cast' )->set( 'agentNotice', '' )->set( 'briefError', '' );
 }
 
-/**
- * `back`: one step up — wizard, relation, folder, pane, section, group.
- *
- * @param State $state State.
- * @return void
- */
 function back_action( State $state ) {
 	if ( true === $state->get( 'casting' ) ) {
-		// The window's back is the wizard's cancel.
+
 		$state->set( 'casting', false )->set( 'wstep', 0 )
 			->reset( 'cast' )->set( 'agentNotice', '' )->set( 'briefError', '' );
 		return;
@@ -230,40 +127,16 @@ function back_action( State $state ) {
 	$state->set( 'group', '' );
 }
 
-/**
- * `open`: select an item into the detail pane (0 closes it).
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function open_action( State $state, Os $os, array $args ) {
 	$state->set( 'item', (int) ( $args['item'] ?? 0 ) )
 		->set( 'pane', 'define' )->set( 'agentNotice', '' );
 }
 
-/**
- * `into`: navigate INTO a post's detail folder.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function into_action( State $state, Os $os, array $args ) {
 	$state->set( 'into', (int) ( $args['item'] ?? 0 ) )
 		->set( 'relation', '' )->set( 'item', 0 );
 }
 
-/**
- * `relation`: open one relation sub-folder inside the detail folder.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function relation_action( State $state, Os $os, array $args ) {
 	$relation = (string) ( $args['relation'] ?? '' );
 	$allowed  = array( 'author', 'contributors', 'comments', 'categories', 'tags', 'media', 'revisions' );
@@ -271,28 +144,10 @@ function relation_action( State $state, Os $os, array $args ) {
 		->set( 'item', 0 );
 }
 
-/**
- * `footprint`: open a user's activity footprint over the body — the
- * full-width surface WP Explorer answered "open this person" with,
- * from a dossier action or the shared footprint target.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args (`user`, `name`).
- * @return void
- */
 function footprint_action( State $state, Os $os, array $args ) {
 	open_footprint( $state, (int) ( $args['user'] ?? 0 ), (string) ( $args['name'] ?? '' ) );
 }
 
-/**
- * `sub-open-post`: a recent-posts row in a stats pane → its editor.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function sub_open_post_action( State $state, Os $os, array $args ) {
 	$id = (int) ( $args['post'] ?? 0 );
 	if ( $id > 0 && $os->can( 'edit_post', $id ) ) {
@@ -303,14 +158,6 @@ function sub_open_post_action( State $state, Os $os, array $args ) {
 	}
 }
 
-/**
- * `edit`: open one item's editor, re-checking the capability here.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function edit_action( State $state, Os $os, array $args ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
 	$id      = (int) ( $args['item'] ?? 0 );
@@ -319,18 +166,6 @@ function edit_action( State $state, Os $os, array $args ) {
 	}
 }
 
-/**
- * `add-user`: open Core's Add User screen as a window. Deliberately
- * Core's own screen rather than a bespoke form: on multisite it
- * carries the whole invite flow — Add Existing User, confirmation
- * emails, the network's Add Users setting — which subsite admins
- * otherwise lose entirely. Gated the way Core gates the screen's
- * menu entry.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- * @return void
- */
 function add_user_action( State $state, Os $os ) {
 	unset( $state );
 	if ( $os->can( 'create_users' ) || ( is_multisite() && $os->can( 'promote_users' ) ) ) {
@@ -338,14 +173,6 @@ function add_user_action( State $state, Os $os ) {
 	}
 }
 
-/**
- * `trash`: move one post to the Trash.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function trash_action( State $state, Os $os, array $args ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
 	$id      = (int) ( $args['item'] ?? 0 );
@@ -368,16 +195,6 @@ function trash_action( State $state, Os $os, array $args ) {
 	$os->announce( (string) $section['post_type'], 'trashed', $id );
 }
 
-/**
- * `sub-open`: open a sub-list row's editor. The URL is recomputed
- * here from the row id — never taken from the client — so it carries
- * the same capability gates the sub-list applied.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function sub_open_action( State $state, Os $os, array $args ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
 	$into    = (int) $state->get( 'into' );
@@ -395,18 +212,9 @@ function sub_open_action( State $state, Os $os, array $args ) {
 	}
 }
 
-/**
- * `quick-edit`: apply the Edit… modal's picks over the selection.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function quick_edit_action( State $state, Os $os, array $args ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
-	// A `flat` section's rows are not posts (an order id may collide
-	// with a real post id under legacy storage) — never mutate them.
+
 	if ( ! $section || 'post' !== $section['kind'] || ! empty( $section['flat'] ) ) {
 		return;
 	}
@@ -471,7 +279,7 @@ function quick_edit_action( State $state, Os $os, array $args ) {
 	}
 	$os->toast(
 		sprintf(
-			/* translators: %s: updated count. */
+
 			_n( '%s entry updated.', '%s entries updated.', count( $updated ), 'desktop-mode' ),
 			number_format_i18n( count( $updated ) )
 		)
@@ -479,13 +287,6 @@ function quick_edit_action( State $state, Os $os, array $args ) {
 	$os->announce( (string) $section['post_type'], 'updated', $updated );
 }
 
-/**
- * `bulk-trash`: trash the selection, item by item, capability-gated.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- * @return void
- */
 function bulk_trash_action( State $state, Os $os ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
 	if ( ! $section || 'post' !== $section['kind'] || ! empty( $section['flat'] ) ) {
@@ -507,7 +308,7 @@ function bulk_trash_action( State $state, Os $os ) {
 	}
 	$os->toast(
 		sprintf(
-			/* translators: %s: trashed count. */
+
 			_n( 'Moved %s item to the Trash.', 'Moved %s items to the Trash.', count( $trashed ), 'desktop-mode' ),
 			number_format_i18n( count( $trashed ) )
 		)

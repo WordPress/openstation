@@ -1,13 +1,3 @@
-/**
- * The visuals bundle is lazy, and it is also what registers the
- * built-in `svg-splines` renderer. Preferences builds its "Link style"
- * dropdown from that registry, so opening Preferences before any two
- * windows related left the select with only `None` while the stored
- * value was `svg-splines` — and it rendered blank.
- *
- * These pin the shared loader both callers now route through.
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vendorLoader from '../../src/wallpapers/vendor-loader';
 import {
@@ -47,8 +37,7 @@ describe( 'ensureWindowLinkVisuals', () => {
 	} );
 
 	it( 'loads once however many callers ask', async () => {
-		// The Preferences picker and the shell's groups-changed
-		// sentinel can both ask, in either order.
+
 		await Promise.all( [
 			ensureWindowLinkVisuals(),
 			ensureWindowLinkVisuals(),

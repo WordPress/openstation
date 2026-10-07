@@ -1,11 +1,3 @@
-/**
- * App Framework runtime — every kit component is reachable from PHP.
- *
- * Two guarantees: `os-on="<event>"` works for every event a component
- * emits (the runtime listens for all of them), and `os-prop-*` feeds
- * property-driven components (os-table columns/data, os-log entries)
- * from plain markup.
- */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';

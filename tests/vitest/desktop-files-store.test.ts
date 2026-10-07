@@ -1,6 +1,3 @@
-/**
- * Unit tests for the Phase-2 store helpers + REST client.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 

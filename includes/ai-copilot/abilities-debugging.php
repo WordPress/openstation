@@ -1,36 +1,4 @@
 <?php
-/**
- * OpenStation — the error-investigation skill.
- *
- * Four read-only WordPress Abilities that together give an assistant or
- * an agent enough to do what a developer does with a stack trace: find
- * out what is failing, read the code at the line that failed, learn
- * whose code it is and what version of everything it is running on —
- * and then say what it thinks the fix is.
- *
- *   list_log_issues      what is failing, grouped and counted
- *   get_log_issue        one issue in full, with its stack trace
- *   read_source_excerpt  the code around a line the log named
- *   get_site_context     versions, debug flags, active plugins + theme
- *
- * **The skill proposes; it never repairs.** That is structural, not a
- * matter of prompting: every ability here is `readonly`, and no writing
- * counterpart exists, so a model handed this whole set can read the
- * evidence and describe a patch and has no route to apply one. The
- * prompt appendix below says the same thing in words, because a model
- * that does not know it cannot edit files tends to answer as though it
- * already had.
- *
- * All four read through Code Blue's own model (`log-reader.php`), so
- * the assistant and the window can never disagree about what the log
- * says or whose plugin a file belongs to.
- *
- * Read `docs/agents-security.md` before adding to this file. The
- * dangerous one is `read_source_excerpt` — see the guards on
- * {@see openstation_ai_debug_resolve_source_path()}.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
@@ -39,20 +7,8 @@ use function OpenStation\Apps\CodeBlue\read as read_log;
 use function OpenStation\Apps\CodeBlue\sources as log_sources;
 use function OpenStation\Apps\CodeBlue\usable as log_usable;
 
-/** Longest excerpt `read_source_excerpt` will return, in lines. */
 const OPENSTATION_AI_DEBUG_MAX_EXCERPT = 200;
 
-/**
- * Who may use the debugging skill: whoever may open Code Blue.
- *
- * Deliberately the same gate rather than a new one. These abilities are
- * the window's contents addressed by an assistant instead of a pointer,
- * and a site where the log window is off is a site that has said it
- * does not want its error log read — through the UI or otherwise.
- * `openstation_code_blue_user_can_use` moves both at once.
- *
- * @return bool
- */
 function openstation_ai_debug_can_use() {
 	if ( ! function_exists( 'openstation_apps_os' ) ) {
 		return false;
@@ -60,12 +16,6 @@ function openstation_ai_debug_can_use() {
 	return can_use( openstation_apps_os() );
 }
 
-/**
- * Every parsed entry from a log source, newest first.
- *
- * @param string $source_id Source id, or '' for the first usable one.
- * @return array{source:array<string,mixed>|null,entries:array[],error:string}
- */
 function openstation_ai_debug_entries( $source_id = '' ) {
 	$os      = openstation_apps_os();
 	$sources = log_sources( $os );
@@ -97,19 +47,6 @@ function openstation_ai_debug_entries( $source_id = '' ) {
 	);
 }
 
-/**
- * Fold entries into issues by signature — same key the window groups
- * on, computed once in `log-reader.php`, so an issue the assistant
- * names is the issue the user is looking at.
- *
- * This is not the window's `groupEntries()`: that one folds what
- * survived the user's range and search filters, in the browser, and
- * exists so those filters cost nothing. This one folds the whole read.
- *
- * @param array[] $entries Parsed entries.
- * @param int     $since   Unix seconds floor, or 0 for no floor.
- * @return array[] Issues, most recent first.
- */
 function openstation_ai_debug_group( array $entries, $since = 0 ) {
 	$issues = array();
 	foreach ( $entries as $entry ) {
@@ -138,8 +75,7 @@ function openstation_ai_debug_group( array $entries, $since = 0 ) {
 		}
 		$issue = &$issues[ $key ];
 		++$issue['count'];
-		// The longest trace wins: a fatal is logged repeatedly and only
-		// some occurrences carry the full frame list.
+
 		if ( strlen( (string) $entry['trace'] ) > strlen( $issue['trace'] ) ) {
 			$issue['trace'] = (string) $entry['trace'];
 		}
@@ -152,17 +88,6 @@ function openstation_ai_debug_group( array $entries, $since = 0 ) {
 	return array_values( $issues );
 }
 
-/**
- * Attach the human name behind an origin slug — "woocommerce" is what
- * the path says, "WooCommerce 9.4.2" is what the developer knows it
- * as, and the version is half of every compatibility answer.
- *
- * Lives here rather than in the app because resolving it needs
- * WordPress; `log-reader.php` runs on hosts that have no `get_plugins()`.
- *
- * @param array<string,string> $origin `kind` + `slug` from the log model.
- * @return array<string,string> The same, plus `name` and `version` when known.
- */
 function openstation_ai_debug_name_origin( array $origin ) {
 	$origin += array(
 		'kind' => 'unknown',
@@ -204,23 +129,6 @@ function openstation_ai_debug_name_origin( array $origin ) {
 	return $origin;
 }
 
-/**
- * Every file path the current log names — in an entry's `file` field or
- * anywhere inside a stack trace.
- *
- * This set is the allowlist `read_source_excerpt` resolves against, and
- * it is the guard that matters. Bounding source reads to "files this
- * install has already written into its own error log" means the
- * ability can never widen what the caller can see: a path only enters
- * the set because something already failed there, and the log itself
- * is readable to exactly the same people. An ability that took any
- * path under ABSPATH would instead be a general file-read tool wearing
- * a debugging label — reachable, through the assistant, by whatever
- * text the model happens to be reading.
- *
- * @param array[] $entries Parsed entries.
- * @return array<string,true> Paths as keys.
- */
 function openstation_ai_debug_known_paths( array $entries ) {
 	$paths = array();
 	foreach ( $entries as $entry ) {
@@ -230,8 +138,7 @@ function openstation_ai_debug_known_paths( array $entries ) {
 		if ( empty( $entry['trace'] ) ) {
 			continue;
 		}
-		// Stack-trace frames: `#0 /abs/path/file.php(123): fn()`, and
-		// the `thrown in /abs/path` tail.
+
 		if ( preg_match_all( '#(/[^\s:()\'"]+\.(?:php|inc))#', (string) $entry['trace'], $found ) ) {
 			foreach ( $found[1] as $path ) {
 				$paths[ $path ] = true;
@@ -241,29 +148,6 @@ function openstation_ai_debug_known_paths( array $entries ) {
 	return $paths;
 }
 
-/**
- * Resolve a requested source path, or explain why not.
- *
- * Four gates, in order of what each one closes:
- *
- *   1. The path must be one the current log names — see
- *      {@see openstation_ai_debug_known_paths()}. This is the real
- *      boundary; the rest are belt and braces for the day someone
- *      relaxes it.
- *   2. It must resolve (symlinks included) inside the WordPress root
- *      or the content directory. `realpath()` before the prefix test,
- *      so `../` cannot walk out.
- *   3. It must be a source file by extension. A log can name a `.log`
- *      or a `.sql`; those are data, and data is where secrets live.
- *   4. Configuration is refused outright even when the log names it —
- *      and a fatal inside `wp-config.php` does name it. That file is
- *      the database password, the salts and the keys; nobody debugging
- *      a stack trace needs it echoed back through a language model.
- *
- * @param string             $file    Requested absolute path.
- * @param array<string,true> $allowed Paths the log names.
- * @return string|WP_Error Real path, or the reason it was refused.
- */
 function openstation_ai_debug_resolve_source_path( $file, array $allowed ) {
 	$requested = str_replace( '\\', '/', (string) $file );
 	if ( ! isset( $allowed[ $requested ] ) ) {
@@ -306,16 +190,8 @@ function openstation_ai_debug_resolve_source_path( $file, array $allowed ) {
 	return $real;
 }
 
-/**
- * Read `$context` lines either side of `$line`.
- *
- * @param string $path    Resolved real path.
- * @param int    $line    Centre line, 1-based; 0 reads from the top.
- * @param int    $context Lines either side.
- * @return array<string,mixed>
- */
 function openstation_ai_debug_excerpt( $path, $line, $context ) {
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file -- Reading a source file already resolved and allowlisted above; WP_Filesystem adds nothing here and is not available this early on every host.
+
 	$all = file( $path, FILE_IGNORE_NEW_LINES );
 	if ( false === $all ) {
 		return array(
@@ -348,19 +224,11 @@ function openstation_ai_debug_excerpt( $path, $line, $context ) {
 	);
 }
 
-/**
- * Registers the debugging abilities.
- *
- * @return void
- */
 function openstation_ai_register_debug_abilities() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
 	}
 
-	// Never `mcp.public`: the log and the source behind it are this
-	// site's internals, and an external agent has no business in them
-	// however read-only the tools are.
 	$meta = array(
 		'annotations'  => array(
 			'readonly'   => true,
@@ -535,12 +403,6 @@ function openstation_ai_register_debug_abilities() {
 }
 add_action( 'wp_abilities_api_init', 'openstation_ai_register_debug_abilities', 11 );
 
-/**
- * `list_log_issues` — grouped issues from a log source.
- *
- * @param array<string,mixed> $input Validated input.
- * @return array<string,mixed>
- */
 function openstation_ai_debug_list_issues( $input ) {
 	$input += array(
 		'limit'  => 10,
@@ -583,8 +445,7 @@ function openstation_ai_debug_list_issues( $input ) {
 	$limit  = max( 1, min( 50, (int) $input['limit'] ) );
 	$issues = array_slice( $issues, 0, $limit );
 	foreach ( $issues as $index => $issue ) {
-		// The list is a triage view: the trace is the expensive half and
-		// only the issue being worked on needs it.
+
 		unset( $issues[ $index ]['trace'] );
 		$issues[ $index ]['origin'] = openstation_ai_debug_name_origin( (array) $issue['origin'] );
 	}
@@ -602,12 +463,6 @@ function openstation_ai_debug_list_issues( $input ) {
 	);
 }
 
-/**
- * `get_log_issue` — one issue, trace included.
- *
- * @param array<string,mixed> $input Validated input.
- * @return array<string,mixed>
- */
 function openstation_ai_debug_get_issue( $input ) {
 	$signature = isset( $input['signature'] ) ? (string) $input['signature'] : '';
 	$read      = openstation_ai_debug_entries( isset( $input['source'] ) ? (string) $input['source'] : '' );
@@ -630,12 +485,6 @@ function openstation_ai_debug_get_issue( $input ) {
 	);
 }
 
-/**
- * `read_source_excerpt` — code around a logged line.
- *
- * @param array<string,mixed> $input Validated input.
- * @return array<string,mixed>|WP_Error
- */
 function openstation_ai_debug_read_source( $input ) {
 	$read = openstation_ai_debug_entries();
 	if ( null === $read['source'] ) {
@@ -654,11 +503,6 @@ function openstation_ai_debug_read_source( $input ) {
 	return openstation_ai_debug_excerpt( $path, isset( $input['line'] ) ? (int) $input['line'] : 0, max( 1, min( 100, $context ) ) );
 }
 
-/**
- * `get_site_context` — versions, flags, active code.
- *
- * @return array<string,mixed>
- */
 function openstation_ai_debug_site_context() {
 	if ( ! function_exists( 'get_plugins' ) ) {
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -717,23 +561,6 @@ function openstation_ai_debug_site_context() {
 	);
 }
 
-/**
- * The behavioural half of the skill.
- *
- * The abilities make investigation possible; this makes it a method,
- * and it states the one rule the tools cannot state for themselves. A
- * model that does not know it is unable to edit files will happily
- * answer "I've fixed that for you" — the ceiling is real either way,
- * but the sentence is a lie the user then has to discover.
- *
- * Only added for callers who can actually use the tools: a subscriber
- * asking about a post has no use for a debugging protocol, and every
- * unused line in a system prompt is paid for on every turn.
- *
- * @param string              $appendix Appendix so far.
- * @param array<string,mixed> $ctx      Request context.
- * @return string
- */
 function openstation_ai_debug_prompt_appendix( $appendix, $ctx = array() ) {
 	unset( $ctx );
 	if ( ! openstation_ai_debug_can_use() ) {

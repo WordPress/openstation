@@ -1,11 +1,6 @@
-/**
- * Unit tests for the games framework's dictionary parsing + picking
- * (`src/games/dictionary.ts`).
- */
 import { describe, expect, test } from 'vitest';
 import { parseDictionary } from '../../src/games/dictionary';
 
-/** Deterministic rng cycling through the given values. */
 function seededRng( values: number[] ): () => number {
 	let i = 0;
 	return () => values[ i++ % values.length ];
@@ -28,8 +23,7 @@ describe( 'games/dictionary.ts', () => {
 	test( 'parser skips comments and blanks, trims CRLF', () => {
 		const dictionary = parseDictionary( FIXTURE );
 		expect( dictionary.size ).toBe( 7 );
-		// `dog\r` must have been trimmed to a clean 3-letter word
-		// (0.6^1.4 ≈ 0.49 → index 1 of the 3-letter bucket).
+
 		expect( dictionary.pick( 3, 3, seededRng( [ 0.6 ] ) ) ).toBe( 'dog' );
 	} );
 
@@ -50,16 +44,14 @@ describe( 'games/dictionary.ts', () => {
 	} );
 
 	test( 'earlier (more frequent) entries are favored', () => {
-		// rng^1.4 skews low: a uniform 0.5 draw lands below the
-		// midpoint of the bucket.
+
 		const dictionary = parseDictionary( FIXTURE );
 		expect( dictionary.pick( 3, 3, seededRng( [ 0.5 ] ) ) ).toBe( 'dog' );
 	} );
 
 	test( 'avoidInitials redraws up to three times', () => {
 		const dictionary = parseDictionary( FIXTURE );
-		// First draw hits 'cat'; the avoid-set forces redraws until a
-		// non-c initial comes up.
+
 		const word = dictionary.pick(
 			3,
 			3,

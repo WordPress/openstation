@@ -1,22 +1,7 @@
-/**
- * Plugins app — the window's own styles.
- *
- * What the framework's list furniture (`app-runtime.css`, the
- * `.os-app-list__*` classes) does not cover: the tab panels' clipping,
- * the card galleries, the detail flyout, the upload dialog, the
- * window-wide .zip drop overlay and the card drag ghost. The Installed
- * library lives here; the inspector's rich detail content uses
- * `parts/styles.ts`, adopted onto its own shadow root.
- */
-
-/* ─── Frame ─────────────────────────────────────────────────────── */
-
 .desktop-mode-plugins {
 	max-width: 100%;
 	min-width: 0;
-	/* `<os-flyout>` rests at `translateX( 110% )` when closed and would
-	 * otherwise create a phantom horizontal scroll; clipping here AND
-	 * `position: relative` make THIS element its containing block. */
+
 	overflow: hidden;
 	position: relative;
 	box-sizing: border-box;
@@ -26,8 +11,6 @@
 	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
-/* Belt + braces — never let a child stretch the panel past the window
- * width; the `<os-table>` host was once sized by content. */
 .os-plugins__panel {
 	max-width: 100%;
 	overflow: hidden;
@@ -42,14 +25,11 @@
 	flex-direction: column;
 }
 
-/* The search beside the status pills, on a desk. */
 .desktop-mode-plugins .os-app-list__toolbar-left > .os-app-list__search {
 	flex: 1 1 240px;
 	min-width: 200px;
 	max-width: 360px;
 }
-
-/* ─── Galleries ─────────────────────────────────────────────────── */
 
 .os-plugins__gallery {
 	display: grid;
@@ -76,11 +56,6 @@
 	text-align: center;
 	margin: 0;
 }
-
-/* ─── Cards ─────────────────────────────────────────────────────── */
-
-/* The card chrome (padding, border, radius, hover lift, focus ring,
- * reduced motion) is `<os-card>`'s; only gallery-specific tweaks here. */
 
 .os-plugins__card.os-plugins__card--skeleton {
 	gap: 8px;
@@ -179,15 +154,10 @@
 	color: var( --os-ui-fg-muted, #888 );
 }
 
-/* Curated cards get a soft inset border + an `<os-ribbon>` stamped on
- * the top-end corner; the card host carries `position: relative` so
- * the ribbon anchors to the card itself. */
 .os-plugins__card--featured {
 	position: relative;
 	box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 ) inset;
 }
-
-/* ─── Stars ─────────────────────────────────────────────────────── */
 
 .os-plugins__stars {
 	display: inline-flex;
@@ -211,8 +181,6 @@
 	color: var( --os-ui-fg-muted, #888 );
 	font-size: 0.78em;
 }
-
-/* ─── Skeleton lines (gallery + flyout) ─────────────────────────── */
 
 .os-plugins__skeleton {
 	display: flex;
@@ -250,8 +218,6 @@
 	}
 }
 
-/* ─── Detail flyout ─────────────────────────────────────────────── */
-
 [data-os-plugins-flyout] {
 	width: min( 560px, calc( 100% - 28px ) );
 }
@@ -269,13 +235,11 @@
 	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	flex: 0 0 auto;
 	overflow: hidden;
-	/* Mirror the flyout shell's corner radius so a banner stops at the
-	 * rounded top edge instead of bleeding past it. */
+
 	border-start-start-radius: 14px;
 	border-start-end-radius: 14px;
 }
 
-/* Circular glass close button, floating over the banner. */
 .os-plugins__flyout-close {
 	position: absolute;
 	inset-block-start: 12px;
@@ -468,8 +432,6 @@
 	margin-top: 6px;
 }
 
-/* ─── Upload dialog ─────────────────────────────────────────────── */
-
 .os-plugins__upload-overlay {
 	position: absolute;
 	inset: 0;
@@ -483,9 +445,7 @@
 
 .os-plugins__upload-card {
 	width: min( 480px, calc( 100% - 32px ) );
-	/* Chains through the palette's surface, as every card-bg reader
-	 * must: the palette declares no card-bg of its own, so a bare #fff
-	 * fallback painted a white card under the station's light text. */
+
 	background: var( --os-ui-card-bg, var( --os-ui-surface, #fff ) );
 	border-radius: 14px;
 	padding: 22px 22px 18px;
@@ -588,8 +548,6 @@
 	font-size: 0.9em;
 }
 
-/* ─── Window-level .zip drop overlay ────────────────────────────── */
-
 .os-plugins__window-drop {
 	position: absolute;
 	inset: 12px;
@@ -611,8 +569,6 @@
 .has-zip-dragover .os-plugins__window-drop {
 	opacity: 1;
 }
-
-/* ─── Drag a card to the dock ───────────────────────────────────── */
 
 .os-plugins__drag-ghost {
 	display: inline-flex;
@@ -645,8 +601,6 @@
 	outline: 2px dashed var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;
 }
-
-/* ─── Featured tab ──────────────────────────────────────────────── */
 
 .os-plugins__featured-intro {
 	padding: 20px 20px 4px;

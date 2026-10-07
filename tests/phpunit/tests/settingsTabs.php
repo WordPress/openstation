@@ -1,19 +1,5 @@
 <?php
-/**
- * Tests for `openstation_register_settings_tab_script()` and
- * `openstation_register_settings_tab()` — the PHP-side entry points that
- * hand OS Settings tab providers off to the shell's server-sync so
- * newly-installed plugins appear live in the Settings window.
- *
- * Mirrors `tests/phpunit/tests/commands.php` — same pattern, different
- * registry.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-settings-tabs
- */
+
 class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 
 	public function set_up() {
@@ -21,9 +7,6 @@ class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 		openstation_flush_script_handle_registries();
 	}
 
-	/**
-	 * @covers ::openstation_register_settings_tab_script
-	 */
 	public function test_register_script_stores_handle() {
 		$handle = 'settings-tab-a-' . uniqid();
 		$result = openstation_register_settings_tab_script( $handle );
@@ -32,18 +15,12 @@ class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 		$this->assertTrue( openstation_desktop_settings_tab_script_registry( $handle ) );
 	}
 
-	/**
-	 * @covers ::openstation_register_settings_tab_script
-	 */
 	public function test_register_script_rejects_empty_handle() {
 		$result = openstation_register_settings_tab_script( '' );
 		$this->assertInstanceOf( 'WP_Error', $result );
 		$this->assertSame( 'openstation_missing_handle', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_settings_tab_scripts_payload
-	 */
 	public function test_payload_resolves_registered_handle_to_absolute_url() {
 		$handle = 'settings-tab-b-' . uniqid();
 		wp_register_script( $handle, 'https://example.test/settings.js', array(), '1.0.0', true );
@@ -62,9 +39,6 @@ class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'settings.js', $entry['scriptUrl'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_settings_tab_scripts_payload
-	 */
 	public function test_payload_omits_unresolvable_handles() {
 		$this->setExpectedIncorrectUsage( 'openstation_register_settings_tab_script' );
 
@@ -77,9 +51,6 @@ class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers ::openstation_register_settings_tab
-	 */
 	public function test_register_tab_stores_metadata() {
 		$id = 'settings-tab-d-' . uniqid();
 		$result = openstation_register_settings_tab( array(
@@ -97,9 +68,6 @@ class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 		$this->assertSame( 50, $entry['order'] );
 	}
 
-	/**
-	 * @covers ::openstation_register_settings_tab
-	 */
 	public function test_register_tab_implicitly_registers_its_script() {
 		$id     = 'settings-tab-e-' . uniqid();
 		$handle = 'settings-script-e-' . uniqid();
@@ -112,9 +80,6 @@ class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 		$this->assertTrue( openstation_desktop_settings_tab_script_registry( $handle ) );
 	}
 
-	/**
-	 * @covers ::openstation_register_settings_tab
-	 */
 	public function test_register_tab_requires_id_and_label() {
 		$no_id = openstation_register_settings_tab( array( 'label' => 'x' ) );
 		$this->assertInstanceOf( 'WP_Error', $no_id );
@@ -134,9 +99,6 @@ class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_label', $no_label->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_settings_tabs_payload
-	 */
 	public function test_tabs_payload_round_trips_metadata() {
 		$id     = 'settings-tab-g-' . uniqid();
 		$handle = 'settings-script-g-' . uniqid();
@@ -166,9 +128,6 @@ class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'g.js', $found['scriptUrl'] );
 	}
 
-	/**
-	 * @covers ::openstation_register_settings_tab_script
-	 */
 	public function test_registered_action_fires_per_call() {
 		$calls = array();
 		add_action( 'openstation_settings_tab_script_registered', function ( $handle ) use ( &$calls ) {
@@ -182,9 +141,6 @@ class Tests_OpenStation_SettingsTabs extends WP_UnitTestCase {
 		$this->assertContains( $h2, $calls );
 	}
 
-	/**
-	 * @covers ::openstation_register_settings_tab
-	 */
 	public function test_tab_registered_action_fires() {
 		$calls = array();
 		add_action( 'openstation_settings_tab_registered', function ( $id, $entry ) use ( &$calls ) {

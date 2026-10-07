@@ -1,41 +1,22 @@
-/**
- * OpenStation — File-open dispatcher.
- *
- * Glue between {@link resolveOpener} and the shell's window
- * manager / native-window registry. Dependencies (the manager,
- * the native-window opener) are injected at boot via
- * {@link installOpenDeps} so the opener module stays free of a
- * direct import on `desktop.ts` (which would create a cycle).
- */
-
 import { doAction } from '../hooks';
 import { resolveOpener, type OpenerContext } from './openers';
 import type { DesktopFile } from './file';
 
 export interface OpenDeps {
-	/** Open a chromeless iframe window at `url`. Returns true on open/focus. */
+
 	openUrl: ( args: { id: string; url: string; title: string; icon: string } ) => boolean;
-	/** Open a registered native window by id, optionally with a per-call config. */
+
 	openNativeWindow: ( id: string, config?: unknown ) => boolean;
-	/** Build a stable window id from a URL — mirrors `wp.os.deriveWindowId`. */
+
 	deriveWindowId: ( url: string ) => string;
 }
 
 let deps: OpenDeps | null = null;
 
-/** Install dependencies. Called once from `desktop.ts` after the shell mounts. */
 export function installOpenDeps( next: OpenDeps ): void {
 	deps = next;
 }
 
-/**
- * Open an admin URL in a chromeless window, the way a `url` opener
- * would, without a file to resolve an opener for — a tile action
- * that has just created something on the server (a post, an
- * attachment) opens its edit screen this way. The window id is
- * derived from the URL, so the same screen focuses rather than
- * duplicates. Returns `false` before the shell has installed deps.
- */
 export function openUrlWindow( args: { url: string; title: string; icon: string } ): boolean {
 	if ( ! deps || ! args.url ) {
 		return false;
@@ -43,17 +24,11 @@ export function openUrlWindow( args: { url: string; title: string; icon: string 
 	return deps.openUrl( { id: deps.deriveWindowId( args.url ), ...args } );
 }
 
-/**
- * Open a desktop file using the resolved opener. Returns `true`
- * when something opened, `false` when no opener could handle the
- * file (caller may surface a "no app" toast).
- */
 export async function openFile(
 	file: DesktopFile,
 	ctx?: OpenerContext,
 ): Promise< boolean > {
 	if ( ! deps ) {
-		// eslint-disable-next-line no-console
 		console.warn(
 			'[openstation] wp.os.files.open() called before the shell installed open deps. The file will not open.',
 		);
@@ -94,7 +69,7 @@ export async function openFile(
 			doAction( 'os.files.opened', { file, openerId: opener.id, kind: 'window' } );
 			return opened;
 		}
-		// 'js'.
+
 		await handler.open( file, ctx );
 		doAction( 'os.files.opened', { file, openerId: opener.id, kind: 'js' } );
 		return true;
@@ -106,7 +81,7 @@ export async function openFile(
 			openerId: opener.id,
 			error: err,
 		} );
-		// eslint-disable-next-line no-console
+
 		console.error( '[openstation] file opener threw:', err );
 		return false;
 	}

@@ -1,19 +1,3 @@
-/**
- * Phase F tests — Layer 4 (Experimental) custom-chrome mount/swap.
- *
- *   - `mountWindowChrome` returns null for the standard chrome
- *     (no-op — Layer 1-3 already painted).
- *   - Resolving a registered chrome calls its `render(host, ctx)`
- *     once and returns the handle.
- *   - The `os.window.chrome.render` filter can swap the
- *     resolved id.
- *   - `os.window.chrome.applied` action fires with
- *     `layer: 'chrome'` on successful mount.
- *   - A throwing render is isolated — null returns, framework
- *     keeps the standard chrome in place.
- *   - The `match` predicate filters which chromes a window can
- *     mount.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -112,7 +96,7 @@ describe( 'mountWindowChrome', () => {
 			'test/swap',
 			( () => 'plug/swapped' ) as ( ...a: unknown[] ) => unknown,
 		);
-		const win = fakeWin( 'edit-post' ); // no inline chrome
+		const win = fakeWin( 'edit-post' );
 		expect(
 			resolveChromeId( win as Parameters< typeof resolveChromeId >[ 0 ] ),
 		).toBe( 'plug/swapped' );

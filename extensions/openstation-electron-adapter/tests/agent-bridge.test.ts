@@ -1,12 +1,3 @@
-/**
- * Reaching the desktop app from a browser tab.
- *
- * The bridge has to be indistinguishable from the preload's, because
- * `boot()` is written against one interface and must not learn which
- * side it got. And it has to fail quietly: a browser with no app
- * running is the ordinary case, not an error.
- */
-
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { connectToAgent } from '../src/agent-bridge';
@@ -20,11 +11,6 @@ const PAIRING: AgentPairing = {
 	platform: 'darwin',
 };
 
-/**
- * Stub `fetch` with a route table.
- *
- * @param routes Path → response body (or a thrower / status object).
- */
 function stubFetch(
 	routes: Record< string, unknown | ( () => unknown ) >,
 ): ReturnType< typeof vi.fn > {
@@ -65,8 +51,7 @@ describe( 'connecting', () => {
 	} );
 
 	test( 'returns null when the app is not running', async () => {
-		// The ordinary case: a browser, no app. Must be silent, and must
-		// not throw into the shell's boot.
+
 		stubFetch( { '/ping': () => new Error( 'ECONNREFUSED' ) } );
 		expect( await connectToAgent( PAIRING ) ).toBeNull();
 	} );
@@ -104,7 +89,7 @@ describe( 'connecting', () => {
 } );
 
 describe( 'the bridge surface', () => {
-	/** @return A connected bridge over a stubbed agent. */
+
 	async function connected( freedWindows: string[] = [] ) {
 		const state = { freed: [ ...freedWindows ] };
 		const impl = stubFetch( {
@@ -147,9 +132,7 @@ describe( 'the bridge surface', () => {
 	} );
 
 	test( 'the server-connection methods are inert', async () => {
-		// The app owns its own connection to WordPress. A browser tab
-		// speaking for it would be a tab speaking for a process it does
-		// not own.
+
 		const { bridge } = await connected();
 		expect( ( await bridge.handshake( { restUrl: 'x', nonce: 'y' } ) ).state ).toBe( 'idle' );
 		expect( ( await bridge.getConnection() ).state ).toBe( 'idle' );
@@ -161,8 +144,7 @@ describe( 'the bridge surface', () => {
 		const cb = vi.fn();
 		const off = bridge.onWindowDocked( cb );
 		off();
-		// Nothing to assert beyond "no throw and no call" — the polling
-		// path is covered below.
+
 		expect( cb ).not.toHaveBeenCalled();
 	} );
 } );
@@ -180,7 +162,6 @@ describe( 'the synthesised push channel', () => {
 		const docked = vi.fn();
 		bridge.onWindowDocked( docked );
 
-		// The user closes the native window.
 		state.freed = [];
 		await vi.advanceTimersByTimeAsync( 2500 );
 
@@ -188,8 +169,7 @@ describe( 'the synthesised push channel', () => {
 	} );
 
 	test( 'treats the app going away as everything docking back', async () => {
-		// Otherwise the shell keeps windows minimized and marked as
-		// freed, pointing at a process that no longer exists.
+
 		vi.useFakeTimers();
 		let alive = true;
 		stubFetch( {
@@ -223,7 +203,6 @@ describe( 'the synthesised push channel', () => {
 		const afterConnect = impl.mock.calls.length;
 		await vi.advanceTimersByTimeAsync( 10000 );
 
-		// An idle browser tab must not sit there making requests.
 		expect( impl.mock.calls.length ).toBe( afterConnect );
 	} );
 } );

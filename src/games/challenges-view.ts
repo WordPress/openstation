@@ -1,17 +1,3 @@
-/**
- * OpenStation — Challenges view (inside the Games hub window).
- *
- * Lists every challenge involving the current user. Incoming
- * pending rows carry **Accept & Play** / **Decline** actions
- * (accepting routes through the same flow as the notification
- * toast); everything else renders its state + outcome. Repaints
- * live from the shared challenges store as Heartbeat deltas land,
- * and resyncs the full list over REST on mount (the store only
- * holds what arrived this session).
- */
-
-// Side-effect imports — register the `<os-*>` components this module
-// constructs. `defineComponent` is idempotent across bundles.
 import '../ui/components/os-avatar/os-avatar';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-empty-state/os-empty-state';
@@ -44,7 +30,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 	if ( 'pending' === row.state ) {
 		if ( incoming ) {
 			return sprintf(
-				/* translators: 1: challenger name, 2: game title, 3: score. */
+
 				__( '%1$s challenged you to %2$s — beat %3$s.' ),
 				other,
 				title,
@@ -52,7 +38,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 			);
 		}
 		return sprintf(
-			/* translators: 1: recipient name, 2: game title, 3: score. */
+
 			__( 'Waiting for %1$s to accept your %2$s challenge (%3$s).' ),
 			other,
 			title,
@@ -62,14 +48,14 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 	if ( 'accepted' === row.state ) {
 		if ( incoming ) {
 			return sprintf(
-				/* translators: 1: game title, 2: score. */
+
 				__( 'You accepted — play %1$s and beat %2$s!' ),
 				title,
 				target,
 			);
 		}
 		return sprintf(
-			/* translators: 1: recipient name, 2: game title. */
+
 			__( '%1$s accepted your %2$s challenge and is playing.' ),
 			other,
 			title,
@@ -78,27 +64,26 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 	if ( 'declined' === row.state ) {
 		if ( incoming ) {
 			return sprintf(
-				/* translators: 1: challenger name, 2: game title. */
+
 				__( 'You declined %1$s’s %2$s challenge.' ),
 				other,
 				title,
 			);
 		}
 		return sprintf(
-			/* translators: 1: recipient name, 2: game title. */
+
 			__( '%1$s declined your %2$s challenge.' ),
 			other,
 			title,
 		);
 	}
 
-	// Completed.
 	const beaten = 'beaten' === row.result;
 	const result = String( row.resultScore ?? 0 );
 	if ( incoming ) {
 		if ( beaten ) {
 			return sprintf(
-				/* translators: 1: game title, 2: result score, 3: target score. */
+
 				__( 'You beat the %1$s challenge: %2$s vs %3$s.' ),
 				title,
 				result,
@@ -106,7 +91,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 			);
 		}
 		return sprintf(
-			/* translators: 1: game title, 2: result score, 3: target score. */
+
 			__( 'You missed the %1$s challenge: %2$s vs %3$s.' ),
 			title,
 			result,
@@ -115,7 +100,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 	}
 	if ( beaten ) {
 		return sprintf(
-			/* translators: 1: recipient name, 2: result score, 3: target score. */
+
 			__( '%1$s beat your score: %2$s vs %3$s.' ),
 			other,
 			result,
@@ -123,7 +108,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 		);
 	}
 	return sprintf(
-		/* translators: 1: recipient name, 2: result score, 3: target score. */
+
 		__( '%1$s did not beat your score: %2$s vs %3$s.' ),
 		other,
 		result,
@@ -208,11 +193,6 @@ function buildRow( row: GameChallengeRow, viewerId: number ): HTMLElement {
 	return item;
 }
 
-/**
- * Mount the challenges list into its container. Pass `gameId` to
- * restrict the list to one game (the Games hub's per-game detail
- * panel does). Returns a teardown.
- */
 export function renderChallengesView(
 	container: HTMLElement,
 	gameId?: string,
@@ -250,8 +230,6 @@ export function renderChallengesView(
 	const unsubscribe = subscribeChallenges( paint );
 	paint();
 
-	// Full REST resync — the shared store only holds rows delivered
-	// since this tab loaded; the list view wants history too.
 	void fetchChallenges( { box: 'all' } )
 		.then( ( { challenges } ) => ingestChallenges( challenges ) )
 		.catch( ( err ) => {

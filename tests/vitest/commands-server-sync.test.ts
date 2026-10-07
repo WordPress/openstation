@@ -1,16 +1,3 @@
-/**
- * Unit tests for `src/commands/server-sync.ts`.
- *
- * The sync module is the bridge between the `serverCommandScripts`
- * payload (built in PHP, arrives via `applyPayload`) and the command
- * registry (`src/commands.ts`). We exercise the three behaviours the
- * real code cares about:
- *
- *   1. Fresh scripts trigger a `<script>` injection.
- *   2. Re-syncing with the same handle is idempotent (no re-injection).
- *   3. A handle disappearing from the payload unregisters owner-tagged
- *      commands but leaves untagged commands alone.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -109,7 +96,6 @@ describe( 'commands/server-sync.ts', () => {
 			{ handle: 'plugin-a', scriptUrl: 'https://example.test/a.js' },
 		] );
 
-		// Simulate plugin-a's just-loaded JS registering its commands.
 		commands.registerCommand( {
 			slug: 'a-hello',
 			label: 'Hello',
@@ -124,11 +110,10 @@ describe( 'commands/server-sync.ts', () => {
 
 		expect( commands.findCommand( 'a-hello' ) ).not.toBeNull();
 
-		// Plugin-a deactivates — sync with an empty payload.
 		await run( [] );
 
 		expect( commands.findCommand( 'a-hello' ) ).toBeNull();
-		// Untagged command survives (graceful backwards-compat).
+
 		expect( commands.findCommand( 'untagged' ) ).not.toBeNull();
 	} );
 
@@ -137,7 +122,7 @@ describe( 'commands/server-sync.ts', () => {
 		vi.spyOn( loader, 'loadVendorScript' ).mockResolvedValue( undefined );
 
 		const run = sync.createCommandRegistrySync();
-		// First sync: handle present, metadata declares two slugs.
+
 		await run(
 			[
 				{ handle: 'plugin-a', scriptUrl: 'https://example.test/a.js' },
@@ -148,12 +133,10 @@ describe( 'commands/server-sync.ts', () => {
 			],
 		);
 
-		// Plugin's JS (simulated) registers the commands without `owner`.
 		commands.registerCommand( { slug: 'a-one', label: 'One', run: () => undefined } );
 		commands.registerCommand( { slug: 'a-two', label: 'Two', run: () => undefined } );
 		commands.registerCommand( { slug: 'survivor', label: 'Survivor', run: () => undefined } );
 
-		// Deactivation: handle + metadata both gone.
 		await run( [], [] );
 
 		expect( commands.findCommand( 'a-one' ) ).toBeNull();

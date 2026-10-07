@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the agents drag intake surface — the agent fields inlined
- * into the desktop user-file payload, and the invoke route's `source`
- * pass-through.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-agents
- */
+
 class Tests_OpenStation_AgentsDrag extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -37,38 +27,22 @@ class Tests_OpenStation_AgentsDrag extends WP_UnitTestCase {
 		return $user;
 	}
 
-	/**
-	 * Humans carry no agent fields on their user-file payload.
-	 *
-	 * @covers OpenStation_User_File::serialize
-	 */
 	public function test_human_user_file_has_no_agent_fields() {
 		$shape = ( new OpenStation_User_File( (string) self::$admin_id ) )->serialize();
 		$this->assertArrayNotHasKey( 'isAgent', $shape );
 		$this->assertArrayNotHasKey( 'agentDragKinds', $shape );
 	}
 
-	/**
-	 * An agent without a drag trigger is marked but rejects drops
-	 * (`agentDragKinds` null).
-	 *
-	 * @covers OpenStation_User_File::serialize
-	 */
 	public function test_agent_without_drag_trigger_serializes_null_kinds() {
 		$agent = $this->create_agent();
 		openstation_agent_update( $agent->ID, array( 'description' => 'Drops backgrounds.' ) );
 		$shape = ( new OpenStation_User_File( (string) $agent->ID ) )->serialize();
 		$this->assertTrue( $shape['isAgent'] );
 		$this->assertNull( $shape['agentDragKinds'] );
-		// The chat-window subtitle ships inline for the tile opener.
+
 		$this->assertSame( 'Drops backgrounds.', $shape['agentDescription'] );
 	}
 
-	/**
-	 * The drag trigger's entity kinds ship inline; no filter means [].
-	 *
-	 * @covers OpenStation_User_File::serialize
-	 */
 	public function test_drag_trigger_kinds_ship_inline() {
 		$filtered = $this->create_agent( array( 'name' => 'Filtered' ) );
 		openstation_agent_update(
@@ -101,12 +75,6 @@ class Tests_OpenStation_AgentsDrag extends WP_UnitTestCase {
 		$this->assertSame( array(), $shape['agentDragKinds'] );
 	}
 
-	/**
-	 * The invoke route forwards its `source` param into the completed
-	 * action's context.
-	 *
-	 * @covers ::openstation_agents_rest_invoke
-	 */
 	public function test_invoke_source_reaches_completed_context() {
 		$agent = $this->create_agent( array( 'name' => 'Sourced' ) );
 		add_filter(
@@ -138,8 +106,7 @@ class Tests_OpenStation_AgentsDrag extends WP_UnitTestCase {
 		$response = openstation_agents_rest_invoke( $request );
 		$this->assertNotWPError( $response );
 		$this->assertSame( 'drag', $captured['source'] );
-		// The request sent no history, so none is replayed. (The chat UI
-		// sends the open transcript as `history` on a drop, like any turn.)
+
 		$this->assertSame( array(), $captured['history'] );
 	}
 }

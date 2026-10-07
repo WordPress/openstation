@@ -1,13 +1,3 @@
-/**
- * Tests for the unified tile renderer + drag-out helper.
- *
- * The renderer is now the `<os-tile>` web component (light-DOM,
- * single source of truth for every tile in the shell).
- * `buildTileFromSpec` is a thin shim that creates a `<os-tile>`
- * host with attributes from a `TileSpec`. `attachTileDragOut`
- * remains the imperative helper for callers who already have a
- * tile element.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { DragManager } from '../../src/drag/manager';

@@ -1,24 +1,6 @@
-/**
- * Restore-from-bin sync tests.
- *
- * The recycle-bin window emits
- * `os.{placement,shortcut,folder}.changed` with
- * `action: 'untrashed'` after a successful restore. This module's
- * subscriber must refetch `listFolders()` once and `listPlacements()`
- * for every still-hydrated folder so the local store catches up
- * without waiting for the next Heartbeat tick.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
-/**
- * One shared module graph across tests. We deliberately DON'T call
- * `vi.resetModules()` between tests: the broadcast bus attaches
- * listeners to `document`, and `vi.resetModules` would orphan the
- * previous test's listeners (they'd keep firing on every broadcast).
- * `afterEach` calls `__resetFilesRestoreSyncForTests` which
- * unregisters them properly.
- */
 async function load(): Promise< {
 	rs: typeof import( '../../src/desktop-files/restore-sync' );
 	store: typeof import( '../../src/desktop-files/store' );
@@ -38,11 +20,9 @@ interface MockResponse {
 }
 
 async function flushMicrotasks(): Promise< void > {
-	// `fetch` mock resolves through a JSON parsing chain that needs
-	// a few microtask hops to settle. Five drains is plenty for our
-	// 2-3-step pipeline (response → .json() → store mutator).
+
 	for ( let i = 0; i < 5; i += 1 ) {
-		// eslint-disable-next-line no-await-in-loop
+
 		await Promise.resolve();
 	}
 }
@@ -78,14 +58,13 @@ describe( 'files restore-sync', () => {
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
 
-		// Two hydrated folders: root + an open sub-folder.
 		store.setFolderPlacements( 0, [] );
 		store.setFolderPlacements( 5, [] );
 
 		const spy = fetchSpy( [
-			{ body: { folders: [] } }, // listFolders
-			{ body: { placements: [], folderId: 0 } }, // listPlacements(0)
-			{ body: { placements: [], folderId: 5 } }, // listPlacements(5)
+			{ body: { folders: [] } },
+			{ body: { placements: [], folderId: 0 } },
+			{ body: { placements: [], folderId: 5 } },
 		] );
 		vi.stubGlobal( 'fetch', spy );
 
@@ -98,7 +77,6 @@ describe( 'files restore-sync', () => {
 
 		await flushMicrotasks();
 
-		// 1 listFolders + 2 listPlacements.
 		expect( spy ).toHaveBeenCalledTimes( 3 );
 	} );
 
@@ -217,7 +195,6 @@ describe( 'files restore-sync', () => {
 
 		await flushMicrotasks();
 
-		// Each broadcast triggers 1 listFolders + 1 listPlacements(0).
 		expect( spy ).toHaveBeenCalledTimes( 6 );
 	} );
 } );

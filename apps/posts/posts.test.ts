@@ -1,10 +1,3 @@
-/**
- * Posts app — the client view: the frame (tabs, toolbar, bulk bar,
- * table, pager, the phone footer), the table wiring and the mounted /
- * updated lifecycle, the column builders and hook registries, the
- * cells, the REST client over `ctx.fetch`, and the orderby mapping.
- * The Pages twin's copy is `pages.test.ts`.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
 import app from './posts.os';
@@ -73,7 +66,6 @@ function data( items: PostListItem[], over: Partial< ListData[ 'list' ] > = {} )
 const json = ( body: unknown, headers: Record< string, string > = {} ) =>
 	new Response( JSON.stringify( body ), { status: 200, headers: { 'Content-Type': 'application/json', ...headers } } );
 
-/** A REST double answering the option fetches the app makes on mount. */
 function restFetch() {
 	return vi.fn( async ( input: RequestInfo | URL ) => {
 		const path = String( input );
@@ -97,8 +89,7 @@ function mount( s: Partial< ListState > = {}, d: ListData = data( [ row( 1 ), ro
 		data: d,
 		loading,
 		root,
-		// `menuTabs` is what `App::menu()` ships in the config extra, and
-		// what the strip renders from — see `apps/posts/posts.os.php`.
+
 		extra: { mode: 'posts', editPostUrlBase: 'http://x.test/wp-admin/post.php', newPostUrl: 'http://x.test/wp-admin/post-new.php', defaultOrderby: 'date', defaultOrder: 'desc', menuTabs: POSTS_TABS, ...extra },
 		dispatch,
 		fetch,
@@ -159,14 +150,12 @@ afterEach( () => {
 	vi.restoreAllMocks();
 } );
 
-/** Pick a tab the way the strip's own change event does. */
 function tab( root: HTMLElement, value: string ): void {
 	root.querySelector( 'os-tabs' )!.dispatchEvent(
 		new CustomEvent( 'os-tab-change', { detail: { value } } ),
 	);
 }
 
-/** An embedded page that answers the bridge query "yes, I am holding". */
 function holdingFrame(): HTMLIFrameElement {
 	const frame = document.createElement( 'iframe' );
 	Object.defineProperty( frame, 'contentWindow', {
@@ -189,7 +178,6 @@ function holdingFrame(): HTMLIFrameElement {
 	return frame;
 }
 
-/** A filter bus: the harness's stub returns the value unchanged. */
 function stubFilters() {
 	const registered: Array< ( ...a: unknown[] ) => unknown > = [];
 	const previous = window.wp!.hooks;
@@ -213,11 +201,6 @@ function stubFilters() {
 	};
 }
 
-/**
- * Stand in for the shell's `wp.os.embedAdminPage()`, which is what
- * puts the editor in the Add Post panel. Returns what it was asked to
- * embed, a count of teardowns, and the undo.
- */
 function stubEmbed() {
 	const embedded: Array< [ HTMLElement, string ] > = [];
 	let teardowns = 0;
@@ -255,8 +238,7 @@ describe( 'the frame', () => {
 	it( 'paints the tabs, the toolbar bound to filter, the table and the pager', () => {
 		const { root } = mount();
 		expect( root.querySelector( '[data-os-posts-root]' )!.classList.contains( 'desktop-mode-posts' ) ).toBe( true );
-		// The same list, in the same order, the Posts menu shows in the
-		// dock: All posts, Add New Post, Categories, Tags.
+
 		expect( Array.from( root.querySelectorAll( 'os-tab' ) ).map( ( t ) => t.getAttribute( 'value' ) ) ).toEqual( [ 'posts', 'new', 'categories', 'tags' ] );
 		const status = root.querySelector( 'os-segmented' )!;
 		expect( status.getAttribute( 'os-bind' ) ).toBe( 'status' );
@@ -292,10 +274,6 @@ describe( 'the frame', () => {
 			expect( embed.embedded[ 0 ][ 1 ] ).toBe( 'http://x.test/wp-admin/post-new.php' );
 			expect( ctx.host.openUrl ).not.toHaveBeenCalled();
 
-			// Leaving asks the page whether it is holding anything.
-			// Nothing here is, so the embed goes and the next visit
-			// mounts a blank editor, the way post-new.php does in a
-			// classic window.
 			tab( root, 'posts' );
 			await flush();
 			expect( embed.torn() ).toBe( 1 );
@@ -318,15 +296,12 @@ describe( 'the frame', () => {
 			tab( root, 'new' );
 			root.querySelector( '[data-os-posts-editor]' )!.appendChild( holdingFrame() );
 
-			// A page with unsaved changes is handed back, not dropped.
 			tab( root, 'posts' );
 			await flush();
 			expect( embed.torn() ).toBe( 0 );
 			tab( root, 'new' );
 			expect( embed.embedded ).toHaveLength( 1 );
 
-			// And the window cannot close without asking: the shell's
-			// own query is for a window's iframe, which an embed is not.
 			expect(
 				bus.applyFilters( 'os.native-window.before-close', true, {
 					windowId: ctx.windowId,
@@ -346,7 +321,6 @@ describe( 'the frame', () => {
 	it( 'opens on the tab the server named — the dock row that asked for it', () => {
 		const embed = stubEmbed();
 		try {
-			// `{ tab: 'new' }` is what the Add Post row's remap passes.
 			const { root } = mount( { tab: 'new' } );
 			expect( ( root.querySelector( 'os-tabs' ) as HTMLElement & { value: string } ).value ).toBe( 'new' );
 			expect( embed.embedded ).toHaveLength( 1 );
@@ -494,7 +468,7 @@ describe( 'mounted and updated', () => {
 		root.querySelector( 'os-tabs' )!.dispatchEvent( new CustomEvent( 'os-tab-change', { detail: { value: 'categories' } } ) );
 		expect( mountCanvas ).toHaveBeenCalledTimes( 1 );
 		expect( ( mountCanvas.mock.calls[ 0 ] as unknown as [ HTMLElement ] )[ 0 ] ).toBe( root.querySelector( '[data-os-posts-cats-host]' ) );
-		// A second activation while the first load is in flight is not a second mount.
+
 		root.querySelector( 'os-tabs' )!.dispatchEvent( new CustomEvent( 'os-tab-change', { detail: { value: 'categories' } } ) );
 		expect( mountCanvas ).toHaveBeenCalledTimes( 1 );
 		teardown();
@@ -601,7 +575,7 @@ describe( 'the registries', () => {
 		expect( buildColumns( env, new Map(), undefined, false, new Set( [ 'title', 'tags' ] ) ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'categories', 'date' ] );
 		expect( buildColumns( env, new Map(), undefined, true, new Set() ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'date' ] );
 		expect( columnLabels( env ).map( ( c ) => c.key ) ).toEqual( [ 'author', 'categories', 'tags', 'date' ] );
-		// The Pages bundle ships no taxonomy cells: the posts set shrinks to what it has.
+
 		expect( buildAllColumns( cellEnv(), new Map() ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'date' ] );
 		const pages = cellEnv( { extra: { mode: 'pages' } } );
 		expect( buildColumns( pages, new Map(), undefined, false, new Set() ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'parent', 'template', 'slug', 'comments', 'date' ] );
@@ -663,7 +637,7 @@ describe( 'the cells', () => {
 	it( 'the author cell paints the name as text, and nothing for an author core could not embed', () => {
 		const named = buildAuthorCell( row( 1, { _embedded: { author: [ { id: 2, name: 'Q&amp;A Helper' } ] } } ) );
 		expect( named.textContent ).toBe( 'Q&A Helper' );
-		// A deleted author embeds as core's error object, which has no name.
+
 		const orphan = buildAuthorCell( row( 1, { _embedded: { author: [ { code: 'rest_user_invalid_id' } as never ] } } ) );
 		expect( orphan.textContent ).toBe( '' );
 	} );

@@ -98,8 +98,7 @@ describe( 'describeRestFailure', () => {
 		expect( refused.message ).toBe(
 			'Could not add to the post: You are not allowed to edit this post.',
 		);
-		// A 2xx with no body has no reason of its own beyond the
-		// unreadable line; a plain error with no message has none at all.
+
 		expect(
 			describeRestFailure( new Error( '' ), {
 				lead: 'Could not add to the post',
@@ -117,7 +116,7 @@ describe( 'restFailureText', () => {
 		expect( restFailureText( new TypeError( 'Failed to fetch' ) ) ).toMatch(
 			/Check your connection/,
 		);
-		// An unreadable body has no human part: the caller’s fallback takes over.
+
 		expect( restFailureText( restError( 200 ) ) ).toBe( '' );
 	} );
 } );
@@ -141,7 +140,7 @@ describe( 'toastRestFailure', () => {
 			type: 'error',
 		} );
 		expect( () => toastRestFailure( undefined, restError( 500 ), { fallback: FALLBACK } ) ).not.toThrow();
-		// A dwell the caller asks for rides along; the describe options do not.
+
 		toastRestFailure( toast, restError( 403, { serverMessage: 'No.' } ), { fallback: FALLBACK, duration: 6000 } );
 		expect( toast ).toHaveBeenLastCalledWith( { message: 'No.', type: 'error', duration: 6000 } );
 	} );

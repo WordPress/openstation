@@ -20,7 +20,7 @@ describe( '<os-window-button>', () => {
 		expect( btn ).not.toBeNull();
 		const svg = el.shadowRoot!.querySelector( 'svg' );
 		expect( svg ).not.toBeNull();
-		// Minimize icon is a horizontal line via <path>.
+
 		expect( svg!.querySelector( 'path' ) ).not.toBeNull();
 	} );
 
@@ -31,7 +31,7 @@ describe( '<os-window-button>', () => {
 		const el = host.querySelector( 'os-window-button' )!;
 		const svg = el.shadowRoot!.querySelector( 'svg' );
 		expect( svg!.innerHTML ).toBe( '' );
-		// Slotted content stays in light DOM.
+
 		expect( el.textContent?.trim() ).toBe( '🎯' );
 	} );
 
@@ -57,7 +57,6 @@ describe( '<os-window-button>', () => {
 			fires++;
 		} );
 
-		// Three real clicks → three activations. No doubles.
 		el.shadowRoot!.querySelector( 'button' )!.click();
 		el.shadowRoot!.querySelector( 'button' )!.click();
 		el.shadowRoot!.querySelector( 'button' )!.click();
@@ -83,8 +82,7 @@ describe( '<os-window-button>', () => {
 		await tick();
 		const el = host.querySelector( 'os-window-button' )!;
 		const btn = el.shadowRoot!.querySelector( 'button' )!;
-		// The focusable element is the shadow button; a label only on
-		// the (role-less) host is invisible to assistive tech.
+
 		expect( btn.getAttribute( 'aria-label' ) ).toBe( 'Minimize' );
 	} );
 

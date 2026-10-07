@@ -1,19 +1,3 @@
-/**
- * Themes — a card grid of every desktop theme in the site's library,
- * plus "System default". Picking is per-user and open to everyone;
- * the upload tile and the per-card delete button appear only for
- * users who hold the theme-management capability.
- *
- * Code-registered themes (`source: 'code'`) never get a delete
- * button: there is no file to remove and the REST route rightly 404s
- * on them. A plugin that ships a theme takes it away by unregistering
- * it — see the built-in "Legacy" theme.
- *
- * Activating a theme through the store seeds its recommended
- * settings once, the first time this user wears it; the "Apply
- * recommended layout and effects" row is the deliberate way back.
- */
-
 import { __, html, sprintf } from '@openstation/app';
 import {
 	listDesktopThemes,
@@ -29,22 +13,10 @@ import { hasApplicableThemeRecommendations } from '../../../src/settings/theme-r
 import { applyThemeRecommendations, settings, update } from './store';
 import { extraOf, uiOf, type Ctx, type Section } from './types';
 
-/** Sentinel card id for "no theme". */
 const SYSTEM_DEFAULT = '';
 
-/**
- * What the "no theme" card is called. Not a translated string: it is
- * the name of the shell's own look, the same way "Desktop Mode
- * (Legacy)" is the name of the theme beside it, and a product name
- * does not get translated.
- */
 const SYSTEM_DEFAULT_NAME = 'OpenStation';
 
-/**
- * Initials shown on a theme card that ships no preview image. Same
- * idea as the letter-badge icon fallback: something recognisable and
- * stable beats an empty rectangle.
- */
 function initialsFor( name: string ): string {
 	const words = name.trim().split( /\s+/ ).filter( Boolean );
 	if ( words.length === 0 ) {
@@ -56,15 +28,6 @@ function initialsFor( name: string ): string {
 	return words[ 0 ].slice( 0, 2 ).toUpperCase();
 }
 
-// -------------------------------------------------------------- REST
-
-/**
- * Installing or deleting a theme changes which wallpapers exist, and
- * the registry that owns them lives in the shell bundle. Both REST
- * responses carry the rebuilt list; this hands it over. Silent when
- * the response carries nothing — a theme with no wallpapers changes
- * no wallpapers.
- */
 function announceWallpapers( payload: unknown ): void {
 	const list = ( payload as { serverWallpapers?: unknown } )?.serverWallpapers;
 	if ( Array.isArray( list ) ) {
@@ -75,9 +38,6 @@ function announceWallpapers( payload: unknown ): void {
 }
 
 async function uploadTheme( ctx: Ctx, file: File ): Promise< DesktopThemeServerEntry > {
-	// `FormData`, not a raw body: the route reads `$_FILES['file']`,
-	// which PHP only populates for genuine multipart POSTs. No
-	// Content-Type either — the browser adds its own boundary.
 	const form = new FormData();
 	form.append( 'file', file, file.name );
 	const response = await ctx.fetch( extraOf( ctx ).desktopThemesUrl, { method: 'POST', body: form } );
@@ -100,11 +60,9 @@ async function deleteTheme( ctx: Ctx, slug: string ): Promise< void > {
 	try {
 		announceWallpapers( await response.json() );
 	} catch {
-		/* A body-less 200 is fine — nothing to announce. */
+
 	}
 }
-
-// ----------------------------------------------------------- actions
 
 async function doUpload( ctx: Ctx, file: File ): Promise< void > {
 	const ui = uiOf( ctx ).themes;
@@ -115,14 +73,8 @@ async function doUpload( ctx: Ctx, file: File ): Promise< void > {
 	ui.error = '';
 	ctx.repaint();
 	try {
-		// Insert directly rather than waiting for the next payload
-		// refresh — the theme the admin just uploaded should be
-		// pickable the moment the spinner stops.
 		upsertDesktopTheme( await uploadTheme( ctx, file ) );
 	} catch ( err ) {
-		// The install pipeline's WP_Error messages are specific ("that
-		// archive contains an unsafe file path"): the mapper shows them
-		// first, and its own line only for what the server could not say.
 		ui.error = describeRestFailure( err, { fallback: __( 'That theme could not be installed.' ) } ).message;
 	} finally {
 		ui.busy = false;
@@ -134,7 +86,7 @@ async function doDelete( ctx: Ctx, theme: DesktopThemeEntry ): Promise< void > {
 	const ok = await ctx.host.confirm?.( {
 		title: __( 'Delete this theme?' ),
 		message: sprintf(
-			/* translators: %s: theme name. */
+
 			__( '“%s” will be removed from this site for everyone. This cannot be undone.' ),
 			theme.name,
 		),
@@ -149,10 +101,7 @@ async function doDelete( ctx: Ctx, theme: DesktopThemeEntry ): Promise< void > {
 	try {
 		await deleteTheme( ctx, theme.slug );
 		removeDesktopTheme( theme.slug );
-		// Deleting the theme THIS user is wearing has to reset their
-		// selection too, or the shell would keep a stylesheet whose
-		// file no longer exists until reload. Other users are handled
-		// server-side: the enqueue path existence-checks every request.
+
 		if ( settings().desktopTheme === theme.slug ) {
 			update( { desktopTheme: SYSTEM_DEFAULT } );
 		}
@@ -161,8 +110,6 @@ async function doDelete( ctx: Ctx, theme: DesktopThemeEntry ): Promise< void > {
 	}
 	ctx.repaint();
 }
-
-// ------------------------------------------------------------- cards
 
 const themeCard = ( ctx: Ctx, theme: DesktopThemeEntry, selected: boolean, canManage: boolean ) => html`
 	<div class="os-settings__theme-card-wrap">
@@ -182,7 +129,7 @@ const themeCard = ( ctx: Ctx, theme: DesktopThemeEntry, selected: boolean, canMa
 			<span class="os-settings__theme-meta">
 				${ theme.version !== ''
 					? sprintf(
-						/* translators: %s: theme version string. */
+
 						__( 'Version %s' ),
 						theme.version,
 					)
@@ -194,7 +141,7 @@ const themeCard = ( ctx: Ctx, theme: DesktopThemeEntry, selected: boolean, canMa
 				type="button"
 				class="os-settings__theme-delete"
 				aria-label=${ sprintf(
-					/* translators: %s: theme name. */
+
 					__( 'Delete %s' ),
 					theme.name,
 				) }
@@ -254,7 +201,7 @@ const uploadTile = ( ctx: Ctx ) => {
 					if ( file ) {
 						void doUpload( ctx, file );
 					}
-					// Clear so re-picking the same file fires `change` again.
+
 					input.value = '';
 				} }
 			/>
@@ -266,14 +213,6 @@ const uploadTile = ( ctx: Ctx ) => {
 	</div>`;
 };
 
-/**
- * The "restore the author's arrangement" row. Shown only for the
- * theme the user is currently wearing, and only when it actually
- * recommends something this shell can apply — a recommendation
- * naming a dock rail renderer no plugin registered resolves to
- * nothing, and an unusable button is worse than no button. The
- * system default is in: a palette with an arrangement of its own.
- */
 const recommendationRow = ( activeSlug: string, themes: DesktopThemeEntry[] ) => {
 	if ( ! hasApplicableThemeRecommendations( activeSlug ) ) {
 		return '';
@@ -288,7 +227,7 @@ const recommendationRow = ( activeSlug: string, themes: DesktopThemeEntry[] ) =>
 	return html`<div class="os-settings__theme-recommendation">
 		<os-button variant="secondary" @click=${ () => applyThemeRecommendations( activeSlug ) }>
 			${ sprintf(
-				/* translators: %s: theme name. */
+
 				__( 'Apply %s’s recommended layout and effects' ),
 				name,
 			) }
@@ -300,10 +239,7 @@ export const renderThemes: Section = ( s, ctx ) => {
 	const themes = listDesktopThemes();
 	const canManage = ctx.data.canManageDesktopThemes;
 	const error = uiOf( ctx ).themes.error;
-	// role="group", not radiogroup: the upload tile is the last cell
-	// of this grid, and a radiogroup may contain nothing but radios.
-	// The cards are toggle buttons carrying aria-pressed, which is
-	// what the wallpaper swatches already do.
+
 	return html`
 		${ error !== '' ? html`<os-notice tone="error">${ error }</os-notice>` : '' }
 		<os-section heading=${ __( 'Installed' ) }>

@@ -1,14 +1,3 @@
-/**
- * Pre-close "unsaved changes" query for iframe windows.
- *
- * Before destroying an iframe-backed (non-native) window, `close()`
- * posts `os-bridge-beforeunload-query` to the iframe and
- * waits for `os-bridge-beforeunload-response` before
- * proceeding — giving Gutenberg-style `beforeunload` guards a chance
- * to veto the close. A 500ms safety timer forces the close through
- * if the iframe never answers. Native windows are untouched — they
- * keep using the synchronous `NATIVE_WINDOW_BEFORE_CLOSE` filter.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { handleWindowMessage } from '../../src/window/iframe-bridge';
@@ -45,7 +34,6 @@ function makeDesktop(): HTMLElement {
 	return desktop;
 }
 
-/** Simulate the iframe bridge announcing readiness. */
 function markBridgeReady( win: { id: string; iframe: HTMLIFrameElement | null } ): void {
 	handleWindowMessage(
 		win as never,
@@ -57,7 +45,6 @@ function markBridgeReady( win: { id: string; iframe: HTMLIFrameElement | null } 
 	);
 }
 
-/** Simulate the iframe answering the pre-close query. */
 function respondBeforeunload(
 	win: { id: string; iframe: HTMLIFrameElement | null },
 	response: { prevent: boolean; message?: string },
@@ -134,16 +121,13 @@ describe( 'Window.close() — iframe pre-close beforeunload query', () => {
 	} );
 
 	test( 'a second close() call while a query is in flight is a no-op, not an immediate destroy', async () => {
-		// Regression: double-clicking the close button (or any other
-		// re-entrant close() trigger) before the iframe answers used
-		// to fall through to the unconditional destroy code below,
-		// bypassing the unsaved-changes check entirely.
+
 		const win = await manager.open( cfg( 'a' ) );
 		markBridgeReady( win );
 		const postSpy = vi.spyOn( win.iframe!.contentWindow!, 'postMessage' );
 
-		win.close(); // first click — query in flight
-		win.close(); // double-click before the response arrives
+		win.close();
+		win.close();
 
 		expect( win._isDestroyed ).toBe( false );
 		expect(

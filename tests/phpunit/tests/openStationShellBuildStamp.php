@@ -1,20 +1,7 @@
 <?php
-/**
- * Tests for `openstation_shell_build_stamp()`.
- *
- * The stamp answers "did the shell's files change?" from bytes, not
- * clocks: a deploy rewrites every mtime whether or not the contents
- * moved, and a stamp that followed mtimes would have every deploy
- * offering the user a reload for nothing. What the shell compares
- * across a worker takeover has to be content, and content only.
- *
- * @package OpenStation
- *
- * @group openstation
- */
+
 class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 
-	/** @var string Fixture plugin directory. */
 	private $dir;
 
 	public function set_up() {
@@ -39,12 +26,9 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 	}
 
 	private function write( $relative, $contents ) {
-		file_put_contents( $this->dir . $relative, $contents ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $this->dir . $relative, $contents );
 	}
 
-	/**
-	 * @covers ::openstation_shell_build_stamp
-	 */
 	public function test_is_sixteen_hex_characters_and_stable() {
 		$this->write( 'assets/css/desktop.css', 'body { color: red; }' );
 		$this->write( 'assets/js/desktop.min.js', 'console.log( 1 );' );
@@ -55,12 +39,6 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 		$this->assertSame( $stamp, openstation_shell_build_stamp( $this->dir ) );
 	}
 
-	/**
-	 * A deploy touches every file. Same bytes, same stamp — this is the
-	 * property the whole function exists for.
-	 *
-	 * @covers ::openstation_shell_build_stamp
-	 */
 	public function test_a_changed_mtime_with_the_same_bytes_is_the_same_stamp() {
 		$this->write( 'assets/css/desktop.css', 'body { color: red; }' );
 		$this->write( 'assets/js/desktop.min.js', 'console.log( 1 );' );
@@ -73,9 +51,6 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 		$this->assertSame( $before, openstation_shell_build_stamp( $this->dir ) );
 	}
 
-	/**
-	 * @covers ::openstation_shell_build_stamp
-	 */
 	public function test_changed_bytes_are_a_different_stamp() {
 		$this->write( 'assets/css/desktop.css', 'body { color: red; }' );
 		$this->write( 'assets/js/desktop.min.js', 'console.log( 1 );' );
@@ -87,12 +62,6 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 		$this->assertNotSame( $before, openstation_shell_build_stamp( $this->dir ) );
 	}
 
-	/**
-	 * A file appearing or disappearing is a change too — a new lazy
-	 * bundle is as much "the shell changed" as an edit to an old one.
-	 *
-	 * @covers ::openstation_shell_build_stamp
-	 */
 	public function test_an_added_file_is_a_different_stamp() {
 		$this->write( 'assets/css/desktop.css', 'body { color: red; }' );
 		$before = openstation_shell_build_stamp( $this->dir );
@@ -103,20 +72,10 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 		$this->assertNotSame( $before, openstation_shell_build_stamp( $this->dir ) );
 	}
 
-	/**
-	 * @covers ::openstation_shell_build_stamp
-	 */
 	public function test_nothing_built_is_the_empty_string() {
 		$this->assertSame( '', openstation_shell_build_stamp( $this->dir ) );
 	}
 
-	/**
-	 * The real plugin directory has a build in it during the suite, so
-	 * the default argument produces a stamp — and the one the shell
-	 * config and the worker preamble carry is that same stamp.
-	 *
-	 * @covers ::openstation_shell_build_stamp
-	 */
 	public function test_default_directory_is_the_plugin() {
 		$stamp = openstation_shell_build_stamp();
 		if ( '' === $stamp ) {

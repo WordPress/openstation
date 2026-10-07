@@ -1,27 +1,8 @@
-/**
- * Plugins app — the .zip upload dialog.
- *
- * Part of the `desktop-mode-plugins` client view. A modal card with a
- * file picker + drop zone that submits to `wp_ajax_openstation_plugins_upload`,
- * asks before replacing an existing folder (the server's 409), and
- * swaps to a post-install panel with an Activate button — the classic
- * `update.php?action=upload-plugin` flow, scoped to this window. The
- * window-level drop overlay opens it with the dropped file pre-applied.
- * Everything it listens to lives on its own overlay, so closing the
- * window takes the dialog and its listeners with it.
- *
- * @public
- */
-
 import { __, formatBytes, sprintf } from '@openstation/app';
 import { setBusy } from './actions';
 import { activatePlugin } from './mutations';
 import type { InstalledPlugin, PluginsHost, UploadPluginResult } from './types';
 
-/**
- * Open the dialog. Resolves with the upload result on success, or
- * `null` when the user cancels.
- */
 export function openUploadDialog(
 	host: PluginsHost,
 	prefilled: File | null,
@@ -81,9 +62,6 @@ export function openUploadDialog(
 		overlay.appendChild( card );
 		host.root.appendChild( overlay );
 
-		// The overlay swallows stray drag/drop so a .zip dropped on the
-		// dimmed area can't reach the window body (a second dialog) or
-		// the shell-wide OS-file-drop manager (the Media Library).
 		const swallowDrag = ( ev: DragEvent ): void => {
 			ev.preventDefault();
 			ev.stopPropagation();
@@ -107,7 +85,7 @@ export function openUploadDialog(
 			fileLabel.hidden = ! file;
 			if ( file ) {
 				fileLabel.textContent = sprintf(
-					/* translators: 1: file name, 2: file size */
+
 					__( '%1$s · %2$s', 'desktop-mode' ),
 					file.name,
 					formatBytes( file.size ),
@@ -160,8 +138,7 @@ export function openUploadDialog(
 			overlay.remove();
 			resolve( result );
 		};
-		// Escape closes — heard on the overlay, where focus lives, so the
-		// listener goes with the dialog rather than outliving the window.
+
 		overlay.addEventListener( 'keydown', ( ev: KeyboardEvent ) => {
 			if ( ev.key === 'Escape' && ! uploading ) {
 				close( null );
@@ -213,9 +190,7 @@ export function openUploadDialog(
 			);
 			try {
 				const result = await host.rest.uploadPluginZip( pickedFile, { overwrite } );
-				// The server did not see this install — re-read the list so
-				// the Installed tab shows the new row without a Refresh, and
-				// keep the dock in sync in case the plugin registers a menu.
+
 				void host.refresh();
 				host.broadcastChange( { plugin: result.plugin_file, action: 'install' } );
 				host.refreshMenu();
@@ -243,7 +218,7 @@ export function openUploadDialog(
 				}
 				showStatus(
 					sprintf(
-						/* translators: %s: error message from the upload handler */
+
 						__( 'Upload failed: %s', 'desktop-mode' ),
 						err instanceof Error ? err.message : String( err ),
 					),
@@ -252,10 +227,6 @@ export function openUploadDialog(
 			}
 		}
 
-		/**
-		 * Swap the picker for a post-install panel: name + version, an
-		 * Activate button, a Close button.
-		 */
 		function showSuccessPanel( result: UploadPluginResult ): void {
 			uploading = false;
 			dropZone.remove();
@@ -270,7 +241,7 @@ export function openUploadDialog(
 			const name = result.plugin_name || result.plugin_file;
 			detail.textContent = result.plugin_version
 				? sprintf(
-					/* translators: 1: plugin name 2: plugin version */
+
 					__( '%1$s %2$s', 'desktop-mode' ),
 					name,
 					result.plugin_version,
@@ -299,9 +270,7 @@ export function openUploadDialog(
 				uploading = true;
 				const restore = setBusy( activateBtn );
 				closeBtn.setAttribute( 'disabled', '' );
-				// The app action keys off the extensionless path, as Core's
-				// REST controller spells it; the upload handler returned
-				// the full `foo/foo.php`.
+
 				const pluginFile = result.plugin_file.endsWith( '.php' )
 					? result.plugin_file.slice( 0, -4 )
 					: result.plugin_file;
@@ -316,8 +285,7 @@ export function openUploadDialog(
 						restore();
 						return;
 					}
-					// Read confirmation and dismiss on your own schedule —
-					// the post-install panel's own interaction model.
+
 					successHeading.textContent = __( 'Plugin activated.', 'desktop-mode' );
 					activateBtn.remove();
 					closeBtn.setAttribute( 'variant', 'primary' );
@@ -328,7 +296,6 @@ export function openUploadDialog(
 			window.setTimeout( () => activateBtn.focus?.(), 16 );
 		}
 
-		// Keyboard users can immediately Enter to open the file picker.
 		window.setTimeout( () => dropZone.focus(), 16 );
 	} );
 }

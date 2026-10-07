@@ -1,95 +1,10 @@
 <?php
-/**
- * OpenStation — OAuth relay scaffolding.
- *
- * Every plugin that integrates with an external service (Tumblr,
- * Mastodon, Bluesky, Spotify, Discord, …) reinvents the same
- * fiddly OAuth dance: generate a `state` nonce, persist it in a
- * transient, open a popup for the user to authorize, the callback
- * URL `postMessage`s back to the opener, the opener resolves a
- * Promise on receiving the success message. ~120 LOC of lifecycle
- * plumbing per plugin.
- *
- * This module bundles the dance into one helper so each plugin
- * declares only what's plugin-specific (the authorize / token
- * URLs and the token-storage callback). The rest — state nonce
- * + transient + popup + postMessage + opener listener — lives
- * here and is identical across consumers.
- *
- * Public PHP surface:
- *
- *   openstation_register_oauth_relay( $service, [
- *       'authorize_url' => 'https://www.example.com/oauth2/authorize',
- *       'token_url'     => 'https://api.example.com/oauth2/token',
- *       'client_id'     => 'CLIENT_ID',
- *       'client_secret' => 'CLIENT_SECRET',
- *       'scope'         => 'read write',
- *       'on_success'    => function ( $user_id, $tokens, $service ) {
- *           // Persist tokens however your plugin needs.
- *       },
- *   ] );
- *
- * Public JS surface:
- *
- *   const { ok, service } = await wp.os.startOAuth( 'example' );
- *   // Tokens stay server-side — persisted by your `on_success` callback.
- *
- * REST routes:
- *
- *   POST /desktop-mode/v1/oauth/start    body: { service: string }
- *     → { authorize_url: string, state: string }
- *   GET  /desktop-mode/v1/oauth/callback ?code&state&error
- *     → HTML page that postMessages the opener and closes
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
 const OPENSTATION_OAUTH_TRANSIENT_PREFIX = 'desktop_mode_oauth_state_';
-const OPENSTATION_OAUTH_STATE_TTL        = 600; // 10 minutes.
+const OPENSTATION_OAUTH_STATE_TTL        = 600;
 
-/**
- * Register an OAuth relay for `$service`.
- *
- * @param string $service Slug identifying the service. Lowercased,
- *                        sanitized via `sanitize_key`.
- * @param array  $args {
- *     OAuth relay configuration.
- *
- *     @type string   $authorize_url Authorization URL the user is
- *                                   redirected to in the popup. The
- *                                   framework appends `client_id`,
- *                                   `redirect_uri`, `scope`, and
- *                                   `state` query-args automatically.
- *                                   Required.
- *     @type string   $token_url     Token-exchange URL. The framework
- *                                   POSTs `grant_type=authorization_code`
- *                                   + `code` + `client_id` + `client_secret`
- *                                   + `redirect_uri` and parses the JSON
- *                                   response. Required.
- *     @type string   $client_id     OAuth client id. Required.
- *     @type string   $client_secret OAuth client secret. Required.
- *     @type string   $scope         OAuth scope string. Optional.
- *     @type callable $on_success    `function ( int $user_id, array $tokens,
- *                                   string $service ): void`. Called after a
- *                                   successful token exchange so the plugin
- *                                   can persist tokens however it needs
- *                                   (user meta, options, custom table).
- *                                   Required.
- *     @type string[] $capabilities  Caps the user must hold to start the
- *                                   flow. Default: `[ 'read' ]` (any
- *                                   logged-in user).
- * }
- * @return true|WP_Error `true` on success, `WP_Error` on validation failure.
- */
 function openstation_register_oauth_relay( $service, $args = array() ) {
 	$service = sanitize_key( (string) $service );
 	if ( '' === $service ) {
@@ -114,7 +29,7 @@ function openstation_register_oauth_relay( $service, $args = array() ) {
 		if ( '' === (string) $args[ $required ] ) {
 			return new WP_Error(
 				'openstation_oauth_missing_' . $required,
-				/* translators: %s: missing field name. */
+
 				sprintf( __( 'OAuth relay registration requires a non-empty `%s`.', 'desktop-mode' ), $required ),
 				array( 'service' => $service )
 			);
@@ -151,14 +66,6 @@ function openstation_register_oauth_relay( $service, $args = array() ) {
 	);
 	openstation_oauth_relay_registry( $service, $entry );
 
-	/**
-	 * Fires after an OAuth relay is registered. Use this to layer
-	 * observability or to extend behaviour.
-	 *
-	 * @param string $service The service slug.
-	 * @param array  $entry   The stored registry entry minus the secrets
-	 *                        (`client_secret` is masked).
-	 */
 	do_action(
 		'openstation_oauth_relay_registered',
 		$service,
@@ -168,12 +75,6 @@ function openstation_register_oauth_relay( $service, $args = array() ) {
 	return true;
 }
 
-/**
- * Static registry for OAuth relays. Mirror of the icon / native-
- * window / wallpaper registries.
- *
- * @internal
- */
 function openstation_oauth_relay_registry( $service = '', $entry = null ) {
 	static $store = array();
 
@@ -190,14 +91,6 @@ function openstation_oauth_relay_registry( $service = '', $entry = null ) {
 	return isset( $store[ $service ] ) ? $store[ $service ] : null;
 }
 
-/**
- * Remove a previously registered OAuth relay. Mirror of
- * `openstation_register_oauth_relay()` — handy for plugins that
- * register conditionally and for PHPUnit teardowns.
- *
- * @param string $service Service slug passed to register.
- * @return void
- */
 function openstation_unregister_oauth_relay( $service ) {
 	$service = sanitize_key( (string) $service );
 	if ( '' === $service ) {
@@ -206,29 +99,12 @@ function openstation_unregister_oauth_relay( $service ) {
 	openstation_oauth_relay_registry( $service, '__unset__' );
 }
 
-/**
- * The redirect URI the popup posts back to. Same for every service —
- * the framework recovers the service from the state transient, so no
- * service query arg is needed.
- *
- * @return string
- */
 function openstation_oauth_redirect_uri() {
 	return rest_url( 'desktop-mode/v1/oauth/callback' );
 }
 
-/**
- * Generate a fresh state nonce, persist it in a transient keyed by
- * the state value (with `user_id` + `service` stored in the transient
- * payload), and return the value the popup will round-trip.
- *
- * @param int    $user_id The user starting the flow.
- * @param string $service The service slug being authorized.
- * @return string The state value to embed in the authorize URL.
- */
 function openstation_oauth_issue_state( $user_id, $service ) {
-	// 32 chars of letters+digits — `wp_generate_password` with the
-	// no-special-chars flag is the canonical WP shape.
+
 	$state = wp_generate_password( 32, false );
 	set_transient(
 		OPENSTATION_OAUTH_TRANSIENT_PREFIX . $state,
@@ -242,16 +118,6 @@ function openstation_oauth_issue_state( $user_id, $service ) {
 	return $state;
 }
 
-/**
- * Validate + consume an issued state nonce. Returns the stored
- * `{ user_id, service }` payload on a hit, `null` on a miss / expired.
- *
- * Single-use: a successful read deletes the transient so a replay
- * with the same state fails.
- *
- * @param string $state State value from the callback query.
- * @return array{user_id:int,service:string,issued:int}|null
- */
 function openstation_oauth_consume_state( $state ) {
 	$state = (string) $state;
 	if ( '' === $state ) {
@@ -270,13 +136,6 @@ function openstation_oauth_consume_state( $state ) {
 	);
 }
 
-/**
- * REST: `POST /desktop-mode/v1/oauth/start` — issue a state and
- * return the assembled authorize URL.
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response|WP_Error
- */
 function openstation_rest_oauth_start( WP_REST_Request $request ) {
 	$service = sanitize_key( (string) $request->get_param( 'service' ) );
 	$entry   = openstation_oauth_relay_registry( $service );
@@ -311,16 +170,6 @@ function openstation_rest_oauth_start( WP_REST_Request $request ) {
 		$query['scope'] = $entry['scope'];
 	}
 
-	/**
-	 * Filter the query parameters appended to the authorize URL.
-	 * Lets plugins inject service-specific extras (`access_type=offline`
-	 * for Google, `force_login=true` for Twitter, `prompt=consent`,
-	 * etc.) without having to fork the relay.
-	 *
-	 * @param array  $query   Default query params.
-	 * @param string $service Service slug.
-	 * @param array  $entry   Registry entry (with secrets redacted).
-	 */
 	$query = apply_filters(
 		'openstation_oauth_authorize_query',
 		$query,
@@ -338,14 +187,6 @@ function openstation_rest_oauth_start( WP_REST_Request $request ) {
 	);
 }
 
-/**
- * REST: `GET /desktop-mode/v1/oauth/callback` — exchange the auth
- * code for tokens, fire the registered `on_success` handler, then
- * render an HTML page that `postMessage`s the opener and closes.
- *
- * @param WP_REST_Request $request
- * @return WP_REST_Response|WP_Error
- */
 function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 	$state = (string) $request->get_param( 'state' );
 	$code  = (string) $request->get_param( 'code' );
@@ -431,7 +272,7 @@ function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 				'service' => $service,
 				'reason'  => 'token_exchange_failed',
 				'message' => sprintf(
-				/* translators: %d: HTTP status code. */
+
 					__( 'Token exchange failed with HTTP %d.', 'desktop-mode' ),
 					$status
 				),
@@ -452,15 +293,6 @@ function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 		);
 	}
 
-	/**
-	 * Fires after a successful OAuth round-trip — after `on_success`
-	 * persists the tokens. Plugins use this to refresh badges,
-	 * re-render dock items, or surface a "connected" toast in
-	 * sibling windows via the activity bus.
-	 *
-	 * @param string $service Service slug.
-	 * @param int    $user_id User who connected.
-	 */
 	do_action( 'openstation_oauth_relay_connected', $service, $user_id );
 
 	return openstation_oauth_render_callback_html(
@@ -471,37 +303,8 @@ function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 	);
 }
 
-/**
- * Build the HTML string the OAuth callback popup renders.
- *
- * Pure function — no side effects. Split out from
- * {@see openstation_oauth_render_callback_html()} so unit tests
- * can exercise the markup directly without going through a REST
- * dispatch + output-buffer dance.
- *
- * **Why `wp_json_encode` and not `esc_js` for the inlined values.**
- * `esc_js` HTML-encodes `"` to `&quot;` — fine for JS embedded
- * inside an HTML *attribute* (where the parser decodes entities
- * before the JS engine sees the value), wrong for JS embedded
- * inside a `<script>` element (where HTML entities are NOT
- * decoded — the JS engine reads `{&quot;ok&quot;:true}` literally
- * and throws a syntax error). The canonical safe shape for
- * embedding JSON in a script block is to drop the value as a
- * direct JS literal (JSON is a subset of JS) with `JSON_HEX_TAG`
- * neutralising any `</script>` substrings in string values
- * (defence-in-depth — our payload values are server-built, but
- * filters could mutate them).
- *
- * @internal
- *
- * @param array $payload `{ ok: bool, service?: string, reason?: string, message?: string }`.
- * @return string
- */
 function openstation_oauth_build_callback_html( array $payload ) {
-	// `JSON_HEX_TAG` escapes `<` and `>` as `\u003C` / `\u003E` so a
-	// `</script>` smuggled into any string value can't terminate the
-	// script block early. `JSON_UNESCAPED_SLASHES` keeps URLs
-	// readable in DevTools.
+
 	$payload_literal = wp_json_encode( $payload, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES );
 	$origin_literal  = wp_json_encode( site_url(), JSON_HEX_TAG | JSON_UNESCAPED_SLASHES );
 
@@ -533,56 +336,28 @@ body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; color: 
 </html>";
 }
 
-/**
- * Render the popup's HTML response.
- *
- * **Why this is more than `new WP_REST_Response( $html )`.**
- * `WP_REST_Server::serve_request()` runs every response's data
- * through `wp_json_encode()` regardless of the Content-Type
- * header. The naive form ships the HTML as a JSON-encoded string
- * with `Content-Type: text/html`, the browser renders it as
- * literal text (with the `<script>` block as inert page content),
- * and the popup's `postMessage` to its opener never fires.
- *
- * The fix: register a `rest_pre_serve_request` filter scoped to
- * this exact route that echoes the HTML directly and short-
- * circuits the JSON serializer. The filter self-removes after
- * firing so a subsequent REST request can't replay the cached
- * HTML closure.
- *
- * The returned `WP_REST_Response` carries the HTML as `data` so
- * unit tests reading `$response->get_data()` still see the body
- * (the filter only fires when the response is actually served).
- *
- * @param array $payload `{ ok: bool, service?: string, reason?: string, message?: string }`.
- * @return WP_REST_Response
- */
 function openstation_oauth_render_callback_html( array $payload ) {
 	$html = openstation_oauth_build_callback_html( $payload );
 
 	$filter_cb = null;
 	$filter_cb = static function ( $served, $result, $request ) use ( $html, &$filter_cb ) {
-		// Scope tightly to the OAuth callback route — never affect
-		// other REST endpoints' serialization. A misconfigured filter
-		// here could break every REST response on the site.
+
 		if (
 			! $request instanceof WP_REST_Request
 			|| '/desktop-mode/v1/oauth/callback' !== $request->get_route()
 		) {
 			return $served;
 		}
-		// Self-remove so the closure (which captures the HTML for THIS
-		// request) doesn't echo it again on a subsequent REST call.
+
 		if ( $filter_cb ) {
 			remove_filter( 'rest_pre_serve_request', $filter_cb, 10 );
 		}
 		if ( ! headers_sent() ) {
 			header( 'Content-Type: text/html; charset=utf-8' );
 		}
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statically-built HTML; embedded payload is wp_json_encode( …, JSON_HEX_TAG )-escaped during build in `openstation_oauth_build_callback_html`.
+
 		echo $html;
-		// `true` tells WP_REST_Server we already served the response,
-		// short-circuiting the json-encode + `echo` path that follows.
+
 		return true;
 	};
 	add_filter( 'rest_pre_serve_request', $filter_cb, 10, 3 );
@@ -592,14 +367,6 @@ function openstation_oauth_render_callback_html( array $payload ) {
 	return $response;
 }
 
-/**
- * Permission check for the start endpoint — any logged-in user.
- * The per-relay `capabilities` gate runs in the callback itself
- * so capability denial returns the canonical service-not-allowed
- * error rather than the REST-level "forbidden".
- *
- * @return true|WP_Error
- */
 function openstation_rest_oauth_start_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
@@ -611,11 +378,6 @@ function openstation_rest_oauth_start_permission() {
 	return true;
 }
 
-/**
- * Register the OAuth REST routes on `rest_api_init`.
- *
- * @return void
- */
 function openstation_register_oauth_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -639,9 +401,7 @@ function openstation_register_oauth_rest_routes() {
 		array(
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_rest_oauth_callback',
-			// Public — the route is reached via a redirect from the
-			// remote service. Auth is the state nonce + (later) the
-			// per-service capabilities check on the start side.
+
 			'permission_callback' => '__return_true',
 			'args'                => array(
 				'state' => array(

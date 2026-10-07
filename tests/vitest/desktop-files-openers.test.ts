@@ -1,8 +1,3 @@
-/**
- * Unit tests for the JS-side file-opener registry — registerOpener,
- * resolveOpener (resolution chain), and the open() dispatcher's
- * handler-kind routing. These tests cover Phase 1.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -337,7 +332,7 @@ describe( 'desktop-files openers registry', async () => {
 		expect( openers.resolveOpener( 'user', special )?.id ).toBe(
 			'special-open',
 		);
-		// Type-level listing (no file to test) excludes predicate defs.
+
 		expect(
 			openers.getOpenersForType( 'user' ).map( ( o ) => o.id ),
 		).toEqual( [ 'plain-open' ] );
@@ -355,8 +350,6 @@ describe( 'desktop-files openers registry', async () => {
 		);
 		agentsChatStore.state.activeAgent = null;
 
-		// Augment — replacing `window.wp` wholesale would clobber the
-		// hooks stub the registry depends on.
 		const openWindow = vi.fn( () => true );
 		( window.wp as unknown as Record< string, unknown > ).os = {
 			openWindow,
@@ -376,7 +369,6 @@ describe( 'desktop-files openers registry', async () => {
 				'user',
 			);
 
-			// A human user still resolves to the profile opener.
 			const humanFile = new DefaultDesktopFile(
 				{
 					type: 'user',
@@ -416,14 +408,7 @@ describe( 'desktop-files openers registry', async () => {
 	} );
 
 	test( 'openUrl routes through tryNativeUrlRemap so user shortcuts open the native window', async () => {
-		// Regression: `installFilesOpenDeps.openUrl` used to call
-		// `manager.open` directly, dropping desktop shortcuts into
-		// a chromeless iframe even when a native window (`User Edit`,
-		// `Users`, `Posts`, …) had claimed the URL. The wired
-		// `openUrl` now asks `tryNativeUrlRemap` first; this test
-		// locks that contract in by registering a remap, mounting
-		// the same wrapper desktop.ts builds, and asserting the
-		// fallback `manager.open` is never called.
+
 		const { openers, open, file } = await load();
 		vi.resetModules();
 		const remap = await import( '../../src/native-url-remap' );
@@ -477,8 +462,7 @@ describe( 'desktop-files openers registry', async () => {
 		const opened = await open.openFile( fakeFile( 'user', '42', file ) );
 		expect( opened ).toBe( true );
 		expect( openByIdSpy ).toHaveBeenCalledWith( 'desktop-mode-user-edit' );
-		// CRITICAL: the chromeless iframe fallback must NOT fire when
-		// a native remap claims the URL.
+
 		expect( managerOpenSpy ).not.toHaveBeenCalled();
 
 		remap._resetNativeUrlRemap();

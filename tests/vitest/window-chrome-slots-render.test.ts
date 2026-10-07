@@ -1,16 +1,3 @@
-/**
- * Phase D tests for the title-bar slot pipeline:
- *
- *   - `paintWindowSlots` honors `appearance.slots[name]` overrides
- *     in three shapes (`null`, `{ html }`, `{ render }`).
- *   - Plugin slot registrations match by predicate, paint into the
- *     named slot host, and tear down on re-paint.
- *   - The `os.window.chrome.slot` filter receives the host
- *     so cross-cutting decorators can mutate it without owning a
- *     registry entry.
- *   - Default slot content (the icon dashicons span, the title text)
- *     is restored when an override is cleared via `applyWindowSlot`.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -22,11 +9,6 @@ import { paintWindowSlots } from '../../src/window-chrome/slots/render';
 
 import type { WindowSlotName } from '../../src/types';
 
-/**
- * Minimal Window stub that mounts the slot hosts the painter
- * targets. The host markup mirrors what `dom.ts` produces today so
- * the painter's `data-slot` selectors find what they expect.
- */
 function buildWindowWithSlots( id: string ): {
 	id: string;
 	config: { id: string; native: boolean; appearance?: import( '../../src/types' ).WindowAppearance };
@@ -50,7 +32,7 @@ function buildWindowWithSlots( id: string ): {
 		host.className = `os-window__slot os-window__slot--${ name }`;
 		element.appendChild( host );
 	}
-	// Default content for icon and title (mirrors dom.ts).
+
 	const iconHost = element.querySelector< HTMLElement >( '[data-slot="icon"]' )!;
 	const iconEl = document.createElement( 'span' );
 	iconEl.className = 'os-window__icon dashicons dashicons-admin-generic';
@@ -91,7 +73,7 @@ describe( 'paintWindowSlots', () => {
 		const titleHost = win.element.querySelector< HTMLElement >(
 			'[data-slot="title"]',
 		)!;
-		// Verbatim string — never parsed as HTML.
+
 		expect( titleHost.textContent ).toBe( '<script>alert(1)</script>Hello' );
 		expect( titleHost.querySelector( 'script' ) ).toBeNull();
 	} );
@@ -134,7 +116,7 @@ describe( 'paintWindowSlots', () => {
 			slots: { 'after-title': { render: renderSpy } },
 		};
 		const t1 = paintWindowSlots( win as Parameters< typeof paintWindowSlots >[ 0 ] );
-		// Tear down (simulates Window's repaint logic) and re-paint.
+
 		t1();
 		expect( teardown ).toHaveBeenCalledTimes( 1 );
 
@@ -147,7 +129,7 @@ describe( 'paintWindowSlots', () => {
 			id: 'plug/title-prefix',
 			slot: 'title',
 			match: () => true,
-			replace: false, // append, don't replace
+			replace: false,
 			render: ( host ) => {
 				const prefix = document.createElement( 'span' );
 				prefix.className = 'plug-prefix';
@@ -164,7 +146,7 @@ describe( 'paintWindowSlots', () => {
 		expect( titleHost.querySelector( '.plug-prefix' )?.textContent ).toBe(
 			'★ ',
 		);
-		// Default title text is still there after the prepend.
+
 		expect( titleHost.querySelector( '.os-window__title' ) ).not.toBeNull();
 	} );
 
@@ -187,7 +169,7 @@ describe( 'paintWindowSlots', () => {
 
 	test( 'clearing override restores the slot default content', () => {
 		const win = buildWindowWithSlots( 'edit-post' );
-		// First paint: default content captured + override applied.
+
 		win.config.appearance = { slots: { icon: { html: 'X' } } };
 		paintWindowSlots( win as Parameters< typeof paintWindowSlots >[ 0 ] );
 		const iconHost = win.element.querySelector< HTMLElement >(
@@ -195,7 +177,6 @@ describe( 'paintWindowSlots', () => {
 		)!;
 		expect( iconHost.textContent ).toBe( 'X' );
 
-		// Clear override and re-paint — default dashicons span comes back.
 		win.config.appearance = { slots: {} };
 		paintWindowSlots( win as Parameters< typeof paintWindowSlots >[ 0 ] );
 		expect( iconHost.querySelector( '.dashicons' ) ).not.toBeNull();

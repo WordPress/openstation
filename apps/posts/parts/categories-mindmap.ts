@@ -1,26 +1,3 @@
-/**
- * Posts app — the Categories tab: a Pixi-driven mind map on the term
- * canvas (`canvas/term-canvas.ts`).
- *
- * The tree's own metaphor lives here: discs sized by post count, the
- * radial layout, the force simulation (`mindmap-physics.ts`), the
- * parent→child edges, drag-to-reparent with a breathing drop target,
- * and the pinned roots shoved out of the spotlight while a node is
- * deployed. Chips are `mindmap-chips.ts`; the sidebar editor is
- * `mindmap-sidebar.ts`.
- *
- * Interactions:
- *   - **Click** a node → focus: the disc is haloed, satellite post
- *     chips animate out from its centre (10 per page, ◀ ▶ paginate),
- *     the sidebar edits it, everything else dims.
- *   - **Drag** a node onto another → reparent (REST update).
- *   - **Drag** empty canvas → pan; **wheel** → zoom.
- *   - **Add root category** / **+ Child** → a draft form in the sidebar.
- *   - **Click empty space** → close the focus.
- *
- * @public
- */
-
 import { __ } from '@openstation/app';
 import type { CanvasEnv } from './app';
 import { isPinchGesture, pointerTravel, stopBubble, type Bounds } from './canvas/camera';
@@ -41,16 +18,9 @@ function nodeRadius( count: number, all: TermRow[] ): number {
 }
 
 function isUncategorized( term: TermRow ): boolean {
-	// `openstation_is_default` reads `default_category`, which works
-	// on any locale; the id / slug / name match is the fallback.
 	return term.isDefault || term.id === 1 || term.slug === 'uncategorized' || term.name.toLowerCase() === 'uncategorized';
 }
 
-/**
- * Mount the mind map inside `host`. Fetches the category tree on
- * mount; reparents / renames / creates go through REST and are
- * reflected locally. Returns the teardown.
- */
 export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv ): Promise< () => void > {
 	const built = await createTermCanvas( host, env, {
 		taxonomy: 'categories',
@@ -68,22 +38,20 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			searchAria: __( 'Search categories in the mindmap' ),
 			hint: __( 'Click a node to focus + edit · drag onto another to reparent · scroll or pinch to zoom' ),
 		},
-		// Chip layers sit ABOVE the discs so text stays readable when the
-		// discs are dense; all inherit the world's pan/zoom.
+
 		layers: [ 'edge', 'postEdge', 'post', 'node', 'chip', 'postChip' ],
 		fan: { chipFontSize: 14, chipTextRes: CHIP_TEXT_RES, pagerLabelSize: 14, pagerGlyphSize: 16, pagerTextRes: CHIP_TEXT_RES },
 	} );
 	if ( ! built ) {
 		return () => {};
 	}
-	// A non-null binding the closures below can capture.
+
 	const canvas: TermCanvas = built;
 	const { pixi, layers, fan, camera, interaction, world, palette } = canvas;
 	const { client } = env;
 	const edgeGfx = new pixi.Graphics();
 	layers.edge.addChild( edgeGfx );
 
-	// --- State --------------------------------------------------------
 	const nodes = new Map< number, MindNode >();
 	const chips = createChipStore( pixi, layers.chip, interaction, {
 		palette,
@@ -94,8 +62,7 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 	let dragHover: MindNode | null = null;
 	let dragStartPos: PixiPoint | null = null;
 	let dragOffset: PixiPoint = { x: 0, y: 0 };
-	// Pinned roots ignore the physics term, so their targets are moved
-	// directly for the spotlight and restored from here on close.
+
 	const pinnedTargetBackup = new Map< number, { tx: number; ty: number } >();
 	let draft: { parent: number } | null = null;
 	let themeHue = readAdminThemeHue( host );
@@ -124,9 +91,7 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 				pinned: facts.pinned,
 			};
 			layers.node.addChild( gfx );
-			// Taps are detected in the stage's pointerup (movement < 2px,
-			// no drop target) — binding `pointertap` too double-fired and
-			// toggled the focus off in a single click.
+
 			const created = node;
 			gfx.on( 'pointerdown', ( e ) => onNodePointerDown( e as PixiPointerEvent, created ) );
 			nodes.set( term.id, node );
@@ -146,7 +111,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		return node;
 	}
 
-	/** Radial layout: targets per node; the frame eases nodes into them. */
 	function buildTree(): void {
 		const terms = canvas.terms;
 		const childMap = new Map< number, TermRow[] >();
@@ -155,15 +119,12 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			list.push( t );
 			childMap.set( t.parent, list );
 		}
-		// Uncategorized is the centrepiece — every untagged post drains
-		// into it — so it sits at 0,0 outside the radial walk.
+
 		const allRoots = childMap.get( 0 ) ?? [];
 		const roots = allRoots.filter( ( r ) => ! isUncategorized( r ) );
 		const uncategorized = allRoots.find( isUncategorized );
 
 		const place = ( term: TermRow, depth: number, rootIdx: number, angle: number, angleSpan: number ): void => {
-			// More roots → a bigger ring; a centred Uncategorized forces a
-			// 140px minimum so a single root never shares 0,0 with it.
 			const rootRingByCount = roots.length > 1 ? 110 + roots.length * 28 : 0;
 			const rootRing = uncategorized ? Math.max( rootRingByCount, 140 ) : rootRingByCount;
 			const baseRadius = depth === 0 ? rootRing : rootRing + 160 + ( depth - 1 ) * 150;
@@ -183,7 +144,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			}
 		};
 
-		// Drop nodes whose terms disappeared.
 		const liveIds = new Set( terms.map( ( t ) => t.id ) );
 		for ( const [ id, node ] of nodes ) {
 			if ( ! liveIds.has( id ) ) {
@@ -198,7 +158,7 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		if ( uncategorized ) {
 			upsertNode( uncategorized, { tx: 0, ty: 0, radius: nodeRadius( uncategorized.count, terms ), depth: 0, color: 0x8c8f94, pinned: true } );
 		}
-		// "No custom categories yet" while only Uncategorized exists.
+
 		canvas.syncEmptyHint( terms.length <= 1 );
 	}
 
@@ -209,16 +169,13 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			if ( ! parent ) {
 				continue;
 			}
-			// The edge to the CURRENT parent goes dashed + faded while the
-			// node is being dragged; while a node is deployed every edge
-			// not attached to it dims.
+
 			const isOldLink = dragNode !== null && node === dragNode;
 			const isFocusEdge = fan.focusId !== null && ( node.id === fan.focusId || node.parent === fan.focusId );
 			const dimMul = fan.focusId !== null && ! isFocusEdge ? 0.35 : 1;
 			drawCurvedEdge( edgeGfx, parent.x, parent.y, node.x, node.y, parent.color, isOldLink ? { dashed: true, alpha: 0.28 * dimMul } : { alpha: 0.5 * dimMul } );
 		}
-		// The preview edge to the drop target: a glow underlay, a
-		// marching dashed line, and a pulse travelling along the curve.
+
 		if ( dragNode && dragHover ) {
 			const { x: x1, y: y1 } = dragNode;
 			const { x: x2, y: y2, color: targetColor } = dragHover;
@@ -240,7 +197,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		fan.drawEdges();
 	}
 
-	// --- Drag ----------------------------------------------------------
 	function onNodePointerDown( ev: PixiPointerEvent, node: MindNode ): void {
 		if ( isPinchGesture( interaction ) ) {
 			return;
@@ -251,8 +207,7 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		node.tx = node.x;
 		node.ty = node.y;
 		dragStartPos = { x: ev.global.x, y: ev.global.y };
-		// Keep the cursor-to-centre offset, so a grab at the edge drags
-		// by the edge.
+
 		const local = camera.stageToWorld( ev.global );
 		dragOffset = { x: node.x - local.x, y: node.y - local.y };
 	}
@@ -284,7 +239,7 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		dragNode.ty = ny;
 		dragNode.gfx.x = nx;
 		dragNode.gfx.y = ny;
-		// Drop where the user POINTS, not where the disc sits.
+
 		let hover: MindNode | null = null;
 		for ( const c of nodes.values() ) {
 			if ( c === dragNode ) {
@@ -319,15 +274,12 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		dragHover = null;
 		dragStartPos = null;
 		node.pinned = node.depth === 0;
-		// A tap (≤2px, no drop target) focuses; the threshold is tight
-		// so a short real drag never fetches posts.
+
 		if ( ! target && movement < 2 ) {
 			void canvas.focusOn( node.id );
 			return;
 		}
-		// A cycle only forms when the target is a descendant of the
-		// node; the inverse (dragging C onto grandparent A) is a
-		// legitimate skip-level move.
+
 		if ( target && target.id !== node.parent && ! isAncestor( node.id, target.id ) ) {
 			try {
 				await client.updateTerm( 'categories', node.id, { parent: target.id } );
@@ -345,7 +297,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		}
 	}
 
-	// --- Sidebar ------------------------------------------------------
 	const sidebarHost: MindmapSidebarHost = {
 		sidebar: canvas.sidebar,
 		client,
@@ -361,7 +312,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		},
 		draft: () => draft,
 		setDraft: ( next ) => {
-			// A draft under a node that no longer exists is refused.
 			draft = next && next.parent !== 0 && ! nodes.get( next.parent ) ? draft : next;
 		},
 		clusterColor,
@@ -380,7 +330,7 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		if ( nodes.size === 0 ) {
 			return null;
 		}
-		// The label row hangs ~30 world-units below each disc.
+
 		const LABEL_OVERHANG = 30;
 		const b: Bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
 		for ( const n of nodes.values() ) {
@@ -399,7 +349,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		paintSidebar( sidebarHost );
 	} );
 
-	// --- Bootstrap ---------------------------------------------------
 	buildTree();
 	paintSidebar( sidebarHost );
 	preSettle( nodes, 80 );
@@ -445,7 +394,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			paintSidebar( sidebarHost );
 		},
 		focusOpened: ( center ) => {
-			// Shove the pinned roots inside the zone outward; restored on close.
 			pinnedTargetBackup.clear();
 			for ( const n of nodes.values() ) {
 				if ( n.id === fan.focusId || ! n.pinned ) {
@@ -486,7 +434,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			fan.syncChips( counterScale );
 		},
 		countsChanged: () => {
-			// Radii derive from the count ratio — rebuild and reframe.
 			for ( const t of canvas.terms ) {
 				const node = nodes.get( t.id );
 				if ( node && node.count !== t.count ) {

@@ -1,19 +1,3 @@
-/**
- * The dock's hover intent, native edition.
- *
- * "Prewarm windows on hover" used to warm iframe pages only — a hidden
- * speculative window, adopted by the click — and stood down on every
- * native tile. Now the same dwell on a native window's tile calls
- * `wp.os.prewarmWindow( id )`: a system tile (Trash, Preferences), a
- * launcher synthesised from a registered icon, or a menu URL a native
- * remap captures (Posts with the native Posts window on).
- *
- * What these tests pin: which door each kind of tile takes, that the
- * toggle is read live, and that touch, leaving early, pressing, and an
- * already-open window all warm nothing.
- *
- * @group dock
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type DockItem } from '../../src/dock';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -23,7 +7,7 @@ vi.mock( '../../src/native-url-remap', async ( importOriginal ) => {
 	const actual = await importOriginal< typeof import('../../src/native-url-remap') >();
 	return {
 		...actual,
-		// The native Posts window is in charge of edit.php; nothing else remaps.
+
 		resolveNativeUrlRemap: ( url: string ) => ( url.includes( 'edit.php' ) ? 'desktop-mode-posts' : null ),
 	};
 } );
@@ -37,7 +21,7 @@ interface Shell {
 
 function installShell(): Shell {
 	const shell: Shell = { prewarmWindow: vi.fn( async () => true ), settings: { windowPrewarmEnabled: true } };
-	// Beside the hooks stub, never in its place.
+
 	const wp = ( window as unknown as { wp?: Record< string, unknown > } ).wp ?? {};
 	wp.os = {
 		getOsSettings: () => shell.settings,

@@ -1,15 +1,3 @@
-/**
- * Tests for the arrow-key virtual-desktop shortcuts:
- *
- *   ArrowLeft/Right → previous / next desktop (no wrap)
- *   ArrowUp         → toggle Overview
- *   ArrowDown       → toggle Show Desktop
- *
- * The action helpers are exercised directly; the keydown installer
- * gate is covered separately via a small integration block at the
- * bottom so we don't double up on `installDesktopArrowShortcuts`
- * idempotency.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
@@ -71,11 +59,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 	} );
 
 	afterEach( async () => {
-		// Several tests enter overview without explicitly exiting it.
-		// `manager.destroy()` cancels the pending overview transition
-		// timers (and, if still active, runs a synchronous exit) so
-		// none of them fire later and reach for `window.wp.hooks`
-		// after `clearHooksStub()` below has removed it.
+
 		manager.destroy();
 		for ( const win of manager.getAll() ) {
 			win.destroy();
@@ -159,8 +143,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 		} );
 
 		test( 'wrap-around forward press still uses the rightward slide direction', async () => {
-			// User perceives "I pressed right again" — the visual cue
-			// should match that, even though the index loops back to 0.
+
 			const second = manager.createDesktop();
 			manager.switchDesktop( second.id );
 
@@ -279,7 +262,6 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			const a = await manager.open( openConfig( 'a' ) );
 			const b = await manager.open( openConfig( 'b' ) );
 			a.minimize();
-			// `b` stays in 'normal' — not a Show Desktop state.
 
 			expect( exitShowDesktopIfActive( manager ) ).toBe( false );
 			expect( a.state ).toBe( 'minimized' );
@@ -308,27 +290,25 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 
 	describe( 'cycleOverviewCursor (+ tile in arrow cycle)', async () => {
 		test( 'arrow-right past the last desktop parks the cursor on the + tile', async () => {
-			manager.createDesktop(); // desktop-2
+			manager.createDesktop();
 			manager.enterOverview();
 			expect( manager._overviewAddTileFocused ).toBe( false );
 
-			// D1 → D2 (real switch).
 			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( true );
 			expect( manager.getActiveDesktopId() ).toBe( 'desktop-2' );
 			expect( manager._overviewAddTileFocused ).toBe( false );
 
-			// D2 → +.
 			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( true );
 			expect( manager._overviewAddTileFocused ).toBe( true );
-			// Active desktop is unchanged — there's nothing to switch to.
+
 			expect( manager.getActiveDesktopId() ).toBe( 'desktop-2' );
 		} );
 
 		test( 'arrow-right from the + tile wraps back to the first desktop', async () => {
 			manager.createDesktop();
 			manager.enterOverview();
-			cycleOverviewCursor( manager, 'next' ); // D1 → D2
-			cycleOverviewCursor( manager, 'next' ); // D2 → +
+			cycleOverviewCursor( manager, 'next' );
+			cycleOverviewCursor( manager, 'next' );
 			expect( manager._overviewAddTileFocused ).toBe( true );
 
 			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( true );
@@ -350,7 +330,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 		test( 'arrow-left from + tile lands on the last desktop', async () => {
 			manager.createDesktop();
 			manager.enterOverview();
-			cycleOverviewCursor( manager, 'prev' ); // D1 → +
+			cycleOverviewCursor( manager, 'prev' );
 			expect( manager._overviewAddTileFocused ).toBe( true );
 
 			expect( cycleOverviewCursor( manager, 'prev' ) ).toBe( true );
@@ -377,7 +357,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 
 		test( 'refreshes the top bar so the + tile picks up the --cursor class', async () => {
 			manager.enterOverview();
-			cycleOverviewCursor( manager, 'next' ); // D1 → +
+			cycleOverviewCursor( manager, 'next' );
 
 			const addTile = manager._overviewTopBar!.querySelector< HTMLElement >(
 				'.os-overview-top-bar__tile--add',
@@ -393,7 +373,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 		test( 'desktop tiles drop --active while the cursor is on the + tile', async () => {
 			manager.createDesktop();
 			manager.enterOverview();
-			// Two arrows: D1 → D2 → +.
+
 			cycleOverviewCursor( manager, 'next' );
 			cycleOverviewCursor( manager, 'next' );
 			expect( manager._overviewAddTileFocused ).toBe( true );
@@ -401,17 +381,16 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			const activeTiles = manager._overviewTopBar!.querySelectorAll(
 				'.os-overview-top-bar__tile--active',
 			);
-			// No desktop tile should still be highlighted — only the
-			// "+" carries the keyboard cursor's visual weight.
+
 			expect( activeTiles ).toHaveLength( 0 );
 		} );
 
 		test( 'desktop tile regains --active when the cursor leaves the + tile', async () => {
 			manager.createDesktop();
 			manager.enterOverview();
-			cycleOverviewCursor( manager, 'next' ); // D1 → D2
-			cycleOverviewCursor( manager, 'next' ); // D2 → +
-			cycleOverviewCursor( manager, 'next' ); // + → D1 (wrap)
+			cycleOverviewCursor( manager, 'next' );
+			cycleOverviewCursor( manager, 'next' );
+			cycleOverviewCursor( manager, 'next' );
 
 			const activeTile = manager._overviewTopBar!.querySelector< HTMLElement >(
 				'.os-overview-top-bar__tile--active',
@@ -433,7 +412,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 	describe( 'Enter on + tile creates a new desktop', async () => {
 		test( 'pressing Enter while cursor is on + creates a desktop and exits overview onto it', async () => {
 			manager.enterOverview();
-			cycleOverviewCursor( manager, 'next' ); // D1 → +
+			cycleOverviewCursor( manager, 'next' );
 			expect( manager._overviewAddTileFocused ).toBe( true );
 			expect( manager.getDesktops() ).toHaveLength( 1 );
 
@@ -478,8 +457,6 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			expect( switchToAdjacentDesktop( manager, 'next' ) ).toBe( true );
 			expect( manager.getActiveDesktopId() ).toBe( second.id );
 
-			// New active desktop's window has the overview class; the
-			// previous one has been cleared and hidden.
 			expect(
 				b.element.classList.contains( 'os-window--overview' ),
 			).toBe( true );
@@ -502,7 +479,6 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 
 			switchToAdjacentDesktop( manager, 'next' );
 
-			// Bar was re-rendered in place — fetch the new node.
 			const refreshed = manager._overviewTopBar!;
 			const activeAfter = refreshed.querySelector< HTMLElement >(
 				'.os-overview-top-bar__tile--active',

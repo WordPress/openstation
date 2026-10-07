@@ -1,4 +1,3 @@
-/** Resolve canvas paint from the same inherited tokens as the surrounding controls. */
 export interface CanvasPalette {
 	surface: number;
 	raised: number;
@@ -22,7 +21,6 @@ export function readCanvasPalette( host: HTMLElement ): CanvasPalette {
 	};
 }
 
-/** Flatten translucent paint over its surface instead of silently dropping alpha. */
 export function readCanvasColor( host: HTMLElement, token: string, fallback: string, background = 0xffffff ): number {
 	const probe = document.createElement( 'span' ); probe.hidden = true;
 	probe.style.color = `var(${ token }, ${ fallback })`; host.append( probe );
@@ -40,7 +38,6 @@ export function readCanvasColor( host: HTMLElement, token: string, fallback: str
 	}, 0 );
 }
 
-/** Themes and the accent picker both change inherited paint, without rebuilding a scene. */
 export function watchCanvasPalette( host: HTMLElement, changed: () => void, additional?: () => unknown ): () => void {
 	let previous = JSON.stringify( [ readCanvasPalette( host ), additional?.() ] );
 	const update = (): void => {
@@ -59,7 +56,6 @@ export function watchCanvasPalette( host: HTMLElement, changed: () => void, addi
 	};
 }
 
-/** Use the more legible theme ink on data-colored count badges. */
 export function badgeInk( background: number, palette: CanvasPalette ): number {
 	const luminance = ( color: number ): number => [ 16, 8, 0 ].reduce( ( sum, shift, i ) => {
 		const c = ( Math.floor( color / 2 ** shift ) % 256 ) / 255;

@@ -35,8 +35,7 @@ describe( '<os-key>', () => {
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter' } ) );
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter' } ) );
 		expect( spy ).toHaveBeenCalledTimes( 1 );
-		// keyup releases the internal hold flag so a subsequent
-		// keydown can fire again.
+
 		document.dispatchEvent( new KeyboardEvent( 'keyup', { key: 'Enter' } ) );
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter' } ) );
 		expect( spy ).toHaveBeenCalledTimes( 2 );
@@ -48,7 +47,7 @@ describe( '<os-key>', () => {
 		const key = host.querySelector( 'os-key' )! as HTMLElement;
 		const spy = vi.fn();
 		key.addEventListener( 'os-key', spy );
-		// Ctrl held but no modifier declared — reject.
+
 		document.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: '7', ctrlKey: true } ),
 		);
@@ -61,10 +60,10 @@ describe( '<os-key>', () => {
 		const key = host.querySelector( 'os-key' )! as HTMLElement;
 		const spy = vi.fn();
 		key.addEventListener( 'os-key', spy );
-		// Plain '7' — rejected (modifier required).
+
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: '7' } ) );
 		expect( spy ).not.toHaveBeenCalled();
-		// Ctrl+7 — accepted.
+
 		document.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: '7', ctrlKey: true } ),
 		);
@@ -94,12 +93,12 @@ describe( '<os-key>', () => {
 		const key = host.querySelector( 'os-key' )! as HTMLElement;
 		const spy = vi.fn();
 		key.addEventListener( 'os-key', spy );
-		// key: '+' but wrong code — reject.
+
 		document.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: '+', code: 'Equal' } ),
 		);
 		expect( spy ).not.toHaveBeenCalled();
-		// Matching code — accept (key is irrelevant).
+
 		document.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'whatever', code: 'NumpadAdd' } ),
 		);

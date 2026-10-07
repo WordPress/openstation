@@ -1,13 +1,3 @@
-/**
- * Tests for `src/auth-recovery/index.ts` — session-expiry detection
- * and in-place recovery for the parent shell (DESKMOD-49).
- *
- * The regression targets: recovery must key off the authoritative
- * Heartbeat `wp-auth-check` flag only (a permission 403 or a
- * dismissed login modal must never trigger it), the racing
- * detection signals must collapse into one recovery run, and the
- * sweep must never reload core's mid-handshake login iframe.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	bootHeartbeatBus,
@@ -168,13 +158,12 @@ describe( 'auth-recovery', () => {
 
 		tick( handlers, { 'wp-auth-check': false } );
 		tick( handlers, { 'wp-auth-check': true } );
-		// One message per open window arrives right behind the tick.
+
 		postReauthMessage();
 		postReauthMessage();
 
 		expect( restored ).toHaveBeenCalledTimes( 1 );
 
-		// A genuinely new outage after the cooldown recovers again.
 		vi.setSystemTime( Date.now() + 11_000 );
 		tick( handlers, { 'wp-auth-check': false } );
 		tick( handlers, { 'wp-auth-check': true } );
@@ -203,8 +192,6 @@ describe( 'auth-recovery', () => {
 		expect( connectNow ).toHaveBeenCalledTimes( 1 );
 		expect( restored ).not.toHaveBeenCalled();
 
-		// Inside the cooldown the second request is DEFERRED, not
-		// dropped — it fires when the cooldown lapses.
 		tick( handlers, { nonces_expired: true } );
 		expect( connectNow ).toHaveBeenCalledTimes( 1 );
 		vi.advanceTimersByTime( 1100 );
@@ -216,16 +203,11 @@ describe( 'auth-recovery', () => {
 		bootAuthRecovery();
 
 		tick( handlers, { 'wp-auth-check': false } );
-		// First tick after the re-login: core short-circuits with
-		// nonces_expired — only ever sent to an authenticated
-		// session, so recovery starts here, one round-trip before
-		// the wp-auth-check flag flips back.
+
 		tick( handlers, { nonces_expired: true } );
 
 		expect( restored ).toHaveBeenCalledTimes( 1 );
 
-		// The follow-up flag flip is an echo, absorbed by the
-		// recovery cooldown.
 		tick( handlers, { 'wp-auth-check': true } );
 		expect( restored ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -271,7 +253,6 @@ describe( 'auth-recovery', () => {
 			noteAuthFailure( 403, '/wp-json/wp/v2/posts' );
 			expect( connectNow ).toHaveBeenCalledTimes( 1 );
 
-			// Burst inside the cooldown — no storm.
 			noteAuthFailure( 401, '/wp-json/wp/v2/pages' );
 			expect( connectNow ).toHaveBeenCalledTimes( 1 );
 
@@ -302,7 +283,7 @@ describe( 'auth-recovery', () => {
 
 		const wrap = document.getElementById( 'wp-auth-check-wrap' )!;
 		wrap.classList.add( 'hidden' );
-		// MutationObserver callbacks are microtask-scheduled.
+
 		return Promise.resolve().then( () => {
 			expect( connectNow ).toHaveBeenCalledTimes( 1 );
 			expect( restored ).not.toHaveBeenCalled();

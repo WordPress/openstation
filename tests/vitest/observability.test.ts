@@ -1,21 +1,3 @@
-/**
- * Observability additions — tests for the four hook additions + the
- * widget ctx.storage + ensureMounted helper:
- *
- *   - `ctx.storage` namespaced localStorage wrapper.
- *   - `WidgetLayer.ensureMounted( id )` idempotent public entry.
- *   - `HOOKS.IFRAME_ERROR` fired when the bridge relays
- *     `os-iframe-error`.
- *   - `HOOKS.IFRAME_NETWORK_COMPLETED` fired when the bridge relays
- *     `os-iframe-network`.
- *   - `HOOKS.SHELL_ERROR` fired alongside the widget / wallpaper mount
- *     failure paths.
- *   - `MonitorEntry` filter round-trip — plugins can mutate / drop
- *     entries via `os.monitor.entry`.
- *
- * Exercises real classes (`WidgetLayer`, `handleWindowMessage`,
- * `WindowManager`) against jsdom + the hook-bus stub.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createWidgetStorage } from '../../src/widgets/storage';
 import { HOOKS, applyFilters } from '../../src/hooks';
@@ -50,8 +32,6 @@ describe( 'createWidgetStorage', () => {
 			ts: 1,
 		} );
 
-		// Keys must be namespaced so a sibling widget can't read them
-		// through a coincidentally-matching name.
 		expect( localStorage.getItem( 'os.widget.jorvy/quote.count' ) ).toBe( '7' );
 		expect( localStorage.getItem( 'count' ) ).toBeNull();
 	} );
@@ -60,8 +40,6 @@ describe( 'createWidgetStorage', () => {
 		const storage = createWidgetStorage( 'x' );
 		expect( storage.get( 'unknown' ) ).toBeNull();
 
-		// Raw write outside the wrapper simulates a malformed entry;
-		// get should swallow the parse error and return null.
 		localStorage.setItem( 'os.widget.x.bad', '{not json' );
 		expect( storage.get( 'bad' ) ).toBeNull();
 	} );
@@ -90,12 +68,6 @@ describe( 'createWidgetStorage', () => {
 	} );
 } );
 
-/**
- * Build a minimal `Window` stand-in for `handleWindowMessage`. The
- * handler only reads `win.id` and `win.iframe.contentWindow`; we use
- * the same `contentWindow` object as the message event's `source` so
- * the origin/source filter passes.
- */
 function makeFakeWindow( id: string ): {
 	win: DesktopWindow;
 	iframeWindow: WindowProxy;
@@ -329,8 +301,7 @@ describe( 'SHELL_ERROR action fires alongside mount failures', () => {
 
 	beforeEach( () => {
 		hooks = installHooksStub();
-		// Silence the console.error that accompanies a mount failure
-		// so the test output stays tidy.
+
 		vi.spyOn( console, 'error' ).mockImplementation( () => undefined );
 	} );
 	afterEach( () => {
@@ -424,8 +395,7 @@ describe( 'widget chrome — drag threshold', () => {
 				onRedock: () => undefined,
 			},
 		);
-		// Place card somewhere with a non-zero rect so the liberate
-		// math would have a real anchor if it fired.
+
 		document.body.appendChild( frame.card );
 		Object.defineProperty( frame.card, 'getBoundingClientRect', {
 			value: () =>
@@ -440,7 +410,6 @@ describe( 'widget chrome — drag threshold', () => {
 		);
 		expect( chrome ).not.toBeNull();
 
-		// Stub pointer capture — jsdom lacks it on arbitrary elements.
 		Object.defineProperty( chrome!, 'setPointerCapture', { value: () => undefined } );
 		Object.defineProperty( chrome!, 'releasePointerCapture', { value: () => undefined } );
 
@@ -455,7 +424,7 @@ describe( 'widget chrome — drag threshold', () => {
 		}
 
 		chrome!.dispatchEvent( pointerEvent( 'pointerdown', 200, 200 ) );
-		// Move 3px — under the 5px threshold.
+
 		chrome!.dispatchEvent( pointerEvent( 'pointermove', 203, 200 ) );
 		chrome!.dispatchEvent( pointerEvent( 'pointerup', 203, 200 ) );
 
@@ -532,7 +501,7 @@ describe( 'widget chrome — drag threshold', () => {
 		}
 
 		chrome!.dispatchEvent( pointerEvent( 'pointerdown', 200, 200 ) );
-		// Cross the 5 px threshold.
+
 		chrome!.dispatchEvent( pointerEvent( 'pointermove', 210, 200 ) );
 
 		expect( liberateCount ).toBe( 1 );
@@ -580,8 +549,6 @@ describe( 'Dock.appendSystemItem placement', () => {
 		const dock = new Dock( dockEl, manager, [], 'http://x/wp-admin/', 'left' );
 		const taskbar = new Dock( taskbarEl, manager, [], 'http://x/wp-admin/', 'bottom' );
 
-		// A launcher lands in the apps zone; a control lands in the
-		// pinned cluster behind a divider. Both rails do both.
 		for ( const rail of [ dock, taskbar ] ) {
 			rail.appendSystemItem( {
 				id: 'jorvy',
@@ -605,7 +572,7 @@ describe( 'Dock.appendSystemItem placement', () => {
 			expect(
 				el.querySelector( '[data-system-id="os-system"]' ),
 			).not.toBeNull();
-			// Divider between the apps zone and the controls zone.
+
 			expect( el.querySelector( '.os-dock__separator' ) ).not.toBeNull();
 		}
 	} );
@@ -653,8 +620,6 @@ describe( 'WidgetLayer.ensureMounted', () => {
 		expect( layer.ensureMounted( 'ok' ) ).toBe( true );
 		expect( layer.getEnabledIds() ).toContain( 'ok' );
 
-		// Second call — already enabled, should still return true,
-		// not duplicate the entry.
 		expect( layer.ensureMounted( 'ok' ) ).toBe( true );
 		const count = layer.getEnabledIds().filter( ( id ) => id === 'ok' ).length;
 		expect( count ).toBe( 1 );

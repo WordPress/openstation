@@ -1,19 +1,3 @@
-/**
- * Mio portraits — a Mio at rest, as SVG.
- *
- * The portrait renderer exists twice, once here and once in
- * `includes/mio-portrait.php`, because an agent's face has to be drawn
- * by PHP in places the shell bundle never loads. Two implementations
- * of the same maths drift unless something holds them together, so
- * both are pinned to `tests/fixtures/mio-portraits.json`. Neither
- * generates the other; the fixture is the contract.
- *
- * **Regenerating the fixture** (after a deliberate change to either
- * renderer): `UPDATE_MIO_PORTRAITS=1 npx vitest run mio-portrait`,
- * then read the diff, then make the PHP side match and run
- * `Tests_OpenStation_MioPortrait`. If the fixture changed and PHPUnit
- * still passes, one of the two is not actually reading it.
- */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -43,14 +27,6 @@ interface Case {
 	config: Partial< MioConfig >;
 }
 
-/**
- * The pinned cases: every preset, then the settings most likely to be
- * got wrong twice in different ways. `shapeAmount: 0` because it is
- * the early return in `shapeProfile`; `hueLoop: false` because the
- * looping ramp is a cosine and the straight one is not; `glow: 0`
- * because it collapses the shell loop; `bodyAlpha` and `eyeScale`
- * because they are the two values that reach the markup untouched.
- */
 const CASES: Case[] = [
 	...PRESETS.map( ( shapePreset ) => ( {
 		label: `preset-${ shapePreset }`,
@@ -89,7 +65,6 @@ const CASES: Case[] = [
 	},
 ];
 
-/** A look rolled from a fixed seed, the way an agent's face is. */
 function seededConfig( seed: number ): Partial< MioConfig > {
 	const look = randomMioLook( mulberry32( seed ) );
 	return { appearance: look.appearance, physics: look.physics };
@@ -144,10 +119,7 @@ describe( 'mio portraits', () => {
 	} );
 
 	test( 'carry no text and no caller-supplied string', () => {
-		// These files are written into uploads and served. A portrait
-		// that could carry an attacker's string would be stored XSS
-		// with a .svg extension, so the generator is allowed to emit
-		// numbers and a fixed vocabulary of elements, and nothing else.
+
 		const allowed = new Set( [
 			'svg',
 			'defs',
@@ -156,9 +128,7 @@ describe( 'mio portraits', () => {
 			'path',
 			'use',
 			'rect',
-			// The inner line is a stroke clipped to the body: SVG
-			// strokes are centred on their path and cannot be offset to
-			// one side, so the outer half is thrown away instead.
+
 			'clipPath',
 		] );
 		for ( const c of CASES ) {
@@ -169,8 +139,7 @@ describe( 'mio portraits', () => {
 			for ( const tag of tags ) {
 				expect( allowed.has( tag ), `unexpected <${ tag }>` ).toBe( true );
 			}
-			// No text nodes at all: every '>' is followed by '<' or the
-			// end of the document.
+
 			expect( svg.replace( /<[^>]*>/g, '' ) ).toBe( '' );
 			expect( svg ).not.toContain( '<script' );
 			expect( svg ).not.toContain( 'xlink' );
@@ -178,9 +147,7 @@ describe( 'mio portraits', () => {
 	} );
 
 	test( 'scope their ids so several can share one document', () => {
-		// Fixed ids were a real bug: a picker inlining twelve
-		// candidates rendered twelve copies of the first, silently,
-		// because every `use` resolved against the first `#s`.
+
 		const a = mioPortraitSvg( { physics: { shapePreset: 'star' } }, 96, 'a' );
 		const b = mioPortraitSvg( { physics: { shapePreset: 'heart' } }, 96, 'b' );
 		expect( a ).toContain( 'id="sa"' );
@@ -193,26 +160,21 @@ describe( 'mio portraits', () => {
 
 	test( 'refuse to let a suffix break out of the attribute', () => {
 		const svg = mioPortraitSvg( {}, 96, '" onload="alert(1)' );
-		// The quote, the spaces and the parens are gone, so what is
-		// left is inert id text. It still spells "onload", and that is
-		// fine: what would not be fine is a second attribute, which is
-		// what the equals sign would need.
+
 		expect( svg ).toContain( 'id="sonloadalert1"' );
 		expect( svg ).not.toContain( 'onload=' );
 		expect( svg ).not.toContain( 'alert(' );
 	} );
 
 	test( 'size the box to the shape, not to a circle', () => {
-		// A teardrop reaches 1.62x its mean radius. A box drawn for the
-		// circle amputates the tip, which is what the first version did.
+
 		const box = ( preset: MioShapePreset ): number => {
 			const svg = mioPortraitSvg( { physics: { shapePreset: preset } } );
 			return Number( /viewBox="-([\d.]+)/.exec( svg )![ 1 ] );
 		};
 		expect( box( 'drop' ) ).toBeGreaterThan( box( 'star' ) );
 		expect( box( 'star' ) ).toBeGreaterThan( box( 'blob' ) );
-		// Blob only deviates by 5%, so its box is a little wider than
-		// the circle's and nowhere near the spiky presets'.
+
 		expect( box( 'blob' ) ).toBeGreaterThan( box( 'circle' ) );
 		expect( box( 'blob' ) ).toBeLessThan( box( 'circle' ) * 1.1 );
 	} );

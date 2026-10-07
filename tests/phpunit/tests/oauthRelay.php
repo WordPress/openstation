@@ -1,19 +1,5 @@
 <?php
-/**
- * Tests for the OAuth relay scaffolding (`includes/oauth-relay.php`).
- *
- * Covers: registration validation, the static registry, state-nonce
- * issue / consume / single-use, REST start route, REST callback
- * dispatch through `on_success`. Network calls inside the callback
- * route are tested via the `pre_http_request` filter so we don't
- * actually go to a remote token endpoint.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-oauth
- */
+
 class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -25,8 +11,7 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
-		// Clean transients between tests so a leaked state doesn't
-		// leak into the next assertion.
+
 		global $wpdb;
 		$wpdb->query(
 			"DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_desktop_mode_oauth_state_%'"
@@ -37,20 +22,13 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		openstation_unregister_oauth_relay( 'tumblrlike' );
 		openstation_unregister_oauth_relay( 'denied' );
 		remove_all_filters( 'pre_http_request' );
-		// `openstation_oauth_render_callback_html` adds a self-
-		// removing `rest_pre_serve_request` filter — but tests that
-		// build a response without dispatching it through the REST
-		// server leave the closure attached. Wipe to keep tests
-		// hermetic.
+
 		remove_all_filters( 'rest_pre_serve_request' );
 		remove_all_actions( 'openstation_oauth_relay_registered' );
 		remove_all_actions( 'openstation_oauth_relay_connected' );
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_register_oauth_relay
-	 */
 	public function test_registration_succeeds_with_valid_args() {
 		$result = openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
@@ -67,9 +45,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( 'tumblrlike', $entry['service'] );
 	}
 
-	/**
-	 * @covers ::openstation_register_oauth_relay
-	 */
 	public function test_registration_rejects_missing_authorize_url() {
 		$result = openstation_register_oauth_relay( 'tumblrlike', array(
 			'token_url'     => 'https://api.example.com/oauth/token',
@@ -82,9 +57,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_oauth_missing_authorize_url', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_oauth_relay
-	 */
 	public function test_registration_rejects_non_callable_on_success() {
 		$result = openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
@@ -98,9 +70,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_oauth_missing_on_success', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_oauth_relay
-	 */
 	public function test_registration_rejects_javascript_url() {
 		$result = openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'javascript:alert(1)',
@@ -114,10 +83,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_oauth_invalid_url', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_oauth_issue_state
-	 * @covers ::openstation_oauth_consume_state
-	 */
 	public function test_state_round_trip_is_single_use() {
 		$state = openstation_oauth_issue_state( self::$admin_id, 'tumblrlike' );
 		$this->assertNotEmpty( $state );
@@ -127,22 +92,15 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( self::$admin_id, $first['user_id'] );
 		$this->assertSame( 'tumblrlike', $first['service'] );
 
-		// Replay must miss — the transient was deleted.
 		$second = openstation_oauth_consume_state( $state );
 		$this->assertNull( $second );
 	}
 
-	/**
-	 * @covers ::openstation_oauth_consume_state
-	 */
 	public function test_consume_returns_null_for_unknown_state() {
 		$this->assertNull( openstation_oauth_consume_state( 'never-issued' ) );
 		$this->assertNull( openstation_oauth_consume_state( '' ) );
 	}
 
-	/**
-	 * @covers ::openstation_rest_oauth_start
-	 */
 	public function test_rest_start_returns_authorize_url_with_state() {
 		openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
@@ -167,15 +125,10 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( 'cid', $query['client_id'] );
 		$this->assertSame( 'code', $query['response_type'] );
 		$this->assertSame( $data['state'], $query['state'] );
-		// Scope was URL-encoded twice through `add_query_arg` +
-		// `rawurlencode`, so the decoded value comes back with a `+`
-		// or %20 — assert on decoded equality.
+
 		$this->assertSame( 'basic write', urldecode( $query['scope'] ) );
 	}
 
-	/**
-	 * @covers ::openstation_rest_oauth_start
-	 */
 	public function test_rest_start_404s_for_unknown_service() {
 		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/oauth/start' );
 		$request->set_body_params( array( 'service' => 'never-registered' ) );
@@ -185,9 +138,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_oauth_unknown_service', $response->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_rest_oauth_start
-	 */
 	public function test_rest_start_capability_gate_denies_subscriber() {
 		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber );
@@ -209,9 +159,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_oauth_capability_denied', $response->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_rest_oauth_callback
-	 */
 	public function test_rest_callback_invalid_state_yields_html_with_invalid_state_payload() {
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
 		$request->set_query_params( array( 'state' => 'never-issued', 'code' => 'abc' ) );
@@ -223,9 +170,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'os-oauth-callback', $body );
 	}
 
-	/**
-	 * @covers ::openstation_rest_oauth_callback
-	 */
 	public function test_rest_callback_success_invokes_on_success_and_fires_action() {
 		$received_user = null;
 		$received_tokens = null;
@@ -248,7 +192,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 			$action_calls[] = compact( 'service', 'user_id' );
 		}, 10, 2 );
 
-		// Issue a state ourselves, then exercise the callback.
 		$state = openstation_oauth_issue_state( self::$admin_id, 'tumblrlike' );
 
 		add_filter( 'pre_http_request', static function ( $preempt, $args, $url ) {
@@ -285,9 +228,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( 'tumblrlike', $action_calls[0]['service'] );
 	}
 
-	/**
-	 * @covers ::openstation_rest_oauth_callback
-	 */
 	public function test_rest_callback_token_exchange_failure_does_not_fire_on_success() {
 		$success_count = 0;
 		openstation_register_oauth_relay( 'tumblrlike', array(
@@ -321,24 +261,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( 0, $success_count );
 	}
 
-	/**
-	 * Regression for the 0.8.2 bug where the popup HTML was JSON-
-	 * encoded by `WP_REST_Server::serve_request()` and the script
-	 * inside it never executed (popup never closed).
-	 *
-	 * The fix registers a `rest_pre_serve_request` filter that
-	 * echoes the raw HTML and short-circuits JSON serialization.
-	 * This test exercises that filter directly: assert that for the
-	 * `/desktop-mode/v1/oauth/callback` route the filter:
-	 *
-	 *   - returns `true` (signal to REST server: "I served it")
-	 *   - emits a body that starts with `<!doctype`, NOT `"`
-	 *   - includes the postMessage payload literally (not JSON-escaped)
-	 *
-	 * If the filter ever regresses to data-as-JSON, this test fails.
-	 *
-	 * @covers ::openstation_oauth_render_callback_html
-	 */
 	public function test_render_callback_html_echoes_raw_html_not_json_encoded() {
 		$response = openstation_oauth_render_callback_html( array(
 			'ok'      => true,
@@ -347,10 +269,7 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertInstanceOf( 'WP_REST_Response', $response );
 
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
-		// Core's `_oembed_rest_pre_serve_request` is registered on
-		// this filter and signature-requires 4 args; pass the REST
-		// server as the 4th so the chain runs cleanly through every
-		// registered callback.
+
 		$server = rest_get_server();
 
 		ob_start();
@@ -366,12 +285,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'os-oauth-callback', $body );
 		$this->assertStringContainsString( 'window.opener.postMessage', $body );
 
-		// Payload is embedded as a real JS literal — `"ok":true`,
-		// NOT the HTML-entity-encoded `&quot;ok&quot;:true` shape
-		// that `esc_js` produces. Inside a `<script>` element HTML
-		// entities are NOT decoded by the JS engine, so the entity
-		// form would throw a syntax error and the popup would never
-		// post-message its opener. Pin both directions:
 		$this->assertStringContainsString(
 			'"ok":true',
 			$body,
@@ -384,21 +297,12 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The filter is route-scoped — a request to a different REST
-	 * endpoint must NOT trigger the OAuth HTML echo. This guards
-	 * against a misconfigured filter clobbering every REST response
-	 * on the site.
-	 *
-	 * @covers ::openstation_oauth_render_callback_html
-	 */
 	public function test_render_callback_html_filter_is_route_scoped() {
 		openstation_oauth_render_callback_html( array(
 			'ok'      => true,
 			'service' => 'tumblrlike',
 		) );
 
-		// Different route — filter must pass through cleanly without echoing.
 		$request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
 		$server  = rest_get_server();
 
@@ -410,19 +314,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertSame( '', $body, 'Filter must not echo for unrelated REST routes.' );
 	}
 
-	/**
-	 * The filter self-removes after firing so a subsequent REST
-	 * request to the same route doesn't replay the previous
-	 * request's payload (the closure captures `$html` per call).
-	 *
-	 * Asserted by behaviour, not by `has_filter` count — core's
-	 * `_oembed_rest_pre_serve_request` is permanently registered on
-	 * this hook, so a count-based check would always be true. The
-	 * right shape: fire twice, assert only the first fire echoes
-	 * our payload.
-	 *
-	 * @covers ::openstation_oauth_render_callback_html
-	 */
 	public function test_render_callback_html_filter_self_removes_after_firing() {
 		openstation_oauth_render_callback_html( array( 'ok' => true, 'service' => 'a' ) );
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
@@ -434,9 +325,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$this->assertTrue( $served_first );
 		$this->assertStringContainsString( '<!doctype', $body_first );
 
-		// Second fire of the same hook with the same request must
-		// NOT re-echo our HTML — the filter detached itself after
-		// the first fire.
 		ob_start();
 		$served_second = apply_filters( 'rest_pre_serve_request', false, null, $request, $server );
 		$body_second = ob_get_clean();
@@ -451,9 +339,6 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_rest_oauth_callback
-	 */
 	public function test_rest_callback_handles_authorize_denied_query_param() {
 		openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',

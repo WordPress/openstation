@@ -1,28 +1,7 @@
-/**
- * Server-driven games registry sync.
- *
- * Fourth take on the pattern established by native windows, widgets
- * and wallpapers — with one deliberate deviation: game scripts are
- * NOT loaded on sync. The server payload's metadata (title, icon,
- * description, score columns, config, script URL) is registered as a
- * STUB straight away, which is all the Games window's launcher grid
- * and the scoreboard tabs need to paint; the script itself is
- * fetched lazily by `launchGame()` the first time someone plays.
- * Games are heavyweight (a game bundle + PixiJS + a dictionary) and
- * most sessions never open one — eager loading would tax every boot
- * for nothing.
- *
- * Removal mirrors the wallpaper sync: a game whose plugin
- * deactivates leaves the payload, so its entry is unregistered and
- * every launcher grid / scoreboard tab list repaints via the
- * registry subscription.
- */
-
 import * as registry from './registry';
 import type { DesktopGameServerEntry } from '../types';
 import type { GameRegistryEntry } from './types';
 
-/** Map a server payload entry onto a registry stub. */
 export function stubFromServerEntry(
 	entry: DesktopGameServerEntry,
 ): GameRegistryEntry {
@@ -35,11 +14,7 @@ export function stubFromServerEntry(
 			? entry.scoreColumns
 			: [],
 		config: entry.config ?? {},
-		// The one part of the def the shell needs BEFORE the def: the
-		// window opens on the click and its bundle loads inside the
-		// render callback, so without a size here that first window
-		// would open at the framework default and jump once the def
-		// landed. Omitted server-side reads as "use the defaults".
+
 		window:
 			entry.window && Object.keys( entry.window ).length > 0
 				? entry.window
@@ -62,9 +37,7 @@ export function createGamesRegistrySync(): (
 		try {
 			const existing = registry.get( entry.id );
 			const stub = stubFromServerEntry( entry );
-			// A re-sync must not downgrade a full def back to a stub:
-			// once the script has loaded and contributed its render
-			// callback, keep it while refreshing the server metadata.
+
 			registry.register(
 				existing && typeof existing.render === 'function'
 					? { ...stub, render: existing.render, window: existing.window }

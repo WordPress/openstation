@@ -1,8 +1,3 @@
-/**
- * `<os-progress-bar>` — smoke tests covering determinate value
- * rendering, max-clamping, indeterminate mode, the label + percent
- * header, ARIA wiring, and live attribute updates.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-progress-bar';
 
@@ -44,8 +39,7 @@ describe( '<os-progress-bar>', () => {
 		const fill = host
 			.querySelector( 'os-progress-bar' )!
 			.shadowRoot!.querySelector( '.fill' ) as HTMLElement;
-		// 200 / 200 → 100%
-		// jsdom normalizes `100.00%` → `100%`; assert numerically.
+
 		expect( parseFloat( fill.style.width ) ).toBeCloseTo( 100, 5 );
 		const track = host
 			.querySelector( 'os-progress-bar' )!
@@ -61,8 +55,7 @@ describe( '<os-progress-bar>', () => {
 		const fill = bar.shadowRoot!.querySelector( '.fill' ) as HTMLElement;
 		expect( track.hasAttribute( 'aria-valuenow' ) ).toBe( false );
 		expect( track.hasAttribute( 'aria-valuemax' ) ).toBe( false );
-		// The CSS animation keeps the bar sweeping; we clear the
-		// inline width so the stylesheet's 33% rule wins.
+
 		expect( fill.style.width ).toBe( '' );
 	} );
 
@@ -100,9 +93,6 @@ describe( '<os-progress-bar>', () => {
 	} );
 
 	test( 'progressbar role + aria-value* live on the host element, not just the shadow track', async () => {
-		// AT / browser combos that don't surface shadow-DOM roles
-		// rely on the host carrying the canonical semantics, the
-		// same way native <progress> exposes itself.
 		host.innerHTML = `<os-progress-bar value="60" max="200" label="Saving"></os-progress-bar>`;
 		await tick();
 		const bar = host.querySelector( 'os-progress-bar' )!;

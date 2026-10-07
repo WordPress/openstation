@@ -1,22 +1,3 @@
-/**
- * Code Editor — save-conflict dialog.
- *
- * Tiny single-purpose modal: shown when a save returns 409 because
- * the file changed on disk since the editor opened it. Offers three
- * choices:
- *
- *   - **Reload from disk** — replace the local buffer with whatever
- *     the server now has. Editor's edits are lost (caller stashes
- *     them first if it wants to recover).
- *   - **Overwrite anyway** — re-save with `mtime = serverMtime` so
- *     the optimistic-concurrency check passes on retry.
- *   - **Cancel** — leave the buffer dirty, do nothing.
- *
- * Phase 4 will add a real diff view here. v1 stays text-only — most
- * conflicts are "two tabs of the same editor"; offering reload /
- * overwrite covers them without the diff complexity.
- */
-
 export type ConflictChoice = 'reload' | 'overwrite' | 'cancel';
 
 export interface ConflictDialogArgs {
@@ -25,14 +6,6 @@ export interface ConflictDialogArgs {
 	serverSize: number;
 }
 
-/**
- * Show the modal. Resolves with the user's choice.
- *
- * The dialog is rendered into `<body>` so it floats above the
- * desktop window. We can't use `<dialog>`'s native modal mode here
- * because the desktop shell intercepts focus on its own windows —
- * a manual overlay + click-outside-to-cancel is more predictable.
- */
 export function showConflictDialog(
 	args: ConflictDialogArgs,
 ): Promise< ConflictChoice > {
@@ -103,7 +76,6 @@ export function showConflictDialog(
 			}
 		};
 
-		// Click-on-overlay-but-outside-dialog cancels.
 		overlay.addEventListener( 'click', ( e ) => {
 			if ( e.target === overlay ) {
 				finish( 'cancel' );
@@ -112,7 +84,7 @@ export function showConflictDialog(
 		document.addEventListener( 'keydown', onKey );
 
 		document.body.append( overlay );
-		// Default focus on the safe option.
+
 		cancel.focus();
 	} );
 }

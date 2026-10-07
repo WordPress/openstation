@@ -1,14 +1,8 @@
-/**
- * `<os-relative-time>` — smoke tests. Covers the two input formats,
- * the semantic `<time>` output with its absolute-time tooltip, and the
- * `compact` form used by dense lists.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-relative-time';
 
 const tick = (): Promise< void > => Promise.resolve();
 
-/** Minutes ago, as a MySQL-style UTC string (what `*_gmt` returns). */
 function mysqlMinutesAgo( minutes: number ): string {
 	const d = new Date( Date.now() - minutes * 60_000 );
 	return d.toISOString().slice( 0, 19 ).replace( 'T', ' ' );
@@ -35,8 +29,6 @@ describe( '<os-relative-time>', () => {
 	} );
 
 	test( 'treats a MySQL-style datetime as UTC', async () => {
-		// A bare "Y-m-d H:i:s" would otherwise be parsed as local time,
-		// putting the reading hours off for anyone outside UTC.
 		host.innerHTML = `<os-relative-time datetime="${ mysqlMinutesAgo(
 			5,
 		) }"></os-relative-time>`;
@@ -47,22 +39,15 @@ describe( '<os-relative-time>', () => {
 	} );
 
 	test( 'treats a bare ISO datetime (wp/v2 date_gmt) as UTC', async () => {
-		// Regression: the parser used to take the presence of a "T" as
-		// proof the value was fully qualified and hand it to Date
-		// as-is. ECMAScript reads an undesignated date-time as LOCAL,
-		// so every `*_gmt` field in ISO form came out wrong by the
-		// viewer's offset — an hour-old comment read "3 hours ago" at
-		// UTC+2. This is the exact shape wp/v2 returns.
 		const gmt = new Date( Date.now() - 60 * 60_000 )
 			.toISOString()
-			.slice( 0, 19 ); // "2026-07-28T22:12:34" — no Z.
+			.slice( 0, 19 );
 		host.innerHTML = `<os-relative-time datetime="${ gmt }"></os-relative-time>`;
 		await tick();
 		const time = host
 			.querySelector( 'os-relative-time' )!
 			.shadowRoot!.querySelector( 'time' )!;
-		// Round-trips to the same instant it was handed, regardless of
-		// the machine's timezone.
+
 		expect( time.getAttribute( 'datetime' ) ).toBe( gmt + '.000Z' );
 	} );
 
@@ -79,8 +64,6 @@ describe( '<os-relative-time>', () => {
 	} );
 
 	test( 'a date-only value is not mistaken for an offset', async () => {
-		// The hyphens in "2026-04-28" must not read as a "-04:28"
-		// timezone offset.
 		host.innerHTML =
 			'<os-relative-time datetime="2026-04-28"></os-relative-time>';
 		await tick();
@@ -102,7 +85,7 @@ describe( '<os-relative-time>', () => {
 			host.querySelectorAll( 'os-relative-time' ),
 		).map( ( el ) => el.shadowRoot!.textContent!.trim() );
 		expect( short.length ).toBeLessThan( long.length );
-		// Still anchored to the same moment.
+
 		expect( short ).toMatch( /5/ );
 	} );
 
@@ -112,7 +95,7 @@ describe( '<os-relative-time>', () => {
 		await tick();
 		const text = host.querySelector( 'os-relative-time' )!.shadowRoot!
 			.textContent!;
-		// A date, not a relative reading — no "ago"/"month" wording.
+
 		expect( text ).not.toMatch( /ago/i );
 		expect( text.trim().length ).toBeGreaterThan( 0 );
 	} );

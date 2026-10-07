@@ -1,19 +1,7 @@
-/**
- * `<os-field-row>` — the part worth testing is the wiring it does to
- * a control it does not own.
- *
- * A `<label for>` in a shadow root cannot reference a light-DOM
- * child; that pairing does not cross the boundary. This component
- * exists to close that gap by reaching out to the control, and every
- * test here is about doing so without trampling what the consumer
- * already set.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-field-row';
 
 const tick = async (): Promise< void > => {
-	// Two turns: one for the render, one for the `queueMicrotask`
-	// the render schedules to re-sync the control.
 	await Promise.resolve();
 	await Promise.resolve();
 };
@@ -115,8 +103,6 @@ describe( '<os-field-row>', () => {
 		) as HTMLElement;
 		label.click();
 
-		// The control is a light-DOM child, so it is the document's
-		// active element directly — no shadow retargeting involved.
 		expect( input().ownerDocument.activeElement ).toBe( input() );
 	} );
 

@@ -1,28 +1,7 @@
 <?php
-/**
- * OpenStation — Alphabet Soup registration.
- *
- * Alphabet Soup is the built-in daily word search: a seeded letter
- * grid with hidden words to drag out of the soup. The seed is the
- * current date (`dd-mm-yyyy`), so every player worldwide gets the
- * SAME puzzle each day — Daily mode plays three relaxed waves,
- * Time Attack races a countdown on a differently-seeded pot. The
- * game code lives in its own lazily-loaded bundle
- * (`assets/js/game-alphabet-soup[.min].js`, source
- * `src/games/alphabet-soup/`); this file only declares the
- * discovery metadata + score columns. The shared dictionary asset
- * arrives via the framework-injected `wordsUrl` config key.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * The Alphabet Soup icon: a steaming bowl with letter tiles afloat.
- *
- * @return string Raw `<svg>` markup.
- */
 function openstation_alphabet_soup_icon_svg() {
 	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
 		. '<path fill="#2b1d4d" d="M8 30h48a2 2 0 0 1 2 2c0 10-6 18-14 21l-1 3H21l-1-3C12 50 6 42 6 32a2 2 0 0 1 2-2z"/>'
@@ -37,11 +16,6 @@ function openstation_alphabet_soup_icon_svg() {
 		. '</svg>';
 }
 
-/**
- * Register Alphabet Soup with the games registry on `init`.
- *
- * Priority 20 — alongside the Games window registration.
- */
 function openstation_alphabet_soup_register() {
 	if ( ! function_exists( 'openstation_games_user_can_use' ) || ! openstation_games_user_can_use() ) {
 		return;
@@ -54,11 +28,7 @@ function openstation_alphabet_soup_register() {
 			'description'   => __( 'The daily word search: a seeded letter soup that is the same for every player worldwide — the seed is today’s date. Pick a pot (8×8, 12×12, or 16×16 with more words), drag across the letters to fish them out, chain streaks, and clear waves; Time Attack stirs a different pot against the clock. Your first run of each puzzle earns the shareable score card.', 'desktop-mode' ),
 			'icon_svg'      => openstation_alphabet_soup_icon_svg(),
 			'script'        => 'os-game-alphabet-soup',
-			// Mirrors the `window` block in
-			// `src/games/alphabet-soup/index.ts`. Declared here as well
-			// so the window opens at the right size on the very first
-			// play, before the bundle that carries the def has been
-			// fetched. Keep the two in step.
+
 			'window'        => array(
 				'width'     => 860,
 				'height'    => 660,
@@ -112,21 +82,12 @@ function openstation_alphabet_soup_register() {
 					'type'  => 'time',
 				),
 			),
-		// The dictionary URL arrives via the framework-injected
-		// `wordsUrl` config key (see includes/games/config.php).
+
 		)
 	);
 }
 add_action( 'init', 'openstation_alphabet_soup_register', 20 );
 
-/**
- * Ride the Alphabet Soup window styles on the Games window as a
- * companion — same shape as Inkfall; see
- * `openstation_inkfall_window_styles()` for the reasoning.
- *
- * @param array $window_args Args passed to `openstation_register_window()`.
- * @return array
- */
 function openstation_alphabet_soup_window_styles( $window_args ) {
 	if ( ! is_array( $window_args ) ) {
 		return $window_args;

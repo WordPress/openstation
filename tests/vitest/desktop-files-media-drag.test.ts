@@ -1,11 +1,3 @@
-/**
- * Tests for an upload tile on the drag bridge and on post tiles:
- * the `upload` bridge payload (gated on media-ness and capability),
- * its drop-time resolution into an `attachment` payload through the
- * bridge's resolver registry, the iframe drop target waiting on that
- * resolution before posting `os-drop`, and the tile-payload handlers
- * that let media uploads land on post and page tiles.
- */
 import { RestError } from '../../src/core/api-client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -109,10 +101,7 @@ describe( 'upload bridge payload', () => {
 	} );
 
 	test( 'the layer hands upload tiles to the media module', async () => {
-		// Pin the seam: `buildBridgePayloadFromPlacement` in layer.ts
-		// routes `upload` through `uploadBridgePayload`. The layer is
-		// not importable in isolation here, so assert on the resolver
-		// registry that boot installs instead.
+
 		const bridge = await import( '../../src/drag-bridge' );
 		const media = await import( '../../src/desktop-files/media-drag' );
 		const off = media.installMediaDrag();
@@ -333,7 +322,7 @@ describe( 'media uploads dropped on post tiles', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect( restMock.attachUploadsToPost ).toHaveBeenCalledWith( 9, [ 77, 78 ] );
-		// The post opens on its own — no "Edit" action to click.
+
 		expect( openUrlWindow ).toHaveBeenCalledWith( {
 			url: 'https://example.test/wp-admin/post.php?post=9&action=edit',
 			title: 'Hello world',

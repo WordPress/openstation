@@ -1,15 +1,7 @@
 <?php
-/**
- * OpenStation widget/window and asset registration.
- *
- * @package OpenStationFeedBuddy
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Attach UI hooks when OpenStation is available.
- */
 function feed_buddy_maybe_boot_ui() {
 	if ( ! function_exists( 'openstation_register_window' )
 		|| ! function_exists( 'openstation_register_widget' ) ) {
@@ -21,9 +13,6 @@ function feed_buddy_maybe_boot_ui() {
 	add_action( 'admin_enqueue_scripts', 'feed_buddy_enqueue_widget_style', 30 );
 }
 
-/**
- * Register the authored stylesheet and generated script bundles.
- */
 function feed_buddy_register_assets() {
 	wp_register_script(
 		'desktop-mode-feed-buddy',
@@ -57,21 +46,6 @@ function feed_buddy_register_assets() {
 	);
 }
 
-/**
- * Register the buddy widget, the native reader window, and the
- * launcher icon.
- *
- * The window's own `placement => 'dock'` puts a launcher tile on the
- * dock, but a docked native window is not a *placeable item* — the
- * OS Settings "Apps & Icons" tab builds its list from the dock-item
- * payload plus `openstation_register_icon()` registrations, so a
- * window-only registration never shows up there and the user has no
- * way to move it to the wallpaper or hide it. Registering the icon
- * alongside the window is the pattern the other bundled extensions
- * follow; the shell dedupes the two (an icon whose `window` target
- * is already a docked native window is not synthesized onto the dock
- * a second time).
- */
 function feed_buddy_register_surfaces() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
 		return;
@@ -101,7 +75,7 @@ function feed_buddy_register_surfaces() {
 		)
 	);
 	if ( is_wp_error( $window ) ) {
-		error_log( '[feed-buddy] reader registration failed: ' . $window->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( '[feed-buddy] reader registration failed: ' . $window->get_error_message() );
 	}
 
 	$widget = openstation_register_widget(
@@ -123,12 +97,9 @@ function feed_buddy_register_surfaces() {
 		)
 	);
 	if ( is_wp_error( $widget ) ) {
-		error_log( '[feed-buddy] widget registration failed: ' . $widget->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( '[feed-buddy] widget registration failed: ' . $widget->get_error_message() );
 	}
 
-	// Guarded: older OpenStation builds shipped the window and widget
-	// registries without the icon one. Missing icon support costs the
-	// Apps & Icons row, not the extension.
 	if ( ! function_exists( 'openstation_register_icon' ) ) {
 		return;
 	}
@@ -144,22 +115,16 @@ function feed_buddy_register_surfaces() {
 		)
 	);
 	if ( is_wp_error( $icon ) ) {
-		error_log( '[feed-buddy] icon registration failed: ' . $icon->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( '[feed-buddy] icon registration failed: ' . $icon->get_error_message() );
 	}
 }
 
-/**
- * Ensure widget-only sessions receive the companion stylesheet.
- */
 function feed_buddy_enqueue_widget_style() {
 	if ( function_exists( 'openstation_is_enabled' ) && openstation_is_enabled() ) {
 		wp_enqueue_style( 'desktop-mode-feed-buddy' );
 	}
 }
 
-/**
- * Reader markup cloned into the native window.
- */
 function feed_buddy_render_reader_template() {
 	?>
 	<div class="feed-buddy-reader" data-feed-buddy-reader>

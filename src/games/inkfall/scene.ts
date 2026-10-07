@@ -1,13 +1,3 @@
-/**
- * Inkfall — Pixi scene: the notebook page and the falling words.
- *
- * All visuals are vector (`Graphics`) + `Text` — no image assets.
- * The page is warm paper with soft ruled lines and a red margin
- * line; words render as ink text, with the matched prefix in an
- * accent color (two Text objects inside one container so we never
- * pay per-character Text until the tear effect).
- */
-
 import type {
 	PixiContainer,
 	PixiGraphics,
@@ -26,17 +16,15 @@ export const WORD_FONT_SIZE = 26;
 
 const RULE_SPACING = 32;
 
-/** One falling word's display state. */
 export interface WordSprite {
 	container: PixiContainer;
 	matched: PixiText;
 	rest: PixiText;
 	text: string;
-	/** Total rendered width (for centering + char positions). */
+
 	width: number;
 }
 
-/** Paint (or repaint, on resize) the notebook-page background. */
 export function paintPaper(
 	graphics: PixiGraphics,
 	width: number,
@@ -55,14 +43,13 @@ export function paintPaper(
 		.moveTo( marginX, 0 )
 		.lineTo( marginX, height )
 		.stroke( { color: MARGIN_COLOR, width: 2, alpha: 0.7 } );
-	// A soft "page bottom" edge the words are racing toward.
+
 	graphics
 		.moveTo( 0, height - 6 )
 		.lineTo( width, height - 6 )
 		.stroke( { color: INK_COLOR, width: 2, alpha: 0.25 } );
 }
 
-/** Build the two-Text word container. Caller positions + adds it. */
 export function buildWordSprite(
 	pixi: PixiNamespace,
 	text: string,
@@ -79,7 +66,6 @@ export function buildWordSprite(
 	return { container, matched, rest, text, width: rest.width };
 }
 
-/** Update the matched-prefix split on a word sprite. */
 export function setMatchedCount( sprite: WordSprite, count: number ): void {
 	const clamped = Math.max( 0, Math.min( count, sprite.text.length ) );
 	sprite.matched.text = sprite.text.slice( 0, clamped );

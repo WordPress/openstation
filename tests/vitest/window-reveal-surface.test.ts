@@ -1,31 +1,3 @@
-/**
- * Unit tests for `src/reveals/surface.ts`.
- *
- * Three behaviours here are easy to get wrong and invisible in review:
- *
- *  1. **The reveal always plays.** The `<os-spinner>` overlay has a
- *     120 ms entry delay, so fast loads never paint it. What varies is
- *     only WHEN the reveal starts — after the spinner's 250 ms fade-out
- *     if there was a spinner, immediately if there was not. Gating the
- *     reveal on the spinner instead would leave the fastest loads (the
- *     ones a user repeats most) as the only ones with no transition.
- *
- *  2. **The surface resolves its def from the id that ARMED it.** A
- *     user switching reveals mid-load must not produce a `from` from
- *     one shape and a `to` from another — that pair cannot interpolate,
- *     and the browser's fallback is a mid-animation jump.
- *
- *  3. **The edge layer runs LONGER than the surface.** That lag is the
- *     entire mechanism: being permanently a little less far along is
- *     what makes the edge peek out past the surface as a band. Run it
- *     shorter (or equal) and the edge is never visible at all. It also
- *     makes the edge the last layer to land, so teardown has to hang
- *     off it, or the surface's earlier finish would rip both layers out
- *     mid-band.
- *
- * jsdom has no Web Animations API, so the no-WAAPI fallback path is
- * exercised natively and the WAAPI path runs against an explicit stub.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -50,7 +22,6 @@ async function load(): Promise< Modules > {
 	};
 }
 
-/** Minimal window fixture: root + body + iframe, mounted. */
 function makeWindow(): HTMLElement {
 	const el = document.createElement( 'div' );
 	el.className = 'os-window';
@@ -69,19 +40,12 @@ function bodyOf( el: HTMLElement ): HTMLElement {
 	return el.querySelector< HTMLElement >( '.os-window__body' )!;
 }
 
-/**
- * Put a painted spinner in the window's body. The reveal surface reads
- * the overlay's own `--visible` class to decide whether it has a
- * fade-out to wait for, the same signal the loaded edge uses, so the
- * fixture has to carry it rather than back-date a clock.
- */
 function paintSpinner( el: HTMLElement ): void {
 	const overlay = document.createElement( 'div' );
 	overlay.className = 'os-window__loading os-window__loading--visible';
 	bodyOf( el ).appendChild( overlay );
 }
 
-/** The covering surface — the reveal layer that is NOT the edge. */
 function surfaceOf( el: HTMLElement ): HTMLElement | null {
 	return el.querySelector< HTMLElement >(
 		'.os-window__reveal:not(.os-window__reveal--edge)',
@@ -100,7 +64,6 @@ function layersOf( el: HTMLElement ): HTMLElement[] {
 	);
 }
 
-/** A stub Animation good enough for the paths surface.ts exercises. */
 interface StubAnimation {
 	cancel: ReturnType< typeof vi.fn >;
 	fire: ( type: string ) => void;
@@ -138,16 +101,6 @@ function removeAnimateStub(): void {
 	delete ( Element.prototype as unknown as { animate?: unknown } ).animate;
 }
 
-/**
- * Stub `getComputedStyle` for the reveal tokens and each layer's paint.
- *
- * jsdom loads no stylesheet, so every computed background is
- * transparent — under which the shell correctly drops both layers.
- * Installed in `beforeEach` with the SHIPPED defaults (surface painted
- * white, edge transparent) so tests exercise the real configuration;
- * tests about the edge opt in with `edge: true`, and tests about the
- * skip path opt out with `surface: false`.
- */
 function stubStyles(
 	opts: {
 		duration?: string;
@@ -187,7 +140,7 @@ function stubStyles(
 beforeEach( () => {
 	installHooksStub();
 	document.body.innerHTML = '';
-	// Shipped defaults: an opaque surface, no edge.
+
 	stubStyles();
 } );
 
@@ -207,9 +160,7 @@ describe( 'reveals/surface.ts — createRevealLayers', () => {
 
 	test( 'returns nothing when the selected id is not registered', async () => {
 		const { surface, engine } = await load();
-		// A reveal whose plugin is deactivated: the id survives in user
-		// meta, but degrading to a DIFFERENT animation would be stranger
-		// than degrading to none.
+
 		engine.setActiveWindowRevealId( 'ghost/plugin-gone' );
 		expect( surface.createRevealLayers() ).toEqual( [] );
 	} );
@@ -221,8 +172,7 @@ describe( 'reveals/surface.ts — createRevealLayers', () => {
 		const from = registry.getWindowReveal( 'iris' )!.from;
 
 		expect( layers ).toHaveLength( 2 );
-		// Edge first in DOM order so it paints behind the surface even
-		// before the stylesheet's z-index has a say.
+
 		expect( layers[ 0 ].classList.contains( surface.REVEAL_EDGE_CLASS ) ).toBe(
 			true,
 		);
@@ -291,7 +241,6 @@ describe( 'reveals/surface.ts — armWindowReveal', () => {
 		surface.playWindowReveal( win );
 		expect( animations ).toHaveLength( 2 );
 
-		// A reload lands while the previous reveal is still playing.
 		surface.armWindowReveal( win );
 		expect( animations[ 0 ].cancel ).toHaveBeenCalled();
 		expect( animations[ 1 ].cancel ).toHaveBeenCalled();
@@ -326,9 +275,8 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 		const win = makeWindow();
 
 		surface.armWindowReveal( win );
-		vi.advanceTimersByTime( 40 ); // under the 120 ms spinner delay
-		// No overlay ever reached `--visible`, so there is nothing to
-		// wait for even though time has passed.
+		vi.advanceTimersByTime( 40 );
+
 		surface.playWindowReveal( win );
 
 		expect( calls.every( ( c ) => c.options.delay === 0 ) ).toBe( true );
@@ -342,12 +290,10 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 		const win = makeWindow();
 
 		surface.armWindowReveal( win );
-		vi.advanceTimersByTime( 900 ); // a genuinely slow load
+		vi.advanceTimersByTime( 900 );
 		paintSpinner( win );
 		surface.playWindowReveal( win );
 
-		// Both layers wait together, so the edge does not start peeking
-		// out from under a surface that has not begun moving.
 		expect( calls.every( ( c ) => c.options.delay === 250 ) ).toBe( true );
 	} );
 
@@ -360,7 +306,7 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 		const win = makeWindow();
 
 		surface.armWindowReveal( win );
-		// Same tick: the spinner never painted at all.
+
 		surface.playWindowReveal( win );
 
 		expect( calls ).toHaveLength( 2 );
@@ -392,7 +338,7 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 			registry.MAX_REVEAL_DURATION_MS,
 		);
 		expect( calls[ 0 ].options.easing ).toBe( 'linear' );
-		// `fill: both` holds the covering shape through the delay.
+
 		expect( calls[ 0 ].options.fill ).toBe( 'both' );
 	} );
 
@@ -403,7 +349,6 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 		const win = makeWindow();
 		surface.armWindowReveal( win );
 
-		// The user switches reveals while the window is still loading.
 		engine.setActiveWindowRevealId( 'iris' );
 		surface.playWindowReveal( win );
 
@@ -428,8 +373,6 @@ describe( 'reveals/surface.ts — the leading edge', () => {
 		surface.armWindowReveal( win );
 		surface.playWindowReveal( win );
 
-		// The edge has no shape of its own — that is what lets it follow
-		// any geometry, including a plugin's.
 		expect( calls[ 1 ].keyframes ).toEqual( calls[ 0 ].keyframes );
 	} );
 
@@ -510,8 +453,6 @@ describe( 'reveals/surface.ts — the leading edge', () => {
 		surface.armWindowReveal( win );
 		surface.playWindowReveal( win );
 
-		// The surface lands first. Tearing down here would rip the edge
-		// band off screen mid-travel.
 		animations[ 0 ].fire( 'finish' );
 		expect( layersOf( win ) ).toHaveLength( 2 );
 
@@ -520,24 +461,22 @@ describe( 'reveals/surface.ts — the leading edge', () => {
 	} );
 
 	test( 'is dropped entirely while the edge colour is transparent', async () => {
-		// The shipped default: surface painted, edge transparent. An
-		// opt-in feature costs nothing for every user who never opts in.
+
 		const { calls } = installAnimateStub();
 		const { surface, engine } = await load();
 		engine.setActiveWindowRevealId( 'iris' );
 		const win = makeWindow();
 
 		surface.armWindowReveal( win );
-		expect( edgeOf( win ) ).not.toBeNull(); // created…
+		expect( edgeOf( win ) ).not.toBeNull();
 		surface.playWindowReveal( win );
 
-		expect( edgeOf( win ) ).toBeNull(); // …and dropped before it ran.
+		expect( edgeOf( win ) ).toBeNull();
 		expect( calls ).toHaveLength( 1 );
 	} );
 
 	test( 'a gradient edge counts as visible even with no colour', async () => {
-		// Fails OPEN: a missed skip costs one transparent animation, a
-		// false positive would silently drop an edge a theme configured.
+
 		const { calls } = installAnimateStub();
 		vi.stubGlobal(
 			'getComputedStyle',
@@ -598,7 +537,7 @@ describe( 'reveals/surface.ts — the leading edge', () => {
 } );
 
 describe( 'reveals/surface.ts — custom-rendered reveals', () => {
-	/** A minimal renderer: one div, one animation. */
+
 	function stubRenderer(): {
 		id: string;
 		label: string;
@@ -624,11 +563,7 @@ describe( 'reveals/surface.ts — custom-rendered reveals', () => {
 	}
 
 	test( 'the host suppresses the surface token’s paint', async () => {
-		// Its own DOM is the paint. Left carrying the token background,
-		// the host is an opaque rectangle UNDERNEATH the renderer's
-		// output — so the effect uncovers that rectangle rather than the
-		// page, and the real content only appears when the layer is
-		// removed. A clean animation followed by an abrupt pop.
+
 		const { surface, engine, registry } = await load();
 		registry.registerWindowReveal( stubRenderer() );
 		engine.setActiveWindowRevealId( 'acme/rendered' );
@@ -642,16 +577,7 @@ describe( 'reveals/surface.ts — custom-rendered reveals', () => {
 	} );
 
 	test( 'a renderer armed in one bundle still plays from another', async () => {
-		// The real shape of the bug this guards. A window's first layers
-		// are built by `createWindowElement` in the WINDOW-SYSTEM bundle,
-		// and the SHELL bundle is what plays them. Module-level state
-		// gives each bundle its own copy, so the arm writes into one map
-		// and the play reads an empty other — the reveal vanished on
-		// every window OPEN while reload still worked, because that path
-		// arms from the shell side.
-		//
-		// Two module instances WITHOUT resetting the shared stores
-		// between them is exactly that situation.
+
 		installAnimateStub();
 		const armSide = await load();
 		armSide.registry.registerWindowReveal( stubRenderer() );
@@ -661,15 +587,12 @@ describe( 'reveals/surface.ts — custom-rendered reveals', () => {
 		armSide.surface.armWindowReveal( win );
 		expect( layersOf( win ) ).toHaveLength( 1 );
 
-		// A second, independent copy of the module — the other bundle.
 		vi.resetModules();
 		const playSide: Surface = await import( '../../src/reveals/surface' );
 		expect( playSide ).not.toBe( armSide.surface );
 
 		playSide.playWindowReveal( win );
 
-		// Still on screen and animating: the play was found. Before the
-		// fix the layer was dropped here and nothing ran.
 		expect( layersOf( win ) ).toHaveLength( 1 );
 		expect(
 			bodyOf( win ).classList.contains( playSide.REVEALING_BODY_CLASS ),
@@ -714,8 +637,7 @@ describe( 'reveals/surface.ts — surface paint', () => {
 	} );
 
 	test( 'surfaceColor never leaks onto the edge layer', async () => {
-		// A reveal's identity colour is its surface; the edge stays the
-		// theme's to decide.
+
 		const { surface, engine, registry } = await load();
 		registry.registerWindowReveal( {
 			id: 'acme/painted2',
@@ -732,8 +654,7 @@ describe( 'reveals/surface.ts — surface paint', () => {
 	} );
 
 	test( 'a per-layer colour beats the def’s surfaceColor', async () => {
-		// Overlapping parts are only visible when neighbours differ, so
-		// the layer's own tone has to outrank a def-wide one.
+
 		const { surface, engine, registry } = await load();
 		registry.registerWindowReveal( {
 			id: 'acme/shaded',
@@ -749,16 +670,12 @@ describe( 'reveals/surface.ts — surface paint', () => {
 		const layers = surface.createRevealLayers();
 		expect( layers ).toHaveLength( 2 );
 		expect( layers[ 0 ].style.background ).toBe( 'rgb(255, 0, 0)' );
-		// The layer without its own tone falls back to the def's.
+
 		expect( layers[ 1 ].style.background ).toBe( 'rgb(17, 17, 17)' );
 	} );
 
 	test( 'a transparent surface AND edge means no reveal at all', async () => {
-		// `transparent` is a legitimate token value meaning "no covering
-		// surface". With nothing to paint there is nothing to animate,
-		// and — importantly — the body must NOT be pinned by
-		// `--revealing`, or the content would be stuck at the opacity a
-		// transition that never runs was supposed to hand it.
+
 		const { calls } = installAnimateStub();
 		stubStyles( { surface: false } );
 		const { surface, engine } = await load();
@@ -776,8 +693,7 @@ describe( 'reveals/surface.ts — surface paint', () => {
 	} );
 
 	test( 'a transparent surface with a painted edge still plays the edge', async () => {
-		// A moving band with no cover behind it is a legitimate look,
-		// so the surface being off must not take the edge down with it.
+
 		const { calls } = installAnimateStub();
 		stubStyles( { surface: false, edge: true } );
 		const { surface, engine } = await load();
@@ -831,7 +747,7 @@ describe( 'reveals/surface.ts — edge thickness token', () => {
 		const { mods, win } = await withReveal();
 		mods.surface.armWindowReveal( win );
 		mods.surface.playWindowReveal( win );
-		// 25% of a 400 ms travel ⇒ 100 ms of lag, overriding the def's 40.
+
 		expect( calls[ 1 ].options.duration ).toBe( 500 );
 	} );
 
@@ -854,8 +770,7 @@ describe( 'reveals/surface.ts — edge thickness token', () => {
 	} );
 
 	test( 'the token beats the def’s own edgeLag outright', async () => {
-		// Thickness is a property of the theme's look, not of any one
-		// reveal — so it overrides rather than scales.
+
 		const { calls } = installAnimateStub();
 		stubStyles( { thickness: '10%', edge: true } );
 		const { mods, win } = await withReveal();
@@ -904,14 +819,13 @@ describe( 'reveals/surface.ts — edge thickness token', () => {
 		mods.engine.setActiveWindowRevealDuration( 800 );
 		mods.surface.armWindowReveal( win );
 		mods.surface.playWindowReveal( win );
-		// 25% of the RESOLVED 800 ms, so the band's apparent width is
-		// the same at any speed.
+
 		expect( calls[ 1 ].options.duration ).toBe( 1000 );
 	} );
 } );
 
 describe( 'reveals/surface.ts — duration resolution', () => {
-	/** Stub the reveal-duration theme token, edge enabled. */
+
 	function stubThemeToken( value: string ): void {
 		stubStyles( { duration: value, edge: true } );
 	}
@@ -957,8 +871,7 @@ describe( 'reveals/surface.ts — duration resolution', () => {
 		const { calls } = installAnimateStub();
 		stubStyles( { edge: true } );
 		const { mods, win } = await withReveal();
-		// Twice the duration ⇒ twice the lag, so the band still covers
-		// the same FRACTION of the travel and looks the same width.
+
 		mods.engine.setActiveWindowRevealDuration( 800 );
 		mods.surface.armWindowReveal( win );
 		mods.surface.playWindowReveal( win );
@@ -1049,7 +962,6 @@ describe( 'reveals/surface.ts — playWindowReveal lifecycle', () => {
 			bodyOf( win ).classList.contains( surface.REVEALING_BODY_CLASS ),
 		).toBe( true );
 
-		// The edge is the last to land.
 		animations[ 1 ].fire( 'finish' );
 		expect(
 			bodyOf( win ).classList.contains( surface.REVEALING_BODY_CLASS ),
@@ -1067,8 +979,6 @@ describe( 'reveals/surface.ts — playWindowReveal lifecycle', () => {
 		surface.playWindowReveal( win );
 		animations[ 0 ].fire( 'cancel' );
 
-		// Content must never be left pinned by a modifier whose
-		// animation is gone.
 		expect(
 			bodyOf( win ).classList.contains( surface.REVEALING_BODY_CLASS ),
 		).toBe( false );
@@ -1081,12 +991,9 @@ describe( 'reveals/surface.ts — playWindowReveal lifecycle', () => {
 		const win = makeWindow();
 		surface.armWindowReveal( win );
 
-		// The plugin owning the armed reveal deactivates mid-load.
 		registry.unregisterWindowReveal( 'sweep' );
 		surface.playWindowReveal( win );
 
-		// Content uncovered rather than left under layers that can no
-		// longer be animated away.
 		expect( layersOf( win ) ).toHaveLength( 0 );
 	} );
 
@@ -1100,9 +1007,6 @@ describe( 'reveals/surface.ts — playWindowReveal lifecycle', () => {
 		vi.advanceTimersByTime( 900 );
 		surface.playWindowReveal( win );
 
-		// Still covered while the spinner is fading — by the surface
-		// alone, since the paint check runs ahead of this fallback path
-		// too and the default edge is transparent.
 		expect( layersOf( win ) ).toHaveLength( 1 );
 		expect( surfaceOf( win ) ).not.toBeNull();
 		vi.advanceTimersByTime( 250 );
@@ -1134,11 +1038,7 @@ describe( 'reveals/surface.ts — playWindowReveal lifecycle', () => {
 
 describe( 'reveals/surface.ts — failure containment', () => {
 	test( 'uncovers the window instead of throwing when `animate()` refuses its input', async () => {
-		// Registration validates `easing`, but a def injected through
-		// the `os.window-reveals` filter never went through
-		// registration — `animate()` can still throw. The one
-		// unacceptable outcome is a window stranded under the opaque
-		// armed surface.
+
 		( Element.prototype as unknown as { animate: unknown } ).animate =
 			() => {
 				throw new TypeError( 'unparsable easing' );
@@ -1161,10 +1061,7 @@ describe( 'reveals/surface.ts — failure containment', () => {
 	} );
 
 	test( 'uncovers the window when the reveals filter throws at play time', async () => {
-		// The play-time def lookup runs the `os.window-reveals`
-		// filter; a plugin's throwing callback must degrade to "no
-		// reveal", not propagate with the surface still covering the
-		// window.
+
 		const hooks = installHooksStub();
 		const errorSpy = vi
 			.spyOn( console, 'error' )

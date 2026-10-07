@@ -1,28 +1,5 @@
-/**
- * OpenStation — Overview.
- *
- * Zoom-out grid view: windows transform into thumbnails, floating
- * labels sit above them, and a top bar lists every virtual desktop
- * with one tile per space plus a "+" to add a new one. The dock
- * collapses in parallel with the enter transition.
- *
- * Windows keep their `left/top/width/height` intact; only `transform`
- * animates (translate + scale) so the layout change is a GPU
- * composite, not a reflow. `transform-origin: top left` makes
- * translate + scale compose cleanly — a target coordinate maps to
- * the window's top-left corner pre-scale. Iframes go
- * `pointer-events: none` inside overview so clicks hit the window
- * wrapper (and bubble to the desktop-area click handler) instead of
- * the iframe content, which would otherwise eat the click.
- *
- * Base chrome lives in window-chrome.css; non-overview state classes
- * live in window-states.css.
- *
- * @since 6.9.0
- */
 .os-area--overview {
-	/* Darken the backdrop and tint it so windows feel like they're
-	 * floating over a neutral canvas, not the wallpaper. */
+
 	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
 	transition: background-color 0.28s ease;
 }
@@ -34,25 +11,13 @@
 		box-shadow 0.2s ease,
 		opacity 0.2s ease;
 	cursor: pointer;
-	/* Hover effects apply a thick outline rather than another
-	 * transform (which would fight the layout's own transform).
-	 * Box-shadow is composite-only, so it's cheap. */
+
 	box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.35 );
-	/* Overview thumbnails are click targets, not reading surfaces —
-	 * suppress text selection so a drag across a thumbnail doesn't
-	 * highlight paragraphs inside the title bar / native body. */
+
 	user-select: none;
 	-webkit-user-select: none;
 }
 
-/*
- * While in overview, treat each window as a single click target —
- * every inner element (title bar, buttons, iframe, native body) goes
- * transparent to pointer events so drags/taps never start a drag,
- * trip a close button, or launch an in-iframe action. Only the
- * window's root element receives pointer events; our desktop-level
- * pointerdown/pointerup handlers drive selection from there.
- */
 .os-window--overview * {
 	pointer-events: none;
 }
@@ -68,22 +33,10 @@
 	z-index: 1;
 }
 
-/*
- * Minimized windows shown in overview are rendered slightly dimmed
- * so the user can distinguish them from active windows at a glance.
- */
 .os-window--overview.os-window--minimized {
 	opacity: 0.6;
 }
 
-/*
- * Mission-Control-style dimming: once ANY window is hovered, every
- * OTHER window dims and desaturates slightly — creating a clear
- * focal point without needing the hovered one to grow or lift.
- * `:has()` lands in every evergreen browser we target (Chrome 105,
- * Safari 15.4, Firefox 121+); older engines miss the dimming but
- * keep the accent-ring affordance, so it degrades gracefully.
- */
 .os-area--overview:has( .os-window--overview:hover )
 	.os-window--overview:not( :hover ) {
 	opacity: 0.5;
@@ -94,20 +47,6 @@
 		filter 0.18s ease;
 }
 
-/*
- * Dock slides out smoothly during overview — width collapses (the
- * flex row reflows so the area grows into the freed space) while
- * the dock itself slides left and fades. `display: none` would have
- * been abrupt in both directions; animating the flex width does the
- * heavy lifting and the user sees a single continuous motion.
- *
- * `pointer-events: none` comes in immediately on overview enter so
- * stray clicks mid-animation can't open a window behind the user's
- * back. `overflow: hidden` is scoped to the collapsed state so the
- * shrinking dock doesn't leak icons past its boundary — outside
- * overview, the dock keeps `overflow: visible` from dock.css so
- * per-tile "+ open another" chips can float past the edge.
- */
 .os-dock {
 	transition:
 		width 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ),
@@ -117,44 +56,10 @@
 		opacity 0.22s ease;
 }
 
-/*
- * The escape hatch for the rule above, and the reason it lives here
- * rather than in `dock.css`: this is the only place `.os-dock` is
- * given a transition, so it is the only place worth looking when one
- * fires where it should not.
- *
- * The properties above are geometry, and geometry also changes for a
- * reason that is not a state change: moving the dock to another edge
- * tears the rail down and builds a new one on the SAME element, which
- * still carries the previous placement's padding and width. Animated,
- * the new dock slides out of the old one's shape — it arrives a size
- * too big and settles. `Dock`'s constructor wears this class while it
- * commits the placement, so that change lands with nothing to tween
- * from.
- */
 .os-dock--no-transition {
 	transition: none !important;
 }
 
-/*
- * Collapse EVERY dock (bottom + side rails, Classic / Unified /
- * Spatial layouts alike) when overview is active.
- *
- * The placement-specific width rules in dock.css —
- * `.os-dock[ data-os-dock-placement="left" ]
- *  { width: var( --os-dock-width ); }` — share equal
- * specificity with `.os-shell--overview .os-dock`
- * (two classes / class+attr) and load LATER in the cascade, so
- * without `!important` the side rail keeps its placement width
- * and stays visible during overview. The bottom dock happens to
- * lack a placement-attr-keyed width override so it collapsed
- * fine; the side rail did not — caught by the regression
- * screenshot.
- *
- * `!important` is the right tool here: this rule is a transient,
- * mode-scoped override (overview screen only) of a layout-mode
- * default, and we want it to win unconditionally.
- */
 .os-shell--overview .os-dock,
 .os-shell--overview #os-side-dock {
 	width: 0 !important;
@@ -179,16 +84,6 @@
 	}
 }
 
-/*
- * Desktop shortcut icons & files-layer tiles —
- * hidden during overview so they don't compete with window
- * thumbnails or overlap them (especially noticeable with few
- * windows or Spatial layout). Matches the fade-out pattern
- * used by widgets and pinned notes. Scoped to DIRECT children
- * of the desktop area only: folder windows mount their own
- * files layer inside the window body, and that must stay
- * visible in its thumbnail.
- */
 .os-area--overview > .os-icons,
 .os-area--overview > .os-files-layer {
 	opacity: 0;
@@ -196,18 +91,6 @@
 	transition: opacity 0.22s ease;
 }
 
-/* ---------------------------------------------------------------
- * Overview thumbnail labels.
- *
- * Sit outside each window's transform (as absolute-positioned
- * siblings in the desktop area) so they stay readable at any
- * thumbnail scale — an icon-sized thumbnail still has its
- * full-size caption hovering above it.
- *
- * Layout: one line, icon + title (+ optional meta). Horizontal
- * center-of-thumbnail alignment is handled via the label's
- * own flex + width set in JS to match the scaled thumbnail.
- * --------------------------------------------------------------- */
 .os-overview-label {
 	position: absolute;
 	height: 28px;
@@ -232,18 +115,11 @@
 	z-index: 2;
 }
 
-/*
- * Active labels fade/slide in once the area enters overview mode.
- * The short delay on `transition-*` lets the thumbnails start
- * moving first, so labels appear to "catch up" rather than race
- * ahead of their windows.
- */
 .os-area--overview .os-overview-label {
 	opacity: 1;
 	transform: translateY( 0 );
 }
 
-/* On exit, flip the animation off. */
 .os-overview-label--out {
 	opacity: 0 !important;
 	transform: translateY( -4px ) !important;
@@ -270,13 +146,6 @@
 	flex-shrink: 0;
 }
 
-/*
- * Dim labels when another window is hovered. DOM order places
- * each label immediately after its window, so the adjacent-
- * sibling selector picks out exactly the label belonging to the
- * hovered window and keeps it bright; all other labels fall under
- * the `:has()` rule and dim.
- */
 .os-area--overview:has( .os-window--overview:hover )
 	.os-overview-label {
 	opacity: 0.45;
@@ -294,13 +163,6 @@
 	}
 }
 
-/*
- * Focused-window label overlay is not strictly needed — the title
- * bar stays visible in the scaled thumbnail. If we later want a
- * cleaner label (to combat tiny text on 8+-window grids), slot it
- * in here via a ::after pseudo-element.
- */
-
 @media ( prefers-reduced-motion: reduce ) {
 	.os-area--overview,
 	.os-window--overview {
@@ -311,16 +173,6 @@
 		transition-duration: 0.01ms;
 	}
 }
-
-/* ---------------------------------------------------------------
- * Overview top bar — virtual desktops ("Spaces") strip.
- *
- * Lives at the top of the desktop area while overview is active,
- * stacked above the dimmed backdrop and below the window
- * thumbnails. Each tile represents one desktop; clicking switches
- * to it (and exits overview), the trailing "+" tile creates a new
- * one, and per-tile X buttons close.
- * --------------------------------------------------------------- */
 
 .os-overview-top-bar {
 	position: absolute;
@@ -339,11 +191,6 @@
 		transform 0.28s cubic-bezier( 0.2, 0, 0.2, 1 ) 0.06s;
 }
 
-/* The row above the desktop tiles — the site switcher on a network,
- * where every site is its own OpenStation with its own desks. Its own
- * panel, so the switcher reads as the thing the tiles hang under, not
- * as one more tile. `OVERVIEW_TOP_BAR_HEADER_RESERVE` in
- * `overview-constants.ts` is this row's height plus the gap. */
 .os-overview-top-bar__header {
 	display: flex;
 	align-items: center;
@@ -360,11 +207,6 @@
 	overflow-x: auto;
 }
 
-/* An install that joined from elsewhere wears a mark before its name,
- * and one line stands before the first of them, so the row says which
- * sites are this network's own and which are external. Both are light
- * DOM the switcher writes into the segment; its button is out of
- * reach behind the shadow root. */
 .os-site-switcher__divider {
 	flex: none;
 	align-self: stretch;
@@ -435,10 +277,6 @@
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
-/*
- * Excluded because `:hover` (0,2,0) outranks `--active` (0,1,0) — an
- * unguarded hover border replaces the active tile's accent ring.
- */
 .os-overview-top-bar__tile:hover:not( .os-overview-top-bar__tile--active ) {
 	border-color: rgba( 255, 255, 255, 0.4 );
 }
@@ -473,13 +311,6 @@
 	letter-spacing: 0.02em;
 }
 
-/*
- * A workspace's identity on its overview tile — the glyph and the
- * accent it wears on the switcher pill. Overview is where desks are
- * compared, and a row of identical grey tiles is exactly where "which
- * one was the shop?" gets asked. A plain Space carries neither, so
- * these rules simply never match for one.
- */
 .os-overview-top-bar__tile-glyph {
 	width: 24px;
 	height: 24px;
@@ -497,11 +328,6 @@
 	);
 }
 
-/*
- * The active ring still wins: a tinted tile says which workspace it
- * is, the ring says which one you are on, and the second question is
- * the one overview is open to answer.
- */
 .os-overview-top-bar__tile--tinted.os-overview-top-bar__tile--active {
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 }
@@ -518,20 +344,6 @@
 	text-overflow: ellipsis;
 }
 
-/*
- * The tile, plus whatever hangs off it.
- *
- * A column so the Restore button can sit BELOW the tile rather than
- * over its preview — the preview is the tile's picture of the desk,
- * and a control laid across it covers the one thing the tile is for.
- * `position: relative` stays for the rename / close corner buttons,
- * which are still positioned against the wrapper.
- *
- * The tile keeps its content height (no `flex` on it), so when the
- * list stretches every wrapper to the tallest, a desk with no Restore
- * simply has empty space under its tile instead of a taller tile —
- * every tile box stays the same size and on the same line.
- */
 .os-overview-top-bar__tile-wrapper {
 	position: relative;
 	display: inline-flex;
@@ -539,8 +351,6 @@
 	gap: 6px;
 }
 
-/* Tile corner buttons: edit on the leading edge, close on the
- * trailing one, otherwise identical. */
 .os-overview-top-bar__tile-close,
 .os-overview-top-bar__tile-edit {
 	position: absolute;
@@ -586,26 +396,12 @@
 	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-/*
- * The desk's actions — a column below the tile, separated by the
- * wrapper's gap. Not over the preview: the preview is the tile's
- * picture of the desk, and a bar laid across it covers the one thing
- * the tile is there to show. Not the corners either — edit and close
- * have those — and Restore needs a word, because no glyph says
- * "rebuild this desk".
- *
- * **Restore** is always visible, but only painted on a desk with
- * something to restore, so its absence is information. Once any desk
- * on the bar can restore, every column reserves the row, so every
- * tile box stays on the same line.
- */
 .os-overview-top-bar__tile-actions {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 }
 
-/* One 22px row, once some desk on the bar can restore. */
 .os-overview-top-bar__list--restorable .os-overview-top-bar__tile-actions {
 	min-height: 22px;
 }
@@ -662,13 +458,6 @@
 	color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 }
 
-/*
- * The label while it is being edited. Neutral hairline, not the
- * accent: the active tile already wears an accent ring, and a second
- * one reads as a rendering fault. `outline: none` is safe — the
- * element is only editable while focused, so its treatment IS the
- * focus indicator.
- */
 .os-overview-top-bar__tile-label[contenteditable] {
 	outline: none;
 	cursor: text;
@@ -677,12 +466,6 @@
 	box-shadow: inset 0 0 0 1px rgba( 255, 255, 255, 0.28 );
 }
 
-
-/*
- * Hide the close X when there's only one tile left — the tile
- * list contains both desktop wrappers AND the trailing "+".
- * So "only one desktop" means exactly one wrapper in the list.
- */
 .os-overview-top-bar__list:has(
 		.os-overview-top-bar__tile-wrapper:only-of-type
 	)
@@ -690,37 +473,18 @@
 	display: none;
 }
 
-/*
- * The "+" is the place another desk goes, so it is the size of one.
- * It sits in the same wrapper a desk does, above an empty actions
- * block, which is what keeps the dashed box level with the tiles
- * instead of stretching over the buttons underneath them.
- */
 .os-overview-top-bar__tile--add {
 	width: 60px;
 	background: transparent;
 	border-style: dashed;
 }
 
-/*
- * The slot's own preview band: no gradient and no rule under it, since
- * there is nothing to preview. It keeps the band's height, which is
- * half of what makes the dashed box a tile tall.
- */
 .os-overview-top-bar__tile--add .os-overview-top-bar__tile-preview {
 	background: none;
-	/* Transparent, not removed. The rule is 1px of the tile's height,
-	   and dropping it left the slot a pixel short of its neighbours. */
+
 	border-bottom-color: transparent;
 }
 
-/*
- * The glyph centres in the whole slot, not in the preview band it
- * happens to sit in. The two rows are there to make the box a tile
- * tall; a desk splits them into a picture and a name, and the slot has
- * neither, so its one mark belongs in the middle of the box. Taking it
- * out of flow is what lets the rows still do the measuring.
- */
 .os-overview-top-bar__tile--add .os-overview-top-bar__tile-plus {
 	position: absolute;
 	inset: 0;
@@ -730,13 +494,6 @@
 	background: rgba( 255, 255, 255, 0.08 );
 }
 
-/*
- * Keyboard cursor parked on the "+" tile. Mirrors the visual weight
- * of `--active` (solid accent border + halo) so the user sees at a
- * glance "Enter will land here". The dashed border on the add tile
- * flips to solid when the cursor lands, matching the desktop tiles'
- * solid borders.
- */
 .os-overview-top-bar__tile--add.os-overview-top-bar__tile--cursor {
 	border-style: solid;
 	border-color: var( --wp-admin-theme-color, #2271b1 );

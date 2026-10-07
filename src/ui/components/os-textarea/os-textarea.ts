@@ -1,31 +1,3 @@
-/**
- * `<os-textarea>` — multi-line text input primitive.
- *
- * Sibling of `<os-text-field>`; matches the same event shape
- * (`os-input-change`, `os-input-commit`, `os-submit`) so callers
- * can drop one in for the other inside a form. Adds two affordances
- * single-line text fields don't need:
- *
- *   - **`auto-grow`** — grows the box vertically as the user types,
- *     up to `max-rows`. Used in chat composers to keep the box
- *     compact on short messages but expand on longer ones.
- *   - **`submit-on-enter`** — Enter sends, Shift+Enter inserts a
- *     newline. The chat composer's expected behavior; unset by
- *     default so generic forms keep Enter-as-newline semantics.
- *
- * ```html
- * <os-textarea
- *     label="Message"
- *     placeholder="Type a message…"
- *     rows="3"
- *     auto-grow
- *     max-rows="8"
- *     submit-on-enter
- *     maxlength="4000"
- * ></os-textarea>
- * ```
- */
-
 import {
 	Component,
 	defineComponent,
@@ -173,16 +145,9 @@ export class OsTextarea extends Component {
 		}
 	}
 
-	/**
-	 * Grow the textarea height to fit content, capped at `max-rows`.
-	 * Resets to scroll-height each input then clamps; cheap because
-	 * the browser caches layout.
-	 */
 	private _autosize( ta: HTMLTextAreaElement ): void {
 		const maxRows = Number( this._attr( 'max-rows' ) ) || 8;
-		// Read the line-height from computed styles — works for both
-		// shadow + light DOM. Falls back to 1.45 * font-size for
-		// browsers that report 'normal'.
+
 		const cs = window.getComputedStyle( ta );
 		const fontSize = parseFloat( cs.fontSize ) || 13;
 		const lineHeightRaw = cs.lineHeight;
@@ -197,7 +162,7 @@ export class OsTextarea extends Component {
 
 		ta.style.height = 'auto';
 		ta.style.overflowY = 'hidden';
-		// A wrapping placeholder must not keep an empty composer expanded.
+
 		const contentHeight = ta.value ? ta.scrollHeight + border
 			: lineHeight * ( Number( this._attr( 'rows' ) ) || 3 ) + paddingTop + paddingBottom + border;
 		const next = Math.min( contentHeight, max );
@@ -205,22 +170,18 @@ export class OsTextarea extends Component {
 		ta.style.overflowY = contentHeight > Math.ceil( max ) ? 'auto' : 'hidden';
 	}
 
-	/** Public helper for callers that programmatically set `.value` and want autosize to re-run. */
 	public refreshAutosize(): void {
 		if ( this._textareaEl && this._boolAttr( 'auto-grow' ) ) {
 			this._autosize( this._textareaEl );
 		}
 	}
 
-	/** Imperatively focus the underlying textarea. */
 	public focusInput(): void {
-		// shadow-root or light-root depending on `static shadow`.
 		const root = ( this.shadowRoot ?? this ) as ParentNode;
 		const ta = root.querySelector< HTMLTextAreaElement >( 'textarea' );
 		ta?.focus();
 	}
 
-	/** Imperatively clear the value. */
 	public clear(): void {
 		this.setAttribute( 'value', '' );
 		const root = ( this.shadowRoot ?? this ) as ParentNode;

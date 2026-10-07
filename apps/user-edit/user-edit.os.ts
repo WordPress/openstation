@@ -1,17 +1,3 @@
-/**
- * User Edit — the client view of the profile editor.
- *
- * The body is `<os-user-profile>` on the state's user id — the element
- * the companion bundle `apps/users/profile/` defines — fed this app's
- * facts, REST access and toast as properties from `updated()`. The id
- * comes from the window's open-time params (`mount`), and changes
- * through the `reopen` lifecycle when the live singleton is asked to
- * open on someone else; flipping the attribute re-mounts the profile
- * in place.
- *
- * @public
- */
-
 import { defineApp, html } from '@openstation/app';
 import type { OsUserProfile, ProfileConfig } from '../users/profile/index';
 
@@ -23,7 +9,6 @@ interface Data {
 	userId: number;
 }
 
-/** How long a toast dwells: errors longer, so the reason can be read. */
 const TOAST_MS: Record< string, number | undefined > = { success: 5000, error: 8000, info: undefined };
 
 export default defineApp< State, Data >( 'desktop-mode-user-edit', {

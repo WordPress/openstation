@@ -1,20 +1,5 @@
 <?php
-/**
- * Durable agent job regression tests.
- *
- * @package OpenStation
- * @group openstation
- * @group os-agents
- * @covers ::openstation_agents_rest_enqueue_job
- * @covers ::openstation_agents_rest_job
- * @covers ::openstation_agent_job_run
- * @covers ::openstation_agent_job_status
- * @covers ::openstation_agent_job_insert
- * @covers ::openstation_agent_job_release
- * @covers ::openstation_agent_job_finish
- * @covers ::openstation_agent_job_cleanup
- * @covers ::openstation_agents_register_job_routes
- */
+
 class Tests_OpenStation_AgentsJobs extends WP_UnitTestCase {
 	private $owner;
 	private $agent;

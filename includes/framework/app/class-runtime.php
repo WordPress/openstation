@@ -1,84 +1,33 @@
 <?php
-/**
- * OpenStation App Framework — dispatch runtime.
- *
- * The whole request cycle of a window, host-agnostic:
- *
- *     request  { action, state, args, client }
- *       → rebuild State from the app's declared defaults
- *       → run the action (or `mount` / the built-in `set`)
- *       → render the view
- *     response { state, html, effects }
- *
- * The host (a REST route on WordPress, anything on a bare PHP host)
- * only has to move those two arrays over the wire. A failure comes
- * back as `array( 'ok' => false, 'error' => <code>, 'status' => <http> )`
- * with an English `message` the host may translate.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\App;
 
 use OpenStation\App;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/**
- * Runs dispatches against the registry.
- */
 final class Runtime {
 
-	/** First render of a window. Runs the app's `mount` hook, if any. */
 	const ACTION_MOUNT = 'mount';
 
-	/**
-	 * The reopen lifecycle action — an open window asked to open
-	 * again, from a URL naming another of its tabs.
-	 */
 	const ACTION_REOPEN = 'reopen';
 
-	/** Built-in: the client changed a bound key; nothing to run, just re-render. */
 	const ACTION_SET = 'set';
 
-	/**
-	 * Built-in: recompute `data()` and re-render, nothing else. Both
-	 * first apps declared an empty action just to get this; declaring
-	 * a `refresh` handler still works and wins, for the app that also
-	 * wants to reset something on the way.
-	 */
 	const ACTION_REFRESH = 'refresh';
 
-	/**
-	 * @var Registry
-	 */
 	private $registry;
 
 	public function __construct( Registry $registry ) {
 		$this->registry = $registry;
 	}
 
-	/**
-	 * The registry this runtime dispatches into.
-	 *
-	 * @return Registry
-	 */
 	public function registry() {
 		return $this->registry;
 	}
 
-	/**
-	 * Run one dispatch.
-	 *
-	 * @param string              $app_id  App id.
-	 * @param array<string,mixed> $request `action` (string), `state` (array), `args` (array), `client` (array).
-	 * @param Os                  $os      Host handle for the acting user.
-	 * @return array<string,mixed> `ok`, then `state` / `html` / `effects` on success or
-	 *                             `error` / `message` / `status` on failure.
-	 */
 	public function dispatch( $app_id, array $request, Os $os ) {
 		$app = $this->registry->get( $app_id );
 		if ( ! $app ) {
@@ -108,10 +57,6 @@ final class Runtime {
 			$view
 		);
 
-		// A window that declares a menu lands on the tab the opener
-		// asked for — the dock row that was picked — on the first
-		// render and again whenever it is reopened from another row.
-		// Generic, so no app has to remember to wire it.
 		if ( self::ACTION_MOUNT === $action || self::ACTION_REOPEN === $action ) {
 			self::apply_menu_tab( $app, $state, $os );
 		}
@@ -120,18 +65,15 @@ final class Runtime {
 			if ( self::ACTION_MOUNT === $action ) {
 				$app->run_mount( $state, $os );
 			} elseif ( self::ACTION_REOPEN === $action && ! $app->has_action( $action ) ) {
-				// The tab above WAS the reopen. An app that wants more
-				// declares the action and gets it as well.
+
 				$state->get( 'tab' );
 			} elseif ( self::ACTION_SET === $action ) {
-				// State already carries the bound value.
+
 				$app->run_action( self::ACTION_SET, $state, $os, $args, false );
 			} elseif ( $app->has_action( $action ) ) {
 				$app->run_action( $action, $state, $os, $args );
 			} elseif ( self::ACTION_REFRESH !== $action ) {
-				// A bare `refresh` (no declared handler) falls through on
-				// purpose: recomputing `data()` below IS the action, and
-				// declaring an empty handler to get it is boilerplate.
+
 				return self::failure( 'unknown_action', sprintf( 'Unknown action "%s".', $action ), 400 );
 			}
 
@@ -151,29 +93,11 @@ final class Runtime {
 			$response['data'] = $data;
 		}
 
-		/**
-		 * Filter a dispatch response before it leaves the runtime.
-		 *
-		 * @param array<string,mixed> $response `ok`, `state`, `html`, `effects`.
-		 * @param string              $app_id   App id.
-		 * @param string              $action   Action that ran.
-		 * @param State               $state    Final state.
-		 */
 		$filtered = $os->filter( 'openstation_app_response', $response, $app->id(), $action, $state );
 
 		return is_array( $filtered ) ? $filtered : $response;
 	}
 
-	/**
-	 * Render an app straight from a state array — no action, no
-	 * request cycle. What a host calls to get "the whole window" as
-	 * a value: the manifest plus the body it would paint.
-	 *
-	 * @param string              $app_id App id.
-	 * @param array<string,mixed> $state  State values (partial; defaults fill the rest).
-	 * @param Os                  $os     Host handle.
-	 * @return array<string,mixed> `manifest`, `state`, `html`, `effects` — or a failure array.
-	 */
 	public function describe( $app_id, array $state, Os $os ) {
 		$app = $this->registry->get( $app_id );
 		if ( ! $app ) {
@@ -207,21 +131,6 @@ final class Runtime {
 		);
 	}
 
-	/**
-	 * Land on the tab the opener named.
-	 *
-	 * The dock's rows for a window that declares a menu carry
-	 * `os_tab=<id>`, which the shell passes as the window's `tab`
-	 * open-time param. An id the window does not have is ignored
-	 * rather than corrected: the value comes from a URL, and a
-	 * window landing somewhere unexpected is worse than one landing
-	 * where it always does.
-	 *
-	 * @param App   $app   The app.
-	 * @param State $state State to write to.
-	 * @param Os    $os    Host handle, carrying the params.
-	 * @return void
-	 */
 	private static function apply_menu_tab( App $app, State $state, Os $os ) {
 		$tabs = $app->menu_tabs();
 		if ( ! $tabs ) {
@@ -239,14 +148,6 @@ final class Runtime {
 		}
 	}
 
-	/**
-	 * Shape a failure.
-	 *
-	 * @param string $code    Machine code.
-	 * @param string $message English message.
-	 * @param int    $status  HTTP status the host should use.
-	 * @return array<string,mixed>
-	 */
 	private static function failure( $code, $message, $status ) {
 		return array(
 			'ok'      => false,

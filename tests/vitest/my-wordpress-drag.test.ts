@@ -1,26 +1,3 @@
-/**
- * Regression test for the My WordPress entity-tile drag-out flow.
- *
- * The user-reported bug: "Posts & Pages tiles inside My WordPress are
- * forbidden — I can lift the tile but no drop target accepts it."
- *
- * Root cause was in `attachTileDrag` (since deleted) which called
- * `setPointerCapture` on a tile that was also `draggable=true`. Pointer
- * capture redirected pointer events to the tile, which prevented the
- * browser from firing `dragstart` — so the HTML5 drag never started,
- * the payload was never set on `DataTransfer`, and no drop target ever
- * saw it.
- *
- * The fix: pointerdown on the tile starts a DragManager session with
- * a `'shortcut'` payload. The manager owns the gesture; the
- * wallpaper's drop target accepts the payload and POSTs a placement.
- *
- * This test wires the same shape my-wordpress now uses (pointerdown
- * → dragManager.start) and verifies the drop target receives a typed
- * shortcut payload after a super-threshold gesture. It does NOT load
- * the full my-wordpress module — that would require the entire shell
- * boot. It tests the contract.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { DragManager } from '../../src/drag/manager';
@@ -57,11 +34,6 @@ function installElementFromPointStub( regions: Array< { el: Element; rect: { x: 
 	};
 }
 
-/**
- * Replicates the exact pointerdown handler the WP Explorer app wires
- * onto each post / page tile (`apps/my-wordpress/parts/wire.ts`). If
- * this test passes, the pattern in production is sound.
- */
 function attachMyWordpressEntityDrag(
 	tile: HTMLElement,
 	postId: number,
@@ -105,7 +77,6 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 	test( 'super-threshold drag fires onDrop on the wallpaper with a shortcut payload', () => {
 		const manager = new DragManager();
 
-		// Tile sits inside the (faked) My WordPress window.
 		const myWordpressWindow = document.createElement( 'div' );
 		myWordpressWindow.classList.add( 'os-window' );
 		const tile = document.createElement( 'div' );
@@ -113,7 +84,6 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		myWordpressWindow.appendChild( tile );
 		document.body.appendChild( myWordpressWindow );
 
-		// Wallpaper canvas is registered as a drop target.
 		const wallpaper = document.createElement( 'div' );
 		wallpaper.id = 'os-area';
 		document.body.appendChild( wallpaper );
@@ -128,8 +98,6 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 
 		attachMyWordpressEntityDrag( tile, 42, 'Hello World', manager );
 
-		// At pointer (50, 50) the cursor is over the tile (inside the
-		// window). At (500, 500) it's over the wallpaper.
 		installElementFromPointStub( [
 			{ el: tile, rect: { x: 0, y: 0, w: 100, h: 100 } },
 			{ el: myWordpressWindow, rect: { x: 0, y: 0, w: 200, h: 200 } },
@@ -137,13 +105,12 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		] );
 
 		tile.dispatchEvent( pointerEvent( 'pointerdown', 50, 50, tile ) );
-		// Cross threshold while still over the My WordPress window —
-		// the window claim boundary should reject (no onEnter/onDrop).
+
 		document.dispatchEvent( pointerEvent( 'pointermove', 80, 50 ) );
 		expect( onDrop ).not.toHaveBeenCalled();
-		// Move out over the wallpaper canvas.
+
 		document.dispatchEvent( pointerEvent( 'pointermove', 500, 500 ) );
-		// Release on wallpaper.
+
 		document.dispatchEvent( pointerEvent( 'pointerup', 500, 500 ) );
 
 		expect( onDrop ).toHaveBeenCalledTimes( 1 );
@@ -171,25 +138,16 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		installElementFromPointStub( [ { el: wallpaper, rect: { x: 0, y: 0, w: 1000, h: 1000 } } ] );
 
 		tile.dispatchEvent( pointerEvent( 'pointerdown', 50, 50, tile ) );
-		document.dispatchEvent( pointerEvent( 'pointermove', 51, 50 ) ); // sub-threshold
+		document.dispatchEvent( pointerEvent( 'pointermove', 51, 50 ) );
 		document.dispatchEvent( pointerEvent( 'pointerup', 51, 50 ) );
 
 		expect( onDrop ).not.toHaveBeenCalled();
 	} );
 
 	test( 'reject-claimant on the window body flips the hint chip to "Can\'t drop here"', () => {
-		// Regression: the user reported "we can't drop anything into
-		// MY WordPress app …" — and then "show the label CANT DROP
-		// HERE as we show in other cases." This proves the
-		// `accept: () => false` claimant on the window body is found
-		// by the registry's walk-up, drives the ghost into reject
-		// mode, and surfaces the hint chip with the framework's
-		// default reject label.
+
 		const manager = new DragManager();
 
-		// Faked My WordPress window: outer `.os-window`
-		// wraps a `.os-window__body` (the element our render
-		// callback receives). The claimant registers on the body.
 		const myWordpressWindow = document.createElement( 'div' );
 		myWordpressWindow.classList.add( 'os-window' );
 		const bodyEl = document.createElement( 'div' );
@@ -197,9 +155,6 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		myWordpressWindow.appendChild( bodyEl );
 		document.body.appendChild( myWordpressWindow );
 
-		// Mirror exactly what the app's drop-target wiring does
-		// (`apps/my-wordpress/parts/wire.ts`) — the only thing that
-		// matters for the chip text contract.
 		manager.registerDropTarget( {
 			id: 'os-my-wordpress-reject',
 			element: bodyEl,
@@ -207,14 +162,9 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 			onDrop: () => {},
 		} );
 
-		// Source tile lives outside the window — typical scenario is a
-		// desktop tile dragged onto My WordPress.
 		const tile = document.createElement( 'div' );
 		document.body.appendChild( tile );
 
-		// Drag a desktop-file payload past the threshold. We DON'T
-		// need a successful drop — what we're asserting is the hover
-		// state mid-drag.
 		manager.start( {
 			payload: {
 				type: 'desktop-file',
@@ -232,8 +182,6 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 			{ el: bodyEl, rect: { x: 0, y: 0, w: 500, h: 500 } },
 		] );
 
-		// Cross the lift threshold + hover the body — `_updateHover`
-		// runs against the claimant and should flip the ghost.
 		document.dispatchEvent( pointerEvent( 'pointermove', 200, 200 ) );
 
 		const hint = document.querySelector( '.os-drag-hint' );

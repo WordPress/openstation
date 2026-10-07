@@ -1,11 +1,3 @@
-/**
- * `<os-chip>` — shadow-DOM styles. The chip is a single inline-flex
- * pill with optional leading icon and trailing dismiss button. Tones
- * are switched via the `tone` host attribute; every paintable
- * property reads from a CSS custom property first so callers can
- * theme one chip, a row of chips (`os-chip-row > os-chip`), or
- * the global default.
- */
 import { css } from '../../core';
 import { holoTokens } from '../../holo';
 
@@ -43,7 +35,6 @@ export const styles = css`
 			opacity 0.12s ease;
 	}
 
-	/* Tones — same surface as <os-badge> for consistency. */
 	:host( [ tone='accent' ] ) .os-chip {
 		background: var(
 			--os-ui-chip-bg,
@@ -64,9 +55,6 @@ export const styles = css`
 		color: var( --os-ui-chip-fg, var( --os-ui-danger-hover, #a02622 ) );
 	}
 
-	/* Pending shimmer — used by os-tag-input while a REST mutation
-	 * is in flight. Subtle pulse so the user sees "this chip isn't
-	 * settled yet" without alarming animation. */
 	:host( [ pending ] ) .os-chip {
 		opacity: 0.65;
 		animation: os-chip-pulse 1.2s ease-in-out infinite;
@@ -124,10 +112,7 @@ export const styles = css`
 		opacity: 0.35;
 		cursor: not-allowed;
 	}
-	/* 14, not the button's own 16. Core's cross carries about 63% of
-	   its 24 grid in ink, so a box-filling glyph in a 16px button lands
-	   heavier than the 14px label beside it. Two pixels back and the
-	   cross reads as the label's peer rather than as its loudest part. */
+
 	.os-chip__dismiss svg {
 		display: block;
 		width: 14px;
@@ -139,29 +124,11 @@ export const styles = css`
 		cursor: not-allowed;
 	}
 
-	/* Compact density — half the horizontal padding. Used in dense
-	 * lists like the posts-window Tags column. */
 	:host( [ size='compact' ] ) .os-chip {
 		padding: var( --os-ui-chip-padding, 1px 6px );
 		font-size: var( --os-ui-chip-font-size, 11px );
 	}
 
-	/*
-	 * The holographic hairline, and ONLY on a selected chip.
-	 *
-	 * Chips arrive in rows of eight and twelve — a tag column, a
-	 * filter bar, a category picker — so the treatment here has to be
-	 * the one that costs nothing when repeated. An edge on the one
-	 * chip the user has chosen reads instantly in a row of otherwise
-	 * flat pills; an edge on all of them reads as noise.
-	 *
-	 * Drawn on a mask-composited ::after rather than a border, because
-	 * border-color takes a colour and this is a gradient. Same
-	 * technique as .os-holo-edge; written out here because the chip's
-	 * frame belongs to .os-chip, an inner element rather than the
-	 * host, and the shared class hangs its ring on whatever carries
-	 * the class.
-	 */
 	:host( [ selected ] ) .os-chip {
 		position: relative;
 		background: var( --os-ui-chip-bg, var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.14 ) ) );

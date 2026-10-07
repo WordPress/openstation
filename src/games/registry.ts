@@ -1,18 +1,3 @@
-/**
- * OpenStation — Games registry.
- *
- * Owns the in-memory list of registered games and applies the
- * `os.games` filter on every read, mirroring the wallpaper
- * registry it is modeled on.
- *
- * Cross-bundle by construction: the Games hub window ships in its
- * own Vite IIFE bundle (`games[.min].js`) while server-sync runs in
- * the main shell bundle, so the seed list AND the subscriber set
- * live in a `createSharedStore` record — both bundles mutate the
- * same arrays. See AGENTS.md ("Cross-bundle state") for why a plain
- * module-level array would silently split into per-bundle copies.
- */
-
 import { applyFilters, HOOKS } from '../hooks';
 import {
 	collectRegistrationErrors,
@@ -38,15 +23,6 @@ const store = createSharedStore< GamesRegistryStore >(
 const seed = store.state.seed;
 const listeners = store.state.listeners;
 
-/**
- * Register (or replace) a game entry. Stubs — entries without a
- * `render` callback but with a `scriptUrl` to load one from — are
- * legal; the launcher upgrades them on first launch.
- *
- * Late registrations win for a repeated id, matching WP's
- * `register_*` semantics — this is also the stub→full-def upgrade
- * path.
- */
 export function register( entry: GameRegistryEntry ): void {
 	throwOnRegistrationErrors(
 		'Game',
@@ -62,7 +38,6 @@ export function register( entry: GameRegistryEntry ): void {
 	notify();
 }
 
-/** Remove a game by id. */
 export function unregister( id: string ): void {
 	const idx = seed.findIndex( ( g ) => g.id === id );
 	if ( idx >= 0 ) {
@@ -71,10 +46,6 @@ export function unregister( id: string ): void {
 	}
 }
 
-/**
- * Subscribe to registry changes (register/unregister/stub upgrade).
- * Returns an unsubscribe function.
- */
 export function subscribe( cb: RegistryListener ): () => void {
 	listeners.add( cb );
 	return () => {
@@ -98,11 +69,6 @@ function notify(): void {
 	}
 }
 
-/**
- * The current game list with the `os.games` filter
- * applied. The seed array is copied so filter callbacks can safely
- * mutate their input.
- */
 export function all(): GameRegistryEntry[] {
 	const copy = seed.slice();
 	const filtered = applyFilters< GameRegistryEntry[] >( HOOKS.GAMES, copy );
@@ -118,17 +84,10 @@ export function all(): GameRegistryEntry[] {
 	return filtered.filter( isValidEntry );
 }
 
-/** Look up a game by id, post-filter. */
 export function get( id: string ): GameRegistryEntry | undefined {
 	return all().find( ( g ) => g.id === id );
 }
 
-/**
- * Minimum-viable validation. A registry entry needs the metadata
- * the launcher/scoreboard paint from, plus at least one way to
- * eventually render: a `render` callback or a `scriptUrl` to load
- * one from.
- */
 const GAME_CHECKS = [
 	{
 		field: 'id',

@@ -1,27 +1,7 @@
 <?php
-/**
- * OpenStation — Pinned notes Heartbeat sync.
- *
- * Delta model: the client subscribes with the note ids it already
- * renders plus a high-water modified timestamp; the server responds
- * with notes changed since then and with removals (trashed, deleted,
- * or made private by their owner).
- *
- * Visibility mirrors the REST list: the viewer's own notes (private +
- * publish) plus every other user's public notes.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Add pinned-note deltas to the Heartbeat response.
- *
- * @param array $response Pre-filtered response.
- * @param array $data     Client-sent payload.
- * @return array
- */
 function openstation_notes_heartbeat_received( $response, $data ) {
 	if ( ! is_array( $response ) ) {
 		$response = array();
@@ -46,14 +26,6 @@ function openstation_notes_heartbeat_received( $response, $data ) {
 }
 add_filter( 'heartbeat_received', 'openstation_notes_heartbeat_received', 5, 2 );
 
-/**
- * Compute pinned-note Heartbeat deltas for the current user.
- *
- * @param int[] $known_ids Note ids currently rendered by the client.
- * @param int   $since_ms  Last-seen modified timestamp in milliseconds.
- * @param int   $cap       Maximum notes to send in one tick.
- * @return array
- */
 function openstation_notes_compute_heartbeat_delta( $known_ids, $since_ms, $cap ) {
 	$cap       = max( 1, (int) $cap );
 	$query_ids = openstation_notes_query_changed_ids( $since_ms, $cap + 1 );
@@ -81,16 +53,6 @@ function openstation_notes_compute_heartbeat_delta( $known_ids, $since_ms, $cap 
 	);
 }
 
-/**
- * The `WP_Query` visibility clause shared by the delta queries: the
- * viewer's own notes in any live status, or anyone's public notes.
- *
- * Expressed as two queries merged in PHP (like the REST list) rather
- * than a hand-built OR — keeps every callsite on standard WP_Query.
- *
- * @param array $extra Extra WP_Query args merged into both halves.
- * @return int[] Matching post ids, own notes first.
- */
 function openstation_notes_query_visible_ids( $extra ) {
 	$user_id = get_current_user_id();
 	$base    = array(
@@ -127,13 +89,6 @@ function openstation_notes_query_visible_ids( $extra ) {
 	return array_values( array_unique( $ids ) );
 }
 
-/**
- * Query visible note ids modified since the client's high-water mark.
- *
- * @param int $since_ms Last-seen modified timestamp in milliseconds.
- * @param int $limit    Max ids to return (per visibility half).
- * @return int[]
- */
 function openstation_notes_query_changed_ids( $since_ms, $limit ) {
 	$extra = array(
 		'posts_per_page' => max( 1, (int) $limit ),
@@ -152,12 +107,6 @@ function openstation_notes_query_changed_ids( $since_ms, $limit ) {
 	return openstation_notes_query_visible_ids( $extra );
 }
 
-/**
- * Return the subset of known ids still visible to the viewer.
- *
- * @param int[] $known_ids Client-known note ids.
- * @return int[]
- */
 function openstation_notes_alive_known_ids( $known_ids ) {
 	$known_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $known_ids ) ) ) );
 	if ( empty( $known_ids ) ) {

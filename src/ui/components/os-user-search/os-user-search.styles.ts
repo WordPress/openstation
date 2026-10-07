@@ -27,9 +27,7 @@ export const userSearchStyles = css`
 	}
 
 	.dropdown {
-		/* Inline style sets position: fixed + coords so the panel
-		   escapes any overflow:auto ancestor (e.g. a modal body).
-		   These rules cover the visual basics. */
+
 		background: var( --os-bg, #1d2327 );
 		color: var( --os-fg, #fff );
 		border: 1px solid var( --os-ui-border, rgba( 255, 255, 255, 0.18 ) );
@@ -39,8 +37,6 @@ export const userSearchStyles = css`
 		box-shadow: 0 12px 32px rgba( 0, 0, 0, 0.5 );
 	}
 
-	/* Dark popover surface — the lifted red, same reasoning as the
-	   danger option in os-context-menu. */
 	.empty.error {
 		color: var( --os-ui-danger-hover, #ff8080 );
 	}

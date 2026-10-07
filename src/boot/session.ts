@@ -1,17 +1,3 @@
-/**
- * Boot-time session helpers.
- *
- * Owns the two session-bootstrap operations the shell runs at the
- * end of `init()`: rebuild every window from the saved session,
- * or — if there's no session — open the page the user navigated
- * to. Both functions are pure with respect to module state: every
- * dependency comes through arguments so they're directly
- * testable in isolation.
- *
- * Extracted from `src/desktop.ts` during the architecture-0.8.1
- * boot decomposition (phase 5).
- */
-
 import { tryNativeUrlRemap } from '../native-url-remap';
 import { isShellDocumentUrl } from '../shell-url';
 import { deriveWindowId } from '../utils';
@@ -27,12 +13,6 @@ import { workAreaRectOf } from '../work-area';
 import type { Window } from '../window';
 import type { DesktopConfig, Session, SessionWindow, WindowConfig } from '../types';
 
-/**
- * The geometry a saved window restores at: its pixels clamped to the
- * viewport, and its state. Not applied to an `unplaced` window (one
- * the phone opened, whose pixels are phone defaults): that one is
- * left to the manager, which places it as it would a fresh open.
- */
 function placedGeometry(
 	win: SessionWindow,
 	rect: Parameters< typeof clampGeometryToViewport >[ 1 ],
@@ -47,15 +27,6 @@ function placedGeometry(
 	};
 }
 
-/**
- * Whether the saved payload carries meaningful shell state to restore.
- *
- * A session can be worth restoring even when it has no windows: virtual
- * desktops live in the same payload, and pinned notes / desktop files can
- * make an otherwise empty workspace meaningful. The server always sends a
- * default one-desktop shape, so keep that as "empty" until the user has
- * actually saved a customized desktop registry.
- */
 export function hasRestorableSession(
 	session: Session | undefined,
 ): boolean {
@@ -83,37 +54,12 @@ export function hasRestorableSession(
 	return !! session.activeDesktop && session.activeDesktop !== 'desktop-1';
 }
 
-/**
- * Reopen a native window from its saved instance identity. Supplied by
- * `desktop.ts`, which owns the dispatch: shell built-ins (OS Settings,
- * Bug Report) have their own openers, everything else routes through
- * the native-window registry using the stable base id.
- *
- * Returns `false` when nothing answers to that id — a plugin
- * deactivated since the session was saved. The restore skips those
- * silently; a missing plugin isn't an error worth surfacing at boot.
- */
 export type OpenNativeWindow = (
 	instanceId: string,
 	baseId?: string,
 	state?: NativeWindowRestoreState,
 ) => boolean;
 
-/**
- * Wait for a window to appear in the manager, for openers that don't
- * hand back the `Window` they create.
- *
- * The native openers are fire-and-forget (`void manager.open( … )`),
- * so restore has no promise to await between windows. Without a
- * barrier the opens race: stacking order scrambles, and the
- * focused-window restore at the end can run before its target
- * exists. Listening for the lifecycle event the manager already
- * dispatches keeps the sequence deterministic without changing every
- * opener's signature.
- *
- * Resolves `null` on timeout rather than rejecting — one window that
- * never materialises must not abort the rest of the restore.
- */
 function waitForWindow(
 	manager: WindowManager,
 	id: string,
@@ -142,40 +88,14 @@ function waitForWindow(
 	} );
 }
 
-/**
- * Restores windows from a saved session into the manager.
- *
- * Each window's geometry is clamped to fit the current desktop
- * area before construction — so a layout captured on an ultrawide
- * display lands sanely on a laptop. Stacking order follows the
- * session order (earliest-opened first, focused id brought to the
- * top at the end).
- *
- * Two kinds of window come back by two different routes. Plain admin
- * windows are reconstructed from their saved URL. Native windows
- * (`native: true` — OS Settings, Bug Report, anything registered via
- * `openstation_register_window()`) have no URL to iframe: they're
- * reopened by asking their owner through `openNative`. The stable
- * `baseId` selects the registered definition while the saved instance
- * id and restore-time state are passed separately, so duplicate native
- * instances return under the same identities they were saved with.
- */
 export async function restoreSession(
 	manager: WindowManager,
 	config: DesktopConfig,
 	desktopArea: HTMLElement,
 	openNative?: OpenNativeWindow,
 ): Promise< void > {
-	// The work area, so a window saved with its bottom edge under the
-	// dock pill on the last session is pulled back above it.
 	const rect = workAreaRectOf( desktopArea );
 
-	// Seed desktops + active id BEFORE recreating windows. Windows
-	// pass `desktopId` from the session through to their config; the
-	// manager honours that exactly as long as the desktop already
-	// exists in the registry, otherwise it falls back to the active
-	// desktop. Establishing the registry first preserves the user's
-	// per-desktop window grouping across reloads.
 	if (
 		Array.isArray( config.session.desktops ) &&
 		config.session.desktops.length > 0
@@ -186,10 +106,6 @@ export async function restoreSession(
 		);
 	}
 
-	// Reserve every saved native instance id before restoring in session
-	// order. Native windows can wait on lazy framework and app bundles;
-	// the reservations prevent a user opening another copy during that
-	// wait from claiming an id the session is about to use.
 	const nativeSeeds: Record< string, NativeWindowRestoreState > = {};
 	for ( const win of config.session.windows ) {
 		if ( ! win.native ) {
@@ -197,19 +113,11 @@ export async function restoreSession(
 		}
 		nativeSeeds[ win.id ] = {
 			desktopId: win.desktopId,
-			// A window the phone opened has no desktop geometry to
-			// restore (`unplaced`): leave it to the manager's own
-			// placement, as a fresh open would.
+
 			...( win.unplaced ? {} : placedGeometry( win, rect ) ),
-			// What the window was showing, not just which window it
-			// was. A native window is addressed by id, so without this
-			// a singleton that retargets (the profile editor, the
-			// customer window) reopens on its default and reads as
-			// having silently changed subject.
+
 			...( win.params ? { params: win.params } : {} ),
-			// Its cells, when it was grid-snapped: the manager derives
-			// the geometry from the live work area rather than from
-			// the clamped pixels above.
+
 			...( win.gridSpan ? { gridSpan: win.gridSpan } : {} ),
 		};
 	}
@@ -218,14 +126,7 @@ export async function restoreSession(
 	}
 
 	for ( const win of config.session.windows ) {
-		// Native windows come back through their owner, not through a
-		// URL. `openNative` returns false when nothing answers to the
-		// id — a plugin deactivated since the session was saved — in
-		// which case there's simply no window to restore.
 		if ( win.native ) {
-			// Release this id immediately before its synchronous opener
-			// claims it as in-flight. The state itself is passed directly;
-			// nothing remains that a later fresh open could consume.
 			manager.discardWindowRestoreState( win.id );
 			if (
 				! openNative?.(
@@ -236,79 +137,38 @@ export async function restoreSession(
 			) {
 				continue;
 			}
-			// Barrier: the openers are fire-and-forget, so without this
-			// the remaining windows race them and the stacking order
-			// the session captured is lost.
+
 			await waitForWindow( manager, win.id );
 			continue;
 		}
 
-		// A saved window pointing at the shell screen cannot be made by
-		// the shell, but a session is user data; restoring it would
-		// boot a desktop inside a window.
 		if ( isShellDocumentUrl( win.url, config.adminUrl ) ) {
 			continue;
 		}
 
-		// Resolve the owning dock entry from the CURRENT URL first —
-		// a window navigated onto another menu's page belongs to that
-		// menu now. When the URL matches nothing (an off-menu
-		// onboarding redirect like MailPoet's landing page), fall
-		// back to the window's open-time identity: `baseId` was
-		// derived from the URL the window was opened with, so it
-		// still names the dock entry — and its submenu tab strip —
-		// the window came from.
 		const dockEntry =
 			findDockEntryForUrl( win.url, config ) ??
 			findDockEntryForWindowId( win.baseId || win.id, config );
 
-		// `openNew`, not `open`. Restore means "recreate exactly this
-		// set of windows", and `open()` is the wrong verb for that: it
-		// matches on baseId, so a session holding two instances of one
-		// page (`edit-php` + `edit-php-2`, both baseId `edit-php`)
-		// collapsed on reload — the second call found the first
-		// instance, focused it, and returned it, so only one window
-		// came back. Worse, when the two had been navigated apart the
-		// URL-reuse check then dragged the survivor to the SECOND
-		// window's URL, losing the first page as well. `openNew`
-		// always constructs, and honours the saved instance id
-		// verbatim (see the note on `WindowManager.openNew`).
 		const opened = await manager.openNew( {
 			id: win.id,
 			baseId: win.baseId || win.id,
 			desktopId: win.desktopId,
 			multi: !! dockEntry?.multi,
 			url: win.url,
-			// `dockEntry?.url` is the parent menu's landing page —
-			// recover it so the synthetic "back to parent" tab in
-			// the in-window strip points at the dock URL even when
-			// the saved `win.url` is a sub-page (e.g. theme-install.php
-			// under Appearance, or a deep wc-admin route under
-			// WooCommerce). Without this the dedup check in
-			// `dom.ts` sees the iframe URL match a submenu entry
-			// and suppresses the parent tab — losing the only
-			// affordance to navigate back.
+
 			parentUrl: dockEntry?.url ?? win.url,
-			// The menu's name for the page, in the CURRENT admin
-			// language; the saved title is in whichever language the
-			// window was opened in. Only a URL the menu does not list
-			// keeps what was saved, see `findDockTitleForUrl`.
+
 			title: findDockTitleForUrl( win.url, config ) ?? win.title,
 			icon: win.icon || 'dashicons-admin-generic',
-			// See the native seeds above: an `unplaced` window is
-			// placed by the manager, not by the phone's pixels.
+
 			...( win.unplaced ? {} : placedGeometry( win, rect ) ),
 			submenu: dockEntry?.submenu,
 			selfLabel: dockEntry?.selfLabel,
-			// Cells outrank the clamped pixels — see `gridSpan` on
-			// `WindowConfig`.
+
 			...( win.gridSpan ? { gridSpan: win.gridSpan } : {} ),
 		} );
 
-		// Rehydrate any external sub-tabs the user had open on this
-		// window at save time. Each becomes a fresh closeable tab
-		// with its own iframe, ordered left-to-right in the order
-		// they were added originally.
 		if ( Array.isArray( win.externalTabs ) ) {
 			for ( const ext of win.externalTabs ) {
 				if ( ext && typeof ext.url === 'string' && ext.url !== '' ) {
@@ -323,18 +183,8 @@ export async function restoreSession(
 		}
 	}
 
-	// Every saved native id has either been claimed or skipped. Clear
-	// anything left by a missing opener before a later user action can
-	// reuse that generated id.
 	manager.discardWindowRestoreState();
 
-	// Restore focus to whichever window the user left focused. If
-	// that id is no longer around (e.g., the saved focus pointed at
-	// a window we failed to reconstruct), `getById` returns
-	// undefined and we leave the default — topmost-of-stack — focus
-	// in place. The same goes for a saved focus on another desktop
-	// (the user left an empty desk active): focusing it would switch
-	// desktops and override the restored active one.
 	if ( config.session.focused ) {
 		const focused = manager.getById( config.session.focused );
 		const activeDesktopId = manager.getActiveDesktopId();
@@ -347,22 +197,10 @@ export async function restoreSession(
 	}
 }
 
-/**
- * Opens the current admin page in a fresh window — the "no saved
- * session" path.
- *
- * Honours the native URL-remap registry so a portal deep-link to a
- * page with a registered native replacement (Posts → `edit.php`,
- * etc.) opens the native window when the user has opted in. Falls
- * through to the standard iframe path on no-match.
- */
 export async function openCurrentPage(
 	manager: WindowManager,
 	config: DesktopConfig,
 ): Promise< void > {
-	// The server never hands the shell screen back as `currentPage`,
-	// but a filtered config could; a desktop inside a window is the
-	// one thing this must never build.
 	if ( isShellDocumentUrl( config.currentPage, config.adminUrl ) ) {
 		return;
 	}
@@ -379,11 +217,7 @@ export async function openCurrentPage(
 		multi: !! dockEntry?.multi,
 		url: config.currentPage,
 		parentUrl: dockEntry?.url ?? config.currentPage,
-		// The shell screen has no host page to take a title from, so
-		// the server names the dock entry for the page instead and
-		// leaves it empty when nothing matches; the owning dock entry
-		// is the next best first paint, and the iframe reports its own
-		// title once it lands.
+
 		title: config.currentTitle || dockEntry?.title || '',
 		icon: config.currentIcon,
 		submenu: dockEntry?.submenu,

@@ -1,9 +1,3 @@
-/**
- * Drafts widget styles. The card chrome (glass, padding) comes from the
- * widget layer; these rules lay out the header + the list of drafts.
- * Built into assets/js/widget-drafts[.min].css by the Vite target.
- */
-
 .dm-drafts__header {
 	display: flex;
 	align-items: center;
@@ -75,25 +69,6 @@
 	text-decoration: none;
 }
 
-/*
- * Colour and focus ring, restated with the element in the selector.
- *
- * wp-admin repaints every `<a>` on interaction: `a:hover, a:active`
- * to #135e96 and `a:focus` to #043959, plus a hairline ring and a 2px
- * radius. Those selectors out-specify a plain
- * `.dm-drafts__link { color: inherit }`, so the row a user had just
- * clicked went dark navy on dark glass, about 1.5:1 against the card
- * it sits on. The one draft they could no longer read was the one
- * they were working on. Leading `a.` out-specifies core in turn, and
- * every interactive state is named so none of them can leak back.
- *
- * The ring is ours for the same reason the text is. Core's is the
- * neat accent on a 2px radius: it neither follows the row's 8px
- * corner nor holds contrast on a card that can be arbitrarily light
- * or dark, since the widget is glass over the wallpaper.
- * `--dm-drafts-accent` (defined further down) is the accent already
- * mixed toward `currentColor` for exactly that reason.
- */
 a.dm-drafts__link,
 a.dm-drafts__link:hover,
 a.dm-drafts__link:focus,
@@ -103,17 +78,6 @@ a.dm-drafts__link:visited {
 	border-radius: 8px;
 }
 
-/*
- * Press feedback.
- *
- * Core's was a colour swap (`a:active` to #135e96), and it went out
- * with the rest of the leak above, which left a press saying nothing
- * at all. The shell answers a press with a scale rather than a hue:
- * `.os-constellation__row`, a row of this same shape, uses the same
- * 0.985. It costs no colour, which is what a card sitting on an
- * arbitrary wallpaper can least afford to spend, and unlike a hover
- * fill it works under a finger as well as a pointer.
- */
 a.dm-drafts__link:active {
 	transform: scale( 0.985 );
 }
@@ -124,21 +88,11 @@ a.dm-drafts__link:focus-visible {
 	box-shadow: none;
 }
 
-/* Core rings on `:focus`, not `:focus-visible`, so a click parks a
-   ring on the row long after the draft has opened in its window.
-   Keyboard focus keeps the ring above; pointer focus drops it. */
 a.dm-drafts__link:focus:not( :focus-visible ) {
 	outline: none;
 	box-shadow: none;
 }
 
-/*
- * Row actions (Trash, Suggest) are `<os-button variant="ghost">` hosts —
- * the component owns the focus ring, disabled semantics and theming; these
- * rules only tune it into a 26px icon square via the documented
- * `--os-ui-button-*` surface and the `button` shadow part. Both stay hidden
- * until the row is hovered or the control takes focus.
- */
 .dm-drafts__trash,
 .dm-drafts__spark {
 	flex: 0 0 auto;
@@ -148,8 +102,7 @@ a.dm-drafts__link:focus:not( :focus-visible ) {
 	--os-ui-button-border: none;
 	--os-ui-button-border-radius: 6px;
 	--os-ui-button-bg: transparent;
-	/* Inherit the card's text color instead of the component's own
-	   light-theme default — widget cards can be dark glass. */
+
 	--os-ui-button-fg: currentColor;
 }
 
@@ -168,11 +121,6 @@ a.dm-drafts__link:focus:not( :focus-visible ) {
 	opacity: 0.65;
 }
 
-/* Keyboard focus goes to full strength, where the pointer only gets
-   there on hover: at 0.65 the control's own focus ring was being faded
-   along with it, and a focus indicator is the one thing that cannot
-   afford to be three-quarters there. `:focus-within` on the host
-   matches when the button inside the shadow root has focus. */
 .dm-drafts__trash:focus-within,
 .dm-drafts__spark:focus-within {
 	opacity: 1;
@@ -217,19 +165,10 @@ a.dm-drafts__link:focus:not( :focus-visible ) {
 	line-height: 16px;
 }
 
-/* The shell forces `cursor: default !important`; out-specify it. The
-   `<os-button>` controls set their own cursor inside the shadow root,
-   which that rule can't reach. */
 body.os-active .dm-drafts__link {
 	cursor: pointer !important;
 }
 
-/*
- * Adaptive accent for text + glyphs. `--os-ui-accent` neat is a mid blue
- * that sinks into a dark glass card; mixing it toward `currentColor`
- * keeps it legible whichever way the card leans. Backgrounds still use
- * the neat token — a low-alpha wash doesn't have a contrast problem.
- */
 .dm-drafts__row,
 .dm-drafts__suggest {
 	--dm-drafts-accent: color-mix(
@@ -243,8 +182,6 @@ body.os-active .dm-drafts__link {
 		currentColor
 	);
 }
-
-/* --- 💡 suggestions panel ------------------------------------------ */
 
 .dm-drafts__suggest {
 	margin: 2px 0 8px;
@@ -270,29 +207,6 @@ body.os-active .dm-drafts__link {
 	font-style: italic;
 }
 
-/*
- * Notices inside the panel (readiness, load failure).
- *
- * `<os-notice>`'s built-in palette is tuned for a light window surface —
- * its text defaults to `--os-ui-fg` (#1d2327) over an 8%-alpha tone wash.
- * A widget card is glass over the wallpaper and can be arbitrarily dark,
- * so that pairing collapses to unreadable. Drive the component's text
- * from `currentColor` instead: it tracks whatever the card already
- * proved legible.
- *
- * The tone has to carry the surface, not only the stripe. A neutral
- * currentColor wash over the panel's own currentColor wash is a grey
- * box inside a grey box, and an error read as background — the exact
- * complaint that landed the failure notices here. So each tone paints
- * its wash and a full hairline border from the palette's own notice
- * tokens (declared for a dark surface), falling back to the tone
- * colour mixed toward transparent, which survives a light card too.
- * The stripe colour is mixed toward currentColor so it stays visible
- * on either.
- *
- * These are document-tree rules on the host, so they outrank the
- * component's own `:host( [ tone ] )` declarations by design.
- */
 .dm-drafts__notice {
 	--os-ui-notice-color: currentColor;
 	--os-ui-notice-font: inherit;
@@ -311,8 +225,7 @@ body.os-active .dm-drafts__link {
 		var( --os-ui-danger, #d63638 ) 65%,
 		currentColor
 	);
-	/* Out-specifies the component's own `:host` padding — 10px/14px is
-	   window-banner scale and reads as a slab inside an 8px panel. */
+
 	padding: 8px 10px;
 	border-radius: 6px;
 	border: 1px solid var( --os-ui-notice-border );
@@ -356,15 +269,11 @@ body.os-active .dm-drafts__link {
 	);
 }
 
-/* Readiness — read-only diagnosis at the top of the panel, tone-coded
-   success when nothing is missing, warning otherwise. */
 .dm-drafts__readiness-summary {
 	font-size: 12px;
 	line-height: 1.35;
 }
 
-/* Block + disc, not flex-column: a flex container suppresses the list
-   markers, which is what made these read as four orphaned grey lines. */
 .dm-drafts__readiness-missing {
 	margin: 4px 0 0;
 	padding-inline-start: 16px;
@@ -389,8 +298,6 @@ body.os-active .dm-drafts__link {
 	opacity: 0.72;
 }
 
-/* Suggestion buttons — `<os-button variant="ghost">` tuned to read as
-   list rows (title / excerpt) or pills (tags / categories). */
 .dm-drafts__suggest-item,
 .dm-drafts__suggest-tag {
 	--os-ui-button-border: none;
@@ -443,18 +350,6 @@ body.os-active .dm-drafts__link {
 		color-mix( in srgb, var( --dm-drafts-accent, #2271b1 ) 55%, transparent );
 }
 
-/*
- * Applied — the suggestions the user accepted.
- *
- * A widget card is glass over an arbitrary wallpaper, so this state can't
- * ride on a hue: the LABEL stays at the card's own text color, which is
- * the one color the card already guarantees is readable. What marks it as
- * applied is a currentColor-derived wash, a tinted border and a ✓ —
- * shape and fill, both of which survive any background.
- *
- * Note also that this is not the component's `disabled` state: that dims
- * to 50% opacity, halving contrast exactly where we can least afford it.
- */
 .dm-drafts__suggest-item.is-applied,
 .dm-drafts__suggest-tag.is-applied {
 	--dm-drafts-applied: color-mix(
@@ -464,8 +359,7 @@ body.os-active .dm-drafts__link {
 	);
 	--os-ui-button-fg: currentColor;
 	--os-ui-button-bg: color-mix( in srgb, currentColor 15%, transparent );
-	/* Same as the resting fill — an applied suggestion is inert, so it
-	   must not light up under the pointer as if it were still actionable. */
+
 	--os-ui-button-bg-hover: color-mix( in srgb, currentColor 15%, transparent );
 	--os-ui-button-border: 1px solid
 		color-mix( in srgb, var( --dm-drafts-applied ) 60%, transparent );
@@ -473,8 +367,6 @@ body.os-active .dm-drafts__link {
 	cursor: default;
 }
 
-/* Slotted, not a `::after` on the host — a shadow host's own
-   pseudo-elements have no slot to render into. */
 .dm-drafts__applied-check {
 	margin-inline-start: 4px;
 	font-weight: 700;

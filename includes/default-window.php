@@ -1,43 +1,9 @@
 <?php
-/**
- * OpenStation — Default window preference.
- *
- * Stores the user's choice of "what window opens when I enter the
- * desktop with nothing currently in session." Two signals matter:
- *
- *   1. `enabled` — false when the user has explicitly opted out of
- *      auto-opening anything. Entering an empty session under this
- *      flag gives the user a blank desktop, no surprise Dashboard.
- *   2. `url` — the admin URL that opens when enabled. Populated on
- *      first configure from whichever window the user marks as
- *      their startup window.
- *
- * Stored as a serialized array on user-meta `desktop_mode_default_window`.
- * A missing meta entry is treated as `{ enabled: true, url: <dashboard> }`
- * for backward compatibility with older installs.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * User-meta key.
- *
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
 const OPENSTATION_DEFAULT_WINDOW_META = 'desktop_mode_default_window';
 
-/**
- * Fetch the user's default-window preference as a normalized array.
- *
- * @param int $user_id User ID. Falls back to the current user when 0.
- * @return array{enabled: bool, url: string} Always returns both keys.
- */
 function openstation_get_default_window( $user_id = 0 ) {
 	$user_id      = $user_id ? (int) $user_id : get_current_user_id();
 	$fallback_url = admin_url( 'index.php' );
@@ -67,17 +33,6 @@ function openstation_get_default_window( $user_id = 0 ) {
 	);
 }
 
-/**
- * Persist the user's default-window preference.
- *
- * Passing `null` for $url disables the default entirely — the shell
- * will open an empty desktop on portal entry. Passing a URL enables
- * the default and sets it.
- *
- * @param int         $user_id User ID. Must be positive.
- * @param string|null $url     URL to set, or null to disable.
- * @return bool True on success, false on invalid URL or unknown user.
- */
 function openstation_set_default_window( $user_id, $url ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
@@ -112,28 +67,12 @@ function openstation_set_default_window( $user_id, $url ) {
 	return true;
 }
 
-/**
- * Accept either a `native:<slug>` marker for a registered native
- * window, or a URL that resolves to a same-origin `wp-admin/` path.
- * A stricter net than `esc_url_raw` because the value flows back into
- * the portal-entry redirect — we don't want an attacker's CSRF-seeded
- * preference to hijack the user into an off-site landing page.
- *
- * @param string $url Raw input.
- * @return string Fully-qualified admin URL or `native:<slug>` marker, or empty string if rejected.
- */
 function openstation_validate_default_window_url( $url ) {
 	$url = trim( (string) $url );
 	if ( '' === $url ) {
 		return '';
 	}
 
-	// Native-window marker: "native:<slug>" stores a registered native
-	// window id (OS Settings, Recycle Bin, plugin-registered native
-	// apps) instead of an admin URL. The slug must match
-	// /^[a-z0-9_-]+$/i so a malicious save cannot smuggle path
-	// traversal or whitespace through the marker. The shell handles
-	// the actual open-on-startup at boot via nativeWindows.openById.
 	if ( 0 === strpos( $url, 'native:' ) ) {
 		$slug = substr( $url, strlen( 'native:' ) );
 		if ( '' === $slug || ! preg_match( '/^[a-z0-9_\-]+$/i', $slug ) ) {
@@ -142,7 +81,6 @@ function openstation_validate_default_window_url( $url ) {
 		return 'native:' . $slug;
 	}
 
-	// Allow same-origin http(s) URLs only.
 	$parsed = wp_parse_url( $url );
 	if ( ! is_array( $parsed ) || empty( $parsed['path'] ) ) {
 		return '';
@@ -160,7 +98,7 @@ function openstation_validate_default_window_url( $url ) {
 	if ( '' !== $url_scheme && ! in_array( $url_scheme, array( 'http', 'https' ), true ) ) {
 		return '';
 	}
-	// Make sure the path is inside wp-admin/.
+
 	$admin_path = wp_parse_url( admin_url(), PHP_URL_PATH );
 	if ( ! is_string( $admin_path ) ) {
 		return '';
@@ -169,17 +107,10 @@ function openstation_validate_default_window_url( $url ) {
 		return '';
 	}
 
-	// Reassemble as a clean same-origin URL so downstream consumers
-	// always get a fully-qualified string.
 	$query = isset( $parsed['query'] ) ? '?' . $parsed['query'] : '';
 	return esc_url_raw( home_url( $parsed['path'] . $query ), array( $home_scheme ? $home_scheme : 'https', 'http', 'https' ) );
 }
 
-/**
- * REST route: `POST /desktop-mode/v1/default-window`.
- *
- * Body: `{ url: string | null }`. Null disables the default.
- */
 function openstation_register_default_window_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -187,14 +118,9 @@ function openstation_register_default_window_routes() {
 		array(
 			'methods'             => 'POST',
 			'callback'            => 'openstation_rest_set_default_window',
-			// Logged in + OpenStation enabled. `read` alone is too
-			// loose — see openstation_rest_require_enabled().
+
 			'permission_callback' => 'openstation_rest_require_enabled',
-			// No schema type on `url` — the param is fundamentally
-			// mixed (string | null) and WP REST's multi-type schema
-			// validation has historically been flaky for this case
-			// across core versions. Validate in the callback instead,
-			// where both branches are explicit.
+
 			'args'                => array(
 				'url' => array(
 					'description' => __( 'Admin URL to open on portal entry, or null to disable.', 'desktop-mode' ),
@@ -205,32 +131,13 @@ function openstation_register_default_window_routes() {
 }
 add_action( 'rest_api_init', 'openstation_register_default_window_routes' );
 
-/**
- * REST handler — writes the default-window meta and returns the
- * normalized state.
- *
- * Accepts:
- *   - `{"url": "<same-origin wp-admin URL>"}` → sets this as default.
- *   - `{"url": null}` → explicitly disables the default.
- *   - `{}` (missing key) → treated same as null, for clients that
- *      encode "clear this value" as an absent key rather than an
- *      explicit null.
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_rest_set_default_window( $request ) {
 	$user_id = get_current_user_id();
 	$params  = $request->get_json_params();
 
-	// Distinguish "url was sent" (possibly null or '') from "url key
-	// absent entirely." For JSON payloads we look at get_json_params()
-	// directly because get_param() loses the null-vs-missing distinction
-	// when combined with a null-type schema.
 	$has_url = is_array( $params ) && array_key_exists( 'url', $params );
 	$url     = $has_url ? $params['url'] : null;
 
-	// Null / missing / empty string all disable the default.
 	if ( null === $url || '' === $url ) {
 		openstation_set_default_window( $user_id, null );
 		return rest_ensure_response( openstation_get_default_window( $user_id ) );

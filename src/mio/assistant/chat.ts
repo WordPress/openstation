@@ -1,4 +1,3 @@
-/** MIO's floating conversation. The shared escaped Markdown renderer keeps model markup inert. */
 import '../../ui/components/os-textarea/os-textarea';
 import type { OsTextarea } from '../../ui/components/os-textarea/os-textarea';
 import { __ } from '../../i18n';
@@ -127,8 +126,7 @@ export function mountMioChat(
 			}
 		}
 		const newest = log.lastElementChild as HTMLElement | null;
-		// Start a new message at its beginning, including replies taller than
-		// the viewport. Subsequent reading belongs entirely to the user.
+
 		log.scrollTop = last !== renderedLast && newest ? newest.offsetTop : scroll;
 		renderedLast = last;
 	};

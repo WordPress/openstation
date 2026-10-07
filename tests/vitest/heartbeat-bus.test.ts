@@ -1,6 +1,3 @@
-/**
- * Tests for the cross-feature WordPress Heartbeat bus.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	bootHeartbeatBus,
@@ -125,9 +122,7 @@ describe( 'heartbeat bus', () => {
 		bootHeartbeatBus();
 		const firstSend = handlers[ 'heartbeat-send' ];
 		bootHeartbeatBus();
-		// Second call should NOT re-bind another handler over the
-		// fake jQuery — sanity-check by verifying the same handler
-		// reference is still in place.
+
 		expect( handlers[ 'heartbeat-send' ] ).toBe( firstSend );
 	} );
 

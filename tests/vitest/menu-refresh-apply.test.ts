@@ -1,18 +1,3 @@
-/**
- * Unit tests for `src/menu-refresh-apply.ts`.
- *
- * `createApplyPayload()` is the single function the chromeless bridge
- * goes through after a plugin activates / deactivates inside a windowed
- * `plugins.php`. Every payload key it accepts is part of the live-
- * refresh contract — when a key is in the payload, the corresponding
- * surface MUST update without a page reload.
- *
- * Recurrent regressions in this file have all looked the same: a new
- * payload key landed in PHP + boot path but the live applier was never
- * wired, so plugin activation appeared in the dock but the icon /
- * widget / wallpaper / setting tab silently lagged until F5. These
- * tests pin down each payload key end-to-end.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock } from '../../src/dock';
 import {
@@ -40,9 +25,7 @@ function makeDock( hasItems = true ): FakeDock {
 }
 
 function makeConfig(): DesktopConfig {
-	// Only the fields the applier touches matter; the rest of
-	// DesktopConfig is irrelevant here. We deliberately pass an `as`
-	// to keep the test focused on what the applier writes.
+
 	return {
 		dockItems: [],
 		nativeWindows: [],
@@ -161,10 +144,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( applied.find( ( item ) => item.id === 'elementor' )?.icon ).toBe( harvested );
 	} );
 
-	// Spatial's core-icon synthesis (and ordinary promoted shortcuts)
-	// must stay current when a plugin activation/deactivation changes
-	// the dock-item list live — otherwise the files-layer shortcut set
-	// only refreshes on the next OS Settings change.
 	test( 'syncShortcuts runs after a fresh dockItems array is applied', () => {
 		const { deps, dock, syncShortcuts } = makeDeps();
 		const apply = createApplyPayload( deps );
@@ -213,17 +192,10 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			serverGames: games,
 		} );
 
-		// Native-window entries are hydrated on the way through —
-		// wire format references script handles; the sync gets full
-		// entries (see hydrateServerEntries).
 		expect( syncs.nativeWindows ).toHaveBeenCalledWith( [
 			expect.objectContaining( { id: 'calc', scriptUrl: '' } ),
 		] );
-		// The handle-keyed map must persist onto config alongside the
-		// entries it decodes: `wp.os.debug.window()` reads
-		// `config.nativeWindowScriptData` directly, so a stale
-		// boot-time copy would report an empty URL for any window
-		// whose plugin activated after boot.
+
 		expect( config.nativeWindowScriptData ).toEqual( scriptData );
 		expect( syncs.widgets ).toHaveBeenCalledWith( widgets );
 		expect( syncs.wallpapers ).toHaveBeenCalledWith( wallpapers );
@@ -243,16 +215,12 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( syncs.games ).toHaveBeenCalledWith( games );
 		expect( config.serverGames ).toEqual( games );
 
-		// Absent key = "no change", NOT "clear".
 		syncs.games.mockClear();
 		apply( { dockItems: [ ...MIN_DOCK ] } );
 		expect( syncs.games ).not.toHaveBeenCalled();
 		expect( config.serverGames ).toEqual( games );
 	} );
 
-	// The site switcher's rows ride on the same payload, so a Network
-	// app action (add, remove, join, leave, sync) reaches the row above
-	// overview's desktop tiles through one refresh, no reload.
 	describe( 'the multisite block', () => {
 		const block = {
 			isNetworkAdmin: false,
@@ -281,14 +249,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		} );
 	} );
 
-	// THE PRIMARY REGRESSION GUARD.
-	//
-	// `desktopIcons` is in the PHP payload (`openstation_build_menu_payload`)
-	// and was rendered at boot, but the live applier never read it —
-	// so a plugin that registered a wallpaper icon via
-	// `openstation_register_icon()` only appeared after F5 and likewise
-	// stayed on the wallpaper after deactivation. This test pins both
-	// halves of the contract.
 	describe( 'desktopIcons live-refresh (regression)', () => {
 		test( 'activation: a fresh icon list is forwarded to renderIcons and stored on config', () => {
 			const { deps, renderIcons, config } = makeDeps();
@@ -306,7 +266,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 
 		test( 'deactivation: an empty icon list re-renders to clear the grid', () => {
 			const { deps, renderIcons, config } = makeDeps();
-			// Seed a prior icon to mirror "icon was on the wallpaper".
+
 			config.desktopIcons = [
 				{ id: 'jorvy', title: 'Jorvy', icon: 'dashicons-star-filled' },
 			] as DesktopConfig[ 'desktopIcons' ];
@@ -314,23 +274,13 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 
 			apply( { dockItems: [ ...MIN_DOCK ], desktopIcons: [] } );
 
-			// renderIcons MUST be called even when the array is empty
-			// — the renderer is what wipes the prior container. Skipping
-			// the call leaves a stale icon on the wallpaper after the
-			// owning plugin deactivates.
 			expect( renderIcons ).toHaveBeenCalledTimes( 1 );
 			expect( renderIcons ).toHaveBeenCalledWith( [] );
 			expect( config.desktopIcons ).toEqual( [] );
 		} );
 
 		test( 'the dispatcher and the files-layer sync both learn about new icons', () => {
-			// `renderIcons` only repaints the legacy `.os-icons` rail,
-			// which is display:none whenever a files layer is mounted
-			// — on those desktops the visible tiles come from the nav
-			// model. A fresh icon list must therefore ALSO reach
-			// `applyDesktopIcons` (the dispatcher) and re-run
-			// `syncShortcuts` AFTER it, so the shortcut reconciliation
-			// reads the dispatcher's updated answer.
+
 			const calls: string[] = [];
 			const applyDesktopIcons = vi.fn( () => {
 				calls.push( 'applyDesktopIcons' );
@@ -347,9 +297,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			apply( { dockItems: [ ...MIN_DOCK ], desktopIcons: icons } );
 
 			expect( applyDesktopIcons ).toHaveBeenCalledWith( icons );
-			// syncShortcuts runs once for dockItems and once after the
-			// icons landed — the LAST call must come after
-			// applyDesktopIcons.
+
 			expect( calls[ calls.length - 1 ] ).toBe( 'syncShortcuts' );
 			expect(
 				calls.indexOf( 'applyDesktopIcons' ),
@@ -357,10 +305,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		} );
 
 		test( 'a changed icon id-set triggers the root-placements refetch', () => {
-			// Files-layer desktops paint registered icons from REAL
-			// placement rows only the server can mint (on add) or
-			// mark missing (on remove) — without this refetch a new
-			// icon is invisible there until F5.
+
 			const refreshRootPlacements = vi.fn();
 			const { deps, config } = makeDeps( { refreshRootPlacements } );
 			const apply = createApplyPayload( deps );
@@ -372,12 +317,9 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 				],
 			} );
 			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 1 );
-			// The new ids ride along, so the caller can seat the rows
-			// the server just minted on the visible desktop.
+
 			expect( refreshRootPlacements ).toHaveBeenLastCalledWith( [ 'jorvy' ] );
 
-			// Same id-set again (payloads also arrive on ordinary
-			// plugin-page navigations) — no wasted REST round-trip.
 			apply( {
 				dockItems: [ ...MIN_DOCK ],
 				desktopIcons: [
@@ -386,8 +328,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			} );
 			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 1 );
 
-			// Removal is a change too — the refetch is what turns the
-			// tile into its missing state without an F5.
 			apply( { dockItems: [ ...MIN_DOCK ], desktopIcons: [] } );
 			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 2 );
 			expect( refreshRootPlacements ).toHaveBeenLastCalledWith( [] );
@@ -415,8 +355,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			config.desktopIcons = prior as DesktopConfig[ 'desktopIcons' ];
 			const apply = createApplyPayload( deps );
 
-			// Older bridges may emit dock-only payloads — those must
-			// NOT touch the icon grid.
 			apply( { dockItems: [ ...MIN_DOCK ] } );
 
 			expect( renderIcons ).not.toHaveBeenCalled();
@@ -424,11 +362,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		} );
 	} );
 
-	// `os-registry-changed` is the public CustomEvent
-	// plugin authors subscribe to in order to react to peer plugins
-	// being activated/deactivated mid-session. The event name is
-	// project-prefixed (NOT `os-*`) per WordPress plugin
-	// reviewer guidelines that reserve `wp-` for Core.
 	describe( 'os-registry-changed CustomEvent', () => {
 		function captureEvents(): {
 			events: RegistryChangedDetail[];
@@ -525,9 +458,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		} );
 	} );
 
-	// GH#296: the payload's `updateCounts` must repaint the admin-bar
-	// "updates" notifier — the top-left circle-arrows count is static
-	// server HTML that otherwise survives every in-window update run.
 	describe( 'updateCounts live-refresh (GH#296)', () => {
 		test( 'fresh counts repaint #wp-admin-bar-updates; zero hides it', () => {
 			document.body.innerHTML = `
@@ -580,9 +510,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 	} );
 
 	test( 'serverTitleBarButtonScripts: live-refresh contract', () => {
-		// Same shape of regression risk as desktopIcons — recently
-		// added payload key, easy to forget to wire on the live
-		// applier side.
+
 		const { deps, syncs, config } = makeDeps();
 		const apply = createApplyPayload( deps );
 
@@ -597,11 +525,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 	} );
 
 	test( 'serverWindowActionScripts: live-refresh contract', () => {
-		// `WindowActionDef.owner` promises the ⋯ row disappears when
-		// the plugin that registered it is deactivated. That promise
-		// is only kept if this key reaches the sync — without it,
-		// `unregisterWindowActionsByOwner()` has no caller and the
-		// documentation describes something no code does.
+
 		const { deps, syncs, config } = makeDeps();
 		const apply = createApplyPayload( deps );
 
@@ -616,11 +540,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 	} );
 } );
 
-// End-to-end live-refresh — REAL Dock instance, REAL DOM, real
-// applyPayload pipeline. Pins the user-visible behaviour: a plugin
-// (Yoast SEO, etc.) that adds a top-level admin menu MUST surface
-// as a tile on the unified dock the moment its row arrives in
-// `dockItems`, and disappear the moment its row leaves.
 describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock', () => {
 	function buildShell(): {
 		dockEl: HTMLElement;
@@ -707,8 +626,6 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 		apply( { dockItems: [ dashboard ] } );
 		expect( tilesIn( dockEl, 'menu-slug' ) ).toEqual( [ 'index.php' ] );
 
-		// Activate Yoast — bridge re-broadcasts with the new top-level
-		// menu now appended to `dockItems`.
 		apply( { dockItems: [ dashboard, yoast ] } );
 
 		expect( tilesIn( dockEl, 'menu-slug' ).sort() ).toEqual( [
@@ -748,11 +665,7 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 	} );
 
 	test( 'system tiles survive a menu-derived replaceItems', () => {
-		// The dock carries TWO kinds of tiles: menu-derived (`dockItems`,
-		// removed/added wholesale via `replaceItems`) and JS-registered
-		// system tiles (`appendSystemItem`, e.g. the OS Settings tile or
-		// a plugin-registered native-window launcher). A live menu
-		// refresh MUST NOT collateral-damage the system tiles.
+
 		const { dock, dockEl, desktopArea, config } = buildShell();
 		const apply = createApplyPayload(
 			makeNoopDeps( dock, desktopArea, config ),

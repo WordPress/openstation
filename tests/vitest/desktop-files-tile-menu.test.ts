@@ -1,6 +1,3 @@
-/**
- * Tests for the file-tile context menu (right-click on a tile).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 

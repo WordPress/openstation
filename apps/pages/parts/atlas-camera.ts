@@ -1,5 +1,5 @@
 import { wirePinchInput } from '../../../src/content-graph/pinch-input';
-/** One camera transform for Pixi connections and fixed-viewport DOM sheets. */
+
 export interface AtlasCamera { x: number; y: number; zoom: number }
 export function zoomAt( camera: AtlasCamera, zoom: number, x: number, y: number ): void {
 	const next = Math.min( 1.8, Math.max( 0.08, zoom ) );

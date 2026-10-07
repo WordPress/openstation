@@ -1,12 +1,3 @@
-/**
- * Resume-time update checks.
- *
- * An installed app on a phone rarely navigates, and the browser only
- * looks for a new service worker on a navigation. `registerServiceWorker`
- * must therefore ask for an update itself whenever the page comes back
- * to the foreground — throttled, and never while hidden — so a release
- * reaches a shell that has been open for days.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	_resetSwRegistration,
@@ -72,7 +63,6 @@ describe( 'registerServiceWorker resume-time update check', () => {
 		const { update } = installSwStub();
 		await registerServiceWorker( makeConfig() );
 
-		// Registration itself counts as a check: coming back right away is free.
 		setVisibility( 'visible' );
 		expect( update ).not.toHaveBeenCalled();
 
@@ -80,12 +70,10 @@ describe( 'registerServiceWorker resume-time update check', () => {
 		setVisibility( 'visible' );
 		expect( update ).toHaveBeenCalledTimes( 1 );
 
-		// Another return a minute later is inside the window.
 		vi.advanceTimersByTime( 60_000 );
 		setVisibility( 'visible' );
 		expect( update ).toHaveBeenCalledTimes( 1 );
 
-		// The back-forward cache restoring the page is a return too.
 		vi.advanceTimersByTime( SW_RESUME_CHECK_MIN_INTERVAL_MS );
 		window.dispatchEvent( new Event( 'pageshow' ) );
 		expect( update ).toHaveBeenCalledTimes( 2 );

@@ -1,15 +1,3 @@
-/**
- * Content Graph — minimal Pixi type surface.
- *
- * PixiJS is loaded as a vendor script (`window.PIXI`) via
- * `wp.os.loadModules(['pixijs'])`, NOT imported. We declare the
- * narrow set of Pixi types this bundle uses, mirroring the shape used
- * by `posts-window/categories-mindmap.ts` so the two stay
- * type-compatible without a hard dependency on the `pixi.js` package.
- *
- * @public
- */
-
 export interface PixiPoint {
 	x: number;
 	y: number;
@@ -86,9 +74,7 @@ export interface PixiText extends PixiContainer {
 export interface PixiTicker {
 	add( cb: ( ticker: { deltaTime: number } ) => void ): void;
 	remove( cb: ( ticker: { deltaTime: number } ) => void ): void;
-	// Pixi's auto-render also lives on the ticker; calling `stop()`
-	// at teardown silences it before we destroy graphics children,
-	// which otherwise can crash mid-frame in the batched renderer.
+
 	stop(): void;
 }
 
@@ -104,12 +90,7 @@ export interface PixiApp {
 	};
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-	/**
-	 * First arg is Pixi's `RendererDestroyOptions`. Pass an options
-	 * object, never a literal `true` — `true` triggers
-	 * `releaseGlobalResources()` and corrupts every other live
-	 * Application on the page.
-	 */
+
 	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 

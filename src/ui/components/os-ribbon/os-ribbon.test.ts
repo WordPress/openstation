@@ -1,9 +1,3 @@
-/**
- * `<os-ribbon>` — smoke tests. Confirms the wrapper + rotated banner
- * render, slot projection works, and the `placement` / `tone`
- * attributes survive on the host so the shadow-DOM stylesheet's
- * `[placement='…']` / `[tone='…']` selectors can match.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-ribbon';
 

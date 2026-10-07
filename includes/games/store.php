@@ -1,31 +1,7 @@
 <?php
-/**
- * OpenStation — Games store.
- *
- * CRUD for the two games tables. Scores are client-asserted (arcade
- * trust model): the server clamps and sanitizes what it can — the
- * game must be server-registered, the score is a non-negative int,
- * the meta blob is a bounded flat scalar map — and exposes the
- * `openstation_game_score_pre_save` filter for plugins that want
- * stricter validation.
- *
- * The challenge state machine is enforced HERE, not in REST:
- * `pending → accepted | declined`, `accepted → completed`. Every
- * mutation bumps `updated_at_ms`, the Heartbeat high-water mark.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Bound and sanitize a score meta blob: flat map, slug keys, scalar
- * values only. Strings are text-sanitized and truncated; the map is
- * capped at 20 keys so a hostile client can't fatten the table.
- *
- * @param mixed $meta Raw caller input.
- * @return array Sanitized flat map.
- */
 function openstation_games_sanitize_score_meta( $meta ) {
 	if ( ! is_array( $meta ) ) {
 		return array();
@@ -46,21 +22,11 @@ function openstation_games_sanitize_score_meta( $meta ) {
 		} elseif ( is_string( $value ) ) {
 			$out[ $key ] = mb_substr( sanitize_text_field( $value ), 0, 200 );
 		}
-		// Nested arrays/objects are dropped — flat scalars only.
+
 	}
 	return $out;
 }
 
-/**
- * Persist a finished game run.
- *
- * @param string $game    Registered game id.
- * @param int    $user_id Player.
- * @param int    $score   Primary sort value. Clamped to >= 0.
- * @param array  $meta    Flexible per-game fields (see the game's
- *                        `score_columns`).
- * @return int|WP_Error Row id on success.
- */
 function openstation_games_save_score( $game, $user_id, $score, $meta = array() ) {
 	global $wpdb;
 
@@ -84,18 +50,6 @@ function openstation_games_save_score( $game, $user_id, $score, $meta = array() 
 		);
 	}
 
-	/**
-	 * Short-circuit / veto filter for score saves. Return a
-	 * `WP_Error` to reject the save (surfaced to the client), or
-	 * `null` to proceed. The extension point for anti-cheat
-	 * plugins (rate limits, plausibility checks).
-	 *
-	 * @param null|WP_Error $pre     Null to proceed.
-	 * @param string        $game    Game id.
-	 * @param int           $user_id Player.
-	 * @param int           $score   Clamped score.
-	 * @param array         $meta    Sanitized meta map.
-	 */
 	$pre = apply_filters( 'openstation_game_score_pre_save', null, $game, $user_id, $score, $meta );
 	if ( is_wp_error( $pre ) ) {
 		return $pre;
@@ -122,33 +76,11 @@ function openstation_games_save_score( $game, $user_id, $score, $meta = array() 
 	}
 	$id = (int) $wpdb->insert_id;
 
-	/**
-	 * Fires after a game score is saved.
-	 *
-	 * @param int    $id      Score row id.
-	 * @param string $game    Game id.
-	 * @param int    $user_id Player.
-	 * @param int    $score   Saved score.
-	 * @param array  $meta    Saved meta map.
-	 */
 	do_action( 'openstation_game_score_saved', $id, $game, $user_id, $score, $meta );
 
 	return $id;
 }
 
-/**
- * Leaderboard query.
- *
- * @param string $game Registered game id.
- * @param array  $args {
- *     @type int    $page     1-based page. Default 1.
- *     @type int    $per_page Rows per page, 1–100. Default 25.
- *     @type string $orderby  'score' | 'created'. Default 'score'.
- *     @type string $order    'asc' | 'desc'. Default 'desc'.
- *     @type int    $user_id  Restrict to one player. Default 0 (all).
- * }
- * @return array{ rows: array[], total: int }
- */
 function openstation_games_get_scores( $game, $args = array() ) {
 	global $wpdb;
 
@@ -167,16 +99,13 @@ function openstation_games_get_scores( $game, $args = array() ) {
 		$params[] = $user_id;
 	}
 
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	$total = (int) $wpdb->get_var(
 		$wpdb->prepare( "SELECT COUNT(*) FROM {$tables['scores']} WHERE {$where}", $params )
 	);
 
 	$params[] = $per_page;
 	$params[] = ( $page - 1 ) * $per_page;
-	// `$orderby` / `$order` are clamped to fixed identifiers above —
-	// safe to interpolate.
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['scores']}
@@ -194,13 +123,6 @@ function openstation_games_get_scores( $game, $args = array() ) {
 	);
 }
 
-/**
- * Shape a scores row for the wire: camelCase keys + player display
- * name and avatar.
- *
- * @param array $row Raw table row.
- * @return array
- */
 function openstation_games_shape_score( $row ) {
 	$user_id = (int) $row['user_id'];
 	$user    = get_userdata( $user_id );
@@ -217,16 +139,6 @@ function openstation_games_shape_score( $row ) {
 	);
 }
 
-/**
- * Create a score-to-beat challenge.
- *
- * @param string $game          Registered game id.
- * @param int    $challenger_id Sender.
- * @param int    $recipient_id  Receiver.
- * @param int    $score_to_beat The challenger's score.
- * @param array  $score_meta    The challenger's score meta map.
- * @return int|WP_Error Challenge id on success.
- */
 function openstation_games_create_challenge( $game, $challenger_id, $recipient_id, $score_to_beat, $score_meta = array() ) {
 	global $wpdb;
 
@@ -281,23 +193,11 @@ function openstation_games_create_challenge( $game, $challenger_id, $recipient_i
 	}
 	$id = (int) $wpdb->insert_id;
 
-	/**
-	 * Fires after a game challenge is created.
-	 *
-	 * @param int   $id  Challenge id.
-	 * @param array $row The challenge row.
-	 */
 	do_action( 'openstation_game_challenge_created', $id, openstation_games_get_challenge( $id ) );
 
 	return $id;
 }
 
-/**
- * Fetch one challenge row.
- *
- * @param int $id Challenge id.
- * @return array|null Raw table row.
- */
 function openstation_games_get_challenge( $id ) {
 	global $wpdb;
 	$tables = openstation_games_table_names();
@@ -308,14 +208,6 @@ function openstation_games_get_challenge( $id ) {
 	return is_array( $row ) ? $row : null;
 }
 
-/**
- * Transition a challenge to `accepted` or `declined`. Only valid
- * from `pending`.
- *
- * @param int    $id    Challenge id.
- * @param string $state 'accepted' | 'declined'.
- * @return true|WP_Error
- */
 function openstation_games_set_challenge_state( $id, $state ) {
 	global $wpdb;
 
@@ -342,9 +234,6 @@ function openstation_games_set_challenge_state( $id, $state ) {
 		);
 	}
 
-	// Monotonic bump: a transition landing in the same millisecond as
-	// the previous write must still move `updated_at_ms` forward, or
-	// version-gated Heartbeat clients would never see the change.
 	$now    = max( openstation_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
 	$tables = openstation_games_table_names();
 	$wpdb->update(
@@ -360,35 +249,16 @@ function openstation_games_set_challenge_state( $id, $state ) {
 	);
 
 	if ( 'accepted' === $state ) {
-		/**
-		 * Fires after a challenge is accepted by its recipient.
-		 *
-		 * @param int   $id  Challenge id.
-		 * @param array $row The (pre-transition) challenge row.
-		 */
+
 		do_action( 'openstation_game_challenge_accepted', (int) $id, $row );
 	} else {
-		/**
-		 * Fires after a challenge is declined by its recipient.
-		 *
-		 * @param int   $id  Challenge id.
-		 * @param array $row The (pre-transition) challenge row.
-		 */
+
 		do_action( 'openstation_game_challenge_declined', (int) $id, $row );
 	}
 
 	return true;
 }
 
-/**
- * Record the recipient's run against an accepted challenge. Also
- * persists the run as a normal leaderboard score row.
- *
- * @param int   $id    Challenge id.
- * @param int   $score The recipient's score.
- * @param array $meta  The recipient's score meta map.
- * @return array|WP_Error The updated challenge row.
- */
 function openstation_games_complete_challenge( $id, $score, $meta = array() ) {
 	global $wpdb;
 
@@ -412,15 +282,11 @@ function openstation_games_complete_challenge( $id, $score, $meta = array() ) {
 	$meta   = openstation_games_sanitize_score_meta( $meta );
 	$result = $score > (int) $row['score_to_beat'] ? 'beaten' : 'not_beaten';
 
-	// The run also lands on the leaderboard — a challenge game is a
-	// real game. A veto from the pre-save filter aborts the whole
-	// completion so the two writes can't diverge.
 	$score_id = openstation_games_save_score( $row['game'], (int) $row['recipient_id'], $score, $meta );
 	if ( is_wp_error( $score_id ) ) {
 		return $score_id;
 	}
 
-	// Same monotonic-bump rule as `set_challenge_state()` — see there.
 	$now    = max( openstation_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
 	$tables = openstation_games_table_names();
 	$wpdb->update(
@@ -440,28 +306,11 @@ function openstation_games_complete_challenge( $id, $score, $meta = array() ) {
 
 	$updated = openstation_games_get_challenge( $id );
 
-	/**
-	 * Fires after a challenge run is completed.
-	 *
-	 * @param int    $id     Challenge id.
-	 * @param string $result 'beaten' | 'not_beaten'.
-	 * @param array  $row    The updated challenge row.
-	 */
 	do_action( 'openstation_game_challenge_completed', (int) $id, $result, $updated );
 
 	return $updated;
 }
 
-/**
- * Challenges involving a user (as challenger or recipient) whose
- * `updated_at_ms` exceeds the given high-water mark. The Heartbeat
- * delta query.
- *
- * @param int $user_id  Viewer.
- * @param int $since_ms Last-seen `updated_at_ms`. 0 = everything.
- * @param int $cap      Row cap.
- * @return array[] Raw rows, oldest change first.
- */
 function openstation_games_get_challenges_for_user( $user_id, $since_ms = 0, $cap = 50 ) {
 	global $wpdb;
 	$tables = openstation_games_table_names();
@@ -482,13 +331,6 @@ function openstation_games_get_challenges_for_user( $user_id, $since_ms = 0, $ca
 	return (array) $rows;
 }
 
-/**
- * Shape a challenge row for the wire: camelCase keys plus display
- * name + avatar for both parties.
- *
- * @param array $row Raw table row.
- * @return array
- */
 function openstation_games_shape_challenge( $row ) {
 	$challenger  = get_userdata( (int) $row['challenger_id'] );
 	$recipient   = get_userdata( (int) $row['recipient_id'] );

@@ -1,12 +1,3 @@
-/**
- * Label translators for accent + dock-size ids.
- *
- * Keeping the `__()` calls inside a switch — rather than on the const
- * arrays directly — means the extract-pot pass sees string literals, and
- * the consts stay static. Any id we haven't translated explicitly falls
- * back to the English label.
- */
-
 import { __ } from '@openstation/app';
 import type {
 	AccentId,

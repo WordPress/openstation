@@ -1,13 +1,3 @@
-/**
- * Posts app — the Categories cell: a `<os-category-picker>` per row
- * over the window's shared tree cache with optimistic UX, REST
- * roll-back on failure, inline term creation, confirmed deletion, and
- * a drag-and-drop breadcrumb chain that merges into another row's
- * set. Only the Posts mode renders it.
- *
- * @public
- */
-
 import { __, sprintf } from '@openstation/app';
 import '../../../../src/ui/components/os-category-picker/os-category-picker';
 import type { OsCategoryPicker } from '../../../../src/ui/components/os-category-picker/os-category-picker';
@@ -16,11 +6,6 @@ import type { CategoryTerm, PostListItem } from '../types';
 
 const DRAG_MIME = 'application/x-os-categories';
 
-/**
- * The category tree, fetched once per window and shared by every
- * row's picker. Cleared on close and on an `os.term.changed`
- * broadcast, so a category created elsewhere shows up without an F5.
- */
 function getCategoriesTree( env: CellEnv ) {
 	if ( ! env.categories.tree ) {
 		env.categories.tree = env.client
@@ -34,12 +19,6 @@ export function clearCategoryTreeCache( env: CellEnv ): void {
 	env.categories.tree = null;
 }
 
-/**
- * Re-fetch the tree and push it onto every live picker — without
- * this a category created in the mind map is not draggable from any
- * cell, since a chain cannot render a segment for an id the picker
- * does not know about.
- */
 export function broadcastFreshCategoryTreeToPickers( env: CellEnv ): void {
 	void getCategoriesTree( env )
 		.then( ( tree ) => {
@@ -52,7 +31,7 @@ export function broadcastFreshCategoryTreeToPickers( env: CellEnv ): void {
 			}
 		} )
 		.catch( () => {
-			// Pickers keep their existing items; the next open retries.
+
 		} );
 }
 
@@ -69,8 +48,7 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 	env.categories.pickers.add( picker );
 
 	picker.value = row.categories ?? [];
-	// Seed from the embedded terms so the first paint has names before
-	// the tree fetch resolves.
+
 	picker.items = termRecordsOf( row, 'category' ).map( ( t ) => ( { id: t.id, name: t.name, parent: 0 } ) );
 
 	const cellState = { categoryIds: ( row.categories ?? [] ).slice() };
@@ -88,8 +66,6 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 		}
 	};
 
-	// Eager tree load so the in-cell breadcrumb chains render full
-	// hierarchy paths from the first paint; one round-trip per open.
 	void getCategoriesTree( env )
 		.then( ( tree ) => {
 			if ( picker.isConnected ) {
@@ -97,7 +73,6 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 			}
 		} )
 		.catch( ( err ) => {
-			// eslint-disable-next-line no-console
 			console.warn( '[openstation:desktop-mode-posts] category tree fetch failed', err );
 		} );
 
@@ -150,7 +125,7 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 		const ok = await env.confirm( {
 			title: __( 'Delete category?' ),
 			message: sprintf(
-				/* translators: %s: category name. */
+
 				__( 'Delete the category "%s"? Posts assigned only to it will fall back to Uncategorized.' ),
 				detail.name,
 			),
@@ -176,7 +151,6 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 		}
 	} );
 
-	// Drag a chain segment (+ its descendants) to another row.
 	picker.addEventListener( 'os-chain-segment-dragstart', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { segments: Array< { id?: number | string } >; dragEvent: DragEvent } > ).detail;
 		if ( ! detail?.dragEvent?.dataTransfer ) {
@@ -192,8 +166,6 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 		dt.effectAllowed = 'copy';
 	} );
 
-	// Drop target on the cell — an enter counter dodges the "dragleave
-	// fires when entering every child" gotcha.
 	let dropEnterCount = 0;
 	const setDropTargetActive = ( on: boolean ): void => {
 		wrap.style.backgroundColor = on ? 'color-mix(in srgb, var(--wp-admin-theme-color, #2271b1) 12%, transparent)' : '';
@@ -245,7 +217,7 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 		}
 		const previous = cellState.categoryIds.slice();
 		const merged = Array.from( new Set( [ ...previous, ...incoming ] ) );
-		// Nothing new — including a drop back onto the source row.
+
 		if ( merged.length === previous.length ) {
 			return;
 		}

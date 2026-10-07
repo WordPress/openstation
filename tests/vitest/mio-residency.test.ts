@@ -48,9 +48,7 @@ describe( 'MIO window ownership', () => {
 		a.dispose();
 	} );
 	test( 'while held, no window takes MIO and it shows on the wallpaper regardless', async () => {
-		// The shell tour holds MIO beside cards that point at the dock and
-		// the desk. The Preferences window it opens registers a residence,
-		// and taking MIO in there clamped it inside the window.
+
 		const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' );
 		shell.append( layer ); document.body.append( shell );
 		let held = true;
@@ -59,10 +57,9 @@ describe( 'MIO window ownership', () => {
 		const lease = residency.register( 'a', makeWindow( 'a' ) ); await flush();
 		expect( residency.getWindowId() ).toBeNull();
 		expect( layer.parentElement ).toBe( shell );
-		// Shown although this user keeps MIO off the wallpaper.
+
 		expect( layer.dataset.mioVisible ).toBe( 'true' );
 
-		// Let go, and the focused window has it again.
 		held = false; residency.refresh(); await flush();
 		expect( residency.getWindowId() ).toBe( 'a' );
 		lease.dispose();
@@ -253,7 +250,7 @@ test.each( [ 'host', 'window' ] )( 'a detached %s releases current ownership wit
 	expect( layer.dataset.mioWindow ).toBeUndefined();
 	expect( originalWindow.querySelector( '.os-mio-residence' ) ).toBeNull();
 	await lease.openChat(); expect( window.openStationMountMioChat ).toHaveBeenCalledOnce();
-	// A stale lease cannot interfere with a replacement registration.
+
 	if ( target === 'window' ) { document.body.append( originalWindow ); } else { originalWindow.append( context.host ); }
 	const replacement = residency.register( 'detached', context ); await flush();
 	lease.dispose(); expect( residency.getWindowId() ).toBe( 'detached' ); replacement.dispose();
@@ -289,7 +286,7 @@ test.each( [ 'shrink', 'grow' ] )( 'disposing the current owner during %s cancel
 	expect( stale.cancel ).toHaveBeenCalled();
 	expect( layer.isConnected ).toBe( true ); expect( layer.parentElement ).toBe( shell );
 	expect( document.querySelector( '.os-mio-residence' ) ).toBeNull();
-	stale.resolve(); await flush(); // A late completion must not reclaim the removed frame.
+	stale.resolve(); await flush();
 	animations.at( -1 )!.resolve(); await flush(); animations.at( -1 )!.resolve(); await flush();
 	expect( residency.getWindowId() ).toBeNull(); expect( layer.dataset.mioWindow ).toBeUndefined();
 	expect( layer.parentElement ).toBe( shell ); expect( layer.style.opacity ).toBe( '' );

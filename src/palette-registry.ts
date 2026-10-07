@@ -1,57 +1,19 @@
-/**
- * OpenStation — palette registry.
- *
- * A "palette" is any Cmd+K-triggered overlay UI — the built-in AI
- * Assistant is one, a plugin's custom launcher could be another. The
- * registry solves the "who handles Cmd+K?" problem when multiple
- * palettes coexist: ONE shortcut handler lives in the shell and cycles
- * through every registered palette.
- *
- *   ┌─────────┐  press 1   ┌───────────┐
- *   │ nothing │ ─────────▶ │ palette 0 │
- *   │  open   │            │   open    │
- *   └─────────┘            └─────┬─────┘
- *        ▲                       │ press 2
- *        │ press N+1             ▼
- *        │                 ┌───────────┐
- *        │                 │ palette 1 │
- *        │                 │   open    │
- *        │                 └─────┬─────┘
- *        │                       │ press N (last)
- *        └───── closes last, back to "nothing open" ────┘
- *
- * Single-palette case degenerates cleanly: Cmd+K opens, Cmd+K again
- * closes (because cycling past the last lands on "nothing open").
- */
-
-/**
- * A Cmd+K-triggered overlay. Just three methods — the registry doesn't
- * care about visuals; only the open/closed contract.
- */
 export interface Palette {
-	/** Unique id. Re-registering the same id REPLACES the previous entry. */
+
 	id: string;
-	/** Human label, used in debug output and potential picker UIs. */
+
 	label?: string;
-	/** Open the palette UI. */
+
 	open(): void;
-	/** Close the palette UI. */
+
 	close(): void;
-	/** Synchronously report whether the palette is currently visible. */
+
 	isOpen(): boolean;
 }
 
 const palettes: Palette[] = [];
 const listeners = new Set<() => void >();
 
-/**
- * Add a palette to the registry. Returns an unsubscribe function — call
- * it when your plugin tears down to keep the registry clean.
- *
- * Re-registering the same id replaces the previous entry (mirrors WP's
- * `register_*` semantics), so it's safe to call during module-HMR cycles
- * or after live plugin activation.
- */
 export function registerPalette( p: Palette ): () => void {
 	if ( ! p || typeof p.id !== 'string' || p.id === '' ) {
 		return () => {};
@@ -75,7 +37,6 @@ export function registerPalette( p: Palette ): () => void {
 	};
 }
 
-/** Remove by id. Idempotent. */
 export function unregisterPalette( id: string ): void {
 	const idx = palettes.findIndex( ( x ) => x.id === id );
 	if ( idx >= 0 ) {
@@ -84,12 +45,10 @@ export function unregisterPalette( id: string ): void {
 	}
 }
 
-/** Snapshot of all palettes in registration order. */
 export function listPalettes(): Palette[] {
 	return palettes.slice();
 }
 
-/** Subscribe to registry changes. */
 export function subscribePalettes( cb: () => void ): () => void {
 	listeners.add( cb );
 	return () => {
@@ -109,26 +68,6 @@ function notify(): void {
 	}
 }
 
-/**
- * Announce a palette's visibility change to the rest of the shell by
- * dispatching `os-palette-opened` / `os-palette-closed` (detail:
- * `{ id }`) on `document`.
- *
- * The shell uses these events to run work that is only worth paying
- * for while a palette is visible — the iframe command harvester being
- * the canonical case: it keeps a React tree re-rendering on every
- * `wp.data` store tick inside the focused window, so it must not run
- * while no palette can display the result.
- *
- * The registry calls this around the `open()` / `close()` calls it
- * makes itself (the Cmd+K cycle, {@link openPaletteOnly}). A palette
- * with its own extra entry points — an Escape handler, a close
- * button, a programmatic `open()` — should call it (or dispatch the
- * equivalent CustomEvent) from those paths too; the built-in AI
- * Assistant does. Consumers must treat the events as idempotent
- * signals, since a transition can be announced from more than one
- * site.
- */
 export function notifyPaletteVisibility( id: string, open: boolean ): void {
 	try {
 		document.dispatchEvent(
@@ -137,22 +76,10 @@ export function notifyPaletteVisibility( id: string, open: boolean ): void {
 			} ),
 		);
 	} catch {
-		/* no DOM (tests without jsdom) — nothing to announce */
+
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Cycle
-// ---------------------------------------------------------------------------
-
-/**
- * Advance the palette cycle one step. Called by the global Cmd+K
- * handler the shell installs at boot.
- *
- *   nothing open        → open palette 0
- *   palette i open      → close i, open i+1 (if it exists)
- *   last palette open   → close it (nothing open after)
- */
 export function cyclePalettes(): void {
 	if ( palettes.length === 0 ) {
 		return;
@@ -170,7 +97,7 @@ export function cyclePalettes(): void {
 			palettes[ 0 ].open();
 			notifyPaletteVisibility( palettes[ 0 ].id, true );
 		} catch {
-			/* swallow — one bad palette shouldn't break the shortcut */
+
 		}
 		return;
 	}
@@ -179,7 +106,7 @@ export function cyclePalettes(): void {
 		palettes[ cur ].close();
 		notifyPaletteVisibility( palettes[ cur ].id, false );
 	} catch {
-		/* swallow */
+
 	}
 
 	const next = cur + 1;
@@ -188,17 +115,11 @@ export function cyclePalettes(): void {
 			palettes[ next ].open();
 			notifyPaletteVisibility( palettes[ next ].id, true );
 		} catch {
-			/* swallow */
+
 		}
 	}
-	// else: cycle ended — everything is now closed. Next press re-opens palette 0.
 }
 
-/**
- * Open a specific palette by id, closing any others that are currently
- * open. Used by entry points that target a particular palette (e.g. the
- * admin-bar "Ask AI" button) so they don't need to reason about the cycle.
- */
 export function openPaletteOnly( id: string ): void {
 	const target = palettes.find( ( p ) => p.id === id );
 	if ( ! target ) {
@@ -212,7 +133,7 @@ export function openPaletteOnly( id: string ): void {
 					notifyPaletteVisibility( p.id, false );
 				}
 			} catch {
-				/* swallow */
+
 			}
 		}
 	}
@@ -220,44 +141,18 @@ export function openPaletteOnly( id: string ): void {
 		target.open();
 		notifyPaletteVisibility( target.id, true );
 	} catch {
-		/* swallow */
+
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Global shortcut installer
-// ---------------------------------------------------------------------------
-
 let installed = false;
 
-/**
- * Install the one-and-only Cmd+K / Ctrl+K shortcut handler. Idempotent —
- * calling it twice is safe (only the first call attaches the listener).
- *
- * Registers in capture phase on `document` so it fires before any
- * nested palette's own keydown handlers. Each palette is responsible
- * for closing itself cleanly on its own Escape handler; the cycle logic
- * never listens for Escape.
- */
 export function installPaletteShortcut(): void {
 	if ( installed ) {
 		return;
 	}
 	installed = true;
 
-	// Parent-document keydown — catches Cmd+K when focus is on the shell
-	// itself (admin bar, dock, wallpaper, anywhere outside an iframe).
-	//
-	// `stopImmediatePropagation` is critical: WP's
-	// `wp_enqueue_command_palette_assets` (force-enqueued in
-	// `includes/render/assets.php` so the `core/commands` data store
-	// is populated for our harvester) also mounts `<CommandMenu>` on
-	// the shell and binds its own global Cmd+K shortcut via Mousetrap.
-	// Without stopping immediate propagation, BOTH palettes open and
-	// the user can pick from WP's — whose admin-nav callbacks do
-	// `document.location = url` and unload the shell out of desktop
-	// mode. Kill WP's listener at the capture stage so only ours
-	// ever sees the keystroke.
 	document.addEventListener(
 		'keydown',
 		( e: KeyboardEvent ) => {
@@ -267,12 +162,7 @@ export function installPaletteShortcut(): void {
 			if ( e.shiftKey || e.altKey ) {
 				return;
 			}
-			// Always claim Cmd+K inside the desktop shell — Core's command
-			// palette is never the right UI here (its commands are harvested
-			// into the shell and its own callbacks hard-navigate out of the
-			// window model), so we suppress it unconditionally. The assistant
-			// registers itself as a palette at boot and stays registered, so
-			// `cyclePalettes()` opens it.
+
 			e.preventDefault();
 			e.stopImmediatePropagation();
 			cyclePalettes();
@@ -280,11 +170,6 @@ export function installPaletteShortcut(): void {
 		true,
 	);
 
-	// Iframe forwarder — the chromeless bridge script inside every
-	// wp-admin iframe captures Cmd+K at its own document level and
-	// postMessages us this event. Gives us a consistent shortcut
-	// regardless of whether focus lives on the shell or inside
-	// Gutenberg / TinyMCE / a plugin admin screen.
 	const origin = window.location.origin;
 	window.addEventListener( 'message', ( e: MessageEvent ) => {
 		if ( e.origin !== origin ) {

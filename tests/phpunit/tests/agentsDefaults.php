@@ -1,14 +1,5 @@
 <?php
-/**
- * Tests for the default agent roster — seeding on empty sites only,
- * idempotence, and complete definitions.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-agents
- */
+
 class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -23,9 +14,6 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 		delete_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION );
 	}
 
-	/**
-	 * @covers ::openstation_agents_default_definitions
-	 */
 	public function test_definitions_are_complete() {
 		$defs  = openstation_agents_default_definitions();
 		$names = wp_list_pluck( $defs, 'name' );
@@ -39,19 +27,10 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 			$kinds = wp_list_pluck( $def['triggers'], 'kind' );
 			$this->assertSame( array( 'chat', 'send-to', 'drag' ), $kinds, "{$def['name']} trigger kinds" );
 		}
-		// The Localizer can only draft — least privilege.
+
 		$this->assertSame( 'author', $defs[2]['role'] );
 	}
 
-	/**
-	 * Every `desktop-mode/*` slug a default agent lists is an ability this
-	 * plugin registers. The runner drops an unknown slug silently, so a
-	 * typo or a renamed ability costs the agent a tool with no error
-	 * anywhere (the Concierge shipped without `search-comments-by-post`).
-	 * `ai/*` and `core/*` slugs belong to other plugins and are skipped.
-	 *
-	 * @covers ::openstation_agents_default_definitions
-	 */
 	public function test_default_allowlists_name_registered_abilities() {
 		if ( ! function_exists( 'wp_get_ability' ) ) {
 			$this->markTestSkipped( 'Abilities API not available.' );
@@ -66,12 +45,6 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * Migration 9 rewrites the misspelled slug in a stored allowlist and
-	 * leaves every other slug where it was.
-	 *
-	 * @covers ::openstation_migrate_agent_ability_slugs
-	 */
 	public function test_migration_repairs_the_concierge_slug() {
 		$agent = openstation_agent_create(
 			array(
@@ -91,9 +64,6 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_agents_seed_defaults
-	 */
 	public function test_seeds_on_an_agentless_site_once() {
 		$this->assertCount( 0, openstation_agent_get_agents() );
 
@@ -102,7 +72,6 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 		$this->assertCount( 5, $agents );
 		$this->assertSame( '1', get_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION ) );
 
-		// Triggers landed on the user rows, not just in the definitions.
 		$names = array();
 		foreach ( $agents as $user ) {
 			$names[] = $user->display_name;
@@ -115,17 +84,10 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 			$names
 		);
 
-		// Idempotent: a second run creates nothing.
 		openstation_agents_seed_defaults();
 		$this->assertCount( 5, openstation_agent_get_agents() );
 	}
 
-	/**
-	 * A site that already built its own roster is never touched — the
-	 * flag is set without creating anything.
-	 *
-	 * @covers ::openstation_agents_seed_defaults
-	 */
 	public function test_never_seeds_into_an_existing_roster() {
 		$own = openstation_agent_create(
 			array(

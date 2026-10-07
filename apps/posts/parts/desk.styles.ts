@@ -1,8 +1,7 @@
 import { css } from '../../../src/ui/core';
 
-/** Layout styles travel with the versioned app bundle. */
 export const deskStyles = css`
-/* Content workspaces adapt to the window, including a narrow floating window. */
+
 .desktop-mode-posts {
 	container: content-desk / inline-size;
 	color: var( --os-ui-fg, #1d2327 );
@@ -266,9 +265,6 @@ export const deskStyles = css`
 	flex: 1 1 100px;
 }
 
-/* A plugin column on the card: value over label, the os-stat silhouette at
-   the strip's scale, so Provenance or any other registered cell sits beside
-   Words / Comments / Tags without pretending to be a number. */
 .os-posts-desk__plugin-stat {
 	display: flex;
 	flex-direction: column;
@@ -356,9 +352,6 @@ export const deskStyles = css`
 	padding-block: 16px;
 	border-block: 1px solid var( --os-ui-border, #dcdcde );
 
-	/* The band's own rhythm: tighter and smaller than a facts list
-	   in a detail pane, which is what the kit's defaults are sized
-	   for. The layout itself is the component's. */
 	--os-ui-facts-font-size: 11px;
 	--os-ui-facts-row-gap: 4px;
 	--os-ui-facts-column-gap: 10px;
@@ -412,7 +405,6 @@ export const deskStyles = css`
 	flex: 0 1 auto;
 }
 
-/* Pages are documents in a directory, with their location above the title. */
 .desktop-mode-pages .os-posts-desk__feed {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, minmax( 230px, 1fr ) );

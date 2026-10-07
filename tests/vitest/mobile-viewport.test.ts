@@ -1,21 +1,3 @@
-/**
- * The phone layer's fit inside a phone — the stylesheet contract.
- *
- * Pins what an installed app on a phone depends on and a refactor
- * would not notice breaking:
- *
- * - the tab bar is anchored to the viewport's bottom edge, not laid
- *   out as the shell's last child, and the shell's body keeps its
- *   footprint clear;
- * - the document does not zoom: `touch-action: pan-x pan-y` on the
- *   root, and every kit field at 16px (the size under which iOS
- *   zooms the page into a focused control);
- * - the admin-bar height token is 0 on a phone;
- * - every `--_m-*` colour alias reads a palette token, and every
- *   `--os-mobile-*` token it reads is declared in `variables.css`;
- * - the kit fields read the sizing tokens the phone layer sets;
- * - Trash and WP Explorer fold under a narrow container.
- */
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -26,7 +8,6 @@ const read = ( rel: string ): string => readFileSync( join( ROOT, rel ), 'utf8' 
 const mobile = read( 'assets/css/mobile.css' );
 const variables = read( 'assets/css/variables.css' );
 
-/** The declarations of one rule, by a unique selector fragment. */
 function block( css: string, selector: string ): string {
 	const at = css.indexOf( selector );
 	expect( at, `rule for ${ selector }` ).toBeGreaterThan( -1 );
@@ -35,7 +16,6 @@ function block( css: string, selector: string ): string {
 	return css.slice( open + 1, close );
 }
 
-/** The declarations of the rule a unique declaration fragment sits in. */
 function blockAround( css: string, declaration: string ): string {
 	const at = css.indexOf( declaration );
 	expect( at, `declaration ${ declaration }` ).toBeGreaterThan( -1 );
@@ -131,9 +111,7 @@ describe( 'the phone wears the palette', () => {
 	} );
 
 	test( 'every --os-mobile-* token it reads is declared in variables.css', () => {
-		// The alias block alone: `--os-mobile-back-progress` and
-		// `--os-mobile-card-dir` elsewhere in the sheet are gesture
-		// state the layer writes, not palette tokens.
+
 		const wanted = new Set( tokens.match( /--os-mobile-[a-z-]+/g ) ?? [] );
 		expect( wanted.size ).toBeGreaterThan( 5 );
 		for ( const name of wanted ) {
@@ -165,9 +143,7 @@ describe( 'the apps fold under a narrow container', () => {
 		const narrow = css.slice( css.indexOf( '@container ( max-width: 640px )' ) );
 		expect( narrow ).toMatch( /\.os-mywp__split \{[^}]*grid-template-rows:\s*minmax\(\s*0,\s*1fr\s*\)\s*auto/ );
 		expect( narrow ).toMatch( /\.os-mywp__detail-pane \{[^}]*max-block-size:\s*45%/ );
-		// With nothing selected the pane is not rendered at all (the
-		// split carries `--solo` and one column), so no `:has()` rule
-		// has to hide an empty sheet.
+
 		expect( css ).toMatch( /\.os-mywp__split--solo \{[^}]*grid-template-columns:\s*minmax\(\s*0,\s*1fr\s*\)/ );
 		expect( css ).not.toMatch( /os-mywp__pane-empty/ );
 	} );

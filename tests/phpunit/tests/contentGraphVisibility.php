@@ -1,19 +1,5 @@
 <?php
-/**
- * Tests for the Content Graph per-user visibility gating.
- *
- * Covers the privilege scoping of private posts in the graph payload
- * (builder + cache key), the response-time stripping of revision-
- * derived contributor data in /nodes, the edit_post gate on the
- * /post/<id> revisions list, and the readable-scoped /post-types
- * counts.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group content-graph
- */
+
 class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 
 	protected static $editor_id;
@@ -43,8 +29,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		// Each test starts from a clean transient cache so we exercise
-		// the build path and not a cached payload from a prior test.
+
 		openstation_content_graph_flush_cache();
 	}
 
@@ -119,12 +104,10 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 			)
 		);
 
-		// Prime the cache as a privileged user.
 		wp_set_current_user( self::$editor_id );
 		$editor_payload = openstation_content_graph_build( array( 'post' ) );
 		$this->assertContains( $private_id, $this->node_ids( $editor_payload ) );
 
-		// A lower-privilege user must NOT be served the cached payload.
 		wp_set_current_user( self::$author_a_id );
 		$author_payload = openstation_content_graph_build( array( 'post' ) );
 		$this->assertNotContains(
@@ -133,7 +116,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 			'A payload cached for a privileged user must never be served to a lower-privilege user.'
 		);
 
-		// And the privileged user keeps their richer payload afterwards.
 		wp_set_current_user( self::$editor_id );
 		$editor_payload = openstation_content_graph_build( array( 'post' ) );
 		$this->assertContains( $private_id, $this->node_ids( $editor_payload ) );
@@ -147,8 +129,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 				'post_type'   => 'post',
 			)
 		);
-		// Revision authored by the editor — `wp_save_post_revision`
-		// records the CURRENT user as the revision author.
+
 		wp_set_current_user( self::$editor_id );
 		wp_update_post(
 			array(
@@ -157,7 +138,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 			)
 		);
 
-		// Viewer who cannot edit_post Bob's post.
 		wp_set_current_user( self::$author_a_id );
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-graph/nodes' );
 		$request->set_param( 'types', 'post' );
@@ -175,7 +155,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 			'Authors-catalog entries referenced only via stripped contributor ids must be removed.'
 		);
 
-		// The post owner can edit_post it — contributor data stays.
 		wp_set_current_user( self::$author_b_id );
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-graph/nodes' );
 		$request->set_param( 'types', 'post' );
@@ -196,9 +175,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		);
 		wp_set_current_user( self::$editor_id );
 
-		// Through the server, not the callback: dispatch is what installs
-		// registered arg defaults into the request, and the omitted-vs-
-		// empty distinction only holds if no default is registered.
 		$default_request = new WP_REST_Request(
 			'GET',
 			'/desktop-mode/v1/content-graph/nodes'
@@ -239,8 +215,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 				'post_content' => 'Edited by the editor.',
 			)
 		);
-		// Approved comment by a registered user — comment authors are
-		// public data and must survive the gating.
+
 		self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $post_id,
@@ -249,7 +224,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 			)
 		);
 
-		// Reader without edit_post: no revisions, no revision authors.
 		wp_set_current_user( self::$author_a_id );
 		$data = $this->detail_response( $post_id );
 
@@ -270,7 +244,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 			'Comment-author contributors are public and must remain.'
 		);
 
-		// The post owner gets the full bundle.
 		wp_set_current_user( self::$author_b_id );
 		$data = $this->detail_response( $post_id );
 
@@ -316,10 +289,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @param int $post_id
-	 * @return array
-	 */
 	protected function detail_response( $post_id ) {
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-graph/post/' . $post_id );
 		$request->set_param( 'id', $post_id );
@@ -328,10 +297,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		return rest_ensure_response( $response )->get_data();
 	}
 
-	/**
-	 * @param string $slug
-	 * @return int
-	 */
 	protected function post_type_count( $slug ) {
 		$data = rest_ensure_response( openstation_content_graph_rest_post_types() )->get_data();
 		foreach ( $data as $entry ) {
@@ -342,19 +307,10 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		$this->fail( "No /post-types entry for '{$slug}'." );
 	}
 
-	/**
-	 * @param array $payload
-	 * @return int[]
-	 */
 	protected function node_ids( $payload ) {
 		return array_map( 'intval', wp_list_pluck( $payload['nodes'], 'id' ) );
 	}
 
-	/**
-	 * @param array $payload
-	 * @param int   $post_id
-	 * @return array
-	 */
 	protected function find_node( $payload, $post_id ) {
 		foreach ( $payload['nodes'] as $node ) {
 			if ( (int) $node['id'] === (int) $post_id ) {

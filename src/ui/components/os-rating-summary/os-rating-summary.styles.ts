@@ -1,12 +1,3 @@
-/**
- * `<os-rating-summary>` — shadow-DOM styles.
- *
- * Two-column layout: a left "summary" tile with the big rating
- * number, 5-star cluster, and total-ratings line; and a right
- * "histogram" with one row per star bucket. Every paintable token
- * reads from a CSS custom property so callers can theme just the
- * fills (matching their plugin brand) without overriding the layout.
- */
 import { css } from '../../core';
 
 export const styles = css`
@@ -18,12 +9,9 @@ export const styles = css`
 		);
 		--_fill: var( --os-ui-rating-fill,
 			linear-gradient( 90deg, #f5af00 0%, #ffd245 100% ) );
-		/* The filled star keeps its gold: that colour is the meaning,
-		   not chrome, and it reads on a light or dark card alike. */
+
 		--_star: var( --os-ui-rating-star, #f5af00 );
-		/* The EMPTY star and the track are neutral black washes, which
-		   disappear entirely on a dark surface — so they follow the
-		   palette instead. */
+
 		--_star-empty: var(
 			--os-ui-rating-star-empty,
 			var( --os-ui-fg-faint, rgba( 0, 0, 0, 0.18 ) )

@@ -1,106 +1,27 @@
 <?php
-/**
- * OpenStation — Desktop-theme storage + accessors.
- *
- * Owns the uploads directory, the site option that indexes installed
- * themes, and every filterable knob the rest of the module reads
- * (upload capability, slot allowlists, ZIP caps).
- *
- * Storage layout:
- *
- *     uploads/desktop-mode-themes/
- *         index.php            <- silence
- *         .htaccess            <- exec-off, NOT deny-all
- *         <slug>/
- *             theme.json       <- the author's raw manifest
- *             theme.css        <- compiled by us: custom props +
- *
- *                                 @font-face rules we generated
- *             icons/…  textures/…  fonts/…  preview.png
- *
- * The `.htaccess` here is deliberately NOT the deny-all one the
- * stored-files module drops: theme assets are `<img src>` / CSS
- * `url()` targets and MUST be servable. It turns the PHP engine off
- * and denies executable extensions instead. Belt and braces: the
- * installer only ever moves manifest-referenced files whose
- * extension is on the image or font allowlist, so nothing executable
- * lands in the first place.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Site option holding the installed-theme index. Autoload: no.
- *
- * The VALUE keeps its pre-rebrand spelling on purpose: rows are already
- * stored under it on live installs, so renaming it would orphan every
- * one. The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- *
- * Not to be confused with the `openstation_desktop_themes` filter, which
- * once shared this string and is now deliberately decoupled.
- */
 const OPENSTATION_DESKTOP_THEMES_OPTION = 'desktop_mode_desktop_themes';
 
-/**
- * Absolute path of the desktop-themes base dir (no trailing slash),
- * or of one theme's dir when `$slug` is given. Pure path math —
- * nothing is created; see {@see openstation_desktop_themes_ensure_dir()}.
- *
- * The `desktop-mode-themes` segment is the pre-rebrand spelling and is
- * frozen: admin-uploaded theme ZIPs already unpack there. Renaming it
- * points the plugin at an empty directory and every installed theme
- * vanishes from the picker. The mismatch with the function name is
- * deliberate.
- *
- * @param string $slug Optional. Theme slug.
- * @return string
- */
 function openstation_desktop_themes_dir( $slug = '' ) {
 	$uploads = wp_get_upload_dir();
 	$base    = trailingslashit( $uploads['basedir'] ) . 'desktop-mode-themes';
-	/**
-	 * Filters the desktop-theme storage base directory.
-	 *
-	 * Whatever this points at must be web-servable — the compiled
-	 * `theme.css` and every image are loaded by the browser.
-	 *
-	 * @param string $base Absolute path, no trailing slash.
-	 */
+
 	$base = (string) apply_filters( 'openstation_desktop_themes_base_dir', $base );
 	$slug = sanitize_key( (string) $slug );
 	return '' !== $slug ? $base . '/' . $slug : $base;
 }
 
-/**
- * Public URL of the desktop-themes base dir (no trailing slash), or
- * of one theme's dir when `$slug` is given.
- *
- * @param string $slug Optional. Theme slug.
- * @return string
- */
 function openstation_desktop_themes_url( $slug = '' ) {
 	$uploads = wp_get_upload_dir();
 	$url     = untrailingslashit( $uploads['baseurl'] ) . '/desktop-mode-themes';
-	/**
-	 * Filters the desktop-theme storage base URL. Must resolve to the
-	 * same bytes `openstation_desktop_themes_base_dir` points at.
-	 *
-	 * @param string $url Absolute URL, no trailing slash.
-	 */
+
 	$url  = (string) apply_filters( 'openstation_desktop_themes_base_url', $url );
 	$slug = sanitize_key( (string) $slug );
 	return '' !== $slug ? $url . '/' . $slug : $url;
 }
 
-/**
- * Create (idempotently) the base dir and drop the protection files.
- *
- * @return string|WP_Error Base dir path, or `WP_Error` when the
- *                         filesystem refuses.
- */
 function openstation_desktop_themes_ensure_dir() {
 	$base = openstation_desktop_themes_dir();
 	if ( ! wp_mkdir_p( $base ) ) {
@@ -113,14 +34,10 @@ function openstation_desktop_themes_ensure_dir() {
 
 	$index = $base . '/index.php';
 	if ( ! file_exists( $index ) ) {
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
 		file_put_contents( $index, "<?php // Silence is golden.\n" );
 	}
 
-	// Exec-off, NOT deny-all — theme assets must stay servable. The
-	// `mod_php` variants cover both the module names Apache has used;
-	// the `FilesMatch` block is the fallback for FPM/CGI setups where
-	// `php_flag` isn't available.
 	$htaccess = $base . '/.htaccess';
 	if ( ! file_exists( $htaccess ) ) {
 		$rules = "Options -Indexes\n"
@@ -130,18 +47,13 @@ function openstation_desktop_themes_ensure_dir() {
 			. "\t<IfModule mod_authz_core.c>\n\t\tRequire all denied\n\t</IfModule>\n"
 			. "\t<IfModule !mod_authz_core.c>\n\t\tOrder deny,allow\n\t\tDeny from all\n\t</IfModule>\n"
 			. "</FilesMatch>\n";
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
 		file_put_contents( $htaccess, $rules );
 	}
 
 	return $base;
 }
 
-/**
- * Read the installed-theme index (map of slug => stored entry).
- *
- * @return array<string,array>
- */
 function openstation_desktop_themes_index() {
 	$raw = get_option( OPENSTATION_DESKTOP_THEMES_OPTION, array() );
 	if ( ! is_array( $raw ) ) {
@@ -157,16 +69,6 @@ function openstation_desktop_themes_index() {
 	return $out;
 }
 
-/**
- * Persist the installed-theme index.
- *
- * Uses `add_option( …, '', 'no' )` on first write so the option is
- * never autoloaded — the index carries whole manifests and has no
- * business on every single page load.
- *
- * @param array<string,array> $index Map of slug => stored entry.
- * @return void
- */
 function openstation_desktop_themes_put_index( $index ) {
 	$index = is_array( $index ) ? $index : array();
 	if ( false === get_option( OPENSTATION_DESKTOP_THEMES_OPTION, false ) ) {
@@ -176,58 +78,24 @@ function openstation_desktop_themes_put_index( $index ) {
 	update_option( OPENSTATION_DESKTOP_THEMES_OPTION, $index, false );
 }
 
-/**
- * Fetch one installed theme's stored entry.
- *
- * @param string $slug Theme slug.
- * @return array|null Stored entry, or `null` when not installed.
- */
 function openstation_desktop_theme_get( $slug ) {
 	$slug  = sanitize_key( (string) $slug );
 	$index = openstation_desktop_themes_index();
 	return isset( $index[ $slug ] ) ? $index[ $slug ] : null;
 }
 
-/**
- * Capability required to upload / delete desktop themes.
- *
- * @return string
- */
 function openstation_desktop_theme_upload_capability() {
-	/**
-	 * Filters the capability required to manage the site's desktop
-	 * theme library. Picking a theme is per-user and never gated.
-	 *
-	 * @param string $capability Default `manage_options`.
-	 */
+
 	return (string) apply_filters( 'openstation_desktop_theme_upload_capability', 'manage_options' );
 }
 
-/**
- * Derive the storage slug from a manifest `id`.
- *
- * Manifest ids may be namespaced (`vendor/neon-glass`); the slug
- * flattens the slash so it is a legal single directory name.
- *
- * @param string $id Manifest id.
- * @return string Slug, or `''` when the id yields nothing usable.
- */
 function openstation_desktop_theme_slug_from_id( $id ) {
 	return sanitize_key( str_replace( '/', '-', (string) $id ) );
 }
 
-/**
- * The icon slots a manifest may address.
- *
- * Single source of truth for the PHP side; must stay equal to the
- * `DESKTOP_THEME_SLOTS` constants in `src/desktop-themes/slots.ts`.
- * `APP:<slug>` entries are matched by pattern, not by this list.
- *
- * @return string[]
- */
 function openstation_desktop_theme_icon_slots() {
 	$slots = array(
-		// Window controls — one per `<os-window-button>` key.
+
 		'WINDOW_CONTROL_MINIMIZE',
 		'WINDOW_CONTROL_MAXIMIZE',
 		'WINDOW_CONTROL_FULLSCREEN',
@@ -236,15 +104,15 @@ function openstation_desktop_theme_icon_slots() {
 		'WINDOW_CONTROL_MENU',
 		'WINDOW_CONTROL_RELOAD',
 		'WINDOW_CONTROL_DETACH',
-		// System tiles.
+
 		'OS_SETTINGS',
 		'RECYCLE_BIN',
 		'BUG_REPORT',
 		'EXIT_OPENSTATION',
 		'PWA_INSTALL',
-		// Apps.
+
 		'DEFAULT_APP_ICON',
-		// Desktop files.
+
 		'FOLDER',
 		'FILE_SHORTCUT',
 		'FILE_POST',
@@ -256,57 +124,18 @@ function openstation_desktop_theme_icon_slots() {
 		'FILE_BOOKMARK',
 		'FILE_LINK',
 		'FILE_EMBED',
-		// Recycle-bin row actions.
+
 		'RECYCLE_RESTORE',
 		'RECYCLE_DELETE',
 	);
-	/**
-	 * Filters the icon slots a desktop theme manifest may address.
-	 *
-	 * Entries not on this list (and not matching the `APP:<slug>`
-	 * pattern) are dropped from the manifest during sanitization.
-	 *
-	 * @param string[] $slots Slot names.
-	 */
+
 	return (array) apply_filters( 'openstation_desktop_theme_icon_slots', $slots );
 }
 
-/**
- * The texture slots a manifest may address, each mapped to the
- * grammar the sanitizer enforces AND the custom property the
- * compiler writes it to.
- *
- * Four keys make up a slot definition:
- *
- *   - `type`      — the structural discriminator. `image` slots
- *                   become `background-image` custom properties;
- *                   `border-image` slots become the four
- *                   `border-image-*` properties.
- *   - `prop`      — the custom-property BASE name. An `image` slot
- *                   emits `<prop>`, `<prop>-repeat`, `<prop>-size`;
- *                   a `border-image` slot emits `<prop>-source`,
- *                   `-slice`, `-width`, `-repeat`.
- *   - `companions`— set to `false` when a slot is a variant of
- *                   another one and should inherit its `repeat` /
- *                   `size` rather than declare its own
- *                   (`TITLEBAR_FOCUSED`).
- *   - `sizeGroup` — custom property shared by a family of slots that
- *                   must render at one size (the four window
- *                   corners). First declared wins.
- *
- * **The compiler reads this table and nothing else.** That is what
- * makes `openstation_desktop_theme_texture_slots` a complete
- * extension point: a plugin that adds an entry here, and writes one
- * CSS rule consuming `var( <prop>, none )`, has textured a surface
- * the framework never knew about — no core change, no compiler
- * change. See docs/desktop-themes.md § "Texturing your own surface".
- *
- * @return array<string,array{type:string,prop:string}>
- */
 function openstation_desktop_theme_texture_slots() {
 	$corner_size = '--os-window-corner-size';
 	$slots       = array(
-		// --- Window chrome. ---
+
 		'TITLEBAR'             => array(
 			'type' => 'image',
 			'prop' => '--os-titlebar-image',
@@ -314,8 +143,7 @@ function openstation_desktop_theme_texture_slots() {
 		'TITLEBAR_FOCUSED'     => array(
 			'type'       => 'image',
 			'prop'       => '--os-titlebar-image-focused',
-			// Shares the base slot's repeat + size; only the image
-			// differs, so a theme shipping one strip gets both states.
+
 			'companions' => false,
 		),
 		'WINDOW_FRAME'         => array(
@@ -346,12 +174,7 @@ function openstation_desktop_theme_texture_slots() {
 			'prop'      => '--os-window-corner-sw-image',
 			'sizeGroup' => $corner_size,
 		),
-		// The control cluster and the individual control faces. Both
-		// are TRANSPARENT by default, which is what lets a TITLEBAR
-		// texture run edge to edge underneath them. A theme that wants
-		// the controls to sit on a plate paints one here (and usually
-		// sets `--os-titlebar-controls-radius` +
-		// `-padding` to give it a shape).
+
 		'TITLEBAR_CONTROLS'    => array(
 			'type' => 'image',
 			'prop' => '--os-titlebar-controls-image',
@@ -368,7 +191,7 @@ function openstation_desktop_theme_texture_slots() {
 			'type' => 'image',
 			'prop' => '--os-tabs-image',
 		),
-		// --- Shell surfaces. ---
+
 		'DOCK'                 => array(
 			'type' => 'image',
 			'prop' => '--os-dock-bg-image',
@@ -389,7 +212,7 @@ function openstation_desktop_theme_texture_slots() {
 			'type' => 'image',
 			'prop' => '--os-widget-image',
 		),
-		// --- Component-kit surfaces (window bodies + popovers). ---
+
 		'MENU'                 => array(
 			'type' => 'image',
 			'prop' => '--os-ui-menu-bg-image',
@@ -419,58 +242,10 @@ function openstation_desktop_theme_texture_slots() {
 			'prop' => '--os-ui-button-bg-image',
 		),
 	);
-	/**
-	 * Filters the texture slots a desktop theme manifest may address.
-	 *
-	 * Each entry needs a `type` (`image` or `border-image`) and a
-	 * `prop` — the custom-property base name the compiler writes to.
-	 * With both present the slot is fully wired: the sanitizer accepts
-	 * it and the compiler emits it. All that remains is a CSS rule
-	 * that reads the property, which the plugin adding the slot ships
-	 * in its own stylesheet.
-	 *
-	 * An entry with no `prop` is accepted by the sanitizer but emits
-	 * nothing — that combination is a bug, not a feature.
-	 *
-	 * @param array<string,array> $slots Map of slot =>
-	 *                                   `{ type, prop, companions?,
-	 *                                   sizeGroup? }`.
-	 */
+
 	return (array) apply_filters( 'openstation_desktop_theme_texture_slots', $slots );
 }
 
-/**
- * The OS-settings keys a manifest's `recommendedOsSettings` block may
- * address, each mapped to the grammar the sanitizer enforces.
- *
- * Two grammars, and the difference is not cosmetic:
- *
- *   - `enum`  — a closed list of core values. The whole set is known
- *               to PHP, so an unknown value is provably wrong and is
- *               dropped here.
- *   - `slug`  — a `sanitize_key()`-clean id whose validity only the
- *               JS registry knows (`dockRailRenderer` and
- *               `windowReveal` resolve against things registered at
- *               runtime, by core AND by plugins). PHP checks the
- *               charset; the shell drops the key at apply time when
- *               nothing is registered under that id, which is the same
- *               "resolve at use time" contract
- *               `openstation_sanitize_os_settings()` already follows
- *               for the user's own `dockRailRenderer`.
- *   - `int`   — a whole number clamped into `{ min, max }`. Clamped
- *               rather than dropped: a theme asking for a reveal
- *               slower than the shell will play is expressing "slow",
- *               and the honest reading of that is the slowest we do
- *               play.
- *
- * A key absent from this table is dropped from the manifest. That is
- * the point: a theme RECOMMENDS presentation, so it may only reach
- * the handful of layout preferences a user would plausibly want a
- * theme to arrange for them — never a feature toggle, a capability
- * gate, or anything that changes what the shell can do.
- *
- * @return array<string,array{enum?:string[],slug?:bool,int?:array{min:int,max:int}}>
- */
 function openstation_desktop_theme_recommended_os_settings_schema() {
 	$schema = array(
 		'dockSize'             => array( 'enum' => OPENSTATION_OS_SETTINGS_DOCK_SIZES ),
@@ -481,20 +256,6 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 		'dockRailRenderer'     => array( 'slug' => true ),
 		'windowReveal'         => array( 'slug' => true ),
 
-		/*
-		 * The accent swatch id. A registry lookup rather than an enum
-		 * because the list is filterable
-		 * (`openstation_accent_colors`), so the shell resolves the id
-		 * against whatever swatches the site actually offers and skips
-		 * the key when nothing answers to it.
-		 *
-		 * It earns its place here for the same reason the rest do: a
-		 * theme's palette and the accent are one composition, and a
-		 * dark station wearing the WordPress blue it was never drawn
-		 * against is the most visible way that composition comes
-		 * apart. Still a recommendation — applied once, and the user's
-		 * pick afterwards is theirs.
-		 */
 		'accent'               => array( 'slug' => true ),
 		'windowRevealDuration' => array(
 			'int' => array(
@@ -503,24 +264,7 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 			),
 		),
 	);
-	/**
-	 * Filters the OS-settings keys a desktop theme may recommend.
-	 *
-	 * A plugin that adds its own presentation preference to OS
-	 * Settings can opt it into theme recommendations by adding an
-	 * entry here — `array( 'enum' => array( … ) )` for a closed set,
-	 * `array( 'slug' => true )` for a registry id resolved at apply
-	 * time, `array( 'int' => array( 'min' => …, 'max' => … ) )` for a
-	 * clamped whole number.
-	 *
-	 * Anything added is written into user meta the first time a user
-	 * activates a theme that recommends it, so keep the list to
-	 * presentation. Feature switches and capability-adjacent settings
-	 * do not belong here.
-	 *
-	 * @param array<string,array> $schema Map of settings key =>
-	 *                                    `{ enum }`, `{ slug }`, or `{ int }`.
-	 */
+
 	$schema = (array) apply_filters(
 		'openstation_desktop_theme_recommended_os_settings_schema',
 		$schema
@@ -566,41 +310,13 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 	return $out;
 }
 
-/**
- * File extensions a theme asset may carry, per asset kind.
- *
- * Two kinds exist, and they are deliberately disjoint:
- *
- *   - `image` — icons, textures, the preview. Everything the
- *     compiler turns into a `url()` inside a `background-image` or
- *     an `<img src>`.
- *   - `font`  — files referenced from a generated `@font-face`.
- *     Binary containers parsed by the browser's font engine; unlike
- *     SVG they carry no script surface, which is why they can be
- *     accepted without a sanitizer pass of their own.
- *
- * A kind the caller doesn't recognise gets an EMPTY list, so a typo
- * fails closed.
- *
- * @param string $kind `'image'` or `'font'`.
- * @return string[] Lowercase extensions, no leading dot.
- */
 function openstation_desktop_theme_asset_extensions( $kind = 'image' ) {
 	$kind = strtolower( trim( (string) $kind ) );
 	$map  = array(
 		'image' => array( 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg' ),
 		'font'  => array( 'woff2', 'woff', 'ttf', 'otf' ),
 	);
-	/**
-	 * Filters the extensions accepted for one kind of theme asset.
-	 *
-	 * Adding anything the browser parses as script (`css`, `js`,
-	 * `html`, `xml`, `svgz`) or anything the server executes defeats
-	 * the security model this whole feature rests on.
-	 *
-	 * @param string[] $extensions Lowercase extensions, no dot.
-	 * @param string   $kind       `'image'` or `'font'`.
-	 */
+
 	$extensions = (array) apply_filters(
 		'openstation_desktop_theme_asset_extensions',
 		isset( $map[ $kind ] ) ? $map[ $kind ] : array(),
@@ -620,25 +336,14 @@ function openstation_desktop_theme_asset_extensions( $kind = 'image' ) {
 	);
 }
 
-/**
- * Maximum number of `@font-face` rules one theme may declare, and
- * the maximum number of source files per face.
- *
- * @return array{max_faces:int,max_sources:int}
- */
 function openstation_desktop_theme_font_caps() {
-	/**
-	 * Filters the desktop-theme font caps.
-	 *
-	 * @param array $caps `{ max_faces, max_sources }`.
-	 */
+
 	$caps = (array) apply_filters(
 		'openstation_desktop_theme_font_caps',
 		array(
-			// A UI font at a few weights, a mono, a display face.
+
 			'max_faces'   => 16,
-			// woff2 + woff is the realistic ceiling in 2025; four
-			// leaves room for a ttf/otf tail on ancient targets.
+
 			'max_sources' => 4,
 		)
 	);
@@ -648,43 +353,22 @@ function openstation_desktop_theme_font_caps() {
 	);
 }
 
-/**
- * Hard caps applied while walking an uploaded ZIP.
- *
- * @return array{max_entries:int,max_uncompressed:int,max_file:int,extensions:string[]}
- */
 function openstation_desktop_theme_zip_caps() {
 	$caps = array(
-		// Entry count — a theme is a manifest plus a couple of dozen
-		// images; anything past this is a zip bomb or a mistake.
+
 		'max_entries'      => 256,
-		// Total uncompressed bytes across every entry (32 MB).
+
 		'max_uncompressed' => 32 * 1024 * 1024,
-		// Single-entry uncompressed cap (8 MB).
+
 		'max_file'         => 8 * 1024 * 1024,
-		// Everything else is refused outright. No CSS, no JS, ever.
-		//
-		// `txt` / `md` are here so an archive may carry the licence
-		// notice its bundled fonts require. They are NOT referenceable
-		// from any manifest field — every resolver demands an image or
-		// font extension — so they are validated, never extracted into
-		// the live directory, and discarded with the staging dir.
+
 		'extensions'       => array_merge(
 			array( 'json', 'txt', 'md' ),
 			openstation_desktop_theme_asset_extensions( 'image' ),
 			openstation_desktop_theme_asset_extensions( 'font' )
 		),
 	);
-	/**
-	 * Filters the caps enforced while validating an uploaded desktop
-	 * theme ZIP.
-	 *
-	 * Widening `extensions` to anything executable or anything the
-	 * browser parses as script (`css`, `js`, `html`, `xml`) defeats
-	 * the whole security model of this feature.
-	 *
-	 * @param array $caps See the return shape above.
-	 */
+
 	$caps = (array) apply_filters( 'openstation_desktop_theme_zip_caps', $caps );
 
 	return array(
@@ -705,16 +389,7 @@ function openstation_desktop_theme_zip_caps() {
 	);
 }
 
-/**
- * Maximum number of themes the payload ships to the shell.
- *
- * @return int
- */
 function openstation_desktop_themes_payload_cap() {
-	/**
-	 * Filters how many desktop themes are announced to the shell.
-	 *
-	 * @param int $cap Default 24.
-	 */
+
 	return max( 1, (int) apply_filters( 'openstation_desktop_themes_payload_cap', 24 ) );
 }

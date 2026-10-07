@@ -108,7 +108,7 @@ var openStationCodeEditor = function(exports) {
     }
   }
   function createModelCache() {
-    const cache = /* @__PURE__ */ new Map();
+    const cache =                 new Map();
     const monacoUriFor = (monaco, path) => {
       return monaco.Uri.parse(`file:///workspace/${path}`);
     };
@@ -213,8 +213,7 @@ var openStationCodeEditor = function(exports) {
           openEditorWindow();
         }
       },
-      // Capture so wp-admin's own keydown handlers don't swallow
-      // the shortcut before we see it.
+
       { capture: true }
     );
   }
@@ -875,13 +874,9 @@ var openStationCodeEditor = function(exports) {
       insertText,
       insertTextRules,
       range,
-      // Defer doc fetch to resolution time so the dropdown isn't
-      // blocked on N hover-doc roundtrips. Monaco calls
-      // `resolveCompletionItem` only when the user actually
-      // selects/hovers a row.
+
       documentation: void 0,
-      // Sort hooks above functions when in a hook context so the
-      // list reflects what the user is actually typing toward.
+
       sortText: context.kind === "hook" && isHook ? `0_${entry.name}` : `1_${entry.name}`
     };
   }
@@ -928,8 +923,7 @@ var openStationCodeEditor = function(exports) {
     const completionLatest = new CancellableLatest();
     const detailLatest = new CancellableLatest();
     monaco.languages.registerCompletionItemProvider("php", {
-      // Trigger after every keystroke that could continue an
-      // identifier, plus the quote characters that open hook names.
+
       triggerCharacters: [
         "_",
         "'",
@@ -1144,10 +1138,7 @@ var openStationCodeEditor = function(exports) {
     ts.typescriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: false,
       noSyntaxValidation: false,
-      // 2307 — "Cannot find module 'X'": single-file context, almost
-      // always noise. Re-enable once Phase 2's file tree gives the
-      // worker a project to resolve against.
-      // 2304 — "Cannot find name 'X'": same.
+
       diagnosticCodesToIgnore: [2307, 2304]
     });
     ts.javascriptDefaults.setDiagnosticsOptions({
@@ -1220,7 +1211,7 @@ var openStationCodeEditor = function(exports) {
     const ul = document.createElement("ul");
     ul.className = "osc-tabs__list";
     mount.replaceChildren(ul);
-    const tabs = /* @__PURE__ */ new Map();
+    const tabs =                 new Map();
     const order = [];
     let active = null;
     const updateActiveClass = () => {
@@ -1414,7 +1405,7 @@ var openStationCodeEditor = function(exports) {
       icon: ICON_BY_EXT[ext] ?? "dashicons-media-default"
     };
   }
-  const DARK_SCHEMES = /* @__PURE__ */ new Set([
+  const DARK_SCHEMES =                 new Set([
     "midnight",
     "ectoplasm",
     "coffee",
@@ -1468,9 +1459,9 @@ var openStationCodeEditor = function(exports) {
     const { mount, onOpen } = opts;
     mount.classList.add("osc-tree");
     mount.replaceChildren();
-    const childrenByPath = /* @__PURE__ */ new Map();
-    const expanded = /* @__PURE__ */ new Set();
-    const inflight = /* @__PURE__ */ new Map();
+    const childrenByPath =                 new Map();
+    const expanded =                 new Set();
+    const inflight =                 new Map();
     const renderRow = (entry) => {
       const li = document.createElement("li");
       li.className = `osc-tree__row osc-tree__row--${entry.type}`;
@@ -1683,17 +1674,11 @@ var openStationCodeEditor = function(exports) {
     const editor = monaco.editor.create(editorMount, {
       model: placeholder,
       theme: monacoThemeForScheme(currentColorScheme()),
-      // `automaticLayout: true` polls + relayouts synchronously
-      // every tick during a drag-resize, which makes the minimap
-      // canvas flicker. We drive layout via a rAF-throttled
-      // ResizeObserver below — one layout per frame, no flicker.
+
       automaticLayout: false,
       minimap: {
         enabled: true,
-        // Render the minimap as colour blocks rather than
-        // individual character glyphs — same level of detail
-        // at a fraction of the per-frame cost. Cheaper redraws
-        // = less visible churn during resize.
+
         renderCharacters: false
       },
       fontSize: 13,
@@ -1717,9 +1702,9 @@ var openStationCodeEditor = function(exports) {
     });
     layoutObserver.observe(editorMount);
     const models = createModelCache();
-    const openFiles = /* @__PURE__ */ new Map();
-    const modelChangeDisposers = /* @__PURE__ */ new Map();
-    const openControllers = /* @__PURE__ */ new Map();
+    const openFiles =                 new Map();
+    const modelChangeDisposers =                 new Map();
+    const openControllers =                 new Map();
     let saveController = null;
     const setWindowTitle = (title) => {
       const win = window.wp?.os?.windowManager?.getById("wpdc-editor");
@@ -1900,9 +1885,7 @@ var openStationCodeEditor = function(exports) {
           path: result.path,
           mtime: result.mtime,
           size: result.size,
-          // Snapshot the model's versionId at save time. Any
-          // subsequent edit advances the versionId, which
-          // `recomputeDirty` reads to set the tab marker.
+
           savedVersionId: model.getVersionId()
         };
         openFiles.set(file.path, updated);
@@ -1968,7 +1951,7 @@ var openStationCodeEditor = function(exports) {
       }
     };
     editor.addCommand(
-      // eslint-disable-next-line no-bitwise
+
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
       () => {
         void saveActiveFile();
@@ -1977,7 +1960,7 @@ var openStationCodeEditor = function(exports) {
     editor.addAction({
       id: "osc.saveFile",
       label: "Save File",
-      // eslint-disable-next-line no-bitwise
+
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
       contextMenuGroupId: "navigation",
       run: () => {

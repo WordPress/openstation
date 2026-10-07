@@ -1,30 +1,3 @@
-/**
- * `<os-empty-state>` — centered placeholder for "nothing here
- * yet" UI: icon + heading + description + optional CTA slot.
- * Every plugin eventually needs one (empty lists, missing
- * templates, feature-unavailable guards) and a canonical shape
- * keeps them visually consistent across the shell.
- *
- * Usage:
- *
- *   <os-empty-state
- *     icon="admin-plugins"
- *     heading="No plugins installed yet"
- *     description="Install a plugin to see it here."
- *   >
- *     <os-button slot="cta" variant="primary">Browse plugins</os-button>
- *   </os-empty-state>
- *
- * Attributes:
- *   - `icon`        — dashicons slug (with or without `dashicons-` prefix).
- *   - `heading`     — bold first line.
- *   - `description` — secondary text below the heading.
- *
- * Slots:
- *   - `cta`  — optional call-to-action row below the description.
- *   - default — any additional content.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import '../os-icon/os-icon';
 import { styles } from './os-empty-state.styles';

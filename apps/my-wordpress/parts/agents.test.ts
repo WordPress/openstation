@@ -1,10 +1,3 @@
-/**
- * My WordPress — the Agents section's client tests: the character
- * helpers (seeds, faces, the roster stamp), the wizard locals, and
- * renders of the cast grid, the off-state preview, the detail panes
- * and the wizard steps. Split from `my-wordpress.test.ts` along the
- * same seam as the source parts.
- */
 import { describe, expect, it } from 'vitest';
 import { mockViewContext } from '../../../src/app-runtime/testing';
 import app, {
@@ -77,7 +70,6 @@ function data( over: Partial< AppData > = {} ): AppData {
 		...over,
 	};
 }
-// ----------------------------------------------------------- agents
 
 function agent( over: Partial< AppAgent > = {} ): AppAgent {
 	return {
@@ -163,7 +155,7 @@ describe( 'agents helpers', () => {
 		expect( cast.stripSeed ).toBe( 42 );
 		expect( cast.triggers ).toEqual( [ { kind: 'chat', config: {} } ] );
 		expect( Object.keys( cast.face.appearance ).length ).toBeGreaterThan( 0 );
-		// Deterministic: the same seed always gives the same face.
+
 		expect( emptyCast( 'author', 42 ).face ).toEqual( cast.face );
 	} );
 
@@ -177,7 +169,7 @@ describe( 'agents helpers', () => {
 		expect( agentFaceSrc( agent(), 88 ) ).toBe( 'https://example.test/face-7.svg' );
 		const rolled = agentFaceSrc( agent( { face: { appearance: {}, physics: {} } } ), 88 );
 		expect( rolled.startsWith( 'data:image/svg+xml' ) ).toBe( true );
-		// No face, no seed: whatever avatar the server sent (the glyph).
+
 		expect(
 			agentFaceSrc( agent( { face: { appearance: {}, physics: {} }, faceSeed: 0 } ), 88 ),
 		).toBe( 'https://example.test/face-7.svg' );
@@ -222,18 +214,14 @@ describe( 'agents helpers', () => {
 		};
 		expect( cast.name ).toContain( 'Indexer' );
 		expect( cast.copiedFrom ).toBe( 'Indexer' );
-		// A copy takes the work but not the face.
+
 		expect( cast.faceSeed ).not.toBe( 9 );
-		// The copied prompt is in the Describe textarea, not only in
-		// the summary card.
+
 		expect( cast.brief ).toBe( 'Index things.' );
 
 		const stepped = app.runLocal( 'agent-step', copied, { step: 3 }, data() ) as AppState;
 		expect( stepped.wstep ).toBe( 3 );
 
-		// Leaving Describe — by Continue or a trail jump — makes the
-		// brief the instructions; moving between later steps does not
-		// touch them.
 		const typed = { ...started, cast: { ...( started.cast as object ), brief: '  Watch my drafts. ' } };
 		const left = app.runLocal( 'agent-step', typed as AppState, { step: 3 }, data() ) as AppState;
 		expect( ( left.cast as { instructions: string } ).instructions ).toBe( 'Watch my drafts.' );
@@ -277,7 +265,7 @@ describe( 'agents view', () => {
 		expect( root.querySelector( '.dm-agents__cast-card[data-agent-id="7"]' ) ).not.toBeNull();
 		expect( root.querySelector( '.dm-agents__cast-new' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'Cast a new agent' );
-		// The footer counts the cast, and no search band renders.
+
 		expect( root.textContent ).toContain( '1 agent' );
 		expect( root.querySelector( '.os-mywp__search' ) ).toBeNull();
 	} );
@@ -308,7 +296,7 @@ describe( 'agents view', () => {
 		expect( root.textContent ).toContain( 'Localizer' );
 		expect( root.querySelector( '.dm-agents__cast--preview' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'Turn on Agents' );
-		// Inert: preview cards carry no id and no interactivity.
+
 		expect( root.querySelector( '.dm-agents__cast--preview [data-agent-id]' ) ).toBeNull();
 	} );
 
@@ -318,7 +306,7 @@ describe( 'agents view', () => {
 		expect( root.textContent ).toContain( 'Open profile' );
 		expect( root.textContent ).toContain( 'Chat' );
 		expect( root.querySelector( '[os-action="agent-delete"]' ) ).not.toBeNull();
-		// The Tools pane: both abilities, with their access badges.
+
 		expect( root.querySelector( 'os-checkbox-label[label="Search posts"]' ) ).not.toBeNull();
 		expect( root.querySelector( 'os-checkbox-label[label="Update a post"]' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'read-only' );
@@ -333,7 +321,7 @@ describe( 'agents view', () => {
 		expect( root.textContent ).toContain( 'New agent' );
 		const steps = root.querySelectorAll( 'os-step' );
 		expect( steps ).toHaveLength( 5 );
-		// Every step but the current one is a jump target, forward too.
+
 		expect( steps[ 0 ].hasAttribute( 'interactive' ) ).toBe( false );
 		expect( steps[ 0 ].hasAttribute( 'current' ) ).toBe( true );
 		expect( Array.from( steps ).slice( 1 ).every( ( s ) => s.hasAttribute( 'interactive' ) ) ).toBe(
@@ -354,7 +342,7 @@ describe( 'agents view', () => {
 		expect( root.querySelector( '.dm-agents__face-pick.is-picked' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'Surprise me' );
 		expect( root.querySelector( 'os-text-field[label="Vibes"]' ) ).not.toBeNull();
-		// The silhouette + hue chips are derived from the look.
+
 		expect( root.querySelectorAll( '.dm-agents__portrait-chips os-chip' ) ).toHaveLength( 2 );
 	} );
 

@@ -1,15 +1,3 @@
-/**
- * `<os-segmented>` + `<os-segment>` — iOS-style segmented radio
- * group. Visually a pill-shaped bar of equal-width buttons; only
- * one is "on" at a time. Used in OS Settings for Dock size.
- *
- * The parent `<os-segmented>` owns the `value` prop. Whenever it
- * changes (via property, attribute, or a child segment clicked),
- * every `<os-segment>` child reflects selection state via
- * `aria-checked`. Clicking a segment emits `os-pick` with
- * `{ value }` on the group.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { segmentStyles, segmentedStyles } from './os-segmented.styles';
 
@@ -39,12 +27,7 @@ export class OsSegment extends Component {
 				detail: '{ value: string }',
 			},
 		],
-		/*
-		 * A segment on its own is a transparent button with no pill
-		 * around it and no thumb under it — the lit surface belongs to
-		 * the GROUP, which owns one and slides it. So the example is
-		 * the group.
-		 */
+
 		example: html`
 			<os-segmented value="md" label="Dock size">
 				<os-segment value="sm">Small</os-segment>
@@ -120,25 +103,18 @@ export class OsSegmented extends Component {
 		`,
 	} as const;
 
-	/** Re-measures the thumb when the group is resized by its container. */
 	private _resizeObserver: ResizeObserver | null = null;
 
 	connectedCallback(): void {
 		super.connectedCallback();
-		// Delegated pick handler — children bubble
-		// `os-segment-pick` up to us, we update our own `value`
-		// (which cascades back into re-rendering child aria-
-		// checked), then re-emit as `os-pick` for the user.
+
 		this.addEventListener( 'os-segment-pick', ( e: Event ) => {
 			const detail = ( e as CustomEvent ).detail as { value: string };
 			e.stopPropagation();
 			( this as unknown as { value: string } ).value = detail.value;
 			this.emit( 'os-pick', { value: detail.value } );
 		} );
-		// The segments are content-sized, so the pill has to be
-		// re-measured whenever the group's box changes — a window
-		// resize, a panel column reflowing, a font finally arriving.
-		// Guarded because jsdom has no ResizeObserver.
+
 		if ( typeof ResizeObserver !== 'undefined' ) {
 			this._resizeObserver = new ResizeObserver( () => this._placeThumb() );
 			this._resizeObserver.observe( this );
@@ -150,23 +126,6 @@ export class OsSegmented extends Component {
 		this._resizeObserver = null;
 	}
 
-	/**
-	 * Put the thumb under the selected segment.
-	 *
-	 * Measured with `getBoundingClientRect()` rather than `offsetLeft`:
-	 * the segments are light-DOM children whose `offsetParent` is this
-	 * host, and `offsetLeft` is quoted from the offset parent's BORDER
-	 * box while an absolutely-positioned element in the shadow root is
-	 * placed against its PADDING box. With a border on the group those
-	 * two differ, and the pill would sit a border-width off — visible
-	 * on exactly the themes that add one.
-	 *
-	 * `offsetWidth` is the not-laid-out test rather than a zero-width
-	 * rect (display:none, a collapsed panel, a tab that has never been
-	 * opened). It is transform-immune, so a group measured under a
-	 * near-zero scale is not mistaken for one of those and hidden for
-	 * good — a transform change does not wake the ResizeObserver.
-	 */
 	private _placeThumb(): void {
 		const thumb = this.shadowRoot?.querySelector(
 			'.os-segmented__thumb',
@@ -183,38 +142,20 @@ export class OsSegmented extends Component {
 			return;
 		}
 		const host = this.getBoundingClientRect();
-		// Rects come back through every ancestor transform, and a group
-		// is routinely measured inside one: a window plays
-		// `os-window--opening` (scale 0.92 to 1) while the panel renders.
-		// `offsetWidth` is the untransformed border box, so their ratio
-		// maps the reading back into the group's own coordinates, which
-		// is the space the thumb is positioned in. A transform never
-		// resizes the border box, so the ResizeObserver would not fix
-		// this up when the animation lands.
+
 		const raw = host.width / this.offsetWidth;
-		// offsetWidth is integer-rounded and the group is content-sized,
-		// so its laid-out width is nearly always fractional and the ratio
-		// lands a hair off 1 with no transform in play at all. Treat that
-		// band as 1: 0.02 sits above the rounding error for any realistic
-		// group width and well below the animation's 0.08.
+
 		const scale = Math.abs( raw - 1 ) < 0.02 ? 1 : raw;
 		if ( ! ( scale > 0 ) ) {
-			// A fully collapsed ancestor. There is nothing to divide by,
-			// and no event will bring us back, so keep the last good
-			// placement rather than hide a thumb that would never return.
 			return;
 		}
 		const box = selected.getBoundingClientRect();
-		// Two decimals keeps the pill on the sub-pixel edge the browser
-		// laid the segment on, without the float noise the division
-		// leaves behind (65.00000000000001px).
+
 		const px = ( v: number ) => `${ Math.round( v * 100 ) / 100 }px`;
 		this.style.setProperty( '--_thumb-x', px( ( box.left - host.left ) / scale ) );
 		this.style.setProperty( '--_thumb-w', px( box.width / scale ) );
 		this.setAttribute( 'data-thumb', '' );
-		// One frame later than the first placement, so the pill does
-		// not animate in from the origin on page load. See the note on
-		// the two flags in the stylesheet.
+
 		if ( ! this.hasAttribute( 'data-thumb-ready' ) ) {
 			requestAnimationFrame( () =>
 				this.setAttribute( 'data-thumb-ready', '' ),
@@ -222,25 +163,6 @@ export class OsSegmented extends Component {
 		}
 	}
 
-	/**
-	 * Declarative item-list setter. Replaces the existing
-	 * `<os-segment>` children with a fresh set built from a
-	 * `{ value, label }` array; preserves the current selection
-	 * when the value still matches an entry, otherwise falls back
-	 * to the first item.
-	 *
-	 * Collapses the imperative dance (clear children,
-	 * `createElement`, set `textContent`, `appendChild`, then
-	 * `setAttribute('value', …)` on the group — order matters) to
-	 * a single assignment:
-	 *
-	 * ```js
-	 * segmented.items = [
-	 *   { value: 'm',  label: 'm' },
-	 *   { value: 'km', label: 'km' },
-	 * ];
-	 * ```
-	 */
 	set items( list: ReadonlyArray<{ value: string; label: string }> ) {
 		const existing = this.querySelectorAll( ':scope > os-segment' );
 		for ( const el of Array.from( existing ) ) {
@@ -269,11 +191,7 @@ export class OsSegmented extends Component {
 			this.setAttribute( 'aria-label', label );
 		}
 		this.setAttribute( 'role', 'radiogroup' );
-		// Mirror the current `value` onto each child segment via
-		// aria-checked. Children live in LIGHT DOM (caller places
-		// them inside the tag), so we reach them via a simple
-		// querySelectorAll. Deferred one microtask so the children
-		// have upgraded before we read them.
+
 		const current = ( this as unknown as { value: string | null } ).value;
 		queueMicrotask( () => {
 			const segs = this.querySelectorAll( 'os-segment' );
@@ -286,8 +204,7 @@ export class OsSegmented extends Component {
 			}
 			this._placeThumb();
 		} );
-		// The thumb before the slot, so it paints under the labels
-		// without either side needing a z-index.
+
 		return html`<span class="os-segmented__thumb" aria-hidden="true"></span
 			><slot></slot>`;
 	}

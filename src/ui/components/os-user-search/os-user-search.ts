@@ -1,23 +1,3 @@
-/**
- * `<os-user-search>` — debounced autocomplete picker over the
- * `/desktop-mode/v1/files/users/search` endpoint. Renders a search
- * field; emits `os-user-pick { user }` when the user picks a row.
- *
- * Optional attributes:
- *
- *   - `placeholder` — input placeholder.
- *   - `exclude` — comma-separated user ids to exclude from results.
- *   - `endpoint` — search URL (defaults to
- *     `openStationConfig.filesUsersSearchUrl`).
- *
- * The dropdown is rendered as a `position: fixed` panel anchored to
- * the input — it escapes any `overflow: auto` ancestor (e.g. a
- * modal body) so the list is always reachable.
- *
- * Multi-selection is up to the parent (the parent renders chips
- * for current picks and feeds an updated `exclude` list back).
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { trackedFetch } from '../../../tracked-fetch';
 import { restErrorFromResponse } from '../../../core/api-client';
@@ -57,14 +37,7 @@ export class OsUserSearch extends Component {
 		events: [
 			{ name: 'os-user-pick', description: 'Emitted on pick. Detail: `{ user: SearchUser }`.' },
 		],
-		/*
-		 * Just the closed input. The dropdown only exists after a
-		 * debounced REST round-trip, and firing user searches from a
-		 * documentation pane on every keystroke is not something a
-		 * help screen should do on the reader's behalf — so the
-		 * example shows the resting state and the prose says what
-		 * happens next.
-		 */
+
 		example: html`
 			<os-user-search
 				placeholder="Search users to share with…"
@@ -117,9 +90,7 @@ export class OsUserSearch extends Component {
 		if ( this._timer ) {
 			clearTimeout( this._timer );
 		}
-		// Mark loading immediately so the dropdown shows a spinner
-		// while the debounce + fetch are in flight. Without this the
-		// component looks dead for ~300 ms after every keystroke.
+
 		this._phase = 'loading';
 		this._open = true;
 		this._positionDropdown();
@@ -184,14 +155,12 @@ export class OsUserSearch extends Component {
 		const top = rect.bottom + 4;
 		const left = rect.left;
 		const width = rect.width;
-		// Flip up if the input is in the bottom half and there's
-		// more room above. Default to anchored below.
+
 		const viewportH = window.innerHeight;
 		const spaceBelow = viewportH - rect.bottom;
 		const spaceAbove = rect.top;
 		const maxHeight = Math.max( 120, Math.min( 280, Math.max( spaceBelow, spaceAbove ) - 16 ) );
 		if ( spaceBelow < 200 && spaceAbove > spaceBelow ) {
-			// Anchor above.
 			this._dropdownStyle = [
 				'position:fixed',
 				`left:${ left }px`,
@@ -217,10 +186,6 @@ export class OsUserSearch extends Component {
 	};
 
 	private _onFocus = (): void => {
-		// Open the dropdown on first focus and run an initial
-		// search if we don't have results yet. Matches the
-		// "click-and-see-everyone" pattern of native pickers like
-		// Slack's people picker.
 		if ( this._results.length === 0 && this._phase === 'idle' ) {
 			this._scheduleSearch( this._query );
 			return;
@@ -231,7 +196,6 @@ export class OsUserSearch extends Component {
 	};
 
 	private _onBlur = (): void => {
-		// Delay so a click on a result still registers.
 		setTimeout( () => {
 			this._open = false;
 			this.requestUpdate();

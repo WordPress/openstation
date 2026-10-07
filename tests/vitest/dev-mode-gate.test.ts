@@ -1,10 +1,3 @@
-/**
- * Unit tests for `src/widgets/dev-mode-gate.ts` — the Starter Widget
- * developer-mode gate. Drives it with a fake `OsSettings` double (same
- * pattern as `unfocus-engine.test.ts`) and a fake `WidgetLayer` double
- * so we can assert the filter + live mount/unmount behaviour without
- * standing up the full shell.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { OsSettings } from '../../src/settings';

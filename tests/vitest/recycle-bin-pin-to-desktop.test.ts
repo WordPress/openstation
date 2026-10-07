@@ -1,11 +1,3 @@
-/**
- * Phase-7 helpers — recycle-bin → desktop pinning.
- *
- * The full handler is DOM-driven and runs inside the Trash app's
- * client view; what's worth unit-testing is the recycle-type →
- * file-type mapping that decides which Files registry slug to send
- * to `POST /files/placements`.
- */
 import { describe, expect, test } from 'vitest';
 import { mapRecycleTypeToFileType } from '../../apps/trash/parts/table-visuals';
 

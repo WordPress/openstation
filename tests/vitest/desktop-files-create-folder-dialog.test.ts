@@ -1,14 +1,3 @@
-/**
- * Tests for the inline "New folder" / "Rename" dialog (replaces
- * window.prompt).
- *
- * The name field is an `<os-text-field>`, not a raw `<input>` —
- * deliberately, because core's `forms.css` reaches every raw input
- * in the parent shell and repaints it as a white core-chrome box on
- * the dialog's dark surface. `assertsNoRawInput` below is the guard:
- * if someone swaps the component back out for a plain input, that is
- * the regression, and it is invisible in a unit test otherwise.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -17,21 +6,18 @@ async function load() {
 	return await import( '../../src/desktop-files/create-folder-dialog' );
 }
 
-/** The dialog's name field, as the component element. */
 function field() {
 	return document.querySelector< HTMLElement & { value: string } >(
 		'os-text-field.os-create-folder-dialog__field',
 	);
 }
 
-/** The primary (Create / Rename) button. */
 function primary() {
 	return document.querySelector< HTMLElement >(
 		'.os-create-folder-dialog__btn--primary',
 	)!;
 }
 
-/** Let the component render and the focus retry land. */
 async function settle() {
 	await Promise.resolve();
 	await Promise.resolve();
@@ -51,8 +37,7 @@ describe( 'create-folder dialog', () => {
 		const mod = await load();
 		mod.openCreateFolderDialog( { onSubmit: () => undefined } );
 		const dialog = document.querySelector( '.os-create-folder-dialog' )!;
-		// Core's forms.css outranks any single class of ours, so a raw
-		// control here would come out as white core chrome.
+
 		expect( dialog.querySelector( 'input' ) ).toBeNull();
 		expect( dialog.querySelector( 'button' ) ).toBeNull();
 		expect( field() ).not.toBeNull();
@@ -65,7 +50,7 @@ describe( 'create-folder dialog', () => {
 		await settle();
 		const el = field()!;
 		expect( el.value ).toBe( 'Untitled folder' );
-		// Focus inside a shadow root surfaces as the host element.
+
 		expect( document.activeElement ).toBe( el );
 		const inner = el.shadowRoot!.querySelector< HTMLInputElement >( 'input' )!;
 		expect( inner.selectionStart ).toBe( 0 );
@@ -133,8 +118,7 @@ describe( 'create-folder dialog', () => {
 		await settle();
 		const el = field()!;
 		el.value = 'Quick';
-		// Composed keyboard events cross the shadow boundary, which is
-		// what the dialog's own keydown listener relies on.
+
 		el.shadowRoot!.querySelector< HTMLInputElement >( 'input' )!.dispatchEvent(
 			new KeyboardEvent( 'keydown', {
 				key: 'Enter',
@@ -156,12 +140,12 @@ describe( 'create-folder dialog', () => {
 		const dialog = overlay.querySelector< HTMLElement >(
 			'.os-create-folder-dialog',
 		)!;
-		// Clicking the dialog body should not close.
+
 		dialog.click();
 		expect( document.querySelector( '.os-create-folder-dialog' ) ).not.toBeNull();
-		// Clicking the overlay should.
+
 		overlay.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
-		// Need to dispatch with the overlay as the actual target — `.click()` would target the overlay too.
+
 		expect( document.querySelector( '.os-create-folder-dialog' ) ).toBeNull();
 		expect( onCancel ).toHaveBeenCalledTimes( 1 );
 	} );

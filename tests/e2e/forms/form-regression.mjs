@@ -1,4 +1,3 @@
-/** Run with node; PLAYWRIGHT_MODULE may point at an installed Playwright module. */
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import { resolve } from 'node:path';
@@ -26,7 +25,6 @@ try {
 	assert.equal( await page.evaluate( () => window.submissions.length ), 1 );
 	assert.equal( await form.locator( '.fields' ).getAttribute( 'inert' ), '' );
 
-	// Browser hit testing and focus must both honor inert across the slot.
 	const box = await title.boundingBox();
 	await page.mouse.click( box.x + box.width / 2, box.y + box.height / 2 );
 	await page.keyboard.type( 'Should not land' );
@@ -57,8 +55,6 @@ try {
 	} );
 	assert.equal( await page.locator( '[role="switch"]' ).getAttribute( 'aria-checked' ), 'true' );
 
-	// Inspect rendered pixels: computed styles alone cannot establish that
-	// the browser-owned calendar glyph actually uses the inherited token.
 	const assertGlyphColor = async ( input, colorOverride ) => {
 		const expected = await input.evaluate( ( el, colorOverride ) => {
 			const probe = document.createElement( 'span' );

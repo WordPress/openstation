@@ -1,9 +1,4 @@
 <?php
-/**
- * Popup Siege manifest.
- *
- * @package OpenStationPopupSiege
- */
 
 defined( 'ABSPATH' ) || exit;
 

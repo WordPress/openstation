@@ -1,61 +1,19 @@
-/**
- * The Living Tree — foliage (posts).
- *
- * Placement, not mapping: never one-leaf-per-post. Leaf anchors are
- * chosen by WOOD THICKNESS, not position: any revealed node (or segment
- * midpoint) whose radius says "leafy shoot" carries foliage — outer twigs
- * AND the fine interior branches alike — so the canopy fills the whole
- * crown instead of rimming the branch ends. The trunk and thick boughs
- * stay bare because their girth disqualifies them.
- *
- * Canopy depth comes from real leaves, not glow: roughly a third of each
- * tuft renders BEHIND the branches, darker — silhouette foliage — while
- * the rest sits in front catching the light. (An earlier design used a
- * soft "puff" sprite behind each tuft; it read as a smudgy halo around
- * the wood and is gone.)
- *
- * The LOD cap (`computeLeafBudget( foliage01 )`) bounds total leaf
- * sprites; `postsPerLeaf` folds the surplus in. Hue is the site's own
- * canopy green (`canopyHue`) with small per-tuft variation — natural
- * foliage, not a data legend. Colour value comes from `health01`
- * (green → yellow → red → grey), size from `log( visits )`,
- * fullness/brightness from `vitality01`. Tufts fade in staggered once
- * growth settles. See `docs/living-tree-algorithm.md` §A.7.
- */
-
 import { leafColor } from '../palette';
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';
 import type { BranchNode, Hormones, TreeSnapshot, Vec2 } from '../types';
 import type { WindField } from '../wind';
 
-/** LOD bounds — a sprout wears a handful, an oak up to 3200. */
 const MIN_LEAVES = 6;
 const MAX_LEAVES = 3200;
 
-/**
- * Target leaves per tuft (soft — clamped by anchor points + budget).
- * Modest so the canopy is many overlapping tufts spread along the
- * branches rather than a few pom-poms at the tips.
- */
 const LEAVES_PER_CLUSTER = 10;
 
-/**
- * Natural per-tuft hue variation around the canopy base green (degrees).
- * Real foliage isn't one flat colour — but the variation is random and
- * subtle, never a data mapping.
- */
 const TUFT_HUE_JITTER = 9;
 
-/**
- * Wood no thicker than this carries leaves. Relative to the trunk —
- * Murray's law scales every radius with the trunk base, so an absolute
- * threshold silently disqualifies the whole canopy on a thick old tree.
- */
 function leafyShootRadius( trunkBase: number ): number {
 	return Math.max( 3.4, trunkBase * 0.3 );
 }
 
-/** Leaf texture raster size (scaled down per sprite). */
 const LEAF_TEX_SIZE = 48;
 
 interface ClusterLeaf {
@@ -65,7 +23,7 @@ interface ClusterLeaf {
 	baseRotation: number;
 	phase: number;
 	alphaMax: number;
-	/** True when the leaf renders behind the wood (silhouette layer). */
+
 	behind: boolean;
 }
 
@@ -74,26 +32,17 @@ interface Cluster {
 	compliance: number;
 	radius: number;
 	leaves: ClusterLeaf[];
-	/** Seconds until this tuft starts fading in (staggered leaf-out). */
+
 	delay: number;
 	age: number;
 	phase: number;
 }
 
-/**
- * The LOD cap: how many leaf sprites a canopy of the given foliage level
- * carries. Pure — unit-tested as part of the topology-invariance suite
- * (content changes THIS, never the skeleton).
- *
- * @param foliage01 Canopy fill hormone, 0..1.
- * @return Sprite budget.
- */
 export function computeLeafBudget( foliage01: number ): number {
 	const f = Math.min( 1, Math.max( 0, foliage01 ) );
 	return Math.round( MIN_LEAVES + ( MAX_LEAVES - MIN_LEAVES ) * Math.pow( f, 1.35 ) );
 }
 
-/** Multiply a packed RGB colour's channels by `f` (no bitwise ops). */
 function shade( color: number, f: number ): number {
 	const r = Math.min( 255, Math.round( ( Math.floor( color / 65536 ) % 256 ) * f ) );
 	const g = Math.min( 255, Math.round( ( Math.floor( color / 256 ) % 256 ) * f ) );
@@ -101,17 +50,13 @@ function shade( color: number, f: number ): number {
 	return r * 65536 + g * 256 + b;
 }
 
-/** Cluster texture raster size (a bundle of blades per sprite). */
 const CLUSTER_TEX_SIZE = 96;
 
-/** Distinct cluster arrangements — repetition reads as wallpaper. */
 const CLUSTER_TEX_VARIANTS = 4;
 
-/** Apparent blades baked into one cluster texture (density × sprites). */
 const BLADES_PER_TEXTURE_MIN = 6;
 const BLADES_PER_TEXTURE_MAX = 10;
 
-/** Draw one blade path into a 2D context at the given transform. */
 function drawBladeInto(
 	ctx: CanvasRenderingContext2D,
 	x: number,
@@ -145,13 +90,6 @@ function drawBladeInto(
 	ctx.restore();
 }
 
-/**
- * Rasterize a CLUSTER of blades — 6–10 leaves fanned around a common
- * stem point, per-blade brightness baked in grayscale so a single tint
- * still colours the bundle with believable internal variation. One
- * sprite = one handful of leaves: apparent density multiplies without
- * adding scene-graph nodes.
- */
 function buildLeafClusterTexture(
 	pixi: PixiNamespace,
 	seedIndex: number,
@@ -164,7 +102,7 @@ function buildLeafClusterTexture(
 	if ( ! ctx ) {
 		throw new Error( '[living-tree-wallpaper] 2D canvas context unavailable.' );
 	}
-	// Deterministic per-variant layout (cheap LCG, bitwise-free).
+
 	let s = 2654435769 + seedIndex * 2246822519;
 	const rand = (): number => {
 		s = ( s * 1664525 + 1013904223 ) % 4294967296;
@@ -176,7 +114,6 @@ function buildLeafClusterTexture(
 	const cx = size / 2;
 	const cy = size * 0.62;
 	for ( let b = 0; b < blades; b++ ) {
-		// Fan upward-ish from the stem, back blades dimmer.
 		const angle = -Math.PI / 2 + ( rand() - 0.5 ) * Math.PI * 1.15;
 		const length = size * ( 0.34 + rand() * 0.24 );
 		const reach = length * 0.32;
@@ -192,11 +129,6 @@ function buildLeafClusterTexture(
 	return pixi.Texture.from( canvas );
 }
 
-/**
- * Rasterize a single leaf: a pointed blade with a lit tip, shaded base,
- * and a faint centre vein. Drawn white so per-sprite tint colours it.
- * Exported — the falling-leaves layer shares the exact same blade.
- */
 export function buildLeafTexture( pixi: PixiNamespace ): PixiTexture {
 	const size = LEAF_TEX_SIZE;
 	const canvas = document.createElement( 'canvas' );
@@ -208,7 +140,6 @@ export function buildLeafTexture( pixi: PixiNamespace ): PixiTexture {
 	}
 	const cx = size / 2;
 
-	// Blade: two mirrored quadratic arcs meeting at tip + stem point.
 	const gradient = ctx.createLinearGradient( 0, 2, 0, size - 2 );
 	gradient.addColorStop( 0, 'rgba(255, 255, 255, 1)' );
 	gradient.addColorStop( 0.55, 'rgba(235, 235, 235, 0.96)' );
@@ -221,7 +152,6 @@ export function buildLeafTexture( pixi: PixiNamespace ): PixiTexture {
 	ctx.closePath();
 	ctx.fill();
 
-	// Centre vein.
 	ctx.strokeStyle = 'rgba(90, 90, 90, 0.35)';
 	ctx.lineWidth = 1.4;
 	ctx.beginPath();
@@ -240,11 +170,6 @@ export class LeafGenerator {
 	private readonly pixi: PixiNamespace;
 	private leafCount = 0;
 
-	/**
-	 * @param backLayer  Silhouette-foliage layer BEHIND the branches.
-	 * @param frontLayer Lit-leaf layer in front of the branches.
-	 * @param pixi       The vendor Pixi namespace.
-	 */
 	constructor(
 		backLayer: PixiContainer,
 		frontLayer: PixiContainer,
@@ -255,15 +180,6 @@ export class LeafGenerator {
 		this.pixi = pixi;
 	}
 
-	/**
-	 * Populate the canopy on every leafy shoot of the revealed skeleton.
-	 *
-	 * @param nodes    The revealed skeleton (radius filled by computeGirth).
-	 * @param hormones Foliage / health / vigour / vitality drive the look.
-	 * @param baseHue  The site's canopy green (`canopyHue`), 0..360.
-	 * @param snapshot The snapshot (post/visit aggregates size the leaves).
-	 * @param rng      Seeded PRNG so a reload keeps the same canopy.
-	 */
 	public populate(
 		nodes: BranchNode[],
 		hormones: Hormones,
@@ -282,14 +198,6 @@ export class LeafGenerator {
 			}
 		}
 
-		// Anchors: ANY revealed segment whose wood is a leafy shoot —
-		// interior fine branches included. TWO gates, both required:
-		//   - girth: thin wood only (disqualifies boughs);
-		//   - depth: at least two forks from the trunk — the trunk's own
-		//     upper run is thin too, and thickness alone was hanging
-		//     leaves straight on the main stem.
-		// Segment midpoints double the coverage so foliage runs the
-		// length of every shoot.
 		let trunkBase = 1;
 		let deepest = 0;
 		let treeTop = 0;
@@ -299,13 +207,7 @@ export class LeafGenerator {
 			treeTop = Math.max( treeTop, -node.pos.y );
 		}
 		const shootRadius = leafyShootRadius( trunkBase );
-		// Depth 0 is the trunk's own chain — bare by definition, even
-		// where it thins near the apex. Everything past the first fork
-		// (depth ≥ 1) may carry leaves if its girth qualifies. (A depth-2
-		// floor was tried and stripped whole upper limbs bald.)
-		// EXCEPTION: the leader's crown tip — the top of the depth-0
-		// chain, thin and high in the canopy — leafs out like any shoot,
-		// or it pokes through the crown as a bare stick.
+
 		const minLeafDepth = Math.min( 1, deepest );
 		const isLeaderTip = ( node: BranchNode ): boolean =>
 			node.depth === 0 &&
@@ -315,7 +217,7 @@ export class LeafGenerator {
 			x: number;
 			y: number;
 			compliance: number;
-			/** Silhouette fill on thick inner wood — back layer only. */
+
 			inner?: boolean;
 		} > = [];
 		for ( let idx = 1; idx < nodes.length; idx++ ) {
@@ -326,11 +228,7 @@ export class LeafGenerator {
 			) {
 				continue;
 			}
-			// Thick inner wood (the base third of every limb) can't carry
-			// front foliage — but bare crotches read as HOLES in the
-			// crown. Give those segments back-layer silhouette tufts:
-			// foliage from twigs BEHIND the limb, filling the gap without
-			// hiding the branch structure.
+
 			if ( node.radius > shootRadius ) {
 				if ( node.radius <= trunkBase * 0.62 && node.depth >= 1 ) {
 					points.push( {
@@ -356,44 +254,29 @@ export class LeafGenerator {
 			return;
 		}
 
-		// Leaf + tuft sizing scales with the tree's actual extent, so a
-		// sprout wears small leaves (not boulders) and an oak wears full
-		// ones.
 		let treeHeight = 1;
 		for ( const node of nodes ) {
 			treeHeight = Math.max( treeHeight, -node.pos.y );
 		}
 		const leafScale = Math.min( 1.25, Math.max( 0.4, treeHeight / 520 ) );
 
-		// Density responds to content: foliage01 (post count) sets the LOD
-		// cap, vigour (busy + fast site) fills it out, vitality dims a
-		// struggling canopy.
 		const vigorFill = 0.7 + 0.3 * Math.min( 1, Math.max( 0, hormones.vigor01 ) );
 		const vitality = Math.min( 1, Math.max( 0, hormones.vitality01 ) );
 		const budget = Math.min(
 			Math.round( computeLeafBudget( hormones.foliage01 ) * vigorFill * 2.2 ),
 			points.length * LEAVES_PER_CLUSTER * 2,
 		);
-		// EVERY shoot gets a tuft when the budget allows — full coverage
-		// is what gives the crown volume; a bare mini-branch reads as a
-		// mistake. Only a genuinely content-poor site drops twigs (its
-		// canopy SHOULD be sparse); everyone else adjusts leaves-per-tuft
-		// instead of skipping twigs.
+
 		const clusterCount = Math.min( points.length, Math.max( 1, Math.floor( budget / 2 ) ) );
 		const perCluster = Math.max( 2, Math.round( budget / clusterCount ) );
 		const meanVisits = Math.max( 1, snapshot.traffic / Math.max( 1, snapshot.totalPosts ) );
 
-		// Deterministic point shuffle (Fisher–Yates on the seeded PRNG) so
-		// tufts spread across the whole canopy rather than the first N.
 		const order = points.slice();
 		for ( let i = order.length - 1; i > 0; i-- ) {
 			const j = Math.floor( rng() * ( i + 1 ) );
 			[ order[ i ], order[ j ] ] = [ order[ j ], order[ i ] ];
 		}
 
-		// Fuller sites grow fuller tufts: radius swells with foliage01 so
-		// neighbouring tufts overlap and merge into one continuous canopy
-		// mass instead of leaf sleeves along the wood.
 		const tuftFill = 0.8 + 0.8 * Math.min( 1, Math.max( 0, hormones.foliage01 ) );
 
 		for ( let c = 0; c < clusterCount; c++ ) {
@@ -403,10 +286,7 @@ export class LeafGenerator {
 				x: anchor.x + ( rng() * 2 - 1 ) * 6 * leafScale,
 				y: anchor.y + ( rng() * 2 - 1 ) * 6 * leafScale - clusterRadius * 0.2,
 			};
-			// Natural variation only: every tuft leans a few degrees off
-			// the site's base green. (Categories used to paint the crown
-			// in hue wedges — unrealistic; they bloom as meadow
-			// wildflowers now.)
+
 			const hue = baseHue + ( rng() * 2 - 1 ) * TUFT_HUE_JITTER;
 			const clusterAge = rng() * Math.max( 30, snapshot.siteAgeDays );
 			const baseColor = leafColor( hue, hormones.health01, clusterAge );
@@ -422,32 +302,22 @@ export class LeafGenerator {
 			};
 
 			for ( let i = 0; i < perCluster; i++ ) {
-				// Gaussian-ish offset: two rng draws pull leaves toward
-				// the tuft core, denser inside, wispy at the rim.
 				const angle = rng() * Math.PI * 2;
 				const dist = ( ( rng() + rng() ) / 2 ) * clusterRadius;
 				const dx = Math.cos( angle ) * dist;
 				const dy = Math.sin( angle ) * dist * 0.82;
 				const visits = meanVisits * ( 0.25 + rng() * 1.5 );
-				// A bundle sprite is a HANDFUL of leaves — larger footprint
-				// than the old single blade, same scene-graph cost.
+
 				const size =
 					( 22 + Math.log1p( visits ) * 5 ) * ( 0.75 + rng() * 0.5 ) * leafScale;
 
-				// Canopy depth: about a third of each tuft is silhouette
-				// foliage behind the wood, the rest catches the light in
-				// front. Inner-fill tufts (thick-wood bases) are silhouette
-				// ONLY — they populate the crotch gaps from "behind" the
-				// limb without hiding the branch structure.
 				const behind = anchor.inner === true || i % 3 === 0;
 				const clusterTextureList = this.clusterTextures as PixiTexture[];
 				const sprite = new this.pixi.Sprite(
 					clusterTextureList[ Math.floor( rng() * clusterTextureList.length ) ],
 				);
 				sprite.anchor.set( 0.5 );
-				// Per-bundle light: bundles above the tuft core catch the
-				// sky, ones below sit in their own shadow; back-layer
-				// bundles live in the crown's own shade.
+
 				let lightBase = behind ? 0.42 : 0.78;
 				if ( anchor.inner === true ) {
 					lightBase = 0.34;
@@ -478,14 +348,6 @@ export class LeafGenerator {
 		}
 	}
 
-	/**
-	 * Per-frame update: staggered fade-in, wind displacement per tuft
-	 * (× compliance), and a subtle per-leaf rotation flutter.
-	 *
-	 * @param dt   Delta time (seconds).
-	 * @param wind The active wind field.
-	 * @param t    Elapsed scene time (seconds).
-	 */
 	public update( dt: number, wind: WindField, t: number ): void {
 		for ( const cluster of this.clusters ) {
 			cluster.age += dt;
@@ -493,10 +355,7 @@ export class LeafGenerator {
 			if ( reveal <= 0 ) {
 				continue;
 			}
-			// Foliage carries the whole wind story (the wood is static) —
-			// tuft sway plus an independent per-leaf shimmer. Back-layer
-			// silhouette leaves ride the tuft only: their flutter is
-			// invisible behind the wood, so we don't pay for it.
+
 			const w = wind.sample( cluster.center.x, cluster.center.y, t );
 			const cxNow = cluster.center.x + w.x * cluster.compliance;
 			const cyNow = cluster.center.y + w.y * cluster.compliance;
@@ -519,7 +378,6 @@ export class LeafGenerator {
 		}
 	}
 
-	/** Tuft placements — the blossom layer anchors to these. */
 	public placements(): Array< { pos: Vec2; compliance: number; radius: number } > {
 		return this.clusters.map( ( cluster ) => ( {
 			pos: cluster.center,
@@ -528,18 +386,10 @@ export class LeafGenerator {
 		} ) );
 	}
 
-	/** Number of live leaf sprites (observability + tests). */
 	public count(): number {
 		return this.leafCount;
 	}
 
-	/**
-	 * A sample of real canopy leaves (position / tint / size) — the
-	 * falling-leaves layer detaches copies of THESE, so a drifting leaf
-	 * always matches the canopy it left.
-	 *
-	 * @param cap Max samples to return, spread evenly across the canopy.
-	 */
 	public sources( cap: number ): Array< { x: number; y: number; tint: number; size: number } > {
 		const all: Array< { x: number; y: number; tint: number; size: number } > = [];
 		for ( const cluster of this.clusters ) {
@@ -549,8 +399,7 @@ export class LeafGenerator {
 						x: cluster.center.x + leaf.dx,
 						y: cluster.center.y + leaf.dy,
 						tint: leaf.sprite.tint,
-						// A faller is ONE leaf, not the whole bundle — hand
-						// the shed a single-blade-sized sample.
+
 						size: leaf.sprite.scale.x * CLUSTER_TEX_SIZE * 0.42,
 					} );
 				}
@@ -578,7 +427,6 @@ export class LeafGenerator {
 		this.leafCount = 0;
 	}
 
-	/** Release sprites + the shared texture. */
 	public destroy(): void {
 		this.clear();
 		if ( this.clusterTextures ) {

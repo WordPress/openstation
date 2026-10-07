@@ -1,12 +1,3 @@
-/**
- * Posts app — the Tags cloud's hashtag pills: the chip's Pixi parts,
- * the measure for its intrinsic font size (the size IS the reading —
- * most-used tags look biggest), and the paint (a paper sticker with a
- * soft drop shadow, the per-slug hue, a count badge).
- *
- * @public
- */
-
 import { CHIP_TEXT_RES, FONT_FAMILY, hslToInt, truncate, type PixiContainer, type PixiGraphics, type PixiNamespace, type PixiText } from './canvas/pixi';
 import { badgeInk, type CanvasPalette } from './canvas/palette';
 import type { TermRow } from './types';
@@ -45,7 +36,6 @@ export interface TagBox {
 	chip: TagChip;
 }
 
-/** The focused fill of a tag — also the tone of its post fan. */
 export const tagTone = ( hue: number ): number => hslToInt( hue, 70, 48 );
 
 export function createTagChip( pixi: PixiNamespace, layer: PixiContainer, term: TermRow, fontSize: number, palette: CanvasPalette ): TagChip {
@@ -66,7 +56,6 @@ export function createTagChip( pixi: PixiNamespace, layer: PixiContainer, term: 
 	return { container, shadow, bg, hashText, nameText, countText, cachedHover: false };
 }
 
-/** Measure the chip for its intrinsic font size, then paint it. */
 export function layoutTagChip( box: TagBox, focused: boolean, palette: CanvasPalette ): void {
 	const chip = box.chip;
 	const displayName = truncate( box.name, CHIP_NAME_MAX_CHARS );
@@ -99,7 +88,6 @@ export function paintTagChip( box: TagBox, focused: boolean, palette: CanvasPale
 	const borderColor = focused ? palette.accent : palette.border;
 	const countBg = tagTone( box.hue );
 
-	// A soft drop shadow — paper stickers pinned to a corkboard.
 	chip.shadow.clear();
 	chip.shadow.roundRect( left - 1, top + 3, totalW + 2, totalH + 2, radius + 1 );
 	let shadowAlpha = 0.1;
@@ -129,7 +117,7 @@ export function paintTagChip( box: TagBox, focused: boolean, palette: CanvasPale
 	chip.nameText.style.fill = palette.fg;
 	const badgeX = left + CHIP_PAD_X + hashW + CHIP_GAP_HASH + nameW + CHIP_GAP_COUNT;
 	const badgeY = ( totalH - countBadgeH ) / 2 + top;
-	// The count badge is a second roundRect on bg with its own fill.
+
 	chip.bg.roundRect( badgeX, badgeY, countBadgeW, countBadgeH, countBadgeH / 2 );
 	chip.bg.fill( countBg );
 	chip.countText.x = badgeX + ( countBadgeW - countW ) / 2;

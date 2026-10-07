@@ -1,23 +1,8 @@
-/**
- * Icon-resolver + letter-badge fallback tests for `src/dock.ts`.
- *
- * The resolver is a private method so we exercise it through the
- * public `Dock` constructor — render the dock, inspect the produced
- * DOM. That also catches any caller/callee skew between
- * `createItemButton` / `createSystemItemButton` and the icon path.
- *
- * The title→hue hash is exported directly — it's a pure function and
- * the hash stability is a public contract (same plugin, same colour
- * across reloads), so it gets its own tests.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type DockItem } from '../../src/dock';
 import { hashTitleToHue } from '../../src/ui/util/hash-hue';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
-// Minimal WindowManager stub. The icon resolver never consults the
-// manager, so the Dock doesn't need the real one — just enough
-// surface to satisfy the constructor + updateActiveStates().
 function makeManagerStub() {
 	return {
 		getFocused: () => null,
@@ -68,11 +53,7 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'inline SVG data URI paints as a currentColor mask', () => {
-		// Not a `filter: brightness(0) invert(1)` background any more:
-		// that flattened plugin art to WHITE, a colour no theme could
-		// name. A mask flattens the same way — alpha only — and takes
-		// the tile's glyph colour, so these follow
-		// `--os-dock-icon-color` like the dashicons do.
+
 		const svg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
 		const { container } = mountDock( [ makeItem( { icon: `data:image/svg+xml;base64,${ svg }` } ) ] );
 		const icon = container.querySelector< HTMLElement >( '.os-dock__item-mask' );
@@ -84,13 +65,7 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'raw CSS url(...) value reaches the mask unwrapped (live-activation harvest path)', () => {
-		// includes/render/chromeless-bridge.php harvests the iframe's
-		// computed `::before { background-image }` for plugins whose
-		// menu icon is registered via CSS (icon = 'none'/'div'). The
-		// harvested value is a raw `url(...)` string and must reach the
-		// dock without going through a data-URI re-encode. The wrapper
-		// is stripped before validation — `isMaskableIcon()` rejects
-		// the quotes and parens, not the URL inside them.
+
 		const { container } = mountDock( [
 			makeItem( {
 				icon: 'url("data:image/svg+xml;base64,PHN2Zy8+")',
@@ -104,7 +79,7 @@ describe( 'dock icon resolution', () => {
 		expect( icon?.style.getPropertyValue( 'mask' ) ).toContain(
 			'data:image/svg+xml;base64,PHN2Zy8+',
 		);
-		// And it must NOT have collapsed to the gear or a letter badge.
+
 		expect( container.querySelector( '.os-dock__item-letter' ) ).toBeNull();
 		expect(
 			container.querySelector( '.dashicons-admin-generic' ),
@@ -112,10 +87,7 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'raw CSS url(...) accepts a URL-encoded SVG data URI', () => {
-		// The harvest also needs to round-trip non-base64 data URIs
-		// (some plugins use `data:image/svg+xml,<percent-encoded>` in
-		// their CSS). Percent-encoded payloads carry no literal quote,
-		// paren or space, so they mask like any other.
+
 		const url = 'url("data:image/svg+xml,%3Csvg/%3E")';
 		const { container } = mountDock( [ makeItem( { icon: url } ) ] );
 		const icon = container.querySelector< HTMLElement >(
@@ -128,10 +100,7 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'an unmaskable URL still falls back to the filtered span', () => {
-		// A data URI with literal `<`/`>` (some plugins skip the
-		// encoding) cannot be interpolated into a CSS `url("…")`
-		// safely. The background-image path and its whitening filter
-		// remain, so the icon degrades instead of disappearing.
+
 		const { container } = mountDock( [
 			makeItem( { icon: 'url("data:image/svg+xml,<svg/>")' } ),
 		] );
@@ -144,7 +113,7 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'a gear item takes the ::before mask the hidden admin menu paints', () => {
-		// Elementor 4 draws its logo as a mask over WordPress's gear.
+
 		const url = 'http://localhost/wp-admin/admin.php?page=elementor-home';
 		const menu = document.createElement( 'ul' );
 		menu.id = 'adminmenu';
@@ -186,7 +155,7 @@ describe( 'dock icon resolution', () => {
 		);
 		expect( badge ).not.toBeNull();
 		expect( badge?.textContent ).toBe( 'J' );
-		// Background gradient was written inline and references HSL.
+
 		expect( badge?.style.background ).toContain( 'linear-gradient' );
 		expect( badge?.style.background ).toContain( 'hsl' );
 	} );
@@ -208,8 +177,7 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'malformed SVG data URI falls back to the letter badge', () => {
-		// Payload isn't valid base64 — resolver rejects it and falls
-		// through to the letter badge rather than shipping a broken image.
+
 		const { container } = mountDock( [
 			makeItem( { icon: 'data:image/svg+xml;base64,not-b64!', title: 'Queue' } ),
 		] );
@@ -259,10 +227,7 @@ describe( 'hashTitleToHue', () => {
 	} );
 
 	test( 'tends to spread titles across the hue wheel', () => {
-		// Twelve realistic plugin names — we don't guarantee perfect
-		// distribution, but we do guarantee they're not all collapsed
-		// to the same hue. "All distinct" is stronger than the
-		// contract but a useful smoke signal that the hash is working.
+
 		const titles = [
 			'Jetpack',
 			'Yoast',
@@ -279,9 +244,7 @@ describe( 'hashTitleToHue', () => {
 		];
 		const hues = titles.map( hashTitleToHue );
 		const unique = new Set( hues );
-		// Two collisions worth of slack — the algorithm is a weak
-		// hash, but still shouldn't collapse real-world titles to a
-		// single bucket.
+
 		expect( unique.size ).toBeGreaterThanOrEqual( titles.length - 2 );
 	} );
 } );
@@ -332,7 +295,6 @@ describe( 'Dock.replaceItems', () => {
 			onOpen: () => undefined,
 		} );
 
-		// Menu item + separator + system item.
 		expect(
 			container.querySelector( '.os-dock__item--system' ),
 		).not.toBeNull();
@@ -342,15 +304,13 @@ describe( 'Dock.replaceItems', () => {
 			makeItem( { id: 'plugin-c', title: 'Commerce', icon: 'dashicons-cart' } ),
 		] );
 
-		// After replacement: new menu tile + original separator + original system tile.
 		const tiles = container.querySelectorAll( '.os-dock__item' );
-		expect( tiles.length ).toBe( 2 ); // 1 menu + 1 system
+		expect( tiles.length ).toBe( 2 );
 		expect(
 			container.querySelector( '.os-dock__item--system' ),
 		).not.toBeNull();
 		expect( container.querySelector( '.os-dock__separator' ) ).not.toBeNull();
 
-		// Menu item must come BEFORE the separator (rendering order).
 		const sep = container.querySelector( '.os-dock__separator' );
 		const sys = container.querySelector( '.os-dock__item--system' );
 		const menuTile = container.querySelector(
@@ -359,7 +319,7 @@ describe( 'Dock.replaceItems', () => {
 		expect( sep ).not.toBeNull();
 		expect( sys ).not.toBeNull();
 		expect( menuTile ).not.toBeNull();
-		// DOM position check — menu tile < separator < system tile
+
 		expect(
 			menuTile!.compareDocumentPosition( sep! ) & Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
@@ -378,12 +338,6 @@ describe( 'dock orientation tooltip anchor', () => {
 			.querySelectorAll( '.os-dock__tooltip' )
 			.forEach( ( el ) => el.remove() );
 	} );
-
-	// The dock no longer carries orientation modifier classes — placement
-	// is driven by `data-os-dock-placement` on the shell root and
-	// CSS keys off that. The runtime artifact of orientation is the
-	// tooltip anchor class, which flips so the label sits outside the
-	// rail on whichever edge it hugs.
 
 	test( 'left orientation: tooltip has no anchor modifier (default = right of tile)', () => {
 		mountDock(

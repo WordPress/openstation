@@ -1,18 +1,3 @@
-/**
- * `<os-role-picker>` — chip multi-select over the site's eligible
- * roles (server-injected via `openStationConfig.shareEligibleRoles`).
- *
- * Use:
- *
- * ```html
- * <os-role-picker selected="editor,author"></os-role-picker>
- * ```
- *
- * Emits `os-role-toggle { slug, selected }` whenever a chip is
- * clicked. The parent owns the source of truth — the component
- * just reflects the `selected` CSV attribute.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { rolePickerStyles } from './os-role-picker.styles';
 
@@ -48,14 +33,7 @@ export class OsRolePicker extends Component {
 				description: 'Emitted on every click. Detail: `{ slug, selected }`.',
 			},
 		],
-		/*
-		 * `roles` is passed here explicitly rather than left to the
-		 * global config: a site whose `shareEligibleRoles` is empty —
-		 * or a docs pane loaded before that config lands — would
-		 * otherwise render an empty row and look broken. The attribute
-		 * override is a documented prop, so the example is also
-		 * demonstrating it.
-		 */
+
 		example: html`
 			<os-role-picker
 				selected="editor,author"
@@ -83,7 +61,7 @@ export class OsRolePicker extends Component {
 					return parsed as EligibleRole[];
 				}
 			} catch ( e ) {
-				// Ignore invalid JSON.
+
 			}
 		}
 		return ( window.openStationConfig?.shareEligibleRoles || [] ) as EligibleRole[];

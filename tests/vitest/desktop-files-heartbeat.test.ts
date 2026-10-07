@@ -1,11 +1,3 @@
-/**
- * Phase-6 JS-side Heartbeat sync tests.
- *
- * The contributor / subscriber wiring goes through the framework
- * heartbeat bus; we hijack `heartbeat.subscribe` to capture the
- * registered callback and invoke it directly, sidestepping the
- * jQuery-based dispatch path.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 

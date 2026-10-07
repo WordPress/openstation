@@ -1,14 +1,8 @@
-/**
- * Note Pad widget: compose state, tear-off drag gating (empty text
- * never lifts), payload shape, commit clears the draft, and the
- * Ctrl+Enter keyboard pin path (POST + CustomEvent hand-off).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { WidgetContext } from '../../src/widgets/types';
 import { NOTE_CREATED_EVENT, NOTE_DRAFT_PAYLOAD_TYPE } from '../../src/notes/types';
 import type { StartOpts } from '../../src/drag/types';
 
-// Import for the side effect: registers window.openStationWidgets['desktop-mode/notes'].
 import '../../src/plugins/notes-widget/index';
 
 type MountFn = (
@@ -112,13 +106,11 @@ describe( 'note pad widget', () => {
 		expect( container.querySelector( '.dm-notes-pad__sheet' ) ).not.toBeNull();
 		expect( container.querySelectorAll( '.dm-notes-pad__under' ).length ).toBe( 2 );
 		expect( container.querySelectorAll( '.dm-notes-pad__swatch' ).length ).toBe( 6 );
-		// The footer is the swatch row and nothing else: no Public
-		// checkbox (visibility lives on the pinned note) and no "Pin to
-		// desktop" button (the tear-off drag and Ctrl+Enter are the paths).
+
 		expect( container.querySelector( '.dm-notes-pad__footer' )?.children.length ).toBe( 1 );
 		expect( container.querySelector( 'button:not(.dm-notes-pad__swatch):not(.dm-notes-pad__corner)' ) ).toBeNull();
 		expect( container.querySelector( 'os-checkbox-label' ) ).toBeNull();
-		// Under-sheets advertise the NEXT colors in the cycle.
+
 		const sheet = container.querySelector( '.dm-notes-pad__sheet' ) as HTMLElement;
 		const under1 = container.querySelector( '.dm-notes-pad__under--1' ) as HTMLElement;
 		expect( sheet.dataset.noteColor ).toBe( 'butter' );
@@ -143,7 +135,7 @@ describe( 'note pad widget', () => {
 			color: 'butter',
 			isPublic: false,
 		} );
-		// Ghost held by the pin: tip = (width/2, 10).
+
 		expect( opts.payload.ghost?.offsetX ).toBe( 104 );
 		expect( opts.payload.ghost?.offsetY ).toBe( 10 );
 		expect(
@@ -158,11 +150,11 @@ describe( 'note pad widget', () => {
 		const peel = container.querySelector( '.dm-notes-pad__peel' ) as HTMLElement;
 		pointerDown( peel );
 		const opts = dragStart.mock.calls[ 0 ][ 0 ] as StartOpts;
-		// Commit → torn off → fresh sheet.
+
 		opts.onCommit?.( { id: 'x', element: document.createElement( 'div' ), accept: () => true, onDrop: () => undefined } );
 		const editor = container.querySelector( '.dm-notes-pad__editor' ) as HTMLElement;
 		expect( editor.getAttribute( 'value' ) ).toBe( '' );
-		// A second drag with no new text must not lift.
+
 		pointerDown( peel );
 		expect( dragStart ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -191,7 +183,7 @@ describe( 'note pad widget', () => {
 		editor.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Enter', ctrlKey: true, cancelable: true } ),
 		);
-		// A held key repeats the keydown; the in-flight guard means one POST.
+
 		editor.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Enter', ctrlKey: true, cancelable: true } ),
 		);
@@ -206,7 +198,7 @@ describe( 'note pad widget', () => {
 		expect( seen ).toHaveBeenCalledTimes( 1 );
 		const detail = ( seen.mock.calls[ 0 ][ 0 ] as CustomEvent< { note: { id: number } } > ).detail;
 		expect( detail.note.id ).toBe( 31 );
-		// Draft cleared after a successful pin.
+
 		expect( editor.getAttribute( 'value' ) ).toBe( '' );
 	} );
 } );

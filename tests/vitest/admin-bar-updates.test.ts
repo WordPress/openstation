@@ -1,13 +1,3 @@
-/**
- * Unit tests for `src/admin-bar-updates.ts`.
- *
- * The live menu-refresh payload carries `updateCounts` (aggregate
- * pending-update numbers built by `openstation_build_menu_payload()`)
- * and `applyAdminBarUpdates()` mirrors them onto Core's
- * `#wp-admin-bar-updates` node — the top-left circle-arrows notifier
- * that otherwise shows its boot-time count until a hard refresh
- * (GH#296).
- */
 import { afterEach, describe, expect, test } from 'vitest';
 import {
 	applyAdminBarUpdates,
@@ -28,7 +18,6 @@ function counts( total: number ): unknown {
 	};
 }
 
-/** Server-rendered admin bar with the updates node present (count 3). */
 function mountBarWithUpdatesNode(): void {
 	document.body.innerHTML = `
 		<div id="wpadminbar">
@@ -47,7 +36,6 @@ function mountBarWithUpdatesNode(): void {
 	`;
 }
 
-/** Server-rendered admin bar with NO updates node (booted at zero). */
 function mountBarWithoutUpdatesNode(): void {
 	document.body.innerHTML = `
 		<div id="wpadminbar">
@@ -124,7 +112,7 @@ describe( 'applyAdminBarUpdates', () => {
 
 		const node = document.getElementById( 'wp-admin-bar-updates' );
 		expect( node ).not.toBeNull();
-		// Core order: site-name (30) → updates (50) → comments (60).
+
 		expect( node!.nextElementSibling?.id ).toBe( 'wp-admin-bar-comments' );
 		const anchor = node!.querySelector( 'a.ab-item' ) as HTMLAnchorElement;
 		expect( anchor.href ).toBe( UPDATE_CORE_URL );

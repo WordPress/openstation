@@ -1,83 +1,18 @@
 <?php
-/**
- * OpenStation — stored files → the Media Library.
- *
- * A file dragged onto the desktop lives in the plugin's own storage,
- * outside the Media Library on purpose (see `stored-files-store.php`).
- * This module is the bridge back: a stored file the site would accept
- * as an upload can be COPIED into the Media Library as a regular
- * attachment, and — for media — used to start a new post or page
- * with the attachment already in place.
- *
- * Two routes:
- *
- *   POST /desktop-mode/v1/files/uploads/<id>/media
- *       Copy the bytes into the Media Library. Idempotent: the
- *       attachment remembers its source row in
- *       `_openstation_stored_file_id` post meta, and a second call
- *       returns the existing attachment instead of a duplicate.
- *
- *   POST /desktop-mode/v1/files/uploads/<id>/post   { postType }
- *       The same copy, then a fresh `auto-draft` of `postType` whose
- *       content is the attachment as a block (image / video / audio /
- *       file) and whose featured image is the attachment when it is
- *       an image. The response carries the edit URL; the client opens
- *       it in a window. `auto-draft` is exactly what `post-new.php`
- *       creates, so an abandoned "start a post" leaves nothing the
- *       daily auto-draft sweep will not clear.
- *
- * The stored file is never moved or altered — the placement keeps
- * owning it, and trashing the tile later does not touch the
- * attachment (nor the other way round).
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Attachment post-meta key naming the stored-file row an attachment
- * was copied from. One attachment per stored file, per site.
- */
 const OPENSTATION_MEDIA_SOURCE_META = '_openstation_stored_file_id';
 
-/**
- * Attachment post-meta key carrying the source row's disk name. The
- * row id alone is not a safe identity — ids can be reissued after
- * the table empties — but the disk name is a UUID, so the pair is.
- */
 const OPENSTATION_MEDIA_SOURCE_KEY_META = '_openstation_stored_file_key';
 
-/**
- * Whether a stored file is something the Media Library would accept.
- *
- * "Media" here is the WordPress definition — a MIME type on the
- * site's upload allow-list — rather than only images, so a PDF or
- * an audio file qualifies while an `.exe` never does.
- *
- * @param array $row Stored-file row.
- * @return bool
- */
 function openstation_stored_file_is_media( $row ) {
 	$mime     = is_array( $row ) ? strtolower( trim( (string) ( $row['mime'] ?? '' ) ) ) : '';
 	$is_media = '' !== $mime && in_array( $mime, array_values( get_allowed_mime_types() ), true );
 
-	/**
-	 * Filters whether a stored file may be copied into the Media
-	 * Library (and therefore whether the tile offers it).
-	 *
-	 * @param bool  $is_media Default: the MIME type is on the site's upload allow-list.
-	 * @param array $row      Stored-file row.
-	 */
 	return (bool) apply_filters( 'openstation_stored_file_is_media', $is_media, $row );
 }
 
-/**
- * The attachment previously copied from a stored file, if any.
- *
- * @param array $row Stored-file row.
- * @return int Attachment id, or 0.
- */
 function openstation_stored_file_find_attachment( $row ) {
 	$file_id   = is_array( $row ) ? (int) ( $row['id'] ?? 0 ) : 0;
 	$disk_name = is_array( $row ) ? (string) ( $row['disk_name'] ?? '' ) : '';
@@ -93,7 +28,7 @@ function openstation_stored_file_find_attachment( $row ) {
 			'orderby'        => 'ID',
 			'order'          => 'ASC',
 			'no_found_rows'  => true,
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- one attachment per stored file; the lookup is bounded to one row.
+
 			'meta_query'     => array(
 				array(
 					'key'   => OPENSTATION_MEDIA_SOURCE_META,
@@ -109,17 +44,6 @@ function openstation_stored_file_find_attachment( $row ) {
 	return $found ? (int) $found[0] : 0;
 }
 
-/**
- * The filename a copy of a stored file is registered under.
- *
- * The display name is what the user sees, but a rename can leave it
- * without an extension, and `wp_check_filetype_and_ext()` needs one
- * that agrees with the bytes — so a missing extension is derived
- * from the row's MIME type.
- *
- * @param array $row Stored-file row.
- * @return string
- */
 function openstation_stored_file_media_filename( $row ) {
 	$name = sanitize_file_name( (string) $row['display_name'] );
 	if ( '' === $name ) {
@@ -135,18 +59,6 @@ function openstation_stored_file_media_filename( $row ) {
 	return $name;
 }
 
-/**
- * Copy a stored file into the Media Library as an attachment.
- *
- * Idempotent per stored file: a second call returns the attachment
- * the first one created. The caller is responsible for the
- * capability check (`upload_files`); this helper checks read access
- * to the stored file and the media policy.
- *
- * @param int $file_id Stored-file id.
- * @param int $user_id Acting user; becomes the attachment author.
- * @return array|WP_Error `{ attachment_id, created }`.
- */
 function openstation_stored_file_to_attachment( $file_id, $user_id ) {
 	$file_id = (int) $file_id;
 	$user_id = (int) $user_id;
@@ -179,8 +91,6 @@ function openstation_stored_file_to_attachment( $file_id, $user_id ) {
 	require_once ABSPATH . 'wp-admin/includes/media.php';
 	require_once ABSPATH . 'wp-admin/includes/image.php';
 
-	// The sideload consumes its input file, and the stored bytes
-	// stay the placement's — so it gets a scratch copy.
 	$name = openstation_stored_file_media_filename( $row );
 	$tmp  = wp_tempnam( $name );
 	if ( ! $tmp || ! copy( $path, $tmp ) ) {
@@ -197,15 +107,7 @@ function openstation_stored_file_to_attachment( $file_id, $user_id ) {
 	$post_data = array(
 		'post_author' => $user_id,
 	);
-	/**
-	 * Filters the attachment post fields for a stored file copied into
-	 * the Media Library (`post_title`, `post_excerpt` for the caption,
-	 * `post_content` for the description, …).
-	 *
-	 * @param array $post_data Fields passed to `media_handle_sideload()`.
-	 * @param array $row       Stored-file row.
-	 * @param int   $user_id   Acting user.
-	 */
+
 	$post_data = (array) apply_filters( 'openstation_stored_file_media_post_data', $post_data, $row, $user_id );
 
 	$attachment_id = media_handle_sideload(
@@ -230,13 +132,6 @@ function openstation_stored_file_to_attachment( $file_id, $user_id ) {
 	update_post_meta( $attachment_id, OPENSTATION_MEDIA_SOURCE_META, (string) $file_id );
 	update_post_meta( $attachment_id, OPENSTATION_MEDIA_SOURCE_KEY_META, (string) $row['disk_name'] );
 
-	/**
-	 * Fires after a stored file has been copied into the Media Library.
-	 *
-	 * @param int $attachment_id The new attachment.
-	 * @param int $file_id       Source stored-file id.
-	 * @param int $user_id       Acting user.
-	 */
 	do_action( 'openstation_stored_file_added_to_media', $attachment_id, $file_id, $user_id );
 
 	return array(
@@ -245,12 +140,6 @@ function openstation_stored_file_to_attachment( $file_id, $user_id ) {
 	);
 }
 
-/**
- * Block markup that places an attachment in a fresh post.
- *
- * @param int $attachment_id Attachment id.
- * @return string Serialized block.
- */
 function openstation_attachment_block_markup( $attachment_id ) {
 	$attachment_id = (int) $attachment_id;
 	$mime          = (string) get_post_mime_type( $attachment_id );
@@ -294,18 +183,6 @@ function openstation_attachment_block_markup( $attachment_id ) {
 	);
 }
 
-/**
- * Start a new post (or page, or any post type) from a stored file.
- *
- * Copies the file into the Media Library first (idempotently), then
- * inserts an `auto-draft` whose content is that attachment as a
- * block, with the attachment as the featured image when it is one.
- *
- * @param int    $file_id   Stored-file id.
- * @param string $post_type Post type to create.
- * @param int    $user_id   Acting user; becomes the author.
- * @return array|WP_Error `{ post_id, post_type, attachment_id, created, edit_url }`.
- */
 function openstation_stored_file_start_post( $file_id, $post_type, $user_id ) {
 	$file_id   = (int) $file_id;
 	$user_id   = (int) $user_id;
@@ -334,14 +211,7 @@ function openstation_stored_file_start_post( $file_id, $post_type, $user_id ) {
 	$row           = openstation_stored_files_get( $file_id );
 
 	$content = openstation_attachment_block_markup( $attachment_id );
-	/**
-	 * Filters the initial content of a post started from a stored file.
-	 *
-	 * @param string $content       Serialized block markup.
-	 * @param int    $attachment_id The Media Library copy.
-	 * @param string $post_type     Post type being created.
-	 * @param array  $row           Stored-file row.
-	 */
+
 	$content = (string) apply_filters( 'openstation_stored_file_start_post_content', $content, $attachment_id, $post_type, $row );
 
 	$args = array(
@@ -351,16 +221,7 @@ function openstation_stored_file_start_post( $file_id, $post_type, $user_id ) {
 		'post_content' => $content,
 		'post_author'  => $user_id,
 	);
-	/**
-	 * Filters the `wp_insert_post()` arguments of a post started from
-	 * a stored file. Keep `post_status` at `auto-draft` unless you
-	 * want abandoned starts to persist as drafts.
-	 *
-	 * @param array  $args          Insert arguments.
-	 * @param int    $attachment_id The Media Library copy.
-	 * @param string $post_type     Post type being created.
-	 * @param array  $row           Stored-file row.
-	 */
+
 	$args = (array) apply_filters( 'openstation_stored_file_start_post_args', $args, $attachment_id, $post_type, $row );
 
 	$post_id = wp_insert_post( wp_slash( $args ), true );
@@ -374,14 +235,6 @@ function openstation_stored_file_start_post( $file_id, $post_type, $user_id ) {
 		set_post_thumbnail( $post_id, $attachment_id );
 	}
 
-	/**
-	 * Fires after a post has been started from a stored file.
-	 *
-	 * @param int    $post_id       The new auto-draft.
-	 * @param int    $attachment_id The Media Library copy.
-	 * @param int    $file_id       Source stored-file id.
-	 * @param int    $user_id       Acting user.
-	 */
 	do_action( 'openstation_stored_file_post_started', $post_id, $attachment_id, $file_id, $user_id );
 
 	return array(
@@ -393,22 +246,6 @@ function openstation_stored_file_start_post( $file_id, $post_type, $user_id ) {
 	);
 }
 
-/**
- * Put stored files into an existing post.
- *
- * Each file is copied into the Media Library (idempotently), its
- * block is appended to the post content when the post type has an
- * editor, it is attached to the post when it was attached to nothing,
- * and the first image becomes the featured image when the post type
- * supports one and the post has none. All-or-nothing on the copies:
- * a file that cannot be copied fails the request before the post is
- * touched.
- *
- * @param int   $post_id  Target post.
- * @param int[] $file_ids Stored-file ids, in the order they were dragged.
- * @param int   $user_id  Acting user; must be able to edit the post.
- * @return array|WP_Error `{ post_id, attachment_ids, appended, featured_image_set, edit_url }`.
- */
 function openstation_stored_files_attach_to_post( $post_id, $file_ids, $user_id ) {
 	$post_id  = (int) $post_id;
 	$user_id  = (int) $user_id;
@@ -453,15 +290,7 @@ function openstation_stored_files_attach_to_post( $post_id, $file_ids, $user_id 
 	}
 
 	$markup = implode( "\n\n", array_map( 'openstation_attachment_block_markup', $attachment_ids ) );
-	/**
-	 * Filters the block markup appended to a post when stored files
-	 * are dropped onto it.
-	 *
-	 * @param string  $markup         Serialized blocks, one per attachment.
-	 * @param int[]   $attachment_ids The Media Library copies, in drop order.
-	 * @param WP_Post $post           The post being extended.
-	 * @param int[]   $file_ids       Source stored-file ids.
-	 */
+
 	$markup = (string) apply_filters( 'openstation_stored_file_attach_content', $markup, $attachment_ids, $post, $file_ids );
 
 	$appended = false;
@@ -503,14 +332,6 @@ function openstation_stored_files_attach_to_post( $post_id, $file_ids, $user_id 
 		}
 	}
 
-	/**
-	 * Fires after stored files have been put into a post.
-	 *
-	 * @param int   $post_id        The post.
-	 * @param int[] $attachment_ids The Media Library copies, in drop order.
-	 * @param int[] $file_ids       Source stored-file ids.
-	 * @param int   $user_id        Acting user.
-	 */
 	do_action( 'openstation_stored_file_attached_to_post', $post_id, $attachment_ids, $file_ids, $user_id );
 
 	return array(
@@ -522,12 +343,6 @@ function openstation_stored_files_attach_to_post( $post_id, $file_ids, $user_id 
 	);
 }
 
-/**
- * Permission callback: the base files gate plus WordPress's own
- * Media Library capability.
- *
- * @return true|WP_Error
- */
 function openstation_files_rest_media_permission() {
 	$base = openstation_files_rest_permission();
 	if ( true !== $base ) {
@@ -543,9 +358,6 @@ function openstation_files_rest_media_permission() {
 	return true;
 }
 
-/**
- * Register the two routes.
- */
 function openstation_files_register_media_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -590,13 +402,6 @@ function openstation_files_register_media_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_files_register_media_rest_routes' );
 
-/**
- * The attachment summary both routes return.
- *
- * @param int  $attachment_id Attachment id.
- * @param bool $created       Whether this request created it.
- * @return array
- */
 function openstation_files_attachment_summary( $attachment_id, $created ) {
 	$attachment_id = (int) $attachment_id;
 	return array(
@@ -608,12 +413,6 @@ function openstation_files_attachment_summary( $attachment_id, $created ) {
 	);
 }
 
-/**
- * POST /files/uploads/<id>/media
- *
- * @param WP_REST_Request $req Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_files_rest_add_to_media( WP_REST_Request $req ) {
 	$result = openstation_stored_file_to_attachment( (int) $req['id'], get_current_user_id() );
 	if ( is_wp_error( $result ) ) {
@@ -624,12 +423,6 @@ function openstation_files_rest_add_to_media( WP_REST_Request $req ) {
 	);
 }
 
-/**
- * POST /files/uploads/<id>/post
- *
- * @param WP_REST_Request $req Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_files_rest_start_post( WP_REST_Request $req ) {
 	$result = openstation_stored_file_start_post(
 		(int) $req['id'],
@@ -650,12 +443,6 @@ function openstation_files_rest_start_post( WP_REST_Request $req ) {
 	);
 }
 
-/**
- * POST /files/posts/<id>/uploads   { fileIds }
- *
- * @param WP_REST_Request $req Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_files_rest_attach_to_post( WP_REST_Request $req ) {
 	$result = openstation_stored_files_attach_to_post(
 		(int) $req['id'],
@@ -681,24 +468,11 @@ function openstation_files_rest_attach_to_post( WP_REST_Request $req ) {
 	);
 }
 
-/**
- * Whether the current user may start `$post_type` content.
- *
- * @param string $post_type Post type.
- * @return bool
- */
 function openstation_user_can_start_post_type( $post_type ) {
 	$pto = get_post_type_object( $post_type );
 	return $pto && post_type_supports( $post_type, 'editor' ) && current_user_can( $pto->cap->create_posts );
 }
 
-/**
- * Shell-config injection: which of the media actions the viewer may
- * take, so the tile menu does not offer what the server would 403.
- *
- * @param array $config Shell config.
- * @return array
- */
 function openstation_stored_files_inject_media_shell_config( $config ) {
 	$storage = isset( $config['desktopStorage'] ) && is_array( $config['desktopStorage'] )
 		? $config['desktopStorage']

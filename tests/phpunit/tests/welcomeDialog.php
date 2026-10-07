@@ -1,10 +1,5 @@
 <?php
-/**
- * Tests for the first-run "Welcome to OpenStation" classic-admin dialog gate.
- *
- * @group openstation
- * @group os-welcome
- */
+
 class Tests_OpenStation_WelcomeDialog extends WP_UnitTestCase {
 
 	protected static $user_id;
@@ -16,17 +11,12 @@ class Tests_OpenStation_WelcomeDialog extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$user_id );
-		// `openstation_should_show_welcome_dialog()` gates on `is_admin()`;
-		// a dashboard screen makes that return true under PHPUnit.
+
 		set_current_screen( 'dashboard' );
-		// Start every test from a known baseline — OpenStation OFF and the
-		// intro NOT dismissed. A test that enables DM or marks the intro seen
-		// would otherwise leak that state forward, and a later test would
-		// then return false via the wrong gate (e.g. the seen-intro / filter
-		// tests passing via the openstation_is_enabled() gate instead).
+
 		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
 		openstation_clear_seen_intros( self::$user_id );
-		// The dialog is for whoever activated the plugin: be that user.
+
 		openstation_record_activator();
 	}
 
@@ -36,20 +26,10 @@ class Tests_OpenStation_WelcomeDialog extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_should_show_welcome_dialog
-	 */
 	public function test_shows_for_a_fresh_classic_admin_user() {
 		$this->assertTrue( openstation_should_show_welcome_dialog() );
 	}
 
-	/**
-	 * The regression: the promo is a "switch to OpenStation" pitch, so it
-	 * must never render once the user is already in the shell — otherwise it
-	 * re-appears on the shell parent page right after "Enable it now".
-	 *
-	 * @covers ::openstation_should_show_welcome_dialog
-	 */
 	public function test_hidden_once_openstation_is_enabled() {
 		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
 
@@ -59,33 +39,18 @@ class Tests_OpenStation_WelcomeDialog extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_should_show_welcome_dialog
-	 */
 	public function test_hidden_after_intro_dismissed() {
 		openstation_mark_intro_seen( self::$user_id, OPENSTATION_WELCOME_INTRO_SLUG );
 
 		$this->assertFalse( openstation_should_show_welcome_dialog() );
 	}
 
-	/**
-	 * Dismissal is per user, so without the activator gate every other
-	 * account on the site got the dialog on its first wp-admin visit.
-	 *
-	 * @covers ::openstation_should_show_welcome_dialog
-	 */
 	public function test_hidden_for_users_who_did_not_activate_the_plugin() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		$this->assertFalse( openstation_should_show_welcome_dialog() );
 	}
 
-	/**
-	 * WP-CLI and Playground Blueprints activate with nobody logged in, so
-	 * there is nobody to greet.
-	 *
-	 * @covers ::openstation_record_activator
-	 */
 	public function test_hidden_after_an_activation_without_a_user() {
 		wp_set_current_user( 0 );
 		openstation_record_activator();
@@ -94,37 +59,18 @@ class Tests_OpenStation_WelcomeDialog extends WP_UnitTestCase {
 		$this->assertFalse( openstation_should_show_welcome_dialog() );
 	}
 
-	/**
-	 * @covers ::openstation_should_show_welcome_dialog
-	 */
 	public function test_filter_can_suppress_the_dialog() {
 		add_filter( 'openstation_show_welcome_dialog', '__return_false' );
 
 		$this->assertFalse( openstation_should_show_welcome_dialog() );
 	}
 
-	/**
-	 * @covers ::openstation_should_show_welcome_dialog
-	 */
 	public function test_hidden_outside_admin_context() {
 		set_current_screen( 'front' );
 
 		$this->assertFalse( openstation_should_show_welcome_dialog() );
 	}
 
-	/**
-	 * Regression: the dismissal must be sent to the origin the admin page was
-	 * actually loaded from, not the absolute `site_url()` origin. When the
-	 * admin is viewed through a different origin (reverse proxy, Flexible-SSL
-	 * edge, mapped multisite domain, or an HTTPS dev proxy in front of an HTTP
-	 * site), POSTing the absolute URL is cross-origin / mixed-content, the
-	 * browser blocks it, the slug is never recorded, and the dialog re-renders
-	 * on every classic-admin page load. Guard the same-origin reconstruction
-	 * (and the `sendBeacon` delivery that survives the "Enable it now"
-	 * navigation) so neither can silently regress.
-	 *
-	 * @covers ::openstation_render_welcome_dialog
-	 */
 	public function test_dismissal_is_sent_same_origin() {
 		ob_start();
 		openstation_render_welcome_dialog();

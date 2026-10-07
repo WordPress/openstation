@@ -1,23 +1,3 @@
-/**
- * Tests for `src/desktop-layout.ts` — the dispatcher that owns the
- * rails and paints what `computeNav` returns.
- *
- * Pins down the user-visible shape of each layout:
- *
- * - Unified: ONE dock at the bottom holding all three zones —
- *   WordPress menus, then apps, then OpenStation's controls, with a
- *   divider between each pair of non-empty ones.
- * - Classic (shown as "Split"): TWO rails. A sidebar (id
- *   `#os-side-dock`, `data-os-dock-placement="left"`) holding
- *   WordPress's admin menus and nothing else, plus the dock
- *   (existing `#os-dock`, `data-os-dock-placement="bottom"`) holding
- *   the other two zones.
- *
- * Also pins layout transitions: switching layouts tears down the old
- * rails (no leaked DOM, no leaked sidebar element on switch away from
- * the split layout) and emits a `os-layout-changed` event so plugins
- * that cache `wp.os.dock` can refresh their reference.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createLayoutDispatcher } from '../../src/desktop-layout';
 import { type DockItem, type SystemDockItem } from '../../src/dock';
@@ -33,8 +13,7 @@ function makeManagerStub(): WindowManager {
 	return {
 		getFocused: () => null,
 		getAllByBaseId: () => [],
-		// A desktop-only tile still rides the dock while its window is
-		// open, so the visibility question now asks the manager.
+
 		getAllByBaseIdOnActiveDesktop: () => [],
 		getAll: () => [],
 		getById: () => undefined,
@@ -81,7 +60,6 @@ const woo = makeItem( {
 	isCore: false,
 } );
 
-/** A launcher. Apps default to the wallpaper. */
 const noopTile: SystemDockItem = {
 	id: 'desktop-mode-os-settings',
 	title: 'OS Settings',
@@ -89,7 +67,6 @@ const noopTile: SystemDockItem = {
 	onOpen: () => {},
 };
 
-/** One of OpenStation's own affordances. Controls default to the dock. */
 const controlTile: SystemDockItem = {
 	id: 'os-system',
 	title: 'System',
@@ -344,10 +321,7 @@ describe( 'desktop-layout dispatcher', () => {
 	} );
 
 	describe( 'one rail groups before it draws', () => {
-		/**
-		 * Read the rail in visual order: tile slugs, with the divider
-		 * that `Dock` inserts at the core-to-plugin boundary marked.
-		 */
+
 		const railOrder = ( dockId: string ): string[] =>
 			Array.from(
 				document
@@ -363,11 +337,7 @@ describe( 'desktop-layout dispatcher', () => {
 
 		test( 'unified: an interleaved menu is sorted, not split', () => {
 			const { deps } = makeDeps();
-			// A plugin that registers its menu high up — Yoast and
-			// Jetpack both do. In menu order the divider would be
-			// dropped right after Dashboard, stranding Posts and
-			// Settings on the plugin side of a line that then claims
-			// nothing true.
+
 			createLayoutDispatcher(
 				deps,
 				'unified',
@@ -392,7 +362,7 @@ describe( 'desktop-layout dispatcher', () => {
 				[ dashboard, posts ],
 				[],
 			);
-			// A plugin activates mid-session and lands mid-menu.
+
 			dispatcher.applyDockItems( [ dashboard, woo, posts ] );
 
 			expect( railOrder( 'os-dock' ) ).toEqual( [
@@ -412,9 +382,6 @@ describe( 'desktop-layout dispatcher', () => {
 				[],
 			);
 
-			// Core keeps Posts-then-Dashboard and plugins keep
-			// Woo-then-Yoast: grouping moves the clusters, never the
-			// tiles within one, so a user's drag-to-reorder still holds.
 			expect( railOrder( 'os-dock' ) ).toEqual( [
 				'edit.php',
 				'index.php',
@@ -474,10 +441,9 @@ describe( 'desktop-layout dispatcher', () => {
 					.getElementById( 'os-dock' )
 					?.getAttribute( 'data-os-dock-placement' ),
 			).toBe( 'right' );
-			// A rail cannot be re-oriented in place — placement reaches
-			// a renderer through `mount()`, so the instance is new.
+
 			expect( dispatcher.getPrimary() ).not.toBe( before );
-			// …and the tiles came back with it.
+
 			expect(
 				document.getElementById( 'os-dock' )!.querySelectorAll(
 					'[data-menu-slug]',
@@ -513,9 +479,6 @@ describe( 'desktop-layout dispatcher', () => {
 			const primaryBefore = dispatcher.getPrimary();
 			dispatcher.setDockPlacement( 'left' );
 
-			// The side bar already owns the left edge; honouring the pick
-			// would stack the two rails on top of each other, so the
-			// plugin rail stays on the bottom and nothing is rebuilt.
 			expect(
 				document
 					.getElementById( 'os-dock' )
@@ -528,8 +491,6 @@ describe( 'desktop-layout dispatcher', () => {
 			).toBe( 'left' );
 			expect( dispatcher.getPrimary() ).toBe( primaryBefore );
 
-			// Stored all the same: switching to a one-rail layout lands
-			// on the edge the user chose while wearing Classic.
 			expect( dispatcher.getDockPlacement() ).toBe( 'left' );
 			dispatcher.setLayout( 'unified' );
 			expect(
@@ -586,7 +547,7 @@ describe( 'desktop-layout dispatcher', () => {
 			expect(
 				dock.querySelectorAll( '.os-dock__item--system' ).length,
 			).toBe( 1 );
-			// The WordPress-to-OpenStation divider comes with them.
+
 			expect(
 				dock.querySelector( '.os-dock__separator' ),
 			).not.toBeNull();
@@ -618,14 +579,6 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( bottomTiles ).toEqual( [ 'woocommerce' ] );
 	} );
 
-	/*
-	 * The sidebar is core ADMIN MENUS, and only those. That is the idea
-	 * the split expresses, so OpenStation's own affordances (System,
-	 * Exit, the Trash) belong on the dock with everything else the
-	 * station owns. Routing them to the sidebar would put Preferences
-	 * under a column of admin menus and make the rail mean two things
-	 * at once.
-	 */
 	test( 'a control tile lands on the dock in the split layout, never the sidebar', () => {
 		const { deps } = makeDeps();
 		const dispatcher = createLayoutDispatcher(
@@ -680,8 +633,7 @@ describe( 'desktop-layout dispatcher', () => {
 		);
 		dispatcher.appendSystemTile( controlTile );
 		dispatcher.setLayout( 'unified' );
-		// Sidebar element is gone; the tile re-attaches to the rebuilt
-		// dock.
+
 		expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
 		expect(
 			document
@@ -705,8 +657,6 @@ describe( 'desktop-layout dispatcher', () => {
 				.querySelector( `[data-system-id="${ controlTile.id }"]` ),
 		).not.toBeNull();
 
-		// Switch layout — the dock is rebuilt; the tracked tile must
-		// re-attach to the new instance.
 		dispatcher.setLayout( 'classic' );
 		expect(
 			document
@@ -731,7 +681,6 @@ describe( 'desktop-layout dispatcher', () => {
 				.querySelector( `[data-system-id="${ controlTile.id }"]` ),
 		).toBeNull();
 
-		// Layout rebuild must not resurrect the removed tile.
 		dispatcher.setLayout( 'classic' );
 		expect(
 			document
@@ -740,20 +689,12 @@ describe( 'desktop-layout dispatcher', () => {
 		).toBeNull();
 	} );
 
-	// Regression tests for https://github.com/WordPress/openstation/issues/405 —
-	// a native window registered with `placement: 'dock'` (Games) used
-	// to reach the rail through a path that never consulted the user's
-	// placement preference, so hiding the item removed the wallpaper
-	// icon while the dock tile stayed. Everything now resolves through
-	// `computeNav`, which has exactly one answer per item.
 	describe( 'system tiles honor the navigation preferences', () => {
 		const gamesTile: SystemDockItem = {
 			id: 'desktop-mode-games',
 			title: 'Games',
 			icon: 'dashicons-games',
-			// A native window's launcher names the window it opens; a
-			// tile that toggles something instead (Mio's) leaves this
-			// unset and is never "running".
+
 			windowId: 'desktop-mode-games',
 			navKind: 'control',
 			onOpen: () => {},
@@ -779,7 +720,7 @@ describe( 'desktop-layout dispatcher', () => {
 					.getElementById( 'os-dock' )!
 					.querySelector( tileSelector ),
 			).toBeNull();
-			// Still tracked — flipping the setting back must restore it.
+
 			expect(
 				dispatcher.listSystemTiles().map( ( t ) => t.id ),
 			).toContain( gamesTile.id );
@@ -806,14 +747,6 @@ describe( 'desktop-layout dispatcher', () => {
 			).toBeNull();
 		} );
 
-		/*
-		 * …unless its window is open. Sending an app to the desktop
-		 * says where its LAUNCHER lives, not that a running window
-		 * should be unreachable from the dock — unswitchable, and with
-		 * nowhere to minimize back to — while every other window has a
-		 * tile. The tile is transient: it arrives with the window and
-		 * leaves with it, which is what the lifecycle listener does.
-		 */
 		test( 'a desktop-only app joins the rail while its window is open', () => {
 			const open: Array< { id: string; config: Record< string, unknown > } > =
 				[];
@@ -840,28 +773,17 @@ describe( 'desktop-layout dispatcher', () => {
 					.getElementById( 'os-dock' )!
 					.querySelector( '[data-nav-id="wp-explorer-icon"]' );
 
-			// At rest an app lives on the wallpaper only.
 			expect( railTile() ).toBeNull();
 
-			// Running: it takes a tile in the apps zone, where its
-			// `windowId` drives the running indicator.
 			open.push( { id: 'my-wordpress', config: {} } );
 			document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 			expect( railTile() ).not.toBeNull();
 
-			// Closed: the tile leaves again.
 			open.length = 0;
 			document.dispatchEvent( new CustomEvent( 'os-window-closed' ) );
 			expect( railTile() ).toBeNull();
 		} );
 
-		/*
-		 * The same rule, asked of a system tile rather than an icon.
-		 * The Trash has no desktop icon to be synthesized from, so
-		 * without this it is the one running app on the desktop whose
-		 * window has no tile — which is exactly the state the icon case
-		 * above exists to prevent.
-		 */
 		test( 'a desktop-only system tile joins the rail while its window is open', () => {
 			const open: Array< { id: string; config: Record< string, unknown > } > =
 				[];
@@ -888,7 +810,6 @@ describe( 'desktop-layout dispatcher', () => {
 
 			expect( tile() ).toBeNull();
 
-			// A system tile's id IS its window id.
 			open.push( { id: 'desktop-mode-games', config: {} } );
 			document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 			expect( tile() ).not.toBeNull();
@@ -898,13 +819,6 @@ describe( 'desktop-layout dispatcher', () => {
 			expect( tile() ).toBeNull();
 		} );
 
-		/*
-		 * Hidden is a resting place, not a ban. A window the user
-		 * opened anyway — from search, from a link — still needs
-		 * somewhere to switch to and somewhere to minimize into, and
-		 * the tile leaves the moment they close it. The rule is
-		 * uniform: anything running with no home on a rail gets one.
-		 */
 		test( 'a hidden app still gets a tile while its window is open', () => {
 			const open: Array< { id: string; config: Record< string, unknown > } > =
 				[];
@@ -958,13 +872,10 @@ describe( 'desktop-layout dispatcher', () => {
 			const dock = document.getElementById( 'os-dock' )!;
 			expect( dock.querySelector( tileSelector ) ).not.toBeNull();
 
-			// User picks "Hidden" in Preferences → Navigation; the
-			// settings subscription calls refresh().
 			navPlacement[ 'desktop-mode-games' ] = 'hidden';
 			dispatcher.refresh();
 			expect( dock.querySelector( tileSelector ) ).toBeNull();
 
-			// And back.
 			navPlacement[ 'desktop-mode-games' ] = 'both';
 			dispatcher.refresh();
 			expect( dock.querySelector( tileSelector ) ).not.toBeNull();
@@ -992,13 +903,6 @@ describe( 'desktop-layout dispatcher', () => {
 			).toBeNull();
 		} );
 
-		/*
-		 * The Games bug, in one test. An app that registers a native
-		 * window AND a desktop icon is ONE thing with ONE default;
-		 * before, each surface asked its own registration where the
-		 * item lived and they answered differently until the user
-		 * picked a value explicitly.
-		 */
 		test( 'an app registered as both a window tile and an icon has one answer', () => {
 			const { deps } = makeDeps();
 			const serverIcons: DesktopIconServerEntry[] = [
@@ -1022,8 +926,6 @@ describe( 'desktop-layout dispatcher', () => {
 				navKind: 'app',
 			} );
 
-			// One item, defaulting to the wallpaper — which is what
-			// Preferences claimed all along.
 			expect(
 				dispatcher.getNavItems().filter( ( i ) =>
 					i.id === 'desktop-mode-games',
@@ -1040,8 +942,7 @@ describe( 'desktop-layout dispatcher', () => {
 		} );
 
 		test( 'a preference keyed by the icon covers the tile its window backs', () => {
-			// The icon and the native window can carry different ids.
-			// They are still one app, so one preference moves both.
+
 			const { deps } = makeDeps( {
 				getSettings: () => ( {
 					navPlacement: { 'desktop-mode-games': 'hidden' },
@@ -1093,8 +994,7 @@ describe( 'desktop-layout dispatcher — settings sanitization', () => {
 	test( 'invalid desktopLayout in persisted state falls back to default', async () => {
 		const stateModule = await import( '../../src/settings/state' );
 		const constants = await import( '../../src/settings/constants' );
-		// Drive `_parseRaw` via the public `loadState` path. Set the
-		// global config so the server-snapshot branch fires.
+
 		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
 			osSettings: {
 				wallpaper: 'dark',

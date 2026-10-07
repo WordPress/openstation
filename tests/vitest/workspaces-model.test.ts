@@ -1,21 +1,3 @@
-/**
- * Workspaces — the model, as a table.
- *
- * Three rules this file exists to pin, because breaking any of them
- * is silent:
- *
- * 1. **A template resolves against the live navigation**, so the
- *    Commerce desk on a site without WooCommerce is a smaller desk
- *    rather than four permission errors.
- * 2. **A workspace narrows the view, it never edits the settings.**
- *    `workspacePlacements` returns a NEW map and leaves the user's own
- *    `navPlacement` untouched — the identity check below is the whole
- *    guarantee that switching desks and back is lossless.
- * 3. **Controls are never hidden.** A workspace that could hide
- *    Overview, System, Trash or Exit could strand the user on a desk
- *    with no way to change it.
- */
-
 import { describe, expect, test, beforeEach, afterEach } from 'vitest';
 import type { NavItem, NavKind, NavPlacement } from '../../src/nav';
 import {
@@ -48,7 +30,6 @@ function item(
 	return { id, kind, title: id, icon: 'dashicons-admin-generic', ...extra };
 }
 
-/** A site with a store, a course plugin and the usual core menus. */
 function fullSite(): NavItem[] {
 	return [
 		item( 'index-php', 'core', {
@@ -111,15 +92,13 @@ describe( 'matching', () => {
 		} );
 		expect( itemMatchesToken( products, 'post_type=product' ) ).toBe( true );
 		expect( itemMatchesToken( products, 'edit-php-post-type' ) ).toBe( true );
-		// Title matching is what makes a plugin with an opaque slug
-		// findable by the word a human would use for it.
+
 		expect( itemMatchesToken( products, 'products' ) ).toBe( true );
 		expect( itemMatchesToken( products, 'sensei' ) ).toBe( false );
 	} );
 
 	test( 'an empty token matches nothing', () => {
-		// Otherwise `''.includes` is true for every item and one stray
-		// entry in a template silently selects the whole admin.
+
 		expect( itemMatchesToken( item( 'x' ), '' ) ).toBe( false );
 		expect( itemMatchesToken( item( 'x' ), '   ' ) ).toBe( false );
 	} );
@@ -134,8 +113,7 @@ describe( 'matching', () => {
 	} );
 
 	test( 'resolveLaunches drops entries whose app is missing', () => {
-		// The core-only site: the commerce entries find nothing and
-		// simply do not open.
+
 		const coreOnly = fullSite().filter(
 			( i ) => ! i.id.includes( 'woo' ) && ! i.id.includes( 'product' ),
 		);
@@ -184,8 +162,7 @@ describe( 'presets', () => {
 			windows: [],
 			layout: 'columns',
 		} );
-		// Default order 0 leads — a site that installed a workspace on
-		// purpose should see it first.
+
 		expect( listWorkspacePresets()[ 0 ].id ).toBe( 'support' );
 		unregisterWorkspacePreset( 'support' );
 		expect(
@@ -199,15 +176,14 @@ describe( 'presets', () => {
 		expect( profile.apps.mode ).toBe( 'only' );
 		expect( profile.apps.ids ).toContain( 'woocommerce' );
 		expect( profile.apps.ids ).toContain( 'edit-php-post-type-product' );
-		// Dashboard, Media and Settings ride along with every template:
-		// a desk with no way to reach them is a dead end.
+
 		expect( profile.apps.ids ).toContain( 'index-php' );
 		expect( profile.apps.ids ).toContain( 'upload-php' );
 		expect( profile.apps.ids ).toContain( 'options-general-php' );
-		// …and the course plugin does not.
+
 		expect( profile.apps.ids ).not.toContain( 'sensei' );
 		expect( profile.layout ).toBe( 'columns' );
-		// The launch list has not run yet.
+
 		expect( profile.provisioned ).toBe( false );
 	} );
 
@@ -217,7 +193,7 @@ describe( 'presets', () => {
 			findWorkspacePreset( 'commerce' )!,
 			coreOnly,
 		);
-		// Still a workspace, still narrowed — just to what exists.
+
 		expect( profile.apps.mode ).toBe( 'only' );
 		expect( profile.apps.ids ).toEqual( [
 			'index-php',
@@ -229,10 +205,9 @@ describe( 'presets', () => {
 	test( 'Publishing is the writing desk', () => {
 		const preset = findWorkspacePreset( 'publishing' )!;
 		expect( preset.layout ).toBe( 'focus' );
-		// It opens with a blank page, not with the library.
+
 		expect( preset.windows[ 0 ].url ).toBe( 'post-new.php' );
-		// Its instruments are about the page, not the audience — the
-		// point of the whole template is what it leaves out.
+
 		expect( preset.widgets ).toContain( 'desktop-mode/drafts' );
 		expect( preset.widgets ).not.toContain( 'desktop-mode/site-views' );
 	} );
@@ -271,9 +246,7 @@ describe( 'visibility', () => {
 	const base: Record< string, NavPlacement > = { 'edit-php': 'desktop' };
 
 	test( 'a desk that shows everything returns the map untouched', () => {
-		// Identity, not a copy: the dispatcher recomputes on every
-		// window open, close and focus change, and the overwhelmingly
-		// common case is a plain Space.
+
 		expect( workspacePlacements( base, fullSite(), null ) ).toBe( base );
 		expect(
 			workspacePlacements( base, fullSite(), blankWorkspaceProfile() ),
@@ -289,8 +262,7 @@ describe( 'visibility', () => {
 		expect( next[ 'sensei' ] ).toBe( 'hidden' );
 		expect( next[ 'edit-php' ] ).toBe( 'hidden' );
 		expect( next[ 'woocommerce' ] ).toBeUndefined();
-		// The user's own map is not touched — this is what makes
-		// switching desks and back lossless.
+
 		expect( base ).toEqual( { 'edit-php': 'desktop' } );
 	} );
 
@@ -316,7 +288,7 @@ describe( 'visibility', () => {
 		};
 		profile = withWorkspaceApp( profile, 'b', true );
 		expect( profile.apps.ids ).toEqual( [ 'a', 'b' ] );
-		// Already on — same object back, no second copy.
+
 		expect( withWorkspaceApp( profile, 'b', true ) ).toBe( profile );
 		profile = withWorkspaceApp( profile, 'a', false );
 		expect( profile.apps.ids ).toEqual( [ 'b' ] );
@@ -325,9 +297,7 @@ describe( 'visibility', () => {
 	test( 'a desk with no widget opinion leaves the column alone', () => {
 		expect( workspaceWidgetIds( null ) ).toBeNull();
 		expect( workspaceWidgetIds( blankWorkspaceProfile() ) ).toBeNull();
-		// A profile written before workspaces had widgets: the field is
-		// simply absent, and that must mean "the user's own column",
-		// not "an empty one".
+
 		const legacy = { ...blankWorkspaceProfile() };
 		delete legacy.widgets;
 		expect( workspaceWidgetIds( legacy ) ).toBeNull();
@@ -360,8 +330,7 @@ describe( 'visibility', () => {
 	} );
 
 	test( 'adding a widget to a desk with no column of its own is a no-op', () => {
-		// It would silently adopt whatever the user's column happened
-		// to hold as this workspace's permanent answer.
+
 		const profile = blankWorkspaceProfile();
 		expect( withWorkspaceWidget( profile, 'clock', true ) ).toBe( profile );
 	} );
@@ -380,10 +349,7 @@ describe( 'visibility', () => {
 			appearance: {
 				wallpaper: 'mono',
 				accent: 'rose',
-				// Not an appearance key. A profile is user meta round-
-				// tripped through an untrusted client, so an unfiltered
-				// patch would be a way to write any settings key from
-				// anywhere.
+
 				navPlacement: { 'edit-php': 'hidden' },
 				heartbeatRate: 1,
 			} as WorkspaceProfile[ 'appearance' ],
@@ -420,9 +386,7 @@ describe( 'visibility', () => {
 	} );
 
 	test( 'adding an app to a desk that shows everything is a no-op', () => {
-		// There is nothing to add TO, and flipping the desk into
-		// narrowed mode would hide every app the user was not looking
-		// at at that moment.
+
 		const profile = blankWorkspaceProfile();
 		expect( withWorkspaceApp( profile, 'a', true ) ).toBe( profile );
 	} );

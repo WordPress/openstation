@@ -1,19 +1,10 @@
-/**
- * `<os-user-profile>` — the wire shapes and the host contract.
- *
- * The profile record is `wp/v2/users/<id>?context=edit`; the insights
- * payload is `desktop-mode/v1/users/<id>/insights`; the facts are what
- * both hosting apps ship through `App::config()`.
- */
-
-/** The static facts both apps ship through `App::config()` (`ctx.extra`). */
 export interface ProfileConfig {
 	currentUserId?: number;
 	canEdit?: boolean;
 	canPromote?: boolean;
 	canCreate?: boolean;
 	canDelete?: boolean;
-	/** Whether the sidebar offers the activity footprint (the WP Explorer gate). */
+
 	canViewFootprint?: boolean;
 	isMultisite?: boolean;
 	assignableRoles?: Record< string, string >;
@@ -31,12 +22,6 @@ export interface ColorSchemeInfo {
 	icon_colors?: Record< string, string >;
 }
 
-/**
- * What the element needs from whoever hosts it: the facts, a REST
- * fetch (a relative path, the nonce and the window attribution the
- * host's own) and a toast. An app sets these as properties from
- * `updated()`; a bare `<os-user-profile>` falls back to the shell's.
- */
 export interface ProfileHost {
 	config: ProfileConfig;
 	fetch: ( path: string, init?: RequestInit ) => Promise< Response >;
@@ -147,7 +132,6 @@ export interface AppPasswordItem {
 	last_ip: string | null;
 }
 
-/** `<os-form>`, by the methods the profile and Add User forms use. */
 export interface OsFormElement extends HTMLElement {
 	getValues(): Record< string, unknown >;
 	setValues( patch: Record< string, unknown > ): void;

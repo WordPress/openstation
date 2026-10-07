@@ -1,24 +1,5 @@
 <?php
-/**
- * Tests for the `dock_order` arg on `openstation_register_window()`.
- *
- * Registration order cannot express where a tile belongs on the rail:
- * native-window tiles land whenever their lazy script resolves, so a
- * window registered last in PHP can still be overtaken. `dock_order`
- * is what the shell sorts by, and the payload is how it travels.
- *
- * The default of `0` matters as much as the value: it puts a plugin's
- * launcher AHEAD of the shell's own trailing cluster (Mio 10, Overview
- * 20, System 30, Trash 40), which is where a launcher belongs.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- *
- * @covers ::openstation_register_window
- * @covers ::openstation_build_native_windows_payload
- */
+
 class Tests_OpenStation_NativeWindowDockOrder extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -48,12 +29,6 @@ class Tests_OpenStation_NativeWindowDockOrder extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The payload entry for one id, or null.
-	 *
-	 * @param string $id Window id.
-	 * @return array|null
-	 */
 	private function payload_for( $id ) {
 		foreach ( openstation_build_native_windows_payload() as $entry ) {
 			if ( $entry['id'] === $id ) {
@@ -82,8 +57,7 @@ class Tests_OpenStation_NativeWindowDockOrder extends WP_UnitTestCase {
 	}
 
 	public function test_dock_order_is_cast_to_int() {
-		// The registry stores what it is given; a string from a config
-		// array must not reach JS, where `> ` would compare strings.
+
 		$this->register_window( 'os_test_string_order', array( 'dock_order' => '25' ) );
 
 		$entry = $this->payload_for( 'os_test_string_order' );
@@ -92,11 +66,6 @@ class Tests_OpenStation_NativeWindowDockOrder extends WP_UnitTestCase {
 		$this->assertSame( 25, $entry['dockOrder'] );
 	}
 
-	/**
-	 * Trash sits at the end of the rail, after the shell's own cluster.
-	 * The value is the whole reason `dock_order` exists, so it is
-	 * pinned rather than left to the app that sets it.
-	 */
 	public function test_the_recycle_bin_sorts_last() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-recycle-bin' );
 		$this->assertNotNull( $app );

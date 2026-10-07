@@ -1,13 +1,3 @@
-/**
- * Per-wallpaper settings — the shared store, the Preferences app's
- * config button, and the `<os-modal>` config dialog.
- *
- * Covers: store seed/get/publish semantics (including the
- * settings-changed action), the config button rendering only for
- * defs that ship `renderConfig`, and the dialog wiring — the
- * wallpaper's `renderConfig` receives the persisted settings and its
- * `setSettings` merges, writes the store, and publishes.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import * as registry from '../../src/wallpapers/registry';
@@ -158,7 +148,7 @@ describe( 'wallpaper config dialog', () => {
 		expect( received!.settings ).toEqual( { wind: 10 } );
 
 		received!.setSettings( { size: 8 } );
-		// Merge (not replace), written through the public API, published.
+
 		expect( stub.updateOsSettings ).toHaveBeenCalledWith(
 			{ wallpaperSettings: { 'test-configurable': { wind: 10, size: 8 } } },
 			expect.anything(),

@@ -1,47 +1,11 @@
-/**
- * OpenStation type definitions.
- */
-
-// Type-only cross-import — erased at compile time, so the mutual
-// reference with `window-links/types.ts` (which imports WindowState
-// from here) is safe.
 import type { WindowContentRef } from './window-links/types';
 
-/**
- * Window state enum.
- */
 export type WindowState = 'normal' | 'maximized' | 'minimized' | 'fullscreen' | 'snapped-left' | 'snapped-right';
 
-/**
- * A gesture carried by a title-bar drag beyond its position.
- *
- * - `modifier` — the grid-snap key (Option on macOS, Alt elsewhere)
- *   went down (`active: true`) or came up. Reported with the pointer's
- *   position at that moment, which is the cell the grid anchors on.
- * - `shake` — the pointer was shaken; see `src/window/shake.ts`.
- *
- * A discriminated union rather than one callback per gesture, so a new
- * gesture is a new variant and not a new field on every window.
- *
- * @public
- */
 export type DragGesture =
 	| { type: 'modifier'; active: boolean; clientX: number; clientY: number }
 	| { type: 'shake'; clientX: number; clientY: number };
 
-/**
- * Where a grid-snapped window lives, in cells rather than pixels.
- *
- * A grid placement is a fraction of the work area — "the two-by-two at
- * (1,1) of a 6×6" — and a fraction survives what pixels do not: a
- * browser resized, a dock that moved, a session restored on a
- * different display. The shell keeps this on the window after a grid
- * snap and re-derives the pixels from it whenever the work area
- * changes. Cleared by any free move, resize or state change, because
- * those are the user saying the window is theirs to place again.
- *
- * @public
- */
 export interface GridSpan {
 	anchor: { col: number; row: number };
 	cursor: { col: number; row: number };
@@ -49,211 +13,57 @@ export interface GridSpan {
 	rows: number;
 }
 
-/**
- * A virtual desktop ("Space" in macOS terminology).
- *
- * Each desktop owns its own set of windows. Only one desktop is
- * "active" at a time; the active desktop's windows are visible, every
- * other desktop's windows stay mounted but display-suppressed so
- * switching is instant and doesn't lose iframe state.
- *
- * @public
- */
 export interface Desktop {
-	/** Unique identifier — `default-1`, `desktop-2`, … */
+
 	id: string;
-	/** Human-readable label, shown beneath the overview top-bar tile. */
+
 	label: string;
-	/**
-	 * What this desk is FOR: which apps belong on it, which windows it
-	 * opens with, how they are arranged.
-	 *
-	 * Optional, and absent is meaningful: a desktop with no profile is
-	 * a plain Space, behaving exactly as it did before workspaces
-	 * existed. Every session saved before them is in that state, which
-	 * is why nothing in the shell may assume the field is there.
-	 *
-	 * @see import('./workspaces/types').WorkspaceProfile
-	 */
+
 	profile?: import( './workspaces/types' ).WorkspaceProfile;
 }
 
-/**
- * Configuration for a desktop window.
- */
 export interface WindowConfig {
-	/**
-	 * How this window lands, overriding the user's "Open windows as":
-	 * `'default'` (floating), `'maximized'`, or `'focused'` (maximized,
-	 * the desk's other windows minimized). Ignored when `initialState`
-	 * is given.
-	 */
+
 	openAs?: 'default' | 'maximized' | 'focused';
-	/** Unique window identifier, derived from the admin page slug. */
+
 	id: string;
-	/**
-	 * Virtual-desktop assignment. When omitted on construction, the
-	 * window joins the manager's currently active desktop. Mutated by
-	 * the manager's switch / close logic when desktops are reorganised.
-	 */
+
 	desktopId?: string;
-	/**
-	 * Grouping key shared across every instance of the same admin page.
-	 * For the first instance `baseId` equals `id`; additional instances
-	 * carry suffixed ids (`${baseId}-2`, `${baseId}-3`, ...) while keeping
-	 * the same baseId so the dock can group them.
-	 */
+
 	baseId?: string;
-	/**
-	 * Whether this page supports multiple simultaneous windows. When true,
-	 * the title-bar menu exposes an "Open another" action and the dock
-	 * icon gets a secondary "+" tap target. Singletons (false/undefined)
-	 * always reuse the existing window.
-	 */
+
 	multi?: boolean;
-	/**
-	 * The admin page URL to load in the iframe.
-	 *
-	 * Optional for **native windows** (`native: true`) because a
-	 * native window renders into `body` via {@link WindowConfig.render}
-	 * rather than loading a URL. Iframe windows still require it —
-	 * an iframe without a `src` serves `about:blank` and the user
-	 * sees nothing useful. The shell defaults an absent native `url`
-	 * to `#<id>` so history / bookmarking still round-trip to
-	 * something unique.
-	 */
+
 	url?: string;
-	/**
-	 * The dock landing URL — the URL the dock tile points at, which
-	 * may differ from {@link WindowConfig.url} once the iframe has
-	 * navigated to a sub-page. Used to render the synthetic
-	 * "back to parent" tab in the in-window tab strip so it always
-	 * points at the parent landing page, not at whichever sub-page
-	 * the iframe happens to be on at construction time. Optional —
-	 * callers that don't pass it fall back to `url` (the original
-	 * behaviour).
-	 *
-	 * Critical on session restore: the snapshot saves the iframe's
-	 * current URL, so without this hint a window restored on a
-	 * sub-page (e.g. theme-install.php under Appearance) would lose
-	 * its parent tab — the dedup check would see the saved iframe
-	 * URL match the same submenu entry that already represents that
-	 * sub-page.
-	 */
+
 	parentUrl?: string;
-	/**
-	 * Label for the synthetic first tab — the one that leads back to
-	 * {@link parentUrl}. WordPress's own name for that page: "Themes"
-	 * under Appearance, "All Posts" under Posts.
-	 *
-	 * Falls back to {@link title}, which is the MENU's name, and was
-	 * the only label available before `DockItem.selfLabel` carried the
-	 * stripped self-link through. That fallback still covers menus with
-	 * no self-link at all.
-	 */
+
 	selfLabel?: string;
-	/** Window title displayed in the title bar. */
+
 	title: string;
-	/**
-	 * True when {@link WindowConfig.title} is a guess rather than a
-	 * name the shell knows: no dock tile owned the destination, so the
-	 * opener fell back to the clicked link's text (or, failing that,
-	 * the derived slug). Windows opened from the dock, the menu, the
-	 * session, or a plugin's `registerWindow` never carry it.
-	 *
-	 * A guessed title is replaced with the destination page's own
-	 * screen name on every iframe load. Link text is written for
-	 * someone already looking at the page it sits on, so it reads
-	 * badly once it's a window name — the classic editor's revisions
-	 * link says "Browse", which as a window title says nothing about
-	 * revisions.
-	 */
+
 	titleFromPage?: boolean;
-	/** Dashicon class for the window icon (e.g., 'dashicons-admin-post'). */
+
 	icon: string;
-	/** Initial x position in pixels. */
+
 	x: number;
-	/** Initial y position in pixels. */
+
 	y: number;
-	/** Initial width in pixels. */
+
 	width: number;
-	/** Initial height in pixels. */
+
 	height: number;
-	/** Minimum width in pixels. */
+
 	minWidth: number;
-	/** Minimum height in pixels. */
+
 	minHeight: number;
-	/**
-	 * Submenu items that render as a tab strip below the title bar.
-	 * Each tab navigates the iframe within the same window — no new window opens.
-	 * Pass an empty array (or omit) to hide the strip.
-	 *
-	 * Rows flagged `offSite` are carried through but never become
-	 * tabs: the iframe can't load an off-site URL.
-	 */
+
 	submenu?: { title: string; url: string; offSite?: boolean }[];
-	/**
-	 * Optional initial state. When present, the window is constructed
-	 * into this state directly — used by session restore so a minimized
-	 * or maximized window comes back in the same shape the user left it.
-	 */
+
 	initialState?: WindowState;
-	/**
-	 * Native window flag. When true, the window's body is rendered
-	 * directly in the parent DOM via {@link WindowConfig.render} instead
-	 * of loading {@link WindowConfig.url} in an iframe. Native windows
-	 * inherit the full chrome (drag/resize/minimize/maximize) but skip
-	 * iframe-only affordances (detach-to-tab, screen-meta bridge, tab
-	 * strip, postMessage listener). Used for desktop-shell-native panels
-	 * like OS Settings where an iframe would be wasteful and where the
-	 * module wants direct access to the shell.
-	 */
+
 	native?: boolean;
-	/**
-	 * Render callback for native windows. Invoked once after the window
-	 * element mounts; receives the `.os-window__body` and
-	 * an optional render context whose `window.send` / `window.on`
-	 * are the unified channel-bus API for talking to / from this
-	 * window's content. Ignored when `native` is falsy.
-	 *
-	 * Body content at call time depends on which entry point opened
-	 * the window:
-	 *
-	 *   - **`openstation_register_window()` (PHP)** — the shell clones
-	 *     the registered `<template>` into the body before the
-	 *     callback fires. Render = enhancement: query mount points,
-	 *     light them up. See `openStationNativeWindows[ id ]`.
-	 *   - **`windowManager.open({ native: true, render })` (raw JS)** —
-	 *     no template plumbing exists at this layer. The body is
-	 *     empty; the callback constructs the DOM directly.
-	 *
-	 * The second argument is populated when `wp.os.registerWindow()`
-	 * (or `openstation_register_window()`) is the entry point —
-	 * legacy `windowManager.open()` callers still receive `body`
-	 * only; in that case use `wp.os.windowManager.getById(
-	 * id ).on/send` instead.
-	 *
-	 * **Loading lifecycle.** Every native window starts in the
-	 * loading state — the shell paints a `<os-spinner>` overlay
-	 * over the body until the content is ready. The shell removes
-	 * the overlay automatically:
-	 *
-	 *   - When `render` returns a non-Promise value, on the next
-	 *     animation frame after `render` returns (gives any
-	 *     synchronous DOM mutations a chance to settle).
-	 *   - When `render` returns a `Promise`, when the promise
-	 *     resolves. The promise's resolved value is treated as the
-	 *     teardown function (or void) — same contract as the
-	 *     synchronous return.
-	 *   - When the plugin calls `ctx.window.markReady()` directly,
-	 *     immediately. Useful for non-promise async (event listener
-	 *     based loading) or for re-readying after a refetch
-	 *     triggered by `ctx.window.markLoading()`.
-	 *
-	 * The matching `os-window-content-loaded` CustomEvent
-	 * dispatches on `document` and the `WINDOW_CONTENT_LOADED` hook
-	 * fires on the loading → ready transition.
-	 */
+
 	render?: (
 		body: HTMLElement,
 		ctx?: NativeRenderContext,
@@ -261,161 +71,27 @@ export interface WindowConfig {
 		| void
 		| ( () => void )
 		| Promise< void | ( () => void ) >;
-	/**
-	 * Auto-focus control for native windows. Pass `true` to focus
-	 * the body element itself (tabbable after render), a CSS
-	 * selector string to focus a specific child (e.g. `'input'` for
-	 * a search window, `'[data-primary]'` for a calculator's `=`
-	 * key), or omit / pass `false` to skip auto-focus entirely.
-	 *
-	 * Applied on the next animation frame after `render()` returns —
-	 * gives the DOM a chance to settle before `.focus()` resolves.
-	 * Ignored for iframe windows (the iframe's own focus handling
-	 * already owns that surface).
-	 */
+
 	autofocus?: boolean | string;
-	/**
-	 * Inline callback fired when the window's close animation begins.
-	 * Complements the `os.window.closing` hook — the hook is
-	 * broadcast to every subscriber, while this callback is scoped
-	 * specifically to this window's caller. Native windows use it to
-	 * tear down subscriptions / timers that don't want to live past
-	 * the fade-out. No-op for iframe windows.
-	 */
+
 	onClose?: () => void;
-	/**
-	 * Inline callback fired whenever the body element's dimensions
-	 * change (user resize, initial mount, viewport reflow). Native
-	 * windows that paint their own canvas use this to re-measure;
-	 * DOM-based content usually doesn't need it. Delivered width /
-	 * height are the `.os-window__body` client dimensions,
-	 * NOT the outer window size (title bar + tab strip are already
-	 * subtracted). Fires alongside the
-	 * `os.window.body-resized` hook.
-	 */
+
 	onResize?: ( width: number, height: number ) => void;
-	/**
-	 * Attribution: the WordPress script handle (or plugin slug) that
-	 * registered this window. Surfaced so devtools / inspectors that
-	 * instrument a window from the outside can identify the owning
-	 * plugin without parsing URLs. Populated automatically for native
-	 * windows registered via `openstation_register_window( $args )`
-	 * (carries `$args['script']`); plugins that open iframe windows
-	 * directly may set this themselves. Empty / undefined when the
-	 * window comes from a core admin page with no plugin owner.
-	 */
+
 	ownerHandle?: string;
-	/**
-	 * Open-time content identity — the piece of content this window
-	 * shows, and (through `content.root`) the relation group it
-	 * belongs to. Seeds `wp.os.relations` the moment the window
-	 * opens; for iframe admin pages the chromeless bridge later
-	 * announces the authoritative identity and overwrites this seed.
-	 * See `src/window-links/types.ts` and
-	 * `docs/examples/window-links.md`.
-	 */
+
 	content?: WindowContentRef;
-	/**
-	 * Exclude this window from session snapshots — it will not be
-	 * restored on the next boot. For transient companion windows whose
-	 * URL doesn't survive a session: the editor-preview window's URL
-	 * embeds a `preview_nonce` scoped to an autosave revision, so
-	 * restoring it would resurrect a dead link with no pairing state.
-	 */
+
 	ephemeral?: boolean;
-	/**
-	 * Id of the window that OWNS this one — makes this a **child
-	 * window**.
-	 *
-	 * A child is a real window (own chrome, drag, resize, minimize,
-	 * taskbar entry), not a dialog. What ownership adds is one rule:
-	 * **the owner can never sit above its child.** Clicking the owner
-	 * hands focus to the child and shakes it instead of raising the
-	 * owner — the "finish here first" affordance a modal sheet gives,
-	 * without taking the owner's content away. The owner stays
-	 * scrollable, draggable and resizable throughout.
-	 *
-	 * Consequences worth knowing before you set this:
-	 *   - Closing the owner closes its children (they are owned, not
-	 *     merely related — an orphan would keep blocking nothing).
-	 *   - Minimizing the owner minimizes them; restoring restores them.
-	 *   - A MINIMIZED child stops blocking. The user put it away on
-	 *     purpose; the owner is theirs again until they bring it back.
-	 *   - Children are left out of session snapshots, so a reload never
-	 *     restores a child whose owner failed to come back with it.
-	 *
-	 * For a *visual* relationship between peer windows (a post and its
-	 * comments) you want content relations instead — see
-	 * `src/window-links/types.ts`. Ownership is about z-order and
-	 * focus; relations are about drawing ties between equals.
-	 */
+
 	parentWindowId?: string;
-	/**
-	 * Open-time arguments for a **native** window — what it is showing
-	 * this time, as opposed to what it is.
-	 *
-	 * A native window is addressed by id, and its id is its identity:
-	 * `desktop-mode-user-edit` is "the profile editor", not "the
-	 * profile editor for user 12". Anything that varies per open has
-	 * nowhere else to live, and a module-level variable or a shared
-	 * store does not survive a reload — which is exactly how the
-	 * profile window used to come back showing whoever was logged in
-	 * rather than the person you had open.
-	 *
-	 * Params are part of the window's identity for persistence: they
-	 * are written into the session snapshot and staged back onto the
-	 * window when it is restored, so a native window reopens showing
-	 * the same thing.
-	 *
-	 * Keep them small and serializable — ids and slugs, not objects
-	 * and not functions. They go through `JSON.stringify` on the way
-	 * to the server. Values that aren't strings, finite numbers or
-	 * booleans are dropped on save rather than crashing it.
-	 *
-	 * Iframe windows don't need this: their URL already says what they
-	 * are showing, and it round-trips through the session on its own.
-	 */
+
 	params?: Record< string, string | number | boolean >;
-	/**
-	 * A grid placement to restore the window onto — see
-	 * {@link GridSpan}. Passed by session restore; the shell then
-	 * derives the geometry from the CURRENT work area rather than
-	 * trusting the saved pixels, which may be from another display.
-	 */
+
 	gridSpan?: GridSpan;
-	/**
-	 * Per-window appearance overrides — themes (CSS variables),
-	 * controls (close / minimize / maximize layout + custom buttons),
-	 * slots (named title-bar regions), and chrome (full title-bar
-	 * render replacement, Experimental).
-	 *
-	 * Plugins can also drive these globally via the
-	 * `wp.os.registerWindowTheme()` / `registerWindowControl()` /
-	 * `registerWindowSlot()` / `registerWindowChrome()` registries plus
-	 * the `match` predicate; this field is the registration-time
-	 * shortcut for windows that opt in directly.
-	 */
+
 	appearance?: WindowAppearance;
-	/**
-	 * Per-window override for the loading-overlay content. The
-	 * shell paints a default `<os-spinner>` into every window's
-	 * body at construction (and re-paints when a plugin re-enters
-	 * the loading state via `markContentLoading`); set
-	 * `loading.render` to mutate that overlay — replace its
-	 * children, retune the spinner attributes, append a status
-	 * line, brand it for your plugin.
-	 *
-	 *   - The callback runs each time the overlay is built (first
-	 *     paint AND every re-arm). Treat it as a render function:
-	 *     idempotent + side-effect-free apart from DOM writes.
-	 *   - Use `host.replaceChildren( …yourElements )` to fully
-	 *     swap out the default. Use `host.appendChild( … )` to
-	 *     decorate it.
-	 *   - For shell-wide customization (every plugin's loader
-	 *     looks the same), add a filter on
-	 *     `HOOKS.WINDOW_LOADING_OVERLAY` instead — runs AFTER this
-	 *     callback, so a global theme can still override.
-	 */
+
 	loading?: {
 		render?: (
 			host: HTMLElement,
@@ -424,75 +100,21 @@ export interface WindowConfig {
 	};
 }
 
-/**
- * Per-window appearance overrides. Each layer is independently
- * optional — an empty `appearance` object is identical to omitting
- * the field.
- *
- * Resolution order against the global registries:
- *
- *   1. Theme — the theme registered with the highest `priority` whose
- *      `match` returns true wins. `appearance.theme.tokens` (inline)
- *      overrides any registered match; `appearance.theme.themeId`
- *      pins the theme to a specific registration.
- *   2. Controls — registry entries are filtered by their `match`,
- *      then `appearance.controls.order` / `.hide` / `.custom` apply
- *      the per-window mutations.
- *   3. Slots — registry entries with matching `match` paint each
- *      slot in `order` ascending; `appearance.slots[name]` overrides
- *      the slot entirely.
- *   4. Chrome — `appearance.chrome` selects a registered chrome by
- *      id; defaults to `'core/standard'`.
- *
- * @public
- */
 export interface WindowAppearance {
-	/** Theme override (CSS variables). */
+
 	theme?: WindowThemeRef;
-	/** Per-window control configuration. */
+
 	controls?: WindowControlsConfig;
-	/** Per-window slot overrides keyed by slot name. */
+
 	slots?: Partial< Record< WindowSlotName, WindowSlotConfig > >;
-	/**
-	 * Chrome registration id (e.g. `'core/standard'`,
-	 * `'my-plugin/macos'`). Defaults to `'core/standard'` when
-	 * omitted. Marked Experimental — chrome render contract may
-	 * change.
-	 */
+
 	chrome?: string;
 }
 
-/**
- * Window-theme reference. Either a pinned theme id or an inline
- * tokens map. The inline form bypasses the global theme registry —
- * useful for one-off windows that don't merit a registration.
- *
- * @public
- */
 export type WindowThemeRef =
 	| { themeId: string; tokens?: never }
 	| { tokens: Record< string, string >; themeId?: never };
 
-/**
- * Per-window control configuration. Mutates the resolved control
- * list AFTER the global registry has been filtered by its match
- * predicates.
- *
- *   - `order` — ids of controls in the order they should render
- *     inside the controls cluster. Built-in ids are
- *     `core/minimize`, `core/maximize`, `core/focus-tab`,
- *     `core/detach`, `core/close`. Plugin custom controls register
- *     their own ids. Controls not listed in `order` keep their
- *     registry order after the listed ones.
- *   - `hide` — ids to suppress on this window without unregistering
- *     them globally. Built-in ids are valid here.
- *   - `custom` — additional control entries scoped to this window
- *     only (no registry registration required).
- *   - `placement` — overall placement of the controls cluster.
- *     Defaults to `'right'`.
- *
- * @public
- */
 export interface WindowControlsConfig {
 	order?: string[];
 	hide?: string[];
@@ -500,14 +122,6 @@ export interface WindowControlsConfig {
 	placement?: 'left' | 'right';
 }
 
-/**
- * Inline control definition for `WindowControlsConfig.custom`. Same
- * shape as the registry's `WindowControlDef` minus the cross-window
- * fields (`match`, `owner`) — an inline control is bound to its
- * window, so the window arg is implied.
- *
- * @public
- */
 export interface WindowControlInline {
 	id: string;
 	label: string;
@@ -518,18 +132,6 @@ export interface WindowControlInline {
 	render?: ( host: HTMLElement ) => void;
 }
 
-/**
- * Canonical slot names. The shell renders each slot in this
- * left-to-right order:
- *
- * `before-titlebar` (above the bar) → `before-icon` → `icon` →
- * activity indicator → `title` → `after-title` → custom-button left
- * slot → screen-meta cluster → ⋯ actions menu → custom-button right
- * slot → `before-controls` → `controls` → `after-controls` →
- * `after-titlebar` (below the bar).
- *
- * @public
- */
 export type WindowSlotName =
 	| 'before-titlebar'
 	| 'before-icon'
@@ -541,23 +143,6 @@ export type WindowSlotName =
 	| 'after-controls'
 	| 'after-titlebar';
 
-/**
- * Per-window slot override. Three accepted shapes:
- *
- *   - **`{ html: string }`** — the shell sets the slot host's
- *     `textContent` to the string (NOT `innerHTML`, so iframe-side
- *     content can't smuggle script). Plugins that need rich markup
- *     register a `WindowSlotDef.render` callback in the global
- *     registry and gate it on a window-specific match predicate.
- *   - **`{ render: (host, ctx) => …; replace?: boolean }`** — same
- *     shape as the global registry's `WindowSlotDef.render`. The
- *     callback runs every time the slot repaints.
- *   - **`null`** — explicit "render nothing" (suppress any matching
- *     global slot renderers and the default content). Use this to
- *     hide the title or icon for a custom-chrome look.
- *
- * @public
- */
 export type WindowSlotConfig =
 	| { html: string }
 	| {
@@ -566,134 +151,36 @@ export type WindowSlotConfig =
 	}
 	| null;
 
-/**
- * Narrowed window configuration for **native** windows only. Author-
- * facing alias that defaults `native: true` and drops the iframe-only
- * fields the full {@link WindowConfig} carries. Use this when
- * declaring a plugin's native window:
- *
- * ```ts
- * const calc: NativeWindowDef = {
- *   id: 'calc',
- *   title: 'Calculator',
- *   icon: 'dashicons-calculator',
- *   width: 320,
- *   height: 460,
- *   minWidth: 280,
- *   minHeight: 380,
- *   render: ( body ) => { body.innerHTML = '…'; },
- *   onResize: ( w, h ) => console.log( 'body:', w, h ),
- * };
- * wp.os.registerWindow( calc );
- * ```
- *
- * @public
- */
 export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 'submenu' | 'x' | 'y' > {
-	/** Optional `#hash`-style URL for history. Auto-generated from `id` when absent. */
+
 	url?: string;
-	/** Always `true` for native windows. Accepted for clarity; the shell enforces it. */
+
 	native?: true;
-	/** Initial x position in pixels. Defaults to 0; the shell's cascade positioner usually takes over. */
+
 	x?: number;
-	/** Initial y position in pixels. Defaults to 0; the shell's cascade positioner usually takes over. */
+
 	y?: number;
-	/**
-	 * Convenience: declare this native window's body as a single
-	 * iframe with shell-managed lifecycle. The shell creates the
-	 * `<iframe>`, validates `event.source` on every incoming
-	 * postMessage, hands you a `send()` closure that's safe to call
-	 * (queued until the iframe acks ready), and auto-injects the
-	 * iframe-side bridge (`wp.os.iframe.publish/subscribe/
-	 * onConnection/requestConnection`) on same-origin pages when
-	 * `bridge: true`.
-	 *
-	 * Replaces ~50 lines of per-plugin postMessage plumbing with a
-	 * single config block. When you set this, **don't pass `render`**
-	 * — the shell synthesises the body for you.
-	 */
+
 	iframeContent?: NativeWindowIframeContent;
 }
 
-/**
- * Configuration for a native window whose body is a single
- * shell-managed iframe. Used by `NativeWindowDef.iframeContent`.
- *
- * @public
- */
 export interface NativeWindowIframeContent {
-	/**
-	 * URL the iframe loads. Cross-origin is allowed but `bridge`
-	 * auto-inject and `event.source` validation are best-effort
-	 * (sandboxed cross-origin iframes get neither — `onMessage`
-	 * still fires for messages whose `event.source` matches the
-	 * iframe's `contentWindow`).
-	 */
+
 	url: string;
-	/**
-	 * Optional `sandbox` attribute. Pass the value verbatim
-	 * (e.g. `'allow-scripts allow-same-origin'`). Omit for an
-	 * unsandboxed iframe (the default — most common case for same-
-	 * origin admin pages).
-	 */
+
 	sandbox?: string;
-	/**
-	 * When `true`, the shell injects the iframe-side connection
-	 * bridge (`wp.os.iframe.publish/subscribe/onConnection/
-	 * requestConnection` plus the unified `wp.os.send` /
-	 * `wp.os.on`) into the iframe's document after load.
-	 * Same-origin only — cross-origin iframes are out of reach for
-	 * script injection so the flag is silently ignored.
-	 *
-	 * Default `false`. Set this when your iframe is a same-origin
-	 * page that wants to participate in `wp.os.connect()`
-	 * traffic / `Window.send` traffic without enqueueing the
-	 * bridge handle itself.
-	 */
+
 	bridge?: boolean;
-	/**
-	 * Receives every message whose `event.source ===
-	 * iframe.contentWindow`. Handles the source-check the shell
-	 * would otherwise force every plugin to reinvent.
-	 *
-	 * **Most plugins should NOT use this.** Reach for the unified
-	 * channel API instead — `Window.on( channel, cb )` from the
-	 * parent shell, paired with `wp.os.send( channel,
-	 * payload )` from inside the iframe. `onMessage` is the raw
-	 * `event.data` firehose, useful only for plugins that already
-	 * speak a non-`os-window-*` postMessage protocol.
-	 */
+
 	onMessage?: ( payload: unknown ) => void;
 }
 
-/**
- * Window-scoped channel API surfaced to native render callbacks
- * as the second argument of {@link WindowConfig.render}. Plugin
- * authors talk to / from the window's content through these two
- * methods — same shape as the iframe-side `wp.os.send` /
- * `wp.os.on`, so cross-cutting plugin code that doesn't
- * care about render strategy stays render-strategy-agnostic.
- *
- * @public
- */
 export interface NativeRenderContext {
-	/**
-	 * Per-window channel handle. Methods are bound to this window's
-	 * id so render code can lift them out of the context object
-	 * without losing scope.
-	 */
+
 	window: {
-		/**
-		 * Publish a payload on a named channel. Reaches every
-		 * `Window.on( channel, cb )` subscriber on the parent side
-		 * (and any peer `wp.os.connect( id ).on()` listeners).
-		 */
+
 		send< T = unknown >( channel: string, payload?: T ): void;
-		/**
-		 * Subscribe to a payload published from outside this window —
-		 * fires when a parent-side caller invokes `Window.send(
-		 * channel, payload )`. Returns an unsubscribe handle.
-		 */
+
 		on< T = unknown >(
 			channel: string,
 			cb: (
@@ -701,208 +188,54 @@ export interface NativeRenderContext {
 				meta: { channel: string; windowId: string },
 			) => void,
 		): () => void;
-		/**
-		 * Re-show the loading spinner overlay. Use BEFORE kicking off
-		 * an async refetch so the user sees the same affordance they
-		 * saw at first paint — the shell handles the fade transition,
-		 * the plugin just calls this and `markReady()` when its work
-		 * is done.
-		 *
-		 * Idempotent: calling twice in a row only fires the
-		 * `WINDOW_CONTENT_LOADING` hook once (edge-triggered).
-		 */
+
 		markLoading(): void;
-		/**
-		 * Tell the shell the body content is ready — hides the
-		 * spinner overlay and fades the content in. Called
-		 * automatically by the shell after a synchronous `render()`
-		 * returns or after a Promise-returning `render()` resolves;
-		 * plugins only call this directly when they kick off async
-		 * work that the framework can't observe (event-listener
-		 * based loading, manual refetches initiated via
-		 * `markLoading()`).
-		 *
-		 * Idempotent: only fires `WINDOW_CONTENT_LOADED` on the
-		 * loading → ready transition.
-		 */
+
 		markReady(): void;
 	};
 
-	/**
-	 * Top-level alias of {@link NativeRenderContext.window.markLoading}.
-	 * Same semantics — provided so render bodies can destructure
-	 * `{ markLoading, markReady, signal, onResize }` without dipping
-	 * into the nested `ctx.window` shape.
-	 */
 	markLoading(): void;
 
-	/**
-	 * Top-level alias of {@link NativeRenderContext.window.markReady}.
-	 */
 	markReady(): void;
 
-	/**
-	 * `AbortSignal` that fires `'abort'` when the window starts
-	 * closing. Pass it to `wp.os.fetch( url, { signal } )` (or
-	 * any AbortController-aware API) so in-flight work tears down
-	 * automatically — no manual cleanup, no leaked listeners on
-	 * already-closed windows.
-	 *
-	 * ```ts
-	 * render: async ( body, { signal } ) => {
-	 *     const res = await wp.os.fetch( '/wp-json/me/v1/feed', { signal } );
-	 *     if ( signal.aborted ) return;
-	 *     paint( body, await res.json() );
-	 * }
-	 * ```
-	 *
-	 * Aborts on close BEFORE the user's render-returned teardown
-	 * runs, so async paths see the signal flip first.
-	 */
 	signal: AbortSignal;
 
-	/**
-	 * Subscribe to body-resize events scoped to this window. Fires
-	 * on mount, user resize, and viewport reflow. `width` / `height`
-	 * are the inner `.os-window__body` client dimensions
-	 * (title bar + tab strip already subtracted). Auto-unsubscribes
-	 * when the window closes; the returned function lets plugins
-	 * detach early.
-	 *
-	 * Identical payload to the {@link WindowConfig.onResize} field
-	 * — that field still works (registration-time setup); this is
-	 * the runtime-time equivalent for callers who want to hook
-	 * lazily from inside the render callback.
-	 */
 	onResize( cb: ( width: number, height: number ) => void ): () => void;
 
-	/**
-	 * Subscribe to "the window was just minimized". The body
-	 * remains in the DOM — plugins typically pause animations,
-	 * intervals, or IntersectionObservers here so they don't burn
-	 * CPU when the user can't see them.
-	 */
 	onHide( cb: () => void ): () => void;
 
-	/**
-	 * Subscribe to "the window was just restored from minimized".
-	 * The mirror of `onHide` — resume animations / poll cycles
-	 * that were paused while hidden.
-	 */
 	onShow( cb: () => void ): () => void;
 
-	/**
-	 * The window's open-time arguments — what it is showing this
-	 * time. Empty object when the window was opened without any.
-	 *
-	 * A native window is addressed by id, so a singleton that
-	 * retargets (a profile editor, a customer window) has nowhere
-	 * else to put "which one". Read it here rather than from a
-	 * module-level variable: params are written into the session and
-	 * staged back on restore, so a window reopened after a reload
-	 * still knows what it was showing. A module variable does not
-	 * survive the reload, and the window silently changes subject.
-	 *
-	 * ```ts
-	 * render: ( body, { params } ) => {
-	 *     paint( body, Number( params.userId ) || 0 );
-	 * }
-	 * ```
-	 *
-	 * @see WindowConfig.params
-	 */
 	params: Record< string, string | number | boolean >;
 }
 
-/**
- * Canonical shape for a single entry displayed in a monitor /
- * observability widget. Any plugin that wants to contribute an
- * entry to monitor widgets applies a `os.monitor.entry`
- * filter returning a mutated `MonitorEntry` or adds one to the
- * aggregated list. By converging every plugin on this shape we
- * avoid the "every monitor widget invents its own schema" fragmentation.
- *
- * Optional fields are all present so callers can filter / group
- * consistently: a pure console-log entry leaves `status` / `method`
- * / `url` unset, while a failed XHR fills them all.
- *
- * @public
- */
 export interface MonitorEntry {
-	/** Unix timestamp in milliseconds (Date.now()). */
+
 	ts: number;
-	/** Classification tag — used for coloring / grouping in monitor UIs. */
+
 	type: 'log' | 'warn' | 'error' | 'network' | 'shell-error' | 'iframe-error' | string;
-	/** Human-readable summary. Max ~240 chars in UI — callers may truncate. */
+
 	message: string;
-	/**
-	 * Free-form source label: window id, widget id, plugin slug,
-	 * file:line, etc. Monitors group by this when rendering lists.
-	 */
+
 	source?: string;
-	/** HTTP status (network entries). 0 when the request never completed. */
+
 	status?: number;
-	/** HTTP method (network entries). Uppercase. */
+
 	method?: string;
-	/** URL (network entries). Cross-origin is fine — monitors decide whether to render. */
+
 	url?: string;
-	/** Duration in milliseconds (network entries). */
+
 	duration?: number;
-	/** True when the entry represents a failure — network non-2xx, caught exception. */
+
 	failed?: boolean;
-	/** Arbitrary extra context. Kept untyped on purpose — MonitorEntry should stay small. */
+
 	extra?: Record<string, unknown>;
 }
 
-/**
- * Server-declared native-window entry passed from PHP via the
- * `nativeWindows` config field. One entry per
- * `openstation_register_window()` call. The shell automatically
- * adds + removes tiles to match this list across boots AND mid-
- * session plugin activation / deactivation — so activating a
- * plugin that registered via this helper makes its tile appear
- * without a browser reload, and deactivating it makes the tile
- * disappear cleanly.
- *
- * @public
- */
-/**
- * One companion bundle attached to a native window through the
- * `scripts` registration arg. Same resolved shape the main script
- * travels in, so the shell's loader replays `wp_localize_script` /
- * `wp_add_inline_script` / translation data identically.
- */
-/**
- * One entry of a lazily-delivered bundle's dependency closure, in the
- * shape the loader replays it: the package's resolved URL plus the
- * inline data WordPress would have printed around it.
- *
- * WordPress resolves a script's dependencies when it ENQUEUES it, so
- * a normally-printed bundle finds its packages already there. A
- * bundle delivered lazily never goes through that: one declaring
- * `wp-api-fetch` found `wp.apiFetch` undefined at mount, and one
- * whose config rides a src-less alias handle booted with no config.
- * Anything already in the document is skipped. See
- * `docs/migration-wp-package-globals.md`.
- *
- * @public
- */
 export interface LazyScriptDependency {
-	/**
-	 * The package's WP script handle. Load-bearing, not
-	 * informational: on a stock wp-admin these packages arrive
-	 * concatenated into one `load-scripts.php` blob and have no
-	 * `<script src>` of their own, so the handle is the only way
-	 * the shell can tell they are already here. See
-	 * `src/script-presence.ts`.
-	 */
+
 	handle?: string;
-	/**
-	 * Resolved URL to fetch. Empty for a src-less ALIAS handle —
-	 * `wp_register_script( $h, false )` plus `wp_add_inline_script()`
-	 * — whose inline data is replayed in print order with nothing
-	 * fetched in between.
-	 */
+
 	url: string;
 	before?: string[];
 	after?: string[];
@@ -917,18 +250,10 @@ export interface NativeWindowCompanionScript {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The companion's declared packages, replayed before it loads. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Handle-keyed script data the native-window payload entries
- * reference — one resolved copy per bundle, however many windows,
- * companions and tabs name it. Built by
- * `openstation_collect_native_windows_payload()`; joined back onto
- * the entries by `hydrateServerEntries()` before the sync consumes
- * them. Field names mirror `openstation_resolve_script_payload()`.
- */
 export type NativeWindowScriptData = Record<
 	string,
 	{
@@ -937,27 +262,11 @@ export type NativeWindowScriptData = Record<
 		after?: string[];
 		l10n?: string[];
 		translations?: string;
-		/**
-		 * The handle's dependency closure in load order — every one a
-		 * key of this same map, so a package shared by several bundles
-		 * is serialized once. Present on handles the server resolved
-		 * as a bundle to load; absent on one reached only as a
-		 * dependency. An alias dependency has an empty `url` here.
-		 */
+
 		deps?: string[];
 	}
 >;
 
-/**
- * A native-window entry as it travels on the wire: script data is
- * referenced by HANDLE (companions are handle strings, the entry and
- * its tabs carry no resolved url/inline fields) and lives once per
- * handle in {@link NativeWindowScriptData}. `hydrateServerEntries()`
- * joins the two into full {@link NativeWindowServerEntry} objects.
- * The resolved fields stay optional here because an old-format
- * payload (a bridge emission from a not-yet-reloaded page) may still
- * inline them — the hydrator passes those through untouched.
- */
 export type NativeWindowWireEntry = Omit<
 	NativeWindowServerEntry,
 	'scriptUrl' | 'companionScripts' | 'tabs'
@@ -969,14 +278,6 @@ export type NativeWindowWireEntry = Omit<
 	>;
 };
 
-/**
- * One companion stylesheet attached to a native window through the
- * `styles` registration arg. Same resolved shape the window's own
- * `style` travels in, but injected on the window's FIRST OPEN rather
- * than when the window registers — a stylesheet that only paints
- * surfaces inside the window is deliberately deferred until the
- * window is shown.
- */
 export interface NativeWindowCompanionStyle {
 	styleUrl: string;
 	styleHandle?: string;
@@ -984,195 +285,82 @@ export interface NativeWindowCompanionStyle {
 }
 
 export interface NativeWindowServerEntry {
-	/** Window id + dock-tile id. */
+
 	id: string;
-	/** Tooltip + window title. */
+
 	title: string;
-	/** Dashicons class or URL. */
+
 	icon: string;
-	/**
-	 * `'dock'` = the window's launcher proposes the rail as its
-	 * default, which is what keeps it on the dock even though apps
-	 * otherwise default to the wallpaper. `'none'` = register the
-	 * window but propose no launcher (the plugin opens it
-	 * programmatically). A PROPOSAL, not a render instruction — the
-	 * user's Navigation preference wins, and a running window gets a
-	 * tile either way.
-	 */
+
 	placement: 'dock' | 'none';
-	/**
-	 * What the window IS: `'app'` (an installed app — the default, and
-	 * what every plugin wants) or `'control'` (an OpenStation
-	 * affordance; the Trash is the only shipped one). Decides the
-	 * launcher's default placement and which dock zone it sits in.
-	 */
+
 	navKind?: 'app' | 'control';
-	/**
-	 * Sort key for the tile among system tiles, ascending. Absent
-	 * means `0`, which puts the tile ahead of the shell's own trailing
-	 * cluster (Mio 10, Overview 20, System 30) — where a plugin's
-	 * launcher belongs. Trash sets 40 to sit at the very end.
-	 */
+
 	dockOrder?: number;
-	/**
-	 * Whether the launcher gets a row in OpenStation Preferences →
-	 * Navigation so the user can move or hide it. Absent/false for
-	 * the load-bearing majority.
-	 */
+
 	placeable?: boolean;
-	/** Initial window dimensions in px. */
+
 	width: number;
 	height: number;
-	/** Minimum user-resizable dimensions in px. */
+
 	minWidth: number;
 	minHeight: number;
-	/** Autofocus rule — true, CSS selector, or false/absent. */
+
 	autofocus: boolean | string;
-	/** DOM id of the `<template>` the shell clones into the window body. */
+
 	templateId: string;
-	/** Pre-rendered template HTML. Shell injects a `<template>` when the id isn't already in the DOM (mid-session activation path). */
+
 	templateHtml: string;
-	/** Absolute URL of the plugin's enqueued script. Shell dynamically loads it when this entry appears mid-session. Empty when the plugin declared no script. */
+
 	scriptUrl: string;
-	/** WordPress script handle (informational). */
+
 	scriptHandle: string;
-	/**
-	 * `wp_add_inline_script( $h, $code, 'before' )` strings harvested
-	 * from the registered script handle. Injected as inline `<script>`
-	 * tags before the lazy-load `<script src>` so the data lands the
-	 * same way `wp_print_scripts()` would have printed it.
-	 */
+
 	scriptBefore?: string[];
-	/** `wp_add_inline_script( $h, $code, 'after' )` strings. Injected after the body's `load` event. */
+
 	scriptAfter?: string[];
-	/** Precomputed `wp_localize_script()` `var x = …;` blobs. Injected before the body. */
+
 	scriptL10n?: string[];
-	/** `wp.i18n.setLocaleData(…)` snippet from `wp_set_script_translations()`. Injected before everything. */
+
 	scriptTranslations?: string;
-	/**
-	 * The packages `script` declares, in load order, replayed before
-	 * the bundle on its lazy load. The same closure WordPress would
-	 * have resolved had it printed the handle itself — `wp-*`
-	 * packages and a plugin's own src-less config alias alike.
-	 * Anything already in the document is skipped.
-	 */
+
 	scriptDeps?: LazyScriptDependency[];
-	/**
-	 * Companion bundles (`scripts` arg) loaded in order immediately
-	 * before `scriptUrl`. For code that extends the window from
-	 * outside it — subscribing to actions the window's own bundle
-	 * fires — and therefore has to be in the tab before its render
-	 * callback paints. Travelling with the window is what keeps such
-	 * a bundle off the boot critical path.
-	 */
+
 	companionScripts?: NativeWindowCompanionScript[];
-	/**
-	 * Load the bundle at shell boot rather than on the window's first
-	 * open. Absent/false for everything that only publishes a render
-	 * callback (the documented contract, and the overwhelming
-	 * majority). Set by windows whose bundle also carries a boot-time
-	 * job — a badge poller, a `wp.os` API surface — that must run
-	 * whether or not the window is ever opened.
-	 */
+
 	preloadScript?: boolean;
-	/**
-	 * Absolute URL of the plugin's enqueued stylesheet. Shell injects a
-	 * `<link rel="stylesheet">` into `<head>` when this entry appears
-	 * mid-session — closes the gap where the parent shell already
-	 * finished `wp_print_styles` before the plugin was activated, so
-	 * its CSS would otherwise be missing until F5. Empty when the
-	 * plugin declared no `style` arg.
-	 */
+
 	styleUrl?: string;
-	/** WordPress style handle (informational). */
+
 	styleHandle?: string;
-	/**
-	 * `wp_add_inline_style( $h, $css )` blobs harvested from the
-	 * registered style handle. Emitted as a `<style>` tag immediately
-	 * after the `<link>` so cascade order matches what
-	 * `WP_Styles::print_inline_style()` would have written.
-	 */
+
 	styleInline?: string[];
-	/**
-	 * Companion stylesheets (`styles` arg) injected on the window's
-	 * first open, after the window's own style, in declared order —
-	 * so a companion's equal-specificity overrides win by source
-	 * order, the same contract a `wp_register_style` dependency gives
-	 * on the print path. The styles-side mirror of
-	 * `companionScripts`, deferred because a sheet that only paints
-	 * this window's surfaces is dead weight on every document that
-	 * never shows it.
-	 */
+
 	companionStyles?: NativeWindowCompanionStyle[];
-	/**
-	 * Attribution of the registering plugin. Mirrors `scriptHandle` for
-	 * windows registered via `openstation_register_window()`. Devtools
-	 * read this off `Window.config.ownerHandle` once the window opens.
-	 */
+
 	ownerHandle: string;
-	/**
-	 * Tab descriptors for this window. Always includes at least the
-	 * main tab (whose `template` renders the window's own body); if
-	 * additional tabs were registered via
-	 * `openstation_register_window_tab()` they follow in position
-	 * order. Empty array is equivalent to "main tab only" — the
-	 * shell renders the window body directly without a tab strip.
-	 *
-	 * The template HTML already carries the rendered tab markup
-	 * (`<os-tabs>` + `<os-tabpanel>` per entry). This field is
-	 * metadata — useful for plugins that want to inspect or extend
-	 * a window's tab list without re-parsing the template.
-	 */
+
 	tabs?: NativeWindowTabEntry[];
-	/**
-	 * Admin pages this window answers for while it is the one in
-	 * charge of its menu (`App::menu()`), each with the tab it opens.
-	 * The shell claims those URLs for the window wherever they are
-	 * clicked. Empty when the window declares no menu, or when the
-	 * opt-in that chooses it over the classic screen is off.
-	 */
+
 	menuPages?: Array< { id: string; page: string } >;
 }
 
-/**
- * A single tab descriptor on a native window — either the main tab
- * (`isMain: true`) whose template is the window's own body, or a
- * registered `openstation_register_window_tab()` entry.
- *
- * @public
- */
 export interface NativeWindowTabEntry {
 	value: string;
 	label: string;
 	isMain: boolean;
-	/** Absolute URL of this tab's script — empty for the main tab and for tabs without a dedicated script. */
+
 	scriptUrl: string;
-	/** WordPress script handle (informational). */
+
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The tab script's declared packages, replayed before it loads. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared desktop-widget entry passed from PHP via the
- * `serverWidgets` config field. One entry per
- * `openstation_register_widget()` call.
- *
- * The mount callback itself is not serializable; plugins register
- * it on `window.openStationWidgets[ <id> ]` as a `(container, ctx)
- * => teardown` function. The shell pairs that global with the
- * metadata here to build a full `WidgetDef` at registration time.
- *
- * Mid-session activation injects the plugin's script (from
- * `scriptUrl`) before reading the callback, so newly-activated
- * plugins surface in the widget picker without a shell reload.
- *
- * @public
- */
 export interface DesktopWidgetServerEntry {
 	id: string;
 	label: string;
@@ -1186,94 +374,41 @@ export interface DesktopWidgetServerEntry {
 	maxHeight: number;
 	defaultWidth: number;
 	defaultHeight: number;
-	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
+
 	scriptUrl: string;
-	/** WordPress script handle (informational). */
+
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/**
-	 * The WordPress packages this widget declares, in load order,
-	 * replayed before the bundle.
-	 *
-	 * WordPress resolves a script's dependencies when it ENQUEUES it,
-	 * so a normally-printed bundle finds its packages already there. A
-	 * widget bundle is delivered lazily and never goes through that:
-	 * one declaring `wp-api-fetch` found `wp.apiFetch` undefined at
-	 * mount. That used to work by accident — Core's ⌘K palette put the
-	 * whole Gutenberg runtime on every admin page until it was
-	 * deferred. Anything already in the document is skipped. See
-	 * `docs/migration-wp-package-globals.md`.
-	 */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared wallpaper entry passed from PHP via
- * `serverWallpapers`. One entry per
- * `openstation_register_wallpaper()` call. Only metadata crosses
- * the wire; the plugin's mount / resolveValue / renderEditor
- * callbacks are announced via
- * `window.openStationWallpapers[ <id> ]` as a full `WallpaperDef`,
- * which the shell loads (if the script isn't yet in the tab) and
- * forwards to the normal wallpaper registry.
- *
- * @public
- */
 export interface DesktopWallpaperServerEntry {
 	id: string;
 	label: string;
 	preview: string;
 	type: 'css' | 'canvas';
-	/**
-	 * CSS value applied to the wallpaper surface. Populated when
-	 * `type === 'css'` and the server-side registration passed a
-	 * `value`. Empty string for canvas wallpapers, whose runtime
-	 * value lives on the JS side inside the `mount` callback.
-	 *
-	 * When set, the shell can register the wallpaper purely from
-	 * the server-side entry without any accompanying JS bundle.
-	 */
+
 	value: string;
-	/**
-	 * Optional plain-text description shown in OS Settings when the
-	 * wallpaper is the active selection. The shell overlays it onto the
-	 * JS def when the def itself doesn't carry one.
-	 */
+
 	description?: string;
-	/** Empty when undeclared, which the shell reads as `'dark'`. */
+
 	tone?: '' | 'light' | 'dark';
-	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
+
 	scriptUrl: string;
-	/** WordPress script handle (informational). */
+
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared desktop-theme entry passed from PHP via
- * `serverDesktopThemes`. One per installed ZIP or
- * `openstation_register_desktop_theme()` call.
- *
- * Unlike every other `server*` payload, this one carries no script:
- * a desktop theme is a compiled stylesheet plus an icon map, and the
- * shell needs nothing else to apply it.
- *
- * Structurally identical to `DesktopThemeEntry` in
- * `src/desktop-themes/types.ts` — kept separate because that one is
- * the post-sanitization shape the registry guarantees, while this is
- * the wire shape, which is only as trustworthy as the
- * `openstation_desktop_themes` filter that produced it.
- *
- * @public
- */
 export interface DesktopThemeServerEntry {
 	id: string;
 	slug: string;
@@ -1281,110 +416,66 @@ export interface DesktopThemeServerEntry {
 	version: string;
 	author: string;
 	description: string;
-	/** Absolute URL of the preview image, or `''`. */
+
 	previewUrl: string;
-	/** Absolute URL of the compiled stylesheet (uploaded themes). */
+
 	cssUrl: string;
-	/** Compiled stylesheet text (code-registered themes). */
+
 	cssText: string;
 	tokens: Record< string, string >;
-	/** Slot => `dashicons-*` class or absolute image URL. */
+
 	icons: Record< string, string >;
 	installedAt: number;
 	source: 'upload' | 'code';
 }
 
-/**
- * Server-declared game entry passed from PHP via `serverGames`.
- * One entry per `openstation_register_game()` call.
- *
- * Unlike wallpapers, game scripts are NOT loaded on sync — the
- * metadata here is enough to paint the Games launcher grid and the
- * scoreboard tabs; `scriptUrl` is fetched lazily on first launch
- * and publishes the full `GameDef` (with its `render` callback) on
- * `window.openStationGames[ id ]`.
- *
- * @public
- */
 export interface DesktopGameServerEntry {
 	id: string;
 	title: string;
-	/** Plain-text launcher-tile description. */
+
 	description: string;
-	/** Dashicon class, http(s) URL, or `data:` URI. */
+
 	icon: string;
-	/** Scoreboard column declarations, in display order. */
+
 	scoreColumns: Array< {
 		key: string;
 		label: string;
 		type: 'number' | 'time' | 'text';
 	} >;
-	/** Arbitrary server-declared config blob handed to the game's launch context. */
+
 	config: Record< string, unknown >;
-	/**
-	 * The game window's size, declared server-side so the shell knows it
-	 * before the game's bundle arrives.
-	 *
-	 * The window opens on the click and loads its bundle inside the
-	 * render callback, so the size has to be available a round trip
-	 * earlier than the JS def that also carries it. Empty when the game
-	 * declared none, which reads as "use the framework defaults"; the
-	 * def still wins once it lands.
-	 */
+
 	window?: {
 		width?: number;
 		height?: number;
 		minWidth?: number;
 		minHeight?: number;
 	};
-	/** Absolute URL of the game's (lazily loaded) script. */
+
 	scriptUrl: string;
-	/** WordPress script handle (informational). */
+
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared command-script entry passed from PHP via
- * `serverCommandScripts`. One entry per
- * `openstation_register_command_script()` call (or indirectly via
- * `openstation_register_command()`).
- *
- * The shell injects each `scriptUrl` into the shell page on mid-
- * session plugin activation. The loaded script registers its commands
- * through the normal `wp.os.registerCommand()` path; the live
- * command-registry subscription (see `subscribeCommands`) then repaints
- * any open palette without a reload.
- *
- * @public
- */
 export interface DesktopCommandScriptServerEntry {
-	/** WordPress script handle — doubles as the command `owner` key used for live unregistration. */
+
 	handle: string;
-	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared dock rail renderer script entry — produced by
- * `openstation_register_dock_rail_renderer_script( $handle )`. Same
- * shape as `DesktopCommandScriptServerEntry`; `handle` doubles as
- * the renderer's `owner` key for live unregistration on plugin
- * deactivation.
- *
- * @public
- */
 export interface DesktopDockRailRendererScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
@@ -1392,196 +483,106 @@ export interface DesktopDockRailRendererScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared command metadata passed from PHP via
- * `serverCommands`. Optional companion to
- * `DesktopCommandScriptServerEntry` — plugins declaring commands with
- * `openstation_register_command()` emit one entry per command so metadata
- * is enumerable without executing the plugin's JS. The `run` function
- * still lives JS-side and is attached by the script referenced in
- * `scriptUrl` when it loads.
- *
- * Advisory today — reserved for future pre-registration shims.
- *
- * @public
- */
 export interface DesktopCommandServerEntry {
 	slug: string;
 	label: string;
 	description: string;
 	icon: string;
 	hint: string;
-	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
+
 	scriptUrl: string;
-	/**
-	 * WordPress script handle this command belongs to. Enables live-
-	 * unregistration on plugin deactivation without requiring the plugin
-	 * to set `owner` on each JS `registerCommand` call — the sync walks
-	 * the previous payload's slug→handle mapping when a handle leaves.
-	 */
+
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared settings-tab script entry passed from PHP via
- * `serverSettingsTabScripts`. One entry per
- * `openstation_register_settings_tab_script()` call (or indirectly via
- * `openstation_register_settings_tab()`).
- *
- * The shell injects each `scriptUrl` on mid-session plugin activation;
- * the loaded script calls `wp.os.registerSettingsTab()` and the
- * OS Settings window (subscribed to the tab registry) repaints.
- *
- * @public
- */
 export interface DesktopSettingsTabScriptServerEntry {
-	/** WordPress script handle — doubles as the tab `owner` key used for live unregistration. */
+
 	handle: string;
-	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared title-bar-button script entry. One per
- * `openstation_register_titlebar_button_script()` call. The shell
- * injects each `scriptUrl` on mid-session activation; the loaded
- * script calls `wp.os.registerTitleBarButton()` and the
- * window-class registry subscriber repaints every open window.
- *
- * @public
- */
 export interface DesktopTitleBarButtonScriptServerEntry {
-	/** WordPress script handle — doubles as the button `owner` key for live unregistration. */
+
 	handle: string;
-	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared window-action script entry. One per
- * `openstation_register_window_action_script()` call. The shell
- * injects each `scriptUrl` on mid-session activation; the loaded
- * script calls `wp.os.registerWindowAction()` and every ⋯ menu
- * picks the row up on its next open (an already-open menu repaints
- * itself through the registry's subscribe fan-out).
- *
- * @public
- */
 export interface DesktopWindowActionScriptServerEntry {
-	/** WordPress script handle — doubles as the action `owner` key for live unregistration. */
+
 	handle: string;
-	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared unfocus-effect script entry. One per
- * `openstation_register_unfocus_effect_script()` call. The shell
- * injects each `scriptUrl` on mid-session activation; the loaded
- * script calls `wp.os.registerUnfocusEffect()` and the effects
- * registry subscriber re-runs the engine so the new effect appears in
- * the OS Settings selector without an F5.
- *
- * @public
- */
 export interface DesktopUnfocusEffectScriptServerEntry {
-	/** WordPress script handle — doubles as the effect `owner` key for live unregistration. */
+
 	handle: string;
-	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared window-link renderer script entry. One per
- * `openstation_register_window_link_renderer_script()` call. The
- * shell injects each `scriptUrl` on mid-session activation; the
- * loaded script calls `wp.os.registerWindowLinkRenderer()` and
- * the registry subscriber surfaces the renderer in OS Settings →
- * Windows → Window links without an F5.
- *
- * @public
- */
 export interface DesktopWindowLinkRendererScriptServerEntry {
-	/** WordPress script handle — doubles as the renderer `owner` key for live unregistration. */
+
 	handle: string;
-	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared window-theme script entry. One per
- * `openstation_register_window_theme_script()` call. The shell
- * injects each `scriptUrl` on mid-session activation; the loaded
- * script calls `wp.os.registerWindowTheme()` and the chrome
- * subscriber repaints every open window the theme matches.
- *
- * @public
- */
 export interface DesktopWindowThemeScriptServerEntry {
-	/** WordPress script handle — doubles as the theme `owner` key for live unregistration. */
+
 	handle: string;
-	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared window-theme metadata entry. Optional companion to
- * {@link DesktopWindowThemeScriptServerEntry} — plugins that pre-declare
- * theme tokens server-side via `openstation_register_window_theme()`
- * get the theme registered on the shell side without needing a JS
- * round trip; ergonomic for designers who want a stylesheet-only
- * theme. The `scriptUrl` carries any optional companion JS that
- * registers a `match` predicate (the metadata-only path matches the
- * theme to every window).
- *
- * @public
- */
 export interface DesktopWindowThemeServerEntry {
 	id: string;
 	label: string;
@@ -1593,16 +594,10 @@ export interface DesktopWindowThemeServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared window-control script entry. One per
- * `openstation_register_window_control_script()` call.
- *
- * @public
- */
 export interface DesktopWindowControlScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
@@ -1610,16 +605,10 @@ export interface DesktopWindowControlScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared window-control metadata entry — optional companion
- * to {@link DesktopWindowControlScriptServerEntry}.
- *
- * @public
- */
 export interface DesktopWindowControlServerEntry {
 	id: string;
 	label: string;
@@ -1632,16 +621,10 @@ export interface DesktopWindowControlServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared window-slot script entry. One per
- * `openstation_register_window_slot_script()` call.
- *
- * @public
- */
 export interface DesktopWindowSlotScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
@@ -1649,19 +632,10 @@ export interface DesktopWindowSlotScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared window-slot metadata entry — optional companion to
- * {@link DesktopWindowSlotScriptServerEntry}. The actual `render`
- * callback always lives JS-side; this metadata only declares which
- * slot the script targets so the live-refresh sync can attribute
- * unregister calls.
- *
- * @public
- */
 export interface DesktopWindowSlotServerEntry {
 	id: string;
 	slot: WindowSlotName;
@@ -1672,29 +646,10 @@ export interface DesktopWindowSlotServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared window-notice metadata entry — emitted by
- * `openstation_register_window_notice()`. Notices are pure
- * declarative data so there is no script handle.
- *
- * `match` is optional and supports three selectors (combine freely):
- *   - `window: <windowId>` — render only on the window with this id
- *     (e.g. `'edit-php'` for Posts, `'plugins'` for the native
- *     Plugins window).
- *   - `windows: string[]` — render on any window whose id is in the
- *     list (the "all windows of kind X / Y / Z" shape).
- *   - `urlContains: <substring>` — render on any window whose URL
- *     contains the substring (case-insensitive). Useful for plugin
- *     pages where the id is derived from a long admin URL.
- *
- * When `match` is omitted, the notice renders on every window.
- *
- * @public
- */
 export interface DesktopWindowNoticeServerEntry {
 	id: string;
 	message: string;
@@ -1709,14 +664,6 @@ export interface DesktopWindowNoticeServerEntry {
 	order?: number;
 }
 
-/**
- * Server-declared custom-chrome script entry. One per
- * `openstation_register_window_chrome_script()` call.
- *
- * Marked Experimental — the chrome render contract may change.
- *
- * @public
- */
 export interface DesktopWindowChromeScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
@@ -1724,16 +671,10 @@ export interface DesktopWindowChromeScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared custom-chrome metadata entry — optional companion
- * to {@link DesktopWindowChromeScriptServerEntry}. Marked Experimental.
- *
- * @public
- */
 export interface DesktopWindowChromeServerEntry {
 	id: string;
 	label: string;
@@ -1743,100 +684,54 @@ export interface DesktopWindowChromeServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared settings-tab metadata passed from PHP via
- * `serverSettingsTabs`. Optional companion to
- * `DesktopSettingsTabScriptServerEntry`. Enables live unregistration on
- * plugin deactivation without requiring the plugin's JS to set `owner`
- * on each `registerSettingsTab()` call — the sync walks the previous
- * payload's id→handle mapping when a handle leaves.
- *
- * @public
- */
 export interface DesktopSettingsTabServerEntry {
 	id: string;
 	label: string;
-	/**
-	 * Required capability. The shell today collapses this to an admin
-	 * vs everyone gate; `manage_options` maps to admin-only, anything
-	 * else to everyone-visible.
-	 */
+
 	capability: string;
-	/** Sort order relative to built-in tabs. */
+
 	order: number;
-	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
+
 	scriptUrl: string;
-	/** WordPress script handle this tab belongs to. */
+
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-	/** The handle's declared packages, replayed before the bundle on its lazy load. */
+
 	scriptDeps?: LazyScriptDependency[];
 }
 
-/**
- * Server-declared desktop icon — a shortcut tile on the wallpaper
- * that opens a native window or a URL on click. Registered via PHP
- * with `openstation_register_icon()`.
- *
- * @public
- */
 export interface DesktopIconServerEntry {
 	id: string;
 	title: string;
 	icon: string;
-	/** Id of a registered native window to open on click. Empty string when the icon targets a URL instead. */
+
 	window: string;
-	/** URL to open on click. Empty string when the icon targets a native window. */
+
 	url: string;
-	/** Sort order; lower renders first. */
+
 	position: number;
-	/**
-	 * System icon flag. Pinned icons render before any unpinned icon
-	 * regardless of `position` and are not user-draggable. Used for
-	 * built-in shortcuts like "My WordPress" that should always sit
-	 * in the same place. Default `false`.
-	 */
+
 	pinned?: boolean;
 }
 
-/**
- * Live geometry + state snapshot for a single window, returned by
- * `WindowManager.getVisibleRects()`.
- *
- * The shape is intentionally small and non-serializable (it carries
- * a live `HTMLElement` reference) — it exists for runtime overlays
- * and collision-aware wallpaper plugins, not for persistence. For the
- * persisted shape see {@link WindowSnapshot}.
- *
- * @public
- */
 export interface VisibleWindowRect {
-	/** Unique window id — matches `Window.id`. */
+
 	windowId: string;
-	/**
-	 * Current geometry in desktop-area coordinates (matches the
-	 * window element's inline-style `left` / `top` / `width` /
-	 * `height`). For windows on a suppressed (non-active) virtual
-	 * desktop this still reflects the geometry the window would
-	 * paint at once its desktop becomes active.
-	 */
+
 	rect: { x: number; y: number; width: number; height: number };
-	/** The window's current state. Callers typically filter on this. */
+
 	state: WindowState;
-	/** Live reference to the outer window element. */
+
 	element: HTMLElement;
 }
 
-/**
- * Serialized window state for persistence.
- */
 export interface WindowSnapshot {
 	id: string;
 	url: string;
@@ -1849,97 +744,40 @@ export interface WindowSnapshot {
 	state: WindowState;
 }
 
-/**
- * A dock item passed from PHP menu data.
- */
 export interface DockItemConfig {
-	/** Unique identifier (menu slug). */
+
 	id: string;
-	/** Display label. */
+
 	title: string;
-	/** Icon: dashicons class, data:image/svg+xml, URL, or 'none'. */
+
 	icon: string;
-	/** Admin page URL. */
+
 	url: string;
-	/** Badge count (updates, comments, etc.). */
+
 	badge: number;
-	/** Submenu items. */
+
 	submenu: { title: string; url: string; offSite?: boolean }[];
-	/**
-	 * WordPress's own label for this menu's landing page ("Themes",
-	 * "All Posts"), stripped out of `submenu` as the self-link. Names
-	 * the in-window tab that leads back to it.
-	 */
+
 	selfLabel?: string;
-	/**
-	 * Whether this admin page supports multiple open windows. Determined
-	 * server-side — list screens (Posts, Pages, Media, Users, Comments,
-	 * taxonomies) are true by default; Settings / Tools / Dashboard are
-	 * false. Filterable via `openstation_dock_item_multi`.
-	 */
+
 	multi?: boolean;
-	/**
-	 * Whether this item is a first-party WordPress core menu entry
-	 * (Dashboard, Posts, Media, Plugins, Users, Settings, CPTs,
-	 * taxonomies). Used by the dock to render a visual separator
-	 * between core and plugin tiles.
-	 */
+
 	isCore?: boolean;
 }
 
-/**
- * A single persisted window entry.
- *
- * Shape mirrors the server-side sanitizer in includes/session.php — any
- * field added here must be validated server-side or it will be dropped.
- */
 export interface SessionWindow {
 	id: string;
-	/**
-	 * Grouping key for multi-instance windows. Optional for back-compat
-	 * with sessions saved before the field existed — restore falls back
-	 * to the id when missing.
-	 */
+
 	baseId?: string;
-	/**
-	 * Virtual-desktop assignment. Optional for back-compat with
-	 * sessions saved before multi-desktop support — restore falls back
-	 * to the active desktop when missing.
-	 */
+
 	desktopId?: string;
-	/**
-	 * `true` for native windows (OS Settings, Bug Report, anything
-	 * registered via `openstation_register_window()` /
-	 * `wp.os.registerWindow`). These reopen through the
-	 * native-window registry by id rather than by pointing an iframe
-	 * at `url` — which for a native window is only a `#slug` marker.
-	 * Absent on plain admin-page windows.
-	 */
+
 	native?: boolean;
-	/**
-	 * A native window's open-time arguments — which user the profile
-	 * editor was showing, which customer the customer window was on.
-	 * Absent for iframe windows, whose URL already carries that, and
-	 * for native windows that take no arguments.
-	 *
-	 * See {@link WindowConfig.params}.
-	 */
+
 	params?: Record< string, string | number | boolean >;
-	/**
-	 * Where the window sits on the grid, when it was grid-snapped —
-	 * see {@link GridSpan}. The pixels below are still saved, but on
-	 * restore the span wins: it is what keeps a 2×2 a 2×2 on a
-	 * different display.
-	 */
+
 	gridSpan?: GridSpan;
-	/**
-	 * `true` for a window the phone layer opened with no desktop
-	 * geometry to keep: the pixels below are the defaults a 390px
-	 * viewport produced, not anything a desktop chose. On restore
-	 * they are ignored and the desktop places the window as it would
-	 * a fresh open. Only written when true, so every other session
-	 * keeps its shape.
-	 */
+
 	unplaced?: boolean;
 	url: string;
 	title: string;
@@ -1949,24 +787,10 @@ export interface SessionWindow {
 	y: number;
 	width: number;
 	height: number;
-	/**
-	 * External-link sub-tabs open on this window at save time. Each
-	 * carries the URL and display label so the shell can re-add them
-	 * via `Window.addExternalTab` on restore. Empty or absent when no
-	 * external tabs are open.
-	 */
+
 	externalTabs?: { url: string; label: string }[];
 }
 
-/**
- * The user's saved desktop session — open windows, virtual desktops, focused
- * id, active desktop id, and last-write timestamp. Restored by the shell on
- * load; written back debounced.
- *
- * `desktops` + `activeDesktop` are post-multi-desktop additions and
- * carry sane defaults from the server side, so older clients reading
- * a fresh session never miss them.
- */
 export interface Session {
 	windows: SessionWindow[];
 	desktops: Desktop[];
@@ -1975,302 +799,118 @@ export interface Session {
 	updated: number;
 }
 
-/**
- * The multisite block of {@link DesktopConfig}. Every URL in it is a
- * link OUT, never an iframe source: another site's shell is another
- * OpenStation, reached by navigating to it (see docs/multisite.md).
- * Null on a single-site install.
- */
 export interface MultisiteConfig {
 	isNetworkAdmin: boolean;
-	/**
-	 * The Network Admin dock tile's rows and the network's own shell
-	 * screen. Null without `manage_network`.
-	 */
+
 	networkAdmin: {
 		url: string;
 		shellUrl: string;
 		rows: Array< { title: string; url: string } >;
-		/** Another install (a member looking at its hub), so a switch there mints a token. */
+
 		foreign?: boolean;
 	} | null;
-	/** Which instance this shell is: `network`, or the blog id. */
+
 	current: string;
-	/**
-	 * Every site the user belongs to, each with its own shell screen.
-	 * `kind` is `local` for a site of this WordPress network (or the
-	 * hub itself) and `member` for an install that joined from
-	 * elsewhere, which the switcher marks as external.
-	 */
+
 	sites: Array< {
 		id: string;
 		name: string;
 		shellUrl: string;
-		/** The site's regular admin, where a site without OpenStation opens instead. */
+
 		adminUrl?: string;
-		/** False for a site of this network where OpenStation is not active, so it has no shell screen. */
+
 		active?: boolean;
 		kind?: 'local' | 'member';
-		/**
-		 * Another install than this shell's, whatever its origin: a
-		 * switch there mints a login token. Absent or false for a site
-		 * of this very install, which shares its login already.
-		 */
+
 		foreign?: boolean;
 	} >;
-	/**
-	 * The route that mints a hop token towards a site on another origin,
-	 * so the switch logs the user in there. Absent on a shell with nowhere
-	 * to hop to.
-	 */
+
 	hopUrl?: string;
 }
 
-/**
- * Desktop shell configuration passed from PHP via wp_localize_script.
- */
-/** What the usage feedback prompt needs; see `DesktopConfig.usageFeedback`. */
 export interface UsageFeedbackConfig {
-	/** `POST /desktop-mode/v1/feedback/usage`. */
+
 	restUrl: string;
 }
 
 export interface DesktopConfig {
-	/** The current admin page URL (to auto-open in the first window). */
+
 	currentPage: string;
-	/** The current admin page title. */
+
 	currentTitle: string;
-	/** The current admin page icon class. */
+
 	currentIcon: string;
-	/** Base admin URL (e.g., 'http://localhost:8889/wp-admin/'). */
+
 	adminUrl: string;
-	/** Site front page, for the System tile's "View site" row. */
+
 	homeUrl?: string;
-	/** Nonced logout URL — the shell cannot build this one itself. */
+
 	logoutUrl?: string;
-	/** The active color scheme slug. */
+
 	colorScheme: string;
-	/**
-	 * Baseline fingerprint of the admin menu at boot. The live
-	 * menu-refresh pipeline seeds its last-known signature from this so
-	 * an off-allowlist menu change (e.g. a custom post type registered
-	 * through a settings tool) is detected against the boot state
-	 * without a wasted refresh probe. Empty string when unavailable.
-	 */
+
 	menuSig?: string;
-	/**
-	 * Dock items derived from the admin menu. Core WordPress pages
-	 * (Dashboard, Posts, Plugins, Users, Settings, CPTs) are ordered
-	 * first; plugin-contributed top-level menus (`admin.php?page=*`)
-	 * follow. Items the `openstation_dock_placement` filter hid are
-	 * omitted. Rendered as a single unified rail — the placement
-	 * (left / right / bottom) is the user's OS Settings preference.
-	 */
+
 	dockItems: DockItemConfig[];
-	/**
-	 * Server-declared native windows (from `openstation_register_window()`).
-	 * Shell auto-registers system tiles at boot + syncs them on every
-	 * live menu refresh so plugin activate / deactivate maps to tile
-	 * add / remove with no browser reload. Wire-format entries — join
-	 * them with {@link DesktopConfig.nativeWindowScriptData} through
-	 * `hydrateServerEntries()` before handing them to the sync.
-	 */
+
 	nativeWindows: NativeWindowWireEntry[];
-	/**
-	 * Handle-keyed script data the `nativeWindows` entries reference —
-	 * one resolved copy per bundle, however many windows share it.
-	 */
+
 	nativeWindowScriptData?: NativeWindowScriptData;
-	/**
-	 * Each script dependency's payload once, keyed by handle. On the
-	 * wire every `scriptDeps` list is a list of these handles; the
-	 * shell resolves them back to {@link LazyScriptDependency} objects
-	 * at boot and on every menu refresh, so readers of `scriptDeps`
-	 * see full payloads. See `src/script-dep-payloads.ts` (GH#892).
-	 */
+
 	scriptDepPayloads?: Record< string, LazyScriptDependency >;
-	/**
-	 * Server-declared widgets (from `openstation_register_widget()`).
-	 * Same lifecycle story as native windows — shell syncs the
-	 * widget registry + dynamically loads plugin scripts on mid-
-	 * session activation, so widgets appear in the picker without
-	 * a browser reload.
-	 */
+
 	serverWidgets: DesktopWidgetServerEntry[];
-	/**
-	 * Server-declared wallpapers (from `openstation_register_wallpaper()`).
-	 * Same lifecycle as widgets + native windows — shell loads the
-	 * plugin's JS, reads the full `WallpaperDef` from the global,
-	 * and registers it. Deactivation unregisters + re-applies the
-	 * current selection.
-	 */
+
 	serverWallpapers: DesktopWallpaperServerEntry[];
-	/**
-	 * Server-declared games (from `openstation_register_game()`).
-	 * Sync registers metadata-only stubs so the Games window and
-	 * scoreboard paint without downloading game code; the script is
-	 * loaded lazily on first launch.
-	 */
+
 	serverGames?: DesktopGameServerEntry[];
-	/**
-	 * Server-declared desktop themes — the whole-OS reskin library
-	 * (uploaded ZIPs plus anything registered via
-	 * `openstation_register_desktop_theme()`). Metadata + a compiled
-	 * stylesheet reference; no JS is ever involved.
-	 */
+
 	serverDesktopThemes?: DesktopThemeServerEntry[];
-	/**
-	 * Workspace templates the server knows about
-	 * (`openstation_workspace_presets`). The one registry in the family
-	 * that carries no script: a template is metadata plus two token
-	 * lists, so `src/workspaces/server-sync.ts` reconciles it
-	 * synchronously. An entry naming a client built-in says only "this
-	 * one still exists"; an entry with an id of its own is registered
-	 * whole, so a plugin can ship a workspace from PHP alone.
-	 */
+
 	workspacePresets?: import( './workspaces/server-sync' ).WorkspacePresetServerEntry[];
-	/**
-	 * Whether this user may upload / delete desktop themes. Gates the
-	 * management controls in OS Settings → Themes; picking a theme is
-	 * available to everyone.
-	 */
+
 	canManageDesktopThemes?: boolean;
-	/**
-	 * REST base for the desktop-theme routes: GET (full library —
-	 * `ensureFullDesktopThemes()` fetches the entries the boot
-	 * payload ships slimmed, `cssDeferred: true`), upload, delete.
-	 */
+
 	desktopThemesUrl?: string;
-	/**
-	 * Script handles opted-in via `openstation_register_command_script()`.
-	 * Shell injects each URL on boot and on mid-session activation so
-	 * new slash-commands appear in the palette without a reload.
-	 */
+
 	serverCommandScripts?: DesktopCommandScriptServerEntry[];
-	/**
-	 * Server-declared command metadata (from `openstation_register_command()`).
-	 * Advisory today — reserved for future pre-registration shims.
-	 */
+
 	serverCommands?: DesktopCommandServerEntry[];
-	/**
-	 * Script handles opted-in via `openstation_register_settings_tab_script()`.
-	 * Shell injects each URL on boot and on mid-session activation so
-	 * new OS Settings tabs appear without a reload.
-	 */
+
 	serverSettingsTabScripts?: DesktopSettingsTabScriptServerEntry[];
-	/**
-	 * Server-declared settings-tab metadata (from
-	 * `openstation_register_settings_tab()`). Enables live unregistration
-	 * on deactivation without per-call `owner` in JS.
-	 */
+
 	serverSettingsTabs?: DesktopSettingsTabServerEntry[];
-	/**
-	 * Script handles opted-in via
-	 * `openstation_register_dock_rail_renderer_script()`. Shell loads
-	 * each URL on boot and on mid-session activation so plugin
-	 * renderers surface in OS Settings → Dock style without an F5.
-	 */
+
 	serverDockRailRendererScripts?: DesktopDockRailRendererScriptServerEntry[];
-	/**
-	 * Script handles opted-in via
-	 * `openstation_register_titlebar_button_script()`. Shell injects
-	 * each URL on boot and on mid-session activation so newly-
-	 * installed plugins paint their title-bar buttons live.
-	 */
+
 	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
-	/**
-	 * Script handles opted-in via
-	 * `openstation_register_window_action_script()`. Shell injects each
-	 * URL on boot and on mid-session activation so a newly-installed
-	 * plugin's ⋯ menu row appears without an F5. Owner-tagged
-	 * registrations live-unregister on deactivation.
-	 */
+
 	serverWindowActionScripts?: DesktopWindowActionScriptServerEntry[];
-	/**
-	 * Script handles opted-in via
-	 * `openstation_register_unfocus_effect_script()`. Shell injects
-	 * each URL on boot and on mid-session activation so newly-installed
-	 * plugins surface their unfocus effect in OS Settings → Effects
-	 * live. Owner-tagged registrations live-unregister on deactivation.
-	 */
+
 	serverUnfocusEffectScripts?: DesktopUnfocusEffectScriptServerEntry[];
-	/**
-	 * Script handles opted-in via
-	 * `openstation_register_window_link_renderer_script()`. Shell
-	 * injects each URL on boot and on mid-session activation so
-	 * newly-installed plugins surface their window-link renderer in OS
-	 * Settings → Windows → Window links live. Owner-tagged
-	 * registrations live-unregister on deactivation.
-	 */
+
 	serverWindowLinkRendererScripts?: DesktopWindowLinkRendererScriptServerEntry[];
-	/**
-	 * Script handles opted-in via
-	 * `openstation_register_window_theme_script()`. The shell loads
-	 * each script on activation; the script calls
-	 * `wp.os.registerWindowTheme()` so window themes appear live.
-	 * Owner-tagged registrations live-unregister on deactivation.
-	 */
+
 	serverWindowThemeScripts?: DesktopWindowThemeScriptServerEntry[];
-	/**
-	 * Server-declared window-theme metadata (from
-	 * `openstation_register_window_theme()`). Optional companion to
-	 * the script-handle list — pre-registers themes shell-side so
-	 * stylesheet-only themes (no JS) work, and so the sync can map
-	 * id → handle for live unregistration without per-call JS owner.
-	 */
+
 	serverWindowThemes?: DesktopWindowThemeServerEntry[];
-	/**
-	 * Script handles opted-in via
-	 * `openstation_register_window_control_script()`.
-	 */
+
 	serverWindowControlScripts?: DesktopWindowControlScriptServerEntry[];
-	/**
-	 * Server-declared control metadata (from
-	 * `openstation_register_window_control()`).
-	 */
+
 	serverWindowControls?: DesktopWindowControlServerEntry[];
-	/**
-	 * Script handles opted-in via
-	 * `openstation_register_window_slot_script()`.
-	 */
+
 	serverWindowSlotScripts?: DesktopWindowSlotScriptServerEntry[];
-	/**
-	 * Server-declared slot metadata (from
-	 * `openstation_register_window_slot()`).
-	 */
+
 	serverWindowSlots?: DesktopWindowSlotServerEntry[];
-	/**
-	 * Script handles opted-in via
-	 * `openstation_register_window_chrome_script()`. **Experimental** —
-	 * the chrome render contract may change.
-	 */
+
 	serverWindowChromeScripts?: DesktopWindowChromeScriptServerEntry[];
-	/**
-	 * Server-declared custom-chrome metadata (from
-	 * `openstation_register_window_chrome()`). **Experimental.**
-	 */
+
 	serverWindowChromes?: DesktopWindowChromeServerEntry[];
-	/**
-	 * Server-declared window notices (from
-	 * `openstation_register_window_notice()`). Each entry is rendered
-	 * as a `<os-notice>` inside the matching window's
-	 * `after-titlebar` slot. Pure declarative data — no script handle
-	 * required.
-	 */
+
 	serverWindowNotices?: DesktopWindowNoticeServerEntry[];
-	/**
-	 * Server-declared desktop icons (from `openstation_register_icon()`).
-	 * The shell renders these as shortcut tiles on the wallpaper;
-	 * click-through opens either the referenced native window (if
-	 * `window` is set) or the URL (if `url` is set).
-	 */
+
 	desktopIcons?: DesktopIconServerEntry[];
-	/**
-	 * Server-declared file types (from `openstation_register_file_type()`).
-	 * Plugin-registered file types arrive here so the JS-side
-	 * registry can mirror the metadata (label, sort) without
-	 * requiring a JS file ride along.
-	 */
+
 	serverFileTypes?: Array< {
 		id: string;
 		label: string;
@@ -2282,13 +922,7 @@ export interface DesktopConfig {
 		scriptL10n: Record< string, string >;
 		scriptTranslations: string;
 	} >;
-	/**
-	 * Server-declared file openers (from
-	 * `openstation_register_file_opener()`). PHP ships metadata
-	 * only — the JS bundle that registers the opener carries the
-	 * executable handler. The OS Settings → File Associations tab
-	 * (Phase 5) renders pickers from this list.
-	 */
+
 	serverFileOpeners?: Array< {
 		id: string;
 		label: string;
@@ -2302,62 +936,23 @@ export interface DesktopConfig {
 		scriptL10n: Record< string, string >;
 		scriptTranslations: string;
 	} >;
-	/**
-	 * The current user's `{ type => openerId }` association map
-	 * (from the `desktop_mode_file_associations` user meta). Empty
-	 * when no overrides set; the JS opener resolver falls back to
-	 * defaults for missing entries.
-	 */
+
 	userFileAssociations?: Record< string, string >;
-	/**
-	 * Base REST URL for the Files-on-the-Desktop endpoints
-	 * (`/desktop-mode/v1/files`). Trailing path appended by
-	 * the JS client (`/placements`, `/folders`, `/associations`).
-	 */
+
 	filesUrl?: string;
-	/**
-	 * Base REST URL for the pinned-notes endpoints
-	 * (`/desktop-mode/v1/notes`). The notes layer only boots when
-	 * this is present.
-	 */
+
 	notesUrl?: string;
-	/**
-	 * Whether the current user can author posts (`edit_posts`). Gates
-	 * the "Convert to post" note affordance (inline button + Posts dock
-	 * drop target). Absent on older server payloads → treated as false.
-	 */
+
 	canCreatePosts?: boolean;
-	/**
-	 * Roles eligible to appear in the folder Share Settings role
-	 * picker. Server applies `openstation_files_share_eligible_roles`
-	 * before serializing — default = roles with `edit_posts`.
-	 */
+
 	shareEligibleRoles?: Array< { slug: string; name: string } >;
-	/**
-	 * Numeric WordPress user id of the viewer. Surfaced for shell
-	 * code that gates UI on ownership (e.g. only render the folder
-	 * Share button when the viewer is the folder's owner).
-	 */
+
 	currentUserId?: number;
-	/**
-	 * REST URL of the user-search autocomplete endpoint, gated by
-	 * `edit_posts`. Used by `<os-user-search>` in the Share
-	 * Settings modal.
-	 */
+
 	filesUsersSearchUrl?: string;
-	/**
-	 * Base REST URL for /folders — the Share Settings modal appends
-	 * `/{id}/shares` / `/{id}/shares/{shareId}` etc.
-	 */
+
 	folderSharesUrl?: string;
-	/**
-	 * PHP-shipped wallpaper context-menu items. Each entry has
-	 * `id`, `label`, optional `icon`/`sort`/`disabled`, and an
-	 * optional `callbackId` resolved by a JS-side bundle's
-	 * `serverCallbacks` map. Plugins that ship neither still
-	 * receive a `os.wallpaper-context-menu.activated`
-	 * action they can subscribe to.
-	 */
+
 	serverWallpaperMenuItems?: Array< {
 		id: string;
 		label: string;
@@ -2366,324 +961,139 @@ export interface DesktopConfig {
 		disabled?: boolean;
 		callbackId?: string;
 	} >;
-	/** Previously saved session (may be empty on first run). */
+
 	session: Session;
-	/** REST endpoint for reading/writing the session. */
+
 	sessionUrl: string;
-	/**
-	 * REST API root from `rest_url()`. Compose arbitrary REST
-	 * endpoints with `joinRestUrl()` so plain-permalink installs
-	 * (`?rest_route=/`) work alongside pretty `/wp-json/` installs.
-	 */
+
 	restUrl?: string;
-	/** REST endpoint for media uploads (wp/v2/media). */
+
 	mediaUrl: string;
-	/**
-	 * OS-file drop manager config. Drives the cross-shell drop
-	 * surface that catches files dragged in from the user's
-	 * native OS (Finder, Explorer, Nautilus). Server-side
-	 * filterable via `openstation_drop_allowed_mimes` /
-	 * `openstation_drop_max_size`. See
-	 * {@link import('./os-file-drop/types').DropConfig} for the
-	 * single source of truth on the shape.
-	 */
+
 	dropConfig?: import( './os-file-drop/types' ).DropConfig;
-	/**
-	 * Real per-user desktop storage config (DESKMOD-45). Injected
-	 * by `openstation_stored_files_inject_shell_config()`.
-	 */
+
 	desktopStorage?: {
-		/** Viewer holds the (filterable) upload capability. */
+
 		canUpload: boolean;
-		/** Per-file upload cap in bytes (0 = no client cap). */
+
 		maxBytes: number;
-		/** Per-user total quota in bytes (0 = unlimited). */
+
 		quotaBytes: number;
-		/** Server has ZipArchive — folder zip downloads work. */
+
 		zipAvailable: boolean;
 	};
-	/** REST endpoint for saving the default-window preference. */
+
 	defaultWindowUrl: string;
-	/**
-	 * Current default-window preference.
-	 *
-	 * - `enabled: true`  — on portal entry with no saved session,
-	 *   open the window at `url`. First-run default is Dashboard.
-	 * - `enabled: false` — on portal entry with no saved session, do
-	 *   NOT auto-open anything. The user gets a clean empty desktop.
-	 *   `url` still carries a sensible fallback (typically Dashboard)
-	 *   that the portal forwards through at the HTTP layer; the shell
-	 *   uses the flag to decide whether to auto-open it.
-	 */
+
 	defaultWindow: { enabled: boolean; url: string };
-	/** Whether the user has the `upload_files` capability. */
+
 	canUpload: boolean;
-	/**
-	 * Plugin base URL without trailing slash. Used by the shell to
-	 * locate vendor assets (e.g. `${pluginUrl}/assets/vendor/pixi.min.js`)
-	 * and by third-party plugin authors who want to build asset URLs
-	 * relative to the openstation install.
-	 */
+
 	pluginUrl: string;
-	/**
-	 * Absolute URL of the standalone iframe-bridge script. Used by
-	 * the `iframeContent: { bridge: true }` auto-inject path on
-	 * `registerWindow` and exposed for plugins that need to inject
-	 * the bridge into their own same-origin iframes manually.
-	 */
+
 	iframeBridgeUrl?: string;
-	/** Nonce for the REST endpoint (X-WP-Nonce header). */
+
 	restNonce: string;
-	/**
-	 * Non-empty when the shell was asked to paint exactly one window
-	 * (`?openstation_solo=<id>`). It boots in full — every registry,
-	 * every render callback — but opens only that window, with no
-	 * dock, taskbar, wallpaper or desk around it, and skips session
-	 * restore. The native desktop host uses this to give a native
-	 * window (which has no URL of its own) to a real OS window.
-	 */
+
 	soloWindow?: string;
-	/** Canonical `/openstation/` URL — used for history.replaceState. */
+
 	portalUrl: string;
-	/** True when the shell was reached via the portal redirect. */
+
 	fromPortal: boolean;
-	/**
-	 * True when the portal redirect resolved from an explicit `?target=…`
-	 * URL — i.e. the user expressed navigation intent toward the current
-	 * page (clicked an admin-bar "Edit Post" link, followed a bookmark
-	 * to `/wp-admin/plugins.php`, etc.) rather than landing on
-	 * `/openstation/` bare.
-	 *
-	 * The boot flow uses this to decide whether to honour
-	 * `currentPage` as a window to auto-open: `fromPortal` alone says
-	 * "the portal stamped the URL," only `fromPortalIntent` says "the
-	 * user actually asked for this page."
-	 *
-	 * Optional in the type so older payloads (pre-bug-fix shells) fail
-	 * soft to `undefined` / falsy — keeping the previous (session-
-	 * suppress) behaviour for callers that never see the new flag.
-	 */
+
 	fromPortalIntent?: boolean;
-	/**
-	 * True when the shell screen was asked to boot straight into
-	 * overview (`openstation_overview=1`): how a switch from another
-	 * site's overview lands in this one's, tiles and all. Read once
-	 * server-side like the boot target, and stripped from the address
-	 * bar with it, so a reload comes back to the desk.
-	 */
+
 	landInOverview?: boolean;
-	/**
-	 * The side the desk slides in from when the shell was reached by a
-	 * switch from another origin (`openstation_hop_from`), where the
-	 * sessionStorage hint a same-origin switch leaves cannot follow.
-	 * Read once server-side and stripped like the other boot args.
-	 */
+
 	arrivalDirection?: 'next' | 'prev' | '';
-	/**
-	 * A switch from another install arrived with a login token while
-	 * this user was logged in, and no account is linked to it yet: who
-	 * arrived, from where, and the route that records the answer. The
-	 * shell asks once; null when there is nothing to ask.
-	 */
+
 	hopLinkOffer?: { site: string; name: string; email: string; url: string } | null;
-	/**
-	 * Progressive-web-app config — endpoint URLs and the per-user
-	 * installable-pill state. Always present in shell-mode requests.
-	 * Optional in the type so older payloads (or chromeless contexts
-	 * that never see this blob) fail soft.
-	 */
+
 	pwa?: PwaConfig;
-	/**
-	 * Accent swatches shown in the OS Settings color picker. Filterable
-	 * server-side via `openstation_accent_colors`. Optional — the TS
-	 * side falls back to a built-in default list when this is missing
-	 * (older PHP builds, hostile filter that returned garbage, etc.).
-	 */
+
 	accentColors?: AccentColor[];
-	/**
-	 * Toast-notification type map. Filterable server-side via
-	 * `openstation_toast_types`. Optional — same fallback story as
-	 * `accentColors`.
-	 */
+
 	toastTypes?: ToastTypeDef[];
-	/**
-	 * Pending WordPress core update (from `openstation_get_core_update()`),
-	 * or `null`/omitted when none is pending. The shell resolves the art
-	 * and renders it — see `src/update-notice.ts`.
-	 */
+
 	coreUpdate?: {
-		/** Version shown in the message — major branch when crossing, else exact. */
+
 		version: string;
-		/** Exact available version — the dismissal key (a newer point release re-notifies). */
+
 		available?: string;
-		/** Major branch (e.g. `7.0`) — the art key. */
+
 		branch?: string;
 		url: string;
-		/** True when moving into a new major (the shell then shows the codename). */
+
 		crossing?: boolean;
 	} | null;
-	/**
-	 * The remaining global WordPress Core admin notices, re-derived from
-	 * server state so the shell can surface each once instead of letting them
-	 * repeat per window. The update nag is `coreUpdate` above; these are the
-	 * rest (maintenance, recovery mode, default password, …). See
-	 * `src/core-notices.ts`.
-	 */
+
 	coreNotices?: Array< {
-		/** Stable notice id — the per-notice dismissal key. */
+
 		id: string;
-		/** Window title for the action target (falls back to the action label). */
+
 		title?: string;
-		/** Human-readable message (already translated server-side). */
+
 		message: string;
-		/** Optional action-button label. */
+
 		actionLabel?: string;
-		/** Admin URL the action opens as a window. */
+
 		actionUrl?: string;
 	} >;
-	/**
-	 * Allowlisted plugin/library global admin notices (e.g. Action Scheduler's
-	 * past-due warning), re-derived from state and surfaced once — same shape
-	 * and treatment as {@link coreNotices}.
-	 */
+
 	pluginNotices?: Array< {
-		/** Stable notice id — the per-notice dismissal key. */
+
 		id: string;
-		/** Window title for the action target (falls back to the action label). */
+
 		title?: string;
-		/** Human-readable message (already translated server-side). */
+
 		message: string;
-		/** Optional action-button label. */
+
 		actionLabel?: string;
-		/** Admin URL the action opens as a window. */
+
 		actionUrl?: string;
 	} >;
-	/**
-	 * Whether to offer this user the one-off announcement explaining
-	 * that Desktop Mode is now OpenStation.
-	 *
-	 * True only when the install was already running before the rebrand
-	 * AND this user hasn't dismissed the `openstation-rebrand` intro —
-	 * both decided server-side, so the shell just obeys. See
-	 * `src/rebrand-notice.ts`.
-	 */
+
 	rebrandNotice?: boolean;
-	/**
-	 * The one-time usage feedback prompt, or `null` when this user is
-	 * not owed it. The server decides: the feature is on, the user has
-	 * had OpenStation on for long enough by the `openstation_enabled_at`
-	 * stamp, and they have not answered or dismissed the
-	 * `usage-feedback` intro. See `includes/feedback/usage.php`.
-	 */
+
 	usageFeedback?: UsageFeedbackConfig | null;
-	/** URL of the lazy `usage-feedback` bundle, the form the prompt opens. */
+
 	usageFeedbackBundleUrl?: string;
-	/**
-	 * Slugs of one-time intro dialogs this user has dismissed. Shared
-	 * with the native windows' first-open intros.
-	 */
+
 	seenIntros?: string[];
-	/** REST base for the seen-intros surface (`…/v1/intros`). */
+
 	seenIntrosUrl?: string;
-	/**
-	 * Whether this site offers the first-boot shell tour (the
-	 * `openstation_show_shell_tour` filter). Whether THIS user already
-	 * had it is `seenIntros` containing `shell-tour`. See
-	 * `src/shell-tour/`.
-	 */
+
 	shellTour?: boolean;
-	/** Fully-qualified URL of the lazy shell-tour bundle. */
+
 	shellTourBundleUrl?: string;
-	/**
-	 * The first-run stamps, epoch seconds, `0` when unknown: when the
-	 * plugin was installed, when anyone on the site first enabled it,
-	 * and when this user did. Read-only; see
-	 * `includes/first-run/stamps.php`.
-	 */
+
 	firstRun?: {
 		installedAt?: number;
 		firstEnabledAt?: number;
 		enabledAt?: number;
 	};
-	/**
-	 * Wallpaper slug applied on first boot for a new user. Filterable
-	 * server-side via `openstation_default_wallpaper`. Optional — an
-	 * empty string falls back to the TS default.
-	 */
+
 	defaultWallpaper?: string;
-	/**
-	 * Saved OS settings for the current user, loaded from user meta by PHP
-	 * at boot. The JS layer reads this once to hydrate its local state,
-	 * then writes to localStorage for instant subsequent reads and POSTs
-	 * changes back to `osSettingsUrl` so user meta stays the durable source.
-	 *
-	 * Optional — absent on older PHP builds that predate this field.
-	 */
+
 	osSettings?: Record<string, unknown>;
-	/**
-	 * REST endpoint for reading/writing OS settings.
-	 */
+
 	osSettingsUrl?: string;
-	/**
-	 * REST endpoint for the AI content search.
-	 * Shape: `desktop-mode/v1/ai/search`.
-	 */
+
 	aiSearchUrl?: string;
-	/**
-	 * AI assistant availability + per-user state. Governs whether the Cmd+K
-	 * assistant and its admin-bar icon appear, and the setup placeholder.
-	 * `null` when the AI Copilot module isn't loaded.
-	 */
+
 	aiAssistant?: import( './settings/types' ).AiAssistantConfig | null;
-	/**
-	 * REST endpoint to re-check AI provider availability without a reload
-	 * (used by OS Settings → Features after a connector is configured).
-	 */
+
 	aiStatusUrl?: string;
-	/**
-	 * Fully-qualified URL of the lazy-loaded AI Assistant bundle —
-	 * the script `<script>`-injected by the main-bundle stub on the
-	 * user's first invocation. PHP picks `.js` vs `.min.js` based on
-	 * `SCRIPT_DEBUG` and appends `?ver=OPENSTATION_VERSION` for
-	 * cache busting.
-	 */
+
 	aiAssistantBundleUrl?: string;
-	/**
-	 * Stylesheets for shell surfaces that render on demand and are
-	 * NOT native windows (the Preferences panel, the AI assistant,
-	 * the bug-report window), keyed by style handle. Injected once,
-	 * on the surface's first open, by `ensureDeferredStyle()` —
-	 * `src/deferred-styles.ts`. Same resolved shape a native
-	 * window's `styleUrl` / `styleInline` travels in.
-	 */
+
 	deferredStyles?: Record< string, { url: string; inline?: string[] } >;
-	/**
-	 * Which `deferredStyles` entries a game window needs. Injected by
-	 * `launchGame()` before the window paints, because a game is
-	 * reachable without the Games hub — the challenge toast, solo mode
-	 * and `wp.os.games.launch()` all skip it — and the hub is what
-	 * would otherwise have carried these as companion styles.
-	 */
+
 	gameStyleHandles?: string[];
-	/**
-	 * Ordered manifest of the Core command-palette asset chain —
-	 * `wp-commands` + `wp-core-commands` and their full dependency
-	 * closure (the Gutenberg runtime), resolved server-side in print
-	 * order with each handle's inline data harvested alongside.
-	 * Replayed by `ensureCommandPaletteAssets()`
-	 * (`src/commands/palette-assets.ts`) on the first palette
-	 * invocation instead of being enqueued on every boot.
-	 * `null` / absent on pre-6.9 sites.
-	 */
+
 	commandPalette?: {
 		scripts: Array< {
-			/**
-			 * WP script handle. Load-bearing on the replay path: it is
-			 * how the shell recognizes a package the boot page already
-			 * printed, including one Core concatenated into
-			 * `load-scripts.php` with no tag of its own. See
-			 * `src/script-presence.ts`.
-			 */
+
 			handle: string;
 			url: string;
 			before?: string[];
@@ -2697,192 +1107,83 @@ export interface DesktopConfig {
 			inline?: string[];
 		} >;
 	} | null;
-	/**
-	 * Authenticated admin-AJAX URL returning the cached OpenStation journal
-	 * RSS payload. Requested only when the About tab first becomes visible.
-	 */
+
 	aboutFeedUrl?: string;
-	/**
-	 * Fully-qualified URL of the lazy-loaded shell-overlays bundle.
-	 * Holds `<os-toast>`, `<os-confirm-dialog>`,
-	 * `<os-context-menu>` and their siblings — components only
-	 * needed for triggered actions (toast.show, osConfirm,
-	 * right-click). Main pre-loads this after first paint so the
-	 * first user trigger feels instant.
-	 */
+
 	shellOverlaysBundleUrl?: string;
-	/**
-	 * The shell-bundle diet: gesture- and presence-gated features
-	 * riding their own bundles instead of `desktop[.min].js`. Each
-	 * sentinel loads its bundle at the moment it matters — file drop
-	 * on the first dragenter carrying files, the files overlays
-	 * (share modals + URL dialog) on first open, notes when the
-	 * desktop has (or is about to get) one, the dock flyout on the
-	 * first rail hover, the window-link visuals on the first
-	 * relation group.
-	 */
+
 	fileDropBundleUrl?: string;
 	filesOverlaysBundleUrl?: string;
 	notesBundleUrl?: string;
 	dockConstellationBundleUrl?: string;
 	windowLinkVisualsBundleUrl?: string;
-	/**
-	 * Presence hint for the notes sentinel — whether this desktop
-	 * would show any pinned notes at boot.
-	 */
+
 	hasNotes?: boolean;
-	/**
-	 * Fully-qualified URL of the full `<os-*>` component kit —
-	 * every tag in `OS_COMPONENT_TAGS`. The shell never loads it;
-	 * `wp.os.loadComponents()` does, on behalf of plugin code that
-	 * has no way to import the modules at build time.
-	 */
+
 	componentsBundleUrl?: string;
-	/**
-	 * Mio appearance + physics from PHP
-	 * (`openstation_mio_config()`, filterable via
-	 * `openstation_mio_config`). Shape mirrors `MioConfig` in
-	 * `src/mio/types.ts`; the shell re-sanitizes it before use, so
-	 * a partial or malformed object is safe.
-	 */
+
 	mio?: unknown;
-	/**
-	 * Fully-qualified URL of the lazy Mio bundle. The shell-side
-	 * `MioController` script-injects this the first time the user
-	 * switches Mio on from the wallpaper context menu.
-	 */
+
 	mioBundleUrl?: string;
-	/**
-	 * Fully-qualified URL of the lazy window-system bundle (Stage
-	 * 11). The `Window` class + its DOM / pointer / tab / chrome
-	 * helpers live here; the main bundle's `WindowManager.open()`
-	 * (now async) `<script>`-injects this on demand.
-	 */
+
 	windowSystemBundleUrl?: string;
-	/**
-	 * Fully-qualified URL of the lazy phone-layer bundle
-	 * (`mobile[.min].js`). `src/mobile/loader.ts` injects it only
-	 * when the mode resolves to `mobile`.
-	 */
+
 	mobileBundleUrl?: string;
-	/**
-	 * Responsive-mode inputs from PHP (`openstation_mode_config()`):
-	 * the user's `mobileLayout` preference after the
-	 * `openstation_mode_preference` filter, the breakpoints after
-	 * `openstation_mode_breakpoints`, and the server's default
-	 * tab-bar pins after `openstation_mobile_tab_bar`. The head stamp
-	 * used the same values for the first paint.
-	 */
+
 	mode?: {
 		preference?: 'auto' | 'desktop' | 'mobile';
 		breakpoints?: { mobile?: number; tablet?: number };
 		tabBar?: string[];
 	};
-	/**
-	 * Whether the current user has the `manage_options` capability.
-	 */
+
 	currentUserIsAdmin?: boolean;
-	/** Network Admin tile context. Null without `manage_network`. */
+
 	multisite?: MultisiteConfig | null;
-	/**
-	 * Platform-wide extended options (admin-only). Contains toggles
-	 * for optional site-level enhancements such as Media Library
-	 * drag-and-drop. Null for non-admin users.
-	 */
+
 	extendedOptions?: {
 		media_library_enhanced: boolean;
 		games: boolean;
 		agents: boolean;
 		network: boolean;
 	} | null;
-	/**
-	 * REST endpoint for reading/writing extended options (admin only).
-	 */
+
 	extendedOptionsUrl?: string;
-	/**
-	 * Whether the games framework is enabled site-wide (the `games`
-	 * extended option). Exposed to every user — when `false` the shell
-	 * skips the challenges Heartbeat channel. Absent means enabled.
-	 */
+
 	gamesEnabled?: boolean;
 }
 
-/**
- * Per-user PWA UI state — install-hint dismissal flag and the
- * notifications-enabled record. Mirrored from the
- * `/desktop-mode/v1/pwa-state` REST endpoint.
- */
 export interface PwaUserState {
 	installHintDismissed: boolean;
 	notificationsEnabled: boolean;
 }
 
-/**
- * Progressive-web-app config block on `openStationConfig.pwa`.
- */
 export interface PwaConfig {
-	/** Absolute URL of the web-app manifest. */
+
 	manifestUrl: string;
-	/** Absolute URL of the service worker. */
+
 	swUrl: string;
-	/**
-	 * Extensionless fallback URL for the same SW script
-	 * (`/?openstation_sw=1`). Registration retries with this URL when
-	 * registering {@link swUrl} fails — some hosts' web servers
-	 * (WordPress.com) 404 virtual `.js` paths before WordPress can
-	 * serve them. Optional: absent on payloads from older servers.
-	 */
+
 	swFallbackUrl?: string;
-	/**
-	 * Registration scope: the site's home path (`/`, or `/site2/` on a
-	 * subdirectory network's subsite). Each site of a network runs its
-	 * own worker; the browser routes every page to the longest
-	 * matching scope. Optional: absent on payloads from older servers,
-	 * where root scope is the historical behavior.
-	 */
+
 	swScope?: string;
-	/** REST URL for `GET` / `POST` of {@link PwaUserState}. */
+
 	stateUrl: string;
-	/** Initial per-user state. */
+
 	state: PwaUserState;
-	/**
-	 * Mirrors the manifest's `name` — the human-readable site name
-	 * used by the install pill so the CTA reads "Install <site>"
-	 * rather than the current page title.
-	 */
+
 	appName: string;
-	/**
-	 * When `true`, our service-worker registration takes over even if
-	 * another root-scope SW is already on the origin. Sourced from the
-	 * `openstation_pwa_force_replace_sw` PHP filter (default `false`)
-	 * so operators can opt in when a foreign PWA plugin is blocking
-	 * openstation installability.
-	 */
+
 	forceReplaceSw?: boolean;
-	/**
-	 * Content hash of the shell's built files this document was served
-	 * with (`openstation_shell_build_stamp()`). Compared against the
-	 * stamp a service worker taking over mid-session reports, so the
-	 * shell can tell a deploy that changed its own files from one that
-	 * did not. Optional: absent on payloads from older servers, in which
-	 * case no comparison is possible and the shell never offers a
-	 * reload.
-	 */
+
 	shellBuild?: string;
 }
 
-/**
- * A single entry in the OS Settings accent-color picker.
- */
 export interface AccentColor {
 	id: string;
 	label: string;
 	value: string;
 }
 
-/**
- * A single toast-notification type declared by the server.
- */
 export interface ToastTypeDef {
 	id: string;
 	label: string;
@@ -2890,49 +1191,17 @@ export interface ToastTypeDef {
 	tone: 'positive' | 'warning' | 'critical' | 'neutral';
 }
 
-/**
- * A single command harvested from an iframe's `wp.data.select('core/commands')`
- * registry. Emitted by the chromeless bridge and consumed by the parent's
- * iframe-command bridge module, which re-registers each entry as a
- * slash-command in the shell palette for whichever window currently has focus.
- *
- * `kind` is decided inside the iframe by dry-invoking the original callback
- * inside a `window.location`-intercept sandbox: a callback whose only
- * observable effect is a navigation is classified `navigate` (with the
- * captured `url`), and the parent rewrites the selection to open a new
- * desktop window instead of navigating the current iframe out of chromeless
- * mode. Anything else is `action` — the parent proxies execution back
- * into the iframe via `os-commands-invoke`.
- */
 export interface HarvestedCommand {
 	name: string;
 	label: string;
 	icon?: string;
-	/**
-	 * Pre-rendered SVG markup for the command's icon. Gutenberg ships
-	 * most command icons as React elements from `@wordpress/icons`
-	 * (e.g. the `duplicate` block glyph), which the structured-clone
-	 * algorithm behind `postMessage` can't carry. The iframe renders
-	 * these to an HTML string via `wp.element.renderToString` and
-	 * forwards the result here; the parent palette injects it directly
-	 * into the row's icon slot. Empty / absent when the icon was a
-	 * plain dashicons class (covered by `icon` above) or unset.
-	 *
-	 * Trust note: the string is same-origin and never user-authored,
-	 * so rendering via `innerHTML` is safe.
-	 */
+
 	iconSvg?: string;
 	context?: string;
 	kind: 'navigate' | 'action';
 	url?: string;
 }
 
-// -----------------------------------------------------------------------------
-// Bridge events — moved to `src/protocol/window-messages.ts`.
-// Re-exported here for backwards compatibility; new code should
-// import from `@protocol/window-messages` (or via `@protocol/guards`
-// for the `isBridgeEvent` / `assertBridgeEventType` helpers).
-// -----------------------------------------------------------------------------
 export type {
 	BridgeEvent,
 	BridgeEventFromIframe,

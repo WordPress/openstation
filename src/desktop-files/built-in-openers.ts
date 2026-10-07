@@ -1,20 +1,3 @@
-/**
- * OpenStation — built-in JS openers for the built-in file types.
- *
- * Mirrors `includes/desktop-files/built-in-openers.php` — same
- * ids, same labels, same `isDefault` flags. The PHP side ships
- * metadata only; this side carries the actual URL builders so a
- * double-click can resolve to a working iframe window without
- * any plugin code involved.
- *
- * Built around `adminUrl` from the shell config (read via
- * `wp.os.config`). The openers register on bundle boot
- * with placeholder URL builders that read `adminUrl` lazily —
- * which means the openers are ready before `wp.os.config`
- * exists, and the lookup happens at click time (when the shell
- * is fully booted).
- */
-
 import { __ } from '../i18n';
 import { doAction, HOOKS } from '../hooks';
 import { registerOpener } from './openers';
@@ -56,16 +39,6 @@ function adminBase(): string {
 	return url.endsWith( '/' ) ? url : `${ url }/`;
 }
 
-/**
- * The server-sanitized URL of a bookmark/link tile, or `''`.
- *
- * The PHP `serialize()` for these types runs the stored ref
- * through `esc_url_raw()` and ships the result as `shape.url` —
- * read that field (like the preview pane does) instead of the
- * raw `ref()`. Re-validate the protocol client-side as well so a
- * shape mangled after the fact can't smuggle a `javascript:` or
- * `data:` URL into `window.open`.
- */
 function sanitizedWebUrl( file: DesktopFile ): string {
 	const url = typeof file.shape.url === 'string' ? file.shape.url : '';
 	if ( ! url ) {
@@ -109,11 +82,6 @@ export function registerBuiltInFileOpeners(): void {
 		},
 	} );
 
-	// Agent user tiles open the Agent chat, not the profile — the
-	// per-file predicate keeps this opener invisible to human users
-	// (and to the type-level default-apps settings). Registered
-	// before the profile opener so the default-flag scan (sort
-	// order) picks it for agents.
 	registerOpener( {
 		id: 'agent-chat',
 		label: __( 'Agent chat', 'desktop-mode' ),
@@ -185,8 +153,6 @@ export function registerBuiltInFileOpeners(): void {
 		},
 	} );
 
-	// Uploaded files (real desktop storage): double-click downloads.
-	// Preview openers are a follow-up; download is the v1 default.
 	registerOpener( {
 		id: 'desktop-mode-upload-download',
 		label: 'Download',
@@ -200,7 +166,7 @@ export function registerBuiltInFileOpeners(): void {
 				if ( ! fileId ) {
 					return;
 				}
-				// URL minted at click time — nonces expire.
+
 				navigateToDownload( filesRest.getUploadDownloadUrl( fileId ) );
 			},
 		},
@@ -226,9 +192,7 @@ export function registerBuiltInFileOpeners(): void {
 					return;
 				}
 				const id = `os-folder-${ folderId }`;
-				// Visual cue when the viewer is a recipient (not
-				// the folder's owner) — append "· Shared" to the
-				// title so it's clear this folder is collaborative.
+
 				const folderRow = filesStoreApi.getState().folders.get( folderId );
 				const viewerId = Number( window.openStationConfig?.currentUserId ?? 0 );
 				const isRecipient =
@@ -248,23 +212,8 @@ export function registerBuiltInFileOpeners(): void {
 						body.replaceChildren();
 						body.classList.add( 'desktop-mode-folder-window' );
 
-						// The preview pane paints with WP Explorer's
-						// stylesheet (`os-my-wordpress__*` classes), and
-						// this window does not declare it — a native
-						// window opened straight from JS carries no
-						// companion styles. Until WP Explorer had been
-						// opened once in the session, that sheet was not
-						// in the tab and the pane rendered unstyled.
-						// Idempotent, and it fetches nothing once the
-						// sheet is present.
 						ensureDeferredStyle( 'desktop-mode-my-wordpress' );
 
-						// Route stack — breadcrumb history within
-						// this single window. Opening a sub-folder
-						// pushes; clicking Back pops. Each entry
-						// owns its own FilesLayer + status bar mount;
-						// transitioning between routes disposes the
-						// previous mount cleanly.
 						interface FolderRoute {
 							folderId: number;
 							title: string;
@@ -274,14 +223,6 @@ export function registerBuiltInFileOpeners(): void {
 						];
 						let currentDispose: ( () => void ) | null = null;
 
-						// Persistent chrome — breadcrumb header (always
-						// visible), split body (rebuilt on navigation),
-						// status bar (rebuilt on navigation). The
-						// breadcrumb DOM is owned by the shared
-						// `renderBreadcrumbs` helper so the folder
-						// window paints pixel-identical chrome to
-						// every other drill-down surface (My
-						// WordPress, future detail dossiers, …).
 						const breadcrumbsHost = document.createElement( 'header' );
 						body.appendChild( breadcrumbsHost );
 
@@ -318,21 +259,11 @@ export function registerBuiltInFileOpeners(): void {
 							} );
 						};
 
-						/**
-						 * Build the body for the current top-of-stack
-						 * route. Disposes the previous mount, paints
-						 * the two-pane shell + status bar, returns
-						 * a teardown the next navigation will call.
-						 */
 						const mountCurrent = (): void => {
 							currentDispose?.();
 							currentDispose = null;
 							bodyHost.replaceChildren();
 
-							// Two-pane layout — left: tile grid, right:
-							// preview pane that reacts to tile selection.
-							// Same UX as My WordPress so the experience
-							// is unified across folder surfaces.
 							const split = document.createElement( 'div' );
 							split.className =
 								'os-folder-window__split';
@@ -354,10 +285,7 @@ export function registerBuiltInFileOpeners(): void {
 								layerHost,
 								route.folderId,
 							);
-							// One subscription for the whole selection —
-							// the pane has three states, not two: empty,
-							// one item (preview it), several (say so and
-							// how they break down by type).
+
 							const offSelection = layer.onSelectionChanged(
 								( placements ) => {
 									if ( placements.length === 0 ) {
@@ -379,14 +307,6 @@ export function registerBuiltInFileOpeners(): void {
 								},
 							);
 
-							// In-place sub-folder navigation — when
-							// the user double-clicks a folder tile
-							// inside this window, push it onto the
-							// breadcrumb stack instead of opening a
-							// brand-new window. Listen at the layer
-							// container so we see the dblclick before
-							// the file-tile's default handler bubbles
-							// up to `openFile`.
 							const dblClickHandler = ( e: Event ) => {
 								if ( ! ( e.target instanceof Element ) ) {
 									return;
@@ -407,7 +327,7 @@ export function registerBuiltInFileOpeners(): void {
 								if ( ! subId ) {
 									return;
 								}
-								// Pre-empt the default open handler.
+
 								e.preventDefault();
 								e.stopPropagation();
 								const subTitle =
@@ -426,13 +346,6 @@ export function registerBuiltInFileOpeners(): void {
 								true,
 							);
 
-							// Same Sort By menu My WordPress uses — one
-							// `<os-context-menu>` recipe across every
-							// icon canvas in the shell. The folder
-							// window also adds "New folder" as an
-							// extra entry so users can create sub-
-							// folders directly inside the active
-							// folder, matching the wallpaper's CMO.
 							const menu = attachIconCanvasMenu( layerHost, {
 								scope: `os-folder:${ route.folderId }`,
 								onSort: ( mode ) => layer.sort( mode ),
@@ -485,8 +398,6 @@ export function registerBuiltInFileOpeners(): void {
 								],
 							} );
 
-							// Status bar — re-mount per route so it
-							// reflects the active folder's contents.
 							const status = mountFolderStatusBar(
 								bodyHost,
 								route.folderId,
@@ -537,10 +448,6 @@ export function registerBuiltInFileOpeners(): void {
 		handler: {
 			kind: 'js',
 			open: ( file: DesktopFile ) => {
-				// The PHP `serialize()` for shortcut files attaches
-				// `shortcutWindow` (registered native window id) or
-				// `shortcutUrl`. Cast through `unknown` since the
-				// strict `DesktopFileShape` only types the base shape.
 				const extras = file.shape as unknown as {
 					shortcutWindow?: string;
 					shortcutUrl?: string;
@@ -562,25 +469,12 @@ export function registerBuiltInFileOpeners(): void {
 				if ( ! wp ) {
 					return;
 				}
-				// A system tile promoted to the wallpaper. Run the
-				// tile's own opener rather than deriving a window from
-				// the shape: half of these don't open a window at all
-				// (Mio's toggles the companion), and routing through
-				// `onOpen` keeps the two copies of the tile honest —
-				// whatever the dock does, the wallpaper does.
+
 				if ( extras.shortcutSystemTile && wp.getSystemTile ) {
 					wp.getSystemTile( extras.shortcutSystemTile )?.onOpen();
 					return;
 				}
-				// The same click the legacy icon rail announces, so a
-				// listener sees it whichever renderer painted the desk.
-				// On a files-layer desk that rail is hidden and this is
-				// the only path a registered icon's click takes; the
-				// shell tour's relaunch icon, which has no window or URL
-				// to open, is answered on this action alone. Below the
-				// system-tile branch on purpose: a promoted tile is not
-				// a registered icon, the rail never announced one, and
-				// it has neither of the two targets this payload names.
+
 				doAction( HOOKS.DESKTOP_ICON_CLICKED, {
 					id: file.shape.ref,
 					target: extras.shortcutWindow ? 'window' : 'url',
@@ -596,49 +490,16 @@ export function registerBuiltInFileOpeners(): void {
 							window.open( u.toString(), '_blank', 'noopener,noreferrer' );
 							return;
 						}
-						// Let a native window claim the URL first, the
-						// same way `Dock.openPage` and the shell's link
-						// interceptor do. A shortcut knows only a URL,
-						// so without this a wallpaper shortcut tile —
-						// pointing at the very admin URLs the remap
-						// registry serves — opened
-						// the classic iframe even for a user who had
-						// explicitly enabled native Posts, Pages,
-						// Comments, Plugins or Users. Same app, two
-						// answers, depending on which surface you
-						// clicked. The registry's own `enabled` gate
-						// reads the live OS Settings snapshot, so a
-						// disabled native window still falls through to
-						// the iframe path below.
+
 						if ( tryNativeUrlRemap( u.toString() ) ) {
 							return;
 						}
-						// Derive the window id from the URL so this
-						// shortcut opens (or focuses) the SAME window
-						// the dock and the in-shell link interceptor
-						// produce for the same URL. Without this, a
-						// dock-promoted shortcut on the wallpaper
-						// (`file.ref() === 'dock-promoted:<menu-id>'`)
-						// opens window id
-						// `desktop-icon-dock-promoted:<menu-id>` while
-						// clicking the same app from the dock opens
-						// `wp-window-<url-slug>` — two parallel
-						// windows with independent minimize/focus
-						// state, dock indicator never reflects
-						// what's open (since fixed). Falls back to
-						// the legacy `desktop-icon-…` id only when
-						// adminUrl isn't available (defensive — the
-						// shell config should always be present by
-						// click time).
+
 						const adminUrl = wp.config?.adminUrl;
 						const id = adminUrl
 							? deriveWindowId( u.toString(), adminUrl )
 							: `desktop-icon-${ file.ref() }`;
-						// Enrich with the matching admin-menu entry so
-						// the window gets the same submenu tab strip /
-						// parent-tab / multi behavior as a dock open.
-						// Without this, a dock-promoted shortcut
-						// opened windows with no tab strip at all.
+
 						const entry = findMenuEntryForUrl( u.toString() );
 						wp.windowManager.open( {
 							id,
@@ -652,10 +513,7 @@ export function registerBuiltInFileOpeners(): void {
 							multi: !! entry?.multi,
 						} );
 					} catch {
-						// Malformed URL — silently ignore. The
-						// server-side sanitizer rejects invalid URLs
-						// at registration so reaching this branch
-						// implies a filter mangled it after the fact.
+
 					}
 				}
 			},
@@ -675,10 +533,7 @@ export function registerBuiltInFileOpeners(): void {
 				if ( ! url ) {
 					return;
 				}
-				// `noopener,noreferrer` keeps the third-party tab
-				// from reaching back into the desktop via
-				// `window.opener` — important since bookmarks
-				// can point anywhere.
+
 				window.open( url, '_blank', 'noopener,noreferrer' );
 			},
 		},

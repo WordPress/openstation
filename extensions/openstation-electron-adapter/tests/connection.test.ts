@@ -1,18 +1,8 @@
-/**
- * The connection state machine.
- *
- * The interesting behaviour here is timing, and timing that can only be
- * observed by waiting two minutes is timing nobody tests — which is why
- * `Connection` takes its transport, its timer and its clock through the
- * constructor. Every test below drives those directly.
- */
-
 import { describe, expect, test, vi } from 'vitest';
 
 import { Connection } from '../app/src/lib/connection';
 import type { ConnectionState } from '../app/src/lib/protocol';
 
-/** A fetch double with a scripted queue of responses. */
 function fakeFetch(
 	responses: Array< { status?: number; body?: Record< string, unknown > } >,
 ) {
@@ -32,14 +22,6 @@ function fakeFetch(
 	return { fetch, calls };
 }
 
-/**
- * Build a Connection with a controllable timer.
- *
- * @param responses Scripted transport replies.
- * @param site      The paired site. Every `restUrl` below lives on
- *                  `https://example.test`, so this is what makes an
- *                  ordinary handshake pass its origin check.
- */
 function harness(
 	responses: Array< { status?: number; body?: Record< string, unknown > } >,
 	site = 'https://example.test',
@@ -73,12 +55,12 @@ function harness(
 		calls,
 		fetch,
 		delay: () => lastDelay,
-		/** Fire the scheduled beat. */
+
 		tick: async () => {
 			const fn = pending;
 			pending = null;
 			fn?.();
-			// Let the beat's promise chain settle.
+
 			await Promise.resolve();
 			await Promise.resolve();
 			await Promise.resolve();
@@ -125,10 +107,6 @@ describe( 'handshake', () => {
 		expect( h.connection.getState().interval ).toBe( 30000 );
 	} );
 
-	// The handshake body carries `describe()`, and `describe()` carries
-	// the local agent's bearer token. `restUrl` decides where that goes
-	// and arrives from a renderer, so it is checked against the paired
-	// site — the same rule freed-window URLs and navigations are held to.
 	describe( 'the REST root must be on the paired site', () => {
 		test.each( [
 			[ 'a different host', 'https://attacker.example/wp-json' ],
@@ -141,8 +119,6 @@ describe( 'handshake', () => {
 
 			await h.connection.handshake( { restUrl, nonce: 'abc' } );
 
-			// Nothing was sent at all — the check runs before the token
-			// is even read out of `describe()`.
 			expect( h.fetch ).not.toHaveBeenCalled();
 			expect( h.connection.getState().state ).toBe( 'error' );
 		} );
@@ -160,10 +136,6 @@ describe( 'handshake', () => {
 				nonce: 'abc',
 			} );
 
-			// One call, from the good handshake. The beat that the good
-			// handshake scheduled must not fire against the old root
-			// either: a page that navigated somewhere else does not get
-			// to keep the heartbeat it inherited.
 			expect( h.fetch ).toHaveBeenCalledTimes( 1 );
 			await h.tick();
 			expect( h.fetch ).toHaveBeenCalledTimes( 1 );
@@ -212,11 +184,9 @@ describe( 'heartbeat', () => {
 		} );
 		const afterHandshake = h.calls.length;
 
-		// First beat consumes the "was active" flag set at construction.
 		await h.tick();
 		expect( h.calls.length ).toBe( afterHandshake + 1 );
 
-		// Now genuinely idle: three skipped ticks, then one real beat.
 		await h.tick();
 		await h.tick();
 		await h.tick();
@@ -260,8 +230,7 @@ describe( 'heartbeat', () => {
 
 describe( 'failure handling', () => {
 	test( 'an auth failure asks for a fresh nonce rather than erroring', async () => {
-		// A nonce goes stale roughly every half-day and the shell owns
-		// the refresh path, so this is a request, not a fault.
+
 		const h = harness( [ { status: 403 } ] );
 
 		await h.connection.handshake( {

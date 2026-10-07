@@ -1,8 +1,3 @@
-/**
- * Tests for the window switcher: cycleFocus rotates focus through the
- * active desktop's windows in stable DOM order, restoring minimized
- * targets along the way.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
@@ -179,10 +174,7 @@ describe( 'WindowManager — window switcher (cycleFocus)', async () => {
 		} );
 
 		test( 'returns true when a text INPUT inside an open shadow root is focused (os-* host)', async () => {
-			// All <os-*> components attach an open shadow root, so when
-			// the inner <input> takes focus, `document.activeElement`
-			// reports the HOST, not the input. The gate must walk into
-			// the shadow root so it still classifies the focus as text.
+
 			const host = mount( document.createElement( 'div' ) );
 			const shadow = host.attachShadow( { mode: 'open' } );
 			const input = document.createElement( 'input' );
@@ -194,9 +186,7 @@ describe( 'WindowManager — window switcher (cycleFocus)', async () => {
 		} );
 
 		test( 'returns true when a TEXTAREA is focused two shadow roots deep', async () => {
-			// Components occasionally nest a child component inside their
-			// own shadow root. The walk must follow the chain, not stop
-			// after the first hop.
+
 			const outer = mount( document.createElement( 'div' ) );
 			const outerShadow = outer.attachShadow( { mode: 'open' } );
 			const innerHost = document.createElement( 'div' );
@@ -210,8 +200,7 @@ describe( 'WindowManager — window switcher (cycleFocus)', async () => {
 		} );
 
 		test( 'returns false when a non-text element (button) inside a shadow root is focused', async () => {
-			// Walking into the shadow root must still respect element
-			// type — a button there is a button, not a text-entry.
+
 			const host = mount( document.createElement( 'div' ) );
 			const shadow = host.attachShadow( { mode: 'open' } );
 			const btn = document.createElement( 'button' );

@@ -1,20 +1,11 @@
-/**
- * The About journal is normal shell UI, not fixed-colour artwork.
- *
- * A previous version layered hardcoded dark RGBA values over a mesh and then
- * forced white text on top. That happened to suit the default palette, but it
- * stayed dark when a desktop theme changed every surrounding surface. Keep
- * the featured dispatch on the public theme-token path so it changes with the
- * rest of OpenStation Preferences.
- */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 const root = join( __dirname, '../..' );
 const css = readFileSync( join( root, 'apps/os-settings/os-settings.css' ), 'utf8' );
-const aboutStart = css.indexOf( '/*\n * About tab' );
-const nextSection = css.indexOf( '\n/*', aboutStart + 1 );
+const aboutStart = css.indexOf( '.os-settings__about' );
+const nextSection = -1;
 const aboutEnd = -1 === nextSection ? css.length : nextSection;
 const aboutCss = css.slice( aboutStart, aboutEnd );
 

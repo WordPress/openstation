@@ -1,11 +1,3 @@
-/**
- * Tests for the destructive-admin-action registry.
- *
- * Covers register / unregister / replace / list / match plus the
- * cross-bundle store contract (the registry's whole reason for
- * existence — see file header).
- */
-
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import {
 	registerDestructiveAdminAction,
@@ -108,16 +100,15 @@ describe( 'destructive-admin-actions: register / unregister', () => {
 	} );
 
 	test( 'malformed entry returns a no-op unregister, registry unchanged', () => {
-		// Missing matches.
 		const u1 = registerDestructiveAdminAction(
 			{ id: 'plugin/bad' } as unknown as DestructiveAdminActionEntry,
 		);
-		// Empty id.
+
 		const u2 = registerDestructiveAdminAction( {
 			id: '   ',
 			matches: () => true,
 		} );
-		// Non-function matches.
+
 		const u3 = registerDestructiveAdminAction( {
 			id: 'plugin/bad-fn',
 			matches: 'nope' as unknown as DestructiveAdminActionEntry[ 'matches' ],
@@ -184,12 +175,6 @@ describe( 'destructive-admin-actions: register / unregister', () => {
 } );
 
 describe( 'destructive-admin-actions: cross-bundle store', () => {
-	// The registry routes through `createSharedStore` so a write
-	// from bundle A is visible to bundle B. Vitest collapses both
-	// imports into the same module, so we can't simulate the
-	// two-bundle path directly — but we CAN pin the slot key, which
-	// is the runtime contract that makes the cross-bundle sharing
-	// work.
 	test( 'state lives on the shared-stores slot under the documented key', () => {
 		registerDestructiveAdminAction( {
 			id: 'plugin/foo',

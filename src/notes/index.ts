@@ -1,13 +1,3 @@
-/**
- * OpenStation — Pinned notes boot.
- *
- * Composes the feature: REST deps, the layer, the drop-handler
- * routes, the wallpaper context-menu entry, and the cross-bundle
- * "note created elsewhere" listener (the Note Pad widget POSTs
- * directly when the user pins via the keyboard path and announces the
- * new note with a CustomEvent).
- */
-
 import type { ToastOptions } from '../toast';
 import type { DesktopConfig } from '../types';
 import { NotesLayer } from './layer';
@@ -30,7 +20,6 @@ export interface BootNotesOptions {
 export function bootNotes( options: BootNotesOptions ): NotesLayer | null {
 	const notesUrl = options.config.notesUrl;
 	if ( typeof notesUrl !== 'string' || ! notesUrl ) {
-		// Older server payload — the routes don't exist; don't probe.
 		return null;
 	}
 	installNotesRestDeps( {

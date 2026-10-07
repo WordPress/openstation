@@ -1,21 +1,10 @@
-/**
- * Posts app — the HTML chrome around a term canvas: the toolbar (its
- * buttons, the fuzzy-search box, the hint), the stage the canvas
- * paints into, the sidebar editor column, and the search dropdown's
- * keyboard + mouse wiring. One class family (`os-term-canvas__*`) for
- * both canvases; the host wears a modifier for the surface's own look.
- *
- * @public
- */
-
 import { __, _n, sprintf } from '@openstation/app';
 import { directoryStyles } from './directory.styles';
 
-/** The class family every term canvas paints with. */
 export const CANVAS_PREFIX = 'os-term-canvas';
 
 export interface ChromeButton {
-	/** Button variant: `primary`, `secondary`, `danger`, or '' for the plain one. */
+
 	variant?: string;
 	icon: string;
 	label: string;
@@ -32,7 +21,6 @@ export interface CanvasChrome {
 	searchResults: HTMLUListElement;
 }
 
-/** A toolbar / sidebar button in the canvas family. */
 export function canvasButton( variant: string, label: string ): HTMLButtonElement {
 	const btn = document.createElement( 'button' );
 	btn.type = 'button';
@@ -41,11 +29,6 @@ export function canvasButton( variant: string, label: string ): HTMLButtonElemen
 	return btn;
 }
 
-/**
- * Build the chrome into `host`. The stage starts `is-loading`
- * (opacity 0) until the first fit-to-view, so the canvas never
- * flashes its unfitted transform.
- */
 export function buildCanvasChrome(
 	host: HTMLElement,
 	modifier: string,
@@ -112,12 +95,6 @@ export function buildCanvasChrome(
 	return { toolbar, stage, sidebar, buttons, searchWrap, searchInput, searchResults };
 }
 
-/**
- * The search dropdown: case-insensitive substring match, top 10 by
- * count, ArrowDown / ArrowUp / Enter / Escape, hover moves the
- * highlight, mousedown (not click) selects so the input keeps focus.
- * Returns the teardown.
- */
 export function wireCanvasSearch< T extends { id: number; count: number; name: string } >(
 	chrome: CanvasChrome,
 	opts: { matches: ( q: string ) => T[]; select: ( item: T ) => void },
@@ -171,7 +148,7 @@ export function wireCanvasSearch< T extends { id: number; count: number; name: s
 			const countEl = document.createElement( 'span' );
 			countEl.className = `${ CANVAS_PREFIX }__search-meta`;
 			countEl.textContent = sprintf(
-				/* translators: %d: number of posts assigned to a term. */
+
 				_n( '%d post', '%d posts', item.count ),
 				item.count,
 			);
@@ -210,8 +187,6 @@ export function wireCanvasSearch< T extends { id: number; count: number; name: s
 		}
 	};
 	const onBlur = (): void => {
-		// Delayed so a mousedown on a result still fires before the
-		// dropdown vanishes.
 		setTimeout( () => {
 			searchResults.hidden = true;
 		}, 120 );

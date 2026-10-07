@@ -1,9 +1,3 @@
-/**
- * Server-driven window-slot sync.
- *
- * Same shape as themes / controls server-syncs.
- */
-
 import { doAction, HOOKS } from '../../hooks';
 import { loadVendorScript } from '../../wallpapers/vendor-loader';
 import {
@@ -34,8 +28,7 @@ export function createWindowSlotRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-				// The packages the bundle declares, brought in first; the
-				// document skips what it already ran.
+
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,

@@ -1,14 +1,3 @@
-/**
- * Server-driven window-notices sync.
- *
- * Notices are pure declarative data — the PHP side ships the full
- * entry through the payload (id, message, tone, dismissibility,
- * match), and this module mirrors the list onto the live registry by
- * calling {@link registerWindowNotice} for each. Re-runs on every
- * `os-plugins-changed` payload so plugin activation /
- * deactivation reflects without an F5.
- */
-
 import {
 	registerWindowNotice,
 	unregisterWindowNotice,
@@ -59,11 +48,6 @@ function buildMatcher(
 	};
 }
 
-/**
- * Reconcile the live `registerWindowNotice()` registry against a
- * fresh server-shipped list. Adds any newly-declared entries,
- * updates changed ones, removes entries the server no longer ships.
- */
 export function applyServerWindowNotices(
 	entries: DesktopWindowNoticeServerEntry[],
 ): void {
@@ -74,8 +58,7 @@ export function applyServerWindowNotices(
 			continue;
 		}
 		wanted.add( entry.id.toLowerCase() );
-		// register* replaces an existing entry with the same id, so
-		// it doubles as an update path.
+
 		registerWindowNotice( {
 			id: entry.id,
 			message: entry.message,
@@ -84,19 +67,11 @@ export function applyServerWindowNotices(
 			icon: entry.icon,
 			match: buildMatcher( entry.match ),
 			order: typeof entry.order === 'number' ? entry.order : undefined,
-			// `owner` tag marks every server-shipped notice so a
-			// targeted cleanup is trivial if/when we surface a sweep
-			// helper later. Matches the convention used by the
-			// command / settings-tab sync modules.
+
 			owner: '__server__',
 		} );
 	}
 
-	// Drop entries the server no longer ships (plugin deactivated
-	// mid-session). Only sweep entries we recognise as
-	// server-shipped via the owner tag — JS-registered notices
-	// (`wp.os.registerWindowNotice` from a non-server caller)
-	// keep their lifecycle.
 	for ( const existing of listWindowNotices() ) {
 		if ( existing.owner !== '__server__' ) {
 			continue;

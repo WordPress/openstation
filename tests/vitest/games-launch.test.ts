@@ -1,11 +1,3 @@
-/**
- * Unit tests for `src/games/launch.ts` — the suspend/resume pairing
- * guarantee, stub upgrading, and challenge-mode score routing.
- *
- * `launchGame` reaches every shell capability through the
- * `wp.os` global, so the tests install a fake surface and
- * assert against it.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -44,11 +36,11 @@ async function loadModules(): Promise< { registry: Registry; launch: Launch } > 
 
 describe( 'games/launch.ts', () => {
 	let fake: FakeDesktop;
-	/** Handlers captured from onWindow so tests can fire `closed`. */
+
 	let windowHandlers: { closed?: () => void };
-	/** The teardown returned by the wrapped render, if the fake ran it. */
+
 	let capturedTeardown: ( () => void ) | void;
-	/** The ctx handed to the game's render. */
+
 	let capturedCtx: GameLaunchContext | null;
 
 	beforeEach( () => {
@@ -66,13 +58,7 @@ describe( 'games/launch.ts', () => {
 						| void
 						| Promise< ( () => void ) | void >;
 				} ) => {
-					// The shell runs the render callback with the window
-					// body once the window opens, and AWAITS it: a
-					// native window's render may be async, and
-					// `Window.hydrateNative()` holds the loading overlay
-					// until it settles. Games rely on that — the window
-					// opens on the click and the game's bundle is
-					// fetched inside the callback, behind the spinner.
+
 					capturedTeardown = await def.render(
 						document.createElement( 'div' ),
 					);
@@ -94,9 +80,7 @@ describe( 'games/launch.ts', () => {
 			),
 			config: { restUrl: 'https://example.test/wp-json/', restNonce: 'n' },
 		};
-		// `installHooksStub()` already claimed `window.wp` for the
-		// hooks stub — attach the fake desktop surface alongside it
-		// rather than clobbering the object.
+
 		(
 			window.wp as unknown as { os?: FakeDesktop }
 		 ).os = fake;
@@ -170,18 +154,14 @@ describe( 'games/launch.ts', () => {
 		await launch.launchGame( 'test-game' );
 
 		expect( fake.wallpaper.suspend ).not.toHaveBeenCalled();
-		// It still routes through registerWindow so the existing
-		// window gets focused.
+
 		expect( fake.registerWindow ).toHaveBeenCalled();
 	} );
 
 	test( 'an instance on another virtual desktop switches Spaces first', async () => {
 		const { registry, launch } = await loadModules();
 		registerGame( registry );
-		// The running game lives on desktop-2; the user launches from
-		// desktop-1. Without the switch, manager.open() (which only
-		// reuses windows on the ACTIVE desktop) would mint a blank
-		// `-2` copy with the focus path's no-op render.
+
 		fake.windowManager.getByBaseId = vi.fn().mockReturnValue( {
 			close: vi.fn(),
 			config: { desktopId: 'desktop-2' },
@@ -249,19 +229,12 @@ describe( 'games/launch.ts', () => {
 			expect.anything(),
 		);
 		expect( render ).toHaveBeenCalled();
-		// The registry entry is upgraded in place — a second launch
-		// won't reload the script.
+
 		expect( registry.get( 'test-game' )?.render ).toBeDefined();
 	} );
 
 	test( 'the window opens BEFORE the game bundle is fetched', async () => {
-		// The point of the whole arrangement. A game's bundle is heavy
-		// — the game, its engine, sometimes a dictionary — and loading
-		// it before `registerWindow()` meant a click produced nothing
-		// at all for seconds, with no window to hang a spinner on. The
-		// window now opens first and the fetch happens inside the
-		// render callback, where the window manager's loading overlay
-		// covers it.
+
 		const { registry, launch } = await loadModules();
 		registerGame( registry, {
 			render: undefined,
@@ -302,9 +275,7 @@ describe( 'games/launch.ts', () => {
 	} );
 
 	test( 'the window opens at the size the server declared', async () => {
-		// The size has to be known a round trip before the def that
-		// also carries it, which is why `openstation_register_game()`
-		// takes a `window` argument at all.
+
 		const { registry, launch } = await loadModules();
 		registerGame( registry, {
 			render: undefined,
@@ -415,8 +386,7 @@ describe( 'games/launch.ts', () => {
 
 		await launch.launchGame( 'test-game' );
 		const pending = capturedCtx!.submitScore( { score: 42 } );
-		// Subscribers refetch on this event; publishing before the
-		// write lands would have them read the pre-score leaderboard.
+
 		expect( fake.activity.publish ).not.toHaveBeenCalled();
 
 		settle!();

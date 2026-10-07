@@ -1,6 +1,5 @@
 import { css } from '../../../../src/ui/core';
 
-/** Layout styles travel with the versioned app bundle. */
 export const directoryStyles = css`
 .os-term-canvas__intro {
 	padding: 22px 24px 18px;

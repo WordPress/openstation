@@ -1,35 +1,3 @@
-/**
- * `<os-tile>` — the canonical tile component used everywhere a
- * tile appears in the shell. Desktop wallpaper, folder windows,
- * My WordPress sections (Posts, Pages, Users, Media, drill-in
- * usage), and any plugin surface that wants the same chrome use
- * THIS component.
- *
- * Light-DOM by design — the visual chrome (`.os-file-
- * tile*`) lives in the global stylesheet so per-surface modifier
- * classes (`__media-tile`, `__tile--user`, `__tile--usage`) can
- * keep working from external CSS. The host element itself IS the
- * tile: no inner button wrapper. That keeps the existing DOM
- * contract intact — `document.querySelector('.os-file-
- * tile')` returns the tile; `data-placement-id` lives on it;
- * `style.left/top` applies to it.
- *
- * The component owns:
- *
- *   - Reactive props mirroring `TileSpec` (type, ref, label,
- *     icon, thumbnail, kind, status, selected, missing, …).
- *   - Drag-out wiring (when `drag-kind` is set, the component
- *     attaches the standard pointerdown → DragManager dance).
- *   - Status ribbon insertion via `<os-ribbon>` (no hand-rolled
- *     corner-banner CSS; honors the per-user
- *     `showPostStatusRibbons` OS-setting).
- *   - Lock badge when `access-gated`.
- *   - Keyboard activation — Enter / Space fire a `click` event.
- *
- * Consumers wire `click` / `dblclick` / `contextmenu` directly on
- * the `<os-tile>` element. No custom-event surface.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { renderIcon } from '../../../icon';
 import { applyTileEntryStagger } from '../../../utils';
@@ -39,7 +7,6 @@ import type { ShortcutDragData } from '../../../desktop-files/drag-payloads';
 import { styles } from './os-tile.styles';
 import '../os-ribbon/os-ribbon';
 
-/** CSS class on every tile — single source of truth. */
 export const TILE_CLASS = 'os-file-tile';
 
 const STATUS_LABEL: Record< string, string > = {
@@ -65,13 +32,6 @@ function statusRibbonsEnabled(): boolean {
 	}
 }
 
-/**
- * Resolve the shell-side drag manager off `window.wp.os`.
- * Exported so the desktop-files `attachTileDragOut` helper can
- * reuse the same accessor — single source of truth.
- *
- * @public
- */
 export function getDragManager(): DragManagerApi | null {
 	const api = (
 		window as { wp?: { os?: { dragManager?: DragManagerApi } } }
@@ -122,18 +82,7 @@ export class OsTile extends Component {
 			{ name: 'drag-title', type: 'string' },
 			{ name: 'drag-icon', type: 'string' },
 		],
-		/*
-		 * The tile is the one LIGHT-DOM component in the kit
-		 * (`static shadow = false`), so its chrome comes from
-		 * `assets/css/desktop-files.css` rather than from a shadow
-		 * stylesheet — which means it only looks like a tile where
-		 * that file is loaded. It is, in the shell.
-		 *
-		 * Shown on a dark strip because tiles live on the wallpaper,
-		 * and their label is Starlight with a text shadow — on the
-		 * settings panel's own light surface the labels would be
-		 * white-on-white and the example would look empty.
-		 */
+
 		example: html`
 			<div
 				style="display:flex;gap:18px;flex-wrap:wrap;padding:16px;border-radius:8px;background:var( --os-ui-surface-sunken, #101018 );"
@@ -203,8 +152,7 @@ export class OsTile extends Component {
 			this.addEventListener( 'keydown', this._keydownHandler as EventListener );
 		}
 		document.addEventListener( 'os-settings-save-lifecycle', this._onSettingsSave );
-		// Paint immediately on first connect so callers can query
-		// the rendered DOM synchronously.
+
 		this._paint();
 	}
 
@@ -226,14 +174,6 @@ export class OsTile extends Component {
 		document.removeEventListener( 'os-settings-save-lifecycle', this._onSettingsSave );
 	}
 
-	/**
-	 * Bypass the templated render loop. Lit-html's `render(template,
-	 * root)` would wipe the host's light-DOM children every tick —
-	 * including the visual / label / ribbon `_paint()` just
-	 * inserted. We override `requestUpdate` directly so attribute
-	 * changes call `_paint` (idempotent) without lit-html getting
-	 * involved.
-	 */
 	protected requestUpdate(): void {
 		if ( ! this.isConnected ) {
 			return;
@@ -241,25 +181,6 @@ export class OsTile extends Component {
 		this._paint();
 	}
 
-	/**
-	 * Selection state is repainted WITHOUT touching the tile's
-	 * children.
-	 *
-	 * `_paint()` replaces the visual, the label and the ribbon on
-	 * every call. That is fine for a content change and catastrophic
-	 * for a selection change, because selection changes land in the
-	 * middle of pointer gestures: destroy the node a `mousedown`
-	 * landed on and the browser will not synthesize the `click` when
-	 * the `mouseup` arrives on its replacement — so no `click`, no
-	 * `dblclick`, and a tile that can no longer be opened. (The same
-	 * hazard is documented for keyed lists in
-	 * `docs/javascript-reference.md`.)
-	 *
-	 * So the three selection attributes take a cheap path: classes
-	 * and ARIA only, children untouched. It is also what makes
-	 * Ctrl+A over a folder of two hundred icons cost two hundred
-	 * class toggles instead of two hundred subtree rebuilds.
-	 */
 	attributeChangedCallback(
 		name: string,
 		oldValue: string | null,
@@ -279,15 +200,12 @@ export class OsTile extends Component {
 		super.attributeChangedCallback( name, oldValue, newValue );
 	}
 
-	/** Class + ARIA half of `_paint()`. Never touches children. */
 	private _paintSelection(): void {
 		const selected = this.hasAttribute( 'selected' );
 		const selectable = this.hasAttribute( 'selectable' );
 		this.classList.toggle( `${ TILE_CLASS }--selected`, selected );
 		this.setAttribute( 'role', selectable ? 'option' : 'listitem' );
 		if ( selectable ) {
-			// Guarded: writing `aria-selected` re-enters this callback,
-			// and an unguarded write would recurse once per paint.
 			const next = selected ? 'true' : 'false';
 			if ( this.getAttribute( 'aria-selected' ) !== next ) {
 				this.setAttribute( 'aria-selected', next );
@@ -298,9 +216,6 @@ export class OsTile extends Component {
 	}
 
 	protected render() {
-		// Unreachable — `requestUpdate` is the only caller and we
-		// overrode it above. The Component base contract requires a
-		// `render()` method, so this stub satisfies the type.
 		return html``;
 	}
 
@@ -317,12 +232,6 @@ export class OsTile extends Component {
 		const missing = this.hasAttribute( 'missing' );
 		const accessGated = this.hasAttribute( 'access-gated' );
 
-		// Idempotent class management — the host element carries
-		// the canonical chrome class + state modifiers, and we
-		// preserve any additional classes added by consumers (e.g.
-		// the My WordPress modifier classes like `__media-tile`).
-		// We track ours so a flip of `selected` / `kind` doesn't
-		// accumulate stale classes.
 		const ownedClasses = [
 			TILE_CLASS,
 			`${ TILE_CLASS }--folder`,
@@ -347,19 +256,12 @@ export class OsTile extends Component {
 			this.classList.add( `${ TILE_CLASS }--selected` );
 		}
 
-		// Identity data-* attrs.
 		this.dataset.fileType = type;
 		this.dataset.fileRef = ref;
 		if ( kind ) {
 			this.dataset.role = kind;
 		}
 
-		// Accessibility — the host acts as a button. On a canvas that
-		// supports selection the tile becomes an `option` instead: a
-		// `listitem` may not carry `aria-selected`, so a multi-select
-		// grid of listitems announces nothing about what is picked.
-		// The selection controller sets `selectable` when it registers
-		// the tile, which is why this can't just key off `selected`.
 		this.setAttribute( 'role', selectable ? 'option' : 'listitem' );
 		if ( selectable ) {
 			this.setAttribute( 'aria-selected', selected ? 'true' : 'false' );
@@ -370,10 +272,7 @@ export class OsTile extends Component {
 		if ( ! this.hasAttribute( 'tabindex' ) ) {
 			this.setAttribute( 'tabindex', '0' );
 		}
-		// Sentinel used to detect our own previously-set title so we
-		// don't clobber a title set by some other code path. Kept as
-		// a constant so the set + the compare can never drift on
-		// curly-vs-straight quotes.
+
 		const accessGatedTitle =
 			'You don’t have permission to open this — ask the folder owner for access.';
 		if ( accessGated ) {
@@ -386,10 +285,6 @@ export class OsTile extends Component {
 			}
 		}
 
-		// Paint inner DOM. We replace existing visual/label/lock/
-		// ribbon children but preserve anything else consumers
-		// appended (e.g. the shared-folder badge from
-		// `share-menu-items.ts`).
 		const SLOTS = [
 			`${ TILE_CLASS }__visual`,
 			`${ TILE_CLASS }__label`,
@@ -436,7 +331,6 @@ export class OsTile extends Component {
 			this.appendChild( lock );
 		}
 
-		// Status ribbon via `<os-ribbon>`.
 		if (
 			status &&
 			status !== 'publish' &&

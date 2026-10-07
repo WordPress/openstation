@@ -1,8 +1,3 @@
-/**
- * OpenStation — "New note" wallpaper context-menu entry, so the wall
- * has a door that isn't the Note Pad widget.
- */
-
 import { addFilter } from '../hooks';
 import { __ } from '../i18n';
 import type {
@@ -24,7 +19,7 @@ export function installNotesWallpaperMenu( layer: NotesLayer ): void {
 			if ( items.some( ( item ) => item.id === MENU_ITEM_ID ) ) {
 				return items;
 			}
-			// Snapshot now — `onClick` runs after this menu has closed.
+
 			const { x, y } = context ?? { x: 0, y: 0 };
 			return [
 				...items,

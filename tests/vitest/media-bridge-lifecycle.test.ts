@@ -1,4 +1,3 @@
-/** Repeated requests and media DOM updates must not multiply bridge callbacks. */
 import { afterEach, describe, expect, test } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
@@ -68,15 +67,14 @@ describe( 'media bridge lifecycle', () => {
 				xhr.dispatchEvent( new w.Event( 'loadend' ) );
 			}
 		};
-		// Core's jQuery transport sends the action in this serialized POST body.
+
 		await send( '/wp-admin/admin-ajax.php', '_nonce=test&action=heartbeat&screen_id=post' );
 		await send( '/wp-admin/admin-ajax.php', new w.URLSearchParams( { action: 'heartbeat' } ) );
 		await send( '/wp-admin/admin-ajax.php', form );
 		await send( '/wp-admin/admin-ajax.php?action=heartbeat', '' );
 		expect( authChecks ).toBe( 0 );
 		expect( messages.filter( ( m ) => m.type === 'os-iframe-activity' ) ).toHaveLength( 0 );
-		// A similar action name must not be mistaken for Heartbeat. Nor may a
-		// skipped Heartbeat consume the cooldown for a real auth failure.
+
 		await send( '/wp-admin/admin-ajax.php', 'action=heartbeat-settings' );
 		expect( authChecks ).toBe( 1 );
 		expect( messages.filter( ( m ) => m.type === 'os-iframe-activity' ) ).toHaveLength( 2 );
@@ -95,8 +93,7 @@ describe( 'media bridge lifecycle', () => {
 				xhr.dispatchEvent( new w.Event( 'loadend' ) );
 			}
 		};
-		// QUERY carries a body but is still a read. Classification must use
-		// the method, and a refused start must not emit an unmatched end.
+
 		for ( const method of [ 'GET', 'HEAD', 'OPTIONS', 'QUERY' ] ) {
 			await send( method );
 		}

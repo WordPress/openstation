@@ -1,27 +1,7 @@
 <?php
-/**
- * OpenStation — Recycle Bin: REST routes.
- *
- * Five routes, all under `/desktop-mode/v1/recycle-bin`:
- *
- *   GET    /                  — list trashed items
- *   POST   /restore           — body { ids: int[] }
- *   POST   /purge             — body { ids: int[] }
- *   POST   /empty             — empties the visible bin
- *   GET    /count             — total items in the bin (badge polling)
- *
- * Permission gating delegates to `openstation_recycle_bin_user_can_*` per item;
- * the route-level callback only checks "are you logged in and in
- * OpenStation at all?" via `openstation_is_enabled()`.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register REST routes.
- */
 function openstation_recycle_bin_register_rest_routes() {
 	$namespace = 'desktop-mode/v1';
 
@@ -64,9 +44,7 @@ function openstation_recycle_bin_register_rest_routes() {
 			'methods'             => WP_REST_Server::CREATABLE,
 			'permission_callback' => 'openstation_recycle_bin_rest_permission',
 			'callback'            => 'openstation_recycle_bin_rest_restore',
-			// Accepts either `items: [{id, type}]` (preferred) or
-			// `ids: int[]` (legacy — assumes post-ish entities).
-			// Both registered as optional; the handler validates.
+
 			'args'                => array(
 				'items' => array(
 					'type'     => 'array',
@@ -128,15 +106,6 @@ function openstation_recycle_bin_register_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_recycle_bin_register_rest_routes' );
 
-/**
- * Route-level permission gate.
- *
- * Per-item capability checks happen inside the store layer; here we
- * only enforce "logged-in user with OpenStation opted in" — same
- * baseline as every other desktop REST surface.
- *
- * @return bool|WP_Error
- */
 function openstation_recycle_bin_rest_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
@@ -155,12 +124,6 @@ function openstation_recycle_bin_rest_permission() {
 	return true;
 }
 
-/**
- * GET /recycle-bin
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response
- */
 function openstation_recycle_bin_rest_list( $request ) {
 	$payload = openstation_recycle_bin_get_items(
 		array(
@@ -174,36 +137,16 @@ function openstation_recycle_bin_rest_list( $request ) {
 	return rest_ensure_response( $payload );
 }
 
-/**
- * POST /recycle-bin/restore
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response
- */
 function openstation_recycle_bin_rest_restore( $request ) {
 	$items = openstation_recycle_bin_normalize_items( $request );
 	return rest_ensure_response( openstation_recycle_bin_apply_bulk( $items, 'openstation_recycle_bin_restore' ) );
 }
 
-/**
- * POST /recycle-bin/purge
- *
- * @param WP_REST_Request $request REST request.
- * @return WP_REST_Response
- */
 function openstation_recycle_bin_rest_purge( $request ) {
 	$items = openstation_recycle_bin_normalize_items( $request );
 	return rest_ensure_response( openstation_recycle_bin_apply_bulk( $items, 'openstation_recycle_bin_purge' ) );
 }
 
-/**
- * Read either `items: [{id, type}]` (preferred) or `ids: int[]`
- * (legacy) and normalise into a list of `[id, type]` pairs the
- * bulk runner can hand straight to a typed callback.
- *
- * @param WP_REST_Request $request REST request.
- * @return array<int, array{id:int, type:string}>
- */
 function openstation_recycle_bin_normalize_items( $request ) {
 	$out = array();
 
@@ -241,22 +184,10 @@ function openstation_recycle_bin_normalize_items( $request ) {
 	return $out;
 }
 
-/**
- * POST /recycle-bin/empty
- *
- * @return WP_REST_Response
- */
 function openstation_recycle_bin_rest_empty() {
 	return rest_ensure_response( openstation_recycle_bin_empty() );
 }
 
-/**
- * Run a per-item callback over a list, capturing per-item results.
- *
- * @param array<int, array{id:int, type:string}> $items    Items to operate on.
- * @param callable                               $callback `($id, $type) → true|WP_Error`.
- * @return array{ok:int[], errors:array<int, array{id:int, code:string, message:string}>}
- */
 function openstation_recycle_bin_apply_bulk( $items, $callback ) {
 	$ok     = array();
 	$errors = array();

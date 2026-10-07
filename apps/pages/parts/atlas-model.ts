@@ -1,4 +1,3 @@
-/** The atlas reads existing Core REST data; every edge has an authored source. */
 import { layoutAtlas } from './atlas-layout';
 import { __ } from '@openstation/app';
 import { decodeHTML } from '../../../src/utils';
@@ -24,7 +23,6 @@ export const PREVIEW_SCALE = 0.2;
 
 export const pageTitle = ( page: AtlasPage ): string => decodeHTML( page.title.rendered ) || __( '(no title)' );
 
-/** Only a same-origin frontend document can become a passive preview. */
 export function previewUrl( page: AtlasPage, origin = location.origin ): string | null {
 	try {
 		const url = new URL( page.link, origin );
@@ -41,7 +39,6 @@ export function previewUrl( page: AtlasPage, origin = location.origin ): string 
 	}
 }
 
-/** Canonical paths ignore fragments and tracking params, but retain plain WP IDs. */
 function linkKey( url: URL ): string {
 	const id = url.searchParams.get( 'page_id' ) || url.searchParams.get( 'p' );
 	return id ? `${ url.origin }/#${ id }` : `${ url.origin }${ url.pathname.replace( /\/+$/, '' ) }`;
@@ -53,7 +50,7 @@ export function connectPages( pages: AtlasPage[] ): AtlasEdge[] {
 	for ( const page of pages ) {
 		try {
 			paths.set( linkKey( new URL( page.link ) ), page.id );
-		} catch { /* Invalid URLs have no hyperlink identity. */ }
+		} catch { }
 	}
 	const result = new Map< string, AtlasEdge >();
 	for ( const page of pages ) {
@@ -76,13 +73,12 @@ export function connectPages( pages: AtlasPage[] ): AtlasEdge[] {
 				if ( target && target !== page.id ) {
 					result.set( `link:${ page.id }:${ target }`, { from: page.id, to: target, kind: 'link' } );
 				}
-			} catch { /* Malformed or non-web links cannot connect pages. */ }
+			} catch { }
 		}
 	}
 	return Array.from( result.values() );
 }
 
-/** Paginated, bounded and cancellable; the UI explicitly labels a partial atlas. */
 export async function loadAtlas( fetcher: RestFetch, signal: AbortSignal ): Promise< AtlasData > {
 	const pages: AtlasPage[] = [];
 	let total = 0;
@@ -105,7 +101,6 @@ export async function loadAtlas( fetcher: RestFetch, signal: AbortSignal ): Prom
 	return { pages: unique, edges: connectPages( unique ), total };
 }
 
-/** Place connected pages together and reserve clear gutters for their links. */
 export function arrangePages( pages: AtlasPage[], frontPageId?: number, edges = connectPages( pages ) ): AtlasNode[] {
 	return layoutAtlas( pages, edges, frontPageId );
 }

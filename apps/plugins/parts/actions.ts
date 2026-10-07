@@ -1,18 +1,3 @@
-/**
- * Plugins app — the action buttons and the runs behind them.
- *
- * Part of the `desktop-mode-plugins` client view. The Installed
- * table's actions cell, the detail flyout's footer and the bulk bar
- * all offer the same verbs — Update, Activate, Deactivate, Delete —
- * so the buttons are built once here from a row's state and the
- * viewer's capabilities, and the two flows that stay client-side
- * (Core's update and auto-update-toggle handlers, serialised through
- * the update queue) live beside them. Activate / deactivate / delete
- * themselves are `mutations.ts`.
- *
- * @public
- */
-
 import { __, sprintf } from '@openstation/app';
 import { activatePlugin, askBeforeSelfDeactivate, deactivatePlugin, deletePlugin, leaveAfterSelfMutation, selfGone } from './mutations';
 import { enqueueUpdateJob } from './update-queue';
@@ -31,7 +16,6 @@ export const freshBusy = (): BusyState => ( {
 	optimistic: new Map(),
 } );
 
-/** An `<os-button>` with a label and a variant. */
 function button( label: string, variant: string, size = 'small' ): HTMLElement {
 	const b = document.createElement( 'os-button' );
 	b.setAttribute( 'variant', variant );
@@ -42,11 +26,6 @@ function button( label: string, variant: string, size = 'small' ): HTMLElement {
 	return b;
 }
 
-/**
- * Put a button (or any `<os-button>`) into its busy state with a label,
- * and return the restore. One dance for the cards, the flyout, the
- * upload dialog and the table.
- */
 export function setBusy( btn: HTMLElement | null, label?: string ): () => void {
 	if ( ! btn ) {
 		return () => undefined;
@@ -66,7 +45,6 @@ export function setBusy( btn: HTMLElement | null, label?: string ): () => void {
 	};
 }
 
-/** Whether a row may be activated / deactivated / deleted by this viewer. */
 function canManage( row: InstalledPlugin ): { activate: boolean; deactivate: boolean; delete: boolean } {
 	return (
 		row.openstation_can_manage ?? {
@@ -77,12 +55,6 @@ function canManage( row: InstalledPlugin ): { activate: boolean; deactivate: boo
 	);
 }
 
-/**
- * The verbs a row offers, as buttons: Update (or the "unavailable"
- * hint), Activate or Deactivate, Delete. `onDone` runs after any of
- * them settles, so a surface that paints from its own DOM (the flyout)
- * can repaint; the table repaints from the live data on its own.
- */
 export function pluginActionButtons(
 	host: PluginsHost,
 	row: InstalledPlugin,
@@ -150,7 +122,6 @@ export function pluginActionButtons(
 	return out;
 }
 
-/** Paint the new status now, let the dispatch confirm or revert it. */
 async function runOptimistic(
 	host: PluginsHost,
 	row: InstalledPlugin,
@@ -167,27 +138,16 @@ async function runOptimistic(
 	}
 }
 
-/** Keep the upgrader and its fresh list read in the same queue slot. */
 async function updateAndRefresh( host: PluginsHost, row: InstalledPlugin ) {
 	return enqueueUpdateJob( async () => {
 		try {
 			return await host.rest.updateInstalledPlugin( row );
 		} finally {
-			// Read the actual installed version, including when the upgrader
-			// committed files but its response failed. Await reconciliation
-			// before another update can invalidate Core's plugin caches.
 			await host.refresh();
 		}
 	} );
 }
 
-/**
- * Update one plugin via Core's `wp_ajax_update_plugin`, serialised
- * through the single-flight queue (concurrent upgrader runs corrupt
- * the `update_plugins` transient). Core signals "already at the latest
- * version" only through its translated message (and an `errorCode`
- * should it ever ship one) — converge the row to the truth either way.
- */
 async function runUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< boolean > {
 	if ( host.busy.updating.has( row.plugin ) ) {
 		return false;
@@ -199,7 +159,7 @@ async function runUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< bo
 		const result = await updateAndRefresh( host, row );
 		host.toast(
 			sprintf(
-				/* translators: 1: plugin name, 2: new version */
+
 				__( '%1$s updated to %2$s.', 'desktop-mode' ),
 				row.name || row.plugin,
 				result.newVersion,
@@ -211,7 +171,7 @@ async function runUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< bo
 		if ( isUpToDateError( err ) ) {
 			host.toast(
 				sprintf(
-					/* translators: %s: plugin name */
+
 					__( '%s is already up to date.', 'desktop-mode' ),
 					row.name || row.plugin,
 				),
@@ -221,7 +181,7 @@ async function runUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< bo
 		} else {
 			host.toast(
 				sprintf(
-					/* translators: 1: plugin name, 2: error message */
+
 					__( 'Update of %1$s failed: %2$s', 'desktop-mode' ),
 					row.name || row.plugin,
 					describeError( err ),
@@ -231,14 +191,13 @@ async function runUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< bo
 		}
 	} finally {
 		host.busy.updating.delete( row.plugin );
-		// The list is fresh; clear the spinner even if reconciliation failed.
+
 		host.repaint();
 		host.refreshMenu();
 	}
 	return ok;
 }
 
-/** Core's "nothing to update" answer, by code or by its translated message. */
 export function isUpToDateError( err: unknown ): boolean {
 	const code = ( err as { code?: string } )?.code;
 	if ( code === 'up_to_date' ) {
@@ -249,10 +208,6 @@ export function isUpToDateError( err: unknown ): boolean {
 	return !! coreMessage && message === coreMessage;
 }
 
-/**
- * Flip the per-plugin auto-update state via Core's `toggle-auto-updates`
- * handler, then re-read the row.
- */
 export async function runToggleAutoUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< void > {
 	const meta = row.openstation_auto_update;
 	if ( host.busy.autoUpdating.has( row.plugin ) || ! meta || meta.forced !== null || ! meta.supported ) {
@@ -266,8 +221,8 @@ export async function runToggleAutoUpdate( host: PluginsHost, row: InstalledPlug
 		host.toast(
 			sprintf(
 				wasEnabled
-					? /* translators: %s: plugin name */ __( 'Auto-updates disabled for %s.', 'desktop-mode' )
-					: /* translators: %s: plugin name */ __( 'Auto-updates enabled for %s.', 'desktop-mode' ),
+					? __( 'Auto-updates disabled for %s.', 'desktop-mode' )
+					: __( 'Auto-updates enabled for %s.', 'desktop-mode' ),
 				row.name || row.plugin,
 			),
 		);
@@ -276,7 +231,7 @@ export async function runToggleAutoUpdate( host: PluginsHost, row: InstalledPlug
 	} catch ( err ) {
 		host.toast(
 			sprintf(
-				/* translators: 1: plugin name, 2: error message */
+
 				__( 'Could not toggle auto-updates for %1$s: %2$s', 'desktop-mode' ),
 				row.name || row.plugin,
 				describeError( err ),
@@ -289,14 +244,12 @@ export async function runToggleAutoUpdate( host: PluginsHost, row: InstalledPlug
 	}
 }
 
-/** One bulk button of the selection bar. */
 export interface BulkButton {
 	label: string;
 	variant: 'primary' | 'secondary' | 'danger';
 	run: () => void;
 }
 
-/** The buttons the current selection offers. */
 export function bulkButtons( host: PluginsHost, selectedIds: string[], clear: () => void ): BulkButton[] {
 	const { caps } = host.extra;
 	const selected = host.installed.filter( ( r ) => selectedIds.includes( r.plugin ) );
@@ -308,7 +261,7 @@ export function bulkButtons( host: PluginsHost, selectedIds: string[], clear: ()
 		if ( updatable.length > 0 ) {
 			out.push( {
 				label: sprintf(
-					/* translators: %d: number of plugins with pending updates */
+
 					__( 'Update %d', 'desktop-mode' ),
 					updatable.length,
 				),
@@ -348,7 +301,6 @@ export function bulkButtons( host: PluginsHost, selectedIds: string[], clear: ()
 	return out;
 }
 
-/** Activate / deactivate / delete the selection in one dispatch. */
 async function runBulk( host: PluginsHost, rows: InstalledPlugin[], verb: 'activate' | 'deactivate' | 'delete' ): Promise< void > {
 	const plugins = rows.map( ( r ) => r.plugin );
 	if ( verb === 'deactivate' ) {
@@ -362,7 +314,7 @@ async function runBulk( host: PluginsHost, rows: InstalledPlugin[], verb: 'activ
 				confirm: {
 					title: __( 'Delete selected plugins?', 'desktop-mode' ),
 					message: sprintf(
-						/* translators: %d: number of plugins */
+
 						__( 'Permanently delete %d plugin(s)? Their files will be removed from disk. This cannot be undone.', 'desktop-mode' ),
 						rows.length,
 					),
@@ -382,7 +334,6 @@ async function runBulk( host: PluginsHost, rows: InstalledPlugin[], verb: 'activ
 	host.broadcastChange( { action: 'bulk' }, plugins );
 }
 
-/** Update the selection one row at a time through the queue. */
 async function runBulkUpdate( host: PluginsHost, rows: InstalledPlugin[] ): Promise< void > {
 	let succeeded = 0;
 	let failed = 0;
@@ -407,13 +358,13 @@ async function runBulkUpdate( host: PluginsHost, rows: InstalledPlugin[] ): Prom
 	host.toast(
 		failed === 0
 			? sprintf(
-				/* translators: 1: count, 2: action verb (activated, deactivated, deleted) */
+
 				__( '%1$d plugin(s) %2$s.', 'desktop-mode' ),
 				succeeded,
 				noun,
 			)
 			: sprintf(
-				/* translators: 1: success count, 2: failure count, 3: action verb */
+
 				__( '%1$d %3$s, %2$d failed.', 'desktop-mode' ),
 				succeeded,
 				failed,

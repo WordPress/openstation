@@ -1,9 +1,3 @@
-/**
- * Overview's desktop tiles: renaming, the caption shown after a
- * switch, and the dock tile's active dot.
- *
- * @group desktops
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type SystemDockItem } from '../../src/dock';
 import { WindowManager } from '../../src/window-manager';
@@ -36,7 +30,7 @@ describe( 'virtual desktops — overview tiles', () => {
 
 		dockEl = document.createElement( 'nav' );
 		document.body.appendChild( dockEl );
-		// Mirrors the Workspaces tile's registration in `desktop.ts`.
+
 		const overview: SystemDockItem = {
 			id: 'os-overview',
 			title: 'Workspaces',
@@ -59,7 +53,6 @@ describe( 'virtual desktops — overview tiles', () => {
 		document.body.innerHTML = '';
 	} );
 
-	/** First tile's `<part>` in the live top bar. */
 	const part = < T extends HTMLElement >( name: string ): T | null =>
 		manager._overviewTopBar!.querySelector< T >(
 			`.os-overview-top-bar__tile-${ name }`,
@@ -73,9 +66,6 @@ describe( 'virtual desktops — overview tiles', () => {
 		);
 	};
 
-	// Capped client-side rather than left to the server: a name that
-	// looked accepted and came back shortened on reload reads as data
-	// loss. 64 mirrors `includes/session.php`.
 	test( 'renameDesktop trims, caps, and rejects blank / unknown', () => {
 		expect( renameDesktop( manager, 'desktop-1', '  Writing  ' ) ).toBe( true );
 		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
@@ -100,39 +90,30 @@ describe( 'virtual desktops — overview tiles', () => {
 		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
 		expect( labelEl().textContent ).toBe( 'Writing' );
 		expect( editing() ).toBe( false );
-		// Overview's own document-level handler reads Enter as "commit
-		// the cursor" and Escape as "leave overview"; both would tear
-		// the surface down mid-edit.
+
 		expect( manager._overviewActive ).toBe( true );
 
 		renameButton().click();
 		labelEl().textContent = 'Discarded';
 		press( 'Escape' );
 
-		// Rebuilt from data, so an abandoned edit leaves no trace.
 		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
 		expect( labelEl().textContent ).toBe( 'Writing' );
 		expect( manager._overviewActive ).toBe( true );
 	} );
 
-	// Typing a space into the label activates the tile <button> — the
-	// browser synthesises a click on it. That is a default action, not
-	// a listener, so it survives every `stopPropagation` upstream and
-	// used to switch desktop and close overview mid-rename.
 	test( 'a click synthesised while editing does not switch desktop', () => {
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
 		manager.enterOverview();
 
-		// Edit the FIRST tile's label; the space activates the button
-		// that contains it, so the click lands on that same tile.
 		const firstTile = (): HTMLElement =>
 			manager._overviewTopBar!.querySelector< HTMLElement >(
 				'.os-overview-top-bar__tile',
 			)!;
 		renameButton().click();
 		expect( editing() ).toBe( true );
-		// The pencil itself must not reach the tile beneath it either.
+
 		expect( manager.getActiveDesktopId() ).toBe( second.id );
 
 		firstTile().click();
@@ -140,21 +121,16 @@ describe( 'virtual desktops — overview tiles', () => {
 		expect( manager._overviewActive ).toBe( true );
 		expect( manager.getActiveDesktopId() ).toBe( second.id );
 
-		// Still switches once the edit is over.
 		press( 'Escape' );
 		firstTile().click();
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 	} );
 
-	// The pencil opens the wizard on a shell that wired one, so the
-	// name itself is the shortcut for the one edit people make most.
 	test( 'double-clicking the name edits it instead of switching desks', () => {
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
 		manager.enterOverview();
 
-		// The first tile is the desk we are NOT on, so a stray switch
-		// would show.
 		const mouse = ( type: string ): void => {
 			labelEl().dispatchEvent( new MouseEvent( type, { bubbles: true } ) );
 		};
@@ -170,8 +146,6 @@ describe( 'virtual desktops — overview tiles', () => {
 		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
 	} );
 
-	// The other half of the same handler: a click that never got a
-	// partner still does what a tile click always did.
 	test( 'a lone click on the name switches once the pair times out', () => {
 		vi.useFakeTimers();
 		try {
@@ -201,14 +175,12 @@ describe( 'virtual desktops — overview tiles', () => {
 		manager.switchDesktop( second.id );
 		expect( hud()?.textContent ).toBe( 'Writing' );
 
-		// Windows run from `--os-z-base` (100) upward, so the caption
-		// has to clear them or a maximized Dashboard hides it.
 		const layer = ( name: string ): number =>
 			Number( new RegExp( `--${ name }:\\s*(\\d+)` ).exec( tokens )![ 1 ] );
 		expect( layer( 'os-z-desktop-name' ) ).toBeGreaterThan(
 			layer( 'os-z-base' ),
 		);
-		// …and stays under the dock, so it never covers navigation.
+
 		expect( layer( 'os-z-desktop-name' ) ).toBeLessThan(
 			layer( 'os-z-dock' ),
 		);
@@ -216,15 +188,10 @@ describe( 'virtual desktops — overview tiles', () => {
 		hud()!.remove();
 		manager.enterOverview();
 		manager.switchDesktop( 'desktop-1' );
-		// The top bar already labels every desktop there.
+
 		expect( hud() ).toBeNull();
 	} );
 
-	// The dock only repaints system-tile predicates when told to, and
-	// overview enter / exit never told it — so the dot was dark while
-	// overview was open, and latched ON after "+ add desktop", which
-	// refreshes the dock from `switchDesktop` one step before the flag
-	// drops.
 	test( 'the dock tile lights while overview is open, clears on exit', () => {
 		const tile = dockEl.querySelector< HTMLElement >(
 			'[data-system-id="os-overview"]',

@@ -1,43 +1,7 @@
 <?php
-/**
- * Comments app — the moderation operations and their REST routes.
- *
- * Every mutation the app performs is ONE function here, shared by the
- * app's dispatched action and the matching public route, so a plugin
- * automating moderation and a moderator clicking Approve run the
- * same code:
- *
- *   - `openstation_comments_window_moderate()`      ↔ POST /comments/bulk
- *   - `openstation_comments_window_create_reply()`  ↔ POST /comments/reply
- *   - `openstation_comments_window_counts()`        ↔ GET /comments/counts
- *
- * `openstation_comments_window_author_insights()` ↔ GET /comments/insights/<email>
- * is a public route for plugins and integrations; the app itself does
- * not call it.
- *
- * SECURITY POSTURE
- * ================
- *
- *   1. Broad cap gate — the route's `permission_callback`, or the
- *      app action's own check (`moderate_comments`, `edit_posts`).
- *   2. Per-target re-validation inside the operation —
- *      `current_user_can( 'edit_comment', $id )` per row,
- *      `edit_post` on the parent's post for a reply.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Allowed bulk actions, mapped to the function that performs them on a single id.
- *
- * Each callback returns true on success, false on a soft failure (the
- * row is skipped) and throws nothing — a batch never aborts on one
- * bad row.
- *
- * @return array<string,callable>
- */
 function openstation_comments_window_bulk_action_map() {
 	return array(
 		'approve'   => static function ( $id ) {
@@ -61,16 +25,6 @@ function openstation_comments_window_bulk_action_map() {
 	);
 }
 
-/**
- * Run one moderation action over a batch of comment ids.
- *
- * The caller has cleared the broad gate (`moderate_comments`); every
- * row is still re-validated against `edit_comment`.
- *
- * @param int[]  $ids    Comment ids.
- * @param string $action One of the keys of {@see openstation_comments_window_bulk_action_map()}.
- * @return array{processed:int[],skipped:int[]}|WP_Error
- */
 function openstation_comments_window_moderate( array $ids, $action ) {
 	$ids    = array_values( array_filter( array_map( 'intval', $ids ) ) );
 	$action = (string) $action;
@@ -100,13 +54,6 @@ function openstation_comments_window_moderate( array $ids, $action ) {
 		}
 	}
 
-	/**
-	 * Fires after a Comments-window bulk action runs.
-	 *
-	 * @param string $action    Action slug.
-	 * @param int[]  $processed Ids successfully acted on.
-	 * @param int[]  $skipped   Ids skipped (cap fail or soft error).
-	 */
 	do_action(
 		'openstation_comments_window_after_bulk',
 		$action,
@@ -120,27 +67,10 @@ function openstation_comments_window_moderate( array $ids, $action ) {
 	);
 }
 
-/**
- * Whether a comment body is empty once its markup is gone — the one
- * definition of "blank" the reply and the edit share.
- *
- * @param string $content Body.
- * @return bool
- */
 function openstation_comments_window_is_blank( $content ) {
 	return '' === trim( wp_strip_all_tags( (string) $content ) );
 }
 
-/**
- * Post a reply under a comment as the current user. Wraps
- * `wp_new_comment()` with the same defaults core's
- * `wp_ajax_replyto_comment` uses, and the same per-target gate:
- * `edit_post` on the parent's post.
- *
- * @param int    $parent_id Parent comment id.
- * @param string $content   Reply body.
- * @return array{id:int,parent:int,content:string,date_gmt:string,author:string,avatarUrl:string}|WP_Error
- */
 function openstation_comments_window_create_reply( $parent_id, $content ) {
 	$parent_id = (int) $parent_id;
 	$content   = (string) $content;
@@ -208,14 +138,6 @@ function openstation_comments_window_create_reply( $parent_id, $content ) {
 	);
 }
 
-/**
- * Author insights for the side drawer: total/approved/pending/spam
- * counts, oldest/newest comment timestamps, the linked user (if the
- * email matches a registered user), and a 0–100 reliability score.
- *
- * @param string $email Author email.
- * @return array<string,mixed>|WP_Error
- */
 function openstation_comments_window_author_insights( $email ) {
 	$email = strtolower( (string) $email );
 	if ( '' === $email || ! is_email( $email ) ) {
@@ -238,7 +160,6 @@ function openstation_comments_window_author_insights( $email ) {
 	}
 	$total = array_sum( $counts_by_status );
 
-	// Sample the oldest + newest record without loading every row.
 	$edge = static function ( $order ) use ( $email ) {
 		$rows = get_comments(
 			array(
@@ -272,12 +193,6 @@ function openstation_comments_window_author_insights( $email ) {
 	);
 }
 
-/**
- * Current comment counts as a flat array — the tab chips and the
- * dock badge.
- *
- * @return array<string,int>
- */
 function openstation_comments_window_counts() {
 	$counts = wp_count_comments();
 	return array(
@@ -289,11 +204,6 @@ function openstation_comments_window_counts() {
 	);
 }
 
-// ------------------------------------------------------------------ routes
-
-/**
- * Register all routes under `desktop-mode/v1`.
- */
 function openstation_comments_window_register_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -373,12 +283,6 @@ function openstation_comments_window_register_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_comments_window_register_rest_routes' );
 
-/**
- * POST /comments/bulk.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_comments_window_rest_bulk( WP_REST_Request $request ) {
 	$action = (string) $request['action'];
 	$result = openstation_comments_window_moderate( (array) $request['ids'], $action );
@@ -396,12 +300,6 @@ function openstation_comments_window_rest_bulk( WP_REST_Request $request ) {
 	);
 }
 
-/**
- * POST /comments/reply.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_comments_window_rest_reply( WP_REST_Request $request ) {
 	$result = openstation_comments_window_create_reply( (int) $request['parent'], (string) $request['content'] );
 	if ( is_wp_error( $result ) ) {
@@ -410,12 +308,6 @@ function openstation_comments_window_rest_reply( WP_REST_Request $request ) {
 	return new WP_REST_Response( $result, 201 );
 }
 
-/**
- * GET /comments/insights/<email>.
- *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
- */
 function openstation_comments_window_rest_insights( WP_REST_Request $request ) {
 	$result = openstation_comments_window_author_insights( urldecode( (string) $request['email'] ) );
 	if ( is_wp_error( $result ) ) {
@@ -424,11 +316,6 @@ function openstation_comments_window_rest_insights( WP_REST_Request $request ) {
 	return new WP_REST_Response( $result, 200 );
 }
 
-/**
- * GET /comments/counts.
- *
- * @return WP_REST_Response
- */
 function openstation_comments_window_rest_counts() {
 	return new WP_REST_Response( openstation_comments_window_counts(), 200 );
 }

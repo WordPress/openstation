@@ -1,59 +1,3 @@
-/**
- * `<os-save-status>` — tiny, slottable indicator for "is the user's
- * change saved yet?" affordances.
- *
- * Three layouts via the `mode` attribute:
- *
- *   - `dot`  (default) — a 10×10 colored dot. Maximum density;
- *     drop next to a label, in a toolbar, inside an input row.
- *   - `icon`            — same dot, plus a check / cross glyph
- *     inside on the `saved` / `failed` phases.
- *   - `pill`            — the dot + an inline label ("Saving…",
- *     "Saved", error message). Use in panel headers.
- *
- * Five phases (driven by the `phase` attribute or, more typically,
- * an event the host auto-listens to):
- *
- *   - `idle`    — hidden (opacity 0, no pointer events).
- *   - `pending` — change registered, waiting for the debounced
- *                 sync. Pulsing primary-color dot.
- *   - `saving`  — REST request in flight. Same pulse.
- *   - `saved`   — change persisted. Green dot (briefly visible
- *                 before auto-clearing back to `idle`).
- *   - `failed`  — REST request errored. Red dot. Stays visible
- *                 for `auto-clear-failed-ms` (default 6s) before
- *                 fading back to `idle`; the error message is
- *                 exposed via the `error` attribute (mirrored to
- *                 the host `title` tooltip).
- *
- * # Auto-listen mode
- *
- * For the OS Settings flow, the indicator is most useful when it
- * just *works* — no manual `phase` plumbing per setting. Set the
- * `auto` attribute and the component subscribes to a CustomEvent
- * on `document` (default name:
- * `os-settings-save-lifecycle`) and updates `phase` +
- * `error` from `event.detail`. Call sites just place the element
- * once near the panel and every save flow feeds it for free.
- *
- * Override the event name with the `event` attribute when wiring
- * the indicator to a different lifecycle (e.g. a custom REST sync
- * inside a plugin window): `<os-save-status auto event="my-plugin-save-lifecycle">`.
- *
- * ```html
- * <!-- Single global indicator at the top of the OS Settings panel. -->
- * <os-save-status auto mode="pill" idle-label="All changes saved"></os-save-status>
- *
- * <!-- Inline next to a custom input bound to a manual phase prop. -->
- * <label>API key
- *     <input @change="${ onChange }">
- *     <os-save-status phase="${ phase }"></os-save-status>
- * </label>
- * ```
- *
- * @public
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-save-status.styles';
 
@@ -66,7 +10,6 @@ export type OsSaveStatusPhase =
 
 export type OsSaveStatusMode = 'dot' | 'icon' | 'pill';
 
-/** Detail shape of the auto-listen CustomEvent. */
 export interface OsSaveStatusLifecycleDetail {
 	phase: OsSaveStatusPhase;
 	error?: string;
@@ -262,9 +205,7 @@ export class OsSaveStatus extends Component {
 		newValue: string | null,
 	): void {
 		super.attributeChangedCallback( name, oldValue, newValue );
-		// `auto` and `event` toggle the document subscription. Re-bind
-		// from scratch on either change so a runtime swap (e.g. a
-		// plugin enabling auto-listen after first paint) takes effect.
+
 		if ( name === 'auto' || name === 'event' ) {
 			this._removeAutoListener();
 			if ( ( this as unknown as { auto: string | null } ).auto !== null ) {
@@ -295,8 +236,6 @@ export class OsSaveStatus extends Component {
 		const error =
 			( this as unknown as { error: string | null } ).error ?? '';
 
-		// `title` on the host so dot/icon modes surface the error
-		// message as a native tooltip without growing the layout.
 		const title = error || this._labelForPhase( phase );
 		if ( title ) {
 			this.setAttribute( 'title', title );
@@ -429,16 +368,6 @@ export class OsSaveStatus extends Component {
 }
 defineComponent( 'os-save-status', OsSaveStatus );
 
-/*
- * The two glyphs below are deliberately NOT from `src/ui/icons`.
- *
- * They render inside the indicator dot at `--os-ui-save-status-size *
- * 0.66`, about 8px at the default. Core's icons carry 1.5-unit strokes
- * on a 24 grid, so at 8px those are half a pixel wide and the check
- * disappears into a grey smudge. Below about 14px an icon stops being
- * an icon and becomes part of the drawing it sits in, the same reason
- * the spinner's arc and the Mio mark are drawn where they are used.
- */
 function _iconCheck() {
 	return html`
 		<svg

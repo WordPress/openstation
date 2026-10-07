@@ -1,8 +1,3 @@
-/**
- * Unit tests for Alphabet Soup's scoring model
- * (`src/games/alphabet-soup/scoring.ts`) and mode shaping
- * (`src/games/alphabet-soup/modes.ts`).
- */
 import { describe, expect, test } from 'vitest';
 import {
 	DAILY_WAVE_COUNT,
@@ -35,9 +30,9 @@ describe( 'alphabet-soup/scoring.ts', () => {
 
 	test( 'a find pays with the PRE-find streak multiplier', () => {
 		const state = createSoupScore();
-		// First find: streak 0 → 1.0×.
+
 		expect( recordFind( state, 4 ) ).toBe( wordPoints( 4, 0 ) );
-		// Second find: streak 1 → 1.15×.
+
 		expect( recordFind( state, 4 ) ).toBe( wordPoints( 4, 1 ) );
 		expect( state.wordsFound ).toBe( 2 );
 		expect( state.streak ).toBe( 2 );

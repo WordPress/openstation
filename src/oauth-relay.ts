@@ -1,43 +1,9 @@
-/**
- * `wp.os.startOAuth( service )` — client-side companion to the
- * PHP `openstation_register_oauth_relay()` API.
- *
- * Coordinates the popup + state-nonce + postMessage dance so plugin
- * authors don't write that code per integration. Returns a Promise
- * that resolves when the popup completes the round-trip OR rejects
- * with a tagged error. Behaviour:
- *
- *   1. POST `/desktop-mode/v1/oauth/start` with `{ service }` to get
- *      the assembled authorize URL (server-side `state` already baked
- *      in).
- *   2. Open the authorize URL in a named popup
- *      (`os-oauth-<service>`) via `window.open()` with
- *      explicit size/position features. The opener relationship is
- *      kept intentionally — the popup needs it for the postMessage
- *      handshake.
- *   3. Listen for `'message'` events of `type:
- *      'os-oauth-callback'` from the popup, validate origin.
- *   4. If `payload.ok`, resolve with the payload. Otherwise reject
- *      with a tagged Error whose `cause` is the payload.
- *
- * The listener detaches automatically on resolve / reject — including
- * the popup-closed-without-callback rejection. Concurrent
- * `startOAuth()` flows are NOT isolated: the listener matches on
- * origin + message type only (it does not compare `payload.service`
- * or the source popup), so the first callback to arrive settles every
- * in-flight promise. Run one flow at a time.
- */
-
 import { joinRestUrl } from './rest-url';
 import { trackedFetch } from './tracked-fetch';
 import { restErrorFromBody } from './core/api-client';
 
 export interface StartOAuthOptions {
-	/**
-	 * Width / height for the popup window. The framework picks
-	 * sensible defaults (`520x720`) — override only when the
-	 * service's authorize page demands something specific.
-	 */
+
 	width?: number;
 	height?: number;
 }
@@ -56,16 +22,9 @@ interface StartResponse {
 
 const POPUP_DEFAULT_WIDTH = 520;
 const POPUP_DEFAULT_HEIGHT = 720;
-/** Polling interval to detect a user-closed popup that never posted. */
+
 const POPUP_CLOSE_POLL_MS = 500;
 
-/**
- * Open an OAuth popup for `service`. Resolves with the success
- * payload (`{ ok: true, service }`) on a clean round-trip, rejects
- * on any failure path.
- *
- * @public
- */
 export function startOAuth(
 	service: string,
 	options: StartOAuthOptions = {},
@@ -195,9 +154,6 @@ function openPopupAndWait(
 
 		window.addEventListener( 'message', onMessage );
 
-		// Detect a popup the user closed without completing the flow —
-		// no `'beforeunload'` cross-origin signal, so polling is the
-		// only reliable mechanism.
 		pollTimer = window.setInterval( () => {
 			if ( popup.closed ) {
 				cleanup();
@@ -228,8 +184,7 @@ function readRestRoot(): string {
 	if ( typeof root === 'string' && root !== '' ) {
 		return root;
 	}
-	// Fallback: derive from the current origin. Plugins activated
-	// before the shell config lands still get a working start path.
+
 	return `${ window.location.origin }/wp-json/`;
 }
 

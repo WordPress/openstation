@@ -1,15 +1,3 @@
-/**
- * Tests for `src/mode/zoom-guard.ts` — no page zoom on a phone or in
- * an installed app.
- *
- * Pins:
- * - the guard is in force under either stamp, `mobile` or
- *   `standalone`, and reads them at event time;
- * - it cancels Safari's `gesture*` events, a two-finger `touchmove`
- *   and a control-key `wheel` — and nothing else;
- * - a desktop in a browser tab keeps its zoom;
- * - the uninstaller removes every listener.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { installZoomGuard, zoomGuardActive } from '../../src/mode/zoom-guard';
 
@@ -85,6 +73,6 @@ describe( 'installZoomGuard', () => {
 		expect( fire( 'gesturestart' ).defaultPrevented ).toBe( false );
 		expect( fire( 'touchmove', { touches: [ {}, {} ] } ).defaultPrevented ).toBe( false );
 		expect( fire( 'wheel', { ctrlKey: true } ).defaultPrevented ).toBe( false );
-		// `afterEach` calls it again; that must be harmless.
+
 	} );
 } );

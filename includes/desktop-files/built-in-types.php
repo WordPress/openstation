@@ -1,22 +1,7 @@
 <?php
-/**
- * OpenStation — built-in file-type registrations.
- *
- * Registers the file types that ship with the plugin
- * through the same public API third-party plugins use. Hooked on
- * `init` priority 5 so the types land in the registry before the
- * shell config is built and before any third-party plugin that
- * wants to react via `openstation_file_type_registered`.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Registers the built-in file types (post, attachment, user,
- * term, comment, bookmark, folder, shortcut, link, embed).
- */
 function openstation_register_builtin_file_types() {
 	$types = array(
 		array(

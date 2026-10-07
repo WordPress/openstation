@@ -1,26 +1,3 @@
-/**
- * `<os-progress-bar>` — determinate or indeterminate progress indicator.
- *
- * Drop-in:
- *
- * ```html
- * <os-progress-bar value="42"></os-progress-bar>
- * <os-progress-bar indeterminate label="Uploading…"></os-progress-bar>
- * <os-progress-bar value="280" max="320" tone="success"
- *     label="hero.jpg" show-percent></os-progress-bar>
- * ```
- *
- * Determinate: set `value` (and optionally `max`, default `100`). The
- * fill width animates between updates. Indeterminate: set the boolean
- * `indeterminate` attribute — a 33% bar sweeps across the track on a
- * 1.1s linear loop.
- *
- * Tone (`default | success | warning | danger`) tints the fill via the
- * shared `--os-status-*` palette so the bar reads the same as
- * the rest of the shell. Every visual surface — track, fill, height,
- * radius, label color/size — is overridable via CSS custom properties.
- */
-
 import { Component, defineComponent, html, type TemplateResult } from '../../core';
 import { styles } from './os-progress-bar.styles';
 
@@ -155,13 +132,6 @@ export class OsProgressBar extends Component {
 			percentEl.textContent = `${ percent }%`;
 		}
 
-		// Mirror ARIA onto BOTH the host AND the inner track. Some
-		// browser / AT combos don't surface shadow-DOM `role` to
-		// the accessibility tree, so the host carries the canonical
-		// progressbar semantics (matching how native `<progress>`
-		// exposes itself). The inner track keeps a copy so authors
-		// inspecting the shadow root for styling tests still see
-		// the role they expect.
 		this._syncAria( max, value, indeterminate, label );
 		const track = root.querySelector( '.track' ) as HTMLElement | null;
 		if ( track ) {
@@ -182,11 +152,6 @@ export class OsProgressBar extends Component {
 		}
 	}
 
-	/**
-	 * Track which `aria-label` values we wrote ourselves so an
-	 * author-provided `aria-label` is never clobbered by a `label`
-	 * change. Without this we'd overwrite on every paint.
-	 */
 	private _ownedAriaLabel: string | null = null;
 
 	private _syncAria(
@@ -204,10 +169,7 @@ export class OsProgressBar extends Component {
 			this.setAttribute( 'aria-valuemax', String( max ) );
 			this.setAttribute( 'aria-valuenow', String( value ) );
 		}
-		// Mirror `label` → `aria-label` on the host so AT reads it
-		// even when the visible header is hidden by `show-percent`
-		// off + no label space. If the author wrote their own
-		// `aria-label`, leave it alone.
+
 		const existing = this.getAttribute( 'aria-label' );
 		if ( label ) {
 			if ( existing === null || existing === this._ownedAriaLabel ) {
@@ -226,8 +188,7 @@ export class OsProgressBar extends Component {
 			return 100;
 		}
 		const raw = parseFloat( attr );
-		// Keep non-positive values verbatim so the indeterminate
-		// fallback can see them; clamp only `NaN` to the default.
+
 		return Number.isFinite( raw ) ? raw : 100;
 	}
 

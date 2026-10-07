@@ -1,17 +1,8 @@
-/**
- * The main-process freed-window registry.
- *
- * Bookkeeping, not rendering: who is out, what happens when one closes,
- * what geometry it reopens at, and what URLs it refuses. None of that
- * needs a compositor, so none of it is tested with one.
- */
-
 import { describe, expect, test, vi } from 'vitest';
 
 import { FreeWindows, MIN_SIZE, screenNameFrom } from '../app/src/lib/free-windows';
 import type { CreateWindowOptions, FreeWindowHandle } from '../app/src/lib/free-windows';
 
-/** A BrowserWindow double that records handlers and lets tests fire them. */
 function fakeHandle() {
 	const handlers: Record< string, Array< ( ...args: unknown[] ) => void > > = {};
 	const record = { destroyed: false, focused: 0, minimized: false, title: '' };
@@ -55,9 +46,6 @@ function fakeHandle() {
 	};
 }
 
-/**
- * @param opts Overrides.
- */
 function harness( opts: { allow?: ( url: string ) => boolean } = {} ) {
 	const created: CreateWindowOptions[] = [];
 	const handles: ReturnType< typeof fakeHandle >[] = [];
@@ -135,9 +123,7 @@ describe( 'freeing a window', () => {
 	} );
 
 	test( 'refuses a URL the app is not allowed to open', () => {
-		// The preload already checked the scheme; the main process is
-		// the last gate before a window opens, and the page choosing
-		// the URL is exactly what an attacker might control.
+
 		const h = harness( { allow: ( url ) => url.startsWith( 'https://example.test' ) } );
 
 		const result = h.registry.free( { ...REQ, url: 'https://evil.test/' } );
@@ -229,8 +215,7 @@ describe( 'docking back', () => {
 	} );
 
 	test( 'quitting closes everything without docking anything back', () => {
-		// Otherwise quit fires a storm of dock-back messages at a
-		// renderer that is also going away.
+
 		const h = harness();
 		h.registry.free( REQ );
 		h.registry.free( { ...REQ, windowId: 'os-files' } );
@@ -264,8 +249,7 @@ describe( 'window events', () => {
 	} );
 
 	test( 'an iframe window follows the page, minus WordPress’s tab suffix', () => {
-		// The OS title bar names the window, and "Posts ‹ My Site —
-		// WordPress" is a browser tab's name, not a window's.
+
 		const h = harness();
 		h.registry.free( REQ );
 		const prevented = vi.fn();
@@ -281,9 +265,7 @@ describe( 'window events', () => {
 	} );
 
 	test( 'a native window keeps its OpenStation name', () => {
-		// Solo mode renders inside `index.php`, so the document title
-		// belongs to the shell page, not the window. Trash freed from
-		// there would otherwise rename itself "Dashboard".
+
 		const h = harness();
 		h.registry.free( { ...REQ, windowId: 'os-files', title: 'Trash', native: true } );
 
@@ -324,8 +306,7 @@ describe( 'screenNameFrom', () => {
 	} );
 
 	test( 'takes a title without the separator whole rather than mangling it', () => {
-		// A plugin that titles its own screens, or a translation that
-		// does not use Core's separator.
+
 		expect( screenNameFrom( 'My Plugin Dashboard', 'x' ) ).toBe(
 			'My Plugin Dashboard',
 		);

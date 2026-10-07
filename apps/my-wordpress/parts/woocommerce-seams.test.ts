@@ -1,12 +1,3 @@
-/**
- * The shared plugin seams the WooCommerce integration rides — fired
- * by the app exactly as WP Explorer fires them, so ONE subscriber
- * decorates both windows: `group-extras` over an open plugin folder,
- * `user-activate` on a person's double-click, the
- * `user-preview-actions` row, the `user-dossier-sections` fact
- * filter, and the flat-section rules that keep post mutations off
- * rows that are not posts (Woo's Orders).
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../../src/app-runtime/testing';
 import app, {
@@ -39,10 +30,6 @@ function installHooks(): void {
 	};
 }
 
-/**
- * A fact's label is an attribute on <os-fact> rendered into its own
- * shadow root, like <os-stat>'s — so it is not in light-DOM text.
- */
 function factLabels( root: ParentNode ): Array< string | null > {
 	return Array.from( root.querySelectorAll( 'os-fact' ) ).map( ( f ) =>
 		f.getAttribute( 'label' ),
@@ -167,7 +154,6 @@ describe( 'group-extras', () => {
 			( payload as { container: HTMLElement } ).container.textContent = 'Store totals';
 		} );
 
-		// `app.render()` runs the after-render pass, seams included.
 		const ctx = mount( state( { group: 'plugin:woocommerce' } ), data() );
 
 		expect( seen ).toHaveLength( 1 );
@@ -183,9 +169,6 @@ describe( 'group-extras', () => {
 		expect( payload.container.isConnected ).toBe( true );
 		expect( ctx.root.textContent ).toContain( 'Store totals' );
 
-		// Repaints must not re-fire (the panel would flicker and
-		// duplicate its request) — the stamp keeps one firing per
-		// folder.
 		app.render( ctx );
 		expect( seen ).toHaveLength( 1 );
 	} );
@@ -282,8 +265,7 @@ describe( 'user preview pane', () => {
 		expect( labels ).not.toContain( 'View activity footprint' );
 		const seenCtx = seen as unknown as { entityId: string; item: Record< string, unknown > };
 		expect( seenCtx.entityId ).toBe( 'wc-customers' );
-		// The item the subscriber reads carries the row's facts under
-		// the dossier's fields — where `ordersUrl` lives.
+
 		expect( seenCtx.item.openstation_woo_customer ).toMatchObject( { band: 'vip' } );
 	} );
 
@@ -346,8 +328,7 @@ describe( 'user preview pane', () => {
 
 		const ctx = mount( state( { section: 'wc-customers', item: 8 } ), withStats() );
 		const text = ctx.root.textContent ?? '';
-		// The stat tiles are <os-stat> — value/label/caption live on the
-		// element, not in light-DOM text.
+
 		const statText = Array.from( ctx.root.querySelectorAll( 'os-stat' ) )
 			.map( ( s ) => `${ s.getAttribute( 'value' ) } ${ s.getAttribute( 'label' ) } ${ s.getAttribute( 'caption' ) ?? '' }` )
 			.join( ' ' );
@@ -364,14 +345,12 @@ describe( 'user preview pane', () => {
 		expect( text ).toContain( 'AUTHOR' );
 		expect( text ).toContain( 'Author archive' );
 
-		// The Woo customer pane: same data, dossier stripped to bio —
-		// identity stays, every publishing block goes.
 		onFilter( 'os.my-wordpress.user-dossier-sections', () => [ 'bio' ] );
 		const gated = mount( state( { section: 'wc-customers', item: 8 } ), withStats() );
 		const gatedText = gated.root.textContent ?? '';
 		expect( factLabels( gated.root ) ).toContain( 'Email' );
 		expect( gatedText ).toContain( 'AUTHOR' );
-		// The whole stat strip goes with the publishing blocks.
+
 		expect( gated.root.querySelector( 'os-stat' ) ).toBeNull();
 		expect( gatedText ).not.toContain( 'Comments received' );
 		expect( gatedText ).not.toContain( 'Activity (last 12 months)' );

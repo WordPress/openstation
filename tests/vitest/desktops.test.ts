@@ -1,14 +1,3 @@
-/**
- * Behavioural + hook-firing tests for the multi-desktop ("Spaces")
- * support in {@link WindowManager}. Covers:
- *
- *   - default desktop registry shape
- *   - createDesktop / switchDesktop / closeDesktop semantics
- *   - window visibility tracks the active desktop
- *   - last-desktop-cannot-be-closed invariant
- *   - migration target picks the left neighbour by default
- *   - the os.os.* action firings
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { restoreSession } from '../../src/boot/session';
 import { WindowManager } from '../../src/window-manager';
@@ -37,14 +26,6 @@ function openConfig( id: string ) {
 	};
 }
 
-/**
- * Fire a synthetic `transitionend` for the `opacity` property on `el`.
- *
- * `Window.minimize()` registers a one-shot `transitionend` listener that
- * hides `content-visibility` and iframe visibility once the opacity
- * transition settles. This helper lets tests advance past that listener
- * without waiting on real animation frames.
- */
 function dispatchOpacityTransitionEnd( el: HTMLElement ): void {
 	const event = new Event( 'transitionend' ) as TransitionEvent;
 	Object.defineProperty( event, 'propertyName', { value: 'opacity' } );
@@ -80,11 +61,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	afterEach( async () => {
-		// Several tests enter overview without explicitly exiting it.
-		// `manager.destroy()` cancels the pending overview transition
-		// timers (and, if still active, runs a synchronous exit) so
-		// none of them fire later and reach for `window.wp.hooks`
-		// after `clearHooksStub()` below has removed it.
+
 		manager.destroy();
 		vi.useRealTimers();
 		for ( const win of manager.getAll() ) {
@@ -137,13 +114,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 		manager.switchDesktop( second.id );
 		const b = await manager.open( openConfig( 'b' ) );
 
-		// On desktop-2 now: a hidden, b shown.
 		expect( a.element.style.display ).toBe( 'none' );
 		expect( b.element.style.display ).toBe( '' );
 
 		manager.switchDesktop( 'desktop-1' );
 
-		// Back on desktop-1: a shown, b hidden.
 		expect( a.element.style.display ).toBe( '' );
 		expect( b.element.style.display ).toBe( 'none' );
 	} );
@@ -160,16 +135,13 @@ describe( 'WindowManager — virtual desktops', async () => {
 			{ name: 'os.os.window-moved', args: [ { windowId: 'a', from: 'desktop-1', to: second.id } ] },
 		] );
 
-		// Back onto the active desk: visible again.
 		expect( manager.moveWindowToDesktop( 'a', 'desktop-1' ) ).toBe( true );
 		expect( a.element.style.display ).toBe( '' );
 		expect( log ).toHaveLength( 2 );
 
-		// Already there: a no-op that reports success and fires nothing.
 		expect( manager.moveWindowToDesktop( 'a', 'desktop-1' ) ).toBe( true );
 		expect( log ).toHaveLength( 2 );
 
-		// Unknown window or desk: refused.
 		expect( manager.moveWindowToDesktop( 'nope', second.id ) ).toBe( false );
 		expect( manager.moveWindowToDesktop( 'a', 'desktop-99' ) ).toBe( false );
 		expect( a.config.desktopId ).toBe( 'desktop-1' );
@@ -218,8 +190,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		manager.closeDesktop( second.id );
 
-		// b migrated to desktop-1 (the left neighbour) and is now visible
-		// because we also auto-switched to that survivor.
 		expect( b.config.desktopId ).toBe( 'desktop-1' );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 		expect( a.element.style.display ).toBe( '' );
@@ -231,8 +201,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( payload.desktopId ).toBe( second.id );
 		expect( payload.migratedTo ).toBe( 'desktop-1' );
 
-		// The active desk changed, so switch listeners (the workspace
-		// view among them) must hear it, after the close.
 		expect( log.map( ( e ) => e.name ) ).toEqual( [
 			'os.os.closed',
 			'os.os.switched',
@@ -266,9 +234,8 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'closing a non-active desktop does not change the active id', async () => {
-		manager.createDesktop(); // desktop-2
-		const third = manager.createDesktop(); // desktop-3
-		// Active is still desktop-1.
+		manager.createDesktop();
+		const third = manager.createDesktop();
 
 		const log = recordActions( hooks, DESKTOP_HOOKS );
 
@@ -285,7 +252,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'closing the active desktop while in overview re-lays out the survivor', async () => {
-		// Set up: two windows on D1 (active), one on D2.
+
 		await manager.open( openConfig( 'a' ) );
 		await manager.open( openConfig( 'b' ) );
 		const second = manager.createDesktop();
@@ -293,27 +260,21 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const c = await manager.open( openConfig( 'c' ) );
 		manager.switchDesktop( 'desktop-1' );
 
-		// Enter overview — D1 windows pick up the --overview class.
 		manager.enterOverview();
 		const a = manager.getById( 'a' )!;
 		const b = manager.getById( 'b' )!;
 		expect( a.element.classList.contains( 'os-window--overview' ) ).toBe( true );
 		expect( b.element.classList.contains( 'os-window--overview' ) ).toBe( true );
-		// `c` is on the inactive desktop — hidden, no overview class.
+
 		expect( c.element.style.display ).toBe( 'none' );
 		expect( c.element.classList.contains( 'os-window--overview' ) ).toBe( false );
 
-		// Close the active desktop. Survivor (desktop-2) absorbs a + b
-		// AND becomes active. Since we're in overview, the grid must
-		// re-lay out for the new active set: a, b, c all on desktop-2,
-		// all visible, all carrying the overview class.
 		manager.closeDesktop( 'desktop-1' );
 
 		expect( manager.getActiveDesktopId() ).toBe( second.id );
 		expect( a.config.desktopId ).toBe( second.id );
 		expect( b.config.desktopId ).toBe( second.id );
-		// All three windows are now on the active desktop and back in
-		// the grid — none hidden, none missing the overview class.
+
 		expect( a.element.style.display ).toBe( '' );
 		expect( b.element.style.display ).toBe( '' );
 		expect( c.element.style.display ).toBe( '' );
@@ -323,11 +284,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'enterOverview shows minimized windows in grid without restoring them', async () => {
-		// Previously the "Show Desktop → Overview" path auto-restored
-		// all minimized windows to avoid an empty grid. Now minimized
-		// windows participate in the grid directly, preserving the
-		// user's minimization choice but rendering them as visible
-		// thumbnails (dimmed via CSS).
+
 		const a = await manager.open( openConfig( 'a' ) );
 		const b = await manager.open( openConfig( 'b' ) );
 		a.minimize();
@@ -337,10 +294,9 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		manager.enterOverview();
 
-		// Windows stay minimized — overview does not auto-restore.
 		expect( a.state ).toBe( 'minimized' );
 		expect( b.state ).toBe( 'minimized' );
-		// But they now participate in the grid thumbnails.
+
 		expect(
 			a.element.classList.contains( 'os-window--overview' ),
 		).toBe( true );
@@ -350,11 +306,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'enterOverview makes completed-minimize windows renderable for thumbnails', async () => {
-		// Regression guard for the "minimized thumbnail renders blank" bug.
-		// After the minimize transition fires, `content-visibility: hidden`
-		// and `iframe.style.visibility = 'hidden'` are set on the window.
-		// enterOverview must reverse these so the overview thumbnail shows
-		// actual content instead of a blank slot.
+
 		const a = await manager.open( openConfig( 'a' ) );
 		a.minimize();
 		dispatchOpacityTransitionEnd( a.element );
@@ -379,10 +331,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'pending minimize transition does not re-hide an overview thumbnail', async () => {
-		// The minimize() transitionend listener must NOT re-apply
-		// content-visibility/iframe visibility when the window is in overview
-		// mode. If it did, the thumbnail would go blank again after the
-		// transition fires, undoing enterOverview's render-suppression fix.
+
 		const a = await manager.open( openConfig( 'a' ) );
 		a.minimize();
 
@@ -401,12 +350,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'selecting a minimized fullscreen thumbnail restores fullscreen class before restore', async () => {
-		// When a minimized fullscreen window is selected in overview, the
-		// `--fullscreen` class must be reapplied on the DOM element *before*
-		// the win.restore() call. If the class is not present when the state
-		// flips to 'fullscreen', the exit-overview layout logic will treat it
-		// as a regular window and skip the fullscreen resize path, leaving the
-		// thumbnail-sized layout after selection.
+
 		const a = await manager.open( openConfig( 'a' ) );
 		a.toggleFullscreen();
 		a.minimize();
@@ -558,12 +502,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 're-entering overview mid-exit does not re-fullscreen a thumbnail', async () => {
-		// Double-tapping the overview trigger lands the second enter
-		// inside the 280 ms exit animation. The outgoing session's timer
-		// must not survive into the new one — if it does, it fires
-		// mid-session and re-applies `--fullscreen` to a thumbnail that
-		// is currently laid out in the grid, blowing it up to full size
-		// and taking the admin bar with it (the body class hides it).
+
 		vi.useFakeTimers();
 		const a = await manager.open( openConfig( 'a' ) );
 		a.toggleFullscreen();
@@ -573,11 +512,8 @@ describe( 'WindowManager — virtual desktops', async () => {
 		vi.advanceTimersByTime( 100 );
 		manager.enterOverview();
 
-		// The flush settled the first session, so the marker is back on
-		// for the SECOND session's layout — not a leftover of the first.
 		expect( a.element.dataset.osHadFullscreenBeforeOverview ).toBe( 'true' );
 
-		// Past the point the stale timer would have fired.
 		vi.advanceTimersByTime( 280 );
 
 		expect( manager._overviewActive ).toBe( true );
@@ -587,12 +523,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect(
 			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( false );
-		// The thumbnail is still laid out as one.
+
 		expect( a.element.classList.contains( 'os-window--overview' ) ).toBe(
 			true,
 		);
 
-		// And the second session still exits cleanly.
 		manager.exitOverview();
 		vi.advanceTimersByTime( 280 );
 
@@ -616,22 +551,17 @@ describe( 'WindowManager — virtual desktops', async () => {
 		vi.advanceTimersByTime( 100 );
 		manager.enterOverview();
 
-		// `exited` for session one lands BEFORE `entering` for session
-		// two — the order a listener expects, rather than arriving 180 ms
-		// into a session that is already up.
 		expect( log.map( ( e ) => e.name ) ).toEqual( [
 			HOOKS.OVERVIEW_ENTERING,
 			HOOKS.OVERVIEW_EXITED,
 			HOOKS.OVERVIEW_ENTERING,
 		] );
-		// The first session's top bar was torn down, not orphaned in the
-		// DOM behind the new one.
+
 		expect( firstTopBar?.isConnected ).toBe( false );
 		expect(
 			desktopArea.querySelectorAll( '.os-overview-top-bar' ),
 		).toHaveLength( 1 );
 
-		// The stale timer is gone — the new session's top bar survives.
 		vi.advanceTimersByTime( 280 );
 		expect( manager._overviewTopBar?.isConnected ).toBe( true );
 	} );
@@ -649,10 +579,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'enterOverview includes minimized windows in the grid thumbnails', async () => {
-		// When only some windows are minimized, the Overview grid now
-		// includes all windows (minimized and visible alike) so the
-		// tile count badge and the grid are consistent. Minimized
-		// windows appear dimmed via CSS.
+
 		const a = await manager.open( openConfig( 'a' ) );
 		const b = await manager.open( openConfig( 'b' ) );
 		const c = await manager.open( openConfig( 'c' ) );
@@ -665,16 +592,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( b.state ).toBe( 'normal' );
 		expect( c.state ).toBe( 'normal' );
 
-		// All three windows — minimized and visible — participate in
-		// the grid.
 		const gridTiles = manager._desktop.querySelectorAll< HTMLElement >(
 			'.os-window--overview',
 		);
 		expect( gridTiles ).toHaveLength( 3 );
 
-		// The count badge in the active desktop's tile matches the
-		// number of grid tiles — the original badge/grid mismatch
-		// regression is fixed.
 		const badge = manager._overviewTopBar!.querySelector(
 			'.os-overview-top-bar__tile-count',
 		);
@@ -683,13 +605,9 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'snapshot preserves geometry for windows on non-active desktops', async () => {
-		// Regression: when a window sits on a hidden (display: none)
-		// desktop, `offsetLeft/Top/Width/Height` all return 0 because
-		// the element isn't laid out. Snapshot must fall back to the
-		// inline style strings so a hard reload restores the user's
-		// saved position instead of "defaults at 0,0".
+
 		const a = await manager.open( openConfig( 'a' ) );
-		// Stamp known geometry on the active desktop's window.
+
 		a.element.style.left = '180px';
 		a.element.style.top = '120px';
 		a.element.style.width = '640px';
@@ -697,7 +615,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
-		// `a` is now on an inactive desktop → display: none.
+
 		expect( a.element.style.display ).toBe( 'none' );
 
 		const snap = manager.snapshot();
@@ -732,18 +650,9 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const snap = manager.snapshot();
 		const after = Date.now();
 
-		// `updated` is the server's stale-write ordering key. At second
-		// resolution the `keepalive` fetch and the `pagehide` beacon
-		// tie, and a stale payload can reinstate a closed window.
 		expect( snap.updated ).toBeGreaterThanOrEqual( before );
 		expect( snap.updated ).toBeLessThanOrEqual( after );
 	} );
-
-	// -----------------------------------------------------------------
-	// Active-desktop scoping for isActive / isActiveByBaseId /
-	// getAllByBaseIdOnActiveDesktop / minimizeAll / restoreFrom /
-	// toggleShowDesktop.
-	// -----------------------------------------------------------------
 
 	test( 'getAllByBaseIdOnActiveDesktop filters getAllByBaseId to the active desktop', async () => {
 		const a = await manager.open( {
@@ -763,26 +672,17 @@ describe( 'WindowManager — virtual desktops', async () => {
 			icon: 'dashicons-admin-generic',
 		} );
 
-		// Sanity: the unfiltered lookup spans every desktop.
 		expect( manager.getAllByBaseId( 'multi-app' ) ).toHaveLength( 2 );
 
-		// On desktop-2 (active): only `b` qualifies.
 		expect( manager.getAllByBaseIdOnActiveDesktop( 'multi-app' ) ).toEqual( [ b ] );
 
 		manager.switchDesktop( 'desktop-1' );
 
-		// Back on desktop-1: only `a` qualifies.
 		expect( manager.getAllByBaseIdOnActiveDesktop( 'multi-app' ) ).toEqual( [ a ] );
 	} );
 
 	test( 'isActive stops reporting true once its desktop is no longer active', async () => {
-		// Regression: switching to a desktop with no windows leaves
-		// `getFocused()` (last entry in the global z-order stack)
-		// still pointing at whatever was focused on the desktop the
-		// user just left — `switchDesktop` only re-focuses when the
-		// new desktop has a window to focus. Without the desktop
-		// check, `isActive('a')` would stay true even though `a` is
-		// no longer visible.
+
 		const a = await manager.open( openConfig( 'a' ) );
 		expect( manager.isActive( 'a' ) ).toBe( true );
 
@@ -807,14 +707,10 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const a = await manager.open( multiConfig() );
 		expect( manager.isActiveByBaseId( 'multi-app' ) ).toBe( true );
 
-		// Empty second desktop — `a` is still the last-focused window
-		// globally, but it lives on desktop-1, not the new active one.
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
 		expect( manager.isActiveByBaseId( 'multi-app' ) ).toBe( false );
 
-		// A second instance opened here becomes focused on the active
-		// desktop — baseId now reads active again, via a different id.
 		const b = await manager.open( multiConfig() );
 		expect( b.id ).not.toBe( a.id );
 		expect( manager.isActiveByBaseId( 'multi-app' ) ).toBe( true );
@@ -841,8 +737,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
 
-		// `a` lives on desktop-1, which isn't active — restoreFrom
-		// must leave it minimized even though it's in the list.
 		manager.restoreFrom( [ a ] );
 		expect( a.state ).toBe( 'minimized' );
 
@@ -866,12 +760,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	describe( 'Overview inert + tile structure', () => {
-		// Background chrome (admin sidebar, dock, widgets) and all windows
-		// are made inert on overview enter so Tab focus doesn't waste
-		// keystrokes navigating hidden UI behind the overview layer.
-		// The top admin bar (wpadminbar) is deliberately left active.
-		// Siblings inside wpbody-content (screen options, help, notices)
-		// are also inerted via inertWpBodyContentChildren.
+
 		test( 'enterOverview inerts background chrome, exitOverview restores it', async () => {
 			const toRemove: HTMLElement[] = [];
 
@@ -918,8 +807,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 				expect( sideDock.inert ).toBe( true );
 				expect( widgets.inert ).toBe( true );
 				expect( notice.inert ).toBe( true );
-				// Window root elements remain non-inert for thumbnail pointer clicks,
-				// while inner window child elements are inerted to trap keyboard focus.
+
 				expect( a.element.inert ).toBeFalsy();
 				expect( b.element.inert ).toBeFalsy();
 				expect( ( a.element.children[ 0 ] as HTMLElement ).inert ).toBe( true );
@@ -982,12 +870,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 			expect( a.state ).toBe( 'normal' );
 		} );
 
-		// Each desktop tile was a single <button>; the close X was a child
-		// inside it, making it unreachable by Tab. Fix: wrap the tile <button>
-		// and a sibling close <button> in a <div> wrapper so both are independently
-		// focusable. The "+" create-tile is wrapped too, but only so it
-		// inherits the tile's height — its wrapper holds the tile and an
-		// empty actions block, and no rename or close.
 		test( 'each desktop tile has a wrapper with three sibling buttons', async () => {
 			const extraDesktops = [ manager.createDesktop(), manager.createDesktop() ];
 			try {
@@ -1000,7 +882,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 					),
 				);
 
-				// 3 desktops + the "+" slot.
 				expect( wrappers ).toHaveLength( 4 );
 
 				const deskWrappers = wrappers.filter(
@@ -1011,8 +892,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 				);
 				expect( deskWrappers ).toHaveLength( 3 );
 
-				// Tile, edit pencil, close X — the latter two are
-				// SIBLINGS of the tile, which is itself a <button>.
 				for ( const wrapper of deskWrappers ) {
 					expect(
 						Array.from( wrapper.querySelectorAll( 'button' ) ).map(
@@ -1025,7 +904,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 					] );
 				}
 
-				// The "+" slot carries the tile and nothing else.
 				const addWrapper = wrappers.find( ( w ) =>
 					w.classList.contains(
 						'os-overview-top-bar__tile-wrapper--add',
@@ -1043,10 +921,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 			}
 		} );
 
-		// The global Enter handler must not exit overview when the user
-		// is focused on an explicit <button> (close X, desktop tile).
-		// Regression guard for BUG-4: prior behaviour intercepted every
-		// Enter as "commit", making the close X inaccessible by keyboard.
 		test( 'Enter on a focused button does not exit overview', async () => {
 			await manager.open( openConfig( 'a' ) );
 			manager.enterOverview();
@@ -1065,9 +939,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 			manager.exitOverview();
 		} );
 
-		// inertWpBodyContentChildren returns early when #wpbody-content
-		// is absent from the DOM. Verify enterOverview still completes
-		// without throwing.
 		test( 'enterOverview tolerates missing wpbody-content', async () => {
 			await manager.open( openConfig( 'a' ) );
 			expect( () => manager.enterOverview() ).not.toThrow();
@@ -1121,9 +992,6 @@ describe( 'WindowManager — destroy()', async () => {
 		manager.destroy();
 		expect( manager._overviewEnterTimeoutId ).toBeNull();
 
-		// Removing `window.wp.hooks` proves the cancelled timer never
-		// fires — a leaked one would throw reaching for it here, which
-		// is exactly the flake this regression test guards against.
 		clearHooksStub();
 		vi.advanceTimersByTime( 1000 );
 	} );
@@ -1201,13 +1069,11 @@ describe( 'WindowManager — cross-desktop window focus', () => {
 		expect( win2.isFocused() ).toBe( true );
 		expect( win2.element.style.display ).toBe( '' );
 
-		// Switch back to desktop 1
 		manager.switchDesktop( 'desktop-1' );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 		expect( win1.element.style.display ).toBe( '' );
 		expect( win2.element.style.display ).toBe( 'none' );
 
-		// Now focus win2 on desktop-2 from desktop-1
 		manager.focus( win2 );
 
 		expect( manager.getActiveDesktopId() ).toBe( second.id );
@@ -1226,10 +1092,8 @@ describe( 'WindowManager — cross-desktop window focus', () => {
 		const win1 = await manager.open( openConfig( 'win1' ) );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 
-		// Minimize the only window on desktop-1
 		win1.minimize();
 
-		// Should remain on desktop-1, NOT jump to desktop-2
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 		expect( win1.state ).toBe( 'minimized' );
 		expect( win2.element.style.display ).toBe( 'none' );
@@ -1247,7 +1111,6 @@ describe( 'WindowManager — cross-desktop window focus', () => {
 		expect( manager._overviewActive ).toBe( true );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 
-		// Focus win2 while mid-overview
 		manager.focus( win2 );
 
 		expect( manager.getActiveDesktopId() ).toBe( second.id );
@@ -1256,8 +1119,7 @@ describe( 'WindowManager — cross-desktop window focus', () => {
 	} );
 
 	test( 'session restore stays on the saved active desktop', async () => {
-		// The user left Desktop 1 empty and active, so the saved focus
-		// is the stack top on Desktop 2.
+
 		const session: Session = {
 			windows: [
 				{

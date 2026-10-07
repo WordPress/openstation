@@ -1,37 +1,3 @@
-/**
- * Content Graph — satellite layer.
- *
- * On node focus, this module fans the focused post's relationship
- * payload out around it as orbiting satellites. Each satellite is a
- * Pixi `Container` with a colour-tinted disc + a dashicon glyph (the
- * same icons WP admin uses for users / categories / comments / media /
- * revisions, so the visual reads as "WordPress" not "ad-hoc shapes").
- *
- * Layout: a single ring around the focused node with all satellites
- * evenly distributed by angle. Refs come from `flattenDetail` already
- * grouped by kind (author → contributors → terms → comments → media →
- * revisions), so the ring is visually banded by colour as you walk
- * around it without having to break it into separate concentric
- * orbits — that variant produced an off-balance cluster when most
- * posts have only a couple of satellites per kind.
- *
- * Behaviour:
- *   - Animates outward from the focused node's centre on entrance.
- *   - Hover highlight + DOM tooltip with label and meta.
- *   - On click, calls `onClick(ref)` — the host then routes the click
- *     to the contextual side panel (showUser / showTerm / etc.) rather
- *     than navigating away. The clicked satellite picks up a
- *     "selected" highlight (thicker stroke + soft halo) so the user
- *     can see what the panel content corresponds to.
- *   - Connector spokes from the focused node to each satellite render
- *     into a layer the scene places BEHIND the node disc (the node
- *     covers the spoke origin instead of being painted over by it).
- *   - Connector lines re-paint each animation tick so they track the
- *     focused node as it moves with the simulation.
- *
- * @public
- */
-
 import { __, sprintf } from '../i18n';
 import { resolveDashicon } from '../ui/components/os-icon/dashicons-map';
 import type {
@@ -42,10 +8,6 @@ import type {
 } from './pixi-types';
 import type { GraphNode, PostDetail } from './types';
 
-/**
- * Discriminated union — every satellite knows its own kind PLUS the
- * entity id needed to fetch its detail panel.
- */
 export type SatelliteRef =
   | {
       kind: 'user';
@@ -84,10 +46,6 @@ export type SatelliteRef =
 
 export type SatelliteOnClick = ( ref: SatelliteRef ) => void;
 
-/**
- * Lookup invoked by the scene on construction; given a post-type
- * slug, returns the dashicon name to render (e.g. `'admin-post'`).
- */
 export type PostTypeIconLookup = ( slug: string ) => string;
 
 const KIND_COLOR: Record<SatelliteRef['kind'], number> = {
@@ -100,23 +58,13 @@ const KIND_COLOR: Record<SatelliteRef['kind'], number> = {
 
 const KIND_DASHICON: Record<SatelliteRef['kind'], string> = {
 	user: 'admin-users',
-	// Fallback for term kinds we don't have a specific icon for.
-	// Per-taxonomy lookup (see `iconForTermRef`) overrides this for
-	// the WordPress built-ins so categories don't share the tag's
-	// visual identity.
+
 	term: 'tag',
 	comment: 'admin-comments',
 	media: 'admin-media',
 	revision: 'backup',
 };
 
-/**
- * Pick a dashicon for a term satellite based on its taxonomy.
- * Categories get the folder icon, tags keep the tag icon, anything
- * else falls back to the generic `term` icon — gives editors a
- * visual distinction between the two built-in WP taxonomies (which
- * were indistinguishable green-tag pills before).
- */
 function iconForTermRef( ref: Extract< SatelliteRef, { kind: 'term' } > ): string {
 	switch ( ref.taxonomy ) {
 		case 'category':
@@ -128,30 +76,13 @@ function iconForTermRef( ref: Extract< SatelliteRef, { kind: 'term' } > ): strin
 	}
 }
 
-/**
- * Per-icon visual-centre offset applied on top of the `(0.5, 0.5)`
- * anchor. Pixi.Text measures bbox = ascent + descent for the font; for
- * dashicons the descent is unused space below the baseline, so the
- * bbox-centred anchor parks the visible glyph ~ascent/2 above the
- * world-y=0 line. With `fontSize: 20`, ascent ≈ 17 + descent ≈ 5 →
- * bbox height ≈ 22 and the glyph centre sits ~3px above bbox centre.
- * A flat +3 y nudge brings the glyph onto the disc centre for every
- * kind; the comment glyph gets an additional +2 x nudge because the
- * speech-bubble bbox is left-loaded (bubble in upper-left, tail
- * trailing to the lower-right).
- */
 const KIND_ICON_NUDGE: Record<
 	SatelliteRef[ 'kind' ],
 	{ x: number; y: number }
 > = {
 	user: { x: 0, y: 3 },
 	term: { x: 0, y: 3 },
-	// The speech-bubble dashicon is intrinsically off-balance — even
-	// after the bbox is centred, the visible bubble drifts toward the
-	// upper-right because the tail-less side carries more glyph mass.
-	// Tuned by eye against the rendered output: pull a bit left, push
-	// a bit down. Don't pile on more correction without re-checking;
-	// what looks centred at one zoom can over-shoot at another.
+
 	comment: { x: 1, y: 4 },
 	media: { x: -1, y: 1 },
 	revision: { x: 0, y: 3 },
@@ -182,20 +113,13 @@ export class SatelliteLayer {
 
 	constructor(
     private pixi: PixiNamespace,
-    // Parent for the satellite icons themselves — drawn ABOVE the
-    // node layer so satellites sit in front of nodes.
+
     private satelliteParent: PixiContainer,
-    // Parent for the connector spokes — the scene places this BELOW
-    // the node layer so the spoke endpoints appear to start from
-    // behind the focused node disc rather than pasted over it.
+
     private spokeParent: PixiContainer,
     private onClick: SatelliteOnClick,
     private hostEl: HTMLElement,
-    // Called on satellite `pointerdown` so the scene can flip its
-    // pixi-click gate. Without this the canvas-level pan handler
-    // fires on the same pointer event, then the matching pointerup
-    // triggers `onBackgroundClick` and closes the panel right after
-    // `panel.show*()` opened the contextual view.
+
     private claimPointer: () => void,
 	) {
 		this.linkGfx = new pixi.Graphics();
@@ -224,10 +148,7 @@ export class SatelliteLayer {
 		if ( ! this.focused || this.views.length === 0 ) {
 			return;
 		}
-		// Trim the spoke origin from the focused node's CENTRE to its
-		// halo OUTER EDGE so lines stop at the disc boundary instead
-		// of running through it. The halo radius (`node.radius + 8`)
-		// matches the value the scene paints in `draw()`.
+
 		const halo = this.focused.radius + 8;
 		const fx = this.focused.x;
 		const fy = this.focused.y;
@@ -261,10 +182,6 @@ export class SatelliteLayer {
 			return;
 		}
 
-		// Single ring. Radius blends a base offset with the satellite
-		// count so a post with many satellites still has enough
-		// circumference to breathe; a post with few stays tight to
-		// the focused node instead of sprawling to the canvas edge.
 		const baseR = focused.radius;
 		const minSpacing = 36;
 		const ringR = Math.max(
@@ -289,13 +206,6 @@ export class SatelliteLayer {
 		this.animateIn();
 	}
 
-	/**
-	 * Mark a satellite by its synthetic key (e.g. `user:123`,
-	 * `term:category:42`). Pass `null` to clear. The selected satellite
-	 * gets a thicker stroke + soft halo so the user can see which one
-	 * matches the panel content. Auto-cleared by `clear()` and on a
-	 * fresh `setFocused()`.
-	 */
 	setSelectedKey( key: string | null ): void {
 		if ( this.selectedKey === key ) {
 			return;
@@ -351,7 +261,7 @@ export class SatelliteLayer {
 				taxonomy: t.taxonomy,
 				label: t.name,
 				meta: sprintf(
-					/* translators: 1: taxonomy label (e.g. Category, Tag). 2: post count for the term. */
+
 					__( '%1$s · %2$d posts' ),
 					t.tax_label,
 					t.count,
@@ -411,11 +321,7 @@ export class SatelliteLayer {
 		const dashName =
 			ref.kind === 'term' ? iconForTermRef( ref ) : KIND_DASHICON[ ref.kind ];
 		const iconChar = resolveDashicon( dashName );
-		// Bigger glyph + true bbox-centre anchor, then per-kind x/y
-		// nudge in KIND_ICON_NUDGE pushes the visible glyph (not the
-		// bbox) onto the disc centre. The `admin-comments` bubble
-		// needs the largest correction because the speech tail makes
-		// the bbox asymmetric — see the nudge comment above.
+
 		const icon = new this.pixi.Text( {
 			text: iconChar ?? '?',
 			style: {
@@ -432,12 +338,7 @@ export class SatelliteLayer {
 		container.addChild( icon );
 
 		const labelText = truncate( ref.label || '—', 28 );
-		// Draw the backing FIRST so it sits beneath the text, then
-		// the text itself. Without the backing, a satellite label that
-		// happens to overlap the focused-node disc or another label
-		// (e.g. "Recipe" landing on top of a neighbour-post label)
-		// becomes near-illegible — the backing pill keeps each
-		// satellite's name readable without competing for attention.
+
 		const labelBg = new this.pixi.Graphics();
 		container.addChild( labelBg );
 
@@ -457,10 +358,6 @@ export class SatelliteLayer {
 		label.y = DISC_RADIUS + 2;
 		container.addChild( label );
 
-		// Now that the text has measured itself, paint the backing
-		// pill behind it. Width is fixed for the lifetime of this
-		// satellite (label text doesn't mutate after construction),
-		// so this is a one-time draw, not per-frame.
 		const padX = 6;
 		const padY = 1;
 		const lw = label.width + padX * 2;
@@ -473,9 +370,7 @@ export class SatelliteLayer {
 		container.on( 'pointerdown', ( evt: unknown ) => {
 			const e = evt as { stopPropagation?: () => void };
 			e.stopPropagation?.();
-			// Tell the scene that a pixi-managed element is the click
-			// target. The canvas-level pointerdown listener checks
-			// this and bails out of pan/background-click setup.
+
 			this.claimPointer();
 		} );
 		container.on( 'pointerover', ( evt: unknown ) => {
@@ -495,11 +390,7 @@ export class SatelliteLayer {
 			const e = evt as { stopPropagation?: () => void };
 			e.stopPropagation?.();
 			this.hideTooltip();
-			// Auto-mark this satellite as selected so the visual flips
-			// instantly. The host can refine via `setSelectedKey()` if
-			// it ends up rendering a different view (e.g. fetch
-			// failure), but for the common path this avoids round-trip
-			// flicker.
+
 			this.setSelectedKey( keyForRef( ref ) );
 			this.onClick( ref );
 		} );
@@ -525,8 +416,6 @@ export class SatelliteLayer {
 		const fill = KIND_COLOR[ v.ref.kind ];
 		v.disc.clear();
 		if ( v.selected ) {
-			// Soft halo behind the disc so the selected satellite
-			// reads as "active" without yelling colour.
 			v.disc.circle( 0, 0, DISC_RADIUS + 6 ).fill( { color: fill, alpha: 0.18 } );
 		}
 		v.disc
@@ -576,14 +465,6 @@ export class SatelliteLayer {
       `<strong>${ escapeHtml( ref.label || '—' ) }</strong>` +
       ( ref.meta ? `<span>${ escapeHtml( ref.meta ) }</span>` : '' );
 		if ( global ) {
-			// Pixi v8's `event.global` is already in the canvas's local
-			// (CSS-pixel) coordinate space. The host element wraps the
-			// canvas with `position: relative` and no padding, so the
-			// canvas-local x/y is identical to the host-local x/y the
-			// tooltip needs. The previous code subtracted
-			// `host.getBoundingClientRect().left/top`, which was a
-			// viewport-coords value — that mismatch is what made the
-			// tooltip drift far from the cursor.
 			this.hoverEl.style.left = `${ global.x + 14 }px`;
 			this.hoverEl.style.top = `${ global.y + 14 }px`;
 		}
@@ -594,11 +475,6 @@ export class SatelliteLayer {
 	}
 }
 
-/**
- * Stable identity for a satellite — used by `setSelectedKey()` to mark
- * the visual selected state and by hosts that want to reason about
- * which satellite a click landed on without holding the ref directly.
- */
 export function keyForRef( ref: SatelliteRef ): string {
 	switch ( ref.kind ) {
 		case 'user':

@@ -1,22 +1,17 @@
-/**
- * The vinyl release card — an album sleeve (the release art) with a
- * CSS-drawn record that slides out; the close button fades it away.
- */
-
 import { markNoticeDismissed } from './ui/components/os-notice/storage';
 import { __ } from './i18n';
 import { osIconSvg } from './ui/icons';
 
 export interface ReleaseCardOptions {
-	/** Full, already-translated message (e.g. `WordPress 7.0 "Armstrong" is available.`). */
+
 	message: string;
 	artUrl: string;
-	/** Persistence key — the dismissal is recorded under this id. */
+
 	dismissKey: string;
-	/** Optional accent override; omit to derive it from the art. */
+
 	accent?: string;
 	accentInk?: string;
-	/** Invoked when the user clicks "Update now". */
+
 	onUpdate: () => void;
 }
 
@@ -139,8 +134,7 @@ function ensureHost(): HTMLElement {
 	}
 	const el = document.createElement( 'div' );
 	el.className = HOST_CLASS;
-	// Fixed top-right, above fullscreen windows — same anchor + z as the
-	// toast container. Host is click-transparent; the card opts back in.
+
 	el.style.cssText =
 		'position:fixed;' +
 		'top:calc(var(--os-admin-bar-height,var(--wp-admin--admin-bar--height,32px)) + 16px);' +
@@ -151,14 +145,6 @@ function ensureHost(): HTMLElement {
 	return el;
 }
 
-/**
- * Paint the square sleeve into the cover canvas + derive the accent from
- * it. Release art isn't visually consistent — most covers bleed to the
- * edge, some ship a uniform white frame — so we trim that frame first,
- * then take the left square (the sleeve; the record is to its right).
- * The sleeve is always drawn; the trim + accent are best-effort and skipped
- * if the canvas pixels can't be read (tainted / unsupported).
- */
 function paintSleeve(
 	root: HTMLElement,
 	canvas: HTMLCanvasElement,
@@ -183,15 +169,9 @@ function paintSleeve(
 				return;
 			}
 
-			// Baseline: draw the left square unconditionally so the sleeve is
-			// always visible (drawing a cross-origin image is fine even when
-			// reading its pixels isn't).
 			const baseSide = Math.min( w, h );
 			ctx.drawImage( img, 0, 0, baseSide, baseSide, 0, 0, size, size );
 
-			// Refine, best-effort: trim any uniform white frame + sample the
-			// accent. Both need readable pixel data — if that throws (tainted
-			// canvas), the baseline sleeve above stays.
 			try {
 				const work = document.createElement( 'canvas' );
 				work.width = w;
@@ -246,7 +226,7 @@ function paintSleeve(
 				}
 
 				const side = Math.max( 1, Math.min( right - left + 1, bottom - top + 1 ) );
-				// Redraw with the trimmed crop, replacing the baseline.
+
 				ctx.clearRect( 0, 0, size, size );
 				ctx.drawImage( img, left, top, side, side, 0, 0, size, size );
 
@@ -254,7 +234,7 @@ function paintSleeve(
 					extractAccent( root, ctx, size );
 				}
 			} catch {
-				// Pixel reads not allowed (tainted canvas) — keep the baseline sleeve.
+
 			}
 		},
 		{ once: true },
@@ -262,7 +242,6 @@ function paintSleeve(
 	img.src = artUrl;
 }
 
-/** Set `--accent` / `--accent-ink` on the card from the sleeve's dominant vivid color. */
 function extractAccent(
 	root: HTMLElement,
 	ctx: CanvasRenderingContext2D,
@@ -313,10 +292,6 @@ function extractAccent(
 	root.style.setProperty( '--accent-ink', lum > 0.6 ? '#1a1a1a' : '#ffffff' );
 }
 
-/**
- * Show the release card. Replaces any card already showing. Returns a
- * dismiss callback the caller can invoke early (removes without animation).
- */
 export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 	ensureStyles();
 	const host = ensureHost();
@@ -343,8 +318,6 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 		'<div class="dm-rc__meta"><span class="dm-rc__text"></span>' +
 		'<button type="button" class="dm-rc__btn"></button></div>';
 
-	// Message + labels as text (never interpolate untrusted content into HTML,
-	// and keep the whole sentence in one translated string).
 	( root.querySelector( '.dm-rc__text' ) as HTMLElement ).textContent = opts.message;
 
 	const closeBtn = root.querySelector( '.dm-rc__close' ) as HTMLButtonElement;
@@ -373,7 +346,6 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 		root.remove();
 	};
 
-	// Close button → fade out + persist so it won't reappear.
 	closeBtn.addEventListener(
 		'click',
 		( e ) => {
@@ -392,7 +364,7 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 				return;
 			}
 			done = true;
-			// Clear the entrance animation so the inline opacity applies.
+
 			root.style.animation = 'none';
 			root.style.transition = 'opacity 0.2s ease';
 			requestAnimationFrame( () => {

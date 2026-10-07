@@ -1,15 +1,3 @@
-/**
- * WP Explorer — Agents: REST client over `/desktop-mode/v1/agents`.
- *
- * Every call routes through `trackedFetch` (source
- * `desktop-mode/agents`) with the shell's REST root + nonce
- * (`wp.os.config` — the boot payload every shell page carries).
- * Errors are normalized to `Error` instances carrying the server's
- * `message` when one exists.
- *
- * @public
- */
-
 import { agentRequestId, runAgentJob } from '../../../src/agents-jobs';
 import { trackedFetch } from '../../../src/tracked-fetch';
 import { restErrorFromBody } from '../../../src/core/api-client';
@@ -80,13 +68,7 @@ export interface CreateAgentPayload {
 	role: string;
 	description?: string;
 	instructions?: string;
-	/**
-	 * The whole definition goes in the CREATE call, abilities and
-	 * triggers included. No follow-up patch: the route's arg list
-	 * accepts every one of these and `openstation_agent_create()`
-	 * writes them, so an agent is never briefly on the site in a
-	 * half-configured state.
-	 */
+
 	abilities?: string[];
 	triggers?: Trigger[];
 	vibes?: string;
@@ -101,12 +83,6 @@ export function createAgent( payload: CreateAgentPayload ): Promise< Agent > {
 	} );
 }
 
-/**
- * `POST /agents/draft`: a definition drafted from a brief.
- *
- * One AI generate call with a strict answer schema, filtered against
- * the site's catalogues on the server. Creates nothing.
- */
 export function draftAgent( brief: string ): Promise< AgentDraft > {
 	return request< AgentDraft >( agentsUrl( '/draft' ), {
 		method: 'POST',
@@ -170,11 +146,6 @@ export function fetchRoles(): Promise< RoleChoice[] > {
 	return request< RoleChoice[] >( agentsUrl( '/roles' ) );
 }
 
-/**
- * Live AI-provider probe against the Copilot's `/ai/status` route.
- * Returns null when the route errors (e.g. AI unavailable) — the
- * caller treats that as "not configured".
- */
 export async function fetchAiStatus(
 	statusUrl: string,
 ): Promise< { available: boolean; providerConfigured: boolean } | null > {

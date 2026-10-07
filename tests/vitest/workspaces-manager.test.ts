@@ -1,13 +1,3 @@
-/**
- * Workspace operations: create, edit, provision, and the server sync.
- *
- * The one with real ordering in it is provisioning, and the rule it
- * exists to pin is that the launch list runs **once per workspace, not
- * once per visit**. Close a window the workspace opened, switch away,
- * come back — the desk stays as the user left it. Get that wrong and
- * the workspace refuses to be tidied.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import type { NavItem } from '../../src/nav';
@@ -74,8 +64,7 @@ function navItems(): NavItem[] {
 			icon: 'dashicons-admin-generic',
 			windowId: 'my-panel',
 		},
-		// A control, so the tests that must never name one have one
-		// to not name.
+
 		{
 			id: 'os-exit',
 			kind: 'control',
@@ -141,11 +130,7 @@ describe( 'workspace operations', () => {
 	} );
 
 	afterEach( async () => {
-		// `provisionWorkspace` settles two animation frames later — the
-		// layout pass and the `os.workspaces.provisioned` action. A test
-		// that returns before those frames land would leave the action to
-		// fire against a torn-down hooks stub, an unhandled error that
-		// only shows on a slow runner. Let the frames drain first.
+
 		await new Promise< void >( ( resolve ) =>
 			requestAnimationFrame( () => requestAnimationFrame( resolve ) ),
 		);
@@ -169,14 +154,14 @@ describe( 'workspace operations', () => {
 		const profile = getWorkspaceProfile( manager, created.id );
 		expect( profile?.preset ).toBe( 'publishing' );
 		expect( profile?.layout ).toBe( 'focus' );
-		// The rails answer to the profile, so a write has to repaint.
+
 		expect( refreshLayout ).toHaveBeenCalled();
 	} );
 
 	test( 'create() without a template leaves a plain Space', () => {
 		const created = createWorkspace( deps, { activate: false } );
 		expect( getWorkspaceProfile( manager, created.id ) ).toBeNull();
-		// Not activated: the caller said so.
+
 		expect( manager.getActiveDesktopId() ).not.toBe( created.id );
 	} );
 
@@ -213,9 +198,7 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'provision opens the launch list once and never again', async () => {
-		// `openNew`, not `open`: a desk's list declares N windows, and
-		// two entries that resolve to one window (two tabs of the
-		// native Posts window) have to be two of them.
+
 		const open = vi
 			.spyOn( manager, 'openNew' )
 			.mockResolvedValue( {} as never );
@@ -241,14 +224,12 @@ describe( 'workspace operations', () => {
 			url: `${ ADMIN_URL }post-new.php`,
 			desktopId: created.id,
 		} );
-		// An entry with no url opens the matched item's native window.
+
 		expect( openNative ).toHaveBeenCalledWith( 'my-panel' );
 		expect(
 			getWorkspaceProfile( manager, created.id )?.provisioned,
 		).toBe( true );
 
-		// Second pass: the user has since closed one of these, and the
-		// desk must stay as they left it.
 		open.mockClear();
 		openNative.mockClear();
 		provisionWorkspace( deps, created.id );
@@ -257,8 +238,7 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'a focus desk leads with its first entry, not the window that opened last', async () => {
-		// The Publishing template: the blank draft first, the Posts list
-		// second, so the list is the window focused when the layout runs.
+
 		const created = createWorkspace( deps, { preset: 'publishing' } );
 
 		provisionWorkspace( deps, created.id );
@@ -270,15 +250,13 @@ describe( 'workspace operations', () => {
 			manager
 				.getAll()
 				.find( ( w ) => w.config.url === `${ ADMIN_URL }${ page }` )!;
-		// The work area is 1568 wide after padding; the lead takes 0.64.
+
 		expect( pageOf( 'post-new.php' ).element.style.left ).toBe( '16px' );
 		expect( pageOf( 'post-new.php' ).element.style.width ).toBe(
 			`${ Math.floor( 1568 * 0.64 ) }px`,
 		);
 		expect( pageOf( 'edit.php' ).element.style.left ).not.toBe( '16px' );
 
-		// Restore puts the desk back the way it was defined, whichever
-		// window the user reached for since.
 		manager.focus( pageOf( 'edit.php' ) );
 		provisionWorkspace( deps, created.id, { force: true } );
 		await new Promise< void >( ( resolve ) =>
@@ -288,8 +266,6 @@ describe( 'workspace operations', () => {
 		expect( pageOf( 'post-new.php' ).element.style.left ).toBe( '16px' );
 		expect( pageOf( 'edit.php' ).element.style.left ).not.toBe( '16px' );
 
-		// A reload bringing the list back re-arranges the desk, and the
-		// reopened list, focused as it lands, still takes the margin.
 		pageOf( 'edit.php' ).close();
 		reopenWorkspaceWindows( deps, created.id );
 		for ( let i = 0; i < 2; i++ ) {
@@ -329,11 +305,9 @@ describe( 'workspace operations', () => {
 				color: '',
 				apps: { mode: 'all', ids: [] },
 				windows: [
-					// A page the opt-in gives a native window: the desk
-					// must get THAT window, not an iframe of the URL.
+
 					{ match: 'edit.php', url: 'post-new.php' },
-					// One nothing claims still carries the menu's own
-					// metadata, so it comes up with its tab strip.
+
 					{ match: 'edit.php', url: 'edit.php' },
 				],
 				layout: 'free',
@@ -352,9 +326,6 @@ describe( 'workspace operations', () => {
 			selfLabel: 'All Posts',
 		} );
 
-		// Restore is the user asking again, and an intact desk has to
-		// come out of it with the windows it had rather than a second
-		// set: every entry takes a window before it opens one.
 		openNew.mockRestore();
 		const baseId = deps.deriveWindowId(
 			absoluteAdminUrl( 'edit.php', ADMIN_URL ),
@@ -380,21 +351,18 @@ describe( 'workspace operations', () => {
 				icon: 'dashicons-desktop',
 				color: '',
 				apps: { mode: 'all', ids: [] },
-				// The Publishing desk's pair, and a native window.
+
 				windows: [
 					{ match: 'edit.php', url: 'post-new.php' },
 					{ match: 'edit.php', url: 'edit.php' },
 					{ match: 'my-panel' },
 				],
 				layout: 'free',
-				// Already provisioned once — this is the F5 case.
+
 				provisioned: true,
 			},
 		} );
 
-		// Session restore brought the Posts list back, under the ids a
-		// launch opens it with, on the Categories tab the user had
-		// switched it to; the draft and the native window they closed.
 		const baseId = deps.deriveWindowId(
 			absoluteAdminUrl( 'edit.php', ADMIN_URL ),
 		);
@@ -411,14 +379,11 @@ describe( 'workspace operations', () => {
 
 		reopenWorkspaceWindows( deps, created.id );
 
-		// The list is left alone and the draft comes back, not a
-		// second list: the draft's entry comes first, but the window
-		// is the list's by its id, whichever page it is on.
 		expect( open ).toHaveBeenCalledTimes( 1 );
 		expect( open.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
 			url: `${ ADMIN_URL }post-new.php`,
 		} );
-		// …and the closed native one is.
+
 		expect( openNative ).toHaveBeenCalledWith( 'my-panel' );
 	} );
 
@@ -437,9 +402,7 @@ describe( 'workspace operations', () => {
 				provisioned: true,
 			},
 		} );
-		// A second Publishing desk: the first holds the ids its
-		// entries open under, so this one's windows landed on suffixed
-		// ids that name no entry.
+
 		const baseId = deps.deriveWindowId(
 			absoluteAdminUrl( 'edit.php', ADMIN_URL ),
 		);
@@ -458,15 +421,11 @@ describe( 'workspace operations', () => {
 
 		provisionWorkspace( deps, created.id, { force: true } );
 
-		// The list is on its page, so Restore brings back the draft.
 		expect( open ).toHaveBeenCalledTimes( 1 );
 		expect( open.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
 			url: `${ ADMIN_URL }post-new.php`,
 		} );
 
-		// A draft saved since is on no entry's page, but it is still
-		// the draft: with nothing closer, that entry takes what the
-		// list's entry left.
 		open.mockRestore();
 		await openOnDesk( `${ baseId }-2`, 'post.php?post=5&action=edit' );
 		const again = vi
@@ -501,21 +460,17 @@ describe( 'workspace operations', () => {
 		} );
 		refreshLayout.mockClear();
 
-		// A desk that came back whole keeps any window moved by hand.
 		reopenWorkspaceWindows( deps, created.id );
 		await new Promise< void >( ( resolve ) =>
 			requestAnimationFrame( () => requestAnimationFrame( () => resolve() ) ),
 		);
 		expect( tile ).not.toHaveBeenCalled();
 
-		// A window it brings back has no place of its own, so the desk
-		// gets its arrangement back with it.
 		list.destroy();
 		await vi.waitFor( () => expect( manager.getById( baseId ) ).toBeUndefined() );
 		reopenWorkspaceWindows( deps, created.id );
 		await vi.waitFor( () => expect( tile ).toHaveBeenCalledTimes( 1 ) );
 
-		// And `provisioned` is not written again.
 		expect( refreshLayout ).not.toHaveBeenCalled();
 	} );
 
@@ -525,12 +480,9 @@ describe( 'workspace operations', () => {
 			.mockResolvedValue( {} as never );
 		vi.spyOn( manager, 'getById' ).mockReturnValue( undefined );
 
-		// A plain Space — no profile at all.
 		const plain = createWorkspace( deps, {} );
 		reopenWorkspaceWindows( deps, plain.id );
 
-		// A workspace whose launch list has never run: that is
-		// `provisionWorkspace`'s job, not this one's.
 		const fresh = createWorkspace( deps, {
 			profile: {
 				preset: '',
@@ -585,11 +537,9 @@ describe( 'workspace operations', () => {
 			},
 		} );
 
-		// Not forced: already provisioned, so nothing happens.
 		provisionWorkspace( deps, created.id );
 		expect( open ).not.toHaveBeenCalled();
 
-		// Forced — the user pressed "Open them now".
 		provisionWorkspace( deps, created.id, { force: true } );
 		expect( open ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -612,18 +562,13 @@ describe( 'workspace operations', () => {
 
 		const captured = captureWorkspaceWindows( manager, created.id );
 
-		// `toMatchObject`: each entry also carries a `place` (where the
-		// window is, as fractions of the work area), which the
-		// positioning test below pins on its own.
 		expect( captured ).toMatchObject( [
 			{
 				match: 'edit-php',
 				title: 'Posts',
 				url: `${ ADMIN_URL }edit.php`,
 			},
-			// A native window carries no url — its `#slug` is a marker,
-			// never somewhere to navigate — so it reopens through the
-			// registry instead.
+
 			{ match: 'my-panel', title: 'My panel' },
 		] );
 		expect( captured[ 1 ] ).not.toHaveProperty( 'url' );
@@ -631,7 +576,7 @@ describe( 'workspace operations', () => {
 
 	test( 'capture records where each window is, in a form that survives a resize', async () => {
 		const created = createWorkspace( deps, { preset: 'publishing' } );
-		// A free window: its box becomes fractions of the work area.
+
 		const free = await manager.open( {
 			id: 'edit-php',
 			url: `${ ADMIN_URL }edit.php`,
@@ -644,7 +589,7 @@ describe( 'workspace operations', () => {
 		Object.defineProperty( free.element, 'offsetTop', { value: 90, configurable: true } );
 		Object.defineProperty( free.element, 'offsetWidth', { value: 800, configurable: true } );
 		Object.defineProperty( free.element, 'offsetHeight', { value: 450, configurable: true } );
-		// A grid-snapped window: its cells come along as they are.
+
 		const snapped = await manager.open( {
 			id: 'upload-php',
 			url: `${ ADMIN_URL }upload.php`,
@@ -687,17 +632,14 @@ describe( 'workspace operations', () => {
 		} );
 
 		expect( saved?.windows.map( ( w ) => w.match ) ).toEqual( [ 'edit-php' ] );
-		// The positions ARE the arrangement now; an algorithm re-laying
-		// them out would undo the thing just saved.
+
 		expect( saved?.layout ).toBe( 'free' );
-		// What it would open is already open.
+
 		expect( saved?.provisioned ).toBe( true );
 		expect( saved?.widgets ).toEqual( { mode: 'only', ids: [ 'clock', 'desktop-mode/notes' ] } );
-		// Controls are never named: the narrowing cannot hide them
-		// and a checklist should not offer "Exit" as a choice.
+
 		expect( saved?.apps ).toEqual( { mode: 'only', ids: [ 'edit-php', 'my-panel' ] } );
-		// The template's own identity is kept — this is the same desk,
-		// opening differently.
+
 		expect( saved?.preset ).toBe( 'commerce' );
 		expect( getWorkspaceProfile( manager, created.id ) ).toEqual( saved );
 		expect( log.some( ( e ) => e.name === 'os.workspaces.updated' ) ).toBe( true );
@@ -709,7 +651,7 @@ describe( 'workspace operations', () => {
 		const saved = saveDeskToWorkspace( deps, plain );
 		expect( saved ).not.toBeNull();
 		expect( getWorkspaceProfile( manager, plain )?.provisioned ).toBe( true );
-		// Nothing was said about apps or widgets, so nothing narrows.
+
 		expect( saved?.apps.mode ).toBe( 'all' );
 		expect( saved?.widgets?.mode ).toBe( 'all' );
 		expect( saveDeskToWorkspace( deps, 'desktop-nope' ) ).toBeNull();
@@ -738,7 +680,6 @@ describe( 'workspace operations', () => {
 		provisionWorkspace( deps, created.id );
 		const win = await open.mock.results[ 0 ].value;
 
-		// 1600×900 desk: a quarter in, half wide.
 		expect( win.element.style.left ).toBe( '400px' );
 		expect( win.element.style.top ).toBe( '225px' );
 		expect( win.element.style.width ).toBe( '800px' );
@@ -755,8 +696,7 @@ describe( 'workspace operations', () => {
 				icon: 'dashicons-admin-generic',
 			} );
 		}
-		// The desk would otherwise be told it kept fifteen and get back
-		// twelve on the next reload.
+
 		expect( captureWorkspaceWindows( manager, created.id ) ).toHaveLength(
 			WORKSPACE_MAX_WINDOWS,
 		);
@@ -810,8 +750,7 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'the look is applied before the widgets', () => {
-		// The column reads the accent and the dock placement the
-		// appearance just set; the other order paints it twice.
+
 		const order: string[] = [];
 		setAppearance.mockImplementation( () => order.push( 'appearance' ) );
 		setVisibleWidgets.mockImplementation( () => order.push( 'widgets' ) );
@@ -840,17 +779,13 @@ describe( 'workspace operations', () => {
 			'desktop-mode/site-views',
 		] );
 
-		// A plain Space hands the column back to the user — `null`,
-		// never an empty list, which would blank what they built.
 		setVisibleWidgets.mockClear();
 		applyWorkspaceWidgets( deps, manager.getDesktops()[ 0 ].id );
 		expect( setVisibleWidgets ).toHaveBeenCalledWith( null );
 	} );
 
 	test( 'a profile with no widgets field hands the column back', () => {
-		// Every profile written before workspaces had widgets is in
-		// this shape. It must mean "the user's own column", not "an
-		// empty one".
+
 		const desk = createWorkspace( deps, {
 			profile: {
 				preset: '',
@@ -883,9 +818,6 @@ describe( 'workspace operations', () => {
 			provisioned: true,
 		} );
 
-		// The editor can be opened on any desk; repainting the column
-		// in front of the user with another desk's widgets would be a
-		// write they did not ask for.
 		expect( setVisibleWidgets ).not.toHaveBeenCalled();
 	} );
 
@@ -907,9 +839,6 @@ describe( 'workspace operations', () => {
 		setAppearance.mockClear();
 		setVisibleWidgets.mockClear();
 
-		// Adding a widget on the desk records it on the profile. Painting
-		// the look again from that write put the workspace's wallpaper
-		// back over the one the user had just picked on this desk.
 		setWorkspaceProfile( deps, woo.id, {
 			...profile,
 			widgets: { mode: 'only', ids: [ 'clock', 'notes' ] },
@@ -917,7 +846,6 @@ describe( 'workspace operations', () => {
 		expect( setAppearance ).not.toHaveBeenCalled();
 		expect( setVisibleWidgets ).toHaveBeenCalledWith( [ 'clock', 'notes' ] );
 
-		// An edit that does change the look still paints it.
 		setWorkspaceProfile( deps, woo.id, {
 			...profile,
 			appearance: { wallpaper: 'aurora' },
@@ -929,7 +857,7 @@ describe( 'workspace operations', () => {
 		expect( absoluteAdminUrl( 'edit.php?post_type=product', ADMIN_URL ) ).toBe(
 			`${ ADMIN_URL }edit.php?post_type=product`,
 		);
-		// An absolute one is a plugin's deliberate choice.
+
 		expect(
 			absoluteAdminUrl( 'https://other.test/x', ADMIN_URL ),
 		).toBe( 'https://other.test/x' );
@@ -952,8 +880,7 @@ describe( 'template server sync', () => {
 	} );
 
 	test( 'before the server has spoken, every built-in stands', () => {
-		// A shell booting without the config key must not show an
-		// empty switcher.
+
 		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
 			'commerce',
 			'learning',
@@ -966,7 +893,7 @@ describe( 'template server sync', () => {
 			{ id: 'learning' },
 			{ id: 'publishing' },
 		] );
-		// The PHP filter removed Commerce — a blog with no store.
+
 		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
 			'learning',
 			'publishing',
@@ -995,7 +922,7 @@ describe( 'template server sync', () => {
 			layout: 'columns',
 			apps: [ 'edit-comments.php' ],
 		} );
-		// Order 40 puts it after the three shipped desks.
+
 		expect( listWorkspacePresets().at( -1 )?.id ).toBe( 'support' );
 	} );
 

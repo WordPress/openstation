@@ -1,4 +1,3 @@
-/** Preferences is the worked example for a window-authored MIO context. */
 import { __ } from '../../../src/i18n';
 import type { MioDocument } from '../../../src/mio/assistant/types';
 import { preferencesMioAbilities } from './mio-actions';

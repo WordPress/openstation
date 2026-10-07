@@ -1,15 +1,3 @@
-/**
- * One icon grid, two languages.
- *
- * The grid is declared in `assets/css/variables.css` (design tokens
- * live there, and a desktop theme can retune them) and mirrored in
- * `src/desktop-files/grid.ts`, because layout maths can't read CSS.
- * A mirror nobody checks is just a second copy — this parses the
- * stylesheet and proves the two agree.
- *
- * When this test fails it is telling you that you changed a number
- * in one language and not the other. It names which.
- */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -35,7 +23,6 @@ function css( file: string ): string {
 	return readFileSync( resolve( ROOT, file ), 'utf8' );
 }
 
-/** Read a `--token: 88px;` declaration as a number. */
 function token( source: string, name: string ): number {
 	const match = new RegExp(
 		`--${ name }:\\s*(-?[0-9.]+)px\\s*;`,
@@ -71,9 +58,7 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'every canvas lays out on the same pitch', () => {
-		// WP Explorer used to declare its own `TILE_METRICS`; it
-		// now consumes these. If a surface reintroduces a private
-		// pitch, the grid stops being one grid.
+
 		expect( GRID_METRICS ).toEqual( {
 			w: GRID_CELL_W,
 			h: GRID_CELL_H,
@@ -87,9 +72,7 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'there is a visible gap between neighbouring tiles', () => {
-		// The bug this pins: an 88px tile in a 96px cell reads as
-		// "8px of air" right up until the tile's own padding is added
-		// outside its declared width, at which point the tiles touch.
+
 		expect( GRID_GAP_X ).toBeGreaterThanOrEqual( 12 );
 		expect( GRID_GAP_Y ).toBeGreaterThanOrEqual( 12 );
 	} );
@@ -99,22 +82,16 @@ describe( 'icon grid metrics', () => {
 		const rule = /\.os-file-tile \{([\s\S]*?)\n\}/.exec( files );
 		expect( rule ).not.toBeNull();
 		const body = rule![ 1 ];
-		// `border-box` is what makes the declared width the REAL
-		// width — without it the padding is added on top and eats the
-		// gap the grid thinks it left.
+
 		expect( body ).toMatch( /box-sizing:\s*border-box/ );
 		expect( body ).toMatch( /width:\s*var\(\s*--os-tile-w/ );
-		// FIXED height, not `min-height`. The tile box is the
-		// selection ring; a box that grows with its label gives a row
-		// of selected icons a ragged top edge.
+
 		expect( body ).toMatch( /\n\theight:\s*var\(\s*--os-tile-h/ );
 		expect( body ).not.toMatch( /min-height:\s*var\(\s*--os-tile-h/ );
 	} );
 
 	test( 'the fixed height fits the tallest a tile can be', () => {
-		// 8px padding + 48px icon well + 6px gap + two clamped label
-		// lines + 8px padding. If any of those grow, this is the test
-		// that says the token has to grow with them.
+
 		const files = css( 'assets/css/desktop-files.css' );
 		const label = /\.os-file-tile__label \{([\s\S]*?)\n\}/.exec( files );
 		const fontSize = Number(
@@ -131,8 +108,7 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'flow-laid tiles opt OUT of the fixed height', () => {
-		// A media tile is a square thumbnail sized by its grid column,
-		// not an icon in a cell — inheriting 104px would crop it.
+
 		const mw = css( 'assets/css/my-wordpress.css' );
 		const rule = /\.os-my-wordpress__media-tile \{([\s\S]*?)\n\}/.exec( mw );
 		expect( rule ).not.toBeNull();
@@ -140,9 +116,7 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'image-led sections re-point the tokens instead of overriding width', () => {
-		// Re-pointing means everything derived from the token follows
-		// — the label's max-width, the loading skeletons — rather than
-		// each needing its own `--large` override to stay in step.
+
 		const mw = css( 'assets/css/my-wordpress.css' );
 		const rule = /\.os-my-wordpress__tiles--large \{([\s\S]*?)\n\}/.exec( mw );
 		expect( rule ).not.toBeNull();
@@ -151,9 +125,7 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'flow-laid canvases use the same gaps as the absolute ones', () => {
-		// The media grid and the usage grid are CSS flow layouts, not
-		// the absolute canvas — but the air between two icons must not
-		// depend on which window you happen to be looking at.
+
 		const mw = css( 'assets/css/my-wordpress.css' );
 		for ( const selector of [
 			'os-my-wordpress__media-grid',
@@ -173,9 +145,7 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'the grid tokens are scoped to the shell, not :root', () => {
-		// `variables.css` also loads inside every chromeless iframe —
-		// a real wp-admin document. Grid tokens on `:root` would be
-		// inherited by Core's own UI in there.
+
 		const shellScope = variables.slice(
 			variables.indexOf( 'body.os-active {' ),
 		);

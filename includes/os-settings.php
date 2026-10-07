@@ -1,185 +1,70 @@
 <?php
-/**
- * OpenStation — OS Settings Persistence.
- *
- * Persists each user's OS Settings preferences (wallpaper, accent color,
- * dock size, custom gradient/image, HD-only toggle, and AI integration
- * settings) to user meta so they survive across browsers, devices, and
- * private/incognito sessions. The JS layer writes to localStorage on
- * every change for instant read-back, then asynchronously syncs to this
- * endpoint so user meta is the durable source of truth.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * User meta key for OS Settings.
- *
- * The VALUE keeps its pre-rebrand spelling on purpose: it is a
- * persisted or externally-visible identifier, so renaming it would
- * orphan data already written by live installs (or break a live
- * URL). The mismatch between this constant's name and its value is
- * deliberate — it is NOT a half-finished rename.
- */
 const OPENSTATION_OS_SETTINGS_META_KEY = 'desktop_mode_os_settings';
 
-/** Valid dock-size IDs — mirrors the TS `DOCK_SIZES` constant. */
 const OPENSTATION_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' );
 
-/** Valid window-radius IDs — mirrors the TS `WINDOW_RADII` constant. */
 const OPENSTATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' );
 
-/** How a newly opened window lands — mirrors the TS `OPEN_WINDOWS_AS` constant. */
 const OPENSTATION_OS_SETTINGS_OPEN_WINDOWS_AS = array( 'default', 'maximized', 'focused' );
 
-/**
- * Valid admin-bar mode IDs — mirrors the TS `ADMIN_BAR_MODES` constant.
- *
- * `static` keeps the WordPress admin bar pinned above the shell (the
- * default), `dynamic` auto-hides it to a peek strip that reveals on
- * hover or keyboard focus, and `hidden` removes it entirely.
- */
 const OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
 
-/** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
 const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified' );
 
-/**
- * Valid dock-placement IDs — mirrors the TS `DOCK_PLACEMENTS` constant.
- *
- * Which edge the single dock sits on. Read by the layout dispatcher for
- * `unified`; `classic` derives its two rails from the layout itself and
- * ignores this.
- */
 const OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS = array( 'bottom', 'left', 'right' );
 
-/**
- * Valid dock-behavior IDs — mirrors the TS `DOCK_BEHAVIORS` constant.
- *
- * `static` keeps the dock always on screen (the default); `dynamic`
- * parks it off its edge behind a peek strip that reveals when the
- * pointer reaches that edge or something on it takes keyboard focus,
- * and releases the band it floats over from the work area.
- */
 const OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS = array( 'static', 'dynamic' );
 
-/**
- * `mobileLayout` — which experience the shell renders. `auto`
- * follows the viewport; the other two force it either way.
- * Mirrors `OsModePreference` in `src/mode/index.ts`.
- */
 const OPENSTATION_OS_SETTINGS_MOBILE_LAYOUTS = array( 'auto', 'desktop', 'mobile' );
 
-/** `mobileTabs` — at most this many ids pinned to the phone tab bar. */
 const OPENSTATION_OS_SETTINGS_MOBILE_TABS_MAX = 3;
 
-/**
- * Playable range for the window-reveal duration override, in ms.
- * Mirrors `MIN_REVEAL_DURATION_MS` / `MAX_REVEAL_DURATION_MS` in
- * `src/reveals/registry.ts`.
- *
- * `0` sits OUTSIDE this range on purpose: it is the "no override"
- * sentinel, not a duration, and is handled before the clamp.
- */
 const OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN = 80;
 const OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MAX = 4000;
 
-/**
- * Returns a well-shaped default OS settings array.
- *
- * Mirrors the TypeScript `DEFAULTS` constant so a fresh user account
- * gets the same starting state in both environments.
- *
- * @return array
- */
 function openstation_default_os_settings() {
 	return array(
 		'wallpaper'                   => 'galaxy',
-		// Pulse, the brand's signature. Mirrors `DEFAULTS` in
-		// `src/settings/constants.ts`.
+
 		'accent'                      => 'pulse',
-		// Only read when `accent` is `custom`. Seeded with Pulse so
-		// picking Custom before touching the wheel is a no-op rather
-		// than a jump to black. Mirrors `DEFAULTS` in
-		// `src/settings/constants.ts`.
+
 		'customAccent'                => '#f252fc',
 		'dockSize'                    => 'default',
-		// `round` (16px), not the preset id literally named `default`.
-		// Preset ids are stored values and cannot be renamed, so the
-		// option labelled "Default" in the picker is no longer the
-		// shipped default. Must stay in step with `DEFAULTS` in
-		// `src/settings/constants.ts` — PHP seeds the first load and JS
-		// owns every paint after it, so a mismatch shows up as the
-		// corners changing shape a moment after the shell boots.
+
 		'windowRadius'                => 'round',
 		'openWindowsAs'               => 'default',
-		// How the WordPress admin bar presents above the shell.
-		// `hidden` ships as the default so a fresh desktop has ONE
-		// navigation surface: everything the user can open lives on the
-		// dock, and the dock's "Exit OpenStation" tile is the way back
-		// to classic admin. `static` (vanilla behavior) and `dynamic`
-		// are one pick away in OpenStation Preferences → Appearance.
+
 		'adminBarMode'                => 'hidden',
-		// Always on screen. `dynamic` (auto-hide behind a peek strip)
-		// is one pick away in OpenStation Preferences → Appearance.
+
 		'dockBehavior'                => 'static',
-		// The Split layout's sidebar answers for itself: a folded
-		// sidebar over a static bottom dock is a valid desk.
+
 		'sideDockBehavior'            => 'static',
-		// One dock holding every menu, with the system tiles grouped
-		// behind a hairline. `classic` (side bar for core menus + bottom
-		// dock for plugins) is the other option; it is no longer what a
-		// first-run desktop looks like.
+
 		'desktopLayout'               => 'unified',
-		// Which edge the single dock sits on. Ignored by `classic`,
-		// which derives both of its rails from the layout.
+
 		'dockPlacement'               => 'bottom',
 		'dockRailRenderer'            => 'default',
-		// Active desktop-theme slug, or `''` for the system default.
-		// Site-wide library (`includes/desktop-themes/`), per-user
-		// activation. Not validated against the installed list here —
-		// the enqueue path checks existence on every request, so a
-		// deleted theme degrades silently instead of needing a
-		// user-meta rewrite.
+
 		'desktopTheme'                => '',
-		// Slugs of the desktop themes whose `recommendedOsSettings`
-		// block has already been applied for this user. A theme's
-		// recommendations are seeded ONCE — the first time the user
-		// activates it — and this list is the record of that. It is
-		// what makes "never overwrite a user's later choices" true:
-		// re-activating a theme they have worn before changes
-		// nothing. The Themes tab's "Apply recommended layout" action
-		// is the deliberate way back. Capped at 64 slugs.
+
 		'appliedThemeRecommendations' => array(),
 		'unfocusEffect'               => 'darken',
-		// Window-reveal id — the clip-path transition that uncovers a
-		// window's content once it finishes loading. Off by default;
-		// `none` is the plain opacity fade the shell has always had.
+
 		'windowReveal'                => 'none',
-		// Global reveal duration override in ms. 0 means "use each
-		// reveal's own tuned timing" — the shipped reveals have
-		// durations chosen per shape (Radar's full turn is slower
-		// than Sweep's straight line), and one flat number would
-		// lose that.
+
 		'windowRevealDuration'        => 0,
-		// Window-link renderer id — how relation ties between windows
-		// are drawn (see includes/window-links.php). `svg-splines` is
-		// the shipped built-in; `none` disables the visuals.
+
 		'windowLinkRenderer'          => 'svg-splines',
-		// When the ties are visible: 'always' (default), 'focus' (only
-		// while a group member is focused), or 'off'.
+
 		'windowLinkVisibility'        => 'always',
-		// Master switch for the window-links feature (OS Settings →
-		// Features). Off unmounts the visuals AND the group behaviors
-		// below; the style knobs above keep their values for when it
-		// comes back on.
+
 		'windowLinksEnabled'          => true,
-		// Focusing a relation-group member raises its related windows
-		// to just below it (silent restack, no focus theft).
+
 		'windowLinkRaiseOnFocus'      => true,
-		// Related windows of the focused member get a subtle outline.
+
 		'windowLinkHighlight'         => true,
 		'customGradient'              => array(
 			'from'  => '#2271b1',
@@ -187,163 +72,64 @@ function openstation_default_os_settings() {
 			'angle' => 135,
 		),
 		'customImage'                 => null,
-		// Per-wallpaper settings bags, keyed by wallpaper id — the
-		// values a wallpaper's `renderConfig` dialog writes (e.g. the
-		// Snow wallpaper's wind / particle count / flake size /
-		// background). Scalar values only; the wallpaper owns the keys'
-		// meaning. Missing ids mean "never configured" — the wallpaper
-		// falls back to its defaults. Capped at 64 wallpapers × 32 keys.
+
 		'wallpaperSettings'           => array(),
 		'libraryHdOnly'               => true,
 		'ai'                          => array(
-			'enabled' => false,    // AI assistant is opt-in; enabled from OS Settings → Features once a provider is configured.
+			'enabled' => false,
 		),
-		// Per-user opt-IN for the native Posts window. When true,
-		// clicking the Posts dock tile opens the `<os-table>`-driven
-		// native window instead of the chromeless `edit.php` iframe.
-		// Default OFF — the native windows are opt-in
-		// Beta. Fresh installs land on the classic iframe; users turn
-		// this on in OS Settings → Features → Beta features to try it.
-		// Per-user override of the WordPress Heartbeat interval, in
-		// seconds. 60s matches Core's "idle" default; the allowed
-		// rates (15/30/45/60) all sit at or above Core's 15 s
-		// `minimalInterval` floor. See
-		// `openstation_apply_heartbeat_rate_setting` for the
-		// `heartbeat_settings` filter that applies this.
+
 		'heartbeatRate'               => 60,
 		'nativePostsEnabled'          => false,
-		// Per-user list of column keys hidden in the native Posts
-		// window (e.g. array( 'author', 'tags' )). Empty array means
-		// every column is visible. The sticky 'title' column is always
-		// shown — the UI prevents toggling it.
+
 		'nativePostsHiddenColumns'    => array(),
-		// Per-user list of column keys hidden in the native Pages
-		// window (e.g. array( 'author', 'parent' )). Empty array means
-		// every column is visible. The sticky 'title' column is always
-		// shown — the UI prevents toggling it.
+
 		'nativePagesHiddenColumns'    => array(),
-		// Per-user opt-IN for the native Pages window. Same posture as
-		// nativePostsEnabled — defaults OFF (Beta), users opt in to swap
-		// the classic `edit.php?post_type=page` iframe for the native UI.
+
 		'nativePagesEnabled'          => false,
-		// Per-user opt-IN for the native Users window. Defaults OFF
-		// (Beta); the server-side cap gate (`list_users`) means the
-		// toggle only matters for users who could see the Users tile.
+
 		'nativeUsersEnabled'          => false,
-		// Per-user opt-IN for the native Plugins window. Defaults OFF
-		// (Beta); the server-side cap gate (`activate_plugins`) means
-		// the toggle only matters for users who could see the Plugins
-		// tile anyway. When `false`, the dock click uses the classic
-		// `plugins.php` chromeless iframe path.
+
 		'nativePluginsEnabled'        => false,
-		// Per-user opt-IN for the native Comments window. Defaults OFF
-		// (Beta); the server-side cap gate (`edit_posts`) means the
-		// toggle only matters for users who could see the Comments tile.
+
 		'nativeCommentsEnabled'       => false,
-		// Per-user opt-IN for Station Home, the native Dashboard
-		// window. Defaults OFF: the ordinary `index.php` Dashboard
-		// (including any custom dashboard a plugin builds there) opens
-		// as a chromeless iframe until the user opts in via OS
-		// Settings → Features → Beta features.
+
 		'stationHomeEnabled'          => false,
-		// Performance enhancements are enabled unless explicitly disabled.
+
 		'adminAssetCacheEnabled'      => true,
 		'windowPrewarmEnabled'        => true,
-		// When true, left-clicking the empty wallpaper triggers the
-		// "Show desktop" toggle (macOS-style) and the matching entry is
-		// hidden from the wallpaper context menu. When false (default),
-		// the entry stays in the menu and left clicks on the wallpaper
-		// do nothing. Per-user.
+
 		'showDesktopOnWallpaperClick' => false,
-		// Whether the close-all-windows shortcut (Alt+Cmd/Ctrl+W) asks
-		// before it closes. The dialog's "Don't ask again" checkbox is
-		// what writes false; OpenStation Preferences -> Windows is what
-		// turns it back on. Per-user.
+
 		'confirmCloseAllWindows'      => true,
-		// Mio — a soft-body companion that floats over
-		// the wallpaper, settles onto nearby windows, and watches the
-		// pointer. Off by default; toggled from the wallpaper context
-		// menu. Per-user. See `docs/mio.md`.
+
 		'mioEnabled'                  => false,
 		'mioApiEnabled'               => false,
 		'mioShowOnWallpaper'          => true,
-		// The user's own Mio, as built in "Make it yours": partial
-		// appearance + silhouette overrides, both empty until they
-		// touch a control. Stored per user rather than per browser
-		// because it is a preference about the person — ten minutes
-		// spent building a companion should be waiting on their phone.
-		// Sanitized by `openstation_sanitize_mio_look()`; the ranges
-		// are enforced client-side in `sanitizeMioConfig()`.
+
 		'mioStyle'                    => array(
 			'appearance' => array(),
 			'physics'    => array(),
 		),
-		// Diagonal corner ribbon on My WordPress tiles whose post
-		// status isn't `publish` (draft / pending / private /
-		// scheduled). On by default — surfaces unpublished work at
-		// a glance. Per-user.
+
 		'showPostStatusRibbons'       => true,
-		// Unlocks developer-facing surfaces meant for plugin
-		// authors: the Starter Widget appears in the add-widget
-		// picker, the OS Settings → Components tab runs its
-		// intentional missing-import-warner demo, and the Code Blue
-		// error-log reader registers (icon, window, REST routes).
-		// Off by default. Per-user.
+
 		'developerModeEnabled'        => false,
-		// Per-user opt-OUT for the folder-sharing feature. Defaults
-		// ON. When false:
-		// - The Share button, share-settings modal, "Leave shared
-		// folder" entry, and pending-invite prompt are all
-		// suppressed in the user's shell.
-		// - The heartbeat skips the `shares.pending` payload for
-		// this user so they never see invites land.
-		// - REST share routes return 404 for this user — they
-		// can't list, invite, accept, deny, or leave.
-		// Sites that don't want the feature (solo admin, no
-		// collaborators) can flip the toggle and the surface
-		// disappears without any database changes. The site-wide
-		// "Delete folder sharing data" action in OS Settings →
-		// Features → Advanced is a separate destructive cleanup.
+
 		'foldersSharingEnabled'       => true,
-		// Per-item navigation placement. Map of item id → one of:
-		// 'both'    — show on a rail and on the desktop.
-		// 'rail'    — show only on a rail: the dock, or the sidebar
-		// for a Core admin menu in the split layout.
-		// 'desktop' — show only on the wallpaper.
-		// 'hidden'  — hide from every shell surface.
-		// Missing keys mean "no override" — the item takes the default
-		// for its kind, which lives in `src/nav/defaults.ts`.
-		// Sanitized as map<sanitize_key, enum>. Capped at 256 entries.
+
 		'navPlacement'                => array(),
-		// Per-user ordering, flat across every dock/sidebar zone. Ids
-		// not in the list keep their registration order and render
-		// after the listed ones. Unknown ids are tolerated.
+
 		'navOrder'                    => array(),
-		// Which experience the shell renders: 'auto' follows the
-		// viewport, 'desktop' / 'mobile' force it. See `includes/mobile.php`.
+
 		'mobileLayout'                => 'auto',
-		// Ids pinned to the phone tab bar, at most three. Empty means
-		// the server default (`openstation_mobile_tab_bar`).
+
 		'mobileTabs'                  => array(),
-		// Persisted desktop position for every item the user has
-		// promoted to the wallpaper via `navPlacement[id]=desktop|both`.
-		// Keyed by item id, value is `{ x: int, y: int }`. The JS
-		// synthesizer reads this when building a synthetic placement so
-		// the icon lands where the user last dragged it instead of
-		// resetting to (0, 0) on every reload. Capped at 256 entries.
+
 		'dockPromotedPositions'       => array(),
 	);
 }
 
-/**
- * Retrieves the saved OS settings for a user.
- *
- * Always returns a fully-shaped array so the JS side doesn't need to
- * defend against partial or missing keys.
- *
- * @param int $user_id The user ID.
- * @return array
- */
 function openstation_get_os_settings( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
@@ -358,13 +144,6 @@ function openstation_get_os_settings( $user_id ) {
 	return openstation_sanitize_os_settings( $raw );
 }
 
-/**
- * Saves sanitized OS settings for a user.
- *
- * @param int   $user_id  The user ID.
- * @param mixed $settings Raw settings payload from the client.
- * @return bool True on success, false otherwise.
- */
 function openstation_save_os_settings( $user_id, $settings ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
@@ -375,19 +154,6 @@ function openstation_save_os_settings( $user_id, $settings ) {
 	return false !== update_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, $clean );
 }
 
-/**
- * Strip the rail-synthesis prefix an id could carry before the
- * navigation model.
- *
- * `dock:<id>` / `desktop:<id>` used to mean "this tile is a copy of an
- * item whose real home is the other rail". Nothing synthesizes copies
- * any more — an item is one item wherever it is painted — so the
- * prefix is noise, and left in place it would key a preference to an
- * id nothing registers.
- *
- * @param string $id Possibly-prefixed id.
- * @return string Canonical id.
- */
 function openstation_canonical_nav_id( $id ) {
 	$id = (string) $id;
 	if ( 0 === strpos( $id, 'dock:' ) ) {
@@ -399,22 +165,6 @@ function openstation_canonical_nav_id( $id ) {
 	return $id;
 }
 
-/**
- * Carry a pre-navigation `itemVisibility` map into `navPlacement`.
- *
- * The only value that moves is `'dock'` → `'rail'`: the stored name
- * is now the REGION rather than a rail, so a Core admin menu the user
- * kept on a rail follows the layout into the sidebar instead of
- * needing a second migration the first time they switch.
- *
- * Runs on read (see {@see openstation_sanitize_os_settings()}) rather
- * than as a numbered migration, because OS settings are per-user meta
- * and a site with many users would pay for a sweep that the next save
- * performs for free.
- *
- * @param array $visibility Legacy map of item id → placement.
- * @return array Map of canonical item id → nav placement.
- */
 function openstation_migrate_item_visibility( $visibility ) {
 	$map = array(
 		'dock'    => 'rail',
@@ -432,10 +182,7 @@ function openstation_migrate_item_visibility( $visibility ) {
 		if ( '' === $id ) {
 			continue;
 		}
-		// A prefixed and an unprefixed key can collapse onto the same
-		// id. The unprefixed one is the item's own preference rather
-		// than a synthesized copy's, so it wins whichever order they
-		// arrive in.
+
 		if ( $id === $key || ! isset( $out[ $id ] ) ) {
 			$out[ $id ] = $map[ $val ];
 		}
@@ -443,16 +190,6 @@ function openstation_migrate_item_visibility( $visibility ) {
 	return $out;
 }
 
-/**
- * Sanitizes a raw OS settings payload.
- *
- * Unknown keys are ignored; known keys are coerced field-by-field so a
- * partial save (e.g., only accent changed) merges cleanly with the
- * defaults rather than wiping unset fields.
- *
- * @param mixed $raw Raw settings from the client or user meta.
- * @return array Sanitized settings.
- */
 function openstation_sanitize_os_settings( $raw ) {
 	$defaults = openstation_default_os_settings();
 
@@ -460,50 +197,37 @@ function openstation_sanitize_os_settings( $raw ) {
 		$raw = array();
 	}
 
-	// Wallpaper — any non-empty string; registry membership is validated
-	// client-side at apply time.
 	$wallpaper = isset( $raw['wallpaper'] ) && is_string( $raw['wallpaper'] ) && '' !== $raw['wallpaper']
 		? sanitize_key( $raw['wallpaper'] )
 		: $defaults['wallpaper'];
 
-	// Accent — non-empty string; swatch validity is enforced in the picker.
 	$accent = isset( $raw['accent'] ) && is_string( $raw['accent'] ) && '' !== $raw['accent']
 		? sanitize_key( $raw['accent'] )
 		: $defaults['accent'];
 
-	// The colour behind the Custom swatch. A full `#rrggbb` triplet and
-	// nothing else: `sanitize_hex_color()` would also pass `#abc`, which
-	// the client-side parser rejects, and a value that survives the save
-	// only to be dropped on load is worse than one refused here.
 	$custom_accent = isset( $raw['customAccent'] )
 		&& is_string( $raw['customAccent'] )
 		&& preg_match( '/^#[0-9a-fA-F]{6}$/', $raw['customAccent'] )
 		? strtolower( $raw['customAccent'] )
 		: $defaults['customAccent'];
 
-	// Dock size — must be one of the three known values.
 	$dock_size = isset( $raw['dockSize'] ) && in_array( $raw['dockSize'], OPENSTATION_OS_SETTINGS_DOCK_SIZES, true )
 		? (string) $raw['dockSize']
 		: $defaults['dockSize'];
 
-	// Window radius — must be one of the three known values.
 	$window_radius = isset( $raw['windowRadius'] ) && in_array( $raw['windowRadius'], OPENSTATION_OS_SETTINGS_WINDOW_RADII, true )
 		? (string) $raw['windowRadius']
 		: $defaults['windowRadius'];
 
-	// How a newly opened window lands — one of the three known values.
 	$open_windows_as = isset( $raw['openWindowsAs'] ) && in_array( $raw['openWindowsAs'], OPENSTATION_OS_SETTINGS_OPEN_WINDOWS_AS, true )
 		? (string) $raw['openWindowsAs']
 		: $defaults['openWindowsAs'];
 
-	// Admin-bar mode — must be one of the three known values.
 	$admin_bar_mode = isset( $raw['adminBarMode'] )
 		&& in_array( $raw['adminBarMode'], OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES, true )
 		? (string) $raw['adminBarMode']
 		: $defaults['adminBarMode'];
 
-	// Dock behavior — must be one of the two known values. One answer
-	// per rail: the dock, and the Split layout's sidebar.
 	$dock_behavior = isset( $raw['dockBehavior'] )
 		&& in_array( $raw['dockBehavior'], OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS, true )
 		? (string) $raw['dockBehavior']
@@ -513,23 +237,16 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (string) $raw['sideDockBehavior']
 		: $defaults['sideDockBehavior'];
 
-	// Desktop layout — must be one of the known values (`classic`,
-	// `unified`). Default `unified`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
 		&& in_array( $raw['desktopLayout'], OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS, true )
 		? (string) $raw['desktopLayout']
 		: $defaults['desktopLayout'];
 
-	// Dock placement — which edge the single dock sits on. Must be one
-	// of the three known values (`bottom`, `left`, `right`).
 	$dock_placement = isset( $raw['dockPlacement'] )
 		&& in_array( $raw['dockPlacement'], OPENSTATION_OS_SETTINGS_DOCK_PLACEMENTS, true )
 		? (string) $raw['dockPlacement']
 		: $defaults['dockPlacement'];
 
-	// Dock rail renderer id — accept any sanitize_key()-clean
-	// string. JS-side registry resolves at use time and falls back
-	// to `'default'` when the picked renderer isn't registered.
 	$dock_rail_renderer = $defaults['dockRailRenderer'];
 	if ( isset( $raw['dockRailRenderer'] ) && is_string( $raw['dockRailRenderer'] ) ) {
 		$slug = sanitize_key( $raw['dockRailRenderer'] );
@@ -538,21 +255,11 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// Desktop theme slug — a pattern check, NOT an allow-list, the
-	// same idiom as `dockRailRenderer` above. Validating against the
-	// installed-theme option here would load (and unserialize) that
-	// option on every single settings write for a value the enqueue
-	// path re-checks anyway. `''` is the system default and is a
-	// legitimate value, so an empty/absent key keeps the default.
 	$desktop_theme = $defaults['desktopTheme'];
 	if ( isset( $raw['desktopTheme'] ) && is_string( $raw['desktopTheme'] ) ) {
 		$desktop_theme = sanitize_key( $raw['desktopTheme'] );
 	}
 
-	// appliedThemeRecommendations — list of desktop-theme slugs whose
-	// recommendations this user has already been seeded with. Unknown
-	// slugs are kept (a deleted-then-reinstalled theme must not
-	// re-seed and clobber the settings the user has since chosen).
 	$applied_theme_recommendations = $defaults['appliedThemeRecommendations'];
 	if ( isset( $raw['appliedThemeRecommendations'] ) && is_array( $raw['appliedThemeRecommendations'] ) ) {
 		$applied_theme_recommendations = array();
@@ -566,23 +273,13 @@ function openstation_sanitize_os_settings( $raw ) {
 			}
 			$applied_theme_recommendations[] = $theme_slug;
 		}
-		// Keep the MOST RECENT 64, not the first 64 — the client
-		// appends, so trimming from the front would silently discard
-		// the entry that was just written and let the theme re-seed on
-		// the next activation.
+
 		$applied_theme_recommendations = array_slice(
 			array_values( array_unique( $applied_theme_recommendations ) ),
 			-64
 		);
 	}
 
-	// Unfocus effect id — accept the `none` sentinel or any registry id.
-	// Effect ids mirror the JS registry pattern `^[a-z0-9_/-]+$` (slashes
-	// allowed for `vendor/sub-id` namespacing), so we lower-case and strip
-	// to that charset rather than using sanitize_key() (which would drop
-	// the slash and break a namespaced id on round-trip). No allow-list:
-	// the JS engine resolves at use time and treats an unknown id as "no
-	// effect".
 	$unfocus_effect = $defaults['unfocusEffect'];
 	if ( isset( $raw['unfocusEffect'] ) && is_string( $raw['unfocusEffect'] ) ) {
 		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['unfocusEffect'] ) );
@@ -591,11 +288,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// Window-reveal id — same id charset and same no-allow-list
-	// reasoning as the unfocus effect above. The JS surface resolves at
-	// play time and treats an unknown id as "no reveal", so a reveal
-	// belonging to a temporarily-deactivated plugin survives the
-	// round-trip and starts working again the moment it re-registers.
 	$window_reveal = $defaults['windowReveal'];
 	if ( isset( $raw['windowReveal'] ) && is_string( $raw['windowReveal'] ) ) {
 		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['windowReveal'] ) );
@@ -604,11 +296,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// Window-reveal duration override — 0 (the default) means "leave
-	// each reveal's own timing alone". Anything else is clamped into
-	// the playable range rather than rejected: a value past the end of
-	// the range still expresses a direction, and the nearest playable
-	// duration is the honest reading of it.
 	$window_reveal_duration = $defaults['windowRevealDuration'];
 	if ( isset( $raw['windowRevealDuration'] ) && is_numeric( $raw['windowRevealDuration'] ) ) {
 		$requested = (int) round( (float) $raw['windowRevealDuration'] );
@@ -622,10 +309,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// Window-link renderer id — same id charset as unfocus effects
-	// (slashes allowed for `vendor/sub-id`). No allow-list: the JS
-	// render host resolves at use time and falls back to the built-in
-	// `svg-splines` when the picked renderer isn't registered.
 	$window_link_renderer = $defaults['windowLinkRenderer'];
 	if ( isset( $raw['windowLinkRenderer'] ) && is_string( $raw['windowLinkRenderer'] ) ) {
 		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['windowLinkRenderer'] ) );
@@ -634,7 +317,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// Window-link visibility — small closed set.
 	$window_link_visibility = $defaults['windowLinkVisibility'];
 	if (
 		isset( $raw['windowLinkVisibility'] )
@@ -643,7 +325,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		$window_link_visibility = $raw['windowLinkVisibility'];
 	}
 
-	// Window-links feature switches — plain booleans.
 	$window_links_enabled = isset( $raw['windowLinksEnabled'] )
 		? (bool) $raw['windowLinksEnabled']
 		: $defaults['windowLinksEnabled'];
@@ -656,7 +337,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['windowLinkHighlight']
 		: $defaults['windowLinkHighlight'];
 
-	// Custom gradient — { from, to: valid hex; angle: int 0–360 }.
 	$custom_gradient = $defaults['customGradient'];
 	if ( isset( $raw['customGradient'] ) && is_array( $raw['customGradient'] ) ) {
 		$cg = $raw['customGradient'];
@@ -674,7 +354,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// Custom image — { id: positive int, url: valid https? URL } or null.
 	$custom_image = null;
 	if ( isset( $raw['customImage'] ) && is_array( $raw['customImage'] ) ) {
 		$ci     = $raw['customImage'];
@@ -688,14 +367,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// wallpaperSettings — map<wallpaper id, map<key, scalar>>. Wallpaper
-	// ids follow the same charset as unfocus-effect ids (slashes allowed
-	// for `vendor/sub-id` namespacing); setting keys follow the JS
-	// identifier-ish charset wallpaper authors use (camelCase, hyphens,
-	// underscores). Values must be scalar — booleans and numbers pass
-	// through typed, strings are sanitized and length-capped. Unknown
-	// wallpaper ids are kept (a deactivated wallpaper plugin's settings
-	// should survive reactivation). Capped at 64 ids × 32 keys.
 	$wallpaper_settings = array();
 	if ( isset( $raw['wallpaperSettings'] ) && is_array( $raw['wallpaperSettings'] ) ) {
 		$id_count = 0;
@@ -741,11 +412,8 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// Library HD only — boolean.
 	$library_hd_only = isset( $raw['libraryHdOnly'] ) ? (bool) $raw['libraryHdOnly'] : $defaults['libraryHdOnly'];
 
-	// AI settings — just the per-user on/off toggle. Provider + model selection
-	// is delegated to the Core AI Client, so there is no preference to persist.
 	$ai = $defaults['ai'];
 	if ( isset( $raw['ai'] ) && is_array( $raw['ai'] ) ) {
 		$raw_ai = $raw['ai'];
@@ -755,14 +423,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// Heartbeat rate — one of the four allowed values. The PHP
-	// filter `openstation_apply_heartbeat_rate_setting` reads
-	// this and passes it through to `heartbeat_settings` so
-	// WordPress Core itself reduces the interval on the next page
-	// load. 5 s is intentionally excluded: Core's
-	// `minimalInterval` floor clamps anything below 15 back up to
-	// 15 unless every upstream filter cooperates, and the gain
-	// over 15 s is marginal.
 	$allowed_heartbeat_rates = array( 15, 30, 45, 60 );
 	$heartbeat_rate          = $defaults['heartbeatRate'];
 	if ( isset( $raw['heartbeatRate'] ) && is_numeric( $raw['heartbeatRate'] ) ) {
@@ -789,9 +449,7 @@ function openstation_sanitize_os_settings( $raw ) {
 			}
 			$native_posts_hidden_columns[] = $slug;
 		}
-		// Cap to a sane upper bound — far more than any plausible
-		// column count, but blocks a malicious payload from bloating
-		// user meta indefinitely.
+
 		$native_posts_hidden_columns = array_slice( array_values( array_unique( $native_posts_hidden_columns ) ), 0, 32 );
 	}
 
@@ -808,9 +466,7 @@ function openstation_sanitize_os_settings( $raw ) {
 			}
 			$native_pages_hidden_columns[] = $slug;
 		}
-		// Cap to a sane upper bound — far more than any plausible
-		// column count, but blocks a malicious payload from bloating
-		// user meta indefinitely.
+
 		$native_pages_hidden_columns = array_slice( array_values( array_unique( $native_pages_hidden_columns ) ), 0, 32 );
 	}
 
@@ -834,8 +490,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['stationHomeEnabled']
 		: $defaults['stationHomeEnabled'];
 
-	// Site-wide performance controls supersede the legacy per-user values.
-	// Keep the snapshot keys so existing window consumers can read them.
 	$extended_options          = openstation_get_extended_options();
 	$admin_asset_cache_enabled = $extended_options['admin_asset_cache'];
 	$window_prewarm_enabled    = $extended_options['window_prewarm'];
@@ -852,9 +506,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['mioEnabled']
 		: ( isset( $raw['mioApiEnabled'] ) ? (bool) $raw['mioApiEnabled'] : $defaults['mioEnabled'] );
 
-	// A missing key means "no look saved yet", which sanitizes to the
-	// same pair of empty arrays the defaults carry — so this needs no
-	// isset() branch of its own.
 	$mio_style = openstation_sanitize_mio_look(
 		isset( $raw['mioStyle'] ) ? $raw['mioStyle'] : null
 	);
@@ -867,14 +518,11 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['developerModeEnabled']
 		: $defaults['developerModeEnabled'];
 
-	// mobileLayout — the phone/desktop override.
 	$mobile_layout = isset( $raw['mobileLayout'] )
 		&& in_array( $raw['mobileLayout'], OPENSTATION_OS_SETTINGS_MOBILE_LAYOUTS, true )
 		? (string) $raw['mobileLayout']
 		: $defaults['mobileLayout'];
 
-	// mobileTabs — ordered nav ids pinned to the phone tab bar. Same
-	// id grammar as navOrder, capped at the tab bar's slot count.
 	$mobile_tabs = array();
 	if ( isset( $raw['mobileTabs'] ) && is_array( $raw['mobileTabs'] ) ) {
 		$seen_tabs = array();
@@ -898,14 +546,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		? (bool) $raw['foldersSharingEnabled']
 		: $defaults['foldersSharingEnabled'];
 
-	// navPlacement — map<sanitize_key, enum>. Unknown ids are kept
-	// (a deactivated plugin's setting should survive reactivation);
-	// invalid placement values are dropped.
-	//
-	// Reads the pre-navigation `itemVisibility` map when this user has
-	// no `navPlacement` yet, so an existing arrangement carries over on
-	// first load and is written back on the next save. See
-	// `openstation_migrate_item_visibility()`.
 	$raw_placement = array();
 	if ( isset( $raw['navPlacement'] ) && is_array( $raw['navPlacement'] ) ) {
 		$raw_placement = $raw['navPlacement'];
@@ -936,10 +576,6 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// navOrder — ordered list of item ids, flat across every zone.
-	// Reads the pre-navigation `dockOrder` when absent, stripping the
-	// rail-synthesis prefixes (`dock:` / `desktop:`) that model no
-	// longer has.
 	$raw_order = array();
 	if ( isset( $raw['navOrder'] ) && is_array( $raw['navOrder'] ) ) {
 		$raw_order = $raw['navOrder'];
@@ -966,14 +602,10 @@ function openstation_sanitize_os_settings( $raw ) {
 		}
 	}
 
-	// dockPromotedPositions — map<sanitize_key, {x: int, y: int}>.
-	// Persisted positions for synthetic dock-promoted placements, so
-	// the JS synthesizer can restore the user's manual placement on
-	// next reload. Capped at 256; absurd coordinates are dropped.
 	$dock_promoted_positions = array();
 	if ( isset( $raw['dockPromotedPositions'] ) && is_array( $raw['dockPromotedPositions'] ) ) {
 		$count     = 0;
-		$max_coord = 100000; // generous; real screens stop in the thousands.
+		$max_coord = 100000;
 		foreach ( $raw['dockPromotedPositions'] as $key => $val ) {
 			if ( $count >= 256 ) {
 				break;
@@ -1063,9 +695,6 @@ function openstation_sanitize_os_settings( $raw ) {
 	);
 }
 
-/**
- * Registers the REST routes for OS settings.
- */
 function openstation_register_os_settings_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -1092,77 +721,22 @@ function openstation_register_os_settings_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_register_os_settings_rest_routes' );
 
-/**
- * Permission gate for OS settings REST routes.
- *
- * Requires the caller to be logged in *and* have OpenStation enabled —
- * see {@see openstation_rest_require_enabled()} for why `read` alone is
- * insufficient.
- *
- * @return true|WP_Error
- */
 function openstation_rest_os_settings_permission() {
 	return openstation_rest_require_enabled();
 }
 
-/**
- * GET /desktop-mode/v1/os-settings
- *
- * @return WP_REST_Response
- */
 function openstation_rest_get_os_settings() {
 	return rest_ensure_response( openstation_get_os_settings( get_current_user_id() ) );
 }
 
-/**
- * POST /desktop-mode/v1/os-settings
- *
- * Accepts a PARTIAL payload: keys the request omits keep the value
- * already stored for the user, rather than resetting to the shipped
- * default. The client sends only the fields that changed since its
- * last confirmed save, which is what stops two open sessions from
- * overwriting each other — a session that never touched the
- * wallpaper cannot express an opinion about it, so a stale snapshot
- * can no longer undo another session's unrelated change.
- *
- * A full payload still behaves exactly as before: every key is
- * present, so every key wins.
- *
- * The merge lives here rather than in {@see openstation_save_os_settings()}
- * on purpose. That function's contract is REPLACE, and migrations
- * depend on it: migration 1 in `includes/migrations.php` `unset()`s
- * keys and re-saves precisely so the sanitizer backfills the new
- * defaults. Give the saver merge semantics and that migration
- * silently becomes a no-op.
- *
- * Merging is shallow, one level deep. For the map-shaped fields
- * (`wallpaperSettings`, `navPlacement`, `navOrder`,
- * `dockPromotedPositions`) a request that sends the key replaces the
- * whole map — deep-merging them would leave no way to delete an
- * entry.
- *
- * @param WP_REST_Request $request The REST request.
- * @return WP_REST_Response The saved settings (after sanitization).
- */
 function openstation_rest_save_os_settings( WP_REST_Request $request ) {
 	$user_id = get_current_user_id();
 	$payload = $request->get_param( 'settings' );
 
-	// A payload that isn't an object says nothing about any field, so
-	// it changes nothing. The route declares `'settings' => object`
-	// and WP's schema validation rejects a scalar before the callback
-	// runs, so this is unreachable over real REST traffic — but the
-	// sanitizer resolves a non-array to the full defaults, which
-	// means the one way to reach this function with a bad payload
-	// used to be the one way to wipe a user's settings. Returning
-	// early costs nothing and keeps "don't destroy what wasn't sent"
-	// true of every path into this handler, not just the ones the
-	// schema happens to guard.
 	if ( ! is_array( $payload ) ) {
 		return rest_ensure_response( openstation_get_os_settings( $user_id ) );
 	}
 
-	// Normalize an alias-only patch before merging it with the saved master value.
 	if ( ! array_key_exists( 'mioEnabled', $payload ) && array_key_exists( 'mioApiEnabled', $payload ) ) {
 		$payload['mioEnabled'] = $payload['mioApiEnabled'];
 	}
@@ -1174,19 +748,6 @@ function openstation_rest_save_os_settings( WP_REST_Request $request ) {
 	return rest_ensure_response( openstation_get_os_settings( $user_id ) );
 }
 
-/**
- * Apply the per-user Heartbeat-rate preference to the
- * `heartbeat_settings` Core filter. WordPress reads these settings
- * once at page load. We set `interval` only; the allowed rates
- * (15/30/45/60 s) all sit at or above Core's 15 s
- * `minimalInterval` floor, so the floor never needs overriding.
- *
- * Only applies to users with OpenStation enabled — non-desktop
- * sessions keep Core's defaults. Anonymous requests skip too.
- *
- * @param array $settings Filtered Heartbeat settings.
- * @return array
- */
 function openstation_apply_heartbeat_rate_setting( $settings ) {
 	if ( ! is_array( $settings ) ) {
 		$settings = array();

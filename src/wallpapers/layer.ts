@@ -1,18 +1,3 @@
-/**
- * OpenStation — Wallpaper render layer.
- *
- * Manages the `<div id="os-wallpaper">` element the shell
- * markup reserves inside `#os-shell`. CSS wallpapers set a
- * custom property; canvas wallpapers mount DOM here.
- *
- * The tricky part is the mount/unmount race: a user clicking two
- * swatches in quick succession can queue two async mounts. Without
- * protection, whichever resolves last wins and orphans the other's
- * resources. We guard with a monotonic generation counter — every
- * apply() increments it; a mount that resolves on a stale generation
- * tears itself down instead of inserting into the DOM.
- */
-
 import { doAction, HOOKS } from '../hooks';
 import { loadModules } from '../modules/registry';
 import { getWallpaperSettings } from './settings-store';
@@ -25,7 +10,6 @@ import type {
 	WallpaperTeardown,
 } from './types';
 
-/** Public context creator — also used by OS Settings for editor panels. */
 export function createContext(
 	id: string,
 	pluginUrl: string,
@@ -46,44 +30,26 @@ function prefersReducedMotion(): boolean {
 	return window.matchMedia( '( prefers-reduced-motion: reduce )' ).matches;
 }
 
-/**
- * Suspend/resume surface exposed publicly as `wp.os.wallpaper`.
- *
- * @public
- */
 export interface WallpaperSuspendApi {
 	suspend: ( reason: string ) => void;
 	resume: ( reason: string ) => void;
 	isSuspended: () => boolean;
 }
 
-/**
- * WallpaperLayer — single instance per shell, created from desktop.ts.
- */
 export class WallpaperLayer {
 	private element: HTMLElement;
 	private pluginUrl: string;
 
-	/** Monotonically increasing — protects against mount/unmount races. */
 	private generation = 0;
 
-	/** Currently-active canvas wallpaper state, if any. */
 	private active: { id: string; teardown: WallpaperTeardown } | null = null;
 
-	/**
-	 * Held suspend reasons, refcounted — two `suspend('game:a')` calls
-	 * need two `resume('game:a')` calls. The layer is suspended while
-	 * any reason is held.
-	 */
 	private suspendReasons = new Map< string, number >();
 
-	/** Frozen-frame overlay shown while suspended (best-effort). */
 	private freezeOverlay: HTMLCanvasElement | null = null;
 
-	/** The live canvas hidden behind the freeze overlay. */
 	private frozenCanvas: HTMLElement | null = null;
 
-	/** Bound listener so we can remove it in dispose(). */
 	private boundVisibilityChange = (): void => {
 		this.emitEffectiveVisibility();
 	};
@@ -94,20 +60,9 @@ export class WallpaperLayer {
 		document.addEventListener( 'visibilitychange', this.boundVisibilityChange );
 	}
 
-	/**
-	 * Apply a wallpaper definition. Safe to call from any event
-	 * handler — handles type dispatch, teardown of the prior active
-	 * canvas, and race-safe async mounts.
-	 */
 	public apply( def: WallpaperDef ): void {
-		// Increment the generation before any async work. Stale mounts
-		// (resolved after another apply() came through) compare
-		// against this value and tear themselves down.
 		const gen = ++this.generation;
 
-		// Tear down the previous canvas, if any. Synchronous portion
-		// runs inline; we don't await in case the teardown is slow —
-		// starting the new mount immediately is the UX we want.
 		this.teardownActive();
 
 		if ( def.type === 'css' ) {
@@ -120,11 +75,6 @@ export class WallpaperLayer {
 		this.applyTone( def, gen );
 	}
 
-	/**
-	 * Runs AFTER the CSS branch has written `--os-bg`, which measuring
-	 * an uploaded image reads back. Generation-guarded so a slow
-	 * measurement cannot stamp the tone of a wallpaper already gone.
-	 */
 	private applyTone( def: WallpaperDef, gen: number ): void {
 		void resolveWallpaperTone( def ).then( ( tone ) => {
 			if ( gen === this.generation ) {
@@ -133,14 +83,6 @@ export class WallpaperLayer {
 		} );
 	}
 
-	/**
-	 * Suspend wallpaper animation — e.g. while a game renders its own
-	 * canvas. Refcounted per reason; the wallpaper stays suspended
-	 * until every held reason is resumed. On the first held reason the
-	 * layer freezes the current frame into a bitmap overlay
-	 * (best-effort) and re-emits the effective visibility so mounted
-	 * scenes stop their tickers. The scene is never destroyed.
-	 */
 	public suspend( reason: string ): void {
 		const wasSuspended = this.isSuspended();
 		this.suspendReasons.set(
@@ -155,10 +97,6 @@ export class WallpaperLayer {
 		this.emitEffectiveVisibility();
 	}
 
-	/**
-	 * Release one hold on a suspend reason. Animation resumes once no
-	 * reason remains held. Unknown reasons are ignored.
-	 */
 	public resume( reason: string ): void {
 		const count = this.suspendReasons.get( reason );
 		if ( count === undefined ) {
@@ -177,24 +115,13 @@ export class WallpaperLayer {
 		this.emitEffectiveVisibility();
 	}
 
-	/** Whether any suspend reason is currently held. */
 	public isSuspended(): boolean {
 		return this.suspendReasons.size > 0;
 	}
 
-	/**
-	 * Imperative teardown entry point — called from desktop.ts on
-	 * `pagehide` so a canvas wallpaper's ticker doesn't compete with
-	 * the session-beacon flush at unload.
-	 */
 	public teardownActive(): void {
-		// Drop the freeze overlay before (or without) a canvas teardown:
-		// a wallpaper switch while suspended must not leave a stale
-		// bitmap of the old wallpaper behind.
 		this.removeFreezeOverlay();
 		if ( ! this.active ) {
-			// CSS-only wallpapers still leave their custom property on
-			// the shell; nothing to remove.
 			return;
 		}
 		const { id, teardown } = this.active;
@@ -203,8 +130,6 @@ export class WallpaperLayer {
 		try {
 			teardown();
 		} catch ( err ) {
-			// A throwing teardown shouldn't prevent subsequent mounts
-			// from succeeding. Log but keep going.
 			doAction( HOOKS.SHELL_ERROR, { scope: 'wallpaper-teardown', id, error: err } );
 			if ( typeof console !== 'undefined' ) {
 				console.error(
@@ -213,29 +138,22 @@ export class WallpaperLayer {
 				);
 			}
 		}
-		// Fully clear the layer — a misbehaving mount may have left
-		// nodes behind despite the teardown contract.
+
 		this.element.innerHTML = '';
 	}
 
-	/** Remove listeners. Not called in normal flow — reserved for tests. */
 	public dispose(): void {
 		this.teardownActive();
 		document.removeEventListener( 'visibilitychange', this.boundVisibilityChange );
 	}
 
 	private applyCss( def: CssWallpaperDef ): void {
-		// Canvas wallpapers clear innerHTML on teardown; CSS wallpapers
-		// never write to it. Nothing to do here for the DOM side.
 		const value = def.resolveValue
 			? def.resolveValue( createContext( def.id, this.pluginUrl ) )
 			: def.value;
 		if ( typeof value === 'string' ) {
 			this.element.style.setProperty( '--os-bg', value );
-			// Also mirror onto the shell so theming rules that read
-			// the variable from the shell (per-scheme overrides,
-			// dock-pill backgrounds) see the active
-			// value. This matches the pre-registry behavior.
+
 			const shell = document.getElementById( 'os-shell' );
 			shell?.style.setProperty( '--os-bg', value );
 		}
@@ -245,31 +163,23 @@ export class WallpaperLayer {
 		const ctx = createContext( def.id, this.pluginUrl );
 		doAction( HOOKS.WALLPAPER_MOUNTING, { id: def.id, container: this.element, ctx } );
 
-		// Declared module dependencies (e.g. `needs: ['pixijs']`) are
-		// resolved BEFORE mount fires. Unknown module ids reject with
-		// a readable error that bubbles through `mount-failed`.
 		const depsReady =
 			def.needs && def.needs.length > 0
 				? loadModules( def.needs )
 				: Promise.resolve();
 
 		const onResolve = ( teardown: WallpaperTeardown ): void => {
-			// Race check: a later apply() already bumped the
-			// generation. Tear down immediately; don't insert or track.
 			if ( gen !== this.generation ) {
 				try {
 					teardown();
 				} catch {
-					/* already racing; best-effort */
+
 				}
 				return;
 			}
 			this.active = { id: def.id, teardown };
 			doAction( HOOKS.WALLPAPER_MOUNTED, { id: def.id, container: this.element, ctx } );
-			// A wallpaper applied while the layer is suspended (or the
-			// tab hidden) must not start animating: tell it about the
-			// effective state right away. Freshly-mounted scenes show
-			// their first frame, so no bitmap overlay is needed here.
+
 			if ( this.isEffectivelyHidden() ) {
 				this.emitEffectiveVisibility();
 			}
@@ -277,8 +187,6 @@ export class WallpaperLayer {
 
 		depsReady.then(
 			() => {
-				// Race check — the user may have switched wallpapers
-				// during the module load.
 				if ( gen !== this.generation ) {
 					return;
 				}
@@ -312,16 +220,10 @@ export class WallpaperLayer {
 		);
 	}
 
-	/** Hidden tab OR held suspend reason — what mounted scenes act on. */
 	private isEffectivelyHidden(): boolean {
 		return document.hidden || this.isSuspended();
 	}
 
-	/**
-	 * Re-emit `WALLPAPER_VISIBILITY` with the effective state. Both the
-	 * `visibilitychange` listener and suspend/resume route through this,
-	 * so a tab re-focus during suspension cannot restart animation.
-	 */
 	private emitEffectiveVisibility(): void {
 		if ( ! this.active ) {
 			return;
@@ -340,14 +242,6 @@ export class WallpaperLayer {
 		} );
 	}
 
-	/**
-	 * Freeze the current frame: copy the live wallpaper canvas onto a
-	 * 2D overlay canvas layered above it, then hide the live canvas.
-	 * Best-effort — Pixi's WebGL canvas has no `preserveDrawingBuffer`,
-	 * so the draw can produce a blank on some drivers; on any failure
-	 * we skip the overlay entirely (a canvas whose ticker stops keeps
-	 * presenting its last frame anyway).
-	 */
 	private installFreezeOverlay(): void {
 		if ( this.freezeOverlay || ! this.active ) {
 			return;
@@ -377,7 +271,7 @@ export class WallpaperLayer {
 			this.freezeOverlay = overlay;
 			this.frozenCanvas = source;
 		} catch {
-			// Tainted canvas / driver quirk — skip the overlay.
+
 		}
 	}
 

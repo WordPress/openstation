@@ -1,33 +1,9 @@
 <?php
-/**
- * OpenStation — AI Copilot abilities.
- *
- * The Copilot's tools are WordPress Abilities API abilities: the agent loop
- * offers the model every registered read-only ability (see
- * {@see openstation_ai_search_ability_names()}) and runs a chosen one through
- * `wp_get_ability()->execute()` — permission checks and input validation
- * happen inside `WP_Ability::execute()`.
- *
- * Every ability's `execute_callback` delegates to the existing query handlers
- * (via {@see openstation_ai_search_dispatch_tool()} / the comment scorer) so
- * there is a single implementation of each tool. The ability is the source of
- * truth for the model-facing description + input schema.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Ability category slug shared by every Copilot ability.
- */
 const OPENSTATION_AI_ABILITY_CATEGORY = 'openstation';
 
-/**
- * Registers the `openstation` ability category.
- *
- * @return void
- */
 function openstation_ai_register_ability_category() {
 	if ( ! function_exists( 'wp_register_ability_category' ) ) {
 		return;
@@ -43,22 +19,6 @@ function openstation_ai_register_ability_category() {
 }
 add_action( 'wp_abilities_api_categories_init', 'openstation_ai_register_ability_category' );
 
-/**
- * The ability names the Copilot offers the model as tools.
- *
- * Every registered ability marked read-only (`meta.annotations.readonly`) is
- * offered — the Copilot's own search/navigation abilities, plus any read-only
- * ability registered by Core or another plugin. No opt-in: register a
- * read-only ability and the assistant can use it; its `permission_callback`
- * still gates execution.
- *
- * Only read-only abilities are advertised on purpose: a search turn can be
- * driven by attacker-controlled content (comment / post text that lands in a
- * tool result), so the model is never handed an ability that could change the
- * site.
- *
- * @return string[] Fully-namespaced ability names.
- */
 function openstation_ai_search_ability_names() {
 	if ( ! function_exists( 'wp_get_abilities' ) ) {
 		return array();
@@ -80,67 +40,31 @@ function openstation_ai_search_ability_names() {
 	return $names;
 }
 
-/**
- * The model-facing tool name for an ability — the ability name with its
- * namespace stripped and dashes turned into underscores. By design this
- * reproduces the Copilot's historical tool names (`desktop-mode/search-posts`
- * → `search_posts`), so progress labels, the system prompt, and the answer
- * schema keep referring to the same names across the abilities migration.
- *
- * @param string $ability_name Fully-namespaced ability name.
- * @return string
- */
 function openstation_ai_ability_tool_name( $ability_name ) {
 	$slug = (string) $ability_name;
 	$pos  = strpos( $slug, '/' );
 	if ( false !== $pos ) {
 		$slug = substr( $slug, $pos + 1 );
 	}
-	// This becomes the model-facing function name; most function-calling
-	// providers only accept [a-z0-9_], so normalize anything else (a
-	// third-party ability may carry extra slashes or mixed case).
+
 	$slug = strtolower( str_replace( '-', '_', $slug ) );
 	$slug = preg_replace( '/[^a-z0-9_]+/', '_', $slug );
 	return trim( (string) $slug, '_' );
 }
 
-/**
- * Permission callback: any logged-in user who can read the site.
- *
- * Mirrors the read-only search/navigation tools, which were ungated beyond the
- * Copilot's own logged-in requirement.
- *
- * @return bool
- */
 function openstation_ai_ability_can_read() {
 	return is_user_logged_in() && current_user_can( 'read' );
 }
 
-/**
- * A loose object output schema: typed at the top level, permissive on the rest
- * so `WP_Ability::execute()`'s output validation never rejects a valid handler
- * return (the shapes carry optional/nested fields we don't want to freeze).
- *
- * @param array<string,array<string,mixed>> $properties Documented top-level props.
- * @return array<string,mixed>
- */
 function openstation_ai_ability_output_schema( array $properties = array() ) {
 	return array(
 		'type'                 => 'object',
 		'additionalProperties' => true,
-		// Keep as a plain (associative) array: WordPress's schema validator
-		// array-accesses `properties`, and every caller passes at least one
-		// property so JSON serialization is still an object. An empty-object
-		// `properties` would need a `(object)` cast, but we never emit one.
+
 		'properties'           => $properties,
 	);
 }
 
-/**
- * Registers every Copilot ability.
- *
- * @return void
- */
 function openstation_ai_register_abilities() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
@@ -195,8 +119,6 @@ function openstation_ai_register_abilities() {
 		),
 	);
 
-	// Admin-only abilities are still read-only, but must not be exposed to
-	// external agents over MCP.
 	$readonly_private_meta = array(
 		'annotations'  => array(
 			'readonly'   => true,
@@ -291,12 +213,7 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/list-admin-pages',
 		array(
 			'label'               => __( 'List admin pages', 'desktop-mode' ),
-			// Describes the TOOL, not the caller's answer format: agents
-			// and the Copilot consume the same registry, and the
-			// Copilot's `admin_links` / `answer_type` contract exists in
-			// its own system prompt and answer schema. Naming those
-			// fields here would instruct an agent to emit a shape its
-			// answer schema does not have.
+
 			'description'         => 'Returns the full catalog of WordPress admin (wp-admin) destinations — pages for managing posts, categories, users, plugins, themes, settings, etc. Call this when the user asks "where can I find X?", "how do I get to Y?", "where are the settings for Z?" — any navigational question about the admin UI. Each entry carries a title, url, icon, and description, so pick the few most relevant to the query. The catalog is small and stable so one call is enough.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
@@ -384,7 +301,7 @@ function openstation_ai_register_abilities() {
 			'execute_callback'    => static function ( $input ) {
 				return openstation_ai_search_dispatch_tool( 'get_php_error_log', (array) $input );
 			},
-			// Admin-only — mirrors the previous in-dispatcher manage_options gate.
+
 			'permission_callback' => static function () {
 				return current_user_can( 'manage_options' );
 			},
@@ -396,19 +313,6 @@ function openstation_ai_register_abilities() {
 }
 add_action( 'wp_abilities_api_init', 'openstation_ai_register_abilities' );
 
-/**
- * Registers the comment-spam analysis ability.
- *
- * Not offered to the model during a search turn (see
- * {@see openstation_ai_search_ability_names()}) — a search turn can be driven
- * by attacker-controlled comment text, and this one spends provider tokens.
- * It is an on-demand ability: a caller with `moderate_comments` runs it for one
- * comment and gets the verdict back. Automatic scoring on comment save was
- * removed (`docs/migration-comments-ai-scoring.md`), so nothing in the plugin
- * invokes it on its own.
- *
- * @return void
- */
 function openstation_ai_register_comment_analysis_ability() {
 	wp_register_ability(
 		'desktop-mode/analyze-comment',
@@ -450,12 +354,6 @@ function openstation_ai_register_comment_analysis_ability() {
 	);
 }
 
-/**
- * Execute callback for the `desktop-mode/analyze-comment` ability.
- *
- * @param array<string,mixed> $input Validated input (`comment_id`).
- * @return array|WP_Error Structured verdict, or an error.
- */
 function openstation_ai_ability_analyze_comment( $input ) {
 	$comment_id = isset( $input['comment_id'] ) ? (int) $input['comment_id'] : 0;
 	$comment    = $comment_id > 0 ? get_comment( $comment_id ) : null;

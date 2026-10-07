@@ -1,13 +1,3 @@
-/**
- * Suspend/resume tests for WallpaperLayer.
- *
- * Covers the `wp.os.wallpaper` surface added for games:
- *   - refcounted reasons (same reason held twice, distinct reasons)
- *   - effective-visibility re-emission (suspend wins over a visible tab)
- *   - the frozen-frame overlay lifecycle (insert, hide live canvas,
- *     remove on resume, clear on wallpaper switch)
- *   - wallpapers applied while suspended mount paused
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WallpaperLayer } from '../../src/wallpapers/layer';
 import type { CanvasWallpaperDef, CssWallpaperDef } from '../../src/wallpapers/types';
@@ -31,8 +21,7 @@ describe( 'WallpaperLayer — suspend/resume', () => {
 		element = document.createElement( 'div' );
 		document.body.appendChild( element );
 		layer = new WallpaperLayer( element, 'http://example.test/plugin' );
-		// jsdom has no 2D context; give the overlay capture a stub so
-		// the happy-path tests exercise the full insert/remove flow.
+
 		vi.spyOn( HTMLCanvasElement.prototype, 'getContext' ).mockReturnValue( {
 			drawImage: () => undefined,
 		} as unknown as CanvasRenderingContext2D );
@@ -115,7 +104,7 @@ describe( 'WallpaperLayer — suspend/resume', () => {
 		layer.resume( 'game:a' );
 
 		expect( layer.isSuspended() ).toBe( true );
-		// No transition — nothing re-fires until the last reason drops.
+
 		expect( log ).toEqual( [] );
 
 		layer.resume( 'game:b' );
@@ -149,8 +138,6 @@ describe( 'WallpaperLayer — suspend/resume', () => {
 		layer.suspend( 'game:a' );
 		const log = recordActions( hooks, [ VISIBILITY ] );
 
-		// Tab is visible (jsdom default: document.hidden === false), but
-		// the held reason must win.
 		document.dispatchEvent( new Event( 'visibilitychange' ) );
 
 		expect( log ).toHaveLength( 1 );
@@ -193,7 +180,7 @@ describe( 'WallpaperLayer — suspend/resume', () => {
 		layer.apply( cssDef() );
 
 		expect( element.querySelector( '.os-wallpaper-freeze' ) ).toBeNull();
-		// The reason is still held; a later canvas mount stays paused.
+
 		expect( layer.isSuspended() ).toBe( true );
 	} );
 

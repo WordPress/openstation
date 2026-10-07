@@ -1,13 +1,3 @@
-/**
- * Wallpaper live previews — the OS Settings picker's lazy
- * `renderPreview` mounts (src/wallpapers/preview-manager.ts).
- *
- * Covers: overlay creation only for defs that declare `renderPreview`,
- * visibility-driven mount/teardown, the `previewParams` seed + the
- * `os.wallpaper.preview-params` filter, the concurrency cap,
- * tile repurposing on grid re-render, the async-mount race guard, and
- * dispose (both direct and via the window-closed self-clean).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { FakeWpHooks } from './helpers/hooks-stub';
@@ -22,11 +12,6 @@ import type {
 	WallpaperTeardown,
 } from '../../src/wallpapers/types';
 
-/**
- * Controllable IntersectionObserver double. The manager treats "no
- * IntersectionObserver" as "no live previews", so tests install this
- * before creating a manager and drive visibility by hand.
- */
 class FakeIntersectionObserver {
 	static instances: FakeIntersectionObserver[] = [];
 	observed: Element[] = [];
@@ -64,7 +49,6 @@ const observerFor = (): FakeIntersectionObserver => {
 	return instance;
 };
 
-/** Let pending mount promise chains settle. */
 const flush = (): Promise< void > =>
 	new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 
@@ -105,7 +89,6 @@ let hooks: FakeWpHooks;
 let root: HTMLElement;
 let managers: WallpaperPreviewManager[];
 
-/** Create a manager and track it for afterEach disposal. */
 function makeManager(): WallpaperPreviewManager {
 	const manager = createWallpaperPreviewManager( root );
 	managers.push( manager );
@@ -168,12 +151,11 @@ describe( 'overlay reconciliation (sync)', () => {
 		await flush();
 		expect( a.renderPreview ).toHaveBeenCalledTimes( 1 );
 
-		// The unkeyed grid re-render now shows wallpaper B in this slot.
 		tile.dataset.wallpaperId = 'test-b';
 		manager.sync();
 
 		expect( a.teardown ).toHaveBeenCalledTimes( 1 );
-		// A fresh overlay exists for the new def, awaiting visibility.
+
 		expect(
 			tile.querySelectorAll( `.${ PREVIEW_OVERLAY_CLASS }` ),
 		).toHaveLength( 1 );
@@ -217,7 +199,6 @@ describe( 'visibility-driven mount / teardown', () => {
 		observerFor().trigger( [ tile ], false );
 		expect( teardown ).toHaveBeenCalledTimes( 1 );
 
-		// Back into view → a fresh mount.
 		observerFor().trigger( [ tile ], true );
 		await flush();
 		expect( renderPreview ).toHaveBeenCalledTimes( 2 );
@@ -237,7 +218,7 @@ describe( 'visibility-driven mount / teardown', () => {
 
 		observerFor().trigger( [ tile ], true );
 		await flush();
-		observerFor().trigger( [ tile ], false ); // left before resolve
+		observerFor().trigger( [ tile ], false );
 
 		resolveMount( teardown );
 		await flush();
@@ -340,8 +321,6 @@ describe( 'concurrency cap', () => {
 		);
 		expect( mounted ).toHaveLength( 4 );
 
-		// A slot frees up → a capped tile can mount on its next
-		// intersection tick.
 		observerFor().trigger( [ tiles[ 0 ] ], false );
 		observerFor().trigger( [ tiles[ 4 ] ], true );
 		observerFor().trigger( [ tiles[ 5 ] ], true );
@@ -353,11 +332,6 @@ describe( 'concurrency cap', () => {
 	} );
 } );
 
-/**
- * Controllable ResizeObserver double, mirroring the IO one. When
- * installed, the manager defers mounts until tiles have a real size
- * and remounts on post-mount size drift.
- */
 class FakeResizeObserver {
 	static instances: FakeResizeObserver[] = [];
 	observed: Element[] = [];
@@ -405,13 +379,12 @@ describe( 'size-aware mounting (ResizeObserver available)', () => {
 
 	test( 'defers the mount until the tile has a real layout box', async () => {
 		const { renderPreview } = registerLiveDef( 'test-live' );
-		const tile = makeTile( root, 'test-live' ); // clientWidth 0 in jsdom
+		const tile = makeTile( root, 'test-live' );
 		makeManager().sync();
 
 		observerFor().trigger( [ tile ], true );
 		await flush();
-		// Visible but zero-sized (settings window still opening) — the
-		// mount must NOT run against the transitional box.
+
 		expect( renderPreview ).not.toHaveBeenCalled();
 
 		setTileSize( tile, 180, 101 );
@@ -435,10 +408,9 @@ describe( 'size-aware mounting (ResizeObserver available)', () => {
 			await vi.advanceTimersByTimeAsync( 0 );
 			expect( renderPreview ).toHaveBeenCalledTimes( 1 );
 
-			// The user resizes the OS Settings window → grid reflows.
 			setTileSize( tile, 260, 146 );
 			FakeResizeObserver.instances[ 0 ].trigger( [ tile ] );
-			// Not yet — debounce window still open.
+
 			await vi.advanceTimersByTimeAsync( 100 );
 			expect( teardown ).not.toHaveBeenCalled();
 
@@ -463,7 +435,7 @@ describe( 'size-aware mounting (ResizeObserver available)', () => {
 			observerFor().trigger( [ tile ], true );
 			await vi.advanceTimersByTimeAsync( 0 );
 
-			setTileSize( tile, 183, 101 ); // < 4px drift
+			setTileSize( tile, 183, 101 );
 			FakeResizeObserver.instances[ 0 ].trigger( [ tile ] );
 			await vi.advanceTimersByTimeAsync( 500 );
 			expect( teardown ).not.toHaveBeenCalled();
@@ -499,14 +471,13 @@ describe( 'dispose', () => {
 		observerFor().trigger( [ tile ], true );
 		await flush();
 
-		root.remove(); // panel body torn down with the window
+		root.remove();
 		document.dispatchEvent(
 			new CustomEvent( 'os-window-closed' ),
 		);
 
 		expect( a.teardown ).toHaveBeenCalledTimes( 1 );
 
-		// Idempotent — a later explicit dispose is a no-op.
 		manager.dispose();
 		expect( a.teardown ).toHaveBeenCalledTimes( 1 );
 	} );

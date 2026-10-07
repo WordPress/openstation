@@ -1,27 +1,3 @@
-/**
- * `<os-modal>` — overlay container for rich modal UIs that need
- * more shape than `<os-confirm-dialog>`. Three slots:
- *
- *   - **(default)** — body content.
- *   - **footer** — button row (right-aligned).
- *   - **header-actions** — extra actions next to the close button.
- *
- * The component handles ESC, click-outside, and focus trap; the
- * consumer renders the body + footer however they like.
- *
- * Attributes:
- *
- *   - `open` — mounts the dialog visible.
- *   - `title` — heading text.
- *   - `size` — `sm` | `md` (default) | `lg`.
- *   - `mandatory` — disables ESC, click-outside, and hides the
- *     close button. Use sparingly (terms / blocker dialogs).
- *
- * Events:
- *
- *   - `os-modal-cancel` — ESC, click-outside, close button.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { modalStyles } from './os-modal.styles';
 
@@ -66,10 +42,7 @@ export class OsModal extends Component {
 					'The dialog box itself, inside the scrim. Reach for it when a consumer needs the scrim and the box to behave differently — e.g. a live-preview panel that makes the scrim transparent and click-through (`pointer-events: none` on the host) while keeping the box interactive (`::part(dialog) { pointer-events: auto }`).',
 			},
 		],
-		/*
-		 * Hidden until `[open]`, so a bare mount renders nothing at
-		 * all. The trigger is the example.
-		 */
+
 		example: html`
 			<os-button data-demo="open">Open a modal</os-button>
 			<os-modal size="md" title="Window settings">
@@ -90,9 +63,6 @@ export class OsModal extends Component {
 			}
 			const open = root.querySelector< HTMLElement >( '[data-demo="open"]' );
 			if ( open ) {
-				// Assignment rather than addEventListener: the help
-				// panel re-runs this on every keystroke in its filter
-				// box, and adding would stack a listener per repaint.
 				open.onclick = () => modal.setAttribute( 'open', '' );
 			}
 			for ( const btn of Array.from(
@@ -129,7 +99,7 @@ export class OsModal extends Component {
 				try {
 					this._prevFocus.focus();
 				} catch ( e ) {
-					// Element may have unmounted while modal was open.
+
 				}
 				this._prevFocus = null;
 			}
@@ -214,11 +184,6 @@ export class OsModal extends Component {
 	}
 
 	protected render() {
-		// `title` is reflected on every HTMLElement via the IDL — read
-		// it through `getAttribute` so the source-of-truth is explicit
-		// and we don't trip readers who'd otherwise think the cast in
-		// the old line meant the property could be null (it can't —
-		// HTMLElement.title is always a string).
 		const title = this.getAttribute( 'title' ) ?? '';
 		const mandatory = this.hasAttribute( 'mandatory' );
 		return html`

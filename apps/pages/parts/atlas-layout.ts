@@ -1,4 +1,3 @@
-/** Connected families occupy layers; regular gutters leave room for every thread. */
 import { SHEET_WIDTH, SHEET_HEIGHT, type AtlasPage, type AtlasNode, type AtlasEdge } from './atlas-model';
 export interface RoutePoint { x: number; y: number }
 export const COLUMN_STEP = 480;
@@ -45,7 +44,7 @@ export function layoutAtlas( pages: AtlasPage[], edges: AtlasEdge[], home?: numb
 		for ( const id of queue ) {
 			( layers[ depths.get( id )! ] ??= [] ).push( id );
 		}
-		// Alternating barycentric sweeps bring shared neighbors together, reducing crossings.
+
 		for ( let pass = 0; pass < 6; pass++ ) {
 			const order = layers.map( ( _, index ) => index );
 			if ( pass % 2 ) {
@@ -84,7 +83,6 @@ export function layoutAtlas( pages: AtlasPage[], edges: AtlasEdge[], home?: numb
 	return [ ...pages ].sort( ( a, b ) => Number( b.id === home ) - Number( a.id === home ) ).map( ( page ) => ( { page, ...positions.get( page.id )! } ) );
 }
 
-/** Orthogonal routes stay in the universal grid gutters, never through another sheet. */
 export function routeThread( from: AtlasNode, to: AtlasNode, lane = 0 ): RoutePoint[] {
 	const offset = ( lane % 7 - 3 ) * 7;
 	const right = to.x >= from.x;

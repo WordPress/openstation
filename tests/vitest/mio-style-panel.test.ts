@@ -1,16 +1,3 @@
-/**
- * Mio's "Make it yours" panel — the right-click menu, the live
- * binding between each control and `setStyle`, Restore, and Surprise
- * me.
- *
- * The contract worth defending is the *scope*: the panel may touch
- * wallpaper visibility, appearance and the look-physics keys (silhouette, shuffle, idle
- * wobble), and nothing else. The spring constants belong to the site —
- * they interact, and an unstable Mio is not debuggable from a slider —
- * and `radius` is a layout decision. A control that quietly changed
- * either would be a bug nobody notices until a companion is unstable
- * or covering a window.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type {
 	MioAppearance,
@@ -27,13 +14,6 @@ async function load(): Promise< PanelModule > {
 	return await import( '../../src/mio/style-panel' );
 }
 
-/**
- * A stub `wp.os.mio` recording every write.
- *
- * `writes` is the raw flat bag each control sent; `appearanceWrites` /
- * `physicsWrites` are the same calls split the way the real controller
- * splits them, so a test can assert on the half it cares about.
- */
 function stubApi(): {
 	writes: LookPartial[];
 	appearanceWrites: Partial< MioAppearance >[];
@@ -165,9 +145,7 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'the panel only ever touches the look, never the springs', async () => {
-		// The scope guarantee. Every control is bound to one appearance
-		// key or one look-physics key; this walks the whole panel and
-		// checks what they write.
+
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
@@ -191,9 +169,7 @@ describe( 'Mio style panel', () => {
 		}
 
 		expect( state.writes.length ).toBeGreaterThan( 0 );
-		// Nothing a control sends may fall outside the two whitelists —
-		// `splitMioLook` would drop it, so a control writing a key that
-		// belongs to neither is a control that silently does nothing.
+
 		for ( const write of state.writes ) {
 			const split = splitMioLook( write );
 			expect(
@@ -205,10 +181,9 @@ describe( 'Mio style panel', () => {
 		const appearanceKeys = new Set(
 			state.appearanceWrites.flatMap( ( w ) => Object.keys( w ) ),
 		);
-		// A size, not a look.
+
 		expect( appearanceKeys.has( 'radius' ) ).toBe( false );
 
-		// The physics half: only the look keys, never a spring constant.
 		expect( state.physicsWrites.length ).toBeGreaterThan( 0 );
 		const physicsKeys = new Set(
 			state.physicsWrites.flatMap( ( w ) => Object.keys( w ) ),
@@ -219,19 +194,7 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'every styling aspect has a control', async () => {
-		// The completeness guarantee, the mirror of the scope one: the
-		// panel must expose every appearance key there is, so a knob
-		// added to the config can't quietly stay unreachable.
-		//
-		// Two deliberate omissions:
-		//   - `radius` is a size, not a look. How big the companion is
-		//     on the desk is a layout decision.
-		//   - `glowBlur` stays on. Each glow pass is a ramp of
-		//     concentric shells, and unblurred that ramp shows as the
-		//     contour rings it is built from — not the crisp version of
-		//     the glow, the unfinished one. A site that needs the
-		//     filter passes gone can still drop them through
-		//     `openstation_mio_config`.
+
 		const OMITTED = [ 'radius', 'glowBlur' ];
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
@@ -257,10 +220,7 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'every checkbox is laid out as a full-width row', async () => {
-		// `<os-checkbox>` is shrink-to-fit by default, which is right for
-		// a table cell and wrong here: every other control in the panel
-		// is a block-level row, so a bare checkbox stops short of the
-		// panel edge for no reason the user can see.
+
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
 
@@ -274,12 +234,7 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'no control can switch the glow blur off', async () => {
-		// Unblurred, each glow pass shows as the concentric shells its
-		// falloff ramp is built from. That is not a look a user would
-		// choose on purpose, so the panel does not offer it — and a
-		// stray control that wrote the key would be shipping it by
-		// accident. `openstation_mio_config` is the way out, for sites
-		// that want the two filter passes back.
+
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
@@ -298,8 +253,7 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'every look-physics key has a control too', async () => {
-		// Same guarantee on the other half. `shapeLobes` is reachable
-		// only through the polygon, so the sweep runs twice.
+
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
@@ -355,8 +309,6 @@ describe( 'Mio style panel', () => {
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
 
-		// By label, not by position: the panel has three colour fields
-		// and which one comes first is a layout decision.
 		const field = [
 			...panel()!.querySelectorAll( 'os-color-field' ),
 		].find( ( el ) => 'Body colour' === el.getAttribute( 'label' ) );
@@ -387,7 +339,6 @@ describe( 'Mio style panel', () => {
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
 
-		// Move something far from the default first.
 		const glow = Array.from(
 			panel()!.querySelectorAll( 'os-range-field' ),
 		).find( ( el ) => el.getAttribute( 'label' ) === 'Glow' )!;
@@ -402,7 +353,7 @@ describe( 'Mio style panel', () => {
 		restore!.dispatchEvent( new MouseEvent( 'click' ) );
 
 		expect( state.resets ).toBe( 1 );
-		// Repainted from the restored config, not left showing 0.
+
 		const repainted = Array.from(
 			panel()!.querySelectorAll( 'os-range-field' ),
 		).find( ( el ) => el.getAttribute( 'label' ) === 'Glow' )!;
@@ -428,8 +379,6 @@ describe( 'Mio style panel', () => {
 			panel()!.querySelectorAll( 'os-select > os-option' ),
 		).map( ( el ) => el.getAttribute( 'value' ) );
 
-		// Every preset the sanitizer accepts must be reachable, or a
-		// silhouette someone added is one nobody can pick.
 		for ( const preset of [
 			'circle',
 			'blob',
@@ -474,7 +423,6 @@ describe( 'Mio style panel', () => {
 				( el ) => el.getAttribute( 'label' ) === 'Corners',
 			);
 
-		// Default preset is `blob`, which does not read `shapeLobes`.
 		expect( corners() ).toBeUndefined();
 
 		panel()!
@@ -501,7 +449,7 @@ describe( 'Mio style panel', () => {
 			( el ) => el.getAttribute( 'label' ) === 'Change shape on its own',
 		);
 		expect( auto ).toBeDefined();
-		// The shipped Mio does shuffle, so it starts ticked.
+
 		expect( auto!.hasAttribute( 'checked' ) ).toBe( true );
 
 		auto!.dispatchEvent(
@@ -528,15 +476,13 @@ describe( 'Mio style panel', () => {
 		expect( surprise ).toBeDefined();
 		surprise!.dispatchEvent( new MouseEvent( 'click' ) );
 
-		// One call, carrying both halves.
 		expect( state.writes ).toHaveLength( 1 );
 		expect( state.appearanceWrites ).toHaveLength( 1 );
 		expect( state.physicsWrites ).toHaveLength( 1 );
-		// A random look never rotates the silhouette, and never leaves
-		// the gradient with a seam in it.
+
 		expect( state.physicsWrites[ 0 ].shapeAngle ).toBe( 0 );
 		expect( state.appearanceWrites[ 0 ].hueLoop ).toBe( true );
-		// Repainted from what was just applied.
+
 		expect(
 			panel()!.querySelector( 'os-select' )!.getAttribute( 'value' ),
 		).toBe( state.physicsWrites[ 0 ].shapePreset );
@@ -550,8 +496,6 @@ describe( 'Mio style panel', () => {
 		closeMioStylePanel();
 		expect( state.commits ).toBe( 1 );
 
-		// Closing again has nothing to save. A commit costs a REST
-		// round-trip, and the teardown path calls this unconditionally.
 		closeMioStylePanel();
 		expect( state.commits ).toBe( 1 );
 	} );

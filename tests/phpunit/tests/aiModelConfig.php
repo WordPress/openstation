@@ -1,13 +1,4 @@
 <?php
-/**
- * Tests for the model-config opt-in.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-ai
- */
 
 class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 
@@ -16,9 +7,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Records the setter calls the config makes on a prompt builder.
-	 */
 	private function builder() {
 		return new class() {
 			public $model_config = null;
@@ -52,14 +40,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * The default pins nothing but the output ceiling: no provider, no
-	 * model, no temperature. The ceiling is there because the Anthropic
-	 * provider otherwise falls back to 4096, which truncates any tool
-	 * call carrying a whole post.
-	 *
-	 * @covers ::openstation_ai_apply_model_config
-	 */
 	public function test_default_config_is_only_the_output_ceiling() {
 		$builder = $this->builder();
 
@@ -74,13 +54,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The default ceiling only fills a gap: a filter that sets one wins
-	 * (the coercion test above), and a filter that returns garbage still
-	 * gets the default rather than the provider's own fallback.
-	 *
-	 * @covers ::openstation_ai_apply_model_config
-	 */
 	public function test_non_array_filter_result_still_gets_the_ceiling() {
 		$this->filter_returns( false );
 		$builder = $this->builder();
@@ -90,9 +63,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertNull( $builder->preference );
 	}
 
-	/**
-	 * @covers ::openstation_ai_apply_model_config
-	 */
 	public function test_max_tokens_and_temperature_are_coerced() {
 		$this->filter_returns(
 			array(
@@ -108,11 +78,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 0.2, $builder->model_config->getTemperature() );
 	}
 
-	/**
-	 * Unlike max_tokens, 0.0 is a legitimate temperature.
-	 *
-	 * @covers ::openstation_ai_apply_model_config
-	 */
 	public function test_zero_temperature_is_kept() {
 		$this->filter_returns( array( 'temperature' => 0.0 ) );
 		$builder = $this->builder();
@@ -122,12 +87,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 0.0, $builder->model_config->getTemperature() );
 	}
 
-	/**
-	 * @dataProvider data_unusable_config
-	 * @covers ::openstation_ai_apply_model_config
-	 *
-	 * @param mixed $config Filter return value.
-	 */
 	public function test_unusable_config_is_ignored( $config ) {
 		$this->filter_returns( $config );
 		$builder = $this->builder();
@@ -141,9 +100,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @return array<string, array{0: mixed}>
-	 */
 	public function data_unusable_config() {
 		return array(
 			'zero ceiling'            => array( array( 'max_tokens' => 0 ) ),
@@ -154,15 +110,11 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 			'non-numeric temperature' => array( array( 'temperature' => 'hot' ) ),
 			'empty options'           => array( array( 'custom_options' => array() ) ),
 			'non-array options'       => array( array( 'custom_options' => 'thinking' ) ),
-			// Provider parameters belong under `custom_options`; a top-level
-			// key is a typo that would otherwise fail silently at the provider.
+
 			'top-level provider key'  => array( array( 'thinking' => array( 'type' => 'adaptive' ) ) ),
 		);
 	}
 
-	/**
-	 * @covers ::openstation_ai_apply_model_config
-	 */
 	public function test_custom_options_reach_the_model_config() {
 		$options = array(
 			'thinking'      => array( 'type' => 'adaptive' ),
@@ -176,12 +128,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( $options, $builder->model_config->getCustomOptions() );
 	}
 
-	/**
-	 * A bare model id is not a ModelInterface, so it has to route through
-	 * using_model_preference() or the SDK raises a TypeError.
-	 *
-	 * @covers ::openstation_ai_apply_model_config
-	 */
 	public function test_model_id_routes_through_model_preference() {
 		$this->filter_returns( array( 'model' => 'claude-sonnet-5' ) );
 		$builder = $this->builder();
@@ -191,16 +137,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( array( 'claude-sonnet-5' ), $builder->preference );
 	}
 
-	/**
-	 * `using_model_preference()` throws on anything that isn't a non-empty
-	 * string, so an unusable model has to be dropped like every other key
-	 * rather than failing the whole turn.
-	 *
-	 * @dataProvider data_unusable_model
-	 * @covers ::openstation_ai_apply_model_config
-	 *
-	 * @param mixed $model Filter-supplied model.
-	 */
 	public function test_unusable_model_is_ignored( $model ) {
 		$this->filter_returns( array( 'model' => $model ) );
 		$builder = $this->builder();
@@ -210,27 +146,17 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertNull( $builder->preference );
 	}
 
-	/**
-	 * @return array<string, array{0: mixed}>
-	 */
 	public function data_unusable_model() {
 		return array(
 			'empty string'    => array( '' ),
 			'whitespace only' => array( "  \t " ),
 			'integer'         => array( 0 ),
 			'null'            => array( null ),
-			// usingModelPreference() accepts [provider, model] tuples, but we
-			// deliberately don't: the documented surface is id or instance.
+
 			'tuple'           => array( array( 'anthropic', 'claude-sonnet-5' ) ),
 		);
 	}
 
-	/**
-	 * The filter's own ceiling must survive the model's default, which means
-	 * the config has to be applied before the model.
-	 *
-	 * @covers ::openstation_ai_apply_model_config
-	 */
 	public function test_config_is_applied_before_the_model() {
 		$this->filter_returns(
 			array(
@@ -257,11 +183,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( array( 'config', 'model' ), $builder->order );
 	}
 
-	/**
-	 * A list would reach the provider as parameters named `0`, `1`, ….
-	 *
-	 * @covers ::openstation_ai_apply_model_config
-	 */
 	public function test_non_string_option_keys_are_dropped() {
 		$this->filter_returns(
 			array(
@@ -281,12 +202,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Every documented key is present whatever the caller passed, so a
-	 * subscriber can branch on `$context['source']` without guarding.
-	 *
-	 * @covers ::openstation_ai_apply_model_config
-	 */
 	public function test_context_is_filled_with_defaults() {
 		$seen = null;
 		add_filter(
@@ -313,11 +228,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Captures the context of the next turn any call site generates.
-	 *
-	 * @return object
-	 */
 	private function capture_source() {
 		$capture = new stdClass();
 		$capture->source = null;
@@ -335,14 +245,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		return $capture;
 	}
 
-	/**
-	 * The `source` strings are the documented contract, so drive each entry
-	 * point for real rather than asserting them at the helper. Generation
-	 * fails afterwards (no provider is configured in tests) and that is fine:
-	 * the filter runs first.
-	 *
-	 * @covers ::openstation_ai_client_generate
-	 */
 	public function test_client_generate_forwards_the_callers_source() {
 		$capture = $this->capture_source();
 
@@ -358,9 +260,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 'agents/runner', $capture->source );
 	}
 
-	/**
-	 * @covers ::openstation_ai_run_followup
-	 */
 	public function test_followup_reports_its_source() {
 		$capture = $this->capture_source();
 
@@ -369,9 +268,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 'ai-copilot/followup', $capture->source );
 	}
 
-	/**
-	 * @covers ::openstation_ai_analyze_comment_now
-	 */
 	public function test_comment_analysis_reports_its_source() {
 		$capture    = $this->capture_source();
 		$comment_id = self::factory()->comment->create( array( 'comment_content' => 'Nice post!' ) );
@@ -381,9 +277,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 'ai-copilot/comment-analysis', $capture->source );
 	}
 
-	/**
-	 * @covers ::openstation_rest_draft_suggestions
-	 */
 	public function test_draft_suggestions_report_their_source() {
 		$capture = $this->capture_source();
 		$post_id = self::factory()->post->create( array( 'post_status' => 'draft' ) );
@@ -395,9 +288,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 'widgets/drafts-suggestions', $capture->source );
 	}
 
-	/**
-	 * Builds a generation result whose single candidate ended for `$reason`.
-	 */
 	private function result_with_finish_reason( $reason ) {
 		$message = new \WordPress\AiClient\Messages\DTO\Message(
 			\WordPress\AiClient\Messages\Enums\MessageRoleEnum::model(),
@@ -416,14 +306,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The LENGTH finish reason is what the Anthropic and Google providers
-	 * report when the ceiling cuts a reply; a truncated function call
-	 * arrives with its longest argument missing, and this is the only
-	 * signal that it did.
-	 *
-	 * @covers ::openstation_ai_result_is_truncated
-	 */
 	public function test_length_finish_reason_is_truncation() {
 		$this->assertTrue(
 			openstation_ai_result_is_truncated(
@@ -438,9 +320,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertFalse( openstation_ai_result_is_truncated( new stdClass() ), 'No candidates is not truncation.' );
 	}
 
-	/**
-	 * @covers ::openstation_ai_output_truncated_error
-	 */
 	public function test_truncated_error_carries_the_usage() {
 		$error = openstation_ai_output_truncated_error( 'finish reason: length', array( 'completion' => 4096 ) );
 

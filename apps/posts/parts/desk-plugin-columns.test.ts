@@ -6,12 +6,6 @@ import { freshDesk, renderDesk } from './desk';
 import type { CellEnv } from './cells/env';
 import type { ListData, ListState, PostListItem } from './types';
 
-/**
- * #812 — a column a plugin appends through `openstation.postsWindow.columns`
- * paints on the writing-desk card, the same set the inspector paints,
- * governed by the same Show columns preference.
- */
-
 type Hooks = { addFilter: ( n: string, ns: string, cb: ( v: unknown ) => unknown ) => void; removeFilter: ( n: string, ns: string ) => void; applyFilters: ( n: string, v: unknown ) => unknown };
 
 function installHooks(): Hooks {
@@ -68,7 +62,7 @@ describe( 'plugin columns on the writing-desk card', () => {
 				if ( value ) {
 					node.textContent = `v${ String( value ) }`;
 				}
-				return node; // empty when absent — the documented "keep the column aligned" shape
+				return node;
 			},
 		} ] ) );
 		const root = paint( [ row( 1, { x: 3 } ), row( 2 ) ] );
@@ -78,7 +72,7 @@ describe( 'plugin columns on the writing-desk card', () => {
 		expect( stats[ 0 ].querySelector( '.os-posts-desk__plugin-stat-value' )?.textContent ).toBe( 'v3' );
 		expect( stats[ 0 ].querySelector( '.os-posts-desk__plugin-stat-label' )?.textContent ).toBe( 'Provenance' );
 		expect( stats[ 0 ].parentElement?.classList.contains( 'os-posts-desk__metrics' ) ).toBe( true );
-		expect( calls ).toBe( 2 ); // once per card, no singleton reuse
+		expect( calls ).toBe( 2 );
 		const nodes = [ ...root.querySelectorAll( '.os-posts-desk__plugin-stat-value > span' ) ];
 		expect( new Set( nodes ).size ).toBe( nodes.length );
 	} );

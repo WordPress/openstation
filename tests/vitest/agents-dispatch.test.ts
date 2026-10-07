@@ -1,8 +1,3 @@
-/**
- * Unit tests for `src/agents-dispatch.ts` — drag payload → entity
- * normalization, the drop-gating rule, and the full drop dispatch
- * against a stubbed `/invoke`.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	agentAcceptsDrop,
@@ -175,8 +170,7 @@ describe( 'dispatchAgentDrop', () => {
 		const transcript = agentsChatStore.state.transcripts[ 9 ];
 		expect( transcript ).toHaveLength( 2 );
 		expect( transcript[ 0 ].role ).toBe( 'user' );
-		// The dropped object rides the row so the chat can render it as
-		// a card the user can open — the runner still gets the prose.
+
 		expect( transcript[ 0 ].attachment ).toEqual( {
 			kind: 'media',
 			id: 44,
@@ -284,8 +278,6 @@ describe( 'dispatchAgentDrop', () => {
 
 		await invokeAgentIntoTranscript( AGENT, 'Try again', rest, 'chat' );
 
-		// The fire-and-forget conversation save shares the fetch mock, so
-		// pick the second run out by its URL.
 		const invokes = fetchMock.mock.calls.filter( ( [ url ] ) =>
 			String( url ).endsWith( '/invoke' ),
 		) as Array< [ string, RequestInit ] >;
@@ -326,6 +318,5 @@ describe( 'dispatchAgentDrop', () => {
 			( JSON.parse( String( init.body ) ) as { history: unknown[] } ).history,
 		).toEqual( [ { role: 'user', text: 'Propose a revision' } ] );
 	} );
-
 
 } );

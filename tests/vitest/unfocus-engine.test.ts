@@ -1,12 +1,3 @@
-/**
- * Unit tests for `src/effects/unfocus-engine.ts`.
- *
- * The engine applies the user's chosen unfocus effect to every window
- * that isn't focused, and keeps it in sync with focus changes, the OS
- * Settings selection, and the effect registry. We drive it with fake
- * `WindowManager` / `OsSettings` doubles and real DOM nodes so we can
- * assert the class toggling on each window root.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -107,8 +98,7 @@ describe( 'effects/unfocus-engine.ts', () => {
 	test( 'does not apply to windows hosting a WebGL <canvas> (Pixi scenes)', async () => {
 		const { engine } = await loadModules();
 		const pixi = makeWin( 'graph', false );
-		// Native Pixi window: a <canvas> lives in the window root's
-		// parent DOM. Filtering it would risk a WebGL context loss.
+
 		pixi.element.appendChild( document.createElement( 'canvas' ) );
 		const plain = makeWin( 'posts', false );
 		const { osSettings } = makeOsSettings( 'darken' );
@@ -118,7 +108,6 @@ describe( 'effects/unfocus-engine.ts', () => {
 			osSettings,
 		} );
 
-		// The canvas window is exempt; the plain window still darkens.
 		expect( pixi.element.classList.contains( DARKEN_CLASS ) ).toBe( false );
 		expect(
 			pixi.element.hasAttribute( 'data-desktop-unfocus-effect' ),
@@ -143,9 +132,7 @@ describe( 'effects/unfocus-engine.ts', () => {
 
 	test( 'does not apply to windows in split view', async () => {
 		const { engine } = await loadModules();
-		// Split view: two half-screen tiles, one focused. The user is
-		// working on both at once — the unfocused half must stay
-		// legible.
+
 		const left = makeWin( 'left', true, 'snapped-left' );
 		const right = makeWin( 'right', false, 'snapped-right' );
 		const floating = makeWin( 'floating', false );
@@ -162,7 +149,7 @@ describe( 'effects/unfocus-engine.ts', () => {
 		expect(
 			right.element.hasAttribute( 'data-desktop-unfocus-effect' ),
 		).toBe( false );
-		// A window that is merely behind the pair still gets the effect.
+
 		expect( floating.element.classList.contains( DARKEN_CLASS ) ).toBe(
 			true,
 		);
@@ -196,8 +183,6 @@ describe( 'effects/unfocus-engine.ts', () => {
 			false,
 		);
 
-		// Dragged out of split view while another window holds focus:
-		// no focus event fires, only `os-window-changed`.
 		snapped.state = 'normal';
 		document.dispatchEvent(
 			new CustomEvent( 'os-window-changed', {
@@ -268,7 +253,6 @@ describe( 'effects/unfocus-engine.ts', () => {
 		expect( a.element.classList.contains( DARKEN_CLASS ) ).toBe( false );
 		expect( b.element.classList.contains( DARKEN_CLASS ) ).toBe( true );
 
-		// Focus moves to b.
 		a.focused = false;
 		b.focused = true;
 		document.dispatchEvent(
@@ -291,7 +275,7 @@ describe( 'effects/unfocus-engine.ts', () => {
 			owner: 'plugin-a',
 		} );
 		const unfocused = makeWin( 'b', false );
-		// User has the plugin effect selected.
+
 		const { osSettings } = makeOsSettings( 'plugin/glow' );
 
 		engine.startUnfocusEngine( {
@@ -302,10 +286,6 @@ describe( 'effects/unfocus-engine.ts', () => {
 			true,
 		);
 
-		// Plugin deactivates: its def leaves the registry, which fires
-		// the engine's registry subscriber → recompute. The class must
-		// be removed even though the registry can no longer map the id
-		// back to its class.
 		registry.unregisterUnfocusEffectsByOwner( 'plugin-a' );
 
 		expect( unfocused.element.classList.contains( pluginClass ) ).toBe(
@@ -331,7 +311,6 @@ describe( 'effects/unfocus-engine.ts', () => {
 		engine.startUnfocusEngine( { manager, osSettings } );
 		const afterSecond = spy.mock.calls.length;
 
-		// The first call wired the listeners; the second added none.
 		expect( afterFirst ).toBeGreaterThan( 0 );
 		expect( afterSecond ).toBe( afterFirst );
 

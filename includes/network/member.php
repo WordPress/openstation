@@ -1,43 +1,15 @@
 <?php
-/**
- * OpenStation — A member of a network: the hub it belongs to, and the
- * network's list as last fetched, which is what its switcher shows.
- *
- * Joining is one URL: the member fetches the hub's identity, pins its
- * key, then asks for the list with a signed request. The hub answers
- * only once the member has been added there, so the two steps can
- * happen in either order; until the hub knows this site, the member
- * shows it is waiting. The list is cached and refreshed in the
- * background when older than an hour, never on the request that
- * paints the shell.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** The hub this install belongs to, with the list as last fetched. */
 const OPENSTATION_NETWORK_HUB_OPTION = 'openstation_network_hub';
 
-/** How old a cached list may be before a refresh is scheduled. */
 const OPENSTATION_NETWORK_LIST_TTL = HOUR_IN_SECONDS;
 
-/**
- * How soon a member WITHOUT a list asks again: it joined before the
- * hub added it, or the hub was unreachable. The two steps of pairing
- * happen in either order, and this is what makes the second one land
- * without anyone pressing Sync.
- */
 const OPENSTATION_NETWORK_RETRY = 5 * MINUTE_IN_SECONDS;
 
-/** The cron hook that refreshes the list. */
 const OPENSTATION_NETWORK_REFRESH_HOOK = 'openstation_network_refresh_list';
 
-/**
- * The hub this install belongs to, or null.
- *
- * @return array<string,mixed>|null `url`, `name`, `shellUrl`, `publicKey`, `joined`, `list`, `fetched` (the last list), `tried` (the last attempt, either way), `error`.
- */
 function openstation_network_hub() {
 	$hub = openstation_network_option_get( OPENSTATION_NETWORK_HUB_OPTION );
 	if ( ! is_array( $hub ) || empty( $hub['url'] ) || empty( $hub['publicKey'] ) ) {
@@ -56,21 +28,10 @@ function openstation_network_hub() {
 	);
 }
 
-/**
- * Whether this install belongs to a network.
- *
- * @return bool
- */
 function openstation_network_is_member() {
 	return null !== openstation_network_hub();
 }
 
-/**
- * Join a network: pin the hub, then ask it for the list.
- *
- * @param string $url The hub's URL, as typed.
- * @return array<string,mixed>|WP_Error The hub as stored, or why not.
- */
 function openstation_network_join( $url ) {
 	if ( is_multisite() ) {
 		return new WP_Error( 'openstation_network_is_network', __( 'A network cannot join another network yet.', 'desktop-mode' ) );
@@ -103,23 +64,11 @@ function openstation_network_join( $url ) {
 	return openstation_network_hub();
 }
 
-/**
- * Leave the network: forget the hub and its list.
- *
- * @return bool
- */
 function openstation_network_leave() {
 	wp_clear_scheduled_hook( OPENSTATION_NETWORK_REFRESH_HOOK );
 	return openstation_network_option_delete( OPENSTATION_NETWORK_HUB_OPTION );
 }
 
-/**
- * Fetch the list from the hub with a signed request and cache it. A
- * failure is recorded on the hub entry, so the app can say why, and
- * the last good list stays in place.
- *
- * @return array<string,mixed>|WP_Error The list, or the error.
- */
 function openstation_network_refresh_list() {
 	$hub = openstation_network_hub();
 	if ( null === $hub ) {
@@ -186,15 +135,6 @@ function openstation_network_refresh_list() {
 }
 add_action( OPENSTATION_NETWORK_REFRESH_HOOK, 'openstation_network_refresh_list' );
 
-/**
- * Schedule a background refresh when the cached list is stale, or when
- * there is none yet. Never fetches on the request that paints the shell.
- *
- * A member with a list refreshes it hourly. One without asks again
- * every few minutes: it joined before the hub added it, or the hub was
- * unreachable, and the switcher should appear once the hub answers,
- * without anyone pressing Sync.
- */
 function openstation_network_schedule_refresh() {
 	$hub = openstation_network_hub();
 	if ( null === $hub ) {
@@ -211,21 +151,12 @@ function openstation_network_schedule_refresh() {
 	}
 }
 
-/**
- * The multisite block a member's shell boots with, built from the
- * cached list: the network's sites, this site current, the hub's
- * Network Admin for administrators. Null when this site is not a
- * member or has no list yet.
- *
- * @return array<string,mixed>|null
- */
 function openstation_network_member_payload() {
 	$hub = openstation_network_hub();
 	if ( null === $hub ) {
 		return null;
 	}
-	// Before the list check: a member still waiting for the hub is the
-	// one that most needs to ask again.
+
 	openstation_network_schedule_refresh();
 	if ( null === $hub['list'] ) {
 		return null;
@@ -244,13 +175,12 @@ function openstation_network_member_payload() {
 			'name'     => $site['name'],
 			'shellUrl' => $site['shellUrl'],
 			'kind'     => $site['kind'],
-			// Every entry but this install's own is another install: the
-			// hub's sites and the other members alike.
+
 			'foreign'  => ! $mine,
 		);
 	}
 	if ( '' === $current ) {
-		// Listed by the hub or not, this site is where the user stands.
+
 		$current = 'member:self';
 		$sites[] = array(
 			'id'       => $current,

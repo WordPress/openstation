@@ -1,16 +1,3 @@
-/**
- * OpenStation — Post Stats Widget (lazy bundle).
- *
- * Stacked canvas bar chart of posts per calendar month over
- * the last 6 months, split by Published / Pending / Draft.
- * Chart redraws on ResizeObserver so it stays crisp at any
- * card size. HiDPI-aware via devicePixelRatio.
- *
- * Data: GET /desktop-mode/v1/post-stats — one server-aggregated,
- * transient-cached request per refresh (it used to page through
- * /wp/v2/posts three times, once per status).
- * Refresh: every 5 minutes, paused while the tab is hidden.
- */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import { restErrorFromResponse } from '../../core/api-client';
@@ -49,11 +36,6 @@ function shortLabel( ym: string ): string {
 		.toLocaleString( undefined, { month: 'short' } );
 }
 
-/**
- * One request: the server aggregates months × status with a single
- * GROUP BY (transient-cached for 5 min) and returns exactly
- * MONTHS_BACK zero-filled buckets, oldest first.
- */
 async function fetchBuckets(): Promise< Bucket[] > {
 	const root = ( window as unknown as { wpApiSettings?: { root?: string } } )
 		.wpApiSettings?.root ?? '/wp-json/';
@@ -76,13 +58,6 @@ async function fetchBuckets(): Promise< Bucket[] > {
 	} ) );
 }
 
-/**
- * Safe rounded rect — falls back to a plain rect on browsers that do
- * not support CanvasRenderingContext2D.roundRect() (Safari < 15.4).
- *
- * Parameters use rx/ry/rw/rh/rr prefix to avoid shadowing any outer
- * scope variables with the same single-letter names (no-shadow rule).
- */
 function safeRoundRect(
 	ctx: CanvasRenderingContext2D,
 	rx: number,
@@ -125,15 +100,6 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 		return;
 	}
 
-	// Canvas ink, read from the same custom properties this widget's own
-	// stylesheet already uses for its DOM text. The chrome was hardcoded
-	// black, which is why the bars survived and everything drawn as text or
-	// rule did not: `.os-widgets__card` is a fixed dark glass in every
-	// desktop theme, so black measured 1.01:1 on it.
-	//
-	// The fallbacks are the dark-glass values from variables.css, NOT the
-	// old black — a widget that renders before the tokens resolve should
-	// fail toward legible rather than back into the bug.
 	const ink = getComputedStyle( canvas );
 	const inkOf = ( token: string, fallback: string ): string =>
 		ink.getPropertyValue( token ).trim() || fallback;

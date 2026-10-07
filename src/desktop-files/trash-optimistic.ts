@@ -1,10 +1,3 @@
-/**
- * In-flight trash gestures shared by the shell, Trash and WP Explorer.
- *
- * This is a presentation overlay, never server truth. Confirmed content
- * broadcasts keep their existing meaning. Successful overlays stay visible
- * until mounted consumers have refreshed; failed ones roll back immediately.
- */
 import { createSharedStore } from '../shared-store';
 import type { RecycleBinItem } from '../../apps/trash/parts/types';
 import type { RestPlacementShape } from './rest';
@@ -22,7 +15,6 @@ const store = createSharedStore( 'openstation/trash-optimistic', () => ( {
 
 export const trashKey = ( item: { type: string; id: number } ): string => `${ item.type }:${ item.id }`;
 
-/** Minimal known facts; permissions are withheld until the server confirms. */
 export function trashItem( facts: Pick< RecycleBinItem, 'id' | 'type' | 'title' > & Partial< RecycleBinItem > ): RecycleBinItem {
 	return {
 		subtitle: '', mime: '', preview: '', icon: '',
@@ -32,7 +24,6 @@ export function trashItem( facts: Pick< RecycleBinItem, 'id' | 'type' | 'title' 
 	};
 }
 
-/** A placement trashes its reference, not the underlying WordPress entity. */
 export function placementTrashItem( placement: RestPlacementShape ): RecycleBinItem {
 	const file = placement.file;
 	const type = file.type === 'shortcut' ? 'shortcut' : 'placement';
@@ -49,7 +40,6 @@ export function trashChanges(): TrashChange[] {
 	return Array.from( store.state.changes.values() );
 }
 
-/** Repaint immediately; reconcile only after a mutation has succeeded. */
 export function watchTrashChanges( repaint: () => void, reconcile?: () => Promise< unknown > ): () => void {
 	const unsubscribe = store.subscribe( repaint );
 	if ( reconcile ) {
@@ -63,12 +53,6 @@ export function watchTrashChanges( repaint: () => void, reconcile?: () => Promis
 	};
 }
 
-/**
- * Reserve one item so a second gesture cannot send a duplicate mutation.
- * finish(false) rolls back synchronously. finish(true) hands off to fresh
- * server data before removing the overlay. Identity checks protect a later
- * operation on the same item from an older completion.
- */
 export function beginTrashChange( item: RecycleBinItem, direction: 'in' | 'out' = 'in' ): { finish: ( ok: boolean ) => Promise< void > } | null {
 	const key = trashKey( item );
 	if ( store.state.changes.get( key )?.pending ) {
@@ -95,7 +79,6 @@ export function beginTrashChange( item: RecycleBinItem, direction: 'in' | 'out' 
 	};
 }
 
-/** Merge incoming rows and hide outgoing rows without mutating a snapshot. */
 export function projectTrash( items: RecycleBinItem[], total: number, filter = '', search = '' ): { items: RecycleBinItem[]; total: number } {
 	const rows = new Map( items.map( ( item ) => [ trashKey( item ), item ] ) );
 	let count = total;
@@ -114,7 +97,6 @@ export function projectTrash( items: RecycleBinItem[], total: number, filter = '
 			count++;
 		}
 		if ( matches ) {
-			// Keep pending rows inert even if a background refresh sees them.
 			rows.set( key, { ...( rows.get( key ) ?? item ), can_restore: false, can_purge: false } );
 		}
 	}

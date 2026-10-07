@@ -1,33 +1,8 @@
-/**
- * OpenStation — Jazz Quote Widget (lazy bundle).
- *
- * A love letter to WordPress's jazz musician release naming tradition.
- * Shows the current WP version, its jazz musician codename, and a
- * rotating daily quote from that musician.
- *
- * Version detection priority:
- *   1. window.openStationJazzQuote.wpVersion — inlined by PHP via the
- *      main shell payload (most reliable, no DOM scraping)
- *   2. <meta name="generator"> tag — present on most WP installs
- *   3. Falls back to jazz wisdom pool with no version shown
- *
- * Quotes rotate daily using a day-of-year seed so the index stays
- * bounded and all three quotes in a pool see roughly equal rotation.
- * Persisted in ctx.storage so it does not re-evaluate on every page load.
- */
 import './styles.css';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
 const WIDGET_ID = 'desktop-mode/jazz-quote';
 
-// ---------------------------------------------------------------------------
-// WordPress release → jazz musician map.
-// Source: https://wordpress.org/documentation/article/learn-about-wordpress-and-version-history/
-// Verified against official release announcements June 2026.
-// Keys use unquoted numeric strings where valid — quote-props rule requires
-// keys only be quoted when necessary (e.g. containing dots would need quotes,
-// but the ESLint config here flags unnecessary quotes).
-// ---------------------------------------------------------------------------
 const WP_CODENAMES: Record< string, string > = {
 	7.0: 'Louis Armstrong',
 	6.9: 'Gene Harris',
@@ -37,24 +12,21 @@ const WP_CODENAMES: Record< string, string > = {
 	6.5: 'Regina Carter',
 	6.4: 'Shirley Horn',
 	6.3: 'Lionel Hampton',
-	6.2: 'Eric Dolphy', // "Dolphy" — woodwind multi-instrumentalist
-	6.1: 'Mikhail Alperin', // "Misha" — jazz pianist/composer (NOT Misha Dichter)
-	6.0: 'Arturo O\'Farrill', // "Arturo" — Latin jazz pianist
-	5.9: 'Joséphine Baker', // "Josephine"
-	5.8: 'Art Tatum', // "Tatum"
-	5.7: 'Esperanza Spalding', // "Esperanza"
-	5.6: 'Nina Simone', // "Simone"
-	5.5: 'Billy Eckstine', // "Eckstine"
-	5.4: 'Nat Adderley', // "Adderley"
-	5.3: 'Rahsaan Roland Kirk', // "Kirk"
-	5.2: 'Jaco Pastorius', // "Jaco"
-	5.1: 'Betty Carter', // "Betty"
-	5.0: 'Bebo Valdés', // "Bebo"
+	6.2: 'Eric Dolphy',
+	6.1: 'Mikhail Alperin',
+	6.0: 'Arturo O\'Farrill',
+	5.9: 'Joséphine Baker',
+	5.8: 'Art Tatum',
+	5.7: 'Esperanza Spalding',
+	5.6: 'Nina Simone',
+	5.5: 'Billy Eckstine',
+	5.4: 'Nat Adderley',
+	5.3: 'Rahsaan Roland Kirk',
+	5.2: 'Jaco Pastorius',
+	5.1: 'Betty Carter',
+	5.0: 'Bebo Valdés',
 };
 
-// ---------------------------------------------------------------------------
-// Quotes keyed by musician. Falls back to JAZZ_WISDOM for any missing entry.
-// ---------------------------------------------------------------------------
 const MUSICIAN_QUOTES: Record< string, string[] > = {
 	'Louis Armstrong': [
 		'If you have to ask what jazz is, you\'ll never know.',
@@ -138,7 +110,6 @@ const MUSICIAN_QUOTES: Record< string, string[] > = {
 	],
 };
 
-// General jazz wisdom — shown when the version has no entry in the map.
 const JAZZ_WISDOM = [
 	'Do not fear mistakes — there are none. — Miles Davis',
 	'Man, if you gotta ask, you\'ll never know. — Louis Armstrong',
@@ -151,10 +122,6 @@ const JAZZ_WISDOM = [
 	'Don\'t play what\'s there — play what\'s not there. — Miles Davis',
 ];
 
-// ---------------------------------------------------------------------------
-// Version detection
-// ---------------------------------------------------------------------------
-
 declare global {
 	interface Window {
 		openStationJazzQuote?: { wpVersion?: string };
@@ -162,13 +129,11 @@ declare global {
 }
 
 function detectWpVersion(): string | null {
-	// Priority 1: PHP-inlined global via main shell payload.
 	const inlined = window.openStationJazzQuote?.wpVersion;
 	if ( inlined && /^\d+\.\d+/.test( inlined ) ) {
 		return inlined;
 	}
 
-	// Priority 2: Generator meta tag (present unless a security plugin strips it).
 	const meta = document.querySelector< HTMLMetaElement >( 'meta[name="generator"]' );
 	const match = meta?.content?.match( /WordPress ([\d.]+)/ );
 	if ( match ) {
@@ -186,10 +151,6 @@ function todayKey(): string {
 	return new Date().toISOString().slice( 0, 10 );
 }
 
-/**
- * Day-of-year seed: 1–366. Stays bounded so modulo against small
- * pool sizes (3 quotes) gives even rotation across the year.
- */
 function dayOfYearSeed(): number {
 	const now = new Date();
 	const start = new Date( now.getFullYear(), 0, 0 );
@@ -201,10 +162,6 @@ function pickQuote( musician: string | null ): string {
 	const pool = musician ? ( MUSICIAN_QUOTES[ musician ] ?? JAZZ_WISDOM ) : JAZZ_WISDOM;
 	return pool[ dayOfYearSeed() % pool.length ];
 }
-
-// ---------------------------------------------------------------------------
-// Render
-// ---------------------------------------------------------------------------
 
 function render(
 	container: HTMLElement,
@@ -249,10 +206,6 @@ function render(
 	container.appendChild( root );
 }
 
-// ---------------------------------------------------------------------------
-// Mount
-// ---------------------------------------------------------------------------
-
 const mount = async (
 	container: HTMLElement,
 	ctx: WidgetContext,
@@ -276,10 +229,6 @@ const mount = async (
 
 	return () => undefined;
 };
-
-// ---------------------------------------------------------------------------
-// Register
-// ---------------------------------------------------------------------------
 
 const w = window as unknown as {
 	openStationWidgets?: Record< string, typeof mount >;

@@ -1,79 +1,19 @@
-/**
- * OpenStation — service-worker caching policy.
- *
- * Pure decision logic for the SW's shared admin-asset cache, split out
- * of `sw.ts` so it can be unit-tested (the SW bundle itself runs in a
- * worker global scope vitest can't host). No SW globals in here — every
- * function takes plain values and returns a verdict; `sw.ts` owns the
- * Cache Storage side effects.
- *
- * The admin-asset cache is the layer that makes every window share one
- * origin-wide cache: the root-scope SW sees asset requests from the
- * shell AND from every chromeless iframe, so a stylesheet fetched by
- * one window is served from Cache Storage to every later window.
- */
-
 import { urlActs } from './acting-url';
 import { isShellDocumentUrl } from '../shell-url';
 
-/**
- * Runtime configuration handed to the SW by the PHP endpoint that
- * serves it (`openstation_pwa_serve_service_worker()`), as a
- * `self.__OS_SW_CONFIG = {...};` preamble ahead of the bundle bytes.
- */
 export interface SwConfig {
-	/**
-	 * Whether the shared admin-asset cache is on. Off by default —
-	 * operators opt in via the `openstation_pwa_admin_asset_cache`
-	 * PHP filter.
-	 */
+
 	adminAssetCache: boolean;
-	/**
-	 * Whether hover prewarming is on for this user. Gates the
-	 * speculative-document hand-off: the shell asks for a screen on
-	 * hover, the worker fetches and holds it, and the iframe's
-	 * navigation is answered from those bytes.
-	 */
+
 	windowPrewarm: boolean;
-	/**
-	 * Absolute URL of the plugin directory (trailing slash). Lets the
-	 * SW resolve its own asset paths on hosts with a non-default
-	 * `wp-content` layout (Bedrock, moved `WP_CONTENT_DIR`, …).
-	 */
+
 	pluginUrl: string;
-	/**
-	 * Content hash of the shell's built files at the moment this worker
-	 * was served (`openstation_shell_build_stamp()`). The shell asks a
-	 * worker that takes over mid-session for it and compares it with
-	 * its own boot-time stamp: a difference means the shell files on the
-	 * server really changed. Empty for a body served without one.
-	 */
+
 	shellBuild: string;
 }
 
-/** What a shell-build stamp looks like: short hex, nothing else. */
 const SHELL_BUILD_RE = /^[a-f0-9]{8,64}$/;
 
-/**
- * How the fetch handler should treat a same-origin GET:
- *
- *   - `own-plugin` — this plugin's own asset; the pre-existing
- *     precache / network-first / stale-while-revalidate branches own
- *     it. Classified here so the precedence is pinned by tests.
- *   - `core-cache-first` — a Core-shipped static asset (or a
- *     `load-scripts.php` / `load-styles.php` concat blob). The URL
- *     embeds `ver=<wp_version>`, so the bytes behind a given URL only
- *     change when the URL changes — the same immutability contract
- *     Core itself expresses by serving the loader endpoints with
- *     `Cache-Control: public, max-age=31536000`. Exact-URL cache-first.
- *   - `content-swr` — another plugin's or a theme's versioned static
- *     asset. Same `?ver=` contract in principle, but authors edit
- *     files without bumping versions often enough that cache-first
- *     would pin stale bytes until the SW version bumps. Stale-while-
- *     revalidate serves instantly from cache and self-heals next load.
- *   - `bypass` — everything else: HTML, REST, AJAX, uploads,
- *     unversioned URLs. The SW leaves these entirely alone.
- */
 export type AdminAssetClass =
 	| 'own-plugin'
 	| 'core-cache-first'
@@ -85,17 +25,6 @@ const STATIC_EXTENSION_RE =
 
 const LOADER_ENDPOINT_RE = /\/wp-admin\/load-(scripts|styles)\.php$/;
 
-/**
- * Parses the `self.__OS_SW_CONFIG` preamble value defensively.
- *
- * A SW body cached before the preamble existed (or a mangled encode)
- * must still boot with the feature off and the conventional plugin
- * path — never throw, never enable anything by accident.
- *
- * @param raw               Whatever `self.__OS_SW_CONFIG` holds.
- * @param fallbackPluginUrl Plugin URL used when the preamble is
- *                          absent or unusable.
- */
 export function readSwConfig(
 	raw: unknown,
 	fallbackPluginUrl: string,
@@ -120,30 +49,17 @@ export function readSwConfig(
 		obj.pluginUrl.startsWith( 'http' )
 	) {
 		try {
-			// Validate it parses; keep the string form.
 			void new URL( obj.pluginUrl );
 			cfg.pluginUrl = obj.pluginUrl.endsWith( '/' )
 				? obj.pluginUrl
 				: obj.pluginUrl + '/';
 		} catch {
-			// Keep the fallback.
+
 		}
 	}
 	return cfg;
 }
 
-/**
- * Classifies a same-origin GET URL for the shared admin-asset cache.
- *
- * Path matching uses `includes()` rather than `startsWith()` so
- * subdirectory installs (`/site2/wp-admin/…`, WP in `/wp/`) classify
- * the same as root installs — consistent with the existing own-plugin
- * matcher in `sw.ts`.
- *
- * @param url           Parsed request URL (same-origin, GET).
- * @param ownPluginPath Pathname fragment of this plugin's directory
- *                      (e.g. `/wp-content/plugins/desktop-mode/`).
- */
 export function classifyAdminAssetRequest(
 	url: URL,
 	ownPluginPath: string,
@@ -154,9 +70,6 @@ export function classifyAdminAssetRequest(
 		return 'own-plugin';
 	}
 
-	// The concat loader endpoints are PHP, but their URL embeds the
-	// handle list and `ver=<wp_version>` — cacheable exactly like a
-	// static file, per Core's own response headers.
 	if ( LOADER_ENDPOINT_RE.test( path ) && url.searchParams.has( 'ver' ) ) {
 		return 'core-cache-first';
 	}
@@ -165,13 +78,9 @@ export function classifyAdminAssetRequest(
 		return 'bypass';
 	}
 	if ( ! url.searchParams.has( 'ver' ) ) {
-		// No cache-buster → no immutability contract → not ours to
-		// cache. The browser HTTP cache still applies as usual.
 		return 'bypass';
 	}
 	if ( path.includes( '/wp-content/uploads/' ) ) {
-		// Media dominates quota and churns outside the `?ver=`
-		// contract (thumbnail regeneration keeps the URL). Excluded.
 		return 'bypass';
 	}
 	if ( path.includes( '/wp-admin/' ) || path.includes( '/wp-includes/' ) ) {
@@ -186,26 +95,6 @@ export function classifyAdminAssetRequest(
 	return 'bypass';
 }
 
-/**
- * Whether a URL is a plain admin screen safe to fetch early.
- *
- * Three conditions, all required: it is an admin page, it is the
- * chromeless variant a window actually loads, and it does nothing —
- * neither through an acting query key nor merely by being rendered
- * ({@see urlActs}) — the same test the dock's hover prewarming uses,
- * because both fetch a page ahead of a click and carry the same
- * obligation not to act.
- *
- * The chromeless flag is not incidental. It is what makes serving the
- * result to an iframe navigation safe at all — the server reads that
- * query flag before it consults `Sec-Fetch-Dest`, so a document
- * fetched this way is already correctly chromeless, and the hazard
- * that stops the worker answering iframe navigations generally (a
- * re-fetch arriving as `Sec-Fetch-Dest: empty`, collapsing the whole
- * desktop into a window) cannot apply.
- *
- * @param url Parsed, same-origin URL.
- */
 export function isSpeculatableDocument( url: URL ): boolean {
 	if ( ! url.pathname.includes( '/wp-admin/' ) ) {
 		return false;
@@ -213,26 +102,13 @@ export function isSpeculatableDocument( url: URL ): boolean {
 	if ( ! url.searchParams.has( 'openstation_chromeless' ) ) {
 		return false;
 	}
-	// The shell screen boots a desktop; it is never a window's document.
+
 	if ( isShellDocumentUrl( url ) ) {
 		return false;
 	}
 	return ! urlActs( url );
 }
 
-/**
- * Whether a fetched response is safe to put in the admin-asset cache.
- *
- * Rejects partial content (`cache.put` throws on 206, but we don't
- * rely on the throw), redirects (caching the redirect target under
- * the original URL desyncs later loads), opaque/error types, and
- * anything the origin explicitly marked uncacheable.
- *
- * @param status       `Response.status`.
- * @param type         `Response.type`.
- * @param redirected   `Response.redirected`.
- * @param cacheControl The response's `Cache-Control` header, if any.
- */
 export function isCacheableResponse(
 	status: number,
 	type: string,

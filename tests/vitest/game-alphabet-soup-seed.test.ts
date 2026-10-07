@@ -1,7 +1,3 @@
-/**
- * Unit tests for Alphabet Soup's daily seeds
- * (`src/games/alphabet-soup/seed.ts`).
- */
 import { describe, expect, test } from 'vitest';
 import {
 	formatDailySeed,
@@ -20,9 +16,7 @@ describe( 'alphabet-soup/seed.ts', () => {
 	} );
 
 	test( 'uses the UTC calendar date, not the local one', () => {
-		// 2026-07-19 02:00 UTC is still 2026-07-18 locally west of UTC,
-		// and already 2026-07-19 locally east of UTC — the seed must
-		// land on the UTC date for every player regardless of timezone.
+
 		expect(
 			formatDailySeed( new Date( Date.UTC( 2026, 6, 19, 2, 0, 0 ) ) ),
 		).toBe( '19-07-2026' );

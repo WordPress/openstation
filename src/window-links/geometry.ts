@@ -1,21 +1,3 @@
-/**
- * OpenStation — Window-link anchor geometry.
- *
- * Pure math for occlusion-aware spline anchoring. In a cascade of
- * overlapping windows, the naive "border point toward the target"
- * anchor often lands on a stretch of border that is hidden UNDER a
- * higher window — the tie then appears to sprout from the covering
- * window instead of its real source. These helpers subtract every
- * higher-z window from a window's four border edges and pick the best
- * VISIBLE stretch to anchor on (its midpoint, nearest to the other
- * endpoint), so the line starts where the user can actually see the
- * source window.
- *
- * Kept renderer-agnostic and side-effect-free so custom renderers can
- * import the same helpers, and so the interval math is trivially
- * unit-testable.
- */
-
 export interface LinkRect {
 	x: number;
 	y: number;
@@ -23,7 +5,6 @@ export interface LinkRect {
 	height: number;
 }
 
-/** A window rect + stacking position, as carried in `frame.obstacles`. */
 export interface LinkObstacle {
 	windowId: string;
 	rect: LinkRect;
@@ -38,11 +19,6 @@ export interface LinkAnchor {
 	side: LinkSide;
 }
 
-/**
- * Minimum visible border stretch (px) worth anchoring on — anything
- * shorter can't fit an endpoint marker without visually clipping into
- * the neighboring occluder.
- */
 export const MIN_VISIBLE_SEGMENT = 16;
 
 interface Interval {
@@ -50,13 +26,6 @@ interface Interval {
 	end: number;
 }
 
-/**
- * Subtract `holes` from `base`, returning the surviving sub-intervals
- * in ascending order. Standard sweep: sort holes, walk once. Exported
- * for tests.
- *
- * @internal
- */
 export function subtractIntervals(
 	base: Interval,
 	holes: Interval[],
@@ -83,13 +52,6 @@ export function subtractIntervals(
 	return out;
 }
 
-/**
- * Classic anchor — the intersection of the segment
- * `center(rect) → toward` with the rect's border. Used as the
- * fallback when no border stretch is visible, and by renderers that
- * don't care about occlusion. Falls back to the center for degenerate
- * (concentric) geometry.
- */
 export function anchorOnBorder(
 	rect: LinkRect,
 	toward: { x: number; y: number },
@@ -115,12 +77,6 @@ export function anchorOnBorder(
 	return { x, y, side };
 }
 
-/**
- * Is a border point visible — i.e. NOT covered by any window stacked
- * above the point's own window? Containment is inclusive: a point on
- * an occluder's exact edge counts as covered (the endpoint marker
- * would already clip into it).
- */
 export function isPointVisible(
 	point: { x: number; y: number },
 	zIndex: number,
@@ -143,24 +99,6 @@ export function isPointVisible(
 	return true;
 }
 
-/**
- * Occlusion-aware anchor: the midpoint of the VISIBLE border stretch
- * closest to `toward`, considering only obstacles stacked ABOVE the
- * window (`zIndex` strictly greater) — a window can't occlude itself,
- * and lower windows sit behind it. Returns `null` when every border
- * pixel is covered; callers fall back to {@link anchorOnBorder} (the
- * tie then emerges from under the occluder, which is honest — the
- * window truly isn't visible there).
- *
- * @param rect      The endpoint window's rect (layer coordinates).
- * @param zIndex    The endpoint window's stacking position.
- * @param obstacles Every visible window on the desk (self included is
- *                  fine — it is skipped by id).
- * @param selfId    The endpoint window's id, to skip in `obstacles`.
- * @param toward    The point the tie heads to (other endpoint).
- * @param toward.x  Target x, layer coordinates.
- * @param toward.y  Target y, layer coordinates.
- */
 export function visibleBorderAnchor(
 	rect: LinkRect,
 	zIndex: number,
@@ -172,14 +110,12 @@ export function visibleBorderAnchor(
 		( o ) => o.windowId !== selfId && o.zIndex > zIndex,
 	);
 
-	// Each side: the border as a 1D interval + the fixed coordinate on
-	// the other axis, plus which occluder overlap test applies.
 	const sides: Array< {
 		side: LinkSide;
 		base: Interval;
-		/** Fixed coordinate of this border line. */
+
 		at: number;
-		/** True when the border runs horizontally (top/bottom). */
+
 		horizontal: boolean;
 	} > = [
 		{
@@ -214,15 +150,13 @@ export function visibleBorderAnchor(
 	for ( const { side, base, at, horizontal } of sides ) {
 		const holes: Interval[] = [];
 		for ( const { rect: o } of occluders ) {
-			// The occluder hides border points whose fixed coordinate
-			// falls inside it on the cross axis…
 			const coversLine = horizontal
 				? o.y <= at && at <= o.y + o.height
 				: o.x <= at && at <= o.x + o.width;
 			if ( ! coversLine ) {
 				continue;
 			}
-			// …across its span on the border's own axis.
+
 			holes.push(
 				horizontal
 					? { start: o.x, end: o.x + o.width }
@@ -248,18 +182,6 @@ export function visibleBorderAnchor(
 	return best;
 }
 
-/**
- * The SHORTEST edge-to-edge connection between two window rects — the
- * closest pair of border points, each tagged with the side it sits on:
- *
- *  - spans overlap on one axis → a perpendicular connector at the
- *    overlap's midpoint (side-by-side windows connect straight across
- *    the gap, not diagonally between center rays);
- *  - no overlap on either axis → the facing corners.
- *
- * Returns `null` when the rects intersect — there is no meaningful
- * "gap" to cross, callers keep their center-ray behavior.
- */
 export function closestBorderAnchors(
 	a: LinkRect,
 	b: LinkRect,
@@ -270,11 +192,9 @@ export function closestBorderAnchors(
 		a.y - ( b.y + b.height ),
 	);
 	if ( gapX < 0 && gapY < 0 ) {
-		return null; // overlapping rects — no gap to cross
+		return null;
 	}
 
-	// Per axis: either the spans overlap (connect at the overlap's
-	// midpoint) or they don't (connect the facing edges).
 	const overlapX1 = Math.max( a.x, b.x );
 	const overlapX2 = Math.min( a.x + a.width, b.x + b.width );
 	const overlapY1 = Math.max( a.y, b.y );
@@ -304,9 +224,6 @@ export function closestBorderAnchors(
 		by = b.y + b.height;
 	}
 
-	// Side tags drive the Bézier's exit normal. When both axes have a
-	// gap (corner-to-corner), leave along the axis with the LARGER gap
-	// so the curve heads into the open space.
 	const horizontal = gapX >= gapY;
 	const sideOf = (
 		rect: LinkRect,
@@ -325,11 +242,6 @@ export function closestBorderAnchors(
 	};
 }
 
-/**
- * Control-point offset along an anchor's outward edge normal —
- * gives the cubic Bézier its "leaves the window perpendicular to the
- * border" look.
- */
 export function controlPoint(
 	anchor: LinkAnchor,
 	distance: number,
@@ -347,7 +259,6 @@ export function controlPoint(
 	}
 }
 
-/** Center of a rect. */
 export function centerOf( rect: LinkRect ): { x: number; y: number } {
 	return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
 }

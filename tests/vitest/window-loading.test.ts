@@ -1,10 +1,3 @@
-/**
- * Loading-state lifecycle for windows — both the framework
- * primitives (`markWindowContentLoading` / `markWindowContentReady`,
- * `WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED` hooks +
- * matching CustomEvents) and the visual side (overlay element, body
- * `--loading` modifier, sync vs. Promise-returning native render).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { HOOKS } from '../../src/hooks';
@@ -154,10 +147,6 @@ describe( 'createWindowElement — loading overlay', async () => {
 			document.body.appendChild( el );
 			const overlay = el.querySelector( '.os-window__loading' )!;
 
-			// The whole point: a body built with the loading modifier
-			// already on it gives its overlay no before-change style to
-			// transition from, so the visible state has to be withheld
-			// by JS rather than delayed by CSS.
 			expect(
 				overlay.classList.contains( LOADING_OVERLAY_VISIBLE_CLASS ),
 			).toBe( false );
@@ -286,8 +275,7 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 				seen.push( args[ 0 ] as { windowId: string } );
 			},
 		);
-		// Never loaded — markReady from cold state should NOT fire
-		// the loaded hook (no transition).
+
 		markWindowContentReady( 'win-4' );
 		expect( seen ).toEqual( [] );
 	} );
@@ -369,21 +357,12 @@ describe( 'installWindowLoadingTransitions — visual side', async () => {
 		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
-		// The previous overlay never became visible, so the ready
-		// edge dropped it in the same tick; `ensureLoadingOverlay`
-		// paints a fresh one for the re-arm.
+
 		const overlays = body!.querySelectorAll( '.os-window__loading' );
 		expect( overlays.length ).toBeGreaterThanOrEqual( 1 );
 	} );
 } );
 
-/**
- * The spinner and the content must never be on screen together. Two
- * cases, and the visible-modifier on the overlay is what tells them
- * apart: a load that finished inside the show delay has no spinner to
- * clear, and a load that painted one owes it an uninterrupted fade-out
- * before the content underneath may appear.
- */
 describe( 'loading → ready hand-off — the spinner never overlaps content', async () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;
@@ -393,12 +372,6 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 			`#wp-window-${ id } .os-window__body`,
 		)!;
 
-	/**
-	 * Put a still-loading window in the state it would be in after the
-	 * show delay elapsed: back-date the body's clock and repaint, which
-	 * promotes the overlay synchronously instead of waiting on a timer
-	 * registered before the fake clock was installed.
-	 */
 	const paintSpinner = ( id: string ): HTMLElement => {
 		const body = bodyOf( id );
 		body.setAttribute(
@@ -449,10 +422,8 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 
 		markWindowContentReady( 'fast' );
 
-		// No fade to wait out: the overlay is gone before the content
-		// is uncovered, so the two are never both on screen.
 		expect( body.querySelector( '.os-window__loading' ) ).toBeNull();
-		// And no hand-off, because there is nothing to hand off from.
+
 		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
 			false,
 		);
@@ -471,8 +442,6 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 		vi.useFakeTimers();
 		markWindowContentReady( 'slow' );
 
-		// The loading modifier is off, but the content is still held
-		// transparent by the hand-off while the spinner fades.
 		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			false,
 		);
@@ -481,23 +450,18 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 		);
 		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
 
-		// One tick short of the fade-out: the overlay is still there,
-		// so the content must still be held.
 		vi.advanceTimersByTime( LOADING_OVERLAY_FADE_OUT_MS - 1 );
 		expect( body.querySelector( '.os-window__loading' ) ).not.toBeNull();
 		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
 			true,
 		);
 
-		// Fade-out done — the overlay leaves, the content fades in.
 		vi.advanceTimersByTime( 1 );
 		expect( body.querySelector( '.os-window__loading' ) ).toBeNull();
 		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
 			true,
 		);
 
-		// Content fade-in done — the hand-off modifier retires with it
-		// rather than leaving a delayed transition on the body.
 		vi.advanceTimersByTime( LOADING_CONTENT_FADE_IN_MS );
 		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
 			false,
@@ -521,8 +485,6 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 
 		markWindowContentLoading( 'rearm' );
 
-		// The content is about to be covered again — a delayed fade-in
-		// of it would be stale.
 		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
 			false,
 		);
@@ -530,8 +492,6 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 			true,
 		);
 
-		// The pending teardown timers must not strip the re-armed
-		// overlay or the fresh loading state.
 		vi.advanceTimersByTime(
 			LOADING_OVERLAY_FADE_OUT_MS + LOADING_CONTENT_FADE_IN_MS,
 		);
@@ -552,31 +512,21 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 
 		vi.useFakeTimers();
 
-		// Cycle A: ready with a painted spinner. Its teardown timers are
-		// now pending at FADE_OUT_MS and FADE_OUT_MS + FADE_IN_MS.
 		markWindowContentReady( 'twocycle' );
 		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
 			true,
 		);
 
-		// Cycle B starts before either fires. The title-bar reload path
-		// allows this: its guard only blocks while `--loading` is set,
-		// and cycle A dropped that on ready.
 		vi.advanceTimersByTime( 50 );
 		markWindowContentLoading( 'twocycle' );
 		paintSpinner( 'twocycle' );
 
-		// Cycle B lands, opening its own hold.
 		vi.advanceTimersByTime( 350 );
 		markWindowContentReady( 'twocycle' );
 		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
 			true,
 		);
 
-		// Advance past cycle A's teardown timers but not yet to cycle
-		// B's. Scoped to their own cycle they are no-ops here; unscoped,
-		// A's second timer strips B's hold mid fade-out and puts the
-		// content back on screen under a spinner that is still fading.
 		vi.advanceTimersByTime( 150 );
 		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
 			true,
@@ -596,7 +546,7 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 		)!;
 
 		vi.useFakeTimers();
-		// Tear the window down mid-load, then let the show delay pass.
+
 		overlay.remove();
 		vi.advanceTimersByTime( LOADING_OVERLAY_SHOW_DELAY_MS + 1 );
 
@@ -699,15 +649,11 @@ describe( 'hydrateNative — Promise-returning render defers ready', async () =>
 			},
 		} );
 
-		// rAF would fire markReady for sync renders — but a
-		// Promise-returning render takes the await branch instead,
-		// so the hook stays silent until the promise settles.
 		await raf();
 		expect( seen ).toEqual( [] );
 
 		resolveFetch();
-		// Microtask queue + the markReady inside the .then
-		// handler. Two ticks is enough for the chain to settle.
+
 		await tick();
 		await tick();
 		expect( seen ).toEqual( [ { windowId: 'async-render' } ] );
@@ -722,8 +668,7 @@ describe( 'hydrateNative — Promise-returning render defers ready', async () =>
 				seen.push( args[ 0 ] as { windowId: string } );
 			},
 		);
-		// Silence the deliberate console.error from the Promise
-		// rejection path so the test output stays clean.
+
 		const errSpy = vi.spyOn( console, 'error' ).mockImplementation( () => undefined );
 
 		await manager.open( {
@@ -744,12 +689,7 @@ describe( 'hydrateNative — Promise-returning render defers ready', async () =>
 } );
 
 describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async () => {
-	// `ctx.window.markLoading/markReady` are only wired in the
-	// `wp.os.registerWindow` path (createRegisterWindow). The
-	// raw `manager.open` path tested above doesn't receive them —
-	// plugins that want toggling there can call
-	// `Window.markContentLoading()` / `Window.markContentLoaded()`
-	// directly instead.
+
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
@@ -777,7 +717,7 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async
 			native: true,
 			render: () => undefined,
 		} );
-		// Initial body class — every window starts in loading.
+
 		const body = win.element.querySelector(
 			'.os-window__body',
 		)!;
@@ -785,13 +725,11 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async
 			true,
 		);
 
-		// Manual fade-in.
 		win.markContentLoaded();
 		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			false,
 		);
 
-		// Manual re-arm.
 		win.markContentLoading();
 		expect( body.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
@@ -913,9 +851,7 @@ describe( 'Loading overlay customization', async () => {
 		const overlay = win.element.querySelector(
 			'.os-window__loading',
 		);
-		// Even when a filter returns a totally different element,
-		// the framework re-adds the marker class so CSS positioning
-		// + transition rules keep applying.
+
 		expect( overlay ).not.toBeNull();
 		expect( overlay!.id ).toBe( 'wholesale-replacement' );
 		expect( overlay!.textContent ).toBe( 'CUSTOM' );
@@ -971,8 +907,7 @@ describe( 'Loading overlay customization', async () => {
 	} );
 
 	test( 'repaintLoadingOverlays() applies a late-registered filter to currently-loading windows', async () => {
-		// First open the window WITHOUT a registered filter — the
-		// overlay paints with default content.
+
 		const win = await manager.open( {
 			id: 'late-filter',
 			url: '#late-filter',
@@ -983,7 +918,6 @@ describe( 'Loading overlay customization', async () => {
 		)!;
 		expect( overlay().dataset.skinned ).toBeUndefined();
 
-		// Plugin registers its filter post-construction.
 		( window.wp!.hooks! ).addFilter(
 			HOOKS.WINDOW_LOADING_OVERLAY,
 			'late/skin',
@@ -994,30 +928,21 @@ describe( 'Loading overlay customization', async () => {
 			},
 		);
 
-		// Without repainting, the existing overlay still has the
-		// pre-registration default. Sanity check.
 		expect( overlay().dataset.skinned ).toBeUndefined();
 
 		repaintLoadingOverlays();
 
-		// After the explicit repaint, the late-registered filter
-		// has applied to the still-loading window.
 		expect( overlay().dataset.skinned ).toBe( 'late' );
 	} );
 
 	test( 'F5 boot-order race: HOOKS.INIT triggers an automatic sweep', async () => {
-		// Construct the window first — simulates the F5 / session-
-		// restore order where windows exist before plugins register
-		// their filters.
+
 		const win = await manager.open( {
 			id: 'f5-restore',
 			url: '#f5-restore',
 			title: 'F5 Restore',
 		} );
 
-		// Plugin filter lands AFTER construction (typical
-		// `wp.os.whenReady( () => addFilter(...) )` shape that
-		// fires during HOOKS.INIT).
 		( window.wp!.hooks! ).addFilter(
 			HOOKS.WINDOW_LOADING_OVERLAY,
 			'f5/skin',
@@ -1028,8 +953,6 @@ describe( 'Loading overlay customization', async () => {
 			},
 		);
 
-		// Fire HOOKS.INIT — the shell's post-init sweep is on a
-		// `queueMicrotask`, so we wait one tick for it to drain.
 		( window.wp!.hooks! ).doAction( HOOKS.INIT, { config: {} } );
 		await Promise.resolve();
 
@@ -1047,8 +970,6 @@ describe( 'Loading overlay customization', async () => {
 		} );
 		win.markContentLoaded();
 
-		// No throw, no DOM thrash on a window that's no longer in
-		// loading state.
 		expect( () => repaintLoadingOverlays() ).not.toThrow();
 	} );
 
@@ -1068,12 +989,6 @@ describe( 'Loading overlay customization', async () => {
 
 		expect( renderCalls ).toBe( 1 );
 
-		// Mark ready, then loading again — overlay tears down + re-paints
-		// via `ensureLoadingOverlay`, which must re-apply the same
-		// customization path. (Note: in production the fade timer
-		// removes the previous overlay; in tests we don't wait, so
-		// `ensureLoadingOverlay` no-ops if an overlay is still present
-		// — we simulate the after-fade state by manually removing.)
 		win.markContentLoaded();
 		win.element
 			.querySelector( '.os-window__loading' )

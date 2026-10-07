@@ -1,8 +1,3 @@
-/**
- * Pinned-notes drop routes: the wallpaper canvas seam creates /
- * repositions notes, the recycle-bin seam gates on `canEdit` and
- * soft-trashes, and the coordinate math mirrors the ghost offsets.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	__resetCanvasPayloadHandlersForTests,
@@ -63,7 +58,7 @@ function makeSession(
 
 function makeLayer(): NotesLayer {
 	const host = document.createElement( 'div' );
-	// jsdom has no layout — pin down the geometry the math reads.
+
 	Object.defineProperty( host, 'clientWidth', { value: 1000 } );
 	Object.defineProperty( host, 'clientHeight', { value: 500 } );
 	host.getBoundingClientRect = () =>
@@ -127,8 +122,7 @@ describe( 'note drop handlers', () => {
 			color: 'lilac',
 			isPublic: true,
 		} );
-		// Cursor at (304, 110) minus ghost offset (104, 10) → note
-		// top-left at (200, 100) → normalized (0.2, 0.2).
+
 		const handled = canvasPayloadDrop(
 			session,
 			{ clientX: 304, clientY: 110 },
@@ -136,7 +130,6 @@ describe( 'note drop handlers', () => {
 		);
 		expect( handled ).toBe( true );
 
-		// Optimistic controller mounted immediately.
 		const optimistic = document.querySelector( '.os-pinned-note' );
 		expect( optimistic ).not.toBeNull();
 
@@ -151,9 +144,9 @@ describe( 'note drop handlers', () => {
 		expect( body.public ).toBe( true );
 		expect( body.x ).toBeCloseTo( 0.2, 5 );
 		expect( body.y ).toBeCloseTo( 0.2, 5 );
-		// Jitter seed: hashed from the text at creation and persisted.
+
 		expect( body.seed ).toBeGreaterThan( 0 );
-		// The optimistic temp id was rekeyed to the server id.
+
 		expect( layer.has( 42 ) ).toBe( true );
 	} );
 
@@ -188,7 +181,7 @@ describe( 'note drop handlers', () => {
 			{ clientX: 604, clientY: 260 },
 			{ folderId: 0, host: layer.host },
 		);
-		// (604-104)/1000 = 0.5, (260-10)/500 = 0.5.
+
 		expect( controller.note.x ).toBeCloseTo( 0.5, 5 );
 		expect( controller.note.y ).toBeCloseTo( 0.5, 5 );
 		expect( parseFloat( controller.element.style.left ) ).toBeCloseTo( 50, 3 );

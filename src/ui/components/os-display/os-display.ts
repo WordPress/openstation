@@ -1,30 +1,3 @@
-/**
- * `<os-display>` — single-line numeric / text readout. The
- * right-aligned, `tabular-nums`, auto-ellipsized readout every
- * calculator, stopwatch, ticker, counter, or meter reinvents.
- *
- * Usage:
- *
- *   <os-display value="1,234.00"></os-display>
- *
- *   // or with slotted content
- *   <os-display aria-label="Current total">
- *     <span slot="label">Total</span>
- *     <strong>$ 12.50</strong>
- *   </os-display>
- *
- * Attributes:
- *   - `value`  — convenience: renders this string as the readout.
- *                Ignored when the caller slots their own content.
- *   - `size`   — `sm` | `md` | `lg` | `xl`. Default `lg` — calculator-
- *                sized. Affects the host's font-size custom property.
- *   - `align`  — `start` | `end` | `center`. Default `end` (right-aligned
- *                like a calculator or ledger).
- *
- * The host is a **live region** (`aria-live="polite"`) so screen
- * readers announce value changes without yanking focus.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-display.styles';
 
@@ -87,8 +60,7 @@ export class OsDisplay extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback?.();
-		// Live-region semantics so screen readers announce
-		// value changes without yanking focus.
+
 		if ( ! this.hasAttribute( 'aria-live' ) ) {
 			this.setAttribute( 'aria-live', 'polite' );
 		}
@@ -106,10 +78,6 @@ export class OsDisplay extends Component {
 		this.style.setProperty( '--os-ui-display-size', SIZE_PX[ size ] || SIZE_PX.lg );
 		this.style.setProperty( '--os-ui-display-align', align );
 
-		// Value attribute wins over slotted content when present —
-		// common case for numeric readouts that drive purely via
-		// setAttribute. The slot still renders for callers that need
-		// richer markup (a currency prefix span, a unit suffix, etc.).
 		return html`
 			<output part="output" class="os-display__output">
 				${ value !== null && value !== undefined

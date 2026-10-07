@@ -1,34 +1,7 @@
 <?php
-/**
- * OpenStation — Games REST routes.
- *
- * Namespace `desktop-mode/v1`:
- *
- *   GET    /games/(?P<game>[a-z0-9_\-]+)/scores   Leaderboard (paged).
- *   POST   /games/(?P<game>[a-z0-9_\-]+)/scores   Submit own score.
- *   GET    /games/challenges                      Challenges involving me.
- *   POST   /games/challenges                      Send a challenge.
- *   POST   /games/challenges/(?P<id>\d+)/accept   Accept (recipient).
- *   POST   /games/challenges/(?P<id>\d+)/decline  Decline (recipient).
- *   POST   /games/challenges/(?P<id>\d+)/complete Report the run (recipient).
- *   GET    /games/users/search                    Opponent-picker autocomplete.
- *   GET    /games/playtime                        My per-game play-time totals.
- *   POST   /games/(?P<game>[a-z0-9_\-]+)/playtime Record own play time.
- *
- * Permission: every route requires a logged-in user with desktop
- * mode enabled and the `read` capability (subscribers play games
- * too). Unknown game ids 404. Challenge routes additionally verify
- * party membership; sending gates through the
- * `openstation_games_can_challenge` filter.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Base permission gate shared by every games route.
- */
 function openstation_games_rest_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error( 'openstation_games_unauthenticated', __( 'You must be logged in.', 'desktop-mode' ), array( 'status' => 401 ) );
@@ -40,14 +13,6 @@ function openstation_games_rest_permission() {
 		return new WP_Error( 'openstation_games_forbidden', __( 'You cannot use desktop games.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
-	/**
-	 * Filters the base games REST permission verdict. Return a
-	 * `WP_Error` (or `false`) to lock the whole surface down below
-	 * the default logged-in + `read` gate.
-	 *
-	 * @param true|false|WP_Error $allowed Default `true`.
-	 * @param int                 $user_id Current user.
-	 */
 	$allowed = apply_filters( 'openstation_games_rest_permission', true, get_current_user_id() );
 	if ( is_wp_error( $allowed ) ) {
 		return $allowed;
@@ -58,9 +23,6 @@ function openstation_games_rest_permission() {
 	return true;
 }
 
-/**
- * Register the routes.
- */
 function openstation_games_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
 
@@ -257,15 +219,6 @@ function openstation_games_register_rest_routes() {
 }
 add_action( 'rest_api_init', 'openstation_games_register_rest_routes' );
 
-/**
- * Resolve + validate the `game` path param. 404s unknown ids so the
- * scores surface doesn't leak which games exist server-side.
- *
- * @internal
- *
- * @param WP_REST_Request $req Request.
- * @return string|WP_Error The sanitized game id.
- */
 function openstation_games_rest_resolve_game( WP_REST_Request $req ) {
 	$game = sanitize_key( (string) $req->get_param( 'game' ) );
 	if ( '' === $game || ! openstation_games_is_registered( $game ) ) {
@@ -278,9 +231,6 @@ function openstation_games_rest_resolve_game( WP_REST_Request $req ) {
 	return $game;
 }
 
-/**
- * GET /games/{game}/scores
- */
 function openstation_games_rest_list_scores( WP_REST_Request $req ) {
 	$game = openstation_games_rest_resolve_game( $req );
 	if ( is_wp_error( $game ) ) {
@@ -304,10 +254,6 @@ function openstation_games_rest_list_scores( WP_REST_Request $req ) {
 	);
 }
 
-/**
- * POST /games/{game}/scores — always records for the current user;
- * there is no way to submit a score on someone else's behalf.
- */
 function openstation_games_rest_submit_score( WP_REST_Request $req ) {
 	$game = openstation_games_rest_resolve_game( $req );
 	if ( is_wp_error( $game ) ) {
@@ -325,12 +271,9 @@ function openstation_games_rest_submit_score( WP_REST_Request $req ) {
 	return rest_ensure_response( array( 'id' => $id ) );
 }
 
-/**
- * GET /games/playtime — the current user's `game id => seconds` map.
- */
 function openstation_games_rest_get_playtime() {
 	$user_id = get_current_user_id();
-	// Day maps are cast per-game so empty buckets JSON-encode as `{}`.
+
 	$daily = array();
 	foreach ( openstation_games_get_playtime_daily( $user_id ) as $game => $days ) {
 		$daily[ $game ] = (object) $days;
@@ -344,10 +287,6 @@ function openstation_games_rest_get_playtime() {
 	);
 }
 
-/**
- * POST /games/{game}/playtime — always records for the current user;
- * there is no way to record play time on someone else's behalf.
- */
 function openstation_games_rest_record_playtime( WP_REST_Request $req ) {
 	$game = openstation_games_rest_resolve_game( $req );
 	if ( is_wp_error( $game ) ) {
@@ -364,9 +303,6 @@ function openstation_games_rest_record_playtime( WP_REST_Request $req ) {
 	return rest_ensure_response( array( 'total' => $total ) );
 }
 
-/**
- * GET /games/challenges — challenges involving the current user.
- */
 function openstation_games_rest_list_challenges( WP_REST_Request $req ) {
 	$user_id = get_current_user_id();
 	$box     = (string) $req->get_param( 'box' );
@@ -386,14 +322,11 @@ function openstation_games_rest_list_challenges( WP_REST_Request $req ) {
 		}
 		$out[] = openstation_games_shape_challenge( $row );
 	}
-	// Newest change first for the inbox view.
+
 	$out = array_reverse( $out );
 	return rest_ensure_response( array( 'challenges' => $out ) );
 }
 
-/**
- * POST /games/challenges
- */
 function openstation_games_rest_create_challenge( WP_REST_Request $req ) {
 	$challenger_id = get_current_user_id();
 	$recipient_id  = (int) $req->get_param( 'recipient_id' );
@@ -407,16 +340,6 @@ function openstation_games_rest_create_challenge( WP_REST_Request $req ) {
 		);
 	}
 
-	/**
-	 * Filters whether a user may challenge another user. Return
-	 * `false` (or a `WP_Error`) to block — e.g. respecting a
-	 * do-not-disturb setting or a per-role policy.
-	 *
-	 * @param bool|WP_Error $allowed       Default `true`.
-	 * @param int           $challenger_id Sender.
-	 * @param int           $recipient_id  Receiver.
-	 * @param string        $game          Game id.
-	 */
 	$allowed = apply_filters( 'openstation_games_can_challenge', true, $challenger_id, $recipient_id, $game );
 	if ( is_wp_error( $allowed ) ) {
 		return $allowed;
@@ -443,14 +366,6 @@ function openstation_games_rest_create_challenge( WP_REST_Request $req ) {
 	return rest_ensure_response( array( 'challenge' => openstation_games_shape_challenge( $row ) ) );
 }
 
-/**
- * Load a challenge and verify the current user is its recipient.
- *
- * @internal
- *
- * @param WP_REST_Request $req Request.
- * @return array|WP_Error The raw challenge row.
- */
 function openstation_games_rest_resolve_recipient_challenge( WP_REST_Request $req ) {
 	$row = openstation_games_get_challenge( (int) $req->get_param( 'id' ) );
 	if ( ! $row ) {
@@ -470,9 +385,6 @@ function openstation_games_rest_resolve_recipient_challenge( WP_REST_Request $re
 	return $row;
 }
 
-/**
- * POST /games/challenges/{id}/accept
- */
 function openstation_games_rest_accept_challenge( WP_REST_Request $req ) {
 	$row = openstation_games_rest_resolve_recipient_challenge( $req );
 	if ( is_wp_error( $row ) ) {
@@ -486,9 +398,6 @@ function openstation_games_rest_accept_challenge( WP_REST_Request $req ) {
 	return rest_ensure_response( array( 'challenge' => openstation_games_shape_challenge( $updated ) ) );
 }
 
-/**
- * POST /games/challenges/{id}/decline
- */
 function openstation_games_rest_decline_challenge( WP_REST_Request $req ) {
 	$row = openstation_games_rest_resolve_recipient_challenge( $req );
 	if ( is_wp_error( $row ) ) {
@@ -502,9 +411,6 @@ function openstation_games_rest_decline_challenge( WP_REST_Request $req ) {
 	return rest_ensure_response( array( 'challenge' => openstation_games_shape_challenge( $updated ) ) );
 }
 
-/**
- * POST /games/challenges/{id}/complete
- */
 function openstation_games_rest_complete_challenge( WP_REST_Request $req ) {
 	$row = openstation_games_rest_resolve_recipient_challenge( $req );
 	if ( is_wp_error( $row ) ) {
@@ -521,17 +427,10 @@ function openstation_games_rest_complete_challenge( WP_REST_Request $req ) {
 	return rest_ensure_response( array( 'challenge' => openstation_games_shape_challenge( $updated ) ) );
 }
 
-/**
- * GET /games/users/search?q=<>&exclude=<csv> — autocomplete for the
- * opponent picker. Thin sibling of the folder-share picker, gated on
- * `read` instead of `edit_posts` so subscribers can be challenged.
- */
 function openstation_games_rest_search_users( WP_REST_Request $req ) {
 	$q       = trim( (string) $req->get_param( 'q' ) );
 	$exclude = array_filter( array_map( 'intval', explode( ',', (string) $req->get_param( 'exclude' ) ) ) );
 
-	// Always exclude the current viewer — self-challenges are
-	// rejected at create time anyway.
 	$exclude[] = (int) get_current_user_id();
 	$exclude   = array_values( array_unique( array_filter( $exclude ) ) );
 
@@ -547,12 +446,6 @@ function openstation_games_rest_search_users( WP_REST_Request $req ) {
 		$args['search_columns'] = array( 'user_login', 'user_email', 'display_name', 'user_nicename' );
 	}
 
-	/**
-	 * Filter the WP_User_Query args used by the opponent picker.
-	 *
-	 * @param array $args Default args.
-	 * @param array $req  Request params (`q`, `exclude`).
-	 */
 	$args = (array) apply_filters( 'openstation_games_user_query_args', $args, $req->get_params() );
 
 	$query = new WP_User_Query( $args );

@@ -1,53 +1,22 @@
 <?php
-/**
- * My WordPress — the Agents section: payload and actions.
- *
- * Part of the `my-wordpress` app: required by `my-wordpress.os.php`,
- * same namespace, plain `.php` on purpose — only `*.os.php` files are
- * app entries to the framework loader. WP Explorer's Agents surface
- * on the app: the section config computed by the same helpers, the
- * cast through the same REST shaper, the catalogues settled with the
- * data, and the four mutations (draft / create / update / delete)
- * behind the same capability gates as the `/desktop-mode/v1/agents`
- * routes they mirror.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\Apps\MyWordPress;
 
 use OpenStation\App\Os;
 use OpenStation\App\State;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/**
- * Whether the Agents framework is on. False when the module is absent.
- *
- * @return bool
- */
 function agents_enabled() {
 	return function_exists( 'openstation_agents_enabled' ) && openstation_agents_enabled();
 }
 
-/**
- * Whether the acting user may create / edit / delete agents.
- *
- * @return bool
- */
 function agents_can_manage() {
 	return function_exists( 'openstation_agents_user_can_manage' ) && openstation_agents_user_can_manage();
 }
 
-/**
- * The canonical shape of every agent on the site — the same rows the
- * `/desktop-mode/v1/agents` list route serves, through the same shaper.
- *
- * @return array<int,array<string,mixed>>
- */
 function agents_list() {
 	if ( ! function_exists( 'openstation_agent_get_agents' ) || ! function_exists( 'openstation_agents_rest_shape_user' ) ) {
 		return array();
@@ -56,8 +25,7 @@ function agents_list() {
 	foreach ( openstation_agent_get_agents() as $user ) {
 		$shape = openstation_agents_rest_shape_user( $user );
 		if ( $shape ) {
-			// For "Open profile"'s iframe fallback — computed here so
-			// the client never assembles an admin URL by hand.
+
 			$shape['profileUrl'] = esc_url_raw( admin_url( 'user-edit.php?user_id=' . (int) $shape['id'] ) );
 			$out[]               = $shape;
 		}
@@ -65,15 +33,6 @@ function agents_list() {
 	return $out;
 }
 
-/**
- * Every role's translated label, keyed by slug — what the cast badges
- * read. Shipped for READERS too: a card resolving its role label out
- * of a manage-only catalogue would degrade to the raw slug in English
- * for everyone else, which is exactly what the preview cast's
- * `roleLabel` exists to avoid.
- *
- * @return array<string,string>
- */
 function agents_role_labels() {
 	$labels = array();
 	foreach ( wp_roles()->get_names() as $slug => $name ) {
@@ -82,23 +41,11 @@ function agents_role_labels() {
 	return $labels;
 }
 
-/**
- * The full Agents payload the client view paints: WP Explorer's
- * section config (same keys, computed by the same helpers), the cast,
- * and — because a server view recomputes data on every interaction —
- * the catalogues the original fetched lazily over REST, settled here
- * once per render instead.
- *
- * @param Os    $os    Host handle.
- * @param State $state State.
- * @return array<string,mixed>
- */
 function agents_payload( Os $os, State $state ) {
 	$enabled      = agents_enabled();
 	$can_manage   = agents_can_manage();
 	$ai_available = function_exists( 'openstation_ai_is_available' ) && openstation_ai_is_available();
-	// The live half of WP Explorer's `/ai/status` probe, answered
-	// in-process: a text-generation provider is configured and usable.
+
 	$ai_ready = $ai_available && (
 		( function_exists( 'openstation_ai_assistant_provider_configured' ) && openstation_ai_assistant_provider_configured() )
 		|| ( function_exists( 'openstation_ai_provider_configured' ) && openstation_ai_provider_configured() )
@@ -113,8 +60,7 @@ function agents_payload( Os $os, State $state ) {
 		'aiReady'       => $ai_ready,
 		'connectorsUrl' => esc_url_raw( admin_url( 'options-connectors.php' ) ),
 		'runWindowId'   => 'desktop-mode-agent-run',
-		// For the drop targets' dispatch engine (`agents-dispatch.ts`),
-		// which posts to `/agents/:id/invoke` exactly as WP Explorer's.
+
 		'restRoot'      => esc_url_raw( rest_url() ),
 		'restNonce'     => wp_create_nonce( 'wp_rest' ),
 		'list'          => $enabled ? agents_list() : array(),
@@ -128,8 +74,7 @@ function agents_payload( Os $os, State $state ) {
 		'hooks'         => $enabled && function_exists( 'openstation_agent_hooks_catalogue' )
 			? array_values( openstation_agent_hooks_catalogue() )
 			: array(),
-		// Assignable roles stay manage-only, like the `/agents/roles`
-		// route: this is the PICKER's list, not the badges'.
+
 		'roles'         => $enabled && $can_manage && function_exists( 'openstation_agent_allowed_roles' )
 			? array_values(
 				array_map(
@@ -146,8 +91,6 @@ function agents_payload( Os $os, State $state ) {
 			: null,
 	);
 
-	// The cast this site WOULD be seeded with — only while off, which
-	// is the only state that draws it.
 	if ( ! $enabled && function_exists( 'openstation_agents_preview_cast' ) ) {
 		$payload['preview'] = openstation_agents_preview_cast();
 	}
@@ -155,33 +98,17 @@ function agents_payload( Os $os, State $state ) {
 	return $payload;
 }
 
-/**
- * The wizard's draft, read out of the state slot as a clean array.
- *
- * @param State $state State.
- * @return array<string,mixed>
- */
 function agents_cast_of( State $state ) {
 	$cast = $state->get( 'cast' );
 	return is_array( $cast ) ? $cast : array();
 }
 
-/**
- * `agent-draft`: one AI generate call with a strict answer schema,
- * filtered against the site's catalogues on the server. Creates
- * nothing; a failure keeps the user on Describe with the reason under
- * the brief.
- *
- * @param State $state State.
- * @return void
- */
 function agent_draft_action( State $state ) {
 	if ( ! agents_enabled() || ! agents_can_manage() || ! function_exists( 'openstation_agent_draft' ) ) {
 		return;
 	}
 	$cast = agents_cast_of( $state );
-	// The client raised `drafting` when it dispatched; every way
-	// out of this action lowers it in the state it returns.
+
 	$cast['drafting'] = false;
 	$state->set( 'cast', $cast );
 	$brief = trim( (string) ( $cast['brief'] ?? '' ) );
@@ -194,10 +121,7 @@ function agent_draft_action( State $state ) {
 		$state->set( 'briefError', $draft->get_error_message() );
 		return;
 	}
-	// Fold the draft into the cast: an empty answer for a field
-	// keeps whatever was there. The role and the abilities come
-	// back already filtered against the catalogues ('' / dropped
-	// when the model's pick is not one the site allows).
+
 	foreach ( array( 'name', 'description', 'instructions' ) as $field ) {
 		if ( '' !== trim( (string) ( $draft[ $field ] ?? '' ) ) ) {
 			$cast[ $field ] = trim( (string) $draft[ $field ] );
@@ -212,25 +136,14 @@ function agent_draft_action( State $state ) {
 	if ( isset( $draft['abilities'] ) && is_array( $draft['abilities'] ) ) {
 		$cast['abilities'] = array_values( array_map( 'strval', $draft['abilities'] ) );
 	}
-	// The rewrite goes back into the brief: Describe's textarea is the
-	// system prompt, so walking back to it shows the drafted
-	// instructions, editable, rather than the sentence they grew from.
+
 	if ( '' !== (string) ( $cast['instructions'] ?? '' ) ) {
 		$cast['brief'] = (string) $cast['instructions'];
 	}
-	// Filled in, Meet is a review.
+
 	$state->set( 'cast', $cast )->set( 'wstep', 1 )->set( 'briefError', '' );
 }
 
-/**
- * `agent-create`: one request, the whole definition — abilities and
- * triggers included, so an agent is never briefly on the site in a
- * half-configured state.
- *
- * @param State $state State.
- * @param Os    $os    Host handle.
- * @return void
- */
 function agent_create_action( State $state, Os $os ) {
 	if ( ! agents_enabled() || ! agents_can_manage() || ! function_exists( 'openstation_agent_create' ) ) {
 		return;
@@ -263,15 +176,6 @@ function agent_create_action( State $state, Os $os ) {
 	$os->announce( 'user', 'created', (int) $user->ID );
 }
 
-/**
- * `agent-update`: any subset of the definition fields, like the
- * PATCH route.
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function agent_update_action( State $state, Os $os, array $args ) {
 	if ( ! agents_enabled() || ! agents_can_manage() || ! function_exists( 'openstation_agent_update' ) ) {
 		return;
@@ -288,8 +192,7 @@ function agent_update_action( State $state, Os $os, array $args ) {
 		$state->set( 'agentNotice', $updated->get_error_message() );
 		return;
 	}
-	// The face backfill is a courtesy write and stays silent;
-	// everything else confirms in the words the original used.
+
 	if ( array_key_exists( 'abilities', $fields ) ) {
 		$state->set( 'agentNotice', __( 'Abilities saved.', 'desktop-mode' ) );
 	} elseif ( array_key_exists( 'triggers', $fields ) ) {
@@ -300,15 +203,6 @@ function agent_update_action( State $state, Os $os, array $args ) {
 	$os->announce( 'user', 'updated', $id );
 }
 
-/**
- * `agent-delete`: delete the agent user (agents only — a plain user
- * is refused by the store).
- *
- * @param State               $state State.
- * @param Os                  $os    Host handle.
- * @param array<string,mixed> $args  Trigger args.
- * @return void
- */
 function agent_delete_action( State $state, Os $os, array $args ) {
 	if ( ! agents_enabled() || ! agents_can_manage() || ! function_exists( 'openstation_agent_delete' ) ) {
 		return;

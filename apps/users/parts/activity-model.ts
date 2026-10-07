@@ -1,9 +1,7 @@
-/** Facts derived only from the loaded, permission-checked user collection. */
 import type { UserListItem, UserStats } from './types';
 export type ContributionKind = keyof UserStats;
 const DAY = 86400000;
 
-/** WordPress registration dates are UTC, including the offset-less REST form. */
 export function registeredAt( row: UserListItem ): number {
 	const raw = row.registered_date;
 	if ( ! raw ) {

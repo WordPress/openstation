@@ -1,18 +1,3 @@
-/*
- * Deactivation feedback dialog.
- *
- * One optional question asked when an admin deactivates OpenStation.
- * Renders on the classic `plugins.php`, inside a chromeless window and
- * over the native Plugins app, so it is plain classed DOM under the
- * `.os-deactivation-feedback` namespace rather than `<os-*>` components:
- * the kit is not loaded on the classic screen, and one renderer that
- * works everywhere beats two.
- *
- * The scrim and card follow `assets/css/announce.css`, quieter: this is
- * a form, not a poster. Colours are literals for the same reason that
- * file gives — the sheet loads where `variables.css` does not.
- */
-
 .os-deactivation-feedback,
 .os-deactivation-feedback * {
 	box-sizing: border-box;
@@ -21,7 +6,7 @@
 .os-deactivation-feedback {
 	position: fixed;
 	inset: 0;
-	/* Above every window, the dock and the welcome dialog's own layer. */
+
 	z-index: 100001;
 	display: flex;
 	align-items: center;
@@ -73,7 +58,6 @@
 	animation: os-deactivation-feedback-pop 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Holographic hairline, as on the announcement card. */
 .os-deactivation-feedback__card::before {
 	content: "";
 	position: absolute;
@@ -150,15 +134,6 @@
 	accent-color: #f252fc;
 }
 
-/*
- * The field's label and the "too buggy" question share one grid cell,
- * so the slot is always as tall as the taller of the two and swapping
- * them never resizes the card. The card is centred: a height change
- * would slide every checkbox under the pointer.
- *
- * The outgoing text hides its visibility only after its fade, and the
- * incoming one shows at once, so assistive tech never meets both.
- */
 .os-deactivation-feedback__field-head {
 	display: grid;
 	margin: 0 0 8px;
@@ -295,7 +270,6 @@
 	transform: translateY(-1px);
 }
 
-/* Reduced motion stops the movement, never the paint. */
 @media (prefers-reduced-motion: reduce) {
 	.os-deactivation-feedback,
 	.os-deactivation-feedback__card {
@@ -307,7 +281,6 @@
 		transition: none;
 	}
 
-	/* The label and the question still cross-fade; they just don't slide. */
 	.os-deactivation-feedback__label,
 	.os-deactivation-feedback__prompt,
 	.os-deactivation-feedback__field-head[data-asking] .os-deactivation-feedback__label {

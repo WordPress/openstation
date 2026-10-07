@@ -1,29 +1,3 @@
-/**
- * Reconciling the workspace templates with the server's list.
- *
- * Templates are the one registry in the family that carries no script:
- * a preset is metadata plus two token lists, and there is nothing to
- * lazy-load. That makes this the simplest sync module in the shell —
- * one synchronous pass, no `scriptUrl`, no readiness flag.
- *
- * It gives the `openstation_workspace_presets` PHP filter both of its
- * powers:
- *
- * - **Add.** A server entry whose id no client built-in claims is
- *   registered as a template of its own, tokens and all — so a plugin
- *   can ship a complete workspace from PHP with no JavaScript.
- * - **Remove.** A built-in the server list no longer names is filtered
- *   out client-side. That is the path a template's `requires` travels:
- *   whether WooCommerce is active is a question only the server can
- *   answer, so it answers it by leaving Commerce out of the payload.
- *
- * The three shipped ids deliberately do NOT re-register from the
- * server: their token lists live on the client, where they are
- * resolved, and a second copy in PHP would be a second place to keep
- * in step. The server entry for a built-in says only "this one still
- * exists".
- */
-
 import { addFilter, removeFilter, HOOKS } from '../hooks';
 import {
 	listWorkspacePresets,
@@ -34,7 +8,6 @@ import type { WorkspacePreset } from './types';
 import { WORKSPACE_LAYOUTS } from './types';
 import { captureWorkspaceAppearance } from './visibility';
 
-/** One `workspacePresets` entry, as PHP serializes it. */
 export interface WorkspacePresetServerEntry {
 	id: string;
 	label?: string;
@@ -51,17 +24,8 @@ export interface WorkspacePresetServerEntry {
 
 const FILTER_NAMESPACE = 'desktop-mode/workspace-presets';
 
-/**
- * Ids the server's most recent payload named.
- *
- * `null` until the first sync, and the distinction matters: before the
- * server has spoken, the filter below must not drop anything. A shell
- * booting without the config key (vitest, a stripped payload) keeps
- * every built-in rather than showing an empty switcher.
- */
 let serverIds: Set< string > | null = null;
 
-/** Ids this module registered, so a later payload can retire them. */
 const ownRegistrations = new Set< string >();
 
 function toPreset( entry: WorkspacePresetServerEntry ): WorkspacePreset {
@@ -78,9 +42,7 @@ function toPreset( entry: WorkspacePresetServerEntry ): WorkspacePreset {
 		color: entry.color || '',
 		apps: Array.isArray( entry.apps ) ? entry.apps.slice() : [],
 		widgets: Array.isArray( entry.widgets ) ? entry.widgets.slice() : [],
-		// Re-filtered client-side against the same allowlist the server
-		// enforced. Cheap, and it keeps the sync honest if the two
-		// lists ever drift.
+
 		appearance: captureWorkspaceAppearance( entry.appearance ?? {} ),
 		windows: Array.isArray( entry.windows )
 			? entry.windows.map( ( w ) => ( { ...w } ) )
@@ -90,12 +52,6 @@ function toPreset( entry: WorkspacePresetServerEntry ): WorkspacePreset {
 	};
 }
 
-/**
- * Bring the template list in line with a server payload.
- *
- * Safe to call repeatedly — the boot payload and every later menu
- * refresh both land here.
- */
 export function applyServerWorkspacePresets(
 	entries: WorkspacePresetServerEntry[] | undefined,
 ): void {
@@ -104,9 +60,6 @@ export function applyServerWorkspacePresets(
 	}
 	const ids = new Set( entries.map( ( e ) => e.id ).filter( Boolean ) );
 
-	// Built-in ids, read BEFORE registering anything from this payload
-	// so a server entry cannot be mistaken for the client copy it is
-	// standing next to.
 	const builtIns = new Set(
 		listWorkspacePresets()
 			.filter( ( p ) => ! ownRegistrations.has( p.id ) )
@@ -121,8 +74,6 @@ export function applyServerWorkspacePresets(
 		ownRegistrations.add( entry.id );
 	}
 
-	// Retire anything we registered that this payload no longer names —
-	// the plugin that added it was deactivated.
 	for ( const id of [ ...ownRegistrations ] ) {
 		if ( ! ids.has( id ) ) {
 			unregisterWorkspacePreset( id );
@@ -133,13 +84,6 @@ export function applyServerWorkspacePresets(
 	serverIds = ids;
 }
 
-/**
- * Install the filter that lets the server list remove a built-in.
- *
- * Registered once at boot, before the first payload lands, so a
- * `WORKSPACE_PRESETS` read that happens between boot and sync is
- * already going through it.
- */
 export function installWorkspacePresetSync(): () => void {
 	addFilter< WorkspacePreset[] >(
 		HOOKS.WORKSPACE_PRESETS,

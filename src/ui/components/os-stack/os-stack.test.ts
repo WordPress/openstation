@@ -1,8 +1,3 @@
-/**
- * `<os-stack>` — smoke test. Verifies the gap + align attributes
- * flow through to the host's inline custom properties and that
- * slotted children reach light DOM.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-stack';
 

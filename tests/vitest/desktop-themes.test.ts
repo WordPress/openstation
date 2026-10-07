@@ -1,13 +1,3 @@
-/**
- * Unit tests for `src/desktop-themes/` — the registry, the icon
- * resolver, the activation module, the slot maps, and the server
- * sync.
- *
- * The invariant worth defending hardest is the cheap path: with NO
- * active theme, `resolveThemedIcon()` must return `null` without
- * touching the hook bus, because it sits in front of every icon the
- * shell paints.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -85,10 +75,6 @@ afterEach( () => {
 	_resetAllSharedStoresForTests();
 } );
 
-// ---------------------------------------------------------------
-// Registry.
-// ---------------------------------------------------------------
-
 describe( 'registry — normalization', () => {
 	test( 'accepts a well-formed entry', () => {
 		const entry = normalizeEntry( rawTheme() );
@@ -106,8 +92,7 @@ describe( 'registry — normalization', () => {
 	} );
 
 	test( 'drops icon values that are not paintable', () => {
-		// PHP validated these, but a `openstation_desktop_themes`
-		// filter runs after sanitization and can put anything in.
+
 		const entry = normalizeEntry(
 			rawTheme( {
 				icons: {
@@ -198,10 +183,6 @@ describe( 'registry — CRUD', () => {
 	} );
 } );
 
-// ---------------------------------------------------------------
-// Resolver.
-// ---------------------------------------------------------------
-
 describe( 'resolveThemedIcon', () => {
 	test( 'returns null with no active theme, without running the filter', () => {
 		let filterRan = false;
@@ -266,14 +247,6 @@ describe( 'resolveThemedIcon', () => {
 	} );
 } );
 
-// ---------------------------------------------------------------
-// Apply.
-// ---------------------------------------------------------------
-
-// ---------------------------------------------------------------
-// The boot-payload diet: slim entries hydrate on first use.
-// ---------------------------------------------------------------
-
 describe( 'cssDeferred hydration', () => {
 	test( 'normalizeEntry carries the deferral marker (default false)', () => {
 		expect( normalizeEntry( rawTheme() )?.cssDeferred ).toBe( false );
@@ -310,7 +283,6 @@ describe( 'cssDeferred hydration', () => {
 
 		applyDesktopTheme( 'acme-deferred' );
 
-		// Instant half: attribute + body class + store, no stylesheet.
 		expect( getActiveDesktopThemeId() ).toBe( 'acme-deferred' );
 		expect(
 			document.body.classList.contains( 'os-desktop-theme-acme-deferred' ),
@@ -321,7 +293,6 @@ describe( 'cssDeferred hydration', () => {
 		).toBeNull();
 		expect( spy ).toHaveBeenCalledTimes( 1 );
 
-		// The fetch lands with the full entry → stylesheet injected.
 		resolveFetch( {
 			ok: true,
 			json: () =>
@@ -376,7 +347,7 @@ describe( 'cssDeferred hydration', () => {
 		] );
 
 		applyDesktopTheme( 'acme-deferred' );
-		// The user changes their mind before the CSS arrives.
+
 		applyDesktopTheme( '' );
 
 		resolveFetch( {
@@ -502,7 +473,6 @@ describe( 'applyDesktopTheme', () => {
 		applyDesktopTheme( 'acme-neon' );
 		expect( events ).toBe( 1 );
 
-		// Boot on the system default: two comparisons, no event.
 		applyDesktopTheme( '' );
 		expect( events ).toBe( 2 );
 		applyDesktopTheme( '' );
@@ -533,9 +503,7 @@ describe( 'applyDesktopTheme', () => {
 	} );
 
 	test( 'adopts a PHP-pre-stamped boot state instead of re-requesting', () => {
-		// PHP stamps the attribute and prints the <link> before the
-		// shell script runs; re-creating them would cause the exact
-		// FOUC the server-side stamp exists to prevent.
+
 		const shell = mountShell();
 		shell.setAttribute( 'data-os-desktop-theme', 'acme-neon' );
 		const bootLink = document.createElement( 'link' );
@@ -554,8 +522,7 @@ describe( 'applyDesktopTheme', () => {
 	} );
 
 	test( 'a theme with no icon overrides publishes {} — never null', () => {
-		// `null` is reserved for "no theme at all"; conflating the two
-		// would make the resolver's fast path lie about an active theme.
+
 		mountShell();
 		setDesktopThemes( [ rawTheme( { icons: {} } ) ] );
 		applyDesktopTheme( 'acme-neon' );
@@ -570,10 +537,6 @@ describe( 'applyDesktopTheme', () => {
 		expect( getActiveDesktopThemeId() ).toBe( 'acme-neon' );
 	} );
 } );
-
-// ---------------------------------------------------------------
-// Slots.
-// ---------------------------------------------------------------
 
 describe( 'slot maps', () => {
 	test( 'system tiles map to their dedicated slots', () => {
@@ -624,15 +587,11 @@ describe( 'slot maps', () => {
 		expect( slotForFileType( 'attachment' ) ).toBe(
 			DESKTOP_THEME_SLOTS.FILE_ATTACHMENT,
 		);
-		// A plugin-registered file type has no slot of its own.
+
 		expect( slotForFileType( 'acme-widget' ) ).toBe( '' );
 		expect( slotForFileType( '' ) ).toBe( '' );
 	} );
 } );
-
-// ---------------------------------------------------------------
-// Server sync.
-// ---------------------------------------------------------------
 
 describe( 'createDesktopThemeSync', () => {
 	test( 'replaces the library from the payload', () => {

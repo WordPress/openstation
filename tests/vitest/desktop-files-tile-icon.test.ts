@@ -1,19 +1,3 @@
-/**
- * Regression test for the desktop-file tile icon renderer.
- *
- * Pre-0.8.2, `buildTile` in `src/desktop-files/file-tile.ts` glued
- * any non-empty `file.icon()` value onto a `dashicons` class via a
- * sanitizer that stripped slashes / colons / dots. A file-type
- * declaring its `icon` as an http(s) URL or a
- * `data:image/svg+xml;base64,…` data URI ended up with a class
- * like `dashicons httplocalhost8889wp-contentpluginsos-tumblr…`
- * — broken empty square at render time.
- *
- * The fix routes the icon through the canonical `renderIcon()`
- * dispatch (the same one the wallpaper rail and the dock use),
- * so URL / data URI / dashicons / letter-badge fallback all
- * paint correctly.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
@@ -88,13 +72,12 @@ describe( 'file-tile icon dispatch (regression — data URI / URL handling)', ()
 		const tile = fileTile.buildTile( makePlacement( 2, { icon: URL_ICON } ), 0 );
 		document.body.appendChild( tile );
 
-		// The icon now appears as an <img>, NOT a span with a glued class.
 		const img = tile.querySelector< HTMLImageElement >(
 			'img.os-file-tile__icon',
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( URL_ICON );
-		// And there is NO span carrying the malformed Dashicons class.
+
 		const malformed = tile.querySelector(
 			'span.os-file-tile__icon.dashicons',
 		);

@@ -1,39 +1,13 @@
-/**
- * Alphabet Soup — synthesized sound effects (Web Audio, no assets).
- *
- * Same recipe as Inkfall's music-box: `OscillatorNode` + `GainNode`
- * plucks, lazily-created `AudioContext` (always inside a pointer
- * gesture), on/off preference in localStorage. The soup sings a
- * major-pentatonic scale: dragging across cells climbs the scale
- * one step per cell (any selection is a rising run), a found word
- * rolls a little arpeggio, a wrong selection is a soft pot-lid
- * thud, a cleared wave gets a four-note fanfare, and the Time
- * Attack clock ticks when it runs low.
- */
-
-/** localStorage key for the sound on/off preference. */
 const SOUND_STORAGE_KEY = 'desktop-mode/alphabet-soup-sound';
 
-/** Master output level — deliberately quiet, it's an admin screen. */
 const MASTER_LEVEL = 0.16;
 
-/** Per-pluck peak level (pre-master). */
 const PLUCK_LEVEL = 0.5;
 
-/** Major pentatonic steps in semitones — every pair is consonant. */
 const PENTATONIC = [ 0, 2, 4, 7, 9 ] as const;
 
-/** Base frequency for the selection climb — A3, warm and round. */
 const BASE_FREQUENCY = 220;
 
-/**
- * The frequency for the `index`-th cell of a selection: climb the
- * pentatonic scale one degree per cell, octave-wrapping. Pure —
- * unit-tested.
- *
- * @param index 0-based cell position within the drag.
- * @return Frequency in Hz.
- */
 export function selectionStepFrequency( index: number ): number {
 	const step = Math.max( 0, Math.floor( index ) );
 	const semitones =
@@ -43,21 +17,21 @@ export function selectionStepFrequency( index: number ): number {
 }
 
 export interface SoupAudio {
-	/** Rising pluck as the drag covers its `index`-th cell. */
+
 	cellTouch: ( index: number ) => void;
-	/** Rolled arpeggio when a word is found. */
+
 	found: ( length: number ) => void;
-	/** Soft pot-lid thud for a wrong selection. */
+
 	invalid: () => void;
-	/** Four-note fanfare when a wave clears. */
+
 	waveClear: () => void;
-	/** Low-time clock tick. */
+
 	tick: () => void;
-	/** Descending sign-off when the run ends. */
+
 	gameOver: () => void;
 	setEnabled: ( enabled: boolean ) => void;
 	isEnabled: () => boolean;
-	/** Close the AudioContext. Safe to call twice. */
+
 	dispose: () => void;
 }
 
@@ -85,7 +59,7 @@ function storeEnabled( enabled: boolean ): void {
 	try {
 		window.localStorage.setItem( SOUND_STORAGE_KEY, enabled ? '1' : '0' );
 	} catch {
-		/* storage unavailable — best effort */
+
 	}
 }
 
@@ -100,7 +74,6 @@ export function createSoupAudio(): SoupAudio {
 			return null;
 		}
 		if ( ctx ) {
-			// A backgrounded tab can suspend the context; nudge it.
 			if ( 'suspended' === ctx.state ) {
 				void ctx.resume().catch( () => undefined );
 			}
@@ -125,7 +98,6 @@ export function createSoupAudio(): SoupAudio {
 		return ctx;
 	};
 
-	/** One enveloped tone: fast attack, exponential decay. */
 	const pluck = (
 		frequency: number,
 		opts: {
@@ -163,7 +135,6 @@ export function createSoupAudio(): SoupAudio {
 		},
 
 		found( length ) {
-			// Roll a major arpeggio; longer words reach one note higher.
 			const root = selectionStepFrequency( Math.min( length, 6 ) );
 			pluck( root, { duration: 0.3 } );
 			pluck( root * 1.25, { delay: 0.05, duration: 0.3 } );
@@ -172,13 +143,11 @@ export function createSoupAudio(): SoupAudio {
 		},
 
 		invalid() {
-			// A muted pot-lid thud — feedback, never punishment.
 			pluck( 110, { type: 'triangle', duration: 0.15, level: 0.35 } );
 			pluck( 116, { type: 'triangle', duration: 0.12, level: 0.2 } );
 		},
 
 		waveClear() {
-			// A rising four-note fanfare: the next course is served.
 			pluck( 330, { duration: 0.25 } );
 			pluck( 415, { delay: 0.09, duration: 0.25 } );
 			pluck( 494, { delay: 0.18, duration: 0.3 } );
@@ -190,7 +159,6 @@ export function createSoupAudio(): SoupAudio {
 		},
 
 		gameOver() {
-			// A gentle falling third — the bowl is empty.
 			pluck( 392, { type: 'triangle', duration: 0.35, level: 0.4 } );
 			pluck( 311, { type: 'triangle', delay: 0.14, duration: 0.45, level: 0.4 } );
 		},

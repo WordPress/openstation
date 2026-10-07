@@ -1,17 +1,3 @@
-/**
- * OpenStation — Pinned notes layer.
- *
- * Renders `wpd_note` posts as paper notes pinned to the wallpaper.
- * Each note hangs from a pushpin, the pin is the ONLY drag handle,
- * drags route through the shell DragManager (payload type `'note'`),
- * and the recycle bin accepts the payload as a trash gesture via
- * `recycle-bin-payloads.ts`.
- *
- * Read-only public notes (other users') render with a steel pin
- * that is *scenery, not a handle* — no drag, no edit, an always-
- * visible author chip.
- */
-
 import { toastRestFailure } from '../core/rest-failure';
 import type { ToastOptions } from '../toast';
 import { __, sprintf } from '../i18n';
@@ -71,38 +57,19 @@ function getDragManager(): DragManagerApi | null {
 	return api ?? null;
 }
 
-/**
- * The jitter seed to render with. Notes created before the seed
- * landed (or shaped by an older server) fall back to their id so
- * they still get a stable, if arbitrary, tilt.
- */
 function jitterSeed( note: Note ): number {
 	return note.seed || Math.abs( note.id ) || 1;
 }
 
-/**
- * The `post` glyph from `@wordpress/icons`, inlined. Marks the
- * "Convert to post" affordance. `fill` inherits from the button's ink
- * color (see notes.css).
- *
- * Not from `src/ui/icons`: the thirty are the shell's own vocabulary
- * plus the Core verbs it reuses, and `post` is neither. If a second
- * surface ever needs it, it earns a place in the set rather than a
- * second copy here.
- */
 const ICON_POST = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="m7.3 9.7 1.4 1.4c.2-.2.3-.3.4-.5 0 0 0-.1.1-.1.3-.5.4-1.1.3-1.6L12 7 9 4 7.2 6.5c-.6-.1-1.1 0-1.6.3 0 0-.1 0-.1.1-.3.1-.4.2-.6.4l1.4 1.4L4 11v1h1l2.3-2.3zM4 20h9v-1.5H4V20zm0-5.5V16h16v-1.5H4z" /></svg>`;
 
-/** Delete a note. Core's trash, from the set. */
 const ICON_TRASH = osIconSvg( 'trash', { size: 20 } );
 
 export interface NotesLayerOptions {
 	host: HTMLElement;
-	/** Plugin base URL (no trailing slash) — locates the pushpin SVG. */
+
 	pluginUrl: string;
-	/**
-	 * Whether the viewer can author posts. Gates the "Convert to post"
-	 * affordance on owned notes (inline button + Posts dock drop target).
-	 */
+
 	canCreatePosts?: boolean;
 	onError?: ( toast: ToastOptions ) => void;
 }
@@ -135,19 +102,12 @@ export class NotesLayer {
 			} );
 			startNotesHeartbeat( this );
 		} catch ( error ) {
-			// A fresh site with zero notes still resolves fine — an
-			// error here means the routes are unreachable. Stay quiet
-			// on the wallpaper; log for the debugging session.
 			if ( error instanceof Error ) {
-				// eslint-disable-next-line no-console
 				console.debug( '[openstation] Pinned notes unavailable:', error.message );
 			}
 		}
 	}
 
-	/**
-	 * Insert or update a note on the wall.
-	 */
 	upsertNote(
 		note: Note,
 		options: { animate: 'none' | 'thunk' | 'move' } = { animate: 'none' },
@@ -178,7 +138,6 @@ export class NotesLayer {
 		controller.element.remove();
 	}
 
-	/** Rebind a controller after a temp (optimistic) id resolves. */
 	rekeyNote( oldId: number, controller: NoteController ): void {
 		this.controllers.delete( oldId );
 		this.controllers.set( controller.note.id, controller );
@@ -215,13 +174,6 @@ export class NotesLayer {
 		};
 	}
 
-	/**
-	 * Clamp a normalized position so the note stays reachable: its
-	 * full width and its top 120px inside the desktop's WORK area,
-	 * not the whole host — a note parked at the host's floor sat
-	 * under the dock pill. Positions stay normalised against the
-	 * host's full size, so nothing stored changes shape.
-	 */
 	clampPosition( x: number, y: number ): { x: number; y: number } {
 		const { width, height } = this.hostSize();
 		const area = workAreaRectOf( this.host );
@@ -235,7 +187,6 @@ export class NotesLayer {
 		};
 	}
 
-	/** Normalized 0–1 top-left for a viewport point. */
 	normalizedFromClient( clientX: number, clientY: number ): { x: number; y: number } {
 		const rect = this.host.getBoundingClientRect();
 		const { width, height } = this.hostSize();
@@ -245,29 +196,20 @@ export class NotesLayer {
 		);
 	}
 
-	/**
-	 * Pin a new note optimistically against a negative temp id, then
-	 * adopt the server copy. Shared by the wallpaper context menu and
-	 * the Note Pad's tear-off drop.
-	 */
 	createNoteAt( options: {
 		x: number;
 		y: number;
 		text?: string;
 		color?: string;
 		isPublic?: boolean;
-		/** Focus the editor once the paper lands. */
+
 		focus?: boolean;
 	} ): NoteController {
 		const text = options.text ?? '';
 		const color = sanitizeNoteColorSlug( options.color ?? NOTE_COLORS[ 0 ] );
 		const isPublic = options.isPublic === true;
 		const { x, y } = this.clampPosition( options.x, options.y );
-		// Hashed client-side so the optimistic paper and every later
-		// render share a tilt. Position is the fallback because
-		// `hashNoteSeed('')` is a constant, and the wallpaper-menu path
-		// always starts empty — every note from it would come out
-		// parallel, which is the one thing the seed exists to prevent.
+
 		const seed = hashNoteSeed( text || `${ x },${ y }` );
 
 		const tempId = this.nextTempId();
@@ -297,12 +239,10 @@ export class NotesLayer {
 		void createNote( { text, color, x, y, public: isPublic, seed } )
 			.then( ( note ) => {
 				this.bumpHighWater( note.updatedAtMs );
-				// The server echoes our position back; we only need the
-				// id and the concurrency token.
+
 				controller.replace( note );
 				this.rekeyNote( tempId, controller );
-				// Edits typed during the POST debounced against the temp
-				// id and couldn't save. Now they can.
+
 				controller.flushPendingEdits();
 			} )
 			.catch( ( err: unknown ) => {
@@ -310,7 +250,7 @@ export class NotesLayer {
 				toastRestFailure( ( toast ) => this.notifyError( toast ), err, {
 					fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),
 				} );
-				// eslint-disable-next-line no-console
+
 				console.error( '[openstation] notes: create failed:', err );
 			} );
 
@@ -338,10 +278,6 @@ export class NotesLayer {
 		} );
 	}
 
-	/**
-	 * Convert a note to a draft post: evict optimistically, auto-open
-	 * the draft editor, Undo restores the note (and discards the draft).
-	 */
 	convertNote( note: Note ): void {
 		if ( ! this.canCreatePosts || ! note.canEdit ) {
 			return;
@@ -354,10 +290,6 @@ export class NotesLayer {
 			},
 		} );
 	}
-
-	// ------------------------------------------------------------------
-	// Heartbeat
-	// ------------------------------------------------------------------
 
 	getHeartbeatSubscription(): NotesHeartbeatSubscribe | undefined {
 		return {
@@ -388,14 +320,10 @@ export class NotesLayer {
 			this.bumpHighWater( payload.serverTimeMs );
 		}
 		if ( payload.truncated ) {
-			// The server capped the delta — anything beyond the cap
-			// would be skipped forever now that the high-water mark
-			// advanced. Re-hydrate from the full list instead.
 			void this.reloadFromServer();
 		}
 	}
 
-	/** Full re-hydration — the Heartbeat delta overflowed its cap. */
 	private async reloadFromServer(): Promise< void > {
 		try {
 			const { notes } = await listNotes();
@@ -418,7 +346,7 @@ export class NotesLayer {
 				}
 			}
 		} catch {
-			// Quiet — the next heartbeat tick can try again.
+
 		}
 	}
 
@@ -464,16 +392,10 @@ export class NoteController {
 	private pendingText: string | null = null;
 	private disposed = false;
 
-	/**
-	 * Whether the current run of failed saves has been announced. A
-	 * PATCH fails once per keystroke while the reason lasts, and one
-	 * toast says it; the status dot keeps saying it after that. Reset
-	 * by the next save that lands.
-	 */
 	private saveFailureShown = false;
 	private moveMode = false;
 	private moveOrigin: { x: number; y: number } | null = null;
-	// Session-scoped drag listeners (pendulum, bin-hover doom).
+
 	private dragCleanup: ( () => void ) | null = null;
 	private lastPointer: { x: number; y: number } | null = null;
 
@@ -496,10 +418,6 @@ export class NoteController {
 		);
 	}
 
-	// ------------------------------------------------------------------
-	// DOM
-	// ------------------------------------------------------------------
-
 	private paint(): void {
 		const note = this.note;
 		this.element.className = 'os-pinned-note';
@@ -515,7 +433,7 @@ export class NoteController {
 			note.canEdit
 				? __( 'Pinned note', 'desktop-mode' )
 				: sprintf(
-					/* translators: %s: note author display name. */
+
 					__( 'Note by %s', 'desktop-mode' ),
 					note.ownerName,
 				),
@@ -524,7 +442,6 @@ export class NoteController {
 		this.element.style.setProperty( '--dm-pin-dx', `${ this.jitter.pinOffsetX }px` );
 		this.element.style.setProperty( '--dm-pin-rot', `${ this.jitter.pinRotation }deg` );
 
-		// The pin — drag handle for the owner, scenery for viewers.
 		this.pinEl.className = 'os-pinned-note__pin';
 		this.pinEl.appendChild( buildPinImage( this.layer.pluginUrl ) );
 		if ( note.canEdit ) {
@@ -540,10 +457,7 @@ export class NoteController {
 			this.pinEl.addEventListener( 'pointerdown', ( event ) =>
 				this.startDrag( event as PointerEvent ),
 			);
-			// Keyboard activation (Enter/Space) fires a click with
-			// `detail === 0` and never goes through the DragManager —
-			// route it to move mode directly. Pointer clicks arrive via
-			// the drag session's `onClickOnly` instead.
+
 			this.pinEl.addEventListener( 'click', ( event ) => {
 				if ( ( event as MouseEvent ).detail === 0 && ! this.moveMode ) {
 					this.toggleMoveMode();
@@ -557,7 +471,6 @@ export class NoteController {
 			this.pinEl.setAttribute( 'aria-hidden', 'true' );
 		}
 
-		// The paper.
 		this.paperEl.className = 'os-pinned-note__paper';
 		if ( note.canEdit ) {
 			this.paintOwnerPaper();
@@ -587,10 +500,6 @@ export class NoteController {
 
 		meta.append( status, colorDot );
 
-		// Every action lives in the footer. The pushpin is painted over
-		// the paper's chrome and covers the middle of the meta row, so
-		// that row only ever had space for two controls to the right of
-		// it — see notes.css.
 		const actions = document.createElement( 'div' );
 		actions.className = 'os-pinned-note__actions';
 
@@ -603,17 +512,13 @@ export class NoteController {
 		);
 		actions.appendChild( visibility );
 
-		// "Convert to post" — only for users who can author posts. Drops
-		// the note into a fresh draft (the note itself is trashed) and
-		// opens the block editor. The pin can also be dragged onto the
-		// Posts dock tile for the same effect (see posts-drop-target.ts).
 		if ( this.layer.canCreatePosts ) {
 			const convert = document.createElement( 'os-window-button' );
 			convert.className = 'os-pinned-note__convert';
 			convert.innerHTML = ICON_POST;
 			const convertLabel = __( 'Convert to a draft post', 'desktop-mode' );
 			convert.setAttribute( 'title', convertLabel );
-			// Icon-only button — give screen readers an accessible name.
+
 			convert.setAttribute( 'aria-label', convertLabel );
 			convert.addEventListener( 'os-button-activate', () =>
 				this.layer.convertNote( this.note ),
@@ -621,7 +526,6 @@ export class NoteController {
 			actions.appendChild( convert );
 		}
 
-		// The pointer/keyboard equivalent of dragging the pin onto the bin.
 		const trash = document.createElement( 'os-window-button' );
 		trash.className = 'os-pinned-note__trash';
 		trash.innerHTML = ICON_TRASH;
@@ -638,8 +542,7 @@ export class NoteController {
 		editor.setAttribute( 'auto-grow', '' );
 		editor.setAttribute( 'max-rows', '10' );
 		editor.setAttribute( 'value', this.note.text );
-		// Shell-level shortcuts (Alt+Tab window cycling, Show Desktop)
-		// must not fire while typing on paper.
+
 		[ 'keydown', 'keypress', 'keyup' ].forEach( ( eventName ) => {
 			editor.addEventListener( eventName, ( event ) => event.stopPropagation() );
 		} );
@@ -667,7 +570,7 @@ export class NoteController {
 		const chip = document.createElement( 'div' );
 		chip.className = 'os-pinned-note__attribution';
 		chip.title = sprintf(
-			/* translators: %s: note author display name. */
+
 			__( 'Pinned by %s', 'desktop-mode' ),
 			this.note.ownerName,
 		);
@@ -690,8 +593,7 @@ export class NoteController {
 			return;
 		}
 		const next = nextNoteColor( this.note.color );
-		// The affordance shows the OUTCOME: the dot is painted in the
-		// color the click will switch to.
+
 		this.colorDot.style.setProperty(
 			'--dm-note-next-paper',
 			`var(--dm-note-${ next })`,
@@ -699,7 +601,7 @@ export class NoteController {
 		this.colorDot.setAttribute(
 			'aria-label',
 			sprintf(
-				/* translators: %s: next paper color name. */
+
 				__( 'Change paper color (next: %s)', 'desktop-mode' ),
 				next,
 			),
@@ -725,10 +627,6 @@ export class NoteController {
 		this.visibilityBtn.classList.toggle( 'is-public', isPublic );
 	}
 
-	// ------------------------------------------------------------------
-	// State
-	// ------------------------------------------------------------------
-
 	replace( note: Note ): void {
 		const idChanged = note.id !== this.note.id;
 		const seedChanged = jitterSeed( note ) !== jitterSeed( this.note );
@@ -737,16 +635,12 @@ export class NoteController {
 		const zChanged = note.z !== this.note.z;
 		this.note = note;
 		if ( zChanged ) {
-			// Remote stacking change (another session's bringToFront)
-			// — apply to the DOM directly; setZ() would loop it back
-			// into a PATCH.
 			this.element.style.zIndex = String( note.z );
 		}
 		if ( idChanged ) {
 			this.element.dataset.noteId = String( note.id );
 		}
-		// The seed is stamped at creation and never changes on edits —
-		// this only fires when a controller adopts a different note.
+
 		if ( seedChanged ) {
 			this.jitter = noteJitter( jitterSeed( note ) );
 			this.element.style.setProperty( '--dm-note-rot', `${ this.jitter.rotation }deg` );
@@ -775,10 +669,6 @@ export class NoteController {
 		}
 	}
 
-	/**
-	 * Remote copies never clobber local unsaved edits; otherwise
-	 * accept anything newer than what we render.
-	 */
 	shouldReplaceFromRemote( note: Note ): boolean {
 		if ( this.pendingText !== null || this.saveTimer !== null ) {
 			return false;
@@ -809,7 +699,6 @@ export class NoteController {
 		this.element.style.top = `${ ( this.note.y * 100 ).toFixed( 3 ) }%`;
 	}
 
-	/** Optimistically move + persist. Used by drop handler and keyboard. */
 	moveTo( x: number, y: number ): void {
 		const clamped = this.layer.clampPosition( x, y );
 		this.note = { ...this.note, x: clamped.x, y: clamped.y };
@@ -848,10 +737,6 @@ export class NoteController {
 		this.dragCleanup = null;
 	}
 
-	// ------------------------------------------------------------------
-	// Autosave
-	// ------------------------------------------------------------------
-
 	private setPhase( phase: string ): void {
 		this.statusEl?.setAttribute( 'phase', phase );
 	}
@@ -866,14 +751,6 @@ export class NoteController {
 		}, SAVE_DEBOUNCE_MS );
 	}
 
-	/**
-	 * Persist edits typed while the note was still optimistic (its
-	 * create POST in flight). Called by the drop handler once the
-	 * server id lands — without it, a save debounce that fired on the
-	 * temp id would strand `pendingText` forever (text lost on reload
-	 * AND remote replacement blocked, since `shouldReplaceFromRemote`
-	 * refuses while local edits are pending).
-	 */
 	flushPendingEdits(): void {
 		this.flushSave();
 	}
@@ -908,7 +785,6 @@ export class NoteController {
 		this.note = { ...this.note, public: isPublic };
 		this.refreshVisibility();
 		if ( isPublic && ! prefersReducedMotion() && this.visibilityBtn ) {
-			// The "stamp" pulse — the note just went up on the shared wall.
 			this.visibilityBtn.animate?.(
 				[
 					{ transform: 'scale(1)' },
@@ -928,11 +804,6 @@ export class NoteController {
 		}
 	}
 
-	/**
-	 * Shared by the footer's trash button and move-mode's Delete key.
-	 * Drag-to-bin skips the dialog: the drop is the confirmation, and
-	 * it already has the crumple and an Undo toast.
-	 */
 	private confirmTrash(): void {
 		void osConfirm( {
 			title: __( 'Move note to the Trash?', 'desktop-mode' ),
@@ -946,11 +817,6 @@ export class NoteController {
 		} );
 	}
 
-	/**
-	 * All PATCHes flow through one chain so the concurrency token is
-	 * always the latest server-issued one, even when a text save and
-	 * a position save race.
-	 */
 	private queuePatch( body: UpdateNoteBody ): void {
 		this.patchChain = this.patchChain.then( async () => {
 			if ( this.disposed || this.note.id <= 0 ) {
@@ -964,8 +830,7 @@ export class NoteController {
 				if ( this.disposed ) {
 					return;
 				}
-				// Adopt the server's token (and any fields we didn't
-				// touch) without clobbering in-flight local edits.
+
 				const publicChanged = saved.public !== this.note.public;
 				this.note = {
 					...this.note,
@@ -991,7 +856,7 @@ export class NoteController {
 					return;
 				}
 				this.setPhase( 'failed' );
-				// eslint-disable-next-line no-console
+
 				console.error( '[openstation] notes: save failed:', err );
 				if ( ! this.saveFailureShown ) {
 					this.saveFailureShown = true;
@@ -1003,10 +868,6 @@ export class NoteController {
 		} );
 	}
 
-	// ------------------------------------------------------------------
-	// Drag (owner only)
-	// ------------------------------------------------------------------
-
 	private startDrag( event: PointerEvent ): void {
 		if ( ! this.note.canEdit || this.note.id <= 0 ) {
 			return;
@@ -1015,8 +876,7 @@ export class NoteController {
 		if ( ! dragManager ) {
 			return;
 		}
-		// Suppress the native text-selection sweep the pointer would
-		// otherwise drag across the paper / neighboring notes.
+
 		event.preventDefault();
 		this.element.ownerDocument.defaultView
 			?.getSelection()
@@ -1035,8 +895,7 @@ export class NoteController {
 				data,
 				ghost: {
 					element: ghost.root,
-					// The needle tip rides exactly under the cursor —
-					// the user is holding the pin.
+
 					offsetX: ghost.tipX,
 					offsetY: ghost.tipY,
 					hint: {
@@ -1048,9 +907,6 @@ export class NoteController {
 			},
 			origin: event,
 			onClickOnly: () => {
-				// Sub-threshold gestures fire NEITHER onCancel nor
-				// onCommit — without this teardown, every pin click
-				// would leak the session's document listeners.
 				this.teardownDragListeners();
 				this.toggleMoveMode();
 			},
@@ -1060,9 +916,7 @@ export class NoteController {
 			},
 			onCommit: () => {
 				this.teardownDragListeners();
-				// A wallpaper drop already moved us (Seam A handler runs
-				// before onCommit); a bin drop evicted us. Re-seat the
-				// pin only if we're still on the wall.
+
 				if ( this.layer.has( this.note.id ) ) {
 					void this.playInsertion( 0.7 );
 				}
@@ -1078,7 +932,7 @@ export class NoteController {
 		const noteRect = this.element.getBoundingClientRect();
 		const pinImg = this.pinEl.querySelector( 'img' );
 		const pinRect = ( pinImg ?? this.pinEl ).getBoundingClientRect();
-		// Needle tip in ghost-local coordinates.
+
 		const tipX = pinRect.left - noteRect.left + pinRect.width * PIN_TIP_X;
 		const tipY = pinRect.top - noteRect.top + pinRect.height * PIN_TIP_Y;
 
@@ -1096,7 +950,7 @@ export class NoteController {
 		pin.setAttribute( 'aria-hidden', 'true' );
 		const paper = this.paperEl.cloneNode( true ) as HTMLElement;
 		paper.classList.add( 'os-pinned-note-ghost__paper' );
-		// Carry the pastel binding onto the detached clone.
+
 		swing.dataset.noteColor = this.element.dataset.noteColor ?? '';
 
 		swing.append( pin, paper );
@@ -1105,9 +959,6 @@ export class NoteController {
 	}
 
 	private installDragListeners( ghost: GhostParts ): void {
-		// Never stack sessions: a previous session that ended through
-		// the click-only path (or a pathological double-start) must
-		// not leave its document listeners behind.
 		this.teardownDragListeners();
 		let pendulum: PendulumHandle | null = null;
 
@@ -1165,8 +1016,7 @@ export class NoteController {
 			void this.playInsertion( 0.63 );
 			return;
 		}
-		// The manager already disposed its ghost — fly a fresh visual
-		// clone home, then re-seat the pin on the real note.
+
 		const flyback = this.buildGhost();
 		flyback.root.classList.add( 'os-pinned-note-ghost--flyback' );
 		flyback.root.style.position = 'fixed';
@@ -1188,7 +1038,6 @@ export class NoteController {
 		void this.playInsertion( 0.63 );
 	}
 
-	/** Crumple visual played by the bin drop handler at the release point. */
 	async playCrumpleAt( clientX: number, clientY: number ): Promise< void > {
 		const ghost = this.buildGhost();
 		ghost.root.classList.add( 'os-pinned-note-ghost--flyback' );
@@ -1210,10 +1059,6 @@ export class NoteController {
 			ghost.root.remove();
 		}
 	}
-
-	// ------------------------------------------------------------------
-	// Keyboard move mode
-	// ------------------------------------------------------------------
 
 	private toggleMoveMode(): void {
 		if ( this.moveMode ) {
@@ -1259,8 +1104,6 @@ export class NoteController {
 
 	private onPinKeydown( event: KeyboardEvent ): void {
 		if ( ! this.moveMode ) {
-			// Enter/Space activate the button → click → toggleMoveMode
-			// via onClickOnly-less path; nothing to do here.
 			return;
 		}
 		const { width, height } = this.layer.hostSize();

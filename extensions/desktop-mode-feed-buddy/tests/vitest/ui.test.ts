@@ -127,11 +127,6 @@ function postedSubscriptions(): typeof requests {
 	);
 }
 
-/**
- * Mount the reader with the manager pane open and the add-feed form
- * pre-filled, mirroring the markup `feed_buddy_render_reader_template()`
- * emits.
- */
 async function mountManager( url: string ): Promise< {
 	container: HTMLElement;
 	teardown: () => void;
@@ -460,10 +455,6 @@ describe( 'SOL Inbound Monologue UI', () => {
 		);
 	} );
 
-	// `<os-button>` and `<os-text-field>` keep their native controls
-	// in a shadow root, so the surrounding `<form>` never receives a
-	// native `submit` event. Adding a feed has to be driven by the
-	// button's click and the field's `os-submit` event instead.
 	it.each( [
 		{
 			label: 'the Add buddy button click',

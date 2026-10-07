@@ -1,49 +1,3 @@
-/**
- * Window-slot painter — Layer 3 of the chrome framework.
- *
- * For each named slot in the title bar, the painter resolves its
- * content from three sources, in this priority:
- *
- *   1. **Per-window override** — `WindowConfig.appearance.slots[name]`.
- *      Three accepted shapes:
- *        - `null` — render nothing in the slot. Both the default
- *          content (icon dashicons span, title text) and any
- *          registry-matched renderers are suppressed for this slot
- *          on this window. Use this to hide the title or icon
- *          entirely.
- *        - `{ html: string }` — clear the host and write the string
- *          via `textContent` (NOT `innerHTML`) so iframe-side or
- *          plugin-supplied content can't smuggle script.
- *        - `{ render( host ) → void | (() => void) }` — clear the
- *          host (when `replace !== false`) and invoke the callback.
- *          The optional teardown is invoked on re-paint / close.
- *   2. **Default content** — what `dom.ts` painted at construction
- *      time (the icon's dashicons span, the title text). Untouched
- *      when no override / no matching registry entry exists.
- *   3. **Registry entries** — every `WindowSlotDef` in the registry
- *      whose `slot` matches and whose `match( win )` returns true.
- *      Painted in `order` ascending. The lowest-order entry that
- *      sets `replace: true` (default) clears any earlier content;
- *      `replace: false` appends.
- *
- * Layer 4's `controls` cluster is **not** routed through this
- * painter — Layer 2's `paintWindowControls()` owns it. Plugins
- * targeting the controls cluster use the control registry instead.
- *
- * The `os.window.chrome.slot` filter fires once per slot
- * after content has settled, with the host as its value — plugins
- * can mutate the host without owning a registry entry (handy for
- * cross-cutting decorators).
- *
- * Returns a teardown function that:
- *   - Calls every plugin-supplied teardown returned by `render()`.
- *   - Restores the slot's default content if a `null` /
- *     `{ html }` / `{ render }` override had cleared it. Restored
- *     content lives in a per-window snapshot map captured on first
- *     paint, so the icon and title come back when an override is
- *     cleared via `applySlot()`.
- */
-
 import { applyFilters, doAction, HOOKS } from '../../hooks';
 import { slotsForWindow } from './registry';
 
@@ -61,12 +15,6 @@ const SLOT_NAMES: ReadonlyArray< WindowSlotName > = [
 	'after-titlebar',
 ];
 
-/**
- * Per-window snapshot of the slots' original (default) DOM. Captured
- * on the first paint so subsequent paints can restore default
- * content when an override is cleared. Keyed by element reference
- * via WeakMap so closed windows don't leak.
- */
 const defaultsCache = new WeakMap<
 	HTMLElement,
 	Map< WindowSlotName, ChildNode[] >
@@ -109,19 +57,6 @@ function restoreDefault(
 	}
 }
 
-/**
- * Re-sync the restored title span with the window's current title.
- *
- * The snapshot this slot restores from was cloned at construction, so
- * it carries the title the window OPENED with. Every other slot's
- * default is fixed markup and restoring it verbatim is right; the
- * title's is derived state, and putting the construction-time copy
- * back silently undid every `setTitle` since. A repaint fires
- * whenever the window-slot registry mutates, so activating a plugin
- * that registers a slot was enough to rename every open window back
- * to whatever it started as — with `config.title` still reporting the
- * new one.
- */
 function syncRestoredTitle( host: HTMLElement, title: string ): void {
 	const titleEl = host.querySelector< HTMLElement >( '.os-window__title' );
 	if ( titleEl ) {
@@ -129,12 +64,6 @@ function syncRestoredTitle( host: HTMLElement, title: string ): void {
 	}
 }
 
-/**
- * Paint every slot on a window. Returns a teardown function the
- * Window class invokes on re-paint and on close.
- *
- * @internal
- */
 export function paintWindowSlots( win: DesktopWindow ): () => void {
 	const teardowns: Array< () => void > = [];
 	const root = win.element;
@@ -142,9 +71,6 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 		return () => {};
 	}
 
-	// Capture the construction-time defaults the first time we paint
-	// this window. The icon and title spans get cloned so we can
-	// restore them later when an override is cleared.
 	let defaults = defaultsCache.get( root );
 	if ( ! defaults ) {
 		defaults = captureDefaults( root );
@@ -162,10 +88,6 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 		const override = overrides[ name as keyof typeof overrides ];
 		const matchingRegistry = slotsForWindow( win, name );
 
-		// Step 1 — establish baseline content.
-		// `null` override → empty host (no defaults, no registry).
-		// Inline override → clear, write override.
-		// Otherwise → restore defaults; registry entries below append.
 		if ( override === null ) {
 			clearHost( host );
 		} else if ( override && 'html' in override ) {
@@ -196,8 +118,6 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 			}
 		}
 
-		// Step 2 — registry entries (skipped when override === null,
-		// since the user explicitly asked for an empty slot).
 		if ( override !== null ) {
 			let firstReplaceFired = false;
 			for ( const def of matchingRegistry ) {
@@ -223,11 +143,6 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 			}
 		}
 
-		// Step 3 — fire the os.window.chrome.slot filter so
-		// plugins can mutate the host without owning a registry entry.
-		// Filter value is the host element; subscribers may mutate it
-		// in place. We swallow the return value (action-shaped
-		// filter).
 		applyFilters< HTMLElement, [ { windowId: string; slot: WindowSlotName; config: DesktopWindow[ 'config' ] } ] >(
 			HOOKS.WINDOW_CHROME_SLOT,
 			host,
@@ -245,7 +160,7 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 			try {
 				fn();
 			} catch {
-				// Plugin teardown failures shouldn't block the next paint.
+
 			}
 		}
 	};

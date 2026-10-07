@@ -1,8 +1,3 @@
-/**
- * `<os-user-profile>` — the REST calls, over the host's fetch, and the
- * small helpers the profile parts share.
- */
-
 import { copyText, formatDate } from '@openstation/app';
 import '../../../src/ui/components/os-relative-time/os-relative-time';
 import { decodeHTML } from '../../../src/utils';
@@ -15,11 +10,6 @@ import type {
 	UserInsightsPayload,
 } from './types';
 
-/**
- * Core stores these with `&` as `&amp;` and returns them as stored.
- * Entities only, nothing stripped: the form sends the value back, so
- * whatever a decode drops is saved as gone.
- */
 const ENCODED_FIELDS = [ 'name', 'first_name', 'last_name', 'nickname', 'description' ] as const;
 
 function decodeRecord( user: UserEditRecord ): UserEditRecord {
@@ -32,7 +22,6 @@ function decodeRecord( user: UserEditRecord ): UserEditRecord {
 	return user;
 }
 
-/** `GET wp/v2/users/<id>?context=edit`. */
 export async function fetchUser( host: ProfileHost, id: number ): Promise< UserEditRecord > {
 	const res = await host.fetch( `wp/v2/users/${ id }?context=edit` );
 	if ( ! res.ok ) {
@@ -41,7 +30,6 @@ export async function fetchUser( host: ProfileHost, id: number ): Promise< UserE
 	return decodeRecord( ( await res.json() ) as UserEditRecord );
 }
 
-/** `PUT wp/v2/users/<id>` — core's validation and capability rules. */
 export async function saveUser( host: ProfileHost, id: number, patch: UserEditPatch ): Promise< UserEditSaveResult > {
 	const res = await host.fetch( `wp/v2/users/${ id }?context=edit`, {
 		method: 'POST',
@@ -63,7 +51,6 @@ export async function saveUser( host: ProfileHost, id: number, patch: UserEditPa
 	return { ok: true, user: decodeRecord( ( await res.json() ) as UserEditRecord ) };
 }
 
-/** `GET desktop-mode/v1/users/<id>/insights`. */
 export async function fetchInsights( host: ProfileHost, id: number, fresh = false ): Promise< UserInsightsPayload > {
 	const res = await host.fetch( `desktop-mode/v1/users/${ id }/insights${ fresh ? '?fresh=1' : '' }` );
 	if ( ! res.ok ) {
@@ -72,7 +59,6 @@ export async function fetchInsights( host: ProfileHost, id: number, fresh = fals
 	return ( await res.json() ) as UserInsightsPayload;
 }
 
-/** `POST desktop-mode/v1/users/<id>/destroy-sessions`. */
 export async function destroySessions( host: ProfileHost, id: number, scope: 'others' | 'all' ): Promise< void > {
 	const res = await host.fetch( `desktop-mode/v1/users/${ id }/destroy-sessions`, {
 		method: 'POST',
@@ -84,7 +70,6 @@ export async function destroySessions( host: ProfileHost, id: number, scope: 'ot
 	}
 }
 
-/** `GET desktop-mode/v1/users/<id>/application-passwords`. */
 export async function listAppPasswords( host: ProfileHost, id: number ): Promise< AppPasswordItem[] > {
 	const res = await host.fetch( `desktop-mode/v1/users/${ id }/application-passwords` );
 	if ( ! res.ok ) {
@@ -94,7 +79,6 @@ export async function listAppPasswords( host: ProfileHost, id: number ): Promise
 	return data.items ?? [];
 }
 
-/** `POST desktop-mode/v1/users/<id>/application-passwords` — the unhashed password, once. */
 export async function createAppPassword( host: ProfileHost, id: number, name: string ): Promise< string > {
 	const res = await host.fetch( `desktop-mode/v1/users/${ id }/application-passwords`, {
 		method: 'POST',
@@ -108,7 +92,6 @@ export async function createAppPassword( host: ProfileHost, id: number, name: st
 	return data.password;
 }
 
-/** `DELETE desktop-mode/v1/users/<id>/application-passwords/<uuid>`. */
 export async function revokeAppPassword( host: ProfileHost, id: number, uuid: string ): Promise< void > {
 	const res = await host.fetch( `desktop-mode/v1/users/${ id }/application-passwords/${ uuid }`, { method: 'DELETE' } );
 	if ( ! res.ok ) {
@@ -116,14 +99,6 @@ export async function revokeAppPassword( host: ProfileHost, id: number, uuid: st
 	}
 }
 
-// ─── Shared helpers ──────────────────────────────────────────────────
-
-/**
- * A server datetime as a millisecond epoch, or `NaN` when it is empty,
- * malformed or WordPress's `0000-00-00` zero date — the caller renders
- * "—" rather than fabricating "just now". Handles the SQL shape (space
- * separator, no zone) by normalising to ISO UTC.
- */
 export function serverDateMs( value: string | number | null | undefined ): number {
 	if ( typeof value === 'number' ) {
 		return value > 0 ? value * 1000 : NaN;
@@ -140,11 +115,6 @@ export function serverDateMs( value: string | number | null | undefined ): numbe
 	return Number.isFinite( parsed ) ? parsed : NaN;
 }
 
-/**
- * "3 days ago" that keeps ticking: an `<os-relative-time>` on a unix
- * timestamp (seconds) or a server datetime, with the exact date as its
- * tooltip; a dash when the value is not a time.
- */
 export function relativeTimeNode( value: string | number | null | undefined ): HTMLElement {
 	const ms = serverDateMs( value );
 	if ( ! Number.isFinite( ms ) ) {
@@ -158,7 +128,6 @@ export function relativeTimeNode( value: string | number | null | undefined ): H
 	return el;
 }
 
-/** Put text on the clipboard, best effort — the framework's honest copy, fire-and-forget. */
 export function copyQuietly( text: string ): void {
 	void copyText( text ).catch( () => false );
 }

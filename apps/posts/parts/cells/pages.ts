@@ -1,18 +1,7 @@
-/**
- * Posts app — the cells the Pages mode adds: Parent, Template, Slug
- * (click to copy) and Comments.
- *
- * @public
- */
-
 import { __, _n, copyText, sprintf } from '@openstation/app';
 import { titleOf, type CellEnv } from './env';
 import type { PostListItem } from '../types';
 
-/**
- * Refresh the in-page parent-title roster from the page's rows. Pages
- * outside the roster show "↳ #42".
- */
 export function refreshParentTitleRoster( env: CellEnv, rows: PostListItem[] ): void {
 	env.parentTitles.clear();
 	for ( const row of rows ) {
@@ -29,7 +18,7 @@ export function buildParentCell( row: PostListItem, env: CellEnv ): HTMLElement 
 		return cell;
 	}
 	const known = env.parentTitles.get( pid );
-	/* translators: %d is the numeric id of a parent page whose title isn't on the current page roster. */
+
 	cell.textContent = known ? `↳ ${ known }` : sprintf( __( '↳ #%d' ), pid );
 	return cell;
 }
@@ -45,7 +34,6 @@ export function buildTemplateCell( row: PostListItem, env: CellEnv ): HTMLElemen
 	return cell;
 }
 
-/** The URL slug with a click-to-copy affordance. */
 export function buildSlugCell( row: PostListItem, env: CellEnv ): HTMLElement {
 	const cell = document.createElement( 'button' );
 	cell.type = 'button';
@@ -75,8 +63,7 @@ export function buildSlugCell( row: PostListItem, env: CellEnv ): HTMLElement {
 		if ( ! slug ) {
 			return;
 		}
-		// `copyText` answers honestly — the async clipboard is undefined
-		// on a plain-HTTP dev site, where the fallback path still works.
+
 		void copyText( slug ).then( ( ok ) => {
 			if ( ! ok ) {
 				env.toast( __( 'Couldn’t copy the slug.' ), null );
@@ -93,7 +80,6 @@ export function buildSlugCell( row: PostListItem, env: CellEnv ): HTMLElement {
 	return cell;
 }
 
-/** The `openstation_comment_count` REST field with a small icon. */
 export function buildCommentsCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	Object.assign( cell.style, {
@@ -128,7 +114,7 @@ export function buildCommentsCell( row: PostListItem ): HTMLElement {
 
 	cell.appendChild( icon );
 	cell.appendChild( label );
-	/* translators: %d is the comment count for a row. */
+
 	cell.setAttribute( 'aria-label', sprintf( _n( '%d comment', '%d comments', count ), count ) );
 	return cell;
 }

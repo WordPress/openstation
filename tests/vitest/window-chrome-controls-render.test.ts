@@ -1,19 +1,3 @@
-/**
- * Phase C tests for the controls cluster pipeline:
- *
- *   - `resolveWindowControls` honors `appearance.controls.hide`,
- *     `.custom`, and `.order` overrides on top of the registry.
- *   - `paintWindowControls` populates the cluster with the resolved
- *     buttons, attaches click handlers, and tears them down on
- *     repaint.
- *   - The `os.window.chrome.controls` filter mutates the
- *     resolved list per-placement.
- *   - The `os.window.chrome.applied` action fires after
- *     each paint with `layer: 'controls'`.
- *   - Built-in controls (`core/*`) and `appearance.controls.hide`
- *     interact correctly: a plugin can hide `core/close` for one
- *     window without unregistering it globally.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -30,12 +14,6 @@ import {
 
 import type { WindowControlsConfig } from '../../src/types';
 
-/**
- * Ducktyped Window — render only inspects `id`, `config`, and the
- * methods we exercise via onClick (`minimize`, etc.). We attach
- * spies on those methods so tests can verify the click handler
- * dispatches.
- */
 function fakeWin(
 	id: string,
 	opts: { native?: boolean } = {},
@@ -75,9 +53,7 @@ afterEach( () => {
 
 describe( 'resolveWindowControls', () => {
 	test( 'returns built-ins in registered order for an iframe window', () => {
-		// `core/detach` + `core/reload` used to live here — they
-		// moved into the title-bar three-dots menu (see
-		// `src/window/dom.ts`). The cluster now ships four entries.
+
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
 		const resolved = resolveWindowControls(
@@ -92,12 +68,7 @@ describe( 'resolveWindowControls', () => {
 	} );
 
 	test( 'native windows still get the basic control cluster', () => {
-		// Pre-0.6.2 this test asserted that `core/detach` /
-		// `core/reload` were skipped for native windows. Both are
-		// gone from the cluster entirely now (relocated to the
-		// menu), so the assertion collapses to "native windows
-		// render the same minimize/maximize/focus/close set as
-		// iframe windows."
+
 		registerBuiltInControls();
 		const win = fakeWin( 'os-settings', { native: true } );
 		const resolved = resolveWindowControls(
@@ -142,9 +113,7 @@ describe( 'resolveWindowControls', () => {
 			'core/minimize',
 			'core/maximize',
 		] );
-		// Whatever isn't named in `order` keeps registry order — for
-		// the post-0.6.2 cluster that's just `core/focus-tab`. The
-		// detach + reload built-ins moved to the title-bar menu.
+
 		expect( resolved.controls.map( ( c ) => c.id ).slice( 3 ) ).toEqual( [
 			'core/focus-tab',
 		] );
@@ -162,7 +131,7 @@ describe( 'resolveWindowControls', () => {
 						label: 'Star',
 						icon: 'dashicons-star-filled',
 						placement: 'controls',
-						order: 5, // before core/minimize (10)
+						order: 5,
 						onClick: () => {},
 					},
 				],
@@ -206,8 +175,6 @@ describe( 'paintWindowControls', () => {
 			host,
 		);
 
-		// minimize / maximize / focus-tab / close — detach + reload
-		// moved to the three-dots menu.
 		expect( host.children.length ).toBe( 4 );
 		expect( host.querySelector( '.os-window__btn--close' ) ).not.toBeNull();
 		expect( host.querySelector( '.os-window__btn--minimize' ) ).not.toBeNull();
@@ -232,10 +199,7 @@ describe( 'paintWindowControls', () => {
 	} );
 
 	test( 'core/reload + core/detach are no longer registered', () => {
-		// In 0.6.2 these moved from the controls cluster to the
-		// title-bar three-dots menu (see `src/window/dom.ts`). Lock
-		// that the registry no longer carries them so a regression
-		// that re-adds them surfaces here.
+
 		registerBuiltInControls();
 		const ids = listWindowControls().map( ( c ) => c.id );
 		expect( ids ).not.toContain( 'core/reload' );
@@ -243,10 +207,7 @@ describe( 'paintWindowControls', () => {
 	} );
 
 	test( 'Window class still exposes reload() + detach() (menu click targets)', async () => {
-		// The menu items wire to `win.reload()` / `win.detach()`. Lock
-		// that the Window class still ships both methods — a rename
-		// or removal would otherwise leave the menu items no-oping at
-		// runtime with no static error.
+
 		const mod = await import( '../../src/window' );
 		expect( typeof mod.Window.prototype.reload ).toBe( 'function' );
 		expect( typeof mod.Window.prototype.detach ).toBe( 'function' );
@@ -264,7 +225,6 @@ describe( 'paintWindowControls', () => {
 			'.os-window__btn--close',
 		) as HTMLElement;
 
-		// Repaint — old buttons gone, new buttons in.
 		teardown1();
 		const teardown2 = paintWindowControls(
 			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
@@ -275,12 +235,10 @@ describe( 'paintWindowControls', () => {
 		) as HTMLElement;
 		expect( firstClose ).not.toBe( secondClose );
 
-		// Click on the OLD button after teardown shouldn't fire the
-		// handler — it's been dropped.
 		firstClose.dispatchEvent(
 			new CustomEvent( 'os-button-activate', { bubbles: true } ),
 		);
-		// New button still works.
+
 		secondClose.dispatchEvent(
 			new CustomEvent( 'os-button-activate', { bubbles: true } ),
 		);
@@ -353,20 +311,6 @@ describe( 'paintWindowControls', () => {
 		).toBe( true );
 	} );
 
-	// Regression: between 0.6.0 and 0.6.2 the renderer bound the
-	// onClick handler to BOTH `click` and `os-button-activate`. The
-	// component's internal `<button>` fires a native click that
-	// bubbles `composed: true` up to the host AND dispatches a
-	// follow-up `os-button-activate` CustomEvent, so the handler
-	// fired twice per user gesture. Maximize / fullscreen toggled
-	// on then off in one click and silently appeared broken across
-	// every window in the shell.
-	//
-	// The original test (above) only dispatched `os-button-activate`
-	// directly, never the native click that the component itself
-	// emits — which is exactly why it didn't catch the regression.
-	// This test simulates both events the way they actually fire in
-	// the browser, and asserts the handler runs exactly ONCE.
 	test( 'click on a control fires the handler exactly once (no double-fire from click + os-button-activate)', () => {
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
@@ -379,10 +323,6 @@ describe( 'paintWindowControls', () => {
 			'.os-window__btn--maximize',
 		) as HTMLElement;
 
-		// Sequence the real `<os-window-button>` produces on a single
-		// pointer click: native `click` bubbles `composed: true` from
-		// the shadow `<button>` up to the host, then the component
-		// dispatches `os-button-activate` from the host.
 		maximizeBtn.dispatchEvent(
 			new MouseEvent( 'click', { bubbles: true, composed: true } ),
 		);
@@ -393,8 +333,6 @@ describe( 'paintWindowControls', () => {
 			} ),
 		);
 
-		// One user click → one toggleMaximize call. Two would silently
-		// re-toggle, which is what bit us before.
 		expect( win.toggleMaximize ).toHaveBeenCalledTimes( 1 );
 	} );
 
@@ -416,7 +354,7 @@ describe( 'paintWindowControls', () => {
 			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
-		// First button is the order-5 plugin entry, before core/minimize (order 10).
+
 		expect( ( host.children[ 0 ] as HTMLElement ).className ).toContain(
 			'os-window__btn--plug-info',
 		);

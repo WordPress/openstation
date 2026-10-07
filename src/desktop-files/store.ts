@@ -1,26 +1,3 @@
-/**
- * OpenStation — Files-on-the-Desktop shared store.
- *
- * Cross-bundle state holder for placements + folders, keyed by
- * the canonical `'desktop-mode/files'` slot. Phase 3's renderer
- * subscribes to this store and re-paints on change; Phase 6's
- * Heartbeat sync feeds delta updates into it.
- *
- * Contract:
- *   - `placementsByFolder.get( folderId )` → array of placements.
- *   - `folders.get( folderId )` → the folder row (when present).
- *   - Mutations route through helpers (`upsertPlacement`,
- *     `removePlacement`, `upsertFolder`, `removeFolder`); each
- *     calls `store.notify()` exactly once and emits a global
- *     `os-files-changed` CustomEvent so non-store
- *     consumers (toasts, devtools) hear about it without
- *     reading the store.
- *
- * The store is intentionally framework-agnostic — Phase 3 wires
- * a tiny render loop on top, but plugin authors who want to
- * read the placements list synchronously can do so directly.
- */
-
 import { createSharedStore, type SharedStore } from '../shared-store';
 import type { RestCreatedFolderShape, RestFolderShape, RestPlacementShape } from './rest';
 
@@ -51,7 +28,6 @@ function fireChanged( detail: { kind: string; folderId?: number; placementId?: n
 	);
 }
 
-/** Replace the placement list for a folder (used after a list fetch). */
 export function setFolderPlacements( folderId: number, placements: RestPlacementShape[] ): void {
 	const store = getFilesStore();
 	const next = new Map( store.state.placementsByFolder );
@@ -63,18 +39,8 @@ export function setFolderPlacements( folderId: number, placements: RestPlacement
 	fireChanged( { kind: 'placements-set', folderId } );
 }
 
-/** Insert / replace a single placement (post-create, post-update). */
 export function upsertPlacement( placement: RestPlacementShape, source: 'local' | 'remote' = 'local' ): void {
-	// Guard: a malformed REST response or a caller passing a
-	// stale promise resolution can land here with `null` /
-	// `undefined`. Earlier this would throw inside the bucket
-	// `findIndex` callback (`p.id === placement.id`) and the
-	// caller's catch block would log a confusing
-	// "Cannot read properties of null" trace; the underlying
-	// failure was the upstream call returning nothing useful.
-	// Bail loudly instead so debugging starts at the real cause.
 	if ( ! placement || typeof placement.id !== 'number' ) {
-		// eslint-disable-next-line no-console
 		console.warn(
 			'[openstation] upsertPlacement called with a non-placement value; ignoring.',
 			placement,
@@ -85,11 +51,6 @@ export function upsertPlacement( placement: RestPlacementShape, source: 'local' 
 	const store = getFilesStore();
 	const next = new Map( store.state.placementsByFolder );
 
-	// Remove from any existing folder bucket so a parent change
-	// doesn't leave a ghost copy in the previous folder. Filter
-	// nulls defensively — a buggy plugin (or an interrupted
-	// optimistic update) could have left a hole that would
-	// otherwise crash the comparison callback.
 	for ( const [ folderId, list ] of next ) {
 		const idx = list.findIndex( ( p ) => p && p.id === placement.id );
 		if ( idx >= 0 && folderId !== placement.parentId ) {
@@ -117,7 +78,6 @@ export function upsertPlacement( placement: RestPlacementShape, source: 'local' 
 	fireChanged( { kind: 'placement-upserted', placementId: placement.id, folderId: placement.parentId, source } );
 }
 
-/** Remove a placement from every folder bucket. */
 export function removePlacement( placementId: number, source: 'local' | 'remote' = 'local' ): void {
 	const store = getFilesStore();
 	const next = new Map( store.state.placementsByFolder );
@@ -140,7 +100,6 @@ export function removePlacement( placementId: number, source: 'local' | 'remote'
 	fireChanged( { kind: 'placement-removed', placementId, folderId: touchedFolder, source } );
 }
 
-/** Replace the folder list (used after a list fetch). */
 export function setFolders( folders: RestFolderShape[] ): void {
 	const store = getFilesStore();
 	const next = new Map< number, RestFolderShape >();
@@ -152,7 +111,6 @@ export function setFolders( folders: RestFolderShape[] ): void {
 	fireChanged( { kind: 'folders-set' } );
 }
 
-/** Insert / replace a single folder. */
 export function upsertFolder( folder: RestFolderShape, source: 'local' | 'remote' = 'local' ): void {
 	const store = getFilesStore();
 	const next = new Map( store.state.folders );
@@ -162,13 +120,6 @@ export function upsertFolder( folder: RestFolderShape, source: 'local' | 'remote
 	fireChanged( { kind: 'folder-upserted', folderRowId: folder.id, source } );
 }
 
-/**
- * Ingest the folders a request created mkdir-p style (upload and
- * `ensureUploadPath()` responses). Folder row first, then its
- * placement, so a tile never paints for a folder the store cannot
- * name. Malformed entries are skipped — the end-of-batch resync
- * still covers them.
- */
 export function ingestCreatedFolders(
 	created: RestCreatedFolderShape[] | undefined | null,
 	source: 'local' | 'remote' = 'local',
@@ -187,7 +138,6 @@ export function ingestCreatedFolders(
 	}
 }
 
-/** Remove a folder + clear its placements bucket. */
 export function removeFolder( folderId: number, source: 'local' | 'remote' = 'local' ): void {
 	const store = getFilesStore();
 	const folders = new Map( store.state.folders );
@@ -199,30 +149,16 @@ export function removeFolder( folderId: number, source: 'local' | 'remote' = 'lo
 	fireChanged( { kind: 'folder-removed', folderRowId: folderId, source } );
 }
 
-/** Subscribe to store changes. Mirror of `store.subscribe`. */
 export function subscribeFilesStore( cb: ( state: FilesState ) => void ): () => void {
 	const store = getFilesStore();
 	const off = store.subscribe( cb );
 	return off;
 }
 
-/** Synchronous reader for the current state. */
 export function getFilesState(): FilesState {
 	return getFilesStore().getState() as FilesState;
 }
 
-/**
- * Resolve the store's CURRENT version of a placement, falling back
- * to the given snapshot when the store no longer tracks it.
- *
- * Tile event handlers capture the placement that existed when the
- * tile was wired; the fast-path repaints (`tryPatchPositions` /
- * `tryPatchIncremental` in `layer.ts`) reuse tile DOM without
- * re-wiring, so a captured snapshot can be stale by event time —
- * old title after an in-place rename, old coords after a drag.
- * Handlers should route through this at event time instead of
- * trusting the closure.
- */
 export function currentPlacement( snapshot: RestPlacementShape ): RestPlacementShape {
 	const state = getFilesState();
 	const sameFolder = state.placementsByFolder
@@ -231,8 +167,7 @@ export function currentPlacement( snapshot: RestPlacementShape ): RestPlacementS
 	if ( sameFolder ) {
 		return sameFolder;
 	}
-	// Parent changed between wire time and event time — scan the
-	// remaining buckets before giving up.
+
 	for ( const list of state.placementsByFolder.values() ) {
 		const hit = list.find( ( p ) => p && p.id === snapshot.id );
 		if ( hit ) {
@@ -242,7 +177,6 @@ export function currentPlacement( snapshot: RestPlacementShape ): RestPlacementS
 	return snapshot;
 }
 
-/** Test-only — clears every map. */
 export function __resetFilesStoreForTests(): void {
 	const store = getFilesStore();
 	store.state = {

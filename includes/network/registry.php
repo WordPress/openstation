@@ -1,31 +1,9 @@
 <?php
-/**
- * OpenStation — Network registry: the installs that belong with this
- * one, as this one sees them.
- *
- * WordPress has one notion of a site in a network, a row it serves
- * itself. A member of an OpenStation network lives elsewhere, so it is
- * kept here instead: its URL, its name, its shell screen, and the public
- * key pinned when it was added. Pinned, not refreshed: a key that later
- * differs is flagged and refused, never silently accepted, because a
- * changed key is either a reinstall the admin should confirm or someone
- * else answering at that address.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** The registry option: members keyed by id. */
 const OPENSTATION_NETWORK_MEMBERS_OPTION = 'openstation_network_members';
 
-/**
- * A member's id: derived from its canonical URL, so the same install
- * cannot be added twice under two spellings.
- *
- * @param string $url The install's URL.
- * @return string
- */
 function openstation_network_member_id( $url ) {
 	$parts = wp_parse_url( strtolower( trim( (string) $url ) ) );
 	$host  = isset( $parts['host'] ) ? $parts['host'] : '';
@@ -34,23 +12,11 @@ function openstation_network_member_id( $url ) {
 	return substr( md5( $host . $port . $path ), 0, 12 );
 }
 
-/**
- * Whether a URL names this very install (the hub adding itself).
- *
- * @param string $url URL.
- * @return bool
- */
 function openstation_network_url_is_self( $url ) {
 	$self = is_multisite() ? network_home_url( '/' ) : home_url( '/' );
 	return openstation_network_member_id( $url ) === openstation_network_member_id( $self );
 }
 
-/**
- * Every member, keyed by id, in the order added. Entries missing what a
- * member needs are dropped on read.
- *
- * @return array<string,array<string,mixed>>
- */
 function openstation_network_members() {
 	$stored  = openstation_network_option_get( OPENSTATION_NETWORK_MEMBERS_OPTION, array() );
 	$members = array();
@@ -76,22 +42,10 @@ function openstation_network_members() {
 	return $members;
 }
 
-/**
- * Persist the registry.
- *
- * @param array<string,array<string,mixed>> $members Members keyed by id.
- * @return bool
- */
 function openstation_network_save_members( array $members ) {
 	return openstation_network_option_set( OPENSTATION_NETWORK_MEMBERS_OPTION, array_values( $members ) );
 }
 
-/**
- * Add an install to the network: fetch its identity, pin its key.
- *
- * @param string $url The install's URL, as typed.
- * @return array<string,mixed>|WP_Error The member, or why not.
- */
 function openstation_network_add_member( $url ) {
 	$url = esc_url_raw( trim( (string) $url ) );
 	if ( '' === $url || ! wp_parse_url( $url, PHP_URL_HOST ) ) {
@@ -127,12 +81,6 @@ function openstation_network_add_member( $url ) {
 	return $members[ $id ];
 }
 
-/**
- * Remove a member.
- *
- * @param string $id Member id.
- * @return bool Whether there was one to remove.
- */
 function openstation_network_remove_member( $id ) {
 	$members = openstation_network_members();
 	if ( ! isset( $members[ $id ] ) ) {
@@ -143,14 +91,6 @@ function openstation_network_remove_member( $id ) {
 	return true;
 }
 
-/**
- * Re-check one member against its live identity: the name and shell
- * follow it, the key is only compared. Unreachable and key-changed are
- * recorded as statuses the registry shows, not as removals.
- *
- * @param string $id Member id.
- * @return array<string,mixed>|null The member as re-checked, or null when unknown.
- */
 function openstation_network_check_member( $id ) {
 	$members = openstation_network_members();
 	if ( ! isset( $members[ $id ] ) ) {
@@ -176,11 +116,6 @@ function openstation_network_check_member( $id ) {
 	return $member;
 }
 
-/**
- * Re-check every member.
- *
- * @return array<string,array<string,mixed>>
- */
 function openstation_network_check_members() {
 	foreach ( array_keys( openstation_network_members() ) as $id ) {
 		openstation_network_check_member( $id );
@@ -188,14 +123,6 @@ function openstation_network_check_members() {
 	return openstation_network_members();
 }
 
-/**
- * The member whose pinned key is this one, or null. Only the pinned key
- * counts: a member whose key changed still signs with the old one until
- * an admin re-pairs it, and nothing signed with the new one is trusted.
- *
- * @param string $public_key Base64 public key.
- * @return array<string,mixed>|null
- */
 function openstation_network_member_by_key( $public_key ) {
 	if ( '' === (string) $public_key ) {
 		return null;

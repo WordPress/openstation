@@ -1,17 +1,3 @@
-/**
- * Inkfall — game orchestrator.
- *
- * Owns the run lifecycle (loading → playing → paused → over), the
- * pausable clock, the spawner, the tick loop, and the HUD. Mounted
- * by the framework's launch context; everything async double-checks
- * `disposed` so closing the window mid-load never leaks a Pixi app.
- *
- * Pixi lifecycle follows the content-graph precedent: PixiJS from
- * `wp.os.loadModules(['pixijs'])`, `sharedTicker: false` (a
- * shared ticker crashes `Batcher.break()` across bundles), and the
- * options-object destroy — never `destroy( true )`.
- */
-
 import { __, sprintf } from '../../i18n';
 import { desktopGlobal } from '../desktop-like';
 import type { GameLaunchContext } from '../types';
@@ -51,7 +37,6 @@ import { getPixi, type PixiApp, type PixiGraphics, type PixiNamespace } from '..
 
 type RunState = 'loading' | 'menu' | 'playing' | 'paused' | 'over';
 
-/** localStorage key remembering the last difficulty pick. */
 const MODE_STORAGE_KEY = 'desktop-mode/inkfall-mode';
 
 function modeLabel( mode: DifficultyMode ): string {
@@ -83,7 +68,7 @@ function readStoredMode(): DifficultyMode {
 			return stored as DifficultyMode;
 		}
 	} catch {
-		/* storage unavailable — default */
+
 	}
 	return 'easy';
 }
@@ -92,7 +77,7 @@ function storeMode( mode: DifficultyMode ): void {
 	try {
 		window.localStorage.setItem( MODE_STORAGE_KEY, mode );
 	} catch {
-		/* storage unavailable — best effort */
+
 	}
 }
 
@@ -100,14 +85,12 @@ interface FallingWord {
 	id: number;
 	text: string;
 	sprite: WordSprite;
-	/** Per-word ±10% speed jitter multiplier. */
+
 	jitter: number;
 }
 
-/** Cap a frame delta so a background-tab hiccup can't teleport words. */
 const MAX_FRAME_SECONDS = 0.05;
 
-/** Minimum gap between forced "field is empty" spawns. */
 const EMPTY_FIELD_SPAWN_GAP_MS = 250;
 
 export function mountInkfall( ctx: GameLaunchContext ): () => void {
@@ -115,7 +98,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 	root.className = 'inkfall';
 	ctx.container.appendChild( root );
 
-	// --- HUD (DOM, above the canvas) --------------------------------
 	const audio = createGameAudio();
 
 	const hud = document.createElement( 'div' );
@@ -154,14 +136,14 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		const ribbon = document.createElement( 'span' );
 		ribbon.className = 'inkfall__hud-ribbon';
 		ribbon.textContent = sprintf(
-			/* translators: 1: challenger display name, 2: score to beat. */
+
 			__( 'Beat %1$s: %2$s' ),
 			ctx.challenge.challengerName,
 			String( ctx.challenge.scoreToBeat ),
 		);
 		hud.appendChild( ribbon );
 	}
-	// Last child — CSS pins it to the far end of the HUD.
+
 	hud.appendChild( soundToggle );
 	root.appendChild( hud );
 
@@ -184,7 +166,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 	};
 	showMessage( __( 'Loading the notebook…' ) );
 
-	// --- Run state --------------------------------------------------
 	let disposed = false;
 	let state: RunState = 'loading';
 	let app: PixiApp | null = null;
@@ -210,7 +191,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 
 	const paintHud = (): void => {
 		scoreEl.textContent = sprintf(
-			/* translators: %s: current score. */
+
 			__( 'Score %s' ),
 			String( scores.score ),
 		);
@@ -220,7 +201,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			Math.max( 0, STARTING_LIVES - lives ),
 		);
 		levelEl.textContent = sprintf(
-			/* translators: 1: current level number, 2: difficulty label. */
+
 			__( 'Level %1$s · %2$s' ),
 			String( levelAt( clockSeconds ) ),
 			modeLabel( mode ),
@@ -300,8 +281,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		const heightFraction =
 			( bottomY() - word.sprite.container.y ) / Math.max( 1, height );
 		recordCompletion( scores, word.text.length, heightFraction );
-		// Out of play immediately (a second word can be typed while
-		// the note flies), but the sprite stays put until impact.
+
 		const sprite = word.sprite;
 		removeWord( word, true );
 		setMatchedCount( sprite, sprite.text.length );
@@ -348,7 +328,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		const stats = document.createElement( 'p' );
 		stats.className = 'inkfall__over-stats';
 		stats.textContent = sprintf(
-			/* translators: 1: score, 2: words typed, 3: words per minute, 4: accuracy percent. */
+
 			__( 'Score %1$s — %2$s words, %3$s WPM, %4$s%% accuracy.' ),
 			String( row.score ),
 			String( scores.wordsCompleted ),
@@ -399,7 +379,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		overlay.appendChild( panel );
 	};
 
-	/** Clear the field back to a fresh, not-yet-started state. */
 	const clearField = (): void => {
 		for ( const word of live.slice() ) {
 			removeWord( word, false );
@@ -424,7 +403,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		input?.focus();
 	};
 
-	/** The pre-game difficulty menu. Also the "Change difficulty" target. */
 	const showMenu = (): void => {
 		clearField();
 		state = 'menu';
@@ -444,7 +422,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			const note = document.createElement( 'p' );
 			note.className = 'inkfall__over-stats';
 			note.textContent = sprintf(
-				/* translators: 1: challenger display name, 2: score to beat. */
+
 				__( 'Challenge from %1$s — beat %2$s.' ),
 				ctx.challenge.challengerName,
 				String( ctx.challenge.scoreToBeat ),
@@ -520,8 +498,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		const snapshot = difficultyAt( clockSeconds, mode );
 		const speedScale = fieldHeight() / REFERENCE_HEIGHT;
 
-		// Spawner: interval-driven, plus an immediate spawn whenever
-		// the field is empty (never leave the player waiting).
 		spawnTimerMs += dt * 1000;
 		const canSpawn = live.length < snapshot.maxConcurrent;
 		if ( canSpawn && spawnTimerMs >= snapshot.spawnIntervalMs ) {
@@ -535,7 +511,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			spawnWord();
 		}
 
-		// Fall + bottom check.
 		const floor = bottomY();
 		for ( const word of live.slice() ) {
 			word.sprite.container.y +=
@@ -557,7 +532,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		}
 	};
 
-	// --- Input wiring ----------------------------------------------
 	const onLetter = ( letter: string ): void => {
 		if ( 'playing' !== state ) {
 			return;
@@ -579,7 +553,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			case 'typo': {
 				recordTypo( scores );
 				audio.typo();
-				// Brief visual protest from the locked word.
+
 				const word = live.find(
 					( entry ) => entry.id === result.targetId,
 				);
@@ -597,7 +571,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		}
 	};
 
-	// --- Async boot -------------------------------------------------
 	const boot = async (): Promise< void > => {
 		const desktop = desktopGlobal();
 		if ( typeof desktop.loadModules !== 'function' ) {
@@ -630,8 +603,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			antialias: true,
 			autoDensity: true,
 			resolution: Math.min( window.devicePixelRatio || 1, 2 ),
-			// Own ticker — sharing `Ticker.shared` across bundles
-			// crashes `Batcher.break()` (see content-graph/scene.ts).
+
 			sharedTicker: false,
 		} );
 		if ( disposed ) {
@@ -654,13 +626,10 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			if ( ! app || ! paper ) {
 				return;
 			}
-			// Pixi's ResizePlugin only reacts to `window` resize —
-			// resizing the openstation window never fires that, so
-			// without this call the renderer keeps its old size while
-			// CSS stretches the canvas (words drift off-page).
+
 			app.resize();
 			paintPaper( paper, fieldWidth(), fieldHeight() );
-			// Keep live words inside the new page width.
+
 			const margin = Math.min( 64, Math.round( fieldWidth() * 0.08 ) );
 			for ( const word of live ) {
 				const maxX = fieldWidth() - word.sprite.width - 16;
@@ -710,7 +679,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		}
 	} );
 
-	// --- Teardown ---------------------------------------------------
 	return () => {
 		if ( disposed ) {
 			return;
@@ -726,8 +694,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			}
 			app.ticker.stop();
 			fx?.clear();
-			// Options-object destroy — never `destroy( true )` (Pixi
-			// global-pool footgun shared with the wallpapers).
+
 			app.destroy( { removeView: true }, { children: true, texture: true } );
 			app = null;
 		}

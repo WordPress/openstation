@@ -1,44 +1,9 @@
 <?php
-/**
- * OpenStation — Built-in wallpaper presets.
- *
- * The built-in wallpapers that ship with the plugin — five gradient /
- * solid CSS presets plus the Animated WordPress Logo canvas wallpaper —
- * each registered through the same public API third-party plugins use
- * (`openstation_register_wallpaper()`). Dogfooding the registration
- * surface for the built-ins is how we discover whether the API is
- * expressive enough for plugin authors — if we couldn't describe our
- * own presets through it, the API is broken.
- *
- * Hooked on `init` priority 5 so the presets land in the registry
- * before the shell config is built (shell render runs on
- * `admin_enqueue_scripts`, which fires after `init`), and before any
- * late third-party plugin that wants to react via the
- * `openstation_wallpaper_registered` action.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Registers the built-in wallpapers: five gradient / solid CSS presets
- * plus the Animated WordPress Logo canvas wallpaper.
- */
 function openstation_register_builtin_wallpapers() {
-	/*
-	 * The four brand surfaces, straight from the OpenStation brand
-	 * guidelines. Registered as `css` wallpapers pointing at the
-	 * vector artwork the plugin ships: an SVG scales to any desk at
-	 * any DPI for a few kilobytes, which no raster wallpaper can do.
-	 *
-	 * `cover` on a 3:2 artboard, `center` so the composition's focal
-	 * point survives a crop on either axis, `fixed` so the desk does
-	 * not shift under a window drag.
-	 *
-	 * Galaxy is the default desk — see the `wallpaper` default in
-	 * `openstation_default_os_settings()`.
-	 */
+
 	$brand = array(
 		array(
 			'id'          => 'galaxy',
@@ -56,10 +21,7 @@ function openstation_register_builtin_wallpapers() {
 			'id'          => 'holomesh',
 			'label'       => __( 'Holomesh', 'desktop-mode' ),
 			'file'        => 'holomesh.svg',
-			// The two meshes are the only built-ins that are pale
-			// everywhere. The rest are dark at the top-left corner the
-			// icon grid starts from, and a tone is one value for the
-			// whole surface.
+
 			'tone'        => 'light',
 			'description' => __( 'The holographic mesh: lavender, pink, cyan and mint pooling into each other like light through a prism.', 'desktop-mode' ),
 		),
@@ -79,9 +41,7 @@ function openstation_register_builtin_wallpapers() {
 			array(
 				'label'       => $wallpaper['label'],
 				'type'        => 'css',
-				// The swatch is the same artwork, sized to the chip rather
-				// than the desk: `cover` on a 40px square would crop to a
-				// meaningless corner of the composition.
+
 				'preview'     => 'url( ' . OPENSTATION_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat',
 				'value'       => $css,
 				'tone'        => isset( $wallpaper['tone'] ) ? $wallpaper['tone'] : '',
@@ -136,12 +96,6 @@ function openstation_register_builtin_wallpapers() {
 		);
 	}
 
-	// Animated WordPress Logo — built-in PixiJS canvas wallpaper.
-	// Moved out of `desktop.min.js`. Same registration
-	// surface third-party canvas wallpapers use: `script` is an
-	// enqueued handle (registered in `includes/assets.php`); the
-	// shell's wallpaper sync injects its URL when the wallpaper
-	// def is needed (selected, or shown in the OS Settings picker).
 	openstation_register_wallpaper(
 		'wp-animated-logo',
 		array(
@@ -153,14 +107,6 @@ function openstation_register_builtin_wallpapers() {
 		)
 	);
 
-	// Snow — built-in PixiJS canvas wallpaper. The preview gradient
-	// must match the default backdrop the JS side paints behind the
-	// canvas (`backdropCss()` in `src/plugins/snow-wallpaper/settings.ts`)
-	// — the swatch renders before the wallpaper script has ever
-	// loaded, so a mismatch would show one sky in the picker and a
-	// different one once selected. First built-in wallpaper with a
-	// `renderConfig` settings dialog (wind, snowflake count, flake
-	// size, background colour).
 	openstation_register_wallpaper(
 		'wp-snow',
 		array(

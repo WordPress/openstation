@@ -1,4 +1,3 @@
-/** Per-turn execution identities and a bounded, content-free operation ledger. */
 import type { MioCallContext, MioOperation, MioOperationOutcome, MioTurnSummary, MioWindowContext } from './types';
 
 export const MIO_LIMITS = Object.freeze( { rounds: 8, calls: 16, validationFailures: 3, repeatedReads: 4 } );
@@ -10,11 +9,10 @@ export class MioValidationError extends Error {
 	}
 }
 
-/** Observer failures cannot replay or obscure an operation. */
 export function observe<T>( callback: ( ( event: T ) => void ) | undefined, value: T ): void {
 	try {
 		callback?.( value );
-	} catch { /* Application observers do not control execution. */ }
+	} catch { }
 }
 
 export function outcomeOf( value: unknown ): MioOperationOutcome | null {
@@ -52,7 +50,7 @@ export class MioOperations {
 
 	public record( call: MioCallContext, ability: string, status: MioOperation['status'], receipt?: string ): MioOperation {
 		const existing = this.records.get( call.callId );
-		// A late abort or network error cannot erase an authoritative receipt.
+
 		if ( existing?.status === 'confirmed' && status !== 'confirmed' ) {
 			return structuredClone( existing );
 		}
@@ -83,7 +81,6 @@ export class MioOperations {
 		return structuredClone( entry );
 	}
 
-	/** Only calls the caller's read-only status resolver; never re-executes run. */
 	public async inspect( callId: string, signal: AbortSignal ): Promise<MioOperation> {
 		const entry = this.records.get( callId );
 		const inspect = this.inspectors.get( callId );

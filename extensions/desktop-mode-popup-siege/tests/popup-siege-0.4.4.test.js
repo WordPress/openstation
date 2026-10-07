@@ -15,9 +15,7 @@ const read = ( relative ) =>
 	fs.readFileSync( path.join( root, relative ), 'utf8' );
 
 const expectedHashes = Object.freeze( {
-	// Re-pinned for the OpenStation rebrand: the kit loads shared PixiJS
-	// through `wp.os.loadModules`, which the framework renamed. Every
-	// gameplay layer below is byte-identical.
+
 	'sdk/openstation-game-kit-0.1.0.js':
 		'ea30b278de91b70f3e5eda097eb5733faef2c65c62eff3590b010d181e147f11',
 	'sdk/openstation-audio-kit-0.1.0.js':

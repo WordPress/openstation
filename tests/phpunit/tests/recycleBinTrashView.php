@@ -1,20 +1,5 @@
 <?php
-/**
- * Tests for Trash bin view polish:
- *
- *   - URL placements (file_type='link') carry a dedicated 'URL' badge
- *     label (issue 1).
- *   - Media attachments follow vanilla WP behavior — they permanent-
- *     delete on first call and do NOT route through Trash by default
- *     (issue 2). Sites that want media-in-trash opt in via
- *     `define( 'MEDIA_TRASH', true )` in `wp-config.php`.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group desktop-mode-recycle-bin
- */
+
 class Tests_OpenStation_RecycleBinTrashView extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -38,12 +23,6 @@ class Tests_OpenStation_RecycleBinTrashView extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Issue 1: a trashed link placement reports `type_label = 'URL'` so
-	 * the JS badge reads "URL" instead of the generic "Placement".
-	 *
-	 * @covers ::openstation_files_list_trashed_for_recycle_bin
-	 */
 	public function test_link_placement_carries_url_type_label() {
 		$placement_id = $this->create_placement( 'link', 'https://example.com/' );
 		openstation_files_trash_placement( self::$admin_id, $placement_id );
@@ -57,12 +36,6 @@ class Tests_OpenStation_RecycleBinTrashView extends WP_UnitTestCase {
 		$this->assertSame( 'URL', $item['type_label'] );
 	}
 
-	/**
-	 * Issue 1 — counter-test: non-link placements don't get the URL
-	 * label so they fall back to the JS-side humanized bucket.
-	 *
-	 * @covers ::openstation_files_list_trashed_for_recycle_bin
-	 */
 	public function test_non_link_placement_has_no_url_type_label() {
 		$post_id      = self::factory()->post->create();
 		$placement_id = $this->create_placement( 'post', (string) $post_id );
@@ -76,14 +49,6 @@ class Tests_OpenStation_RecycleBinTrashView extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'type_label', $item, 'Only link placements opt into the bespoke label.' );
 	}
 
-	/**
-	 * Issue 2: with the `pre_delete_attachment` interception removed,
-	 * deleting an attachment via `wp_delete_attachment()` follows
-	 * vanilla WP — the post is permanently deleted on first call,
-	 * not routed to Trash. The Recycle Bin only surfaces attachments
-	 * that were trashed through some other path (REST, programmatic
-	 * `wp_trash_post`, MEDIA_TRASH enabled).
-	 */
 	public function test_attachment_delete_does_not_route_through_trash_by_default() {
 		$zip_id = self::factory()->attachment->create_object(
 			'/tmp/akismet.zip',
@@ -111,11 +76,6 @@ class Tests_OpenStation_RecycleBinTrashView extends WP_UnitTestCase {
 		$this->assertNull( get_post( $image_id ), 'Image should permanent-delete on first call.' );
 	}
 
-	/**
-	 * Posts still go through Trash via core's default behavior — the
-	 * removal of the attachment-specific interception must not affect
-	 * the non-attachment trash flow.
-	 */
 	public function test_posts_still_route_through_trash() {
 		$post_id = self::factory()->post->create(
 			array( 'post_status' => 'publish' )

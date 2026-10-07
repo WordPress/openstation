@@ -2,10 +2,7 @@ import { css } from '../../core';
 
 export const styles = css`
 	:host {
-		/*
-		 * Public tokens read into private aliases — see AGENTS.md,
-		 * "Never declare a themeable token on a component's :host".
-		 */
+
 		--_bg: var( --os-ui-token-field-bg, var( --os-ui-field-bg, #fff ) );
 		--_border: var(
 			--os-ui-token-field-border,
@@ -61,12 +58,6 @@ export const styles = css`
 		gap: 6px;
 	}
 
-	/*
-	 * The catalogue is absolutely positioned rather than a popover:
-	 * it belongs to this field, and a field is very often inside a
-	 * scrolling inspector pane where a fixed overlay would detach
-	 * from the control it describes on the first scroll.
-	 */
 	.os-token-field__catalogue {
 		position: absolute;
 		inset-inline-start: 0;

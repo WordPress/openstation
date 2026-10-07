@@ -1,15 +1,3 @@
-/**
- * `renderIcon` — silhouette SVG handling.
- *
- * An SVG data URI drawn in `currentColor` is asking to be filled by
- * whatever surface it lands on. A CSS `background-image` has no
- * colour to inherit, so painting one that way yields black — invisible
- * on a dark dock. The dispatcher paints those as a CSS mask instead,
- * which keeps only the alpha and fills it with `currentColor`.
- *
- * Fixed-colour art (the Games gamepad, a plugin's brand mark) must
- * keep the background-image path untouched.
- */
 import { describe, expect, test } from 'vitest';
 import { renderIcon } from '../../src/icon';
 
@@ -36,10 +24,10 @@ describe( 'renderIcon — silhouette SVGs', () => {
 		expect( el.tagName ).toBe( 'SPAN' );
 		expect( el.classList.contains( 'x' ) ).toBe( true );
 		expect( el.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-		// The CSSOM normalises the keyword's case on the way in.
+
 		expect( el.style.backgroundColor.toLowerCase() ).toBe( 'currentcolor' );
 		expect( el.style.getPropertyValue( 'mask' ) ).toContain( SILHOUETTE );
-		// The mask must not be fighting a background-image underneath.
+
 		expect( el.style.backgroundImage ).toBe( 'none' );
 	} );
 
@@ -57,7 +45,7 @@ describe( 'renderIcon — silhouette SVGs', () => {
 		expect( el.tagName ).toBe( 'SPAN' );
 		expect( el.style.backgroundImage ).toContain( FIXED_COLOUR );
 		expect( el.style.backgroundSize ).toBe( 'contain' );
-		// No mask — the art carries its own colours and must keep them.
+
 		expect( el.style.getPropertyValue( 'mask' ) ).toBe( '' );
 		expect( el.style.backgroundColor ).toBe( '' );
 	} );
@@ -83,8 +71,7 @@ describe( 'renderIcon — silhouette SVGs', () => {
 	} );
 
 	test( 'base64 that passes the charset check but not atob degrades safely', () => {
-		// Valid base64 alphabet, invalid padding — `atob` throws. The
-		// icon must still render, just via the background-image path.
+
 		const el = renderIcon( 'data:image/svg+xml;base64,QUJDR', { title: 'Foo' } );
 
 		expect( el.tagName ).toBe( 'SPAN' );

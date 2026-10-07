@@ -1,44 +1,16 @@
 <?php
-/**
- * Cron Manager store helpers.
- *
- * Thin wrappers around WordPress' cron array and scheduling APIs. The
- * client never mutates `_get_cron_array()` directly; every change goes
- * through these helpers so identity matching, custom schedules, and
- * REST responses stay consistent.
- *
- * @package OpenStationCronManager
- */
 
 defined( 'ABSPATH' ) || exit;
 
 const OPENSTATION_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION = 'desktop_mode_cron_custom_schedules';
 
-/**
- * Whether the current user may use the Cron Manager.
- *
- * @return bool
- */
 function openstation_cron_manager_user_can_use() {
-	// Cron events run arbitrary registered callbacks, so on multisite this
-	// surface is reserved for Super Admins (`manage_network`) — per-site
-	// Administrators hold `manage_options` but are intentionally denied
-	// code-execution capabilities on a network.
+
 	$can = is_multisite() ? current_user_can( 'manage_network' ) : current_user_can( 'manage_options' );
 
-	/**
-	 * Filter whether the current user can see/use the Cron Manager.
-	 *
-	 * @param bool $can Default: manage_network capability on multisite, manage_options otherwise.
-	 */
 	return (bool) apply_filters( 'openstation_cron_manager_user_can_use', $can );
 }
 
-/**
- * Return sanitized custom schedule definitions stored by this module.
- *
- * @return array<string, array{interval:int, display:string}>
- */
 function openstation_cron_manager_get_custom_schedules() {
 	$raw = get_option( OPENSTATION_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION, array() );
 	if ( ! is_array( $raw ) ) {
@@ -58,7 +30,7 @@ function openstation_cron_manager_get_custom_schedules() {
 		$display = isset( $entry['display'] ) && '' !== (string) $entry['display']
 			? sanitize_text_field( (string) $entry['display'] )
 			: sprintf(
-				/* translators: %d: interval in seconds. */
+
 				__( 'Every %d seconds', 'desktop-mode-cron-manager' ),
 				$interval
 			);
@@ -71,14 +43,6 @@ function openstation_cron_manager_get_custom_schedules() {
 	return $out;
 }
 
-/**
- * Save or update a custom cron interval.
- *
- * @param string $slug     Schedule slug.
- * @param int    $interval Interval in seconds.
- * @param string $display  Display label.
- * @return string|WP_Error Sanitized slug on success.
- */
 function openstation_cron_manager_save_custom_schedule( $slug, $interval, $display = '' ) {
 	$slug     = sanitize_key( (string) $slug );
 	$interval = absint( $interval );
@@ -111,7 +75,7 @@ function openstation_cron_manager_save_custom_schedule( $slug, $interval, $displ
 
 	if ( '' === $display ) {
 		$display = sprintf(
-			/* translators: %d: interval in seconds. */
+
 			__( 'Every %d seconds', 'desktop-mode-cron-manager' ),
 			$interval
 		);
@@ -126,12 +90,6 @@ function openstation_cron_manager_save_custom_schedule( $slug, $interval, $displ
 	return $slug;
 }
 
-/**
- * Add this module's persisted custom intervals to WordPress' schedule map.
- *
- * @param array $schedules Cron schedules.
- * @return array
- */
 function openstation_cron_manager_register_custom_schedules( $schedules ) {
 	if ( ! is_array( $schedules ) ) {
 		$schedules = array();
@@ -148,11 +106,6 @@ function openstation_cron_manager_register_custom_schedules( $schedules ) {
 }
 add_filter( 'cron_schedules', 'openstation_cron_manager_register_custom_schedules' );
 
-/**
- * Return the cron schedule list in a client-friendly shape.
- *
- * @return array<int, array{slug:string, interval:int, display:string, custom:bool}>
- */
 function openstation_cron_manager_get_schedules_payload() {
 	$schedules = wp_get_schedules();
 	$custom    = openstation_cron_manager_get_custom_schedules();
@@ -183,12 +136,6 @@ function openstation_cron_manager_get_schedules_payload() {
 	return $out;
 }
 
-/**
- * Validate a cron hook name without over-sanitizing existing hooks.
- *
- * @param mixed $hook Raw hook.
- * @return string|WP_Error
- */
 function openstation_cron_manager_normalize_hook( $hook ) {
 	$hook = trim( (string) $hook );
 	if ( '' === $hook ) {
@@ -215,12 +162,6 @@ function openstation_cron_manager_normalize_hook( $hook ) {
 	return $hook;
 }
 
-/**
- * Whether a value can safely round-trip through JSON for editing.
- *
- * @param mixed $value Value to test.
- * @return bool
- */
 function openstation_cron_manager_is_json_safe( $value ) {
 	if ( null === $value || is_scalar( $value ) ) {
 		return true;
@@ -239,12 +180,6 @@ function openstation_cron_manager_is_json_safe( $value ) {
 	return true;
 }
 
-/**
- * Normalize incoming cron args. WordPress expects an array.
- *
- * @param mixed $args Raw decoded JSON args.
- * @return array|WP_Error
- */
 function openstation_cron_manager_normalize_args( $args ) {
 	if ( null === $args ) {
 		return array();
@@ -266,37 +201,14 @@ function openstation_cron_manager_normalize_args( $args ) {
 	return $args;
 }
 
-/**
- * Return WordPress' internal args hash.
- *
- * @param array $args Cron args.
- * @return string
- */
 function openstation_cron_manager_args_hash( $args ) {
 	return md5( serialize( is_array( $args ) ? $args : array() ) );
 }
 
-/**
- * Build a stable client id for an event row.
- *
- * @param int    $timestamp Unix timestamp.
- * @param string $hook      Cron hook.
- * @param string $args_hash Internal args hash.
- * @return string
- */
 function openstation_cron_manager_event_id( $timestamp, $hook, $args_hash ) {
 	return (int) $timestamp . ':' . rawurlencode( (string) $hook ) . ':' . (string) $args_hash;
 }
 
-/**
- * Convert a raw cron event into the REST row shape.
- *
- * @param int    $timestamp Unix timestamp.
- * @param string $hook      Cron hook.
- * @param string $args_hash Internal args hash.
- * @param array  $event     Raw cron event.
- * @return array
- */
 function openstation_cron_manager_format_event( $timestamp, $hook, $args_hash, $event ) {
 	$args      = isset( $event['args'] ) && is_array( $event['args'] ) ? $event['args'] : array();
 	$schedule  = isset( $event['schedule'] ) && is_string( $event['schedule'] ) ? $event['schedule'] : '';
@@ -340,12 +252,6 @@ function openstation_cron_manager_format_event( $timestamp, $hook, $args_hash, $
 	);
 }
 
-/**
- * Count callbacks registered for a hook.
- *
- * @param string $hook Hook name.
- * @return int
- */
 function openstation_cron_manager_count_hook_callbacks( $hook ) {
 	global $wp_filter;
 
@@ -377,13 +283,6 @@ function openstation_cron_manager_count_hook_callbacks( $hook ) {
 	return has_action( $hook ) ? 1 : 0;
 }
 
-/**
- * Build a compact args summary for table display.
- *
- * @param array $args          Event args.
- * @param bool  $args_editable Whether args are JSON-safe.
- * @return string
- */
 function openstation_cron_manager_args_summary( $args, $args_editable ) {
 	if ( empty( $args ) ) {
 		return '[]';
@@ -398,11 +297,6 @@ function openstation_cron_manager_args_summary( $args, $args_editable ) {
 	return strlen( $json ) > 140 ? substr( $json, 0, 137 ) . '...' : $json;
 }
 
-/**
- * List every scheduled cron event.
- *
- * @return array<int, array>
- */
 function openstation_cron_manager_list_events() {
 	$crons = _get_cron_array();
 	if ( ! is_array( $crons ) || empty( $crons ) ) {
@@ -445,12 +339,6 @@ function openstation_cron_manager_list_events() {
 	return $out;
 }
 
-/**
- * Find a cron event by timestamp, hook, and args hash.
- *
- * @param array $identity Event identity.
- * @return array|WP_Error
- */
 function openstation_cron_manager_find_event( $identity ) {
 	if ( ! is_array( $identity ) ) {
 		return new WP_Error(
@@ -497,13 +385,6 @@ function openstation_cron_manager_find_event( $identity ) {
 	);
 }
 
-/**
- * Normalize an incoming event payload.
- *
- * @param array      $payload      Raw event payload.
- * @param array|null $fallback_args Args to use when omitted.
- * @return array|WP_Error
- */
 function openstation_cron_manager_normalize_event_payload( $payload, $fallback_args = null ) {
 	if ( ! is_array( $payload ) ) {
 		return new WP_Error(
@@ -577,12 +458,6 @@ function openstation_cron_manager_normalize_event_payload( $payload, $fallback_a
 	);
 }
 
-/**
- * Schedule a normalized event.
- *
- * @param array $event Normalized event.
- * @return true|WP_Error
- */
 function openstation_cron_manager_schedule_normalized_event( $event ) {
 	if ( '' === $event['schedule'] ) {
 		$result = wp_schedule_single_event(
@@ -615,12 +490,6 @@ function openstation_cron_manager_schedule_normalized_event( $event ) {
 	return true;
 }
 
-/**
- * Create a cron event from a REST payload.
- *
- * @param array $payload Raw event payload.
- * @return array|WP_Error
- */
 function openstation_cron_manager_create_event( $payload ) {
 	$event = openstation_cron_manager_normalize_event_payload( $payload );
 	if ( is_wp_error( $event ) ) {
@@ -638,12 +507,6 @@ function openstation_cron_manager_create_event( $payload ) {
 	);
 }
 
-/**
- * Delete a single exact cron event.
- *
- * @param array $identity Event identity.
- * @return array|WP_Error
- */
 function openstation_cron_manager_delete_event( $identity ) {
 	$found = openstation_cron_manager_find_event( $identity );
 	if ( is_wp_error( $found ) ) {
@@ -673,13 +536,6 @@ function openstation_cron_manager_delete_event( $identity ) {
 	);
 }
 
-/**
- * Update an event by deleting the old identity and scheduling the new one.
- *
- * @param array $identity Event identity.
- * @param array $payload  New event payload.
- * @return array|WP_Error
- */
 function openstation_cron_manager_update_event( $identity, $payload ) {
 	$found = openstation_cron_manager_find_event( $identity );
 	if ( is_wp_error( $found ) ) {
@@ -729,12 +585,6 @@ function openstation_cron_manager_update_event( $identity, $payload ) {
 	);
 }
 
-/**
- * Execute an existing event immediately without modifying its schedule.
- *
- * @param array $identity Event identity.
- * @return array|WP_Error
- */
 function openstation_cron_manager_run_event_now( $identity ) {
 	$found = openstation_cron_manager_find_event( $identity );
 	if ( is_wp_error( $found ) ) {

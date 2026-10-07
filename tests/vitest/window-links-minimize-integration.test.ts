@@ -1,10 +1,3 @@
-/**
- * Integration repro for "minimizing the ROOT window closes it":
- * REAL `WindowManager` + real `Window` instances with the window-links
- * engine and render host wired exactly like production boot. Minimize
- * the root of a relation group (post + comment) and assert the window
- * survives — still in the manager, still restorable.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -114,8 +107,7 @@ describe( 'window-links × real WindowManager — minimize survives', () => {
 			height: 600,
 		} );
 		await manager.open( {
-			// Fully INSIDE the post window's footprint — the user's
-			// "comment completely hidden behind the post" scenario.
+
 			id: 'comment-php-c-500',
 			url: `${ ORIGIN }/wp-admin/comment.php?action=editcomment&c=500`,
 			title: 'Comment 500',
@@ -150,14 +142,10 @@ describe( 'window-links × real WindowManager — minimize survives', () => {
 			'os-window-links-elevated',
 		)!;
 
-		// Focus the post → the elevated layer lifts to the group ceiling.
 		manager.focus( postWin );
 		flushRaf();
 		expect( layer.style.zIndex ).not.toBe( '' );
 
-		// Focus the unrelated window → the layer MUST drop back to the
-		// stylesheet default (inline z cleared) so the tie hides
-		// behind the windows again.
 		manager.focus( strangerWin );
 		flushRaf();
 		expect( layer.style.zIndex ).toBe( '' );
@@ -184,8 +172,6 @@ describe( 'window-links × real WindowManager — minimize survives', () => {
 			title: 'Comment 500',
 		} );
 
-		// Bridge identities → one relation group, root focused last?
-		// Focus the ROOT (like the user clicking the post window).
 		engine.setWindowContent(
 			'post-php-post-102',
 			{ type: 'post', id: 102 },
@@ -199,16 +185,12 @@ describe( 'window-links × real WindowManager — minimize survives', () => {
 		manager.focus( postWin );
 		flushRaf();
 
-		// Sanity: group renderable, both windows alive.
 		expect( engine.listWindowLinkEdges() ).toHaveLength( 1 );
 		expect( manager.getAll() ).toHaveLength( 2 );
 
-		// The user clicks the minimize control on the ROOT.
 		postWin.minimize();
 		flushRaf();
 
-		// The window must still exist, be minimized (NOT destroyed),
-		// and restore cleanly.
 		expect( manager.getById( 'post-php-post-102' ) ).toBe( postWin );
 		expect( postWin.state ).toBe( 'minimized' );
 		expect( postWin.element.isConnected ).toBe( true );
@@ -219,11 +201,8 @@ describe( 'window-links × real WindowManager — minimize survives', () => {
 		expect( postWin.state ).not.toBe( 'minimized' );
 		expect( manager.getAll() ).toHaveLength( 2 );
 
-		// And the relations survived the round-trip.
 		expect( engine.listWindowLinkEdges() ).toHaveLength( 1 );
 
-		// Also exercise the "minimize then focus the child" path — the
-		// group raise must NOT resurrect or destroy the minimized root.
 		postWin.minimize();
 		manager.focus( commentWin );
 		flushRaf();

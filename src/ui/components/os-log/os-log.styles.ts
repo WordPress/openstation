@@ -1,12 +1,3 @@
-/**
- * `<os-log>` — virtualized streaming log container.
- *
- * Two-deep DOM: the host is the scroll viewport; a `.spacer` sized to
- * `entries × rowHeight` provides the scrollbar; the `.window` is
- * absolutely positioned inside the spacer and re-stamped on scroll
- * with the slice of rows currently visible. Rows themselves are
- * rendered into the window by the consumer's render callback.
- */
 import { css } from '../../core';
 
 export const styles = css`
@@ -21,9 +12,7 @@ export const styles = css`
 		border: var( --os-ui-log-border, 1px solid rgba( 0, 0, 0, 0.06 ) );
 		border-radius: var( --os-ui-log-border-radius, 4px );
 		min-height: var( --os-ui-log-min-height, 120px );
-		/* Forms a containing block for the absolutely-positioned
-		 * window so spacer + window stay aligned with the host's
-		 * scroll. */
+
 		contain: strict;
 	}
 	:host( [ hidden ] ) {
@@ -53,13 +42,6 @@ export const styles = css`
 		text-overflow: ellipsis;
 	}
 
-	/*
-	 * Auto-row-height mode — the virtualizer measures each rendered
-	 * row, so we let content drive height. The fixed-height \`overflow:
-	 * hidden\` would clip multi-line content the same way the default
-	 * mode does — defeats the point. Plugins can still set their own
-	 * \`overflow\` on the rendered row element.
-	 */
 	:host( [ auto-row-height ] ) .row {
 		min-height: 0;
 		overflow: visible;

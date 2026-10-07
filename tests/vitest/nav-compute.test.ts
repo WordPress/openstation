@@ -1,11 +1,3 @@
-/**
- * The navigation spec, as a table.
- *
- * Every rule about where a thing shows up lives in `computeNav`, so
- * every rule about where a thing shows up is asserted here. If a
- * surface starts disagreeing with this file, the surface is wrong.
- */
-
 import { describe, expect, test } from 'vitest';
 import { buildNavItems, computeNav } from '../../src/nav';
 import type {
@@ -50,9 +42,7 @@ function run(
 						id: w,
 						title: w,
 						icon: 'dashicons-admin-generic',
-						// A bare id stands for an admin page: the
-						// common case, and the one that must NOT mint
-						// a tile of its own.
+
 						fromAdminUrl: true,
 					}
 				: w,
@@ -142,12 +132,7 @@ describe( 'zones', () => {
 } );
 
 describe( 'a core tile among the core menus', () => {
-	// A tile carrying `kind: 'core'` stands for an admin menu that
-	// cannot arrive through `$menu` — the Network Admin one lives on
-	// another domain — so it sits behind the menu that leads the run
-	// rather than ahead of it. No `order` expresses that: menus carry
-	// none and tie at 0, so a tile can only sort ahead of every one or
-	// behind every one. Only a tile moves; menus keep source order.
+
 	const withTile = () => [
 		item( 'index.php', 'core' ),
 		item( 'edit.php', 'core' ),
@@ -174,8 +159,7 @@ describe( 'running windows', () => {
 		const open = run( [ games ], { open: [ 'games-window' ] } );
 		expect( ids( open.dock.apps ) ).toEqual( [ 'games' ] );
 		expect( open.ephemeral.has( 'games' ) ).toBe( true );
-		// It is on the dock only — the wallpaper still owns its
-		// launcher, so it must not be listed twice.
+
 		expect( ids( open.desktop ) ).toEqual( [ 'games' ] );
 	} );
 
@@ -218,9 +202,7 @@ describe( 'running windows', () => {
 
 describe( 'a window nothing launches', () => {
 	test( 'gets a tile of its own while it is open', () => {
-		// OpenStation Preferences is the shipped case: a native window
-		// with no launcher anywhere. Without this it is unswitchable,
-		// with nowhere to minimize back into.
+
 		const nav = run( [], {
 			open: [
 				{
@@ -238,23 +220,18 @@ describe( 'a window nothing launches', () => {
 		expect( nav.ephemeral.has( 'desktop-mode-os-settings' ) ).toBe(
 			true,
 		);
-		// Nowhere else — it has no launcher to place.
+
 		expect( ids( nav.desktop ) ).toEqual( [] );
 	} );
 
 	test( 'an admin page gets none — its menu already answers for it', () => {
-		// The post editor opens under its own key, and the Posts tile
-		// lights up for it. A second tile would duplicate what the
-		// menu's hover peek already fans out.
+
 		const nav = run( [], { open: [ 'post-php' ] } );
 		expect( ids( nav.dock.apps ) ).toEqual( [] );
 	} );
 
 	test( 'a tile answers for what its submenu rows open', () => {
-		// The System tile carries OpenStation Preferences as a row, so
-		// Preferences opening lights that tile instead of minting a
-		// gear beside it. Before this, the dock grew a second tile for
-		// a window the rail already represented.
+
 		const system = item( 'os-system', 'control', {
 			answersFor: [ 'desktop-mode-os-settings' ],
 		} );
@@ -289,8 +266,7 @@ describe( 'a window nothing launches', () => {
 				],
 			},
 		);
-		// Games is desktop-only, so it takes the transient tile rather
-		// than leaving the window represented by System.
+
 		expect( ids( nav.dock.apps ) ).toEqual( [ 'games' ] );
 	} );
 
@@ -309,8 +285,7 @@ describe( 'a window nothing launches', () => {
 				],
 			},
 		);
-		// It answers for the window, so it is the thing that rides the
-		// rail while that window is open.
+
 		expect( ids( nav.dock.apps ) ).toEqual( [ 'os-system' ] );
 		expect( nav.ephemeral.has( 'os-system' ) ).toBe( true );
 	} );
@@ -357,10 +332,7 @@ describe( 'ordering', () => {
 	} );
 
 	test( 'the item\'s own order is the baseline within a zone', () => {
-		// Registration order cannot express the shell's trailing
-		// cluster: a launcher arrives whenever its lazy script
-		// resolves, so the tile registered last in `desktop.ts` is not
-		// last on the rail.
+
 		const nav = run( [
 			item( 'os-system', 'control', { order: 30 } ),
 			item( 'os-mio', 'control', { order: 10 } ),
@@ -458,8 +430,7 @@ describe( 'buildNavItems', () => {
 		expect( items[ 0 ].kind ).toBe( 'app' );
 		expect( items[ 0 ].tile ).toBeTruthy();
 		expect( items[ 0 ].entry ).toBeTruthy();
-		// And it defaults to the desktop, which is what Preferences
-		// claimed all along while the dock painted a tile anyway.
+
 		const nav = run( items );
 		expect( ids( nav.dock.apps ) ).toEqual( [] );
 		expect( ids( nav.desktop ) ).toEqual( [ 'desktop-mode-games' ] );
@@ -477,10 +448,7 @@ describe( 'buildNavItems', () => {
 	} );
 
 	test( 'a window that asked for a launcher keeps it on the rail', () => {
-		// `openstation_register_window( 'placement' => 'dock' )` is a
-		// proposal, and it has to reach the model: apps default to the
-		// wallpaper, so without it a plugin's launcher would silently
-		// move off the dock it has always been on.
+
 		const items = buildNavItems( {
 			menuItems: [],
 			systemTiles: [
@@ -494,7 +462,6 @@ describe( 'buildNavItems', () => {
 		expect( items[ 0 ].defaultPlacement ).toBe( 'rail' );
 		expect( ids( run( items ).dock.apps ) ).toEqual( [ 'my-app' ] );
 
-		// And the user still outranks it.
 		expect(
 			ids( run( items, { placement: { 'my-app': 'desktop' } } ).dock.apps ),
 		).toEqual( [] );

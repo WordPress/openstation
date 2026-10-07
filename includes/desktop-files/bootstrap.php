@@ -1,18 +1,4 @@
 <?php
-/**
- * OpenStation — Files-on-the-desktop bootstrap.
- *
- * Loads the `OpenStation_File` base class, the type registry, the
- * built-in leaf-type subclasses, and the registration of the
- * built-in file types on `init` priority 5.
- *
- * Future phases (schema/REST, UI, sharing, drag-from-recycle-bin)
- * will require additional files from this directory; new
- * `require_once` lines belong here so the rest of the codebase
- * keeps loading the feature through one entry point.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 

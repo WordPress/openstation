@@ -1,35 +1,3 @@
-/**
- * `<os-number-field>` — labelled numeric input primitive.
- *
- * Thin wrapper around `<os-text-field>` that forces `type="number"`
- * and returns numeric payloads (already parsed) on every event.
- * Accepts `min`, `max`, `step` like the native input; the component
- * clamps the emitted value to the range on commit so callers don't
- * re-implement the range check.
- *
- * ```html
- * <os-number-field
- *     label="Amount"
- *     value="100"
- *     min="0"
- *     step="0.01"
- *     suffix="€"
- * ></os-number-field>
- * ```
- *
- * Emits:
- *   - `os-input-change` — `{ value: number }` on every keystroke
- *     while the input's current text parses as a finite number.
- *   - `os-input-commit` — `{ value: number }` on change (blur /
- *     Enter), clamped to `min`/`max` when either is set.
- *   - `os-submit` — Enter without Shift; same clamp as commit.
- *
- * Callers that need the raw string (e.g. "in-progress typing that
- * isn't a valid number yet") should use `<os-text-field>`
- * directly — this component deliberately drops non-finite input
- * from its event stream.
- */
-
 import {
 	Component,
 	defineComponent,
@@ -202,9 +170,7 @@ export class OsNumberField extends Component {
 		if ( ! Number.isFinite( n ) ) {
 			return;
 		}
-		// Don't clamp mid-typing — "0.0" typed en route to "0.05"
-		// would snap back if we clamped below `min=1`. Commit-time
-		// clamp handles final-value bounds.
+
 		( this as unknown as { value: string } ).value = String( n );
 		this.emit( 'os-input-change', { value: n } );
 	}
@@ -216,9 +182,7 @@ export class OsNumberField extends Component {
 			return;
 		}
 		const clamped = this._clamp( n );
-		// Reflect the clamped value back so the visible input stays
-		// in sync with the committed value (user saw "9999" while
-		// `max=100` — snap to 100 on commit).
+
 		if ( clamped !== n ) {
 			input.value = String( clamped );
 			( this as unknown as { value: string } ).value = String( clamped );

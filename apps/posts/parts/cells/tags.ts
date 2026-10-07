@@ -1,14 +1,3 @@
-/**
- * Posts app — the Tags cell: a `<os-tag-input>` per row with
- * autocomplete, free-form creation and optimistic persistence to the
- * post's `tags`. Suggestions are debounced and cancelled with an
- * `AbortController`; adds and removes roll back on failure with a
- * toast. Only the Posts mode renders it, so only the Posts bundle
- * carries the picker.
- *
- * @public
- */
-
 import { __, sprintf } from '@openstation/app';
 import '../../../../src/ui/components/os-tag-input/os-tag-input';
 import type { OsTagInput, OsTagItem } from '../../../../src/ui/components/os-tag-input/os-tag-input';
@@ -32,8 +21,7 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 	picker.value = seed;
 
 	const cellState = {
-		// Optimistic mirror of `picker.value` — one source of truth when
-		// two events fire in the same tick.
+
 		tags: seed.slice(),
 		suggestAbort: null as AbortController | null,
 		suggestDebounce: null as number | null,
@@ -70,7 +58,7 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 					return;
 				}
 				picker.suggestions = [];
-				// eslint-disable-next-line no-console
+
 				console.warn( '[openstation:desktop-mode-posts] tag search failed', err );
 			} finally {
 				picker.suggestionsLoading = false;
@@ -94,7 +82,7 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 				resolved.id,
 			];
 			await client.updatePostTags( row.id, desiredIds );
-			// Replace the pending placeholder with the canonical term.
+
 			setValue(
 				cellState.tags.map( ( t ) =>
 					t.label.toLowerCase() === detail.tag.label.toLowerCase()
@@ -105,7 +93,7 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 			env.announce( 'tagged', [ row.id ] );
 		} catch ( err ) {
 			setValue( cellState.tags.filter( ( t ) => t.label.toLowerCase() !== detail.tag.label.toLowerCase() ) );
-			/* translators: %s: tag label */
+
 			env.toast( sprintf( __( 'Couldn’t add tag "%s".' ), detail.tag.label ), err );
 		}
 	} );
@@ -128,7 +116,7 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 			env.announce( 'untagged', [ row.id ] );
 		} catch ( err ) {
 			setValue( previous );
-			/* translators: %s: tag label */
+
 			env.toast( sprintf( __( 'Couldn’t remove tag "%s".' ), removed.label ), err );
 		}
 	} );

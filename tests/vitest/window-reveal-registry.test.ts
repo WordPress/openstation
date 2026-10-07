@@ -1,17 +1,3 @@
-/**
- * Unit tests for `src/reveals/registry.ts`.
- *
- * Shared-store-backed like the unfocus-effect registry, so each test
- * resets the stores and re-imports fresh. The built-ins are seeded
- * at module load through the public `register()` path, so a fresh
- * import always starts with them present.
- *
- * The interesting validation here is the `from` / `to` shape-function
- * check: it is the one rule a plugin author cannot discover from the
- * type signature, and getting it wrong produces a runtime flicker
- * rather than an error, so registration has to be the thing that
- * catches it.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -62,11 +48,10 @@ describe( 'reveals/registry.ts — built-ins', () => {
 			expect( def?.label, id ).toBeTruthy();
 			expect( def?.description, id ).toBeTruthy();
 			if ( typeof def!.render === 'function' ) {
-				// A rendered reveal owns its DOM; it has no pairs.
+
 				continue;
 			}
-			// Single-pair and multi-layer defs both normalize to a
-			// non-empty list of pairs that actually go somewhere.
+
 			const pairs = revealLayerPairs( def! );
 			expect( pairs.length, id ).toBeGreaterThan( 0 );
 			for ( const pair of pairs ) {
@@ -78,10 +63,7 @@ describe( 'reveals/registry.ts — built-ins', () => {
 	} );
 
 	test( 'the camera shutter renders itself rather than clipping layers', async () => {
-		// A lens iris has a cyclic overlap, and paint order is linear —
-		// no stack of clipped layers can represent it. It renders SVG
-		// instead; the mechanism itself is covered in
-		// `window-reveal-obturator.test.ts`.
+
 		const { getWindowReveal, revealLayerPairs } = await loadRegistry();
 		const def = getWindowReveal( 'obturator' )!;
 		expect( typeof def.render ).toBe( 'function' );
@@ -92,9 +74,7 @@ describe( 'reveals/registry.ts — built-ins', () => {
 	} );
 
 	test( 'no built-in hard-codes a single surface colour', async () => {
-		// A reveal is a shape; the site colours it through the theme
-		// token. Hard-coding paint takes that choice away from every
-		// theme the reveal will ever run under.
+
 		const { getWindowReveal } = await loadRegistry();
 		for ( const id of BUILT_INS ) {
 			expect( getWindowReveal( id )?.surfaceColor, id ).toBeUndefined();
@@ -206,11 +186,7 @@ describe( 'reveals/registry.ts — registration', () => {
 	} );
 
 	test( 'rejects an easing the browser cannot parse', async () => {
-		// jsdom ships no `KeyframeEffect`, so model a browser whose
-		// constructor rejects what it cannot parse — the same parser
-		// `Element.animate()` runs, which is exactly why an unparsable
-		// easing has to die at registration and not at play time, when
-		// the opaque surface is already covering the window.
+
 		vi.stubGlobal(
 			'KeyframeEffect',
 			class {
@@ -287,7 +263,7 @@ describe( 'reveals/registry.ts — removal + subscriptions', () => {
 		expect( unregisterWindowRevealsByOwner( 'acme-plugin' ) ).toBe( 1 );
 		expect( getWindowReveal( 'acme/a' ) ).toBeUndefined();
 		expect( getWindowReveal( 'acme/b' ) ).toBeDefined();
-		// The built-ins carry no owner and must survive.
+
 		expect( getWindowReveal( 'sweep' ) ).toBeDefined();
 	} );
 

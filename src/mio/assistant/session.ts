@@ -1,4 +1,3 @@
-/** A bounded, cancellable tool loop. Only this window's live allowlist can run. */
 import { MioResponseActions } from './response-actions';
 import { mioHelpAbilities, searchMioHelp } from './help';
 import { assertMioRequestBudget } from './budget';
@@ -110,7 +109,7 @@ export class MioSession {
 			if ( actionIds.length ) {
 				message.actionIds = actionIds;
 			}
-			// The app callback can close this window synchronously.
+
 			if ( this.disposed || this.pending !== controller ) {
 				this.responseActions.prune(); return;
 			}
@@ -196,7 +195,7 @@ export class MioSession {
 						attemptedWrites.add( key );
 					}
 					running = { context, name: call.name }; this.operations.record( context, call.name, 'running' );
-					// Observers can synchronously close the window or revoke its permission.
+
 					try {
 						guard();
 						if ( ability.allowed && ! ability.allowed() ) {
@@ -212,14 +211,14 @@ export class MioSession {
 						result = await ability.run( args, signal, context );
 					} catch ( error ) {
 						this.operations.record( context, call.name, context.effect === 'write' ? 'unknown' : 'rejected' ); running = null;
-						// A run exception never proves that no write was submitted.
+
 						throw error;
 					}
 					const outcome = outcomeOf( result );
 					if ( outcome?.effect === 'none' && outcome.status === 'rejected' ) {
 						this.operations.record( context, call.name, 'rejected' );
 						running = null;
-						// An explicit no-effect result is not a completed write.
+
 						attemptedWrites.delete( key ); guard();
 						const feedback = ability.history ? ability.history( { name: call.name, callId, args, result: outcome }, context ) : outcome.data;
 						reject( new MioValidationError( outcome.errors, outcome.retryable ), context, call.name, feedback ); break;
@@ -227,7 +226,6 @@ export class MioSession {
 					if ( outcome?.effect === 'none' && outcome.status === 'completed' ) {
 						this.operations.record( context, call.name, 'completed' ); running = null;
 					} else if ( context.effect === 'write' ) {
-						// saved:true is the existing explicit acknowledgement contract.
 						const legacySaved = ! outcome && !! result && typeof result === 'object' && ( result as { saved?: unknown } ).saved === true;
 						const receipt = outcome?.effect === 'write' && outcome.status === 'confirmed' ? outcome.receipt : undefined;
 						this.operations.record( context, call.name, receipt || legacySaved ? 'confirmed' : 'unknown', receipt ?? ( legacySaved ? callId : undefined ) );
@@ -242,7 +240,7 @@ export class MioSession {
 					}
 					guard();
 					const entry: MioHistoryEntry = { name: call.name, callId, args, result };
-					// Default history omits input documents; the result is the evidence.
+
 					const compact = ability.history ? ability.history( entry, context ) : { result };
 					const operation = this.operations.list().find( ( item ) => item.callId === callId );
 					outcomes.push( JSON.parse( JSON.stringify( { ...compact, name: call.name, callId, effect: outcome?.effect ?? context.effect, status: operation?.status, receipt: operation?.receipt } ) ) );

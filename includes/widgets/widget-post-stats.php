@@ -1,27 +1,7 @@
 <?php
-/**
- * OpenStation — Post Stats Widget.
- *
- * Bar chart of posts published per month for the last 6 months,
- * broken down by published / draft / pending status.
- *
- * Refresh: every 5 minutes.
- * Requires: OpenStation 0.18.0+ (openstation_register_widget).
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the REST endpoint that aggregates per-month post counts
- * server-side. Replaces the widget's original client-side approach —
- * 3 statuses × up-to-100-per-page `/wp/v2/posts` requests every
- * refresh — with a single GROUP BY that's shared through a transient.
- *
- * Route: GET /desktop-mode/v1/post-stats
- * Permission: edit_posts.
- */
 function openstation_register_post_stats_rest_route() {
 	register_rest_route(
 		'desktop-mode/v1',
@@ -37,21 +17,6 @@ function openstation_register_post_stats_rest_route() {
 }
 add_action( 'rest_api_init', 'openstation_register_post_stats_rest_route' );
 
-/**
- * Aggregate post counts per month × status for the last 6 months.
- *
- * Capability scoping mirrors what the widget's old `/wp/v2/posts`
- * queries returned: published posts count site-wide for anyone with
- * `edit_posts`, while draft / pending counts are scoped to the
- * current user's own posts unless they hold `edit_others_posts`
- * (core's REST posts controller applies the same visibility).
- *
- * Cached for 5 minutes per scope — the data is a trailing-6-month
- * aggregate, the widget refreshes every 5 minutes, and every viewer
- * in the same capability scope can share one computation.
- *
- * @return array{months:array<int,array{ym:string,publish:int,draft:int,pending:int}>}
- */
 function openstation_post_stats_callback() {
 	global $wpdb;
 
@@ -66,17 +31,14 @@ function openstation_post_stats_callback() {
 	}
 
 	$months_back = 6;
-	// First day of the earliest bucket, site timezone.
+
 	$cutoff = gmdate(
 		'Y-m-01 00:00:00',
 		strtotime( current_time( 'Y-m-01' ) . ' -' . ( $months_back - 1 ) . ' months' )
 	);
 
-	// Two literal query branches (rather than a concatenated author
-	// clause) so every byte of SQL inside prepare() is static —
-	// keeps the PreparedSQL sniff able to verify it.
 	if ( $see_others ) {
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single aggregate GROUP BY, result cached in the transient below.
+
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT DATE_FORMAT( post_date, '%%Y-%%m' ) AS ym, post_status, COUNT(*) AS cnt
@@ -91,7 +53,7 @@ function openstation_post_stats_callback() {
 			ARRAY_A
 		);
 	} else {
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single aggregate GROUP BY, result cached in the transient below.
+
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT DATE_FORMAT( post_date, '%%Y-%%m' ) AS ym, post_status, COUNT(*) AS cnt
@@ -110,9 +72,6 @@ function openstation_post_stats_callback() {
 		);
 	}
 
-	// Emit exactly $months_back buckets, oldest first, zero-filled —
-	// the widget renders a fixed axis and shouldn't have to guess at
-	// missing months.
 	$buckets = array();
 	for ( $i = $months_back - 1; $i >= 0; $i-- ) {
 		$ym             = gmdate( 'Y-m', strtotime( current_time( 'Y-m-01' ) . ' -' . $i . ' months' ) );
@@ -138,9 +97,6 @@ function openstation_post_stats_callback() {
 	return $result;
 }
 
-/**
- * Register the JS + CSS assets.
- */
 function openstation_register_post_stats_widget_assets() {
 	$suffix  = openstation_asset_suffix();
 	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
@@ -165,9 +121,6 @@ function openstation_register_post_stats_widget_assets() {
 }
 add_action( 'init', 'openstation_register_post_stats_widget_assets', 5 );
 
-/**
- * Eagerly enqueue the CSS on shell pages.
- */
 function openstation_enqueue_post_stats_widget_styles() {
 	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
@@ -179,9 +132,6 @@ function openstation_enqueue_post_stats_widget_styles() {
 }
 add_action( 'admin_enqueue_scripts', 'openstation_enqueue_post_stats_widget_styles', 20 );
 
-/**
- * Register the widget definition.
- */
 function openstation_register_post_stats_widget() {
 	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;

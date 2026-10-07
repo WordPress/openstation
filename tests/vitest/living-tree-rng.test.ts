@@ -1,12 +1,3 @@
-/**
- * The Living Tree — determinism of the seeded PRNG.
- *
- * The whole "same site → same skeleton, different sites → different
- * trees" guarantee (docs/living-tree-algorithm.md §A.2) rests on
- * `hash32` + `mulberry32` being deterministic and well-behaved. Unlike
- * the growth/render modules (scaffold stubs), these two are implemented,
- * so these tests are live.
- */
 import { describe, expect, test } from 'vitest';
 import { hash32, mulberry32 } from '../../src/plugins/living-tree-wallpaper/rng';
 

@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the agent-oriented abilities — registration annotations,
- * the `desktop-mode/get-post` read gates and the `desktop-mode/get-media`
- * execute/permission lifecycle.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-agents
- */
+
 class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 
 	protected static $author_id;
@@ -45,12 +35,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * All three agent abilities register under the openstation
-	 * category with truthful readonly annotations.
-	 *
-	 * @covers ::openstation_agents_register_abilities
-	 */
 	public function test_registration_and_annotations() {
 		$expectations = array(
 			'desktop-mode/get-post'     => true,
@@ -69,13 +53,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * A Subscriber can read the body of a plain published post — the
-	 * baseline the password check must not break.
-	 *
-	 * @covers ::openstation_agents_ability_get_post
-	 * @covers ::openstation_agents_ability_get_post_can
-	 */
 	public function test_get_post_returns_body_for_subscriber_on_public_post() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -87,12 +64,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( self::$post_id, $out['id'] );
 	}
 
-	/**
-	 * A password-protected post's body stays sealed from a Subscriber:
-	 * `read_post` covers visibility, never the password.
-	 *
-	 * @covers ::openstation_agents_ability_get_post_can
-	 */
 	public function test_get_post_denies_subscriber_on_password_protected_post() {
 		$protected_id = self::factory()->post->create(
 			array(
@@ -110,12 +81,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertWPError( $out );
 	}
 
-	/**
-	 * A caller who can edit the post still reads its raw body even when
-	 * it carries a password — the same escape hatch Core grants.
-	 *
-	 * @covers ::openstation_agents_ability_get_post_can
-	 */
 	public function test_get_post_allows_editor_on_password_protected_post() {
 		$protected_id = self::factory()->post->create(
 			array(
@@ -134,15 +99,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'Secret body.', $out['content'] );
 	}
 
-	/**
-	 * get-post follows Core's single-read rule for post types without a
-	 * public front end: a published row of such a type is read only by a
-	 * caller who can edit it, because `read_post` on a published row
-	 * resolves to plain `read`. Refused for a Subscriber, and the body
-	 * does not come back.
-	 *
-	 * @covers ::openstation_agents_ability_get_post_can
-	 */
 	public function test_get_post_denies_subscriber_on_non_viewable_post_type() {
 		$ledger_id = $this->create_non_viewable_post();
 		wp_set_current_user( self::$subscriber_id );
@@ -156,11 +112,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'Ledger body.', (string) wp_json_encode( $out->get_all_error_data() ) );
 	}
 
-	/**
-	 * The same row reads normally for a caller holding `edit_post` on it.
-	 *
-	 * @covers ::openstation_agents_ability_get_post_can
-	 */
 	public function test_get_post_allows_editor_on_non_viewable_post_type() {
 		$ledger_id = $this->create_non_viewable_post();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
@@ -173,11 +124,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'Ledger body.', $out['content'] );
 	}
 
-	/**
-	 * A published row of a registered post type with no public front end.
-	 *
-	 * @return int Post id.
-	 */
 	private function create_non_viewable_post() {
 		register_post_type(
 			'os_test_ledger',
@@ -196,9 +142,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_agents_ability_get_media
-	 */
 	public function test_get_media_returns_details_for_author() {
 		wp_set_current_user( self::$author_id );
 
@@ -216,12 +159,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( self::$post_id, $out['attachedTo'] );
 	}
 
-	/**
-	 * `upload_files` is the gate — a subscriber-role caller (or agent)
-	 * is refused by the ability's own permission callback.
-	 *
-	 * @covers ::openstation_agents_ability_get_media_can
-	 */
 	public function test_get_media_denied_without_upload_files() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -232,14 +169,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertWPError( $out );
 	}
 
-	/**
-	 * get-media applies Core's rule for attached media: a file attached
-	 * to a post defers to that post's readability. An Author holding
-	 * `upload_files` is refused a file attached to someone else's private
-	 * post, and neither the caption nor the parent id comes back.
-	 *
-	 * @covers ::openstation_agents_ability_get_media_can
-	 */
 	public function test_get_media_denied_when_parent_post_is_unreadable() {
 		$private_parent = self::factory()->post->create(
 			array(
@@ -267,9 +196,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'Private caption.', (string) wp_json_encode( $out->get_all_error_data() ) );
 	}
 
-	/**
-	 * @covers ::openstation_agents_ability_get_media
-	 */
 	public function test_get_media_unknown_id_errors() {
 		wp_set_current_user( self::$author_id );
 
@@ -281,12 +207,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_media_not_found', $out->get_error_code() );
 	}
 
-	/**
-	 * A non-attachment post id is refused — the ability reads media,
-	 * not arbitrary posts.
-	 *
-	 * @covers ::openstation_agents_ability_get_media
-	 */
 	public function test_get_media_rejects_non_attachment() {
 		wp_set_current_user( self::$author_id );
 
@@ -298,9 +218,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_media_not_found', $out->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_agents_ability_update_media
-	 */
 	public function test_update_media_writes_alt_and_title() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
@@ -321,13 +238,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'Portrait, cropped', get_post( self::$attachment_id )->post_title );
 	}
 
-	/**
-	 * Editing someone else's attachment requires the same capability
-	 * wp-admin does — an author-role caller who doesn't own it is
-	 * refused.
-	 *
-	 * @covers ::openstation_agents_ability_update_media_can
-	 */
 	public function test_update_media_denied_without_edit_capability() {
 		wp_set_current_user( self::$author_id );
 
@@ -340,9 +250,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertWPError( $out );
 	}
 
-	/**
-	 * @covers ::openstation_agents_ability_create_post
-	 */
 	public function test_create_post_is_always_a_draft_by_the_caller() {
 		wp_set_current_user( self::$author_id );
 
@@ -363,11 +270,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'Traducción: hola', $post->post_title );
 	}
 
-	/**
-	 * Page creation gates on `edit_pages`, which authors lack.
-	 *
-	 * @covers ::openstation_agents_ability_create_post_can
-	 */
 	public function test_create_page_denied_for_authors() {
 		wp_set_current_user( self::$author_id );
 
@@ -381,12 +283,6 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertWPError( $out );
 	}
 
-	/**
-	 * An agent whose allowlist includes get-media can read media
-	 * through the runner when its role carries `upload_files`.
-	 *
-	 * @covers ::openstation_agent_runner_dispatch_tool
-	 */
 	public function test_agent_can_dispatch_get_media() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 		$agent = openstation_agent_create(

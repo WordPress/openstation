@@ -1,9 +1,3 @@
-/**
- * The pages — the built-in ones in the order the sidebar lists them,
- * interleaved by `order` with every tab a plugin registered through
- * `wp.os.registerSettingsTab()`.
- */
-
 import { __, html, type TemplateResult } from '@openstation/app';
 import {
 	listSettingsTabs,
@@ -27,27 +21,17 @@ export interface PageRow {
 	id: string;
 	order: number;
 	label: string;
-	/** The sidebar glyph, when the page has one. */
+
 	icon?: () => SVGSVGElement;
 	panel: ( s: OsSettingsState, ctx: Ctx ) => TemplateResult;
-	/** `<os-panel padding>` override — About owns its own spacing. */
+
 	padding?: string;
-	/** A registry tab; its body is mounted imperatively into the host. */
+
 	tab?: DesktopSettingsTab;
 }
 
-/** The host element a registry tab paints into. */
 export const tabHostAttr = ( id: string ): string => `os-settings-tab-host-${ id }`;
 
-/**
- * The heading a page opens with, and the sentence under it.
- *
- * The sidebar names the page in 14px Regular, which is enough to pick
- * it and not enough to arrive at it. This is the same word again at
- * the size of a title, plus the one line that says what the page is
- * FOR, which is the thing the nav has no room to say. Rendered by the
- * frame rather than by each section so the pages cannot drift apart.
- */
 export function pageHeader( title: string, description = '' ): TemplateResult {
 	return html`
 		<header class="os-settings__page-header">
@@ -57,29 +41,10 @@ export function pageHeader( title: string, description = '' ): TemplateResult {
 	`;
 }
 
-/**
- * Capability → visibility gate. The shell collapses capability to a
- * simple admin-or-everyone distinction: `manage_options` requires
- * admin; anything else (including empty) is visible to everyone.
- */
 function isTabVisible( tab: DesktopSettingsTab, isAdmin: boolean ): boolean {
 	return tab.capability === 'manage_options' ? isAdmin : true;
 }
 
-/**
- * Which band of the sidebar a page belongs to.
- *
- * The nav is three groups separated by a gap and nothing else. The
- * band is derived from `order` rather than declared per row, and that
- * is what makes the grouping survive third-party tabs: the registry
- * has no group field, but a plugin that registers at 15 already means
- * "next to Appearance and Themes". Tabs that take the registry default
- * (100) land in the last group.
- *
- * 1. The desktop itself: Appearance, Themes, Windows.
- * 2. What is running on it: Navigation, Features.
- * 3. The system: Components, About, and anything unplaced.
- */
 export function navGroup( order: number ): number {
 	if ( order < 20 ) {
 		return 1;
@@ -87,7 +52,6 @@ export function navGroup( order: number ): number {
 	return order < 40 ? 2 : 3;
 }
 
-/** The built-in pages plus the registry's, sorted by `order`. */
 export function pageRows( ctx: Ctx ): PageRow[] {
 	const isAdmin = ctx.data.isAdmin;
 	const rows: PageRow[] = [
@@ -102,9 +66,7 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 			) }${ renderAppearance( s, wallpaperSection( s, c ), c ) }`,
 		},
 		{
-			// Between Appearance and the rest: a desktop theme is a
-			// coarser version of what Appearance does, so it reads as
-			// the next step, not a separate concern.
+
 			id: 'themes',
 			order: 12,
 			label: __( 'Themes' ),
@@ -125,9 +87,7 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 			) }${ renderWindows( s, c ) }`,
 		},
 		{
-			// No description: the page's opening sentence names the
-			// rails the user is actually looking at, which the split
-			// layout changes, so the section owns it.
+
 			id: 'navigation',
 			order: 22,
 			label: __( 'Navigation' ),
@@ -135,8 +95,7 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 			panel: ( s, c ) => html`${ pageHeader( __( 'Navigation' ) ) }${ renderNavigation( s, c ) }`,
 		},
 		{
-			// Next to Navigation: the phone is another arrangement of
-			// the same items.
+
 			id: 'mobile',
 			order: 24,
 			label: __( 'Mobile' ),
@@ -169,10 +128,7 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 			) }${ renderComponents( s, c ) }`,
 		} );
 	}
-	// About — pinned to the very end with a sentinel order so it stays
-	// last regardless of third-party tabs (which default to 100).
-	// Visible to every user; `padding="0"` lets the editorial surface
-	// own its spacing without inheriting the generic panel frame.
+
 	rows.push( {
 		id: 'about',
 		order: Number.MAX_SAFE_INTEGER,
@@ -198,13 +154,6 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 	return rows;
 }
 
-/**
- * Paint every registry tab whose host is on screen and not yet
- * painted with THIS registration. The host survives repaints (the
- * renderer diffs in place), so a tab renders once per registration —
- * and again after a re-register, or after a reshaped page remounted
- * its host. Called after every paint.
- */
 export function mountRegistryTabs( ctx: Ctx, rows: PageRow[] ): void {
 	const ui = uiOf( ctx );
 	for ( const row of rows ) {
@@ -224,29 +173,13 @@ export function mountRegistryTabs( ctx: Ctx, rows: PageRow[] ): void {
 				subscribeOsSettings: subscribe,
 			} );
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( '[openstation] settings tab render threw:', tab.id, err );
 		}
 	}
 }
 
-/**
- * Attributes across the `<os-*>` kit that carry text a person reads.
- * A component renders them inside its own shadow root, so none of
- * them is light-DOM text no matter how prominent it looks on screen —
- * and every section title in the panel is one of them.
- */
 const TEXT_ATTRIBUTES = [ 'heading', 'description', 'label', 'aria-label', 'placeholder' ] as const;
 
-/**
- * What each page can be found by: built from the rendered panes
- * rather than a hand-kept keyword list, so typing "corners" finds
- * Windows, "galaxy" finds Appearance, "beta" finds Features — none of
- * which is a page name. Every pane is in the DOM from the first paint
- * (toggled with `hidden`, not mounted on demand), so their text is
- * readable without showing anything. Rebuilt when the search changes
- * so newly rendered registry content is included.
- */
 export function buildSearchIndex( root: HTMLElement, rows: PageRow[] ): Map< string, string > {
 	const index = new Map< string, string >();
 	for ( const row of rows ) {

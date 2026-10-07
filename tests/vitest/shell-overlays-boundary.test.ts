@@ -1,34 +1,3 @@
-/**
- * The lazy `shell-overlays` bundle must stay reachable, and stay lazy.
- *
- * The bug this file exists to prevent shipped once and hid for
- * months. `src/shell-overlays/loader.ts` decided whether its bundle
- * was already in the tab by asking
- * `customElements.get( 'os-confirm-dialog' )` — a tag the bundle
- * registers. Then a one-line event-name constant imported from
- * `item-visibility-menu.ts` (a lazy bundle's ENTRY) dragged that
- * entry's whole tree, including the dialog component, into
- * `desktop.min.js`. The tag was now registered at boot, the loader
- * read "already loaded" before fetching anything, and the bundle was
- * never requested on any page.
- *
- * Nothing failed. `<os-context-menu>` — registered by that bundle
- * and by nothing else in the shell — simply stopped upgrading, so
- * right-clicking the wallpaper or a desktop icon appended an inert
- * element and opened no menu. It went unnoticed because
- * `my-wordpress.min.js` was still enqueued on every admin page and
- * happens to import the same component; the moment that bundle went
- * lazy for its own good reasons, the menus went with it.
- *
- * Two invariants, one per failure surface:
- *
- *   1. Readiness is a flag ONLY this bundle sets. Never a component
- *      tag — any tag can arrive from any bundle.
- *   2. The main bundle's reach into the overlay components stays
- *      pinned. Each entry below is weight on every admin page, and
- *      an unreviewed addition is how the leak grew in the first
- *      place.
- */
 import { describe, expect, test } from 'vitest';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -38,33 +7,12 @@ const MAIN_ENTRY = resolve( ROOT, 'src/desktop.ts' );
 const OVERLAYS_ENTRY = resolve( ROOT, 'src/shell-overlays/entry.ts' );
 const LOADER = resolve( ROOT, 'src/shell-overlays/loader.ts' );
 
-/** The flag `entry.ts` sets and `loader.ts` polls. */
 const READINESS_FLAG = 'openStationShellOverlays';
 
-/**
- * Overlay components the main bundle is knowingly allowed to pull
- * in, with the render site that needs the tag upgraded whether or
- * not the lazy bundle has landed.
- *
- * Adding a name here is a deliberate trade — the component's class
- * and styles ship on every admin page — so it wants the same
- * scrutiny as any other boot-path addition. Removing one is free.
- */
 const ALLOWED_IN_MAIN: Readonly< Record< string, string > > = {
-	// os-toast, os-window-button and os-save-status left this list
-	// when the share modal moved to the `files-overlays` bundle and
-	// the notes layer to the `notes` bundle — the shell-bundle diet
-	// (see `shell-bundle-boundary.test.ts`) took their importers with
-	// it. os-button followed when the Preferences panel became the
-	// `apps/os-settings/` app: the wallpaper section that rendered it
-	// now lives in the app's own bundle.
+
 };
 
-/**
- * Resolve one relative import specifier to a file on disk, the way
- * Vite would. Bare specifiers are out of scope — nothing in the
- * overlay kit is reached through one.
- */
 function resolveSpecifier( spec: string, from: string ): string | null {
 	if ( ! spec.startsWith( '.' ) ) {
 		return null;
@@ -80,10 +28,6 @@ function resolveSpecifier( spec: string, from: string ): string | null {
 
 const depsCache = new Map< string, string[] >();
 
-/**
- * Runtime imports of one module. `import type` is skipped — it is
- * erased before the bundler sees it and cannot register a component.
- */
 function runtimeDeps( file: string ): string[] {
 	const cached = depsCache.get( file );
 	if ( cached ) {
@@ -114,7 +58,6 @@ function runtimeDeps( file: string ): string[] {
 	return out;
 }
 
-/** Every module the bundler would pull into `entry`'s bundle. */
 function reachableFrom( entry: string ): Set< string > {
 	const seen = new Set< string >();
 	const stack = [ entry ];
@@ -129,7 +72,6 @@ function reachableFrom( entry: string ): Set< string > {
 	return seen;
 }
 
-/** Component modules the overlays entry side-effect-imports, by tag. */
 function overlayComponents(): Map< string, string > {
 	const source = readFileSync( OVERLAYS_ENTRY, 'utf8' );
 	const out = new Map< string, string >();
@@ -150,10 +92,7 @@ describe( 'shell-overlays readiness', () => {
 	test( 'the loader never infers readiness from a component tag', () => {
 		const loader = readFileSync( LOADER, 'utf8' );
 		expect( loader ).toContain( READINESS_FLAG );
-		// `customElements.get( … )` here is the original bug: every
-		// tag this bundle registers can also be registered by another
-		// bundle, so a tag says nothing about whether THIS bundle
-		// loaded. Only the flag does.
+
 		const code = loader.replace( /\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '' );
 		expect( code ).not.toContain( 'customElements' );
 	} );
@@ -163,8 +102,7 @@ describe( 'shell-overlays bundle boundary', () => {
 	const components = overlayComponents();
 
 	test( 'the overlays entry still owns a component kit', () => {
-		// Guards the two tests below against silently passing if the
-		// entry is restructured and the import scrape stops matching.
+
 		expect( components.size ).toBeGreaterThan( 5 );
 		expect( components.has( 'os-context-menu' ) ).toBe( true );
 	} );

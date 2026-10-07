@@ -1,29 +1,3 @@
-/**
- * `<os-panel>` — padded, flex-column container matching the
- * conventional inset + rhythm of a native-window body. Native
- * windows default to an unpadded body so plugins don't fight the
- * padding when they want edge-to-edge content (Gutenberg canvas,
- * a calculator keypad, custom canvas art). `<os-panel>` is the
- * opt-in for "I want the default padded layout every OS-Settings-
- * style panel ships with."
- *
- * Usage:
- *
- *   <os-panel>
- *     <os-section heading="Look">…</os-section>
- *     <os-section heading="Feel">…</os-section>
- *   </os-panel>
- *
- * Attributes:
- *   - `gap`     — px between children (default 12).
- *   - `padding` — px inset around children (default 16). Pass `0`
- *                 to drop the inset without losing the flex layout.
- *
- * Behavior is pure CSS; no JS state. Equivalent hand-rolled
- * markup:
- *   <div style="padding:16px;display:flex;flex-direction:column;gap:12px">…</div>
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-panel.styles';
 

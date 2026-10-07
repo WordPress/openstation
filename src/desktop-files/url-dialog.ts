@@ -1,42 +1,27 @@
-/**
- * OpenStation — "New web link / window" dialog.
- *
- * Two-field modal (name + URL) used by the wallpaper context menu's
- * "New" submenu. Title / labels / submit copy are configurable so
- * the same dialog renders for both `link` (opens in browser) and
- * `embed` (opens in iframe window) flows.
- *
- * Mirrors the create-folder dialog's structure (overlay, focused
- * input, Escape/Enter, busy state, error) so the shell's two
- * built-in modals feel identical. Built on the framework's
- * `<os-text-field>` so it inherits keyboard nav, focus styling,
- * and color-scheme tokens for free.
- */
-
 import { applyFilters, doAction } from '../hooks';
-// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
+
 import { focusField, readFieldValue, setControlDisabled } from './dialog-fields';
 
 const ROOT_CLASS = 'os-url-dialog';
 
 export interface UrlDialogOptions {
-	/** Heading copy. */
+
 	title: string;
-	/** Helper line below the heading. Optional. */
+
 	description?: string;
-	/** Label for the name input. Defaults to 'Name'. */
+
 	nameLabel?: string;
-	/** Label for the URL input. Defaults to 'URL'. */
+
 	urlLabel?: string;
-	/** Initial name. */
+
 	initialName?: string;
-	/** Initial URL. */
+
 	initialUrl?: string;
-	/** Submit button copy. Defaults to 'Create'. */
+
 	submitLabel?: string;
-	/** Called with `{ name, url }` on submit. May return a Promise. */
+
 	onSubmit: ( values: { name: string; url: string } ) => Promise< unknown > | unknown;
-	/** Optional cancel callback. */
+
 	onCancel?: () => void;
 }
 
@@ -56,11 +41,9 @@ export function closeUrlDialog(): void {
 	doAction( 'os.files.url-dialog.closed', {} );
 }
 
-/** Open the dialog. */
 export function openUrlDialog( options: UrlDialogOptions ): void {
 	closeUrlDialog();
 
-	// Plugins can short-circuit by returning `false`.
 	const decision = applyFilters< unknown, [ UrlDialogOptions ] >(
 		'os.files.url-dialog',
 		null,
@@ -139,8 +122,6 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 	document.body.appendChild( overlay );
 	active = overlay;
 
-	// Focus the name field on open. Web components upgrade async,
-	// so the helper retries on the next microtask.
 	focusField( nameField );
 
 	doAction( 'os.files.url-dialog.opened', {} );
@@ -169,11 +150,9 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 			showError( 'Please enter a URL.' );
 			return;
 		}
-		// Coerce bare hostnames into a fully-qualified https:// URL.
+
 		const finalUrl = /^[a-z][a-z0-9+\-.]*:/i.test( url ) ? url : `https://${ url }`;
 		try {
-			// Validate by parsing.
-			// eslint-disable-next-line no-new
 			new URL( finalUrl );
 		} catch {
 			showError( 'That doesn\'t look like a valid URL.' );
@@ -200,7 +179,6 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 		}
 	} );
 
-	// Submit on Enter from either field; Escape cancels.
 	const onKey = ( e: KeyboardEvent ): void => {
 		if ( e.key === 'Escape' ) {
 			e.preventDefault();

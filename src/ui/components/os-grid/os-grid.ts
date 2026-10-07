@@ -1,29 +1,3 @@
-/**
- * `<os-grid>` — neutral CSS grid container. The twin of
- * `<os-stack>` + `<os-cluster>` for 2-dimensional layouts.
- *
- * Usage:
- *
- *   <os-grid columns="4" rows="5" gap="8">
- *     <os-button>7</os-button>
- *     <os-button>8</os-button>
- *     <os-button>9</os-button>
- *     <os-button variant="primary">÷</os-button>
- *     …
- *   </os-grid>
- *
- * Attributes:
- *   - `columns` — integer column count (default 1).
- *   - `rows`    — integer row count (default `auto`; omit for
- *                 content-driven sizing).
- *   - `gap`     — px between grid cells.
- *   - `column-gap`, `row-gap` — per-axis overrides.
- *
- * No `role` is emitted — this is a pure layout primitive.
- * Accessibility semantics are the caller's choice (wrap in
- * `role="grid"` or `role="radiogroup"` if warranted).
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-grid.styles';
 
@@ -86,7 +60,6 @@ export class OsGrid extends Component {
 	private availableWidth = 0;
 	private overrides = new Map< string, { value: string; priority: string } >();
 
-	/** Attribute overrides temporarily own a token; removing them restores caller styles. */
 	private overrideToken( name: string, value: string | null ): void {
 		if ( value !== null ) {
 			if ( ! this.overrides.has( name ) ) {

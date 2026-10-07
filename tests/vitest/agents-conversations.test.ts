@@ -1,7 +1,3 @@
-/**
- * Unit tests for `src/agents-conversations.ts` — the persistence
- * primitive: create on first save, replace afterwards, never throw.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { agentsChatStore } from '../../src/agents-chat-store';
 import {

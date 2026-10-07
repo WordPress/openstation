@@ -1,4 +1,3 @@
-/** Private, validated Preferences actions. No global command/ability registration. */
 import type { MioAbility } from '../../../src/mio/assistant/types';
 import type { OsSettingsState } from '../../../src/settings/types';
 import { settings, update, applyThemeRecommendations, spendMenuRefresh } from './store';
@@ -27,7 +26,6 @@ export const exactKeys = ( args: Record<string, unknown>, keys: string[] ): bool
 const hex = ( value: unknown ): value is string =>
 	typeof value === 'string' && /^#[0-9a-f]{6}$/i.test( value );
 
-/** The schema and execution validation are generated from the same live choices. */
 export function preferencesMioAbilities( ctx: Ctx ): MioAbility[] {
 	const patch = async ( value: Partial<OsSettingsState>, signal: AbortSignal ) => {
 		const result = await saveForMio( () => update( value ), signal, value );

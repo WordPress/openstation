@@ -1,52 +1,7 @@
 <?php
-/**
- * OpenStation — request routing helpers.
- *
- * Chromeless / classic admin-bar suppression and the
- * `wp_redirect` filter pair that re-stamps the openstation
- * flags onto server-built redirects. Extracted from the
- * 1,609-LOC `helpers.php` during the architecture-0.8.1 PHP
- * slicing (phase 6).
- *
- * Behaviour is unchanged. Plugins that registered against any of
- * these filters keep working: PHP looks function references up by
- * name at hook-fire time, and `desktop-mode.php` requires this
- * file before `helpers.php`, so the function definitions are
- * always present by the time WordPress wants them.
- *
- * Functions in this file:
- *   - {@see openstation_url_is_same_admin()}      — same-origin admin URL predicate
- *   - {@see openstation_url_is_page_less_admin_php()} — "renders nothing" predicate
- *   - {@see openstation_resolve_admin_target()}   — admin filename → URL resolver
- *   - {@see openstation_admin_target_allowlist()} — wp-admin filename allowlist
- *   - {@see openstation_is_chromeless_request()}  — chromeless request detection
- *   - {@see openstation_is_classic_request()}     — classic-override request detection
- *   - {@see openstation_is_subresource_request()} — sub-resource fetch detection
- *   - {@see openstation_chromeless_hide_admin_bar()} — `show_admin_bar` filter
- *   - {@see openstation_chromeless_suppress_admin_bar()} — `admin_init` action
- *   - {@see openstation_chromeless_preserve_redirect()} — `wp_redirect` filter
- *   - {@see openstation_classic_preserve_redirect()}    — `wp_redirect` filter
- *   - {@see openstation_is_admin_redirect_target()}     — internal predicate
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Returns true when `$url` is a same-origin admin URL.
- *
- * Uses parsed-URL host + path comparison rather than a prefix
- * `strpos` check so `//evil.com/wp-admin/…` or a URL whose
- * normalisation happens to share the admin-URL prefix can't
- * sneak through.
- *
- * An empty string returns false — a missing URL is never
- * "same-origin admin" for the purposes of any caller.
- *
- * @param string $url URL to test.
- * @return bool
- */
 function openstation_url_is_same_admin( $url ) {
 	if ( ! is_string( $url ) || '' === $url ) {
 		return false;
@@ -58,46 +13,17 @@ function openstation_url_is_same_admin( $url ) {
 		return false;
 	}
 
-	// Host comparison is case-insensitive per RFC 3986. Missing
-	// host on the tested URL (relative or scheme-only) is a
-	// reject — callers should only be handing us fully-qualified
-	// URLs.
 	$url_host   = isset( $parts['host'] ) ? strtolower( $parts['host'] ) : '';
 	$admin_host = isset( $admin_parts['host'] ) ? strtolower( $admin_parts['host'] ) : '';
 	if ( '' === $url_host || $url_host !== $admin_host ) {
 		return false;
 	}
 
-	// Path comparison is case-sensitive. The admin path always
-	// ends in `/` (e.g. `/wp-admin/`), so a prefix test is
-	// accurate — nothing at `/wp-administrator/…` can match.
 	$url_path   = isset( $parts['path'] ) ? $parts['path'] : '';
 	$admin_path = isset( $admin_parts['path'] ) ? $admin_parts['path'] : '/wp-admin/';
 	return 0 === strpos( $url_path, $admin_path );
 }
 
-/**
- * Whether `$url` addresses `wp-admin/admin.php` with no `page` arg.
- *
- * `admin.php` is core's plugin-screen bootstrap, and the allowlist in
- * {@see openstation_admin_target_allowlist()} accepts it for exactly
- * that reason — every plugin screen in the admin lives there. Without
- * a `page` arg, though, there is no screen to dispatch to: core falls
- * through the last `else` in `wp-admin/admin.php`, fires a couple of
- * back-compat `load-*` hooks, and returns 200 with an empty body,
- * having required neither `admin-header.php` nor `admin-footer.php`.
- *
- * So the URL resolves, passes every same-origin and allowlist check,
- * and renders nothing. Callers that are about to turn a URL into a
- * window or a redirect target use this to refuse it and fall back.
- *
- * Accepts absolute URLs and request-URI-shaped paths, mirroring
- * {@see openstation_url_is_shell_screen()}, whose guard this sits
- * beside at every call site.
- *
- * @param string $url URL or path to test.
- * @return bool
- */
 function openstation_url_is_page_less_admin_php( $url ) {
 	if ( ! is_string( $url ) || '' === $url ) {
 		return false;
@@ -113,28 +39,10 @@ function openstation_url_is_page_less_admin_php( $url ) {
 		return true;
 	}
 
-	// `page=` present but empty is the same nothing: core only sets
-	// `$plugin_page` from a non-empty `?page=`. An array (`page[]=x`)
-	// is not a slug either.
 	parse_str( $query, $args );
 	return ! isset( $args['page'] ) || ! is_string( $args['page'] ) || '' === $args['page'];
 }
 
-/**
- * Resolves an admin-page filename (e.g. `edit.php`) to its
- * absolute admin URL, allowlisted against the canonical set of
- * wp-admin top-level filenames.
- *
- * Returns a `WP_Error` when the input contains path traversal,
- * isn't a bare `.php` filename, or points at a file that doesn't
- * exist in the static allowlist. A regex-only check would accept
- * `custom_admin_page.php` if a plugin named something that way;
- * the explicit allowlist closes that.
- *
- * @param string $file    Bare admin filename (no path, no query string).
- * @param bool   $network Resolve against the network admin's own screens.
- * @return string|WP_Error Absolute admin URL on success, `WP_Error` otherwise.
- */
 function openstation_resolve_admin_target( $file, $network = false ) {
 	$file = is_string( $file ) ? trim( $file ) : '';
 	if ( '' === $file ) {
@@ -151,10 +59,6 @@ function openstation_resolve_admin_target( $file, $network = false ) {
 		);
 	}
 
-	// Lowercase match mirrors WP's filesystem assumptions on
-	// case-insensitive volumes (macOS, Windows). The allowlist
-	// below is the final arbiter; this regex just pre-filters
-	// clearly bad inputs cheaply.
 	if ( ! preg_match( '/^[a-z0-9_-]+\.php$/i', $file ) ) {
 		return new WP_Error(
 			'openstation_invalid_target',
@@ -181,16 +85,6 @@ function openstation_resolve_admin_target( $file, $network = false ) {
 	return admin_url( $file );
 }
 
-/**
- * Canonical `wp-admin/network/` filenames a target may resolve to.
- *
- * The network admin's own screens, and only those: the site allowlist
- * cannot stand in for it, since the two directories share filenames
- * that mean different things (`users.php` is everyone on the network
- * here, one site's users there).
- *
- * @return string[]
- */
 function openstation_network_admin_target_allowlist() {
 	return array(
 		'index.php',
@@ -218,19 +112,6 @@ function openstation_network_admin_target_allowlist() {
 	);
 }
 
-/**
- * Returns the allowlist of canonical wp-admin top-level
- * filenames that {@see openstation_resolve_admin_target()}
- * accepts.
- *
- * Hardcoded rather than read from disk so the plugin doesn't
- * depend on a particular WordPress install layout (and doesn't
- * reference `ABSPATH` to probe core files). Plugins that ship
- * their own top-level admin pages (rare) can extend the list
- * via the filter.
- *
- * @return string[] Lowercased filenames including extension.
- */
 function openstation_admin_target_allowlist() {
 	$files = array(
 		'about.php',
@@ -322,58 +203,21 @@ function openstation_admin_target_allowlist() {
 		'widgets.php',
 	);
 
-	/**
-	 * Filters the wp-admin filename allowlist used when resolving
-	 * portal `target=` query args.
-	 *
-	 * @param string[] $files Default allowlist.
-	 */
 	$files = (array) apply_filters( 'openstation_admin_target_allowlist', $files );
 
 	return array_values( array_unique( array_map( 'strtolower', array_filter( $files, 'is_string' ) ) ) );
 }
 
-/**
- * Checks whether the current request is a chromeless request.
- *
- * Chromeless requests are admin pages loaded inside openstation
- * windows (iframes). They render only the page content without
- * the admin shell (sidebar, admin bar, footer).
- *
- * @return bool True if this is a chromeless (iframe) request.
- */
 function openstation_is_chromeless_request() {
 	if ( ! openstation_is_enabled() ) {
-		// Only allow chromeless mode if the user actually has
-		// OpenStation enabled. Prevents stripping admin chrome via
-		// a bare `?openstation_chromeless=1` parameter from a
-		// logged-out URL.
+
 		return false;
 	}
 
-	// Primary signal — the explicit query flag the parent shell
-	// adds when opening windows.
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
 	if ( ! empty( $_GET['openstation_chromeless'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['openstation_chromeless'] ) ) ) {
 		return true;
 	}
 
-	// Fallback signal — the request is a same-origin iframe load.
-	// Modern browsers (Chrome 80+, Firefox 90+, Safari 16.4+) send
-	// the `Sec-Fetch-*` headers reliably, and they are immune to
-	// JavaScript spoofing (the browser sets them itself).
-	//
-	// This catches the failure mode where an internal admin
-	// navigation drops the `?openstation_chromeless=1` query flag —
-	// Gutenberg's `window.location` assignments, meta-refresh
-	// redirects, or any link the inline rewriter missed. The user
-	// is in an iframe on the same origin, has OpenStation enabled,
-	// so render as chromeless.
-	//
-	// `Sec-Fetch-Site: same-origin` is the cross-origin guard so a
-	// foreign site that iframes the wp-admin page can't trick us
-	// into stripping the chrome — the user agent reports the
-	// embedding context honestly.
 	$fetch_dest = isset( $_SERVER['HTTP_SEC_FETCH_DEST'] )
 		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_DEST'] ) )
 		: '';
@@ -381,56 +225,22 @@ function openstation_is_chromeless_request() {
 		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_SITE'] ) )
 		: '';
 	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
-		/**
-		 * Filter the Sec-Fetch fallback. Return false to require an
-		 * explicit `?openstation_chromeless=1` flag; useful for environments where a
-		 * reverse proxy strips the `Sec-Fetch-*` headers and they
-		 * can't be trusted.
-		 *
-		 * @param bool $allow Default true.
-		 */
+
 		return (bool) apply_filters( 'openstation_chromeless_sec_fetch_fallback', true );
 	}
 
 	return false;
 }
 
-/**
- * Checks whether the current request carries the "classic
- * override" flag.
- *
- * The window-chrome "Detach" action opens an admin page in a new
- * browser tab with `?desktop_mode_classic=1` so the user can view
- * that one page outside the desktop shell without disabling
- * OpenStation account-wide. The flag is a per-request override:
- * `openstation_is_enabled()` still returns true (the user's
- * preference hasn't changed), but the shell, shell assets, and
- * body class are skipped for this request so the classic admin
- * renders normally.
- *
- * Keep this separate from `openstation_is_enabled()` so the
- * admin-bar toggle in the detached tab correctly reflects the
- * account state — letting the user disable OpenStation entirely
- * from the tab if they want to.
- *
- * @return bool True if the request carries `?desktop_mode_classic=1`.
- */
 function openstation_is_classic_request() {
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
+
 	if ( empty( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) ) {
 		return false;
 	}
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
+
 	return '1' === sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) );
 }
 
-/**
- * Whether the request came from a classic-override page. A navigation
- * a page starts from script (`location.href = …`, as "Edit with
- * Elementor" does) carries no flag, but its Referer still does.
- *
- * @return bool
- */
 function openstation_is_classic_referer() {
 	if ( empty( $_SERVER['HTTP_REFERER'] ) ) {
 		return false;
@@ -444,29 +254,6 @@ function openstation_is_classic_referer() {
 	return isset( $args[ OPENSTATION_CLASSIC_FLAG ] ) && '1' === $args[ OPENSTATION_CLASSIC_FLAG ];
 }
 
-/**
- * Checks whether the browser is fetching this request as a
- * sub-resource of some page rather than navigating to it.
- *
- * Admin URLs serve more than pages. Jetpack's admin-bar sparkline is
- * an `<img>` whose src is `admin.php?page=stats&noheader&proxy&chart=…`:
- * core's `admin.php` skips the header on `noheader` and the page hook
- * echoes PNG bytes. The Jetpack Stats screen loads its report body the
- * same way, over XHR. Treating such a request as "a user landing on a
- * plain admin page" and forwarding it into the desktop hands the
- * consumer an HTML document instead: the admin bar then draws a broken
- * image with the alt text where the chart should be.
- *
- * `Sec-Fetch-Mode` is the browser's own answer, set by the user agent
- * and immune to script. `navigate` is a document or frame load, the
- * only kind of request worth forwarding into the desktop; `cors`,
- * `no-cors`, `same-origin` and `websocket` are sub-resource fetches.
- * A missing header (an old browser, a proxy that strips it) answers
- * false: not known to be a sub-resource, so callers keep behaving as
- * they always did.
- *
- * @return bool True when the request is a sub-resource fetch.
- */
 function openstation_is_subresource_request() {
 	if ( empty( $_SERVER['HTTP_SEC_FETCH_MODE'] ) ) {
 		return false;
@@ -475,19 +262,6 @@ function openstation_is_subresource_request() {
 	return '' !== $mode && 'navigate' !== $mode;
 }
 
-/**
- * Disables the admin bar on chromeless (iframe) requests.
- *
- * Hooked on the `show_admin_bar` filter so the front-end bar path
- * also sees a false return. In admin, `is_admin_bar_showing()`
- * short-circuits to true for any `is_admin()` request regardless
- * of this filter, so the actual render is stopped by
- * {@see openstation_chromeless_suppress_admin_bar()} below; this
- * filter is kept for completeness + tests.
- *
- * @param bool $show Whether the admin bar should be shown.
- * @return bool
- */
 function openstation_chromeless_hide_admin_bar( $show ) {
 	if ( openstation_is_chromeless_request() ) {
 		return false;
@@ -496,15 +270,6 @@ function openstation_chromeless_hide_admin_bar( $show ) {
 }
 add_filter( 'show_admin_bar', 'openstation_chromeless_hide_admin_bar' );
 
-/**
- * Suppresses the admin bar render inside chromeless iframes.
- *
- * `is_admin_bar_showing()` unconditionally returns true in admin
- * context, so the `show_admin_bar` filter alone can't stop
- * `wp_admin_bar_render()` from firing on `in_admin_header`. We
- * detach the render action instead and let chromeless.css hide
- * the `wp-toolbar` padding on `<html>`.
- */
 function openstation_chromeless_suppress_admin_bar() {
 	if ( openstation_is_chromeless_request() ) {
 		remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
@@ -513,65 +278,15 @@ function openstation_chromeless_suppress_admin_bar() {
 }
 add_action( 'admin_init', 'openstation_chromeless_suppress_admin_bar' );
 
-/**
- * Stops a window from BUILDING the admin bar it never draws.
- *
- * Removing the render above stops the markup. It does not stop the
- * work: `_wp_admin_bar_init()` is hooked on `admin_init`,
- * `is_admin_bar_showing()` short-circuits to true for any admin
- * request, and so every window still instantiates `WP_Admin_Bar`,
- * calls `initialize()`, and — the expensive part — calls
- * `add_menus()`, which fires `admin_bar_menu` and runs **every**
- * registered callback. Core's twenty-odd nodes, WooCommerce's,
- * Jetpack's, a host masterbar's: each one resolving links, counting
- * things, checking capabilities. The finished object is then dropped
- * on the floor, because nothing renders it.
- *
- * The shell draws a real admin bar, once. A window drawing none
- * should pay for none — this is the same asymmetry the asset trims
- * exploit, on the server side.
- *
- * **Swapping the class rather than unhooking the init** is the
- * careful way to do it. `remove_action( 'admin_init',
- * '_wp_admin_bar_init' )` would leave `$wp_admin_bar` null, and a
- * plugin that touches the global outside the `admin_bar_menu` hook —
- * bad practice, entirely real — would fatal on it. Core exposes
- * `wp_admin_bar_class` precisely for this, so a window gets a real
- * `WP_Admin_Bar` subclass that is fully functional in every respect
- * except that it never solicits nodes. `add_node()` still works,
- * `get_nodes()` still answers, the global is still an object; the
- * hook simply never fires.
- *
- * `initialize()` is deliberately left alone — it sets up the object's
- * own state and costs nothing worth reclaiming.
- *
- * @param string $class_name Admin bar class WordPress intends to instantiate.
- * @return string The silent subclass inside a window; `$class_name` untouched
- *                everywhere else, and whenever the parent class is unavailable.
- */
 function openstation_chromeless_silence_admin_bar( $class_name ) {
 	if ( ! openstation_is_chromeless_request() ) {
 		return $class_name;
 	}
 
-	/**
-	 * Filters whether a window skips building the admin bar.
-	 *
-	 * Return false to let a window construct the bar as WordPress
-	 * normally would — for a plugin that (unusually) relies on
-	 * `admin_bar_menu` firing for a side effect rather than for the
-	 * node it adds.
-	 *
-	 * @param bool $silence Defaults to true inside windows.
-	 */
 	if ( ! apply_filters( 'openstation_chromeless_silence_admin_bar', true ) ) {
 		return $class_name;
 	}
 
-	// `_wp_admin_bar_init()` requires `class-wp-admin-bar.php` before
-	// it applies this filter, so the parent is guaranteed loaded here
-	// — and only here, which is why the subclass is required lazily
-	// rather than at bootstrap.
 	if ( ! class_exists( 'WP_Admin_Bar' ) ) {
 		return $class_name;
 	}
@@ -581,11 +296,6 @@ function openstation_chromeless_silence_admin_bar( $class_name ) {
 }
 add_filter( 'wp_admin_bar_class', 'openstation_chromeless_silence_admin_bar' );
 
-/**
- * Detaches core's update / maintenance nags inside chromeless iframes so
- * they don't repeat in every window — the shell surfaces the update once
- * instead.
- */
 function openstation_chromeless_suppress_update_nags() {
 	if ( ! openstation_is_chromeless_request() ) {
 		return;
@@ -597,12 +307,6 @@ function openstation_chromeless_suppress_update_nags() {
 }
 add_action( 'admin_init', 'openstation_chromeless_suppress_update_nags' );
 
-/**
- * Detaches the remaining global core admin notices inside chromeless iframes
- * so they don't repeat in every window — the shell re-derives and surfaces
- * each once (see `openstation_get_core_notices()`). The update / maintenance
- * nags are handled by `openstation_chromeless_suppress_update_nags()`.
- */
 function openstation_chromeless_suppress_core_notices() {
 	if ( ! openstation_is_chromeless_request() ) {
 		return;
@@ -615,28 +319,6 @@ function openstation_chromeless_suppress_core_notices() {
 }
 add_action( 'admin_init', 'openstation_chromeless_suppress_core_notices' );
 
-/**
- * Keeps core's session-expired login modal (`wp-auth-check`) out of
- * chromeless iframes so the parent shell owns the single prompt.
- *
- * Every chromeless iframe runs its own Heartbeat, and by default
- * each one loads `wp-auth-check.js` + the `#wp-auth-check-wrap`
- * markup. When the session expires, N open windows meant N stacked
- * login modals — all asking for the same credentials. Returning
- * false from `wp_auth_check_load` here stops the modal assets from
- * ever loading inside iframes; the parent shell (a normal admin
- * page) keeps its copy and surfaces the one prompt over the whole
- * desktop.
- *
- * Detection is unaffected: the `wp-auth-check` heartbeat response
- * field is attached server-side (core hooks `wp_auth_check()` on
- * `heartbeat_send` / `heartbeat_nopriv_send`), so the bridge's
- * stale-nonce recovery in `chromeless-bridge.php` still sees the
- * logged-out → logged-in flip without the modal JS.
- *
- * @param bool $show Whether to load the authentication check.
- * @return bool
- */
 function openstation_chromeless_suppress_auth_check( $show ) {
 	if ( openstation_is_chromeless_request() ) {
 		return false;
@@ -645,26 +327,6 @@ function openstation_chromeless_suppress_auth_check( $show ) {
 }
 add_filter( 'wp_auth_check_load', 'openstation_chromeless_suppress_auth_check' );
 
-/**
- * Preserves the `openstation_chromeless` flag through admin
- * redirects.
- *
- * A chromeless iframe can be navigated away from chromeless mode
- * by any redirect that drops the query string —
- * `wp_redirect( admin_url( 'edit.php' ) )` after saving a
- * classic-editor post is the canonical example. The client-side
- * form interceptor handles the outgoing request, but the
- * server-built redirect URL is what the browser follows.
- * Re-append the flag here so the landing page stays chromeless
- * and the window doesn't "break out" into a nested admin.
- *
- * Scope is intentionally narrow: only same-site admin URLs are
- * touched, and only when the current request is itself
- * chromeless. Anything else passes through unchanged.
- *
- * @param string $location The redirect URL.
- * @return string The redirect URL, with `openstation_chromeless=1` appended when applicable.
- */
 function openstation_chromeless_preserve_redirect( $location ) {
 	if ( empty( $location ) || ! openstation_is_chromeless_request() ) {
 		return $location;
@@ -674,7 +336,6 @@ function openstation_chromeless_preserve_redirect( $location ) {
 		return $location;
 	}
 
-	// Don't double-append if the URL already carries the flag.
 	if ( false !== strpos( $location, 'openstation_chromeless=' ) ) {
 		return $location;
 	}
@@ -683,25 +344,6 @@ function openstation_chromeless_preserve_redirect( $location ) {
 }
 add_filter( 'wp_redirect', 'openstation_chromeless_preserve_redirect', 999 );
 
-/**
- * Preserves the `desktop_mode_classic` flag through admin
- * redirects.
- *
- * The detached-tab workflow depends on the classic flag living
- * on every same-tab navigation — otherwise a `wp_redirect()`
- * after saving a post (for instance) would drop it and the very
- * next page would fall back into the desktop shell. The JS
- * interceptor stamps the flag onto every outbound link and form,
- * but it can't touch server-built redirect URLs.
- *
- * Scope mirrors the chromeless preserver: only same-site
- * wp-admin targets, only when the current request is itself a
- * classic-override request, and the flag is never appended
- * twice.
- *
- * @param string $location The redirect URL.
- * @return string The redirect URL, with `desktop_mode_classic=1` appended when applicable.
- */
 function openstation_classic_preserve_redirect( $location ) {
 	if ( empty( $location ) || ! openstation_is_classic_request() ) {
 		return $location;
@@ -719,27 +361,6 @@ function openstation_classic_preserve_redirect( $location ) {
 }
 add_filter( 'wp_redirect', 'openstation_classic_preserve_redirect', 999 );
 
-/**
- * Whether `$location` is a redirect target that lands inside
- * wp-admin on the current site. Handles all four shapes WP core
- * actually emits:
- *
- *   - Absolute, same-host:    `https://example.com/wp-admin/users.php?...`
- *   - Absolute path:          `/wp-admin/users.php?...`
- *   - Relative to wp-admin:   `users.php?update=add&id=42` (used by
- *                              `user-new.php`, `edit-tags.php`, and
- *                              quite a few other core admin scripts)
- *   - Same-host without path: `?paged=2`
- *
- * Off-site redirects (login → external SSO, e.g.) and frontend
- * redirects (`/`, `/?p=42`) return false so we never paint our
- * query flag on URLs that don't run our admin code.
- *
- * @internal
- *
- * @param string $location Raw redirect URL handed to `wp_redirect`.
- * @return bool
- */
 function openstation_is_admin_redirect_target( $location ) {
 	$location = (string) $location;
 	if ( '' === $location ) {
@@ -751,7 +372,6 @@ function openstation_is_admin_redirect_target( $location ) {
 		return false;
 	}
 
-	// External host? Bail — we don't own that page.
 	if ( ! empty( $parts['host'] ) ) {
 		$site_host = wp_parse_url( site_url(), PHP_URL_HOST );
 		if ( $site_host && 0 !== strcasecmp( (string) $parts['host'], (string) $site_host ) ) {
@@ -761,23 +381,16 @@ function openstation_is_admin_redirect_target( $location ) {
 
 	$path = isset( $parts['path'] ) ? (string) $parts['path'] : '';
 
-	// Absolute path (URL-with-host or leading-slash variant).
 	if ( '' !== $path ) {
-		// `/wp-admin/foo.php` — definitive admin target.
+
 		if ( false !== strpos( $path, '/wp-admin/' ) ) {
 			return true;
 		}
-		// Absolute path NOT into wp-admin (e.g. `/`, `/wp-login.php`,
-		// `/wp-json/...`). Frontend or login flow — leave alone.
+
 		if ( '/' === $path[0] ) {
 			return false;
 		}
 	}
 
-	// Relative URL (or pure query string). Only safe to treat as
-	// an admin target when the redirect was issued from inside
-	// wp-admin — that's where wp_redirect( 'users.php?...' )
-	// actually resolves to /wp-admin/users.php?... at the
-	// browser. is_admin() is the canonical signal.
 	return is_admin();
 }

@@ -1,21 +1,3 @@
-/**
- * Vitest global setup — runs once per test file before any
- * `describe` / `test` block.
- *
- * Pre-registers every `<os-*>` component class that production
- * code loads lazily via the `shell-overlays[.min].js` bundle, so
- * unit tests that exercise menu / dialog / toast call paths see
- * upgraded custom elements without each test needing its own leaf
- * import.
- *
- * Production main bundle does NOT load these — that's the whole
- * point of the lazy split. The setup file is in
- * `tests/vitest/` and only runs under vitest, so esbuild's
- * tree-shake of the production build never sees it.
- *
- * Keep this list in sync with `src/shell-overlays/entry.ts`.
- */
-// Mock localStorage if it is undefined (e.g., due to jsdom configuration or Node 26 compatibility issues)
 if ( typeof window !== 'undefined' && ! window.localStorage ) {
 	const store: Record< string, string > = {};
 	Object.defineProperty( window, 'localStorage', {
@@ -35,25 +17,10 @@ if ( typeof window !== 'undefined' && ! window.localStorage ) {
 import '../../src/ui/components/os-toast/os-toast';
 import '../../src/ui/components/os-confirm-dialog/os-confirm-dialog';
 import '../../src/ui/components/os-context-menu/os-context-menu';
-// The shell's built-in modals (create-folder / rename, web link)
-// slot these two for their controls.
+
 import '../../src/ui/components/os-button/os-button';
 import '../../src/ui/components/os-text-field/os-text-field';
 
-/**
- * Pre-register the lazy `window-system[.min].js` factory.
- *
- * Production main bundle loads this via `<script>` injection on the
- * first `manager.open()` call (Stage 11). In jsdom unit tests we
- * don't fetch scripts — instead we import the `Window` class
- * directly and wire the factory by hand so
- * `ensureWindowSystemLoaded( '' )` returns the pre-registered
- * factory on its sync fast path. Tests still have to `await`
- * `manager.open()` / `openNew()` (both async) —
- * the factory just keeps the `await` resolving on the next
- * microtask instead of waiting for a script load that's never
- * going to happen.
- */
 import { Window as DesktopWindow } from '../../src/window';
 ( window as unknown as {
 	openStationWindowSystem?: { createWindow: ( cfg: unknown ) => unknown };

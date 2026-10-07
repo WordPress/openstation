@@ -1,16 +1,3 @@
-/**
- * Deferred stylesheets for on-demand shell surfaces.
- *
- * The Preferences panel, the AI assistant and the bug-report window
- * are shell-built surfaces, not native windows, so their CSS cannot
- * ride a registration's `styles` companion list. It travels in
- * `openStationConfig.deferredStyles` instead, and the surface's open
- * path injects it through `ensureDeferredStyle()`. These tests pin
- * the injector's contract: once per handle, inline blobs replayed
- * after the link, a server-printed link adopted rather than
- * duplicated, and a clean no-op when the map has nothing — a missing
- * stylesheet must never block the surface from rendering.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
 	ensureDeferredStyle,
@@ -67,7 +54,7 @@ describe( 'ensureDeferredStyle', () => {
 			'style[data-os-style-handle="os-settings"]',
 		);
 		expect( style?.textContent ).toBe( '.os-settings{color:red}' );
-		// The inline blob follows the link, matching print order.
+
 		expect(
 			link &&
 				style &&

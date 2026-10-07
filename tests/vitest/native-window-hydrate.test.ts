@@ -1,20 +1,3 @@
-/**
- * Integration guard for the "native render runs AFTER mount" contract.
- * Before the fix, `config.render( body )` was
- * called from inside the `Window` constructor — at which point the
- * window element was still a detached subtree. Custom elements in
- * that subtree hadn't been upgraded, so declarative setter writes
- * (`element.items = [...]`, `.value = ...`) stashed own data
- * properties on the pre-upgrade instances and those shadowed the
- * class setters after upgrade. Empty selects in practice.
- *
- * The fix moved the render call out of the constructor into
- * `Window.hydrateNative()`, and the window manager now invokes it
- * AFTER `desktop.appendChild( win.element )`. These tests pin that
- * contract: custom elements inside the render body must be real
- * class instances (upgraded), and declarative setters must reach
- * the class implementation.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
@@ -68,8 +51,7 @@ describe( 'WindowManager — native-window hydration order', async () => {
 			native: true,
 			render: ( body ) => {
 				isConnectedAtRenderTime = body.isConnected;
-				// Walk up to confirm the render body lives inside the
-				// manager's desktop, not a detached container.
+
 				isDesktopAncestorAtRenderTime = desktop.contains( body );
 			},
 		} );
@@ -90,11 +72,7 @@ describe( 'WindowManager — native-window hydration order', async () => {
 			native: true,
 			render: ( body ) => {
 				body.innerHTML = `<os-select></os-select>`;
-				// Same-tick write of a declarative setter — pre-0.12
-				// this would silently create an own data property on
-				// a pre-upgrade element. Post-0.12 it hits the real
-				// OsSelect setter because the body is connected and
-				// the element has already upgraded.
+
 				const sel = body.querySelector( 'os-select' ) as HTMLElement & {
 					items: ReadonlyArray<{ value: string; label: string }>;
 				};
@@ -106,9 +84,6 @@ describe( 'WindowManager — native-window hydration order', async () => {
 			},
 		} );
 
-		// Wait for the Component's render microtask to drain so the
-		// shadow listbox has picked up the options the setter
-		// queued.
 		await tick();
 		await tick();
 
@@ -126,7 +101,6 @@ describe( 'WindowManager — native-window hydration order', async () => {
 			title: 'Posts',
 		} );
 
-		// No render callback passed; window is iframe-backed.
 		expect( win.iframe ).not.toBeNull();
 		expect( win.element.isConnected ).toBe( true );
 	} );

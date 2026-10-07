@@ -1,49 +1,7 @@
-/**
- * `<os-*>` missing-import warner.
- *
- * A `<os-*>` tag that appears in the DOM without a corresponding
- * `customElements.define()` renders as an inert generic element —
- * no shadow root, no styles, no behavior, no error. That silent
- * failure is the single most common reason a developer's UI looks
- * "broken for no reason."
- *
- * This module watches the document (and every open shadow root) and
- * logs a loud, actionable `console.error` for any `os-*` tag that
- * never gets upgraded. Three distinct cases get three distinct
- * messages:
- *
- *  1. **Known tag, never registered** — the developer used a real
- *     component but forgot to side-effect-import its module. The
- *     warning includes the exact `import '<…>'` line to paste.
- *
- *  2. **Unknown tag, close to a known one** — likely a typo. The
- *     warning shows a "Did you mean <os-button>?" suggestion via
- *     Levenshtein distance against the canonical tag list.
- *
- *  3. **Unknown tag, nothing close** — invented name. The warning
- *     points the developer at the registry to discover real names.
- *
- * Race-tolerance: a tag whose definition arrives in the same task
- * (or shortly after) is NOT warned about — we wait up to
- * {@link WARN_GRACE_MS} via `customElements.whenDefined()` before
- * complaining.
- *
- * Deduping: one warning per tag for the lifetime of the page. The
- * first offending element is attached to the log so devtools can
- * jump straight to it.
- */
-
 import { OS_COMPONENT_TAGS } from './tags';
 
 const KNOWN: ReadonlySet< string > = new Set( OS_COMPONENT_TAGS );
 
-/**
- * Grace period before complaining about a missing definition. Covers
- * lazy-loaded chunks and barrel imports that resolve a tick or two
- * after the element first appears. Generous on purpose: a false
- * negative (no warning when there should be one) is worse than a
- * delayed warning.
- */
 const WARN_GRACE_MS = 2000;
 
 const warnedTags = new Set< string >();
@@ -51,10 +9,6 @@ const observedRoots = new WeakSet< Document | ShadowRoot >();
 
 let started = false;
 
-/**
- * Levenshtein distance — small inputs, no need for the rolling-row
- * trick. Used to spot typos like `<os-buton>` → `<os-button>`.
- */
 function distance( a: string, b: string ): number {
 	const m = a.length;
 	const n = b.length;
@@ -92,17 +46,11 @@ function suggest( tag: string ): string | null {
 			best = known;
 		}
 	}
-	// 3 edits is the practical ceiling for "did you mean" on a
-	// ~15-char identifier without producing absurd suggestions.
+
 	return bestD > 0 && bestD <= 3 ? best : null;
 }
 
 function folderFor( tag: string ): string {
-	// `os-context-menu-option` lives inside `os-context-menu/`;
-	// `os-segment` inside `os-segmented/`; etc. We can't always
-	// derive the folder from the tag, so for known compound tags we
-	// fall back to a best-effort suggestion and let the developer
-	// correct the path. The barrel import is always safe.
 	return tag.startsWith( 'os-' ) ? tag.slice( 4 ) : tag;
 }
 
@@ -148,11 +96,6 @@ function warnFor( tag: string, sample: Element ): void {
 	);
 }
 
-/**
- * Check a single element. Fast path first: skip non-wpd, skip
- * already-warned tags, skip already-defined tags. Otherwise wait
- * out the grace period and warn if still undefined.
- */
 function checkElement( el: Element ): void {
 	const tag = el.tagName.toLowerCase();
 	if ( ! tag.startsWith( 'os-' ) ) {
@@ -177,17 +120,11 @@ function checkElement( el: Element ): void {
 		if ( customElements.get( tag ) ) {
 			return;
 		}
-		// `el` may have been removed by now; that's fine — keeping a
-		// reference in the console still lets devs inspect what was
-		// originally rendered.
+
 		warnFor( tag, el );
 	}, WARN_GRACE_MS );
 }
 
-/**
- * Walk an element subtree, checking every descendant and recursing
- * into any open shadow roots encountered along the way.
- */
 function walk( root: Element | Document | ShadowRoot ): void {
 	if ( root instanceof Element ) {
 		checkElement( root );
@@ -218,7 +155,7 @@ function observeRoot( root: Document | ShadowRoot ): void {
 			const added = records[ i ].addedNodes;
 			for ( let j = 0; j < added.length; j++ ) {
 				const node = added[ j ];
-				if ( node.nodeType === 1 /* ELEMENT_NODE */ ) {
+				if ( node.nodeType === 1 ) {
 					walk( node as Element );
 				}
 			}
@@ -227,12 +164,6 @@ function observeRoot( root: Document | ShadowRoot ): void {
 	mo.observe( root, { childList: true, subtree: true } );
 }
 
-/**
- * Patch `Element.prototype.attachShadow` so we can observe shadow
- * roots created after startup. Only open roots are observable from
- * outside — closed roots are opaque by design, and we accept that
- * gap. The patch is installed once and is idempotent.
- */
 function patchAttachShadow(): void {
 	const proto = Element.prototype;
 	const original = proto.attachShadow;
@@ -250,11 +181,6 @@ function patchAttachShadow(): void {
 	proto.attachShadow = patched;
 }
 
-/**
- * Start the warner. Idempotent — calling more than once is a no-op.
- * Safe to call at any time; if the document is still parsing, the
- * MutationObserver will pick up the rest as it arrives.
- */
 export function startMissingImportWarner(): void {
 	if ( started ) {
 		return;

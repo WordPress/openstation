@@ -1,22 +1,3 @@
-/**
- * Usage feedback — the form.
- *
- * Three optional questions and an optional email, in an `<os-modal>`.
- * Opened only after the user said yes to the prompt card
- * (`prompt.ts`), and compiled into the lazy `usage-feedback` bundle
- * with it (`entry.ts`).
- *
- * Nothing leaves the site until the user clicks Send, and then only
- * what they typed, to the plugin's own REST route, which forwards it
- * (`includes/feedback/usage.php`). The email field starts empty and is
- * never prefilled: feedback is anonymous unless its author decides
- * otherwise.
- *
- * Every way out reports through `onClose` exactly once: `sent` after
- * the route accepted the answers, `dismissed` for Cancel, Escape, the
- * backdrop and the close button. The caller owns what that means.
- */
-
 import { restErrorFromResponse } from '../core/api-client';
 import { describeRestFailure } from '../core/rest-failure';
 import { __ } from '../i18n';
@@ -27,27 +8,20 @@ import '../ui/components/os-text-field/os-text-field';
 import '../ui/components/os-button/os-button';
 import type { UsageFeedbackFormOptions } from './types';
 
-/** Longest answer sent; the server truncates to the same length. */
 export const ANSWER_MAX = 1000;
 
-/** The questions, in display order; the keys are the route's args. */
 export const QUESTIONS: ReadonlyArray< { key: 'requests' | 'use_case' | 'blockers'; label: () => string } > = [
 	{ key: 'requests', label: () => __( 'What can we do for you?' ) },
 	{ key: 'use_case', label: () => __( 'What do you mainly use OpenStation for?' ) },
 	{ key: 'blockers', label: () => __( 'What gets in your way, or what is missing?' ) },
 ];
 
-/**
- * Good enough for "did they type an address": the server validates
- * for real and answers 400 otherwise.
- */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const NOTE_STYLE = 'margin:0;opacity:0.75;font-size:13px;line-height:1.45;';
 
 let open = false;
 
-/** Open the form. A second call while one is open is ignored. */
 export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 	if ( open ) {
 		return;
@@ -171,10 +145,6 @@ export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 
 	cancel.addEventListener( 'click', () => close( 'dismissed' ) );
 
-	// Escape, the backdrop and the close button all arrive here. A
-	// stray Escape should not throw away what someone just typed, so
-	// the first attempt with unsent text keeps the form open and says
-	// so; the second one means it.
 	let warned = false;
 	modal.addEventListener( 'os-modal-cancel', ( e: Event ) => {
 		if ( hasText() && ! warned ) {
@@ -204,8 +174,7 @@ export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 		clearError();
 		send.setAttribute( 'busy', '' );
 		send.setAttribute( 'disabled', '' );
-		// What went wrong, if anything: a `RestError` for a reply that
-		// was not a success, whatever `fetch` threw when no reply came.
+
 		let failure: unknown = null;
 		try {
 			const res = await trackedFetch(
@@ -227,8 +196,6 @@ export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 			failure = err;
 		}
 		if ( failure !== null ) {
-			// Say why: the server's own message for a refusal, the
-			// offline or expired-session line when that is the cause.
 			fail(
 				describeRestFailure( failure, {
 					fallback: __( 'We could not send that right now. Please try again in a moment.' ),

@@ -1,7 +1,3 @@
-/**
- * The Add User form — its template, and the sync that paints the
- * server's answer onto it only when the answer changed.
- */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { render } from '../../../src/ui/core/html';
 import { addUserForm, syncAddUserForm } from './add-user';
@@ -72,12 +68,10 @@ describe( 'syncAddUserForm', () => {
 		expect( form.setFieldInvalid ).toHaveBeenCalledWith( 'email' );
 		expect( form.clearErrors ).toHaveBeenCalledTimes( 1 );
 
-		// A selection repaint with the same answer: not touched again.
 		painted = syncAddUserForm( root, state( { createError: 'Taken', createField: 'email' } ), painted );
 		expect( form.setError ).toHaveBeenCalledTimes( 1 );
 		expect( form.clearErrors ).toHaveBeenCalledTimes( 1 );
 
-		// The error went away: cleared once.
 		syncAddUserForm( root, state(), painted );
 		expect( form.clearErrors ).toHaveBeenCalledTimes( 2 );
 		expect( form.setError ).toHaveBeenCalledTimes( 1 );

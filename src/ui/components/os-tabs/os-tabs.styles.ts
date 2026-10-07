@@ -1,9 +1,3 @@
-/**
- * Styles for `<os-tabs>` + `<os-tab>` + `<os-tabpanel>`. Three
- * exported stylesheets because each element adopts its own. Keeping
- * them in one file makes the visual decisions (underline accent,
- * tight spacing, panel focus outline) side-by-side.
- */
 import { css } from '../../core';
 import { holoTokens } from '../../holo';
 
@@ -15,15 +9,6 @@ export const tabsStyles = css`
 		border-bottom: 1px solid var( --os-ui-border, #dcdcde );
 	}
 
-	/*
-	 * Vertical: a sidebar rather than a strip. The bottom border goes
-	 * with it, because the boundary is now the column edge, and that
-	 * belongs to whoever is laying the strip out.
-	 *
-	 * Rows sit flush against each other. The gap that separates one
-	 * GROUP from the next is the only vertical space in the column, so
-	 * it has to be the only thing that looks like one.
-	 */
 	:host( [ orientation='vertical' ] ) {
 		flex-direction: column;
 		align-items: stretch;
@@ -34,13 +19,7 @@ export const tabsStyles = css`
 `;
 
 export const tabPanelStyles = css`
-	/*
-	 * Shadow-DOM styles. :host targets the panel element; slotted
-	 * light children flow through the single <slot> in the render.
-	 * The :host([hidden]) rule spells out display: none because the
-	 * :host block above sets display: block and that would otherwise
-	 * beat the UA [hidden] { display: none } rule.
-	 */
+
 	:host {
 		display: block;
 	}
@@ -54,44 +33,16 @@ export const tabPanelStyles = css`
 	}
 `;
 
-/**
- * The selected tab's underline is the accent.
- *
- * Flat, not the mesh: a window's tab strip is chrome that every
- * window wears, so the underline belongs to the same family as the
- * form controls rather than to the hero surfaces. The vertical strip
- * spends the mesh on its leading edge, where there is exactly one.
- *
- * The underline is drawn as an `::after` bar rather than a
- * `border-bottom`, which lets it animate its width from the centre
- * out.
- *
- * The bar exists on every tab and is simply zero-width until the tab
- * is chosen. Growing an element that is already in the layout costs a
- * transform-adjacent repaint; inserting one on selection would cost a
- * layout pass and would arrive after the colour change rather than
- * with it.
- */
 export const tabStyles = css`
 	${ holoTokens }
 
 	:host {
 		display: inline-block;
 	}
-	/*
-	 * Vertical tabs fill the sidebar so the whole row is the target,
-	 * not just the label. data-orientation is stamped by the parent
-	 * strip; see the note in os-tabs.ts about :host-context().
-	 */
+
 	:host( [ data-orientation='vertical' ] ) {
 		display: block;
-		/*
-		 * The three layers of the selected row, read into private
-		 * aliases so the palette and every desktop theme keep the last
-		 * word on them. Never declare the public names here: see
-		 * AGENTS.md, "Never declare a themeable token on a component's
-		 * :host".
-		 */
+
 		--_tab-edge: var(
 			--os-ui-tab-edge,
 			linear-gradient(
@@ -112,33 +63,14 @@ export const tabStyles = css`
 			--os-ui-tab-bloom,
 			linear-gradient( 90deg, rgba( 242, 82, 252, 0.26 ), transparent )
 		);
-		/*
-		 * Presence and shape, as distinct from colour. The three
-		 * layers above are colours a palette derives from the accent;
-		 * these are literals that say how much of each layer shows and
-		 * what the row is shaped like. The fallbacks are the full-bleed
-		 * row with a 2px edge and a full bloom, which is also what the
-		 * OpenStation palette answers; a fill with a radius and an inset
-		 * makes the selected row a lifted pill instead.
-		 */
+
 		--_tab-edge-w: var( --os-ui-tab-edge-width, 2px );
 		--_tab-bloom-o: var( --os-ui-tab-bloom-opacity, 1 );
 		--_tab-fill: var( --os-ui-tab-fill, transparent );
 		--_tab-radius: var( --os-ui-tab-radius, 0px );
 		--_tab-inset: var( --os-ui-tab-inset, 0px );
 	}
-	/*
-	 * A row, not a chip. With no inset it runs full-bleed to both
-	 * edges of the sidebar so an edge can sit ON the boundary, and the
-	 * 20px inline-start padding is what holds the label off it. When a
-	 * palette asks for an inset, the padding gives up the same amount
-	 * so the label stays put and only the row's silhouette moves.
-	 * overflow: hidden clips the edge and bloom pseudos to whatever
-	 * radius the palette chose.
-	 *
-	 * 40px tall and 14px Regular: Body Small, straight off the brand
-	 * guide. isolation confines the two pseudos below to this row.
-	 */
+
 	:host( [ data-orientation='vertical' ] ) button {
 		display: flex;
 		align-items: center;
@@ -157,19 +89,7 @@ export const tabStyles = css`
 		line-height: 1.5;
 		white-space: nowrap;
 	}
-	/*
-	 * A leading icon, if the caller slotted one. Sized here rather
-	 * than left to the SVG so a Core icon on a 24 grid and one of ours
-	 * on the same grid land identically.
-	 *
-	 * Write slot::slotted() and never a bare ::slotted() after a
-	 * descendant combinator. The implied universal in
-	 * :host( ... ) ::slotted( svg ) is parsed as part of the same
-	 * compound rather than as a selector for the slot, so the rule
-	 * silently matches nothing: no error, no warning, just an unsized
-	 * SVG that renders at its intrinsic size and turns a 40px row into
-	 * an 86px one. Naming the slot element removes the ambiguity.
-	 */
+
 	:host( [ data-orientation='vertical' ] ) slot::slotted( svg ) {
 		flex: 0 0 17px;
 		width: 17px;
@@ -182,15 +102,7 @@ export const tabStyles = css`
 		slot::slotted( svg ) {
 		opacity: 1;
 	}
-	/*
-	 * The accent moves from an underline to a leading edge: the mesh
-	 * spent as a hairline rather than as a fill, because nine
-	 * iridescent rows in a column is wallpaper.
-	 *
-	 * Both pseudos sit at z-index -1: inside the row's own stacking
-	 * context that paints them above its background and below its
-	 * label, which is exactly the order the three layers need.
-	 */
+
 	:host( [ data-orientation='vertical' ] ) button::after {
 		inset-inline: 0 auto;
 		inset-block: 0;
@@ -201,7 +113,7 @@ export const tabStyles = css`
 		background-image: var( --_tab-edge );
 		transition: opacity var( --_holo-t ) var( --_holo-ease );
 	}
-	/* The bloom the edge throws back across the row. */
+
 	:host( [ data-orientation='vertical' ] ) button::before {
 		content: '';
 		position: absolute;
@@ -215,13 +127,7 @@ export const tabStyles = css`
 		pointer-events: none;
 		transition: opacity var( --_holo-t ) var( --_holo-ease );
 	}
-	/*
-	 * Hover is the label and its icon coming up to full strength, and
-	 * nothing else. The horizontal strip grows a half-width underline
-	 * to say "this one is about to be it", but a row that lights its
-	 * own edge on hover competes with the row that already owns it:
-	 * in a column the eye reads the two as both selected.
-	 */
+
 	:host( [ data-orientation='vertical' ] ) button:hover::after {
 		inset-inline: 0 auto;
 		opacity: 0;
@@ -229,19 +135,10 @@ export const tabStyles = css`
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button {
 		background-color: var( --_tab-fill );
 		background-image: var( --_tab-wash );
-		/*
-		 * No weight bump. Body Small is Regular, and the edge already
-		 * says which row this is. A second signal only makes the
-		 * column jitter as the selection moves.
-		 */
+
 		font-weight: 400;
 	}
-	/*
-	 * inset-inline is restated, not inherited: the horizontal selected
-	 * rule sets it to 0 to grow the underline out to the full width of
-	 * the tab, and that same declaration would stretch this edge
-	 * across the whole row.
-	 */
+
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button::after,
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] )
 		button:hover::after {
@@ -290,8 +187,7 @@ export const tabStyles = css`
 	button:hover {
 		color: var( --os-ui-fg, #1d2327 );
 	}
-	/* Half-width on hover: enough to read as "this one is about to
-	   be it" without competing with the tab that already is. */
+
 	button:hover::after {
 		inset-inline: 30%;
 		opacity: 0.45;

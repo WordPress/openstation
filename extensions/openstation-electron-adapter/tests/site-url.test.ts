@@ -1,12 +1,3 @@
-/**
- * Site-address parsing.
- *
- * This is the code that reads whatever a person typed into a first-run
- * text box, and people type a lot of things. Most of these cases are
- * real pastes: someone copies the address bar while sitting in
- * wp-admin, or types a bare hostname, or leaves a trailing slash.
- */
-
 import { describe, expect, test } from 'vitest';
 
 import {
@@ -26,8 +17,7 @@ describe( 'normalizeSiteUrl', () => {
 	} );
 
 	test( 'assumes https for a bare hostname', () => {
-		// Typing the scheme is a cheaper price than silently
-		// downgrading someone's production site to plain HTTP.
+
 		expect( normalizeSiteUrl( 'example.com' ) ).toBe( 'https://example.com' );
 	} );
 
@@ -79,9 +69,7 @@ describe( 'normalizeSiteUrl', () => {
 
 describe( 'shellEntryUrl', () => {
 	test( 'points at the portal, not wp-admin', () => {
-		// `/openstation/` signs the user in, turns OpenStation on for
-		// their account on first visit, and forwards into whichever
-		// window they last had focused. `/wp-admin/` would skip all three.
+
 		expect( shellEntryUrl( 'https://example.com' ) ).toBe(
 			'https://example.com/openstation/',
 		);
@@ -108,8 +96,7 @@ describe( 'isSameSiteUrl', () => {
 	} );
 
 	test( 'rejects another host', () => {
-		// Freed windows load URLs chosen by the page, and the page is
-		// exactly the thing an attacker might have a foothold in.
+
 		expect( isSameSiteUrl( 'https://evil.test/', site ) ).toBe( false );
 	} );
 
@@ -143,16 +130,14 @@ describe( 'navigationVerdict', () => {
 	} );
 
 	test( 'sends an off-site link to the browser', () => {
-		// The same answer `routeNewWindow()` already gives a popup: a
-		// link to somewhere else is not an OpenStation window, and it is
-		// still a link the user meant to follow.
+
 		expect( navigationVerdict( 'https://wordpress.org/', site ) ).toBe(
 			'external',
 		);
 	} );
 
 	test( 'refuses to follow a scheme that is not the web', () => {
-		// Nothing to hand the browser and nothing to open here either.
+
 		for ( const url of [
 			'file:///etc/passwd',
 			'data:text/html,<script>1</script>',
@@ -165,9 +150,7 @@ describe( 'navigationVerdict', () => {
 	} );
 
 	test( 'holds the line before a site is configured', () => {
-		// With no paired site nothing is same-site, so an http(s) target
-		// leaves for the browser rather than loading in a window that
-		// still holds the host bridge.
+
 		expect( navigationVerdict( 'https://example.com/', '' ) ).toBe(
 			'external',
 		);
@@ -184,9 +167,7 @@ describe( 'navigationVerdict', () => {
 } );
 
 describe( 'settledSiteUrl', () => {
-	// What settles here becomes the agent's single allowed origin and
-	// the allowlist every later navigation is held to, so the rule has
-	// to admit real canonicalization and nothing else.
+
 	test( 'adopts the www form of the host that was typed', () => {
 		expect(
 			settledSiteUrl( 'https://www.example.com/openstation/', 'https://example.com' ),
@@ -215,9 +196,7 @@ describe( 'settledSiteUrl', () => {
 	} );
 
 	test( 'refuses a chain that walked somewhere else', () => {
-		// The case the whole function exists for: adopting this would
-		// hand the attacker's origin both the agent's allowed origin
-		// and the navigation allowlist.
+
 		for ( const landed of [
 			'https://attacker.example/openstation/',
 			'https://example.com.attacker.example/',

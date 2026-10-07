@@ -1,8 +1,3 @@
-/**
- * Unit tests for `renderKeyedList`. The contract that matters: an
- * unchanged key MUST resolve to the SAME DOM node across renders, so
- * event listeners attached at build time survive data updates.
- */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	clearKeyedList,
@@ -41,7 +36,6 @@ describe( 'renderKeyedList', () => {
 		const original = host.firstElementChild;
 		expect( original?.textContent ).toBe( 'a' );
 
-		// Same key — node identity must be preserved.
 		renderKeyedList( host, [ { id: 1, label: 'a' } ], {
 			keyOf: ( i ) => i.id,
 			buildItem: build,
@@ -67,7 +61,6 @@ describe( 'renderKeyedList', () => {
 		li.click();
 		expect( onClick ).toHaveBeenCalledTimes( 1 );
 
-		// Re-render with the same key — listener must still fire.
 		renderKeyedList( host, [ { id: 1, label: 'a' } ], {
 			keyOf: ( i ) => i.id,
 			buildItem: ( item ) => {
@@ -101,7 +94,7 @@ describe( 'renderKeyedList', () => {
 			buildItem: buildSpy,
 			updateItem: updateSpy,
 		} );
-		expect( buildSpy ).toHaveBeenCalledTimes( 1 ); // not rebuilt
+		expect( buildSpy ).toHaveBeenCalledTimes( 1 );
 		expect( updateSpy ).toHaveBeenCalledTimes( 1 );
 		expect( host.firstElementChild?.textContent ).toBe( 'b' );
 	} );
@@ -137,7 +130,6 @@ describe( 'renderKeyedList', () => {
 		);
 		const [ liA, liB, liC ] = Array.from( host.children );
 
-		// Swap a and b — c should stay put as the same node.
 		renderKeyedList(
 			host,
 			[
@@ -162,7 +154,6 @@ describe( 'renderKeyedList', () => {
 		clearKeyedList( host );
 		expect( host.children ).toHaveLength( 0 );
 
-		// Subsequent render starts fresh — no stale state from before.
 		renderKeyedList( host, [ { id: 1, label: 'a' } ], {
 			keyOf: ( i ) => i.id,
 			buildItem: build,

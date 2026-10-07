@@ -1,4 +1,3 @@
-/** A transient expression, blended over the user's look without changing it. */
 import type { RenderFrame } from './render';
 import type { MioAppearance } from './types';
 
@@ -18,8 +17,7 @@ export function mioThinkingExpression( frame: RenderFrame, appearance: MioAppear
 	const scale = 1 + amount * breath * 0.055;
 	const cos = Math.cos( tilt );
 	const sin = Math.sin( tilt );
-	// The silhouette and face share the same pose. Physics, anchor and saved look
-	// stay untouched, so changing activity never moves MIO's resting position.
+
 	const rim = frame.rim.map( ( point ) => {
 		const x = ( point.x - frame.centre.x ) * scale;
 		const y = ( point.y - frame.centre.y ) * scale;
@@ -28,8 +26,7 @@ export function mioThinkingExpression( frame: RenderFrame, appearance: MioAppear
 			y: frame.centre.y + x * sin + y * cos,
 		};
 	} );
-	// Bound the live pointer before blending: a distant cursor must not drown
-	// out the face's thinking expression or make its first frame snap sideways.
+
 	const gaze = frame.gaze ?? frame.centre;
 	const dx = gaze.x - frame.centre.x;
 	const dy = gaze.y - frame.centre.y;

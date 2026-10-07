@@ -1,24 +1,7 @@
 <?php
-/**
- * The Tools → OpenStation Beta admin page.
- *
- * Deliberately a plain wp-admin page rendered without any OpenStation
- * machinery: if a branch build ever breaks the desktop shell, this page
- * is the surface that still works and switches the site back to stable.
- *
- * @package OpenStationBeta
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Config injected next to the UI script in both contexts.
- *
- * @since 0.1.0
- *
- * @param string $context `admin` (Tools page) or `shell` (OS Settings tab).
- * @return array
- */
 function openstation_beta_script_config( $context ) {
 	return array(
 		'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
@@ -30,11 +13,6 @@ function openstation_beta_script_config( $context ) {
 	);
 }
 
-/**
- * Register the Tools submenu page.
- *
- * @since 0.1.0
- */
 function openstation_beta_register_admin_page() {
 	add_management_page(
 		__( 'OpenStation Beta', 'openstation-beta' ),
@@ -46,13 +24,6 @@ function openstation_beta_register_admin_page() {
 }
 add_action( 'admin_menu', 'openstation_beta_register_admin_page' );
 
-/**
- * Enqueue the UI script/styles on the Tools page only.
- *
- * @since 0.1.0
- *
- * @param string $hook_suffix Current admin page hook suffix.
- */
 function openstation_beta_admin_page_assets( $hook_suffix ) {
 	if ( 'tools_page_openstation-beta' !== $hook_suffix ) {
 		return;
@@ -75,11 +46,6 @@ function openstation_beta_admin_page_assets( $hook_suffix ) {
 }
 add_action( 'admin_enqueue_scripts', 'openstation_beta_admin_page_assets' );
 
-/**
- * Render the page shell — the script paints into the root node.
- *
- * @since 0.1.0
- */
 function openstation_beta_render_admin_page() {
 	?>
 	<div class="wrap openstation-beta-wrap">

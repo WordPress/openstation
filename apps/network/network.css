@@ -1,6 +1,3 @@
-/* Network — the window that says who belongs. Tokens only; every
- * literal is the pre-brand fallback. */
-
 .os-network {
 	display: grid;
 	gap: 20px;

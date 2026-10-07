@@ -1,12 +1,3 @@
-/**
- * The window tab strip's own behaviour: panel tabs, the roving
- * tabindex, and the keyboard.
- *
- * jsdom lays nothing out, so every offset reads 0. That rules out
- * asserting the plate's geometry here (the browser check covers it)
- * and rules nothing else out: the tablist contract is attributes and
- * focus, both of which jsdom models faithfully.
- */
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
 	activatePanelTab,
@@ -15,7 +6,6 @@ import {
 	syncTabRoving,
 } from './tab-strip';
 
-/** A window root with an empty strip and three panes, as `dom.ts` builds it. */
 function mountWindow( panes: string[] = [ 'one', 'two', 'three' ] ): HTMLElement {
 	const win = document.createElement( 'div' );
 	win.className = 'os-window';
@@ -67,7 +57,7 @@ describe( 'panel tabs', () => {
 			'Two',
 			'Three',
 		] );
-		// The plate paints beneath the labels, so it stays first.
+
 		expect(
 			stripOf( win ).firstElementChild!.classList.contains(
 				'os-window__tab-plate',
@@ -85,8 +75,7 @@ describe( 'panel tabs', () => {
 
 		const tab = tabsOf( win )[ 1 ];
 		const pane = win.querySelector( 'os-tabpanel[for="two"]' )!;
-		// A screen reader needs to get from the tab to the pane AND
-		// from the pane back to the name of the tab that owns it.
+
 		expect( tab.getAttribute( 'aria-controls' ) ).toBe( pane.id );
 		expect( pane.getAttribute( 'aria-labelledby' ) ).toBe( tab.id );
 		expect( tab.id ).not.toBe( '' );
@@ -128,8 +117,6 @@ describe( 'panel tabs', () => {
 
 		activatePanelTab( win, 'nope' );
 
-		// Still on two: a bad id is a caller mistake, not a reason to
-		// leave the user looking at a window with no pane showing.
 		expect(
 			win.querySelector( 'os-tabpanel[for="two"]' )!.hasAttribute( 'hidden' ),
 		).toBe( false );
@@ -147,7 +134,6 @@ describe( 'panel tabs, re-declared', () => {
 		const before = tabsOf( win )[ 1 ];
 		before.focus();
 
-		// A plugin registering a tab mid-session re-runs this.
 		setPanelTabs( win, [
 			...ENTRIES,
 			{ value: 'four', label: 'Four' },
@@ -214,8 +200,6 @@ describe( 'the tablist keyboard', () => {
 		setPanelTabs( win, ENTRIES, 'two' );
 		syncTabRoving( stripOf( win ) );
 
-		// The whole point of the roving tabindex: a strip of tabs is
-		// ONE stop on the way to the window's content, not three.
 		expect( tabsOf( win ).map( ( t ) => t.tabIndex ) ).toEqual( [
 			-1, 0, -1,
 		] );
@@ -242,11 +226,6 @@ describe( 'the tablist keyboard', () => {
 
 		press( win, one, 'ArrowRight' );
 
-		/*
-		 * Manual activation. A submenu tab loads an admin page and a
-		 * panel tab can mount a canvas, so arrowing past eight tabs
-		 * must not fire eight of those on the way.
-		 */
 		expect( one.getAttribute( 'aria-selected' ) ).toBe( 'true' );
 		expect(
 			win.querySelector( 'os-tabpanel[for="one"]' )!.hasAttribute( 'hidden' ),
@@ -262,8 +241,6 @@ describe( 'the tablist keyboard', () => {
 		press( win, one, 'End' );
 		expect( win.ownerDocument.activeElement ).toBe( three );
 
-		// No wrap: the strip scrolls, and wrapping would fling it
-		// across its whole width in one keypress.
 		press( win, three, 'ArrowRight' );
 		expect( win.ownerDocument.activeElement ).toBe( three );
 
@@ -287,7 +264,6 @@ describe( 'the tablist keyboard', () => {
 		Object.defineProperty( event, 'target', { value: one } );
 		handleTabStripKeydown( stripOf( win ), event );
 
-		// Cmd+Arrow is the browser's, not ours.
 		expect( win.ownerDocument.activeElement ).toBe( one );
 	} );
 } );
@@ -297,10 +273,6 @@ describe( 'panes nested below the body', () => {
 		document.body.innerHTML = '';
 	} );
 
-	/**
-	 * A server-registered window wraps its panes in `<os-stack>` for
-	 * padding, so depth is not a usable signal for finding them.
-	 */
 	test( 'finds panes wrapped in a layout element', () => {
 		const win = mountWindow( [] );
 		win.querySelector( '.os-window__body' )!.innerHTML = `
@@ -350,12 +322,6 @@ describe( 'panes nested below the body', () => {
 			'main',
 		);
 
-		/*
-		 * The inner switcher's panes are its own business. Claiming
-		 * them would hide half that group on every outer tab change,
-		 * and `for="upload"` matching no outer tab would hide it
-		 * permanently.
-		 */
 		const inner = win.querySelector( 'os-tabpanel[for="upload"]' )!;
 		expect( inner.hasAttribute( 'hidden' ) ).toBe( false );
 		expect( inner.hasAttribute( 'aria-hidden' ) ).toBe( false );
@@ -367,12 +333,6 @@ describe( 'tablist semantics', () => {
 		document.body.innerHTML = '';
 	} );
 
-	/*
-	 * A native window's strip is born empty and presentational (an
-	 * empty tab list is announced as a tab list with no tabs, and a
-	 * bare nav is a landmark with nothing to navigate). Declaring
-	 * tabs is what turns the semantics on.
-	 */
 	test( 'an empty strip stays out of the accessibility tree', () => {
 		const win = mountWindow();
 		const strip = stripOf( win );

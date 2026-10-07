@@ -1,25 +1,3 @@
-/**
- * Components — the developer-facing component reference.
- *
- * Iterates `OS_COMPONENT_TAGS`, looks up each registered custom
- * element on `customElements.get( tag )`, and reads the optional
- * `static help: OsHelp` descriptor off the class. Components without
- * a descriptor still render with a minimal fallback built from
- * `static props`, so the tab is useful on day one and grows richer as
- * authors fill in descriptors. Admin-gated — surfacing the component
- * library to every editor would be noise.
- *
- * The "Missing-import warner — live demo" section (and its console
- * banner) only renders under developer mode (Preferences → Features),
- * so a regular admin never sees intentional console.error noise.
- */
-
-// Side-effect import of the whole kit. Feature code elsewhere imports
-// components one file at a time, so a component nothing happens to
-// use is tree-shaken out of every bundle — it never reaches
-// `customElements`, and `collectEntries()` would silently skip it.
-// The barrel registers every tag in `OS_COMPONENT_TAGS`, which is also
-// what makes the live `help.example` markup render.
 import '../../../src/ui/components';
 
 import { __, html } from '@openstation/app';
@@ -37,12 +15,7 @@ export interface ComponentEntry {
 	title: string;
 	help: OsHelp | null;
 	props: readonly string[];
-	/**
-	 * Pre-flattened lowercase blob of everything worth searching on:
-	 * title, tag, summary, status, and the name + description of every
-	 * documented prop, slot, event, part, and CSS custom property —
-	 * so filtering on each keystroke is a substring scan.
-	 */
+
 	haystack: string;
 }
 
@@ -60,17 +33,12 @@ function buildHaystack( tag: string, title: string, help: OsHelp | null, props: 
 	return parts.join( ' ' ).toLowerCase();
 }
 
-/**
- * Split a raw query into lowercase terms and AND them together, so
- * "field number" matches `<os-number-field>` regardless of order.
- */
 function matchesQuery( entry: ComponentEntry, query: string ): boolean {
 	const terms = query.toLowerCase().split( /\s+/ ).filter( Boolean );
 	return terms.every( ( term ) => entry.haystack.includes( term ) );
 }
 
 function defaultTitleFromTag( tag: string ): string {
-	// "os-text-field" → "Text field".
 	const bare = tag.replace( /^os-/, '' ).replace( /-/g, ' ' );
 	return bare.charAt( 0 ).toUpperCase() + bare.slice( 1 );
 }
@@ -87,29 +55,20 @@ export function collectEntries(): ComponentEntry[] {
 		const props = ctor.props ?? [];
 		entries.push( { tag, title, help, props, haystack: buildHaystack( tag, title, help, props ) } );
 	}
-	// Stable alphabetical sort by title so plugin authors can find
-	// components without having to memorise registration order.
+
 	entries.sort( ( a, b ) => a.title.localeCompare( b.title ) );
 	return entries;
 }
 
-/**
- * The demo markup, as text, for the snippet the section shows.
- * Deliberately a separate string from the live copies rendered below
- * it: the live ones have to be real elements for the warner to fire,
- * and real elements are exactly what cannot be read. Not translated.
- * It is source, not prose, comments included.
- */
 const WARNER_DEMO_SNIPPET = [
-	'<!-- 1 — invented name, nothing close in the registry. -->',
+	'                                                          ',
 	'<os-example-console-fail-due-to-unregistered-component>',
 	'</os-example-console-fail-due-to-unregistered-component>',
 	'',
-	'<!-- 2 — typo within edit distance of a real tag. -->',
+	'                                                     ',
 	'<os-buton></os-buton>',
 ].join( '\n' );
 
-/** Logged exactly once per page lifetime, however often the tab paints. */
 let demoBannerLogged = false;
 
 function logDemoBanner(): void {
@@ -120,7 +79,7 @@ function logDemoBanner(): void {
 	const headingStyle =
 		'background: #ffb400;color: #1a1a1a;font-weight: 700;font-size: 12px;padding: 4px 8px;border-radius: 3px';
 	const bodyStyle = 'color: #b25c00;font-weight: 500';
-	// eslint-disable-next-line no-console
+
 	console.log(
 		'%c⚠ wp.os — INTENTIONAL DEMO%c\n' +
 			'The next two console.error entries are fired ON PURPOSE by the\n' +
@@ -147,7 +106,6 @@ const statusLabel = ( status: NonNullable< OsHelp[ 'status' ] > ): string => {
 	}
 };
 
-/** A titled list group, or nothing when the descriptor has no rows. */
 const group = < T >( title: string, rows: readonly T[] | undefined, row: ( r: T ) => unknown ) =>
 	rows?.length
 		? html`<section class="os-settings__help-group">
@@ -237,7 +195,6 @@ function detail( entry: ComponentEntry ) {
 	`;
 }
 
-/** The demo, folded away, plus the live tags the warner watches. */
 const warnerDemo = () => html`
 	<os-disclosure
 		class="os-settings__help-warner-section"
@@ -253,13 +210,7 @@ const warnerDemo = () => html`
 			<pre class="os-settings__help-warner-code"><code>${ WARNER_DEMO_SNIPPET }</code></pre>
 		</div>
 	</os-disclosure>
-	<!--
-		The live copies. Real elements, because the warner watches the
-		document for tags nothing registered. Clipped rather than
-		display:none, and OUTSIDE the disclosure (a closed disclosure's
-		body is display:none), so the upgrade path runs exactly as it
-		would on a visible element.
-	-->
+
 	<div
 		class="os-settings__help-warner-demo"
 		aria-hidden="true"
@@ -271,14 +222,12 @@ const warnerDemo = () => html`
 	</div>
 `;
 
-/** The entries, collected once per window. */
 function entriesOf( ctx: Ctx ): ComponentEntry[] {
 	const ui = uiOf( ctx ).components;
 	ui.entries ??= collectEntries();
 	return ui.entries;
 }
 
-/** The entry the detail pane shows: the selection when it survives the filter, else the first match. */
 function activeEntry( ctx: Ctx ): ComponentEntry | undefined {
 	const ui = uiOf( ctx ).components;
 	const visible = entriesOf( ctx ).filter( ( e ) => matchesQuery( e, ui.query ) );
@@ -333,21 +282,6 @@ export const renderComponents: Section = ( s, ctx ) => {
 	`;
 };
 
-/**
- * After every paint: scroll the detail pane to the top when it shows
- * a different component (the pane is its own scroll container and
- * survives the diff, so a long `<os-table>` page would otherwise open
- * halfway down — but not on a keystroke in the filter), and run the
- * active component's `exampleInit`.
- *
- * Half the kit takes its data through a JS property rather than an
- * attribute (`segments`, `data`, `columns`, `entries`), which cannot
- * be populated from markup. `customElements.upgrade()` first, and it
- * is not optional: assigning `.segments` to an un-upgraded element
- * defines an OWN property that permanently shadows the class
- * accessor, and the component sits there empty holding data it
- * cannot see.
- */
 export function afterComponentsRender( ctx: Ctx ): void {
 	const ui = uiOf( ctx ).components;
 	const pane = ctx.root.querySelector< HTMLElement >( '.os-settings__help-detail' );
@@ -370,9 +304,6 @@ export function afterComponentsRender( ctx: Ctx ): void {
 	try {
 		init( host );
 	} catch ( err ) {
-		// An example is documentation. A broken one is worth a console
-		// line, and never worth taking the Components tab down with it.
-		// eslint-disable-next-line no-console
 		console.error( `[openstation] <${ tag }> exampleInit threw:`, err );
 	}
 }

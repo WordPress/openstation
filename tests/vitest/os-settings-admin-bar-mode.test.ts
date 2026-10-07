@@ -1,16 +1,3 @@
-/**
- * OS Settings → Appearance → Admin bar, at the apply pass.
- *
- * The pick reaches CSS as a `os-admin-bar-<mode>` body
- * class, and it has to be the ONLY one of the three on the body —
- * `desktop.css` gives `hidden` a `display: none !important` and
- * `dynamic` an off-screen inset, so two classes at once is a bar that
- * is simultaneously gone and sliding.
- *
- * PHP writes the same class on `admin_body_class` for the first
- * paint; these tests cover the half that makes a change take effect
- * without a reload.
- */
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { OsSettings } from '../../src/settings';
@@ -25,7 +12,6 @@ function makeSettings(): OsSettings {
 	return new OsSettings( layer );
 }
 
-/** Which of the three mode classes are currently on the body. */
 function modeClasses(): string[] {
 	return MODES.filter( ( m ) =>
 		document.body.classList.contains( `os-admin-bar-${ m }` ),
@@ -76,10 +62,7 @@ describe( 'apply() — admin bar mode', () => {
 	} );
 
 	test( 'defaults to hidden with nothing persisted', () => {
-		// One dock is the default layout, and it is the only
-		// navigation surface a fresh desktop has: the top bar would be
-		// a second one. The route back to classic admin is the dock's
-		// own Exit tile, not this bar.
+
 		makeSettings().apply();
 
 		expect( modeClasses() ).toEqual( [ 'hidden' ] );
@@ -92,9 +75,6 @@ describe( 'apply() — admin bar mode', () => {
 		);
 		const settings = makeSettings();
 
-		// Rejected at deserialization, not just at paint — an
-		// unusable value must never survive into the state the next
-		// save would push back to the server.
 		expect( settings.state.adminBarMode ).toBe( 'hidden' );
 
 		settings.apply();

@@ -1,16 +1,5 @@
 <?php
-/**
- * Tests for the download endpoints: access matrix with 404
- * masking, stream markers, zip manifest collection (nesting,
- * reference skipping, empty dirs, caps, name dedupe), and the
- * ZipArchive round-trip.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-files
- */
+
 class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -95,7 +84,6 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 		$this->assertWPError( $res );
 		$this->assertSame( 404, $res->get_error_data()['status'] );
 
-		// Missing id: exactly the same shape.
 		$res2 = $this->download_request( 999999 );
 		$this->assertWPError( $res2 );
 		$this->assertSame( $res->get_error_code(), $res2->get_error_code() );
@@ -123,7 +111,7 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 	}
 
 	public function test_zip_contains_nested_paths_skips_references_and_keeps_empty_dirs() {
-		// Tree: Root/ { a.txt, Sub/ { b.txt }, Empty/, <post reference> }
+
 		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Root' ) );
 		$sub_id  = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Sub' ) );
 		$empty_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Empty' ) );
@@ -158,15 +146,10 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 		$this->assertContains( 'a.txt', $names );
 		$this->assertContains( 'Sub/b.txt', $names );
 		$this->assertContains( 'Empty/', $names );
-		// The post reference contributed nothing.
+
 		$this->assertCount( 3, $names );
 	}
 
-	/**
-	 * libzip writes nothing for an archive without entries, and with no
-	 * file to stream the serve filter falls through to the JSON marker,
-	 * which the browser saves instead of a zip.
-	 */
 	public function test_zip_of_a_folder_holding_only_references_is_an_empty_archive() {
 		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Links' ) );
 		openstation_files_place( self::$owner_id, 0, 'folder', (string) $root_id );
@@ -253,7 +236,7 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 			openstation_files_serve_download( false, new WP_REST_Response( array( 'x' => 1 ) ), $req )
 		);
 		$dl_req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/uploads/5/download' );
-		// A 404 error result must fall through to JSON serving.
+
 		$this->assertFalse(
 			openstation_files_serve_download( false, new WP_REST_Response( array( 'code' => 'x' ), 404 ), $dl_req )
 		);

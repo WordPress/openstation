@@ -1,18 +1,3 @@
-/**
- * My WordPress — the Agents section: character, cast and doors out.
- *
- * Part of the `my-wordpress` client view: imported by the
- * `my-wordpress.os.ts` entry. WP Explorer's Agents surface, ported
- * 1:1 (`agents-renderer.ts`): this part owns the CHARACTER SYSTEM —
- * seeds and faces, the empty cast, the roster stamp — the openers
- * that leave the window (chat, profile, connectors, desktop), and
- * the landing views: the cast grid, the off-state preview crew, and
- * the AI-provider notice. The detail panes live in
- * `agents-detail.ts`, the wizard in `agents-wizard.ts`.
- *
- * @public
- */
-
 import { __, html, type TemplateResult } from '@openstation/app';
 import {
 	faceFromSeed,
@@ -37,26 +22,14 @@ import {
 
 export const ENTITY_KIND_CHOICES = [ 'post', 'page', 'media', 'user', 'comment' ];
 
-/**
- * How many abilities a site needs before the groups start closed.
- * Collapsing is for the site with a shelf of plugins; a stock install
- * has a handful, and starting those closed would hide the feature.
- */
 export const ABILITY_COLLAPSE_THRESHOLD = 12;
 
-/** The review step, where Summon continues to. */
 export const STEP_LAUNCH = 4 as const;
 
-/**
- * A starting point for a new face. Random here and deterministic from
- * there on: the seed is picked once when a wizard opens and then
- * carried, so paging the strip and coming back lands on the same faces.
- */
 export function newSeed(): number {
 	return Math.floor( Math.random() * 0xffffff ) + 1;
 }
 
-/** A blank agent, with a face already rolled so Meet has something. */
 export function emptyCast( role: string, seed: number ): CastDraft {
 	return {
 		brief: '',
@@ -66,7 +39,7 @@ export function emptyCast( role: string, seed: number ): CastDraft {
 		instructions: '',
 		role,
 		abilities: [],
-		// Chat is always on; the row says so from the first paint.
+
 		triggers: [ { kind: 'chat', config: {} } ],
 		copiedFrom: '',
 		faceSeed: seed,
@@ -76,10 +49,6 @@ export function emptyCast( role: string, seed: number ): CastDraft {
 	};
 }
 
-/**
- * Role a fresh wizard starts on: `author` when the site allows it,
- * otherwise the first role the catalogue offers.
- */
 export function agentDefaultRole( roles: RoleChoice[] | null ): string {
 	if ( ! roles || roles.length === 0 || roles.some( ( r ) => r.slug === 'author' ) ) {
 		return 'author';
@@ -87,12 +56,6 @@ export function agentDefaultRole( roles: RoleChoice[] | null ): string {
 	return roles[ 0 ].slug;
 }
 
-/**
- * The image source for an agent's portrait. Prefers what the server
- * wrote (the one file `get_avatar()` can also point at); falls back to
- * rolling the seed here — deterministic, so it is the same face the
- * write would produce.
- */
 export function agentFaceSrc(
 	agent: Pick< Agent, 'face' | 'faceSeed' | 'avatarUrl' >,
 	size: number,
@@ -106,19 +69,12 @@ export function agentFaceSrc(
 	return agent.avatarUrl;
 }
 
-/**
- * The roster identity `os.agents.roster-changed` watches: who exists
- * and which doors they answer. Fired for WP Explorer's "Send to" cache
- * when it changes, so trigger edits made here reach its menus without
- * a reload.
- */
 export function agentsRosterStamp( list: Agent[] ): string {
 	return list
 		.map( ( a ) => `${ a.id }:${ a.triggers.map( ( t ) => t.kind ).sort().join( '+' ) }` )
 		.join( '|' );
 }
 
-/** Per-mount sequence so multi-instance windows get unique target ids. */
 let agentsMountSeq = 0;
 const agentsMountIds = new WeakMap< HTMLElement, number >();
 
@@ -131,15 +87,10 @@ export function agentsMountIdOf( root: HTMLElement ): number {
 	return id;
 }
 
-/**
- * Open OpenStation Preferences on the Features tab, where the `agents`
- * extended option lives.
- */
 function openAgentsFeatureSetting(): void {
 	shell().openOsSettings?.( { tabId: 'features' } );
 }
 
-/** Seed the cross-bundle chat store and open the Agent chat window. */
 export function openChatWindow( payload: AgentsPayload, agent: Agent ): void {
 	openAgentChat( {
 		id: agent.id,
@@ -149,18 +100,12 @@ export function openChatWindow( payload: AgentsPayload, agent: Agent ): void {
 	} );
 	const opened = shell().openWindow?.( payload.runWindowId, { source: 'agents' } );
 	if ( ! opened && typeof shell().openWindow !== 'function' ) {
-		// eslint-disable-next-line no-console
 		console.warn(
 			'[desktop-mode/agents] wp.os.openWindow is missing — desktop shell may not be ready.',
 		);
 	}
 }
 
-/**
- * Open the agent's USER profile — the same door the users grid uses
- * (the User Edit app, on this person), falling back to the iframe
- * profile when the native window is not registered.
- */
 export function openAgentProfile( agent: AppAgent ): void {
 	openUserEditWindow( agent.id, {
 		source: 'agents/profile',
@@ -178,12 +123,6 @@ export function openAgentProfile( agent: AppAgent ): void {
 	} );
 }
 
-/**
- * Open the Connectors settings screen as a desktop window. A plain
- * `_blank` link would throw the screen out of the shell — and launch
- * the installed PWA. `deriveWindowId` is the shell's own slug
- * derivation, so the screen lands on the window the dock would open.
- */
 export function openConnectorsWindow( url: string ): void {
 	const desktop = shell();
 	if ( ! desktop.windowManager?.open ) {
@@ -202,11 +141,6 @@ export function openConnectorsWindow( url: string ): void {
 	} );
 }
 
-/**
- * Create a wallpaper tile for the agent (a user placement — the same
- * thing dragging the agent out of the Users grid produces). First FREE
- * cell in the same row-major grid the Trash restore flow uses.
- */
 export async function sendAgentToDesktop( agent: Agent ): Promise< string > {
 	const files = shell().files;
 	if ( ! files?.rest?.createPlacement ) {
@@ -219,7 +153,7 @@ export async function sendAgentToDesktop( agent: Agent ): Promise< string > {
 			roots = got as Array< { x?: number; y?: number } >;
 		}
 	} catch {
-		// No store — scan still starts from the first cell.
+
 	}
 	let x = 16;
 	let y = 16;
@@ -249,11 +183,6 @@ export async function sendAgentToDesktop( agent: Agent ): Promise< string > {
 	}
 }
 
-/**
- * `<os-option>` list for a role picker. A role the agent already
- * carries but the site no longer registers is appended so the select
- * shows the truth instead of silently reading as the first role.
- */
 export function roleOptionsTpl( roles: RoleChoice[], current: string ): TemplateResult {
 	const known = roles.some( ( r ) => r.slug === current );
 	return html`
@@ -266,7 +195,6 @@ export function roleOptionsTpl( roles: RoleChoice[], current: string ): Template
 	`;
 }
 
-/** A mutation dispatch with the busy flag around it. */
 export function runAgent(
 	ctx: Ctx,
 	action: string,
@@ -281,10 +209,6 @@ export function runAgent(
 	} );
 }
 
-/**
- * Silent while the framework is off: a connector is the SECOND thing
- * to fix, and the off state is already saying what the first one is.
- */
 export function agentsAiNotice( payload: AgentsPayload ): TemplateResult | '' {
 	if ( ! payload.enabled || payload.aiReady ) {
 		return '';
@@ -295,8 +219,7 @@ export function agentsAiNotice( payload: AgentsPayload ): TemplateResult | '' {
 	const noClient = __(
 		'This WordPress does not ship the AI Client (WordPress 7.0+). Agents can be defined but not run.',
 	);
-	// The href stays real so middle-click, cmd-click and "copy link"
-	// still behave; only the plain click is claimed for the shell.
+
 	const connectorsLink = html`
 		<a
 			href=${ payload.connectorsUrl }
@@ -326,7 +249,6 @@ export function agentsAiNotice( payload: AgentsPayload ): TemplateResult | '' {
 	`;
 }
 
-/** One cast card's inner column — the real grid and the preview share it. */
 function agentsCardInner(
 	face: TemplateResult,
 	name: string,
@@ -345,13 +267,6 @@ function agentsCardInner(
 	`;
 }
 
-/**
- * The crew you would get, while the framework is off: the same cards
- * the grid draws once the flag is on, greyed and inert above the
- * button that flips it. Inert all the way down — nothing to select,
- * because none of these are users yet — but deliberately NOT
- * `aria-hidden`: it is the argument this state makes.
- */
 function agentsPreviewCast( payload: AgentsPayload ): TemplateResult | null {
 	const cast: PreviewAgent[] = payload.preview ?? [];
 	if ( cast.length === 0 ) {
@@ -386,13 +301,6 @@ function agentsPreviewCast( payload: AgentsPayload ): TemplateResult | null {
 	`;
 }
 
-/**
- * The cast — faces, not rows. The off-state and the empty state belong
- * to this view: it is what renders when no agent is open, which is
- * exactly when there is something to explain. The door to the wizard
- * is the LAST card: a grid wraps, so it stays in view with the cast
- * around it and reads as the crew's next empty slot.
- */
 export function agentsCastGrid( ctx: Ctx, payload: AgentsPayload ): TemplateResult {
 	if ( ! payload.enabled ) {
 		const offDescription = payload.canEnable
@@ -415,10 +323,7 @@ export function agentsCastGrid( ctx: Ctx, payload: AgentsPayload ): TemplateResu
 			  `
 			: '';
 		const cast = agentsPreviewCast( payload );
-		// With a crew to show, the explanation shrinks to a bar ABOVE
-		// the faces — five cards are taller than the window, and dimming
-		// (or scrolling) the way out is how a disabled screen becomes a
-		// dead end. With no crew the full empty state carries it alone.
+
 		if ( cast === null ) {
 			return html`
 				<os-empty-state

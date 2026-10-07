@@ -1,10 +1,3 @@
-/**
- * Styles for `<os-toast-container>` + `<os-toast>`. Two exported
- * stylesheets because each component adopts its own; keeping them
- * in one file anchors the visual decisions (container stacks its
- * children; each child has the same padding, rounded corners, fade
- * transition) side-by-side.
- */
 import { css } from '../../core';
 import { holoTokens } from '../../holo';
 
@@ -36,17 +29,9 @@ export const toastStyles = css`
 		min-width: 280px;
 		max-width: 420px;
 		padding: 10px 14px;
-		/* Longhand on purpose: the texture slot below owns
-		   background-image, and the shorthand would reset it.
 
-		   A toast is a dark chip whatever the admin colour scheme
-		   says, which is the same constraint the dialog surface has —
-		   so it chains through --os-ui-modal-bg rather than through
-		   --os-ui-surface, which a light theme sets to white and would
-		   pair with the light --os-ui-fg-on-accent text below.
-		   --os-ui-toast-bg stays as the per-instance hook. */
 		background-color: var( --os-ui-toast-bg, var( --os-ui-modal-bg, #1d2327 ) );
-		/* Desktop-theme texture slot: unset resolves to none. */
+
 		background-image: var( --os-ui-toast-bg-image, none );
 		background-repeat: var( --os-ui-toast-bg-image-repeat, repeat );
 		background-size: var( --os-ui-toast-bg-image-size, auto );
@@ -60,12 +45,7 @@ export const toastStyles = css`
 		font-size: 13px;
 		line-height: 1.4;
 		opacity: 0;
-		/*
-		 * Arrives from above and slightly small, on the spring — a
-		 * toast drops in from the edge it is docked to, and the scale
-		 * is what stops eight stacked toasts reading as one list
-		 * scrolling.
-		 */
+
 		transform: translateY( -10px ) scale( 0.97 );
 		transition: opacity var( --_holo-t-fast ) linear,
 			transform var( --_holo-t ) var( --_holo-spring );
@@ -75,12 +55,7 @@ export const toastStyles = css`
 		opacity: 1;
 		transform: translateY( 0 ) scale( 1 );
 	}
-	/*
-	 * Leaving is not arriving in reverse. It exits sideways, toward
-	 * the edge it is docked to, and on the plain ease rather than the
-	 * spring: an overshoot on the way out reads as the toast being
-	 * yanked back before it goes.
-	 */
+
 	:host( [ state='out' ] ) {
 		opacity: 0;
 		transform: translateX( 16px ) scale( 0.97 );
@@ -90,11 +65,7 @@ export const toastStyles = css`
 	.os-toast__label {
 		flex: 1;
 	}
-	/* ─── Tones ──────────────────────────────────────────────────────
-	   The same palette as the notice banner, so a failure toast and a
-	   failure notice read as a set. Each tone declares the toast's
-	   accent from the palette's notice tokens; the edge and the icon
-	   read the accent. No tone: no edge, no icon, the plain chip. */
+
 	.os-toast__icon {
 		display: inline-flex;
 		flex-shrink: 0;
@@ -123,8 +94,7 @@ export const toastStyles = css`
 	:host( [ tone='neutral' ] ) {
 		--os-ui-toast-accent: var( --os-ui-notice-neutral, var( --os-ui-fg-muted, #57606a ) );
 	}
-	/* Author styles beat the UA [hidden] rule, so the explicit display
-	 * on .os-toast__close would otherwise keep a ?hidden button visible. */
+
 	button[ hidden ] {
 		display: none;
 	}

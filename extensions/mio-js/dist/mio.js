@@ -1,6 +1,6 @@
 var MioBundle = function() {
   "use strict";
-  var ExtensionType = /* @__PURE__ */ ((ExtensionType2) => {
+  var ExtensionType =                 ((ExtensionType2) => {
     ExtensionType2["Application"] = "application";
     ExtensionType2["WebGLPipes"] = "webgl-pipes";
     ExtensionType2["WebGLPipesAdaptor"] = "webgl-pipes-adaptor";
@@ -44,64 +44,20 @@ var MioBundle = function() {
   };
   const normalizeExtensionPriority = (ext, defaultPriority) => normalizeExtension(ext).priority ?? defaultPriority;
   const extensions = {
-    /** @ignore */
+
     _addHandlers: {},
-    /** @ignore */
+
     _removeHandlers: {},
-    /** @ignore */
+
     _queue: {},
-    /**
-     * Remove extensions from PixiJS.
-     * @param extensions - Extensions to be removed. Can be:
-     * - Extension class with static `extension` property
-     * - Extension format object with `type` and `ref`
-     * - Multiple extensions as separate arguments
-     * @returns {extensions} this for chaining
-     * @example
-     * ```ts
-     * // Remove a single extension
-     * extensions.remove(MyRendererPlugin);
-     *
-     * // Remove multiple extensions
-     * extensions.remove(
-     *     MyRendererPlugin,
-     *     MySystemPlugin
-     * );
-     * ```
-     * @see {@link ExtensionType} For available extension types
-     * @see {@link ExtensionFormat} For extension format details
-     */
+
     remove(...extensions2) {
       extensions2.map(normalizeExtension).forEach((ext) => {
         ext.type.forEach((type) => this._removeHandlers[type]?.(ext));
       });
       return this;
     },
-    /**
-     * Register new extensions with PixiJS. Extensions can be registered in multiple formats:
-     * - As a class with a static `extension` property
-     * - As an extension format object
-     * - As multiple extensions passed as separate arguments
-     * @param extensions - Extensions to add to PixiJS. Each can be:
-     * - A class with static `extension` property
-     * - An extension format object with `type` and `ref`
-     * - Multiple extensions as separate arguments
-     * @returns This extensions instance for chaining
-     * @example
-     * ```ts
-     * // Register a simple extension
-     * extensions.add(MyRendererPlugin);
-     *
-     * // Register multiple extensions
-     * extensions.add(
-     *     MyRendererPlugin,
-     *     MySystemPlugin,
-     * });
-     * ```
-     * @see {@link ExtensionType} For available extension types
-     * @see {@link ExtensionFormat} For extension format details
-     * @see {@link extensions.remove} For removing registered extensions
-     */
+
     add(...extensions2) {
       extensions2.map(normalizeExtension).forEach((ext) => {
         ext.type.forEach((type) => {
@@ -117,15 +73,7 @@ var MioBundle = function() {
       });
       return this;
     },
-    /**
-     * Internal method to handle extensions by name.
-     * @param type - The extension type.
-     * @param onAdd  - Function handler when extensions are added/registered {@link StrictExtensionFormat}.
-     * @param onRemove  - Function handler when extensions are removed/unregistered {@link StrictExtensionFormat}.
-     * @returns this for chaining.
-     * @internal
-     * @ignore
-     */
+
     handle(type, onAdd, onRemove) {
       const addHandlers = this._addHandlers;
       const removeHandlers = this._removeHandlers;
@@ -141,13 +89,7 @@ var MioBundle = function() {
       }
       return this;
     },
-    /**
-     * Handle a type, but using a map by `name` property.
-     * @param type - Type of extension to handle.
-     * @param map - The object map of named extensions.
-     * @returns this for chaining.
-     * @ignore
-     */
+
     handleByMap(type, map) {
       return this.handle(
         type,
@@ -163,14 +105,7 @@ var MioBundle = function() {
         }
       );
     },
-    /**
-     * Handle a type, but using a list of extensions with a `name` property.
-     * @param type - Type of extension to handle.
-     * @param map - The array of named extensions.
-     * @param defaultPriority - Fallback priority if none is defined.
-     * @returns this for chaining.
-     * @ignore
-     */
+
     handleByNamedList(type, map, defaultPriority = -1) {
       return this.handle(
         type,
@@ -188,14 +123,7 @@ var MioBundle = function() {
         }
       );
     },
-    /**
-     * Handle a type, but using a list of extensions.
-     * @param type - Type of extension to handle.
-     * @param list - The list of extensions.
-     * @param defaultPriority - The default priority to use if none is specified.
-     * @returns this for chaining.
-     * @ignore
-     */
+
     handleByList(type, list, defaultPriority = -1) {
       return this.handle(
         type,
@@ -214,46 +142,7 @@ var MioBundle = function() {
         }
       );
     },
-    /**
-     * Mixin the source object(s) properties into the target class's prototype.
-     * Copies all property descriptors from source objects to the target's prototype.
-     * @param Target - The target class to mix properties into
-     * @param sources - One or more source objects containing properties to mix in
-     * @example
-     * ```ts
-     * // Create a mixin with shared properties
-     * const moveable = {
-     *     x: 0,
-     *     y: 0,
-     *     move(x: number, y: number) {
-     *         this.x += x;
-     *         this.y += y;
-     *     }
-     * };
-     *
-     * // Create a mixin with computed properties
-     * const scalable = {
-     *     scale: 1,
-     *     get scaled() {
-     *         return this.scale > 1;
-     *     }
-     * };
-     *
-     * // Apply mixins to a class
-     * extensions.mixin(Sprite, moveable, scalable);
-     *
-     * // Use mixed-in properties
-     * const sprite = new Sprite();
-     * sprite.move(10, 20);
-     * console.log(sprite.x, sprite.y); // 10, 20
-     * ```
-     * @remarks
-     * - Copies all properties including getters/setters
-     * - Does not modify source objects
-     * - Preserves property descriptors
-     * @see {@link Object.defineProperties} For details on property descriptors
-     * @see {@link Object.getOwnPropertyDescriptors} For details on property copying
-     */
+
     mixin(Target, ...sources2) {
       for (const source2 of sources2) {
         Object.defineProperties(Target.prototype, Object.getOwnPropertyDescriptors(source2));
@@ -283,61 +172,17 @@ var MioBundle = function() {
     }
   };
   class ObservablePoint {
-    /**
-     * Creates a new `ObservablePoint`
-     * @param observer - Observer to pass to listen for change events.
-     * @param {number} [x=0] - position of the point on the x axis
-     * @param {number} [y=0] - position of the point on the y axis
-     */
+
     constructor(observer, x2, y2) {
       this._x = x2 || 0;
       this._y = y2 || 0;
       this._observer = observer;
     }
-    /**
-     * Creates a clone of this point.
-     * @example
-     * ```ts
-     * // Basic cloning
-     * const point = new ObservablePoint(observer, 100, 200);
-     * const copy = point.clone();
-     *
-     * // Clone with new observer
-     * const newObserver = {
-     *     _onUpdate: (p) => console.log(`Clone updated: (${p.x}, ${p.y})`)
-     * };
-     * const watched = point.clone(newObserver);
-     *
-     * // Verify independence
-     * watched.set(300, 400); // Only triggers new observer
-     * ```
-     * @param observer - Optional observer to pass to the new observable point
-     * @returns A copy of this observable point
-     * @see {@link ObservablePoint.copyFrom} For copying into existing point
-     * @see {@link Observer} For observer interface details
-     */
+
     clone(observer) {
       return new ObservablePoint(observer ?? this._observer, this._x, this._y);
     }
-    /**
-     * Sets the point to a new x and y position.
-     *
-     * If y is omitted, both x and y will be set to x.
-     * @example
-     * ```ts
-     * // Basic position setting
-     * const point = new ObservablePoint(observer);
-     * point.set(100, 200);
-     *
-     * // Set both x and y to same value
-     * point.set(50); // x=50, y=50
-     * ```
-     * @param x - Position on the x axis
-     * @param y - Position on the y axis, defaults to x
-     * @returns The point instance itself
-     * @see {@link ObservablePoint.copyFrom} For copying from another point
-     * @see {@link ObservablePoint.equals} For comparing positions
-     */
+
     set(x2 = 0, y2 = x2) {
       if (this._x !== x2 || this._y !== y2) {
         this._x = x2;
@@ -346,29 +191,7 @@ var MioBundle = function() {
       }
       return this;
     }
-    /**
-     * Copies x and y from the given point into this point.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new ObservablePoint(observer, 100, 200);
-     * const target = new ObservablePoint();
-     * target.copyFrom(source);
-     *
-     * // Copy and chain operations
-     * const point = new ObservablePoint()
-     *     .copyFrom(source)
-     *     .set(x + 50, y + 50);
-     *
-     * // Copy from any PointData
-     * const data = { x: 10, y: 20 };
-     * point.copyFrom(data);
-     * ```
-     * @param p - The point to copy from
-     * @returns The point instance itself
-     * @see {@link ObservablePoint.copyTo} For copying to another point
-     * @see {@link ObservablePoint.clone} For creating new point copy
-     */
+
     copyFrom(p2) {
       if (this._x !== p2.x || this._y !== p2.y) {
         this._x = p2.x;
@@ -377,68 +200,19 @@ var MioBundle = function() {
       }
       return this;
     }
-    /**
-     * Copies this point's x and y into the given point.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new ObservablePoint(100, 200);
-     * const target = new ObservablePoint();
-     * source.copyTo(target);
-     * ```
-     * @param p - The point to copy to. Can be any type that is or extends `PointLike`
-     * @returns The point (`p`) with values updated
-     * @see {@link ObservablePoint.copyFrom} For copying from another point
-     * @see {@link ObservablePoint.clone} For creating new point copy
-     */
+
     copyTo(p2) {
       p2.set(this._x, this._y);
       return p2;
     }
-    /**
-     * Checks if another point is equal to this point.
-     *
-     * Compares x and y values using strict equality.
-     * @example
-     * ```ts
-     * // Basic equality check
-     * const p1 = new ObservablePoint(100, 200);
-     * const p2 = new ObservablePoint(100, 200);
-     * console.log(p1.equals(p2)); // true
-     *
-     * // Compare with PointData
-     * const data = { x: 100, y: 200 };
-     * console.log(p1.equals(data)); // true
-     *
-     * // Check different points
-     * const p3 = new ObservablePoint(200, 300);
-     * console.log(p1.equals(p3)); // false
-     * ```
-     * @param p - The point to check
-     * @returns `true` if both `x` and `y` are equal
-     * @see {@link ObservablePoint.copyFrom} For making points equal
-     * @see {@link PointData} For point data interface
-     */
+
     equals(p2) {
       return p2.x === this._x && p2.y === this._y;
     }
     toString() {
       return `[pixi.js/math:ObservablePoint x=${this._x} y=${this._y} scope=${this._observer}]`;
     }
-    /**
-     * Position of the observable point on the x axis.
-     * Triggers observer callback when value changes.
-     * @example
-     * ```ts
-     * // Basic x position
-     * const point = new ObservablePoint(observer);
-     * point.x = 100; // Triggers observer
-     *
-     * // Use in calculations
-     * const width = rightPoint.x - leftPoint.x;
-     * ```
-     * @default 0
-     */
+
     get x() {
       return this._x;
     }
@@ -448,20 +222,7 @@ var MioBundle = function() {
         this._observer._onUpdate(this);
       }
     }
-    /**
-     * Position of the observable point on the y axis.
-     * Triggers observer callback when value changes.
-     * @example
-     * ```ts
-     * // Basic y position
-     * const point = new ObservablePoint(observer);
-     * point.y = 200; // Triggers observer
-     *
-     * // Use in calculations
-     * const height = bottomPoint.y - topPoint.y;
-     * ```
-     * @default 0
-     */
+
     get y() {
       return this._y;
     }
@@ -481,7 +242,7 @@ var MioBundle = function() {
     function Events() {
     }
     if (Object.create) {
-      Events.prototype = /* @__PURE__ */ Object.create(null);
+      Events.prototype =                 Object.create(null);
       if (!new Events().__proto__) prefix = false;
     }
     function EE(fn, context2, once) {
@@ -633,146 +394,37 @@ var MioBundle = function() {
     }
   })(eventemitter3);
   var eventemitter3Exports = eventemitter3.exports;
-  const EventEmitter = /* @__PURE__ */ getDefaultExportFromCjs(eventemitter3Exports);
+  const EventEmitter =                 getDefaultExportFromCjs(eventemitter3Exports);
   const PI_2 = Math.PI * 2;
   const RAD_TO_DEG = 180 / Math.PI;
   const DEG_TO_RAD = Math.PI / 180;
   class Point {
-    /**
-     * Creates a new `Point`
-     * @param {number} [x=0] - position of the point on the x axis
-     * @param {number} [y=0] - position of the point on the y axis
-     */
+
     constructor(x2 = 0, y2 = 0) {
       this.x = 0;
       this.y = 0;
       this.x = x2;
       this.y = y2;
     }
-    /**
-     * Creates a clone of this point, which is a new instance with the same `x` and `y` values.
-     * @example
-     * ```ts
-     * // Basic point cloning
-     * const original = new Point(100, 200);
-     * const copy = original.clone();
-     *
-     * // Clone and modify
-     * const modified = original.clone();
-     * modified.set(300, 400);
-     *
-     * // Verify independence
-     * console.log(original); // Point(100, 200)
-     * console.log(modified); // Point(300, 400)
-     * ```
-     * @remarks
-     * - Creates new Point instance
-     * - Deep copies x and y values
-     * - Independent from original
-     * - Useful for preserving values
-     * @returns A clone of this point
-     * @see {@link Point.copyFrom} For copying into existing point
-     * @see {@link Point.copyTo} For copying to existing point
-     */
+
     clone() {
       return new Point(this.x, this.y);
     }
-    /**
-     * Copies x and y from the given point into this point.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Point(100, 200);
-     * const target = new Point();
-     * target.copyFrom(source);
-     *
-     * // Copy and chain operations
-     * const point = new Point()
-     *     .copyFrom(source)
-     *     .set(x + 50, y + 50);
-     *
-     * // Copy from any PointData
-     * const data = { x: 10, y: 20 };
-     * point.copyFrom(data);
-     * ```
-     * @param p - The point to copy from
-     * @returns The point instance itself
-     * @see {@link Point.copyTo} For copying to another point
-     * @see {@link Point.clone} For creating new point copy
-     */
+
     copyFrom(p2) {
       this.set(p2.x, p2.y);
       return this;
     }
-    /**
-     * Copies this point's x and y into the given point.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Point(100, 200);
-     * const target = new Point();
-     * source.copyTo(target);
-     * ```
-     * @param p - The point to copy to. Can be any type that is or extends `PointLike`
-     * @returns The point (`p`) with values updated
-     * @see {@link Point.copyFrom} For copying from another point
-     * @see {@link Point.clone} For creating new point copy
-     */
+
     copyTo(p2) {
       p2.set(this.x, this.y);
       return p2;
     }
-    /**
-     * Checks if another point is equal to this point.
-     *
-     * Compares x and y values using strict equality.
-     * @example
-     * ```ts
-     * // Basic equality check
-     * const p1 = new Point(100, 200);
-     * const p2 = new Point(100, 200);
-     * console.log(p1.equals(p2)); // true
-     *
-     * // Compare with PointData
-     * const data = { x: 100, y: 200 };
-     * console.log(p1.equals(data)); // true
-     *
-     * // Check different points
-     * const p3 = new Point(200, 300);
-     * console.log(p1.equals(p3)); // false
-     * ```
-     * @param p - The point to check
-     * @returns `true` if both `x` and `y` are equal
-     * @see {@link Point.copyFrom} For making points equal
-     * @see {@link PointData} For point data interface
-     */
+
     equals(p2) {
       return p2.x === this.x && p2.y === this.y;
     }
-    /**
-     * Sets the point to a new x and y position.
-     *
-     * If y is omitted, both x and y will be set to x.
-     * @example
-     * ```ts
-     * // Basic position setting
-     * const point = new Point();
-     * point.set(100, 200);
-     *
-     * // Set both x and y to same value
-     * point.set(50); // x=50, y=50
-     *
-     * // Chain with other operations
-     * point
-     *     .set(10, 20)
-     *     .copyTo(otherPoint);
-     * ```
-     * @param x - Position on the x axis
-     * @param y - Position on the y axis, defaults to x
-     * @returns The point instance itself
-     * @see {@link Point.copyFrom} For copying from another point
-     * @see {@link Point.equals} For comparing positions
-     */
+
     set(x2 = 0, y2 = x2) {
       this.x = x2;
       this.y = y2;
@@ -781,27 +433,7 @@ var MioBundle = function() {
     toString() {
       return `[pixi.js/math:Point x=${this.x} y=${this.y}]`;
     }
-    /**
-     * A static Point object with `x` and `y` values of `0`.
-     *
-     * This shared instance is reset to zero values when accessed.
-     *
-     * > [!IMPORTANT] This point is shared and temporary. Do not store references to it.
-     * @example
-     * ```ts
-     * // Use for temporary calculations
-     * const tempPoint = Point.shared;
-     * tempPoint.set(100, 200);
-     * matrix.apply(tempPoint);
-     *
-     * // Will be reset to (0,0) on next access
-     * const fresh = Point.shared; // x=0, y=0
-     * ```
-     * @readonly
-     * @returns A fresh zeroed point for temporary use
-     * @see {@link Point.constructor} For creating new points
-     * @see {@link PointData} For basic point interface
-     */
+
     static get shared() {
       tempPoint.x = 0;
       tempPoint.y = 0;
@@ -810,14 +442,7 @@ var MioBundle = function() {
   }
   const tempPoint = new Point();
   class Matrix {
-    /**
-     * @param a - x scale
-     * @param b - y skew
-     * @param c - x skew
-     * @param d - y scale
-     * @param tx - x translation
-     * @param ty - y translation
-     */
+
     constructor(a2 = 1, b2 = 0, c2 = 0, d2 = 1, tx = 0, ty = 0) {
       this.array = null;
       this.a = a2;
@@ -827,39 +452,7 @@ var MioBundle = function() {
       this.tx = tx;
       this.ty = ty;
     }
-    /**
-     * Creates a Matrix object based on the given array.
-     * Populates matrix components from a flat array in column-major order.
-     *
-     * > [!NOTE] Array mapping order:
-     * > ```
-     * > array[0] = a  (x scale)
-     * > array[1] = b  (y skew)
-     * > array[2] = tx (x translation)
-     * > array[3] = c  (x skew)
-     * > array[4] = d  (y scale)
-     * > array[5] = ty (y translation)
-     * > ```
-     * @example
-     * ```ts
-     * // Create matrix from array
-     * const matrix = new Matrix();
-     * matrix.fromArray([
-     *     2, 0,  100,  // a, b, tx
-     *     0, 2,  100   // c, d, ty
-     * ]);
-     *
-     * // Create matrix from typed array
-     * const float32Array = new Float32Array([
-     *     1, 0, 0,     // Scale x1, no skew
-     *     0, 1, 0      // No skew, scale x1
-     * ]);
-     * matrix.fromArray(float32Array);
-     * ```
-     * @param array - The array to populate the matrix from
-     * @see {@link Matrix.toArray} For converting matrix to array
-     * @see {@link Matrix.set} For setting values directly
-     */
+
     fromArray(array) {
       this.a = array[0];
       this.b = array[1];
@@ -868,30 +461,7 @@ var MioBundle = function() {
       this.tx = array[2];
       this.ty = array[5];
     }
-    /**
-     * Sets the matrix properties directly.
-     * All matrix components can be set in one call.
-     * @example
-     * ```ts
-     * // Set to identity matrix
-     * matrix.set(1, 0, 0, 1, 0, 0);
-     *
-     * // Set to scale matrix
-     * matrix.set(2, 0, 0, 2, 0, 0); // Scale 2x
-     *
-     * // Set to translation matrix
-     * matrix.set(1, 0, 0, 1, 100, 50); // Move 100,50
-     * ```
-     * @param a - Scale on x axis
-     * @param b - Shear on y axis
-     * @param c - Shear on x axis
-     * @param d - Scale on y axis
-     * @param tx - Translation on x axis
-     * @param ty - Translation on y axis
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.identity} For resetting to identity
-     * @see {@link Matrix.fromArray} For setting from array
-     */
+
     set(a2, b2, c2, d2, tx, ty) {
       this.a = a2;
       this.b = b2;
@@ -901,40 +471,7 @@ var MioBundle = function() {
       this.ty = ty;
       return this;
     }
-    /**
-     * Creates an array from the current Matrix object.
-     *
-     * > [!NOTE] The array format is:
-     * > ```
-     * > Non-transposed:
-     * > [a, c, tx,
-     * > b, d, ty,
-     * > 0, 0, 1]
-     * >
-     * > Transposed:
-     * > [a, b, 0,
-     * > c, d, 0,
-     * > tx,ty,1]
-     * > ```
-     * @example
-     * ```ts
-     * // Basic array conversion
-     * const matrix = new Matrix(2, 0, 0, 2, 100, 100);
-     * const array = matrix.toArray();
-     *
-     * // Using existing array
-     * const float32Array = new Float32Array(9);
-     * matrix.toArray(false, float32Array);
-     *
-     * // Get transposed array
-     * const transposed = matrix.toArray(true);
-     * ```
-     * @param transpose - Whether to transpose the matrix
-     * @param out - Optional Float32Array to store the result
-     * @returns The array containing the matrix values
-     * @see {@link Matrix.fromArray} For creating matrix from array
-     * @see {@link Matrix.array} For cached array storage
-     */
+
     toArray(transpose, out2) {
       if (!this.array) {
         this.array = new Float32Array(9);
@@ -963,27 +500,7 @@ var MioBundle = function() {
       }
       return array;
     }
-    /**
-     * Get a new position with the current transformation applied.
-     *
-     * Can be used to go from a child's coordinate space to the world coordinate space. (e.g. rendering)
-     * @example
-     * ```ts
-     * // Basic point transformation
-     * const matrix = new Matrix().translate(100, 50).rotate(Math.PI / 4);
-     * const point = new Point(10, 20);
-     * const transformed = matrix.apply(point);
-     *
-     * // Reuse existing point
-     * const output = new Point();
-     * matrix.apply(point, output);
-     * ```
-     * @param pos - The origin point to transform
-     * @param newPos - Optional point to store the result
-     * @returns The transformed point
-     * @see {@link Matrix.applyInverse} For inverse transformation
-     * @see {@link Point} For point operations
-     */
+
     apply(pos, newPos) {
       newPos = newPos || new Point();
       const x2 = pos.x;
@@ -992,31 +509,7 @@ var MioBundle = function() {
       newPos.y = this.b * x2 + this.d * y2 + this.ty;
       return newPos;
     }
-    /**
-     * Get a new position with the inverse of the current transformation applied.
-     *
-     * Can be used to go from the world coordinate space to a child's coordinate space. (e.g. input)
-     * @example
-     * ```ts
-     * // Basic inverse transformation
-     * const matrix = new Matrix().translate(100, 50).rotate(Math.PI / 4);
-     * const worldPoint = new Point(150, 100);
-     * const localPoint = matrix.applyInverse(worldPoint);
-     *
-     * // Reuse existing point
-     * const output = new Point();
-     * matrix.applyInverse(worldPoint, output);
-     *
-     * // Convert mouse position to local space
-     * const mousePoint = new Point(mouseX, mouseY);
-     * const localMouse = matrix.applyInverse(mousePoint);
-     * ```
-     * @param pos - The origin point to inverse-transform
-     * @param newPos - Optional point to store the result
-     * @returns The inverse-transformed point
-     * @see {@link Matrix.apply} For forward transformation
-     * @see {@link Matrix.invert} For getting inverse matrix
-     */
+
     applyInverse(pos, newPos) {
       newPos = newPos || new Point();
       const a2 = this.a;
@@ -1032,53 +525,13 @@ var MioBundle = function() {
       newPos.y = a2 * id * y2 + -b2 * id * x2 + (-ty * a2 + tx * b2) * id;
       return newPos;
     }
-    /**
-     * Translates the matrix on the x and y axes.
-     * Adds to the position values while preserving scale, rotation and skew.
-     * @example
-     * ```ts
-     * // Basic translation
-     * const matrix = new Matrix();
-     * matrix.translate(100, 50); // Move right 100, down 50
-     *
-     * // Chain with other transformations
-     * matrix
-     *     .scale(2, 2)
-     *     .translate(100, 0)
-     *     .rotate(Math.PI / 4);
-     * ```
-     * @param x - How much to translate on the x axis
-     * @param y - How much to translate on the y axis
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.set} For setting position directly
-     * @see {@link Matrix.setTransform} For complete transform setup
-     */
+
     translate(x2, y2) {
       this.tx += x2;
       this.ty += y2;
       return this;
     }
-    /**
-     * Applies a scale transformation to the matrix.
-     * Multiplies the scale values with existing matrix components.
-     * @example
-     * ```ts
-     * // Basic scaling
-     * const matrix = new Matrix();
-     * matrix.scale(2, 3); // Scale 2x horizontally, 3x vertically
-     *
-     * // Chain with other transformations
-     * matrix
-     *     .translate(100, 100)
-     *     .scale(2, 2)     // Scales after translation
-     *     .rotate(Math.PI / 4);
-     * ```
-     * @param x - The amount to scale horizontally
-     * @param y - The amount to scale vertically
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.setTransform} For setting scale directly
-     * @see {@link Matrix.append} For combining transformations
-     */
+
     scale(x2, y2) {
       this.a *= x2;
       this.d *= y2;
@@ -1088,37 +541,7 @@ var MioBundle = function() {
       this.ty *= y2;
       return this;
     }
-    /**
-     * Applies a rotation transformation to the matrix.
-     *
-     * Rotates around the origin (0,0) by the given angle in radians.
-     * @example
-     * ```ts
-     * // Basic rotation
-     * const matrix = new Matrix();
-     * matrix.rotate(Math.PI / 4); // Rotate 45 degrees
-     *
-     * // Chain with other transformations
-     * matrix
-     *     .translate(100, 100) // Move to rotation center
-     *     .rotate(Math.PI)     // Rotate 180 degrees
-     *     .scale(2, 2);        // Scale after rotation
-     *
-     * // Common angles
-     * matrix.rotate(Math.PI / 2);  // 90 degrees
-     * matrix.rotate(Math.PI);      // 180 degrees
-     * matrix.rotate(Math.PI * 2);  // 360 degrees
-     * ```
-     * @remarks
-     * - Rotates around origin point (0,0)
-     * - Affects position if translation was set
-     * - Uses counter-clockwise rotation
-     * - Order of operations matters when chaining
-     * @param angle - The angle in radians
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.setTransform} For setting rotation directly
-     * @see {@link Matrix.append} For combining transformations
-     */
+
     rotate(angle) {
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
@@ -1133,26 +556,7 @@ var MioBundle = function() {
       this.ty = tx1 * sin + this.ty * cos;
       return this;
     }
-    /**
-     * Appends the given Matrix to this Matrix.
-     * Combines two matrices by multiplying them together: this = this * matrix
-     * @example
-     * ```ts
-     * // Basic matrix combination
-     * const matrix = new Matrix();
-     * const other = new Matrix().translate(100, 0).rotate(Math.PI / 4);
-     * matrix.append(other);
-     * ```
-     * @remarks
-     * - Order matters: A.append(B) !== B.append(A)
-     * - Modifies current matrix
-     * - Preserves transformation order
-     * - Commonly used for combining transforms
-     * @param matrix - The matrix to append
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.prepend} For prepending transformations
-     * @see {@link Matrix.appendFrom} For appending two external matrices
-     */
+
     append(matrix) {
       const a1 = this.a;
       const b1 = this.b;
@@ -1166,28 +570,7 @@ var MioBundle = function() {
       this.ty = matrix.tx * b1 + matrix.ty * d1 + this.ty;
       return this;
     }
-    /**
-     * Appends two matrices and sets the result to this matrix.
-     * Performs matrix multiplication: this = A * B
-     * @example
-     * ```ts
-     * // Basic matrix multiplication
-     * const result = new Matrix();
-     * const matrixA = new Matrix().scale(2, 2);
-     * const matrixB = new Matrix().rotate(Math.PI / 4);
-     * result.appendFrom(matrixA, matrixB);
-     * ```
-     * @remarks
-     * - Order matters: A * B !== B * A
-     * - Creates a new transformation from two others
-     * - More efficient than append() for multiple operations
-     * - Does not modify input matrices
-     * @param a - The first matrix to multiply
-     * @param b - The second matrix to multiply
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.append} For single matrix combination
-     * @see {@link Matrix.prepend} For reverse order multiplication
-     */
+
     appendFrom(a2, b2) {
       const a1 = a2.a;
       const b1 = a2.b;
@@ -1207,39 +590,7 @@ var MioBundle = function() {
       this.ty = tx * b22 + ty * d2 + b2.ty;
       return this;
     }
-    /**
-     * Sets the matrix based on all the available properties.
-     * Combines position, scale, rotation, skew and pivot in a single operation.
-     * @example
-     * ```ts
-     * // Basic transform setup
-     * const matrix = new Matrix();
-     * matrix.setTransform(
-     *     100, 100,    // position
-     *     0, 0,        // pivot
-     *     2, 2,        // scale
-     *     Math.PI / 4, // rotation (45 degrees)
-     *     0, 0         // skew
-     * );
-     * ```
-     * @remarks
-     * - Updates all matrix components at once
-     * - More efficient than separate transform calls
-     * - Uses radians for rotation and skew
-     * - Pivot affects rotation center
-     * @param x - Position on the x axis
-     * @param y - Position on the y axis
-     * @param pivotX - Pivot on the x axis
-     * @param pivotY - Pivot on the y axis
-     * @param scaleX - Scale on the x axis
-     * @param scaleY - Scale on the y axis
-     * @param rotation - Rotation in radians
-     * @param skewX - Skew on the x axis
-     * @param skewY - Skew on the y axis
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.decompose} For extracting transform properties
-     * @see {@link TransformableObject} For transform data structure
-     */
+
     setTransform(x2, y2, pivotX, pivotY, scaleX, scaleY, rotation, skewX, skewY) {
       this.a = Math.cos(rotation + skewY) * scaleX;
       this.b = Math.sin(rotation + skewY) * scaleX;
@@ -1249,25 +600,7 @@ var MioBundle = function() {
       this.ty = y2 - (pivotX * this.b + pivotY * this.d);
       return this;
     }
-    /**
-     * Prepends the given Matrix to this Matrix.
-     * Combines two matrices by multiplying them together: this = matrix * this
-     * @example
-     * ```ts
-     * // Basic matrix prepend
-     * const matrix = new Matrix().scale(2, 2);
-     * const other = new Matrix().translate(100, 0);
-     * matrix.prepend(other); // Translation happens before scaling
-     * ```
-     * @remarks
-     * - Order matters: A.prepend(B) !== B.prepend(A)
-     * - Modifies current matrix
-     * - Reverses transformation order compared to append()
-     * @param matrix - The matrix to prepend
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.append} For appending transformations
-     * @see {@link Matrix.appendFrom} For combining external matrices
-     */
+
     prepend(matrix) {
       const tx1 = this.tx;
       if (matrix.a !== 1 || matrix.b !== 0 || matrix.c !== 0 || matrix.d !== 1) {
@@ -1282,40 +615,7 @@ var MioBundle = function() {
       this.ty = tx1 * matrix.b + this.ty * matrix.d + matrix.ty;
       return this;
     }
-    /**
-     * Decomposes the matrix into its individual transform components.
-     * Extracts position, scale, rotation and skew values from the matrix.
-     * @example
-     * ```ts
-     * // Basic decomposition
-     * const matrix = new Matrix()
-     *     .translate(100, 100)
-     *     .rotate(Math.PI / 4)
-     *     .scale(2, 2);
-     *
-     * const transform = {
-     *     position: new Point(),
-     *     scale: new Point(),
-     *     pivot: new Point(),
-     *     skew: new Point(),
-     *     rotation: 0
-     * };
-     *
-     * matrix.decompose(transform);
-     * console.log(transform.position); // Point(100, 100)
-     * console.log(transform.rotation); // ~0.785 (PI/4)
-     * console.log(transform.scale); // Point(2, 2)
-     * ```
-     * @remarks
-     * - Handles combined transformations
-     * - Accounts for pivot points
-     * - Chooses between rotation/skew based on transform type
-     * - Uses radians for rotation and skew
-     * @param transform - The transform object to store the decomposed values
-     * @returns The transform with the newly applied properties
-     * @see {@link Matrix.setTransform} For composing from components
-     * @see {@link TransformableObject} For transform structure
-     */
+
     decompose(transform) {
       const a2 = this.a;
       const b2 = this.b;
@@ -1339,32 +639,7 @@ var MioBundle = function() {
       transform.position.y = this.ty + (pivot.x * b2 + pivot.y * d2);
       return transform;
     }
-    /**
-     * Inverts this matrix.
-     * Creates the matrix that when multiplied with this matrix results in an identity matrix.
-     * @example
-     * ```ts
-     * // Basic matrix inversion
-     * const matrix = new Matrix()
-     *     .translate(100, 50)
-     *     .scale(2, 2);
-     *
-     * matrix.invert(); // Now transforms in opposite direction
-     *
-     * // Verify inversion
-     * const point = new Point(50, 50);
-     * const transformed = matrix.apply(point);
-     * const original = matrix.invert().apply(transformed);
-     * // original ≈ point
-     * ```
-     * @remarks
-     * - Modifies the current matrix
-     * - Useful for reversing transformations
-     * - Cannot invert matrices with zero determinant
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.identity} For resetting to identity
-     * @see {@link Matrix.applyInverse} For inverse transformations
-     */
+
     invert() {
       const a1 = this.a;
       const b1 = this.b;
@@ -1380,63 +655,11 @@ var MioBundle = function() {
       this.ty = -(a1 * this.ty - b1 * tx1) / n2;
       return this;
     }
-    /**
-     * Checks if this matrix is an identity matrix.
-     *
-     * An identity matrix has no transformations applied (default state).
-     * @example
-     * ```ts
-     * // Check if matrix is identity
-     * const matrix = new Matrix();
-     * console.log(matrix.isIdentity()); // true
-     *
-     * // Check after transformations
-     * matrix.translate(100, 0);
-     * console.log(matrix.isIdentity()); // false
-     *
-     * // Reset and verify
-     * matrix.identity();
-     * console.log(matrix.isIdentity()); // true
-     * ```
-     * @remarks
-     * - Verifies a = 1, d = 1 (no scale)
-     * - Verifies b = 0, c = 0 (no skew)
-     * - Verifies tx = 0, ty = 0 (no translation)
-     * @returns True if matrix has no transformations
-     * @see {@link Matrix.identity} For resetting to identity
-     * @see {@link Matrix.IDENTITY} For constant identity matrix
-     */
+
     isIdentity() {
       return this.a === 1 && this.b === 0 && this.c === 0 && this.d === 1 && this.tx === 0 && this.ty === 0;
     }
-    /**
-     * Resets this Matrix to an identity (default) matrix.
-     * Sets all components to their default values: scale=1, no skew, no translation.
-     * @example
-     * ```ts
-     * // Reset transformed matrix
-     * const matrix = new Matrix()
-     *     .scale(2, 2)
-     *     .rotate(Math.PI / 4);
-     * matrix.identity(); // Back to default state
-     *
-     * // Chain after reset
-     * matrix
-     *     .identity()
-     *     .translate(100, 100)
-     *     .scale(2, 2);
-     *
-     * // Compare with identity constant
-     * const isDefault = matrix.equals(Matrix.IDENTITY);
-     * ```
-     * @remarks
-     * - Sets a=1, d=1 (default scale)
-     * - Sets b=0, c=0 (no skew)
-     * - Sets tx=0, ty=0 (no translation)
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.IDENTITY} For constant identity matrix
-     * @see {@link Matrix.isIdentity} For checking identity state
-     */
+
     identity() {
       this.a = 1;
       this.b = 0;
@@ -1446,10 +669,7 @@ var MioBundle = function() {
       this.ty = 0;
       return this;
     }
-    /**
-     * Creates a new Matrix object with the same values as this one.
-     * @returns A copy of this matrix. Good for chaining method calls.
-     */
+
     clone() {
       const matrix = new Matrix();
       matrix.a = this.a;
@@ -1460,29 +680,7 @@ var MioBundle = function() {
       matrix.ty = this.ty;
       return matrix;
     }
-    /**
-     * Creates a new Matrix object with the same values as this one.
-     * @param matrix
-     * @example
-     * ```ts
-     * // Basic matrix cloning
-     * const matrix = new Matrix()
-     *     .translate(100, 100)
-     *     .rotate(Math.PI / 4);
-     * const copy = matrix.clone();
-     *
-     * // Clone and modify
-     * const modified = matrix.clone()
-     *     .scale(2, 2);
-     *
-     * // Compare matrices
-     * console.log(matrix.equals(copy));     // true
-     * console.log(matrix.equals(modified)); // false
-     * ```
-     * @returns A copy of this matrix. Good for chaining method calls.
-     * @see {@link Matrix.copyTo} For copying to existing matrix
-     * @see {@link Matrix.copyFrom} For copying from another matrix
-     */
+
     copyTo(matrix) {
       matrix.a = this.a;
       matrix.b = this.b;
@@ -1492,22 +690,7 @@ var MioBundle = function() {
       matrix.ty = this.ty;
       return matrix;
     }
-    /**
-     * Changes the values of the matrix to be the same as the ones in given matrix.
-     * @example
-     * ```ts
-     * // Basic matrix copying
-     * const source = new Matrix()
-     *     .translate(100, 100)
-     *     .rotate(Math.PI / 4);
-     * const target = new Matrix();
-     * target.copyFrom(source);
-     * ```
-     * @param matrix - The matrix to copy from
-     * @returns This matrix. Good for chaining method calls.
-     * @see {@link Matrix.clone} For creating new matrix copy
-     * @see {@link Matrix.copyTo} For copying to another matrix
-     */
+
     copyFrom(matrix) {
       this.a = matrix.a;
       this.b = matrix.b;
@@ -1517,86 +700,18 @@ var MioBundle = function() {
       this.ty = matrix.ty;
       return this;
     }
-    /**
-     * Checks if this matrix equals another matrix.
-     * Compares all components for exact equality.
-     * @example
-     * ```ts
-     * // Basic equality check
-     * const m1 = new Matrix();
-     * const m2 = new Matrix();
-     * console.log(m1.equals(m2)); // true
-     *
-     * // Compare transformed matrices
-     * const transform = new Matrix()
-     *     .translate(100, 100)
-     * const clone = new Matrix()
-     *     .scale(2, 2);
-     * console.log(transform.equals(clone)); // false
-     * ```
-     * @param matrix - The matrix to compare to
-     * @returns True if matrices are identical
-     * @see {@link Matrix.copyFrom} For copying matrix values
-     * @see {@link Matrix.isIdentity} For identity comparison
-     */
+
     equals(matrix) {
       return matrix.a === this.a && matrix.b === this.b && matrix.c === this.c && matrix.d === this.d && matrix.tx === this.tx && matrix.ty === this.ty;
     }
     toString() {
       return `[pixi.js:Matrix a=${this.a} b=${this.b} c=${this.c} d=${this.d} tx=${this.tx} ty=${this.ty}]`;
     }
-    /**
-     * A default (identity) matrix with no transformations applied.
-     *
-     * > [!IMPORTANT] This is a shared read-only object. Create a new Matrix if you need to modify it.
-     * @example
-     * ```ts
-     * // Get identity matrix reference
-     * const identity = Matrix.IDENTITY;
-     * console.log(identity.isIdentity()); // true
-     *
-     * // Compare with identity
-     * const matrix = new Matrix();
-     * console.log(matrix.equals(Matrix.IDENTITY)); // true
-     *
-     * // Create new matrix instead of modifying IDENTITY
-     * const transform = new Matrix()
-     *     .copyFrom(Matrix.IDENTITY)
-     *     .translate(100, 100);
-     * ```
-     * @readonly
-     * @returns A read-only identity matrix
-     * @see {@link Matrix.shared} For temporary calculations
-     * @see {@link Matrix.identity} For resetting matrices
-     */
+
     static get IDENTITY() {
       return identityMatrix$1.identity();
     }
-    /**
-     * A static Matrix that can be used to avoid creating new objects.
-     * Will always ensure the matrix is reset to identity when requested.
-     *
-     * > [!IMPORTANT] This matrix is shared and temporary. Do not store references to it.
-     * @example
-     * ```ts
-     * // Use for temporary calculations
-     * const tempMatrix = Matrix.shared;
-     * tempMatrix.translate(100, 100).rotate(Math.PI / 4);
-     * const point = tempMatrix.apply({ x: 10, y: 20 });
-     *
-     * // Will be reset to identity on next access
-     * const fresh = Matrix.shared; // Back to identity
-     * ```
-     * @remarks
-     * - Always returns identity matrix
-     * - Safe to modify temporarily
-     * - Not safe to store references
-     * - Useful for one-off calculations
-     * @readonly
-     * @returns A fresh identity matrix for temporary use
-     * @see {@link Matrix.IDENTITY} For immutable identity matrix
-     * @see {@link Matrix.identity} For resetting matrices
-     */
+
     static get shared() {
       return tempMatrix$6.identity();
     }
@@ -1635,194 +750,54 @@ var MioBundle = function() {
   }
   init();
   const groupD8 = {
-    /**
-     * | Rotation | Direction |
-     * |----------|-----------|
-     * | 0°       | East      |
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     E: 0,
-    /**
-     * | Rotation | Direction |
-     * |----------|-----------|
-     * | 45°↻     | Southeast |
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     SE: 1,
-    /**
-     * | Rotation | Direction |
-     * |----------|-----------|
-     * | 90°↻     | South     |
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     S: 2,
-    /**
-     * | Rotation | Direction |
-     * |----------|-----------|
-     * | 135°↻    | Southwest |
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     SW: 3,
-    /**
-     * | Rotation | Direction |
-     * |----------|-----------|
-     * | 180°     | West      |
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     W: 4,
-    /**
-     * | Rotation    | Direction    |
-     * |-------------|--------------|
-     * | -135°/225°↻ | Northwest    |
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     NW: 5,
-    /**
-     * | Rotation    | Direction    |
-     * |-------------|--------------|
-     * | -90°/270°↻  | North        |
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     N: 6,
-    /**
-     * | Rotation    | Direction    |
-     * |-------------|--------------|
-     * | -45°/315°↻  | Northeast    |
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     NE: 7,
-    /**
-     * Reflection about Y-axis.
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     MIRROR_VERTICAL: 8,
-    /**
-     * Reflection about the main diagonal.
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     MAIN_DIAGONAL: 10,
-    /**
-     * Reflection about X-axis.
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     MIRROR_HORIZONTAL: 12,
-    /**
-     * Reflection about reverse diagonal.
-     * @group groupD8
-     * @type {GD8Symmetry}
-     */
+
     REVERSE_DIAGONAL: 14,
-    /**
-     * @group groupD8
-     * @param {GD8Symmetry} ind - sprite rotation angle.
-     * @returns {GD8Symmetry} The X-component of the U-axis
-     *    after rotating the axes.
-     */
+
     uX: (ind) => ux[ind],
-    /**
-     * @group groupD8
-     * @param {GD8Symmetry} ind - sprite rotation angle.
-     * @returns {GD8Symmetry} The Y-component of the U-axis
-     *    after rotating the axes.
-     */
+
     uY: (ind) => uy[ind],
-    /**
-     * @group groupD8
-     * @param {GD8Symmetry} ind - sprite rotation angle.
-     * @returns {GD8Symmetry} The X-component of the V-axis
-     *    after rotating the axes.
-     */
+
     vX: (ind) => vx[ind],
-    /**
-     * @group groupD8
-     * @param {GD8Symmetry} ind - sprite rotation angle.
-     * @returns {GD8Symmetry} The Y-component of the V-axis
-     *    after rotating the axes.
-     */
+
     vY: (ind) => vy[ind],
-    /**
-     * @group groupD8
-     * @param {GD8Symmetry} rotation - symmetry whose opposite
-     *   is needed. Only rotations have opposite symmetries while
-     *   reflections don't.
-     * @returns {GD8Symmetry} The opposite symmetry of `rotation`
-     */
+
     inv: (rotation) => {
       if (rotation & 8) {
         return rotation & 15;
       }
       return -rotation & 7;
     },
-    /**
-     * Composes the two D8 operations.
-     *
-     * Taking `^` as reflection:
-     *
-     * |       | E=0 | S=2 | W=4 | N=6 | E^=8 | S^=10 | W^=12 | N^=14 |
-     * |-------|-----|-----|-----|-----|------|-------|-------|-------|
-     * | E=0   | E   | S   | W   | N   | E^   | S^    | W^    | N^    |
-     * | S=2   | S   | W   | N   | E   | S^   | W^    | N^    | E^    |
-     * | W=4   | W   | N   | E   | S   | W^   | N^    | E^    | S^    |
-     * | N=6   | N   | E   | S   | W   | N^   | E^    | S^    | W^    |
-     * | E^=8  | E^  | N^  | W^  | S^  | E    | N     | W     | S     |
-     * | S^=10 | S^  | E^  | N^  | W^  | S    | E     | N     | W     |
-     * | W^=12 | W^  | S^  | E^  | N^  | W    | S     | E     | N     |
-     * | N^=14 | N^  | W^  | S^  | E^  | N    | W     | S     | E     |
-     *
-     * [This is a Cayley table]{@link https://en.wikipedia.org/wiki/Cayley_table}
-     * @group groupD8
-     * @param {GD8Symmetry} rotationSecond - Second operation, which
-     *   is the row in the above cayley table.
-     * @param {GD8Symmetry} rotationFirst - First operation, which
-     *   is the column in the above cayley table.
-     * @returns {GD8Symmetry} Composed operation
-     */
+
     add: (rotationSecond, rotationFirst) => rotationCayley[rotationSecond][rotationFirst],
-    /**
-     * Reverse of `add`.
-     * @group groupD8
-     * @param {GD8Symmetry} rotationSecond - Second operation
-     * @param {GD8Symmetry} rotationFirst - First operation
-     * @returns {GD8Symmetry} Result
-     */
+
     sub: (rotationSecond, rotationFirst) => rotationCayley[rotationSecond][groupD8.inv(rotationFirst)],
-    /**
-     * Adds 180 degrees to rotation, which is a commutative
-     * operation.
-     * @group groupD8
-     * @param {number} rotation - The number to rotate.
-     * @returns {number} Rotated number
-     */
+
     rotate180: (rotation) => rotation ^ 4,
-    /**
-     * Checks if the rotation angle is vertical, i.e. south
-     * or north. It doesn't work for reflections.
-     * @group groupD8
-     * @param {GD8Symmetry} rotation - The number to check.
-     * @returns {boolean} Whether or not the direction is vertical
-     */
+
     isVertical: (rotation) => (rotation & 3) === 2,
-    // rotation % 4 === 2
-    /**
-     * Approximates the vector `V(dx,dy)` into one of the
-     * eight directions provided by `groupD8`.
-     * @group groupD8
-     * @param {number} dx - X-component of the vector
-     * @param {number} dy - Y-component of the vector
-     * @returns {GD8Symmetry} Approximation of the vector into
-     *  one of the eight symmetries.
-     */
+
     byDirection: (dx, dy) => {
       if (Math.abs(dx) * 2 <= Math.abs(dy)) {
         if (dy >= 0) {
@@ -1844,16 +819,7 @@ var MioBundle = function() {
       }
       return groupD8.NW;
     },
-    /**
-     * Helps sprite to compensate texture packer rotation.
-     * @group groupD8
-     * @param {Matrix} matrix - sprite world matrix
-     * @param {GD8Symmetry} rotation - The rotation factor to use.
-     * @param {number} tx - sprite anchoring
-     * @param {number} ty - sprite anchoring
-     * @param {number} dw - sprite width
-     * @param {number} dh - sprite height
-     */
+
     matrixAppendRotationInv: (matrix, rotation, tx = 0, ty = 0, dw = 0, dh = 0) => {
       const mat = rotationMatrices[groupD8.inv(rotation)];
       const a2 = mat.a;
@@ -1873,16 +839,7 @@ var MioBundle = function() {
       matrix.tx = finalTx * a1 + finalTy * c1 + matrix.tx;
       matrix.ty = finalTx * b1 + finalTy * d1 + matrix.ty;
     },
-    /**
-     * Transforms rectangle coordinates based on texture packer rotation.
-     * Used when texture atlas pages are rotated and coordinates need to be adjusted.
-     * @group groupD8
-     * @param {RectangleLike} rect - Rectangle with original coordinates to transform
-     * @param {RectangleLike} sourceFrame - Source texture frame (includes offset and dimensions)
-     * @param {GD8Symmetry} rotation - The groupD8 rotation value
-     * @param {Rectangle} out - Rectangle to store the result
-     * @returns {Rectangle} Transformed coordinates (includes source frame offset)
-     */
+
     transformRectCoords: (rect, sourceFrame, rotation, out2) => {
       const { x: x2, y: y2, width, height } = rect;
       const { x: frameX, y: frameY, width: frameWidth, height: frameHeight } = sourceFrame;
@@ -1916,12 +873,7 @@ var MioBundle = function() {
   };
   const tempPoints = [new Point(), new Point(), new Point(), new Point()];
   class Rectangle {
-    /**
-     * @param x - The X coordinate of the upper-left corner of the rectangle
-     * @param y - The Y coordinate of the upper-left corner of the rectangle
-     * @param width - The overall width of the rectangle
-     * @param height - The overall height of the rectangle
-     */
+
     constructor(x2 = 0, y2 = 0, width = 0, height = 0) {
       this.type = "rectangle";
       this.x = Number(x2);
@@ -1929,168 +881,35 @@ var MioBundle = function() {
       this.width = Number(width);
       this.height = Number(height);
     }
-    /**
-     * Returns the left edge (x-coordinate) of the rectangle.
-     * @example
-     * ```ts
-     * // Get left edge position
-     * const rect = new Rectangle(100, 100, 200, 150);
-     * console.log(rect.left); // 100
-     *
-     * // Use in alignment calculations
-     * sprite.x = rect.left + padding;
-     *
-     * // Compare positions
-     * if (point.x > rect.left) {
-     *     console.log('Point is right of rectangle');
-     * }
-     * ```
-     * @readonly
-     * @returns The x-coordinate of the left edge
-     * @see {@link Rectangle.right} For right edge position
-     * @see {@link Rectangle.x} For direct x-coordinate access
-     */
+
     get left() {
       return this.x;
     }
-    /**
-     * Returns the right edge (x + width) of the rectangle.
-     * @example
-     * ```ts
-     * // Get right edge position
-     * const rect = new Rectangle(100, 100, 200, 150);
-     * console.log(rect.right); // 300
-     *
-     * // Align to right edge
-     * sprite.x = rect.right - sprite.width;
-     *
-     * // Check boundaries
-     * if (point.x < rect.right) {
-     *     console.log('Point is inside right bound');
-     * }
-     * ```
-     * @readonly
-     * @returns The x-coordinate of the right edge
-     * @see {@link Rectangle.left} For left edge position
-     * @see {@link Rectangle.width} For width value
-     */
+
     get right() {
       return this.x + this.width;
     }
-    /**
-     * Returns the top edge (y-coordinate) of the rectangle.
-     * @example
-     * ```ts
-     * // Get top edge position
-     * const rect = new Rectangle(100, 100, 200, 150);
-     * console.log(rect.top); // 100
-     *
-     * // Position above rectangle
-     * sprite.y = rect.top - sprite.height;
-     *
-     * // Check vertical position
-     * if (point.y > rect.top) {
-     *     console.log('Point is below top edge');
-     * }
-     * ```
-     * @readonly
-     * @returns The y-coordinate of the top edge
-     * @see {@link Rectangle.bottom} For bottom edge position
-     * @see {@link Rectangle.y} For direct y-coordinate access
-     */
+
     get top() {
       return this.y;
     }
-    /**
-     * Returns the bottom edge (y + height) of the rectangle.
-     * @example
-     * ```ts
-     * // Get bottom edge position
-     * const rect = new Rectangle(100, 100, 200, 150);
-     * console.log(rect.bottom); // 250
-     *
-     * // Stack below rectangle
-     * sprite.y = rect.bottom + margin;
-     *
-     * // Check vertical bounds
-     * if (point.y < rect.bottom) {
-     *     console.log('Point is above bottom edge');
-     * }
-     * ```
-     * @readonly
-     * @returns The y-coordinate of the bottom edge
-     * @see {@link Rectangle.top} For top edge position
-     * @see {@link Rectangle.height} For height value
-     */
+
     get bottom() {
       return this.y + this.height;
     }
-    /**
-     * Determines whether the Rectangle is empty (has no area).
-     * @example
-     * ```ts
-     * // Check zero dimensions
-     * const rect = new Rectangle(100, 100, 0, 50);
-     * console.log(rect.isEmpty()); // true
-     * ```
-     * @returns True if the rectangle has no area
-     * @see {@link Rectangle.width} For width value
-     * @see {@link Rectangle.height} For height value
-     */
+
     isEmpty() {
       return this.left === this.right || this.top === this.bottom;
     }
-    /**
-     * A constant empty rectangle. This is a new object every time the property is accessed.
-     * @example
-     * ```ts
-     * // Get fresh empty rectangle
-     * const empty = Rectangle.EMPTY;
-     * console.log(empty.isEmpty()); // true
-     * ```
-     * @returns A new empty rectangle instance
-     * @see {@link Rectangle.isEmpty} For empty state testing
-     */
+
     static get EMPTY() {
       return new Rectangle(0, 0, 0, 0);
     }
-    /**
-     * Creates a clone of this Rectangle
-     * @example
-     * ```ts
-     * // Basic cloning
-     * const original = new Rectangle(100, 100, 200, 150);
-     * const copy = original.clone();
-     *
-     * // Clone and modify
-     * const modified = original.clone();
-     * modified.width *= 2;
-     * modified.height += 50;
-     *
-     * // Verify independence
-     * console.log(original.width);  // 200
-     * console.log(modified.width);  // 400
-     * ```
-     * @returns A copy of the rectangle
-     * @see {@link Rectangle.copyFrom} For copying into existing rectangle
-     * @see {@link Rectangle.copyTo} For copying to another rectangle
-     */
+
     clone() {
       return new Rectangle(this.x, this.y, this.width, this.height);
     }
-    /**
-     * Converts a Bounds object to a Rectangle object.
-     * @example
-     * ```ts
-     * // Convert bounds to rectangle
-     * const bounds = container.getBounds();
-     * const rect = new Rectangle().copyFromBounds(bounds);
-     * ```
-     * @param bounds - The bounds to copy and convert to a rectangle
-     * @returns Returns itself
-     * @see {@link Bounds} For bounds object structure
-     * @see {@link Rectangle.getBounds} For getting rectangle bounds
-     */
+
     copyFromBounds(bounds) {
       this.x = bounds.minX;
       this.y = bounds.minY;
@@ -2098,25 +917,7 @@ var MioBundle = function() {
       this.height = bounds.maxY - bounds.minY;
       return this;
     }
-    /**
-     * Copies another rectangle to this one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Rectangle(100, 100, 200, 150);
-     * const target = new Rectangle();
-     * target.copyFrom(source);
-     *
-     * // Chain with other operations
-     * const rect = new Rectangle()
-     *     .copyFrom(source)
-     *     .pad(10);
-     * ```
-     * @param rectangle - The rectangle to copy from
-     * @returns Returns itself
-     * @see {@link Rectangle.copyTo} For copying to another rectangle
-     * @see {@link Rectangle.clone} For creating new rectangle copy
-     */
+
     copyFrom(rectangle) {
       this.x = rectangle.x;
       this.y = rectangle.y;
@@ -2124,46 +925,12 @@ var MioBundle = function() {
       this.height = rectangle.height;
       return this;
     }
-    /**
-     * Copies this rectangle to another one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Rectangle(100, 100, 200, 150);
-     * const target = new Rectangle();
-     * source.copyTo(target);
-     *
-     * // Chain with other operations
-     * const result = source
-     *     .copyTo(new Rectangle())
-     *     .getBounds();
-     * ```
-     * @param rectangle - The rectangle to copy to
-     * @returns Returns given parameter
-     * @see {@link Rectangle.copyFrom} For copying from another rectangle
-     * @see {@link Rectangle.clone} For creating new rectangle copy
-     */
+
     copyTo(rectangle) {
       rectangle.copyFrom(this);
       return rectangle;
     }
-    /**
-     * Checks whether the x and y coordinates given are contained within this Rectangle
-     * @example
-     * ```ts
-     * // Basic containment check
-     * const rect = new Rectangle(100, 100, 200, 150);
-     * const isInside = rect.contains(150, 125); // true
-     * // Check edge cases
-     * console.log(rect.contains(100, 100)); // true (on edge)
-     * console.log(rect.contains(300, 250)); // false (outside)
-     * ```
-     * @param x - The X coordinate of the point to test
-     * @param y - The Y coordinate of the point to test
-     * @returns Whether the x/y coordinates are within this Rectangle
-     * @see {@link Rectangle.containsRect} For rectangle containment
-     * @see {@link Rectangle.strokeContains} For checking stroke intersection
-     */
+
     contains(x2, y2) {
       if (this.width <= 0 || this.height <= 0) {
         return false;
@@ -2175,27 +942,7 @@ var MioBundle = function() {
       }
       return false;
     }
-    /**
-     * Checks whether the x and y coordinates given are contained within this rectangle including the stroke.
-     * @example
-     * ```ts
-     * // Basic stroke check
-     * const rect = new Rectangle(100, 100, 200, 150);
-     * const isOnStroke = rect.strokeContains(150, 100, 4); // 4px line width
-     *
-     * // Check with different alignments
-     * const innerStroke = rect.strokeContains(150, 100, 4, 1);   // Inside
-     * const centerStroke = rect.strokeContains(150, 100, 4, 0.5); // Centered
-     * const outerStroke = rect.strokeContains(150, 100, 4, 0);   // Outside
-     * ```
-     * @param x - The X coordinate of the point to test
-     * @param y - The Y coordinate of the point to test
-     * @param strokeWidth - The width of the line to check
-     * @param alignment - The alignment of the stroke (1 = inner, 0.5 = centered, 0 = outer)
-     * @returns Whether the x/y coordinates are within this rectangle's stroke
-     * @see {@link Rectangle.contains} For checking fill containment
-     * @see {@link Rectangle.getBounds} For getting stroke bounds
-     */
+
     strokeContains(x2, y2, strokeWidth, alignment = 0.5) {
       const { width, height } = this;
       if (width <= 0 || height <= 0) return false;
@@ -2213,47 +960,7 @@ var MioBundle = function() {
       const innerBottom = _y + height - strokeWidthInner;
       return x2 >= outerLeft && x2 <= outerRight && y2 >= outerTop && y2 <= outerBottom && !(x2 > innerLeft && x2 < innerRight && y2 > innerTop && y2 < innerBottom);
     }
-    /**
-     * Determines whether the `other` Rectangle transformed by `transform` intersects with `this` Rectangle object.
-     * Returns true only if the area of the intersection is >0, this means that Rectangles
-     * sharing a side are not overlapping. Another side effect is that an arealess rectangle
-     * (width or height equal to zero) can't intersect any other rectangle.
-     * @param {Rectangle} other - The Rectangle to intersect with `this`.
-     * @param {Matrix} transform - The transformation matrix of `other`.
-     * @returns {boolean} A value of `true` if the transformed `other` Rectangle intersects with `this`; otherwise `false`.
-     */
-    /**
-     * Determines whether the `other` Rectangle transformed by `transform` intersects with `this` Rectangle object.
-     *
-     * Returns true only if the area of the intersection is greater than 0.
-     * This means that rectangles sharing only a side are not considered intersecting.
-     * @example
-     * ```ts
-     * // Basic intersection check
-     * const rect1 = new Rectangle(0, 0, 100, 100);
-     * const rect2 = new Rectangle(50, 50, 100, 100);
-     * console.log(rect1.intersects(rect2)); // true
-     *
-     * // With transformation matrix
-     * const matrix = new Matrix();
-     * matrix.rotate(Math.PI / 4); // 45 degrees
-     * console.log(rect1.intersects(rect2, matrix)); // Checks with rotation
-     *
-     * // Edge cases
-     * const zeroWidth = new Rectangle(0, 0, 0, 100);
-     * console.log(rect1.intersects(zeroWidth)); // false (no area)
-     * ```
-     * @remarks
-     * - Returns true only if intersection area is > 0
-     * - Rectangles sharing only a side are not intersecting
-     * - Zero-area rectangles cannot intersect anything
-     * - Supports optional transformation matrix
-     * @param other - The Rectangle to intersect with `this`
-     * @param transform - Optional transformation matrix of `other`
-     * @returns True if the transformed `other` Rectangle intersects with `this`
-     * @see {@link Rectangle.containsRect} For containment testing
-     * @see {@link Rectangle.contains} For point testing
-     */
+
     intersects(other, transform) {
       if (!transform) {
         const x02 = this.x < other.x ? other.x : this.x;
@@ -2310,31 +1017,7 @@ var MioBundle = function() {
       }
       return true;
     }
-    /**
-     * Pads the rectangle making it grow in all directions.
-     *
-     * If paddingY is omitted, both paddingX and paddingY will be set to paddingX.
-     * @example
-     * ```ts
-     * // Basic padding
-     * const rect = new Rectangle(100, 100, 200, 150);
-     * rect.pad(10); // Adds 10px padding on all sides
-     *
-     * // Different horizontal and vertical padding
-     * const uiRect = new Rectangle(0, 0, 100, 50);
-     * uiRect.pad(20, 10); // 20px horizontal, 10px vertical
-     * ```
-     * @remarks
-     * - Adjusts x/y by subtracting padding
-     * - Increases width/height by padding * 2
-     * - Common in UI layout calculations
-     * - Chainable with other methods
-     * @param paddingX - The horizontal padding amount
-     * @param paddingY - The vertical padding amount
-     * @returns Returns itself
-     * @see {@link Rectangle.enlarge} For growing to include another rectangle
-     * @see {@link Rectangle.fit} For shrinking to fit within another rectangle
-     */
+
     pad(paddingX = 0, paddingY = paddingX) {
       this.x -= paddingX;
       this.y -= paddingY;
@@ -2342,20 +1025,7 @@ var MioBundle = function() {
       this.height += paddingY * 2;
       return this;
     }
-    /**
-     * Fits this rectangle around the passed one.
-     * @example
-     * ```ts
-     * // Basic fitting
-     * const container = new Rectangle(0, 0, 100, 100);
-     * const content = new Rectangle(25, 25, 200, 200);
-     * content.fit(container); // Clips to container bounds
-     * ```
-     * @param rectangle - The rectangle to fit around
-     * @returns Returns itself
-     * @see {@link Rectangle.enlarge} For growing to include another rectangle
-     * @see {@link Rectangle.pad} For adding padding around the rectangle
-     */
+
     fit(rectangle) {
       const x1 = Math.max(this.x, rectangle.x);
       const x2 = Math.min(this.x + this.width, rectangle.x + rectangle.width);
@@ -2367,28 +1037,7 @@ var MioBundle = function() {
       this.height = Math.max(y2 - y1, 0);
       return this;
     }
-    /**
-     * Enlarges rectangle so that its corners lie on a grid defined by resolution.
-     * @example
-     * ```ts
-     * // Basic grid alignment
-     * const rect = new Rectangle(10.2, 10.6, 100.8, 100.4);
-     * rect.ceil(); // Aligns to whole pixels
-     *
-     * // Custom resolution grid
-     * const uiRect = new Rectangle(5.3, 5.7, 50.2, 50.8);
-     * uiRect.ceil(0.5); // Aligns to half pixels
-     *
-     * // Use with precision value
-     * const preciseRect = new Rectangle(20.001, 20.999, 100.001, 100.999);
-     * preciseRect.ceil(1, 0.01); // Handles small decimal variations
-     * ```
-     * @param resolution - The grid size to align to (1 = whole pixels)
-     * @param eps - Small number to prevent floating point errors
-     * @returns Returns itself
-     * @see {@link Rectangle.fit} For constraining to bounds
-     * @see {@link Rectangle.enlarge} For growing dimensions
-     */
+
     ceil(resolution = 1, eps = 1e-3) {
       const x2 = Math.ceil((this.x + this.width - eps) * resolution) / resolution;
       const y2 = Math.ceil((this.y + this.height - eps) * resolution) / resolution;
@@ -2398,24 +1047,7 @@ var MioBundle = function() {
       this.height = y2 - this.y;
       return this;
     }
-    /**
-     * Scales the rectangle's dimensions and position by the specified factors.
-     * @example
-     * ```ts
-     * const rect = new Rectangle(50, 50, 100, 100);
-     *
-     * // Scale uniformly
-     * rect.scale(0.5, 0.5);
-     * // rect is now: x=25, y=25, width=50, height=50
-     *
-     * // non-uniformly
-     * rect.scale(0.5, 1);
-     * // rect is now: x=25, y=50, width=50, height=100
-     * ```
-     * @param x - The factor by which to scale the horizontal properties (x, width).
-     * @param y - The factor by which to scale the vertical properties (y, height).
-     * @returns Returns itself
-     */
+
     scale(x2, y2 = x2) {
       this.x *= x2;
       this.y *= y2;
@@ -2423,27 +1055,7 @@ var MioBundle = function() {
       this.height *= y2;
       return this;
     }
-    /**
-     * Enlarges this rectangle to include the passed rectangle.
-     * @example
-     * ```ts
-     * // Basic enlargement
-     * const rect = new Rectangle(50, 50, 100, 100);
-     * const other = new Rectangle(0, 0, 200, 75);
-     * rect.enlarge(other);
-     * // rect is now: x=0, y=0, width=200, height=150
-     *
-     * // Use for bounding box calculation
-     * const bounds = new Rectangle();
-     * objects.forEach((obj) => {
-     *     bounds.enlarge(obj.getBounds());
-     * });
-     * ```
-     * @param rectangle - The rectangle to include
-     * @returns Returns itself
-     * @see {@link Rectangle.fit} For shrinking to fit within another rectangle
-     * @see {@link Rectangle.pad} For adding padding around the rectangle
-     */
+
     enlarge(rectangle) {
       const x1 = Math.min(this.x, rectangle.x);
       const x2 = Math.max(this.x + this.width, rectangle.x + rectangle.width);
@@ -2455,56 +1067,13 @@ var MioBundle = function() {
       this.height = y2 - y1;
       return this;
     }
-    /**
-     * Returns the framing rectangle of the rectangle as a Rectangle object
-     * @example
-     * ```ts
-     * // Basic bounds retrieval
-     * const rect = new Rectangle(100, 100, 200, 150);
-     * const bounds = rect.getBounds();
-     *
-     * // Reuse existing rectangle
-     * const out = new Rectangle();
-     * rect.getBounds(out);
-     * ```
-     * @param out - Optional rectangle to store the result
-     * @returns The framing rectangle
-     * @see {@link Rectangle.copyFrom} For direct copying
-     * @see {@link Rectangle.clone} For creating new copy
-     */
+
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       out2.copyFrom(this);
       return out2;
     }
-    /**
-     * Determines whether another Rectangle is fully contained within this Rectangle.
-     *
-     * Rectangles that occupy the same space are considered to be containing each other.
-     *
-     * Rectangles without area (width or height equal to zero) can't contain anything,
-     * not even other arealess rectangles.
-     * @example
-     * ```ts
-     * // Check if one rectangle contains another
-     * const container = new Rectangle(0, 0, 100, 100);
-     * const inner = new Rectangle(25, 25, 50, 50);
-     *
-     * console.log(container.containsRect(inner)); // true
-     *
-     * // Check overlapping rectangles
-     * const partial = new Rectangle(75, 75, 50, 50);
-     * console.log(container.containsRect(partial)); // false
-     *
-     * // Zero-area rectangles
-     * const empty = new Rectangle(0, 0, 0, 100);
-     * console.log(container.containsRect(empty)); // false
-     * ```
-     * @param other - The Rectangle to check for containment
-     * @returns True if other is fully contained within this Rectangle
-     * @see {@link Rectangle.contains} For point containment
-     * @see {@link Rectangle.intersects} For overlap testing
-     */
+
     containsRect(other) {
       if (this.width <= 0 || this.height <= 0) return false;
       const x1 = other.x;
@@ -2513,27 +1082,7 @@ var MioBundle = function() {
       const y2 = other.y + other.height;
       return x1 >= this.x && x1 < this.x + this.width && y1 >= this.y && y1 < this.y + this.height && x2 >= this.x && x2 < this.x + this.width && y2 >= this.y && y2 < this.y + this.height;
     }
-    /**
-     * Sets the position and dimensions of the rectangle.
-     * @example
-     * ```ts
-     * // Basic usage
-     * const rect = new Rectangle();
-     * rect.set(100, 100, 200, 150);
-     *
-     * // Chain with other operations
-     * const bounds = new Rectangle()
-     *     .set(0, 0, 100, 100)
-     *     .pad(10);
-     * ```
-     * @param x - The X coordinate of the upper-left corner of the rectangle
-     * @param y - The Y coordinate of the upper-left corner of the rectangle
-     * @param width - The overall width of the rectangle
-     * @param height - The overall height of the rectangle
-     * @returns Returns itself for method chaining
-     * @see {@link Rectangle.copyFrom} For copying from another rectangle
-     * @see {@link Rectangle.clone} For creating a new copy
-     */
+
     set(x2, y2, width, height) {
       this.x = x2;
       this.y = y2;
@@ -2554,7 +1103,7 @@ var MioBundle = function() {
     }
     return ++uidCache[name];
   }
-  const warnings = /* @__PURE__ */ new Set();
+  const warnings =                 new Set();
   const v8_0_0 = "8.0.0";
   const v8_3_4 = "8.3.4";
   const deprecationState = {
@@ -2629,7 +1178,7 @@ Deprecated since v${version}`;
     }
     return result;
   }
-  const idHash$1 = /* @__PURE__ */ Object.create(null);
+  const idHash$1 =                 Object.create(null);
   function createResourceIdFromString(value) {
     const id = idHash$1[value];
     if (id === void 0) {
@@ -2638,9 +1187,7 @@ Deprecated since v${version}`;
     return id;
   }
   const _TextureStyle = class _TextureStyle2 extends EventEmitter {
-    /**
-     * @param options - options for the style
-     */
+
     constructor(options = {}) {
       super();
       this._resourceType = "textureSampler";
@@ -2666,7 +1213,7 @@ Deprecated since v${version}`;
       this.addressModeV = value;
       this.addressModeW = value;
     }
-    /** setting this will set wrapModeU,wrapModeV and wrapModeW all at once! */
+
     get addressMode() {
       return this.addressModeU;
     }
@@ -2682,11 +1229,11 @@ Deprecated since v${version}`;
       this.minFilter = value;
       this.mipmapFilter = value;
     }
-    /** setting this will set magFilter,minFilter and mipmapFilter all at once!  */
+
     get scaleMode() {
       return this.magFilter;
     }
-    /** Specifies the maximum anisotropy value clamp used by the sampler. */
+
     set maxAnisotropy(value) {
       this._maxAnisotropy = Math.min(value, 16);
       if (this._maxAnisotropy > 1) {
@@ -2696,7 +1243,7 @@ Deprecated since v${version}`;
     get maxAnisotropy() {
       return this._maxAnisotropy;
     }
-    // TODO - move this to WebGL?
+
     get _resourceId() {
       return this._sharedResourceId || this._generateResourceId();
     }
@@ -2709,7 +1256,7 @@ Deprecated since v${version}`;
       this._sharedResourceId = createResourceIdFromString(bigKey);
       return this._resourceId;
     }
-    /** Destroys the style */
+
     destroy() {
       this.destroyed = true;
       this.emit("destroy", this);
@@ -2723,13 +1270,11 @@ Deprecated since v${version}`;
   };
   let TextureStyle = _TextureStyle;
   const _TextureSource = class _TextureSource2 extends EventEmitter {
-    /**
-     * @param options - options for creating a new TextureSource
-     */
+
     constructor(options = {}) {
       super();
       this.options = options;
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
       this._gcLastUsed = -1;
       this.uid = uid$1("textureSource");
       this._resourceType = "textureSource";
@@ -2781,11 +1326,11 @@ Deprecated since v${version}`;
       this.destroyed = false;
       this._refreshPOT();
     }
-    /** returns itself */
+
     get source() {
       return this;
     }
-    /** the style of the texture */
+
     get style() {
       return this._style;
     }
@@ -2796,56 +1341,56 @@ Deprecated since v${version}`;
       this._style?.on("change", this._onStyleChange, this);
       this._onStyleChange();
     }
-    /** Specifies the maximum anisotropy value clamp used by the sampler. */
+
     set maxAnisotropy(value) {
       this._style.maxAnisotropy = value;
     }
     get maxAnisotropy() {
       return this._style.maxAnisotropy;
     }
-    /** setting this will set wrapModeU, wrapModeV and wrapModeW all at once! */
+
     get addressMode() {
       return this._style.addressMode;
     }
     set addressMode(value) {
       this._style.addressMode = value;
     }
-    /** setting this will set wrapModeU, wrapModeV and wrapModeW all at once! */
+
     get repeatMode() {
       return this._style.addressMode;
     }
     set repeatMode(value) {
       this._style.addressMode = value;
     }
-    /** Specifies the sampling behavior when the sample footprint is smaller than or equal to one texel. */
+
     get magFilter() {
       return this._style.magFilter;
     }
     set magFilter(value) {
       this._style.magFilter = value;
     }
-    /** Specifies the sampling behavior when the sample footprint is larger than one texel. */
+
     get minFilter() {
       return this._style.minFilter;
     }
     set minFilter(value) {
       this._style.minFilter = value;
     }
-    /** Specifies behavior for sampling between mipmap levels. */
+
     get mipmapFilter() {
       return this._style.mipmapFilter;
     }
     set mipmapFilter(value) {
       this._style.mipmapFilter = value;
     }
-    /** Specifies the minimum and maximum levels of detail, respectively, used internally when sampling a texture. */
+
     get lodMinClamp() {
       return this._style.lodMinClamp;
     }
     set lodMinClamp(value) {
       this._style.lodMinClamp = value;
     }
-    /** Specifies the minimum and maximum levels of detail, respectively, used internally when sampling a texture. */
+
     get lodMaxClamp() {
       return this._style.lodMaxClamp;
     }
@@ -2855,7 +1400,7 @@ Deprecated since v${version}`;
     _onStyleChange() {
       this.emit("styleChange", this);
     }
-    /** call this if you have modified the texture outside of the constructor */
+
     update() {
       if (this.resource) {
         const resolution = this._resolution;
@@ -2864,7 +1409,7 @@ Deprecated since v${version}`;
       }
       this.emit("update", this);
     }
-    /** Destroys this texture source */
+
     destroy() {
       this.destroyed = true;
       this.unload();
@@ -2877,10 +1422,7 @@ Deprecated since v${version}`;
       this.resource = null;
       this.removeAllListeners();
     }
-    /**
-     * This will unload the Texture source from the GPU. This will free up the GPU memory
-     * As soon as it is required fore rendering, it will be re-uploaded.
-     */
+
     unload() {
       this._resourceId = uid$1("resource");
       this.emit("change", this);
@@ -2888,25 +1430,19 @@ Deprecated since v${version}`;
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy?.();
       }
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
     }
-    /** the width of the resource. This is the REAL pure number, not accounting resolution   */
+
     get resourceWidth() {
       const { resource } = this;
       return resource.naturalWidth || resource.videoWidth || resource.displayWidth || resource.width;
     }
-    /** the height of the resource. This is the REAL pure number, not accounting resolution */
+
     get resourceHeight() {
       const { resource } = this;
       return resource.naturalHeight || resource.videoHeight || resource.displayHeight || resource.height;
     }
-    /**
-     * the resolution of the texture. Changing this number, will not change the number of pixels in the actual texture
-     * but will the size of the texture when rendered.
-     *
-     * changing the resolution of this texture to 2 for example will make it appear twice as small when rendered (as pixel
-     * density will have increased)
-     */
+
     get resolution() {
       return this._resolution;
     }
@@ -2916,13 +1452,7 @@ Deprecated since v${version}`;
       this.width = this.pixelWidth / resolution;
       this.height = this.pixelHeight / resolution;
     }
-    /**
-     * Resize the texture, this is handy if you want to use the texture as a render texture
-     * @param width - the new width of the texture
-     * @param height - the new height of the texture
-     * @param resolution - the new resolution of the texture
-     * @returns - if the texture was resized
-     */
+
     resize(width, height, resolution) {
       resolution || (resolution = this._resolution);
       width || (width = this.width);
@@ -2943,16 +1473,7 @@ Deprecated since v${version}`;
       this.emit("change", this);
       return true;
     }
-    /**
-     * Lets the renderer know that this texture has been updated and its mipmaps should be re-generated.
-     * This is only important for RenderTexture instances, as standard Texture instances will have their
-     * mipmaps generated on upload. You should call this method after you make any change to the texture
-     *
-     * The reason for this is is can be quite expensive to update mipmaps for a texture. So by default,
-     * We want you, the developer to specify when this action should happen.
-     *
-     * Generally you don't want to have mipmaps generated on Render targets that are changed every frame,
-     */
+
     updateMipmaps() {
       if (this.autoGenerateMipmaps && this.mipLevelCount > 1) {
         this.emit("updateMipmaps", this);
@@ -2967,14 +1488,11 @@ Deprecated since v${version}`;
     set scaleMode(value) {
       this._style.scaleMode = value;
     }
-    /** setting this will set magFilter,minFilter and mipmapFilter all at once!  */
+
     get scaleMode() {
       return this._style.scaleMode;
     }
-    /**
-     * Refresh check for isPowerOfTwo texture based on size
-     * @private
-     */
+
     _refreshPOT() {
       this.isPowerOfTwo = isPow2(this.pixelWidth) && isPow2(this.pixelHeight);
     }
@@ -3031,10 +1549,7 @@ Deprecated since v${version}`;
   BufferImageSource.extension = ExtensionType.TextureSource;
   const tempMat = new Matrix();
   class TextureMatrix {
-    /**
-     * @param texture - observed texture
-     * @param clampMargin - Changes frame clamping, 0.5 by default. Use -0.5 for extra border.
-     */
+
     constructor(texture, clampMargin) {
       this.mapCoord = new Matrix();
       this.uClampFrame = new Float32Array(4);
@@ -3049,7 +1564,7 @@ Deprecated since v${version}`;
       this.isSimple = false;
       this.texture = texture;
     }
-    /** Texture property. */
+
     get texture() {
       return this._texture;
     }
@@ -3061,12 +1576,7 @@ Deprecated since v${version}`;
       }
       this.update();
     }
-    /**
-     * Multiplies uvs array to transform
-     * @param uvs - mesh uvs
-     * @param [out=uvs] - output
-     * @returns - output
-     */
+
     multiplyUvs(uvs, out2) {
       if (out2 === void 0) {
         out2 = uvs;
@@ -3080,10 +1590,7 @@ Deprecated since v${version}`;
       }
       return out2;
     }
-    /**
-     * Updates matrices if texture was changed
-     * @returns - whether or not it was updated
-     */
+
     update() {
       const tex = this._texture;
       this._updateID++;
@@ -3117,9 +1624,7 @@ Deprecated since v${version}`;
     }
   }
   class Texture extends EventEmitter {
-    /**
-     * @param {TextureOptions} options - Options for the texture
-     */
+
     constructor({
       source: source2,
       label,
@@ -3165,26 +1670,26 @@ Deprecated since v${version}`;
       value.on("resize", this.update, this);
       this.emit("update", this);
     }
-    /** the underlying source of the texture (equivalent of baseTexture in v7) */
+
     get source() {
       return this._source;
     }
-    /** returns a TextureMatrix instance for this texture. By default, that object is not created because its heavy. */
+
     get textureMatrix() {
       if (!this._textureMatrix) {
         this._textureMatrix = new TextureMatrix(this);
       }
       return this._textureMatrix;
     }
-    /** The width of the Texture in pixels. */
+
     get width() {
       return this.orig.width;
     }
-    /** The height of the Texture in pixels. */
+
     get height() {
       return this.orig.height;
     }
-    /** Call this function when you have modified the frame of this texture. */
+
     updateUvs() {
       const { uvs, frame } = this;
       const { width, height } = this._source;
@@ -3221,10 +1726,7 @@ Deprecated since v${version}`;
         uvs.y3 = nY + nH;
       }
     }
-    /**
-     * Destroys this texture
-     * @param destroySource - Destroy the source when the texture is destroyed.
-     */
+
     destroy(destroySource = false) {
       if (this._source) {
         this._source.off("resize", this.update, this);
@@ -3238,11 +1740,7 @@ Deprecated since v${version}`;
       this.emit("destroy", this);
       this.removeAllListeners();
     }
-    /**
-     * Call this if you have modified the `texture outside` of the constructor.
-     *
-     * If you have modified this texture's source, you must separately call `texture.source.update()` to see those changes.
-     */
+
     update() {
       if (this.noFrame) {
         this.frame.width = this._source.width;
@@ -3251,7 +1749,7 @@ Deprecated since v${version}`;
       this.updateUvs();
       this.emit("update", this);
     }
-    /** @deprecated since 8.0.0 */
+
     get baseTexture() {
       deprecation(v8_0_0, "Texture.baseTexture is now Texture.source");
       return this._source;
@@ -3294,13 +1792,7 @@ Deprecated since v${version}`;
   }
   const defaultMatrix = new Matrix();
   class Bounds {
-    /**
-     * Creates a new Bounds object.
-     * @param minX - The minimum X coordinate of the bounds.
-     * @param minY - The minimum Y coordinate of the bounds.
-     * @param maxX - The maximum X coordinate of the bounds.
-     * @param maxY - The maximum Y coordinate of the bounds.
-     */
+
     constructor(minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity) {
       this.minX = Infinity;
       this.minY = Infinity;
@@ -3312,50 +1804,11 @@ Deprecated since v${version}`;
       this.maxX = maxX;
       this.maxY = maxY;
     }
-    /**
-     * Checks if bounds are empty, meaning either width or height is zero or negative.
-     * Empty bounds occur when min values exceed max values on either axis.
-     * @example
-     * ```ts
-     * const bounds = new Bounds();
-     *
-     * // Check if newly created bounds are empty
-     * console.log(bounds.isEmpty()); // true, default bounds are empty
-     *
-     * // Add frame and check again
-     * bounds.addFrame(0, 0, 100, 100);
-     * console.log(bounds.isEmpty()); // false, bounds now have area
-     *
-     * // Clear bounds
-     * bounds.clear();
-     * console.log(bounds.isEmpty()); // true, bounds are empty again
-     * ```
-     * @returns True if bounds are empty (have no area)
-     * @see {@link Bounds#clear} For resetting bounds
-     * @see {@link Bounds#isValid} For checking validity
-     */
+
     isEmpty() {
       return this.minX > this.maxX || this.minY > this.maxY;
     }
-    /**
-     * The bounding rectangle representation of these bounds.
-     * Lazily creates and updates a Rectangle instance based on the current bounds.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     *
-     * // Get rectangle representation
-     * const rect = bounds.rectangle;
-     * console.log(rect.x, rect.y, rect.width, rect.height);
-     *
-     * // Use for hit testing
-     * if (bounds.rectangle.contains(mouseX, mouseY)) {
-     *     console.log('Mouse is inside bounds!');
-     * }
-     * ```
-     * @see {@link Rectangle} For rectangle methods
-     * @see {@link Bounds.isEmpty} For bounds validation
-     */
+
     get rectangle() {
       if (!this._rectangle) {
         this._rectangle = new Rectangle();
@@ -3371,19 +1824,7 @@ Deprecated since v${version}`;
       }
       return rectangle;
     }
-    /**
-     * Clears the bounds and resets all coordinates to their default values.
-     * Resets the transformation matrix back to identity.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * console.log(bounds.isEmpty()); // false
-     * // Clear the bounds
-     * bounds.clear();
-     * console.log(bounds.isEmpty()); // true
-     * ```
-     * @returns This bounds object for chaining
-     */
+
     clear() {
       this.minX = Infinity;
       this.minY = Infinity;
@@ -3392,49 +1833,14 @@ Deprecated since v${version}`;
       this.matrix = defaultMatrix;
       return this;
     }
-    /**
-     * Sets the bounds directly using coordinate values.
-     * Provides a way to set all bounds values at once.
-     * @example
-     * ```ts
-     * const bounds = new Bounds();
-     * bounds.set(0, 0, 100, 100);
-     * ```
-     * @param x0 - Left X coordinate of frame
-     * @param y0 - Top Y coordinate of frame
-     * @param x1 - Right X coordinate of frame
-     * @param y1 - Bottom Y coordinate of frame
-     * @see {@link Bounds#addFrame} For matrix-aware bounds setting
-     * @see {@link Bounds#clear} For resetting bounds
-     */
+
     set(x0, y0, x1, y1) {
       this.minX = x0;
       this.minY = y0;
       this.maxX = x1;
       this.maxY = y1;
     }
-    /**
-     * Adds a rectangular frame to the bounds, optionally transformed by a matrix.
-     * Updates the bounds to encompass the new frame coordinates.
-     * @example
-     * ```ts
-     * const bounds = new Bounds();
-     * bounds.addFrame(0, 0, 100, 100);
-     *
-     * // Add transformed frame
-     * const matrix = new Matrix()
-     *     .translate(50, 50)
-     *     .rotate(Math.PI / 4);
-     * bounds.addFrame(0, 0, 100, 100, matrix);
-     * ```
-     * @param x0 - Left X coordinate of frame
-     * @param y0 - Top Y coordinate of frame
-     * @param x1 - Right X coordinate of frame
-     * @param y1 - Bottom Y coordinate of frame
-     * @param matrix - Optional transformation matrix
-     * @see {@link Bounds#addRect} For adding Rectangle objects
-     * @see {@link Bounds#addBounds} For adding other Bounds
-     */
+
     addFrame(x0, y0, x1, y1, matrix) {
       matrix || (matrix = this.matrix);
       const a2 = matrix.a;
@@ -3476,91 +1882,22 @@ Deprecated since v${version}`;
       this.maxX = maxX;
       this.maxY = maxY;
     }
-    /**
-     * Adds a rectangle to the bounds, optionally transformed by a matrix.
-     * Updates the bounds to encompass the given rectangle.
-     * @example
-     * ```ts
-     * const bounds = new Bounds();
-     * // Add simple rectangle
-     * const rect = new Rectangle(0, 0, 100, 100);
-     * bounds.addRect(rect);
-     *
-     * // Add transformed rectangle
-     * const matrix = new Matrix()
-     *     .translate(50, 50)
-     *     .rotate(Math.PI / 4);
-     * bounds.addRect(rect, matrix);
-     * ```
-     * @param rect - The rectangle to be added
-     * @param matrix - Optional transformation matrix
-     * @see {@link Bounds#addFrame} For adding raw coordinates
-     * @see {@link Bounds#addBounds} For adding other bounds
-     */
+
     addRect(rect, matrix) {
       this.addFrame(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, matrix);
     }
-    /**
-     * Adds another bounds object to this one, optionally transformed by a matrix.
-     * Expands the bounds to include the given bounds' area.
-     * @example
-     * ```ts
-     * const bounds = new Bounds();
-     *
-     * // Add child bounds
-     * const childBounds = sprite.getBounds();
-     * bounds.addBounds(childBounds);
-     *
-     * // Add transformed bounds
-     * const matrix = new Matrix()
-     *     .scale(2, 2);
-     * bounds.addBounds(childBounds, matrix);
-     * ```
-     * @param bounds - The bounds to be added
-     * @param matrix - Optional transformation matrix
-     * @see {@link Bounds#addFrame} For adding raw coordinates
-     * @see {@link Bounds#addRect} For adding rectangles
-     */
+
     addBounds(bounds, matrix) {
       this.addFrame(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY, matrix);
     }
-    /**
-     * Adds other Bounds as a mask, creating an intersection of the two bounds.
-     * Only keeps the overlapping region between current bounds and mask bounds.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * // Create mask bounds
-     * const mask = new Bounds();
-     * mask.addFrame(50, 50, 150, 150);
-     * // Apply mask - results in bounds of (50,50,100,100)
-     * bounds.addBoundsMask(mask);
-     * ```
-     * @param mask - The Bounds to use as a mask
-     * @see {@link Bounds#addBounds} For union operation
-     * @see {@link Bounds#fit} For fitting to rectangle
-     */
+
     addBoundsMask(mask) {
       this.minX = this.minX > mask.minX ? this.minX : mask.minX;
       this.minY = this.minY > mask.minY ? this.minY : mask.minY;
       this.maxX = this.maxX < mask.maxX ? this.maxX : mask.maxX;
       this.maxY = this.maxY < mask.maxY ? this.maxY : mask.maxY;
     }
-    /**
-     * Applies a transformation matrix to the bounds, updating its coordinates.
-     * Transforms all corners of the bounds using the given matrix.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * // Apply translation
-     * const translateMatrix = new Matrix()
-     *     .translate(50, 50);
-     * bounds.applyMatrix(translateMatrix);
-     * ```
-     * @param matrix - The matrix to apply to the bounds
-     * @see {@link Matrix} For matrix operations
-     * @see {@link Bounds#addFrame} For adding transformed frames
-     */
+
     applyMatrix(matrix) {
       const minX = this.minX;
       const minY = this.minY;
@@ -3592,22 +1929,7 @@ Deprecated since v${version}`;
       this.maxX = x2 > this.maxX ? x2 : this.maxX;
       this.maxY = y2 > this.maxY ? y2 : this.maxY;
     }
-    /**
-     * Resizes the bounds object to fit within the given rectangle.
-     * Clips the bounds if they extend beyond the rectangle's edges.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 200, 200);
-     * // Fit within viewport
-     * const viewport = new Rectangle(50, 50, 100, 100);
-     * bounds.fit(viewport);
-     * // bounds are now (50, 50, 150, 150)
-     * ```
-     * @param rect - The rectangle to fit within
-     * @returns This bounds object for chaining
-     * @see {@link Bounds#addBoundsMask} For intersection
-     * @see {@link Bounds#pad} For expanding bounds
-     */
+
     fit(rect) {
       if (this.minX < rect.left) this.minX = rect.left;
       if (this.maxX > rect.right) this.maxX = rect.right;
@@ -3615,24 +1937,7 @@ Deprecated since v${version}`;
       if (this.maxY > rect.bottom) this.maxY = rect.bottom;
       return this;
     }
-    /**
-     * Resizes the bounds object to include the given bounds.
-     * Similar to fit() but works with raw coordinate values instead of a Rectangle.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 200, 200);
-     * // Fit to specific coordinates
-     * bounds.fitBounds(50, 150, 50, 150);
-     * // bounds are now (50, 50, 150, 150)
-     * ```
-     * @param left - The left value of the bounds
-     * @param right - The right value of the bounds
-     * @param top - The top value of the bounds
-     * @param bottom - The bottom value of the bounds
-     * @returns This bounds object for chaining
-     * @see {@link Bounds#fit} For fitting to Rectangle
-     * @see {@link Bounds#addBoundsMask} For intersection
-     */
+
     fitBounds(left, right, top, bottom) {
       if (this.minX < left) this.minX = left;
       if (this.maxX > right) this.maxX = right;
@@ -3640,27 +1945,7 @@ Deprecated since v${version}`;
       if (this.maxY > bottom) this.maxY = bottom;
       return this;
     }
-    /**
-     * Pads bounds object, making it grow in all directions.
-     * If paddingY is omitted, both paddingX and paddingY will be set to paddingX.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     *
-     * // Add equal padding
-     * bounds.pad(10);
-     * // bounds are now (-10, -10, 110, 110)
-     *
-     * // Add different padding for x and y
-     * bounds.pad(20, 10);
-     * // bounds are now (-30, -20, 130, 120)
-     * ```
-     * @param paddingX - The horizontal padding amount
-     * @param paddingY - The vertical padding amount
-     * @returns This bounds object for chaining
-     * @see {@link Bounds#fit} For constraining bounds
-     * @see {@link Bounds#scale} For uniform scaling
-     */
+
     pad(paddingX, paddingY = paddingX) {
       this.minX -= paddingX;
       this.maxX += paddingX;
@@ -3668,22 +1953,7 @@ Deprecated since v${version}`;
       this.maxY += paddingY;
       return this;
     }
-    /**
-     * Ceils the bounds by rounding up max values and rounding down min values.
-     * Useful for pixel-perfect calculations and avoiding fractional pixels.
-     * @example
-     * ```ts
-     * const bounds = new Bounds();
-     * bounds.set(10.2, 10.9, 50.1, 50.8);
-     *
-     * // Round to whole pixels
-     * bounds.ceil();
-     * // bounds are now (10, 10, 51, 51)
-     * ```
-     * @returns This bounds object for chaining
-     * @see {@link Bounds#scale} For size adjustments
-     * @see {@link Bounds#fit} For constraining bounds
-     */
+
     ceil() {
       this.minX = Math.floor(this.minX);
       this.minY = Math.floor(this.minY);
@@ -3691,45 +1961,11 @@ Deprecated since v${version}`;
       this.maxY = Math.ceil(this.maxY);
       return this;
     }
-    /**
-     * Creates a new Bounds instance with the same values.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     *
-     * // Create a copy
-     * const copy = bounds.clone();
-     *
-     * // Original and copy are independent
-     * bounds.pad(10);
-     * console.log(copy.width === bounds.width); // false
-     * ```
-     * @returns A new Bounds instance with the same values
-     * @see {@link Bounds#copyFrom} For reusing existing bounds
-     */
+
     clone() {
       return new Bounds(this.minX, this.minY, this.maxX, this.maxY);
     }
-    /**
-     * Scales the bounds by the given values, adjusting all edges proportionally.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     *
-     * // Scale uniformly
-     * bounds.scale(2);
-     * // bounds are now (0, 0, 200, 200)
-     *
-     * // Scale non-uniformly
-     * bounds.scale(0.5, 2);
-     * // bounds are now (0, 0, 100, 400)
-     * ```
-     * @param x - The X value to scale by
-     * @param y - The Y value to scale by (defaults to x)
-     * @returns This bounds object for chaining
-     * @see {@link Bounds#pad} For adding padding
-     * @see {@link Bounds#fit} For constraining size
-     */
+
     scale(x2, y2 = x2) {
       this.minX *= x2;
       this.minY *= y2;
@@ -3737,23 +1973,7 @@ Deprecated since v${version}`;
       this.maxY *= y2;
       return this;
     }
-    /**
-     * The x position of the bounds in local space.
-     * Setting this value will move the bounds while maintaining its width.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * // Get x position
-     * console.log(bounds.x); // 0
-     *
-     * // Move bounds horizontally
-     * bounds.x = 50;
-     * console.log(bounds.minX, bounds.maxX); // 50, 150
-     *
-     * // Width stays the same
-     * console.log(bounds.width); // Still 100
-     * ```
-     */
+
     get x() {
       return this.minX;
     }
@@ -3762,23 +1982,7 @@ Deprecated since v${version}`;
       this.minX = value;
       this.maxX = value + width;
     }
-    /**
-     * The y position of the bounds in local space.
-     * Setting this value will move the bounds while maintaining its height.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * // Get y position
-     * console.log(bounds.y); // 0
-     *
-     * // Move bounds vertically
-     * bounds.y = 50;
-     * console.log(bounds.minY, bounds.maxY); // 50, 150
-     *
-     * // Height stays the same
-     * console.log(bounds.height); // Still 100
-     * ```
-     */
+
     get y() {
       return this.minY;
     }
@@ -3787,170 +1991,45 @@ Deprecated since v${version}`;
       this.minY = value;
       this.maxY = value + height;
     }
-    /**
-     * The width value of the bounds.
-     * Represents the distance between minX and maxX coordinates.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * // Get width
-     * console.log(bounds.width); // 100
-     * // Resize width
-     * bounds.width = 200;
-     * console.log(bounds.maxX - bounds.minX); // 200
-     * ```
-     */
+
     get width() {
       return this.maxX - this.minX;
     }
     set width(value) {
       this.maxX = this.minX + value;
     }
-    /**
-     * The height value of the bounds.
-     * Represents the distance between minY and maxY coordinates.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * // Get height
-     * console.log(bounds.height); // 100
-     * // Resize height
-     * bounds.height = 150;
-     * console.log(bounds.maxY - bounds.minY); // 150
-     * ```
-     */
+
     get height() {
       return this.maxY - this.minY;
     }
     set height(value) {
       this.maxY = this.minY + value;
     }
-    /**
-     * The left edge coordinate of the bounds.
-     * Alias for minX.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(50, 0, 150, 100);
-     * console.log(bounds.left); // 50
-     * console.log(bounds.left === bounds.minX); // true
-     * ```
-     * @readonly
-     */
+
     get left() {
       return this.minX;
     }
-    /**
-     * The right edge coordinate of the bounds.
-     * Alias for maxX.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * console.log(bounds.right); // 100
-     * console.log(bounds.right === bounds.maxX); // true
-     * ```
-     * @readonly
-     */
+
     get right() {
       return this.maxX;
     }
-    /**
-     * The top edge coordinate of the bounds.
-     * Alias for minY.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 25, 100, 125);
-     * console.log(bounds.top); // 25
-     * console.log(bounds.top === bounds.minY); // true
-     * ```
-     * @readonly
-     */
+
     get top() {
       return this.minY;
     }
-    /**
-     * The bottom edge coordinate of the bounds.
-     * Alias for maxY.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 200);
-     * console.log(bounds.bottom); // 200
-     * console.log(bounds.bottom === bounds.maxY); // true
-     * ```
-     * @readonly
-     */
+
     get bottom() {
       return this.maxY;
     }
-    /**
-     * Whether the bounds has positive width and height.
-     * Checks if both dimensions are greater than zero.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * // Check if bounds are positive
-     * console.log(bounds.isPositive); // true
-     *
-     * // Negative bounds
-     * bounds.maxX = bounds.minX;
-     * console.log(bounds.isPositive); // false, width is 0
-     * ```
-     * @readonly
-     * @see {@link Bounds#isEmpty} For checking empty state
-     * @see {@link Bounds#isValid} For checking validity
-     */
+
     get isPositive() {
       return this.maxX - this.minX > 0 && this.maxY - this.minY > 0;
     }
-    /**
-     * Whether the bounds has valid coordinates.
-     * Checks if the bounds has been initialized with real values.
-     * @example
-     * ```ts
-     * const bounds = new Bounds();
-     * console.log(bounds.isValid); // false, default state
-     *
-     * // Set valid bounds
-     * bounds.addFrame(0, 0, 100, 100);
-     * console.log(bounds.isValid); // true
-     * ```
-     * @readonly
-     * @see {@link Bounds#isEmpty} For checking empty state
-     * @see {@link Bounds#isPositive} For checking dimensions
-     */
+
     get isValid() {
       return this.minX + this.minY !== Infinity;
     }
-    /**
-     * Adds vertices from a Float32Array to the bounds, optionally transformed by a matrix.
-     * Used for efficiently updating bounds from raw vertex data.
-     * @example
-     * ```ts
-     * const bounds = new Bounds();
-     *
-     * // Add vertices from geometry
-     * const vertices = new Float32Array([
-     *     0, 0,    // Vertex 1
-     *     100, 0,  // Vertex 2
-     *     100, 100 // Vertex 3
-     * ]);
-     * bounds.addVertexData(vertices, 0, 6);
-     *
-     * // Add transformed vertices
-     * const matrix = new Matrix()
-     *     .translate(50, 50)
-     *     .rotate(Math.PI / 4);
-     * bounds.addVertexData(vertices, 0, 6, matrix);
-     *
-     * // Add subset of vertices
-     * bounds.addVertexData(vertices, 2, 4); // Only second vertex
-     * ```
-     * @param vertexData - The array of vertices to add
-     * @param beginOffset - Starting index in the vertex array
-     * @param endOffset - Ending index in the vertex array (excluded)
-     * @param matrix - Optional transformation matrix
-     * @see {@link Bounds#addFrame} For adding rectangular frames
-     * @see {@link Matrix} For transformation details
-     */
+
     addVertexData(vertexData, beginOffset, endOffset, matrix) {
       let minX = this.minX;
       let minY = this.minY;
@@ -3978,61 +2057,18 @@ Deprecated since v${version}`;
       this.maxX = maxX;
       this.maxY = maxY;
     }
-    /**
-     * Checks if a point is contained within the bounds.
-     * Returns true if the point's coordinates fall within the bounds' area.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * // Basic point check
-     * console.log(bounds.containsPoint(50, 50)); // true
-     * console.log(bounds.containsPoint(150, 150)); // false
-     *
-     * // Check edges
-     * console.log(bounds.containsPoint(0, 0));   // true, includes edges
-     * console.log(bounds.containsPoint(100, 100)); // true, includes edges
-     * ```
-     * @param x - x coordinate to check
-     * @param y - y coordinate to check
-     * @returns True if the point is inside the bounds
-     * @see {@link Bounds#isPositive} For valid bounds check
-     * @see {@link Bounds#rectangle} For Rectangle representation
-     */
+
     containsPoint(x2, y2) {
       if (this.minX <= x2 && this.minY <= y2 && this.maxX >= x2 && this.maxY >= y2) {
         return true;
       }
       return false;
     }
-    /**
-     * Returns a string representation of the bounds.
-     * Useful for debugging and logging bounds information.
-     * @example
-     * ```ts
-     * const bounds = new Bounds(0, 0, 100, 100);
-     * console.log(bounds.toString()); // "[pixi.js:Bounds minX=0 minY=0 maxX=100 maxY=100 width=100 height=100]"
-     * ```
-     * @returns A string describing the bounds
-     * @see {@link Bounds#copyFrom} For copying bounds
-     * @see {@link Bounds#clone} For creating a new instance
-     */
+
     toString() {
       return `[pixi.js:Bounds minX=${this.minX} minY=${this.minY} maxX=${this.maxX} maxY=${this.maxY} width=${this.width} height=${this.height}]`;
     }
-    /**
-     * Copies the bounds from another bounds object.
-     * Useful for reusing bounds objects and avoiding allocations.
-     * @example
-     * ```ts
-     * const sourceBounds = new Bounds(0, 0, 100, 100);
-     * // Copy bounds
-     * const targetBounds = new Bounds();
-     * targetBounds.copyFrom(sourceBounds);
-     * ```
-     * @param bounds - The bounds to copy from
-     * @returns This bounds object for chaining
-     * @see {@link Bounds#clone} For creating new instances
-     */
+
     copyFrom(bounds) {
       this.minX = bounds.minX;
       this.minY = bounds.minY;
@@ -4200,9 +2236,7 @@ Deprecated since v${version}`;
   }
   k([namesPlugin]);
   const _Color = class _Color2 {
-    /**
-     * @param {ColorSource} value - Optional value to use, if not provided, white is used.
-     */
+
     constructor(value = 16777215) {
       this._value = null;
       this._components = new Float32Array(4);
@@ -4210,136 +2244,28 @@ Deprecated since v${version}`;
       this._int = 16777215;
       this.value = value;
     }
-    /**
-     * Get the red component of the color, normalized between 0 and 1.
-     * @example
-     * ```ts
-     * const color = new Color('red');
-     * console.log(color.red); // 1
-     *
-     * const green = new Color('#00ff00');
-     * console.log(green.red); // 0
-     * ```
-     */
+
     get red() {
       return this._components[0];
     }
-    /**
-     * Get the green component of the color, normalized between 0 and 1.
-     * @example
-     * ```ts
-     * const color = new Color('lime');
-     * console.log(color.green); // 1
-     *
-     * const red = new Color('#ff0000');
-     * console.log(red.green); // 0
-     * ```
-     */
+
     get green() {
       return this._components[1];
     }
-    /**
-     * Get the blue component of the color, normalized between 0 and 1.
-     * @example
-     * ```ts
-     * const color = new Color('blue');
-     * console.log(color.blue); // 1
-     *
-     * const yellow = new Color('#ffff00');
-     * console.log(yellow.blue); // 0
-     * ```
-     */
+
     get blue() {
       return this._components[2];
     }
-    /**
-     * Get the alpha component of the color, normalized between 0 and 1.
-     * @example
-     * ```ts
-     * const color = new Color('red');
-     * console.log(color.alpha); // 1 (fully opaque)
-     *
-     * const transparent = new Color('rgba(255, 0, 0, 0.5)');
-     * console.log(transparent.alpha); // 0.5 (semi-transparent)
-     * ```
-     */
+
     get alpha() {
       return this._components[3];
     }
-    /**
-     * Sets the color value and returns the instance for chaining.
-     *
-     * This is a chainable version of setting the `value` property.
-     * @param value - The color to set. Accepts various formats:
-     * - Hex strings/numbers (e.g., '#ff0000', 0xff0000)
-     * - RGB/RGBA values (arrays, objects)
-     * - CSS color names
-     * - HSL/HSLA values
-     * - HSV/HSVA values
-     * @returns The Color instance for chaining
-     * @example
-     * ```ts
-     * // Basic usage
-     * const color = new Color();
-     * color.setValue('#ff0000')
-     *     .setAlpha(0.5)
-     *     .premultiply(0.8);
-     *
-     * // Different formats
-     * color.setValue(0xff0000);          // Hex number
-     * color.setValue('#ff0000');         // Hex string
-     * color.setValue([1, 0, 0]);         // RGB array
-     * color.setValue([1, 0, 0, 0.5]);    // RGBA array
-     * color.setValue({ r: 1, g: 0, b: 0 }); // RGB object
-     *
-     * // Copy from another color
-     * const red = new Color('red');
-     * color.setValue(red);
-     * ```
-     * @throws {Error} If the color value is invalid or null
-     * @see {@link Color.value} For the underlying value property
-     */
+
     setValue(value) {
       this.value = value;
       return this;
     }
-    /**
-     * The current color source. This property allows getting and setting the color value
-     * while preserving the original format where possible.
-     * @remarks
-     * When setting:
-     * - Setting to a `Color` instance copies its source and components
-     * - Setting to other valid sources normalizes and stores the value
-     * - Setting to `null` throws an Error
-     * - The color remains unchanged if normalization fails
-     *
-     * When getting:
-     * - Returns `null` if color was modified by {@link Color.multiply} or {@link Color.premultiply}
-     * - Otherwise returns the original color source
-     * @example
-     * ```ts
-     * // Setting different color formats
-     * const color = new Color();
-     *
-     * color.value = 0xff0000;         // Hex number
-     * color.value = '#ff0000';        // Hex string
-     * color.value = [1, 0, 0];        // RGB array
-     * color.value = [1, 0, 0, 0.5];   // RGBA array
-     * color.value = { r: 1, g: 0, b: 0 }; // RGB object
-     *
-     * // Copying from another color
-     * const red = new Color('red');
-     * color.value = red;  // Copies red's components
-     *
-     * // Getting the value
-     * console.log(color.value);  // Returns original format
-     *
-     * // After modifications
-     * color.multiply([0.5, 0.5, 0.5]);
-     * console.log(color.value);  // Returns null
-     * ```
-     * @throws {Error} When attempting to set `null`
-     */
+
     set value(value) {
       if (value instanceof _Color2) {
         this._value = this._cloneSource(value._value);
@@ -4355,10 +2281,7 @@ Deprecated since v${version}`;
     get value() {
       return this._value;
     }
-    /**
-     * Copy a color source internally.
-     * @param value - Color source
-     */
+
     _cloneSource(value) {
       if (typeof value === "string" || typeof value === "number" || value instanceof Number || value === null) {
         return value;
@@ -4369,12 +2292,7 @@ Deprecated since v${version}`;
       }
       return value;
     }
-    /**
-     * Equality check for color sources.
-     * @param value1 - First color source
-     * @param value2 - Second color source
-     * @returns `true` if the color sources are equal, `false` otherwise.
-     */
+
     _isSourceEqual(value1, value2) {
       const type1 = typeof value1;
       const type2 = typeof value2;
@@ -4397,91 +2315,22 @@ Deprecated since v${version}`;
       }
       return value1 === value2;
     }
-    /**
-     * Convert to a RGBA color object with normalized components (0-1).
-     * @example
-     * ```ts
-     * import { Color } from 'pixi.js';
-     *
-     * // Convert colors to RGBA objects
-     * new Color('white').toRgba();     // returns { r: 1, g: 1, b: 1, a: 1 }
-     * new Color('#ff0000').toRgba();   // returns { r: 1, g: 0, b: 0, a: 1 }
-     *
-     * // With transparency
-     * new Color('rgba(255,0,0,0.5)').toRgba(); // returns { r: 1, g: 0, b: 0, a: 0.5 }
-     * ```
-     * @returns An RGBA object with normalized components
-     */
+
     toRgba() {
       const [r2, g2, b2, a2] = this._components;
       return { r: r2, g: g2, b: b2, a: a2 };
     }
-    /**
-     * Convert to a RGB color object with normalized components (0-1).
-     *
-     * Alpha component is omitted in the output.
-     * @example
-     * ```ts
-     * import { Color } from 'pixi.js';
-     *
-     * // Convert colors to RGB objects
-     * new Color('white').toRgb();     // returns { r: 1, g: 1, b: 1 }
-     * new Color('#ff0000').toRgb();   // returns { r: 1, g: 0, b: 0 }
-     *
-     * // Alpha is ignored
-     * new Color('rgba(255,0,0,0.5)').toRgb(); // returns { r: 1, g: 0, b: 0 }
-     * ```
-     * @returns An RGB object with normalized components
-     */
+
     toRgb() {
       const [r2, g2, b2] = this._components;
       return { r: r2, g: g2, b: b2 };
     }
-    /**
-     * Convert to a CSS-style rgba string representation.
-     *
-     * RGB components are scaled to 0-255 range, alpha remains 0-1.
-     * @example
-     * ```ts
-     * import { Color } from 'pixi.js';
-     *
-     * // Convert colors to RGBA strings
-     * new Color('white').toRgbaString();     // returns "rgba(255,255,255,1)"
-     * new Color('#ff0000').toRgbaString();   // returns "rgba(255,0,0,1)"
-     *
-     * // With transparency
-     * new Color([1, 0, 0, 0.5]).toRgbaString(); // returns "rgba(255,0,0,0.5)"
-     * ```
-     * @returns A CSS-compatible rgba string
-     */
+
     toRgbaString() {
       const [r2, g2, b2] = this.toUint8RgbArray();
       return `rgba(${r2},${g2},${b2},${this.alpha})`;
     }
-    /**
-     * Convert to an [R, G, B] array of clamped uint8 values (0 to 255).
-     * @param {number[]|Uint8Array|Uint8ClampedArray} [out] - Optional output array. If not provided,
-     * a cached array will be used and returned.
-     * @returns Array containing RGB components as integers between 0-255
-     * @example
-     * ```ts
-     * // Basic usage
-     * new Color('white').toUint8RgbArray(); // returns [255, 255, 255]
-     * new Color('#ff0000').toUint8RgbArray(); // returns [255, 0, 0]
-     *
-     * // Using custom output array
-     * const rgb = new Uint8Array(3);
-     * new Color('blue').toUint8RgbArray(rgb); // rgb is now [0, 0, 255]
-     *
-     * // Using different array types
-     * new Color('red').toUint8RgbArray(new Uint8ClampedArray(3)); // [255, 0, 0]
-     * new Color('red').toUint8RgbArray([]); // [255, 0, 0]
-     * ```
-     * @remarks
-     * - Output values are always clamped between 0-255
-     * - Alpha component is not included in output
-     * - Reuses internal cache array if no output array provided
-     */
+
     toUint8RgbArray(out2) {
       const [r2, g2, b2] = this._components;
       if (!this._arrayRgb) {
@@ -4493,29 +2342,7 @@ Deprecated since v${version}`;
       out2[2] = Math.round(b2 * 255);
       return out2;
     }
-    /**
-     * Convert to an [R, G, B, A] array of normalized floats (numbers from 0.0 to 1.0).
-     * @param {number[]|Float32Array} [out] - Optional output array. If not provided,
-     * a cached array will be used and returned.
-     * @returns Array containing RGBA components as floats between 0-1
-     * @example
-     * ```ts
-     * // Basic usage
-     * new Color('white').toArray();  // returns [1, 1, 1, 1]
-     * new Color('red').toArray();    // returns [1, 0, 0, 1]
-     *
-     * // With alpha
-     * new Color('rgba(255,0,0,0.5)').toArray(); // returns [1, 0, 0, 0.5]
-     *
-     * // Using custom output array
-     * const rgba = new Float32Array(4);
-     * new Color('blue').toArray(rgba); // rgba is now [0, 0, 1, 1]
-     * ```
-     * @remarks
-     * - Output values are normalized between 0-1
-     * - Includes alpha component as the fourth value
-     * - Reuses internal cache array if no output array provided
-     */
+
     toArray(out2) {
       if (!this._arrayRgba) {
         this._arrayRgba = [];
@@ -4528,26 +2355,7 @@ Deprecated since v${version}`;
       out2[3] = a2;
       return out2;
     }
-    /**
-     * Convert to an [R, G, B] array of normalized floats (numbers from 0.0 to 1.0).
-     * @param {number[]|Float32Array} [out] - Optional output array. If not provided,
-     * a cached array will be used and returned.
-     * @returns Array containing RGB components as floats between 0-1
-     * @example
-     * ```ts
-     * // Basic usage
-     * new Color('white').toRgbArray(); // returns [1, 1, 1]
-     * new Color('red').toRgbArray();   // returns [1, 0, 0]
-     *
-     * // Using custom output array
-     * const rgb = new Float32Array(3);
-     * new Color('blue').toRgbArray(rgb); // rgb is now [0, 0, 1]
-     * ```
-     * @remarks
-     * - Output values are normalized between 0-1
-     * - Alpha component is omitted from output
-     * - Reuses internal cache array if no output array provided
-     */
+
     toRgbArray(out2) {
       if (!this._arrayRgb) {
         this._arrayRgb = [];
@@ -4559,109 +2367,21 @@ Deprecated since v${version}`;
       out2[2] = b2;
       return out2;
     }
-    /**
-     * Convert to a hexadecimal number.
-     * @returns The color as a 24-bit RGB integer
-     * @example
-     * ```ts
-     * // Basic usage
-     * new Color('white').toNumber(); // returns 0xffffff
-     * new Color('red').toNumber();   // returns 0xff0000
-     *
-     * // Store as hex
-     * const color = new Color('blue');
-     * const hex = color.toNumber(); // 0x0000ff
-     * ```
-     */
+
     toNumber() {
       return this._int;
     }
-    /**
-     * Convert to a BGR number.
-     *
-     * Useful for platforms that expect colors in BGR format.
-     * @returns The color as a 24-bit BGR integer
-     * @example
-     * ```ts
-     * // Convert RGB to BGR
-     * new Color(0xffcc99).toBgrNumber(); // returns 0x99ccff
-     *
-     * // Common use case: platform-specific color format
-     * const color = new Color('orange');
-     * const bgrColor = color.toBgrNumber(); // Color with swapped R/B channels
-     * ```
-     * @remarks
-     * This swaps the red and blue channels compared to the normal RGB format:
-     * - RGB 0xRRGGBB becomes BGR 0xBBGGRR
-     */
+
     toBgrNumber() {
       const [r2, g2, b2] = this.toUint8RgbArray();
       return (b2 << 16) + (g2 << 8) + r2;
     }
-    /**
-     * Convert to a hexadecimal number in little endian format (e.g., BBGGRR).
-     *
-     * Useful for platforms that expect colors in little endian byte order.
-     * @example
-     * ```ts
-     * import { Color } from 'pixi.js';
-     *
-     * // Convert RGB color to little endian format
-     * new Color(0xffcc99).toLittleEndianNumber(); // returns 0x99ccff
-     *
-     * // Common use cases:
-     * const color = new Color('orange');
-     * const leColor = color.toLittleEndianNumber(); // Swaps byte order for LE systems
-     *
-     * // Multiple conversions
-     * const colors = {
-     *     normal: 0xffcc99,
-     *     littleEndian: new Color(0xffcc99).toLittleEndianNumber(), // 0x99ccff
-     *     backToNormal: new Color(0x99ccff).toLittleEndianNumber()  // 0xffcc99
-     * };
-     * ```
-     * @remarks
-     * - Swaps R and B channels in the color value
-     * - RGB 0xRRGGBB becomes 0xBBGGRR
-     * - Useful for systems that use little endian byte order
-     * - Can be used to convert back and forth between formats
-     * @returns The color as a number in little endian format (BBGGRR)
-     * @see {@link Color.toBgrNumber} For BGR format without byte swapping
-     */
+
     toLittleEndianNumber() {
       const value = this._int;
       return (value >> 16) + (value & 65280) + ((value & 255) << 16);
     }
-    /**
-     * Multiply with another color.
-     *
-     * This action is destructive and modifies the original color.
-     * @param {ColorSource} value - The color to multiply by. Accepts any valid color format:
-     * - Hex strings/numbers (e.g., '#ff0000', 0xff0000)
-     * - RGB/RGBA arrays ([1, 0, 0], [1, 0, 0, 1])
-     * - Color objects ({ r: 1, g: 0, b: 0 })
-     * - CSS color names ('red', 'blue')
-     * @returns this - The Color instance for chaining
-     * @example
-     * ```ts
-     * // Basic multiplication
-     * const color = new Color('#ff0000');
-     * color.multiply(0x808080); // 50% darker red
-     *
-     * // With transparency
-     * color.multiply([1, 1, 1, 0.5]); // 50% transparent
-     *
-     * // Chain operations
-     * color
-     *     .multiply('#808080')
-     *     .multiply({ r: 1, g: 1, b: 1, a: 0.5 });
-     * ```
-     * @remarks
-     * - Multiplies each RGB component and alpha separately
-     * - Values are clamped between 0-1
-     * - Original color format is lost (value becomes null)
-     * - Operation cannot be undone
-     */
+
     multiply(value) {
       const [r2, g2, b2, a2] = _Color2._temp.setValue(value)._components;
       this._components[0] *= r2;
@@ -4672,35 +2392,7 @@ Deprecated since v${version}`;
       this._value = null;
       return this;
     }
-    /**
-     * Converts color to a premultiplied alpha format.
-     *
-     * This action is destructive and modifies the original color.
-     * @param alpha - The alpha value to multiply by (0-1)
-     * @param {boolean} [applyToRGB=true] - Whether to premultiply RGB channels
-     * @returns {Color} The Color instance for chaining
-     * @example
-     * ```ts
-     * // Basic premultiplication
-     * const color = new Color('red');
-     * color.premultiply(0.5); // 50% transparent red with premultiplied RGB
-     *
-     * // Alpha only (RGB unchanged)
-     * color.premultiply(0.5, false); // 50% transparent, original RGB
-     *
-     * // Chain with other operations
-     * color
-     *     .multiply(0x808080)
-     *     .premultiply(0.5)
-     *     .toNumber();
-     * ```
-     * @remarks
-     * - RGB channels are multiplied by alpha when applyToRGB is true
-     * - Alpha is always set to the provided value
-     * - Values are clamped between 0-1
-     * - Original color format is lost (value becomes null)
-     * - Operation cannot be undone
-     */
+
     premultiply(alpha, applyToRGB = true) {
       if (applyToRGB) {
         this._components[0] *= alpha;
@@ -4712,32 +2404,7 @@ Deprecated since v${version}`;
       this._value = null;
       return this;
     }
-    /**
-     * Returns the color as a 32-bit premultiplied alpha integer.
-     *
-     * Format: 0xAARRGGBB
-     * @param {number} alpha - The alpha value to multiply by (0-1)
-     * @param {boolean} [applyToRGB=true] - Whether to premultiply RGB channels
-     * @returns {number} The premultiplied color as a 32-bit integer
-     * @example
-     * ```ts
-     * // Convert to premultiplied format
-     * const color = new Color('red');
-     *
-     * // Full opacity (0xFFRRGGBB)
-     * color.toPremultiplied(1.0); // 0xFFFF0000
-     *
-     * // 50% transparency with premultiplied RGB
-     * color.toPremultiplied(0.5); // 0x7F7F0000
-     *
-     * // 50% transparency without RGB premultiplication
-     * color.toPremultiplied(0.5, false); // 0x7FFF0000
-     * ```
-     * @remarks
-     * - Returns full opacity (0xFF000000) when alpha is 1.0
-     * - Returns 0 when alpha is 0.0 and applyToRGB is true
-     * - RGB values are rounded during premultiplication
-     */
+
     toPremultiplied(alpha, applyToRGB = true) {
       if (alpha === 1) {
         return (255 << 24) + this._int;
@@ -4755,93 +2422,24 @@ Deprecated since v${version}`;
       }
       return (alpha * 255 << 24) + (r2 << 16) + (g2 << 8) + b2;
     }
-    /**
-     * Convert to a hexadecimal string (6 characters).
-     * @returns A CSS-compatible hex color string (e.g., "#ff0000")
-     * @example
-     * ```ts
-     * import { Color } from 'pixi.js';
-     *
-     * // Basic colors
-     * new Color('red').toHex();    // returns "#ff0000"
-     * new Color('white').toHex();  // returns "#ffffff"
-     * new Color('black').toHex();  // returns "#000000"
-     *
-     * // From different formats
-     * new Color(0xff0000).toHex(); // returns "#ff0000"
-     * new Color([1, 0, 0]).toHex(); // returns "#ff0000"
-     * new Color({ r: 1, g: 0, b: 0 }).toHex(); // returns "#ff0000"
-     * ```
-     * @remarks
-     * - Always returns a 6-character hex string
-     * - Includes leading "#" character
-     * - Alpha channel is ignored
-     * - Values are rounded to nearest hex value
-     */
+
     toHex() {
       const hexString = this._int.toString(16);
       return `#${"000000".substring(0, 6 - hexString.length) + hexString}`;
     }
-    /**
-     * Convert to a hexadecimal string with alpha (8 characters).
-     * @returns A CSS-compatible hex color string with alpha (e.g., "#ff0000ff")
-     * @example
-     * ```ts
-     * import { Color } from 'pixi.js';
-     *
-     * // Fully opaque colors
-     * new Color('red').toHexa();   // returns "#ff0000ff"
-     * new Color('white').toHexa(); // returns "#ffffffff"
-     *
-     * // With transparency
-     * new Color('rgba(255, 0, 0, 0.5)').toHexa(); // returns "#ff00007f"
-     * new Color([1, 0, 0, 0]).toHexa(); // returns "#ff000000"
-     * ```
-     * @remarks
-     * - Returns an 8-character hex string
-     * - Includes leading "#" character
-     * - Alpha is encoded in last two characters
-     * - Values are rounded to nearest hex value
-     */
+
     toHexa() {
       const alphaValue = Math.round(this._components[3] * 255);
       const alphaString = alphaValue.toString(16);
       return this.toHex() + "00".substring(0, 2 - alphaString.length) + alphaString;
     }
-    /**
-     * Set alpha (transparency) value while preserving color components.
-     *
-     * Provides a chainable interface for setting alpha.
-     * @param alpha - Alpha value between 0 (fully transparent) and 1 (fully opaque)
-     * @returns The Color instance for chaining
-     * @example
-     * ```ts
-     * // Basic alpha setting
-     * const color = new Color('red');
-     * color.setAlpha(0.5);  // 50% transparent red
-     *
-     * // Chain with other operations
-     * color
-     *     .setValue('#ff0000')
-     *     .setAlpha(0.8)    // 80% opaque
-     *     .premultiply(0.5); // Further modify alpha
-     *
-     * // Reset to fully opaque
-     * color.setAlpha(1);
-     * ```
-     * @remarks
-     * - Alpha value is clamped between 0-1
-     * - Can be chained with other color operations
-     */
+
     setAlpha(alpha) {
       this._components[3] = this._clamp(alpha);
       this._value = null;
       return this;
     }
-    /**
-     * Normalize the input value into rgba
-     * @param value - Input value
-     */
+
     _normalize(value) {
       let r2;
       let g2;
@@ -4888,18 +2486,13 @@ Deprecated since v${version}`;
         throw new Error(`Unable to convert color ${value}`);
       }
     }
-    /** Refresh the internal color rgb number */
+
     _refreshInt() {
       this._clamp(this._components);
       const [r2, g2, b2] = this._components;
       this._int = (r2 * 255 << 16) + (g2 * 255 << 8) + (b2 * 255 | 0);
     }
-    /**
-     * Clamps values to a range. Will override original values
-     * @param value - Value(s) to clamp
-     * @param min - Minimum value
-     * @param max - Maximum value
-     */
+
     _clamp(value, min = 0, max = 1) {
       if (typeof value === "number") {
         return Math.min(Math.max(value, min), max);
@@ -4909,60 +2502,7 @@ Deprecated since v${version}`;
       });
       return value;
     }
-    /**
-     * Check if a value can be interpreted as a valid color format.
-     * Supports all color formats that can be used with the Color class.
-     * @param value - Value to check
-     * @returns True if the value can be used as a color
-     * @example
-     * ```ts
-     * import { Color } from 'pixi.js';
-     *
-     * // CSS colors and hex values
-     * Color.isColorLike('red');          // true
-     * Color.isColorLike('#ff0000');      // true
-     * Color.isColorLike(0xff0000);       // true
-     *
-     * // Arrays (RGB/RGBA)
-     * Color.isColorLike([1, 0, 0]);      // true
-     * Color.isColorLike([1, 0, 0, 0.5]); // true
-     *
-     * // TypedArrays
-     * Color.isColorLike(new Float32Array([1, 0, 0]));          // true
-     * Color.isColorLike(new Uint8Array([255, 0, 0]));          // true
-     * Color.isColorLike(new Uint8ClampedArray([255, 0, 0]));   // true
-     *
-     * // Object formats
-     * Color.isColorLike({ r: 1, g: 0, b: 0 });            // true (RGB)
-     * Color.isColorLike({ r: 1, g: 0, b: 0, a: 0.5 });    // true (RGBA)
-     * Color.isColorLike({ h: 0, s: 100, l: 50 });         // true (HSL)
-     * Color.isColorLike({ h: 0, s: 100, l: 50, a: 0.5 }); // true (HSLA)
-     * Color.isColorLike({ h: 0, s: 100, v: 100 });        // true (HSV)
-     * Color.isColorLike({ h: 0, s: 100, v: 100, a: 0.5 });// true (HSVA)
-     *
-     * // Color instances
-     * Color.isColorLike(new Color('red')); // true
-     *
-     * // Invalid values
-     * Color.isColorLike(null);           // false
-     * Color.isColorLike(undefined);      // false
-     * Color.isColorLike({});             // false
-     * Color.isColorLike([]);             // false
-     * Color.isColorLike('not-a-color');  // false
-     * ```
-     * @remarks
-     * Checks for the following formats:
-     * - Numbers (0x000000 to 0xffffff)
-     * - CSS color strings
-     * - RGB/RGBA arrays and objects
-     * - HSL/HSLA objects
-     * - HSV/HSVA objects
-     * - TypedArrays (Float32Array, Uint8Array, Uint8ClampedArray)
-     * - Color instances
-     * @see {@link ColorSource} For supported color format types
-     * @see {@link Color.setValue} For setting color values
-     * @category utility
-     */
+
     static isColorLike(value) {
       return typeof value === "number" || typeof value === "string" || value instanceof Number || value instanceof _Color2 || Array.isArray(value) || value instanceof Uint8Array || value instanceof Uint8ClampedArray || value instanceof Float32Array || value.r !== void 0 && value.g !== void 0 && value.b !== void 0 || value.r !== void 0 && value.g !== void 0 && value.b !== void 0 && value.a !== void 0 || value.h !== void 0 && value.s !== void 0 && value.l !== void 0 || value.h !== void 0 && value.s !== void 0 && value.l !== void 0 && value.a !== void 0 || value.h !== void 0 && value.s !== void 0 && value.v !== void 0 || value.h !== void 0 && value.s !== void 0 && value.v !== void 0 && value.a !== void 0;
     }
@@ -4988,58 +2528,35 @@ Deprecated since v${version}`;
     }
   }
   const GlobalResourceRegistry = {
-    /**
-     * Set of registered pools and cleanable objects.
-     * @private
-     */
-    _registeredResources: /* @__PURE__ */ new Set(),
-    /**
-     * Registers a pool or cleanable object for cleanup.
-     * @param {Cleanable} pool - The pool or object to register.
-     */
+
+    _registeredResources:                 new Set(),
+
     register(pool) {
       this._registeredResources.add(pool);
     },
-    /**
-     * Unregisters a pool or cleanable object from cleanup.
-     * @param {Cleanable} pool - The pool or object to unregister.
-     */
+
     unregister(pool) {
       this._registeredResources.delete(pool);
     },
-    /** Clears all registered pools and cleanable objects. This will call clear() on each registered item. */
+
     release() {
       this._registeredResources.forEach((pool) => pool.clear());
     },
-    /**
-     * Gets the number of registered pools and cleanable objects.
-     * @returns {number} The count of registered items.
-     */
+
     get registeredCount() {
       return this._registeredResources.size;
     },
-    /**
-     * Checks if a specific pool or cleanable object is registered.
-     * @param {Cleanable} pool - The pool or object to check.
-     * @returns {boolean} True if the item is registered, false otherwise.
-     */
+
     isRegistered(pool) {
       return this._registeredResources.has(pool);
     },
-    /**
-     * Removes all registrations without clearing the pools.
-     * Useful if you want to reset the collector without affecting the pools.
-     */
+
     reset() {
       this._registeredResources.clear();
     }
   };
   class Pool {
-    /**
-     * Constructs a new Pool.
-     * @param ClassType - The constructor of the items in the pool.
-     * @param {number} [initialSize] - The initial size of the pool.
-     */
+
     constructor(ClassType, initialSize) {
       this._pool = [];
       this._count = 0;
@@ -5049,22 +2566,14 @@ Deprecated since v${version}`;
         this.prepopulate(initialSize);
       }
     }
-    /**
-     * Prepopulates the pool with a given number of items.
-     * @param total - The number of items to add to the pool.
-     */
+
     prepopulate(total) {
       for (let i2 = 0; i2 < total; i2++) {
         this._pool[this._index++] = new this._classType();
       }
       this._count += total;
     }
-    /**
-     * Gets an item from the pool. Calls the item's `init` method if it exists.
-     * If there are no items left in the pool, a new one will be created.
-     * @param {I} [data] - Optional data to pass to the item's constructor.
-     * @returns {T} The item from the pool.
-     */
+
     get(data) {
       let item;
       if (this._index > 0) {
@@ -5076,36 +2585,24 @@ Deprecated since v${version}`;
       item.init?.(data);
       return item;
     }
-    /**
-     * Returns an item to the pool. Calls the item's `reset` method if it exists.
-     * @param {T} item - The item to return to the pool.
-     */
+
     return(item) {
       item.reset?.();
       this._pool[this._index++] = item;
     }
-    /**
-     * Gets the number of items in the pool.
-     * @readonly
-     */
+
     get totalSize() {
       return this._count;
     }
-    /**
-     * Gets the number of items in the pool that are free to use without needing to create more.
-     * @readonly
-     */
+
     get totalFree() {
       return this._index;
     }
-    /**
-     * Gets the number of items in the pool that are currently in use.
-     * @readonly
-     */
+
     get totalUsed() {
       return this._count - this._index;
     }
-    /** clears the pool */
+
     clear() {
       if (this._pool.length > 0 && this._pool[0].destroy) {
         for (let i2 = 0; i2 < this._index; i2++) {
@@ -5119,50 +2616,31 @@ Deprecated since v${version}`;
   }
   class PoolGroupClass {
     constructor() {
-      this._poolsByClass = /* @__PURE__ */ new Map();
+      this._poolsByClass =                 new Map();
     }
-    /**
-     * Prepopulates a specific pool with a given number of items.
-     * @template T The type of items in the pool. Must extend PoolItem.
-     * @param {PoolItemConstructor<T>} Class - The constructor of the items in the pool.
-     * @param {number} total - The number of items to add to the pool.
-     */
+
     prepopulate(Class, total) {
       const classPool = this.getPool(Class);
       classPool.prepopulate(total);
     }
-    /**
-     * Gets an item from a specific pool.
-     * @template T The type of items in the pool. Must extend PoolItem.
-     * @param {PoolItemConstructor<T>} Class - The constructor of the items in the pool.
-     * @param {unknown} [data] - Optional data to pass to the item's constructor.
-     * @returns {T} The item from the pool.
-     */
+
     get(Class, data) {
       const pool = this.getPool(Class);
       return pool.get(data);
     }
-    /**
-     * Returns an item to its respective pool.
-     * @param {PoolItem} item - The item to return to the pool.
-     */
+
     return(item) {
       const pool = this.getPool(item.constructor);
       pool.return(item);
     }
-    /**
-     * Gets a specific pool based on the class type.
-     * @template T The type of items in the pool. Must extend PoolItem.
-     * @param {PoolItemConstructor<T>} ClassType - The constructor of the items in the pool.
-     * @returns {Pool<T>} The pool of the given class type.
-     */
+
     getPool(ClassType) {
       if (!this._poolsByClass.has(ClassType)) {
         this._poolsByClass.set(ClassType, new Pool(ClassType));
       }
       return this._poolsByClass.get(ClassType);
     }
-    /** gets the usage stats of each pool in the system */
+
     stats() {
       const stats = {};
       this._poolsByClass.forEach((pool) => {
@@ -5175,7 +2653,7 @@ Deprecated since v${version}`;
       });
       return stats;
     }
-    /** Clears all pools in the group. This will reset all pools and free their resources. */
+
     clear() {
       this._poolsByClass.forEach((pool) => pool.clear());
       this._poolsByClass.clear();
@@ -5984,31 +3462,22 @@ Deprecated since v${version}`;
       this.renderables = [];
       this.gcTick = 0;
     }
-    /** reset the instruction set so it can be reused set size back to 0 */
+
     reset() {
       this.instructionSize = 0;
     }
-    /**
-     * Destroy the instruction set, clearing the instructions and renderables.
-     * @internal
-     */
+
     destroy() {
       this.instructions.length = 0;
       this.renderables.length = 0;
       this.renderPipes = null;
       this.gcTick = 0;
     }
-    /**
-     * Add an instruction to the set
-     * @param instruction - add an instruction to the set
-     */
+
     add(instruction) {
       this.instructions[this.instructionSize++] = instruction;
     }
-    /**
-     * Log the instructions to the console (for debugging)
-     * @internal
-     */
+
     log() {
       this.instructions.length = this.instructionSize;
       console.table(this.instructions, ["type", "action"]);
@@ -6016,24 +3485,15 @@ Deprecated since v${version}`;
   }
   let count = 0;
   class TexturePoolClass {
-    /**
-     * @param textureOptions - options that will be passed to BaseRenderTexture constructor
-     * @param {SCALE_MODE} [textureOptions.scaleMode] - See {@link SCALE_MODE} for possible values.
-     */
+
     constructor(textureOptions) {
-      this._poolKeyHash = /* @__PURE__ */ Object.create(null);
+      this._poolKeyHash =                 Object.create(null);
       this._texturePool = {};
       this.textureOptions = textureOptions || {};
       this.enableFullScreen = false;
       this.textureStyle = new TextureStyle(this.textureOptions);
     }
-    /**
-     * Creates texture with params that were specified in pool constructor.
-     * @param pixelWidth - Width of texture in pixels.
-     * @param pixelHeight - Height of texture in pixels.
-     * @param antialias
-     * @param autoGenerateMipmaps - Whether to automatically generate mipmaps for this texture
-     */
+
     createTexture(pixelWidth, pixelHeight, antialias, autoGenerateMipmaps) {
       const textureSource = new TextureSource({
         ...this.textureOptions,
@@ -6049,15 +3509,7 @@ Deprecated since v${version}`;
         label: `texturePool_${count++}`
       });
     }
-    /**
-     * Gets a Power-of-Two render texture or fullScreen texture
-     * @param frameWidth - The minimum width of the render texture.
-     * @param frameHeight - The minimum height of the render texture.
-     * @param resolution - The resolution of the render texture.
-     * @param antialias
-     * @param autoGenerateMipmaps - Whether to automatically generate mipmaps. Defaults to false.
-     * @returns The new render texture.
-     */
+
     getOptimalTexture(frameWidth, frameHeight, resolution = 1, antialias, autoGenerateMipmaps = false) {
       let po2Width = Math.ceil(frameWidth * resolution - 1e-6);
       let po2Height = Math.ceil(frameHeight * resolution - 1e-6);
@@ -6086,31 +3538,12 @@ Deprecated since v${version}`;
       this._poolKeyHash[texture.uid] = key;
       return texture;
     }
-    /**
-     * Gets a pooled texture matching the dimensions and resolution of the given texture.
-     *
-     * This is a convenience wrapper around {@link TexturePoolClass#getOptimalTexture|getOptimalTexture}
-     * that copies width, height, and resolution from an existing texture. Useful when a filter needs
-     * a temporary texture the same size as its input (e.g., for multi-pass blur).
-     * @param texture - The texture whose dimensions to match.
-     * @param antialias - Whether to use antialias on the pooled texture. Defaults to `false`.
-     * @returns A pooled texture with power-of-two backing dimensions at the source resolution.
-     */
+
     getSameSizeTexture(texture, antialias = false) {
       const source2 = texture.source;
       return this.getOptimalTexture(texture.width, texture.height, source2._resolution, antialias);
     }
-    /**
-     * Returns a texture to the pool so it can be reused by future
-     * {@link TexturePoolClass#getOptimalTexture|getOptimalTexture}
-     * or {@link TexturePoolClass#getSameSizeTexture|getSameSizeTexture} calls.
-     *
-     * If you modified the texture's style after obtaining it (e.g., changed filtering or wrapping),
-     * pass `resetStyle = true` to restore the pool's default {@link TexturePoolClass#textureStyle|textureStyle}.
-     * This prevents style changes from leaking into subsequent consumers of the same pooled texture.
-     * @param renderTexture - The texture to return to the pool.
-     * @param resetStyle - When `true`, replaces the texture source's style with the pool default. Defaults to `false`.
-     */
+
     returnTexture(renderTexture, resetStyle = false) {
       const key = this._poolKeyHash[renderTexture.uid];
       if (resetStyle) {
@@ -6118,10 +3551,7 @@ Deprecated since v${version}`;
       }
       this._texturePool[key].push(renderTexture);
     }
-    /**
-     * Clears the pool.
-     * @param destroyTextures - Destroy all stored textures.
-     */
+
     clear(destroyTextures) {
       destroyTextures = destroyTextures !== false;
       if (destroyTextures) {
@@ -6150,7 +3580,7 @@ Deprecated since v${version}`;
       this.worldColorAlpha = 4294967295;
       this.worldColor = 16777215;
       this.worldAlpha = 1;
-      this.childrenToUpdate = /* @__PURE__ */ Object.create(null);
+      this.childrenToUpdate =                 Object.create(null);
       this.updateTick = 0;
       this.gcTick = 0;
       this.childrenRenderablesToUpdate = { list: [], index: 0 };
@@ -6288,11 +3718,7 @@ Deprecated since v${version}`;
     get isRenderable() {
       return this.root.localDisplayStatus === 7 && this.worldAlpha > 0;
     }
-    /**
-     * adding a container to the onRender list will make sure the user function
-     * passed in to the user defined 'onRender` callBack
-     * @param container - the container to add to the onRender list
-     */
+
     addOnRender(container) {
       this._onRenderContainers.push(container);
     }
@@ -6333,20 +3759,14 @@ Deprecated since v${version}`;
     invalidateMatrices() {
       this._matrixDirty = 7;
     }
-    /**
-     * Returns the inverse of the world transform matrix.
-     * @returns {Matrix} The inverse of the world transform matrix.
-     */
+
     get inverseWorldTransform() {
       if ((this._matrixDirty & 1) === 0) return this._inverseWorldTransform;
       this._matrixDirty &= -2;
       this._inverseWorldTransform || (this._inverseWorldTransform = new Matrix());
       return this._inverseWorldTransform.copyFrom(this.worldTransform).invert();
     }
-    /**
-     * Returns the inverse of the texture offset transform matrix.
-     * @returns {Matrix} The inverse of the texture offset transform matrix.
-     */
+
     get textureOffsetInverseTransform() {
       if ((this._matrixDirty & 2) === 0) return this._textureOffsetInverseTransform;
       this._matrixDirty &= -3;
@@ -6356,11 +3776,7 @@ Deprecated since v${version}`;
         -this._textureBounds.y
       );
     }
-    /**
-     * Returns the inverse of the parent texture transform matrix.
-     * This is used to properly transform coordinates when rendering into cached textures.
-     * @returns {Matrix} The inverse of the parent texture transform matrix.
-     */
+
     get inverseParentTextureTransform() {
       if ((this._matrixDirty & 4) === 0) return this._inverseParentTextureTransform;
       this._matrixDirty &= -5;
@@ -6374,12 +3790,7 @@ Deprecated since v${version}`;
       }
       return this.worldTransform;
     }
-    /**
-     * Returns a matrix that transforms coordinates to the correct coordinate space of the texture being rendered to.
-     * This is the texture offset inverse transform of the closest parent RenderGroup that is cached as a texture.
-     * @returns {Matrix | null} The transform matrix for the cached texture coordinate space,
-     * or null if no parent is cached as texture.
-     */
+
     get cacheToLocalTransform() {
       if (this.isCachedAsTexture) {
         return this.textureOffsetInverseTransform;
@@ -6455,49 +3866,21 @@ Deprecated since v${version}`;
       options.children?.forEach((child) => this.addChild(child));
       options.parent?.addChild(this);
     }
-    /**
-     * Mixes all enumerable properties and methods from a source object to Container.
-     * @param source - The source of properties and methods to mix in.
-     * @deprecated since 8.8.0
-     */
+
     static mixin(source2) {
       deprecation("8.8.0", "Container.mixin is deprecated, please use extensions.mixin instead.");
       extensions.mixin(Container, source2);
     }
-    // = 'default';
-    /**
-     * We now use the _didContainerChangeTick and _didViewChangeTick to track changes
-     * @deprecated since 8.2.6
-     * @ignore
-     */
+
     set _didChangeId(value) {
       this._didViewChangeTick = value >> 12 & 4095;
       this._didContainerChangeTick = value & 4095;
     }
-    /** @ignore */
+
     get _didChangeId() {
       return this._didContainerChangeTick & 4095 | (this._didViewChangeTick & 4095) << 12;
     }
-    /**
-     * Adds one or more children to the container.
-     * The children will be rendered as part of this container's display list.
-     * @example
-     * ```ts
-     * // Add a single child
-     * container.addChild(sprite);
-     *
-     * // Add multiple children
-     * container.addChild(background, player, foreground);
-     *
-     * // Add with type checking
-     * const sprite = container.addChild<Sprite>(new Sprite(texture));
-     * sprite.tint = 'red';
-     * ```
-     * @param children - The Container(s) to add to the container
-     * @returns The first child that was added
-     * @see {@link Container#removeChild} For removing children
-     * @see {@link Container#addChildAt} For adding at specific index
-     */
+
     addChild(...children) {
       if (!this.allowChildren) {
         deprecation(v8_0_0, "addChild: Only Containers will be allowed to add children in v8.0.0");
@@ -6537,26 +3920,7 @@ Deprecated since v${version}`;
       }
       return child;
     }
-    /**
-     * Removes one or more children from the container.
-     * When removing multiple children, events will be triggered for each child in sequence.
-     * @example
-     * ```ts
-     * // Remove a single child
-     * const removed = container.removeChild(sprite);
-     *
-     * // Remove multiple children
-     * const bg = container.removeChild(background, player, userInterface);
-     *
-     * // Remove with type checking
-     * const sprite = container.removeChild<Sprite>(childSprite);
-     * sprite.texture = newTexture;
-     * ```
-     * @param children - The Container(s) to remove
-     * @returns The first child that was removed
-     * @see {@link Container#addChild} For adding children
-     * @see {@link Container#removeChildren} For removing multiple children
-     */
+
     removeChild(...children) {
       if (children.length > 1) {
         for (let i2 = 0; i2 < children.length; i2++) {
@@ -6583,7 +3947,7 @@ Deprecated since v${version}`;
       }
       return child;
     }
-    /** @ignore */
+
     _onUpdate(point) {
       if (point) {
         if (point === this._skew) {
@@ -6605,20 +3969,11 @@ Deprecated since v${version}`;
         this.disableRenderGroup();
       }
     }
-    /**
-     * Returns true if this container is a render group.
-     * This means that it will be rendered as a separate pass, with its own set of instructions
-     * @advanced
-     */
+
     get isRenderGroup() {
       return !!this.renderGroup;
     }
-    /**
-     * Calling this enables a render group for this container.
-     * This means it will be rendered as a separate set of instructions.
-     * The transform of the container will also be handled on the GPU rather than the CPU.
-     * @advanced
-     */
+
     enableRenderGroup() {
       if (this.renderGroup) return;
       const parentRenderGroup = this.parentRenderGroup;
@@ -6628,10 +3983,7 @@ Deprecated since v${version}`;
       parentRenderGroup?.addChild(this);
       this._updateIsSimple();
     }
-    /**
-     * This will disable the render group for this container.
-     * @advanced
-     */
+
     disableRenderGroup() {
       if (!this.renderGroup) return;
       const parentRenderGroup = this.parentRenderGroup;
@@ -6642,23 +3994,11 @@ Deprecated since v${version}`;
       parentRenderGroup?.addChild(this);
       this._updateIsSimple();
     }
-    /** @ignore */
+
     _updateIsSimple() {
       this.isSimple = !this.renderGroup && this.effects.length === 0;
     }
-    /**
-     * Current transform of the object based on world (parent) factors.
-     *
-     * This matrix represents the absolute transformation in the scene graph.
-     * @example
-     * ```ts
-     * // Get world position
-     * const worldPos = container.worldTransform;
-     * console.log(`World position: (${worldPos.tx}, ${worldPos.ty})`);
-     * ```
-     * @readonly
-     * @see {@link Container#localTransform} For local space transform
-     */
+
     get worldTransform() {
       this._worldTransform || (this._worldTransform = new Matrix());
       if (this.renderGroup) {
@@ -6668,79 +4008,28 @@ Deprecated since v${version}`;
       }
       return this._worldTransform;
     }
-    /**
-     * The position of the container on the x axis relative to the local coordinates of the parent.
-     *
-     * An alias to position.x
-     * @example
-     * ```ts
-     * // Basic position
-     * container.x = 100;
-     * ```
-     */
+
     get x() {
       return this._position.x;
     }
     set x(value) {
       this._position.x = value;
     }
-    /**
-     * The position of the container on the y axis relative to the local coordinates of the parent.
-     *
-     * An alias to position.y
-     * @example
-     * ```ts
-     * // Basic position
-     * container.y = 200;
-     * ```
-     */
+
     get y() {
       return this._position.y;
     }
     set y(value) {
       this._position.y = value;
     }
-    /**
-     * The coordinate of the object relative to the local coordinates of the parent.
-     * @example
-     * ```ts
-     * // Basic position setting
-     * container.position.set(100, 200);
-     * container.position.set(100); // Sets both x and y to 100
-     * // Using point data
-     * container.position = { x: 50, y: 75 };
-     * ```
-     * @since 4.0.0
-     */
+
     get position() {
       return this._position;
     }
     set position(value) {
       this._position.copyFrom(value);
     }
-    /**
-     * The rotation of the object in radians.
-     *
-     * > [!NOTE] 'rotation' and 'angle' have the same effect on a display object;
-     * > rotation is in radians, angle is in degrees.
-     * @example
-     * ```ts
-     * // Basic rotation
-     * container.rotation = Math.PI / 4; // 45 degrees
-     *
-     * // Convert from degrees
-     * const degrees = 45;
-     * container.rotation = degrees * Math.PI / 180;
-     *
-     * // Rotate around center
-     * container.pivot.set(container.width / 2, container.height / 2);
-     * container.rotation = Math.PI; // 180 degrees
-     *
-     * // Rotate around center with origin
-     * container.origin.set(container.width / 2, container.height / 2);
-     * container.rotation = Math.PI; // 180 degrees
-     * ```
-     */
+
     get rotation() {
       return this._rotation;
     }
@@ -6750,47 +4039,14 @@ Deprecated since v${version}`;
         this._onUpdate(this._skew);
       }
     }
-    /**
-     * The angle of the object in degrees.
-     *
-     * > [!NOTE] 'rotation' and 'angle' have the same effect on a display object;
-     * > rotation is in radians, angle is in degrees.
-     * @example
-     * ```ts
-     * // Basic angle rotation
-     * sprite.angle = 45; // 45 degrees
-     *
-     * // Rotate around center
-     * sprite.pivot.set(sprite.width / 2, sprite.height / 2);
-     * sprite.angle = 180; // Half rotation
-     *
-     * // Rotate around center with origin
-     * sprite.origin.set(sprite.width / 2, sprite.height / 2);
-     * sprite.angle = 180; // Half rotation
-     *
-     * // Reset rotation
-     * sprite.angle = 0;
-     * ```
-     */
+
     get angle() {
       return this.rotation * RAD_TO_DEG;
     }
     set angle(value) {
       this.rotation = value * DEG_TO_RAD;
     }
-    /**
-     * The center of rotation, scaling, and skewing for this display object in its local space.
-     * The `position` is the projection of `pivot` in the parent's local space.
-     *
-     * By default, the pivot is the origin (0, 0).
-     * @example
-     * ```ts
-     * // Rotate around center
-     * container.pivot.set(container.width / 2, container.height / 2);
-     * container.rotation = Math.PI; // Rotates around center
-     * ```
-     * @since 4.0.0
-     */
+
     get pivot() {
       if (this._pivot === defaultPivot) {
         this._pivot = new ObservablePoint(this, 0, 0);
@@ -6806,35 +4062,7 @@ Deprecated since v${version}`;
       }
       typeof value === "number" ? this._pivot.set(value) : this._pivot.copyFrom(value);
     }
-    /**
-     * The skew factor for the object in radians. Skewing is a transformation that distorts
-     * the object by rotating it differently at each point, creating a non-uniform shape.
-     * @example
-     * ```ts
-     * // Basic skewing
-     * container.skew.set(0.5, 0); // Skew horizontally
-     * container.skew.set(0, 0.5); // Skew vertically
-     *
-     * // Skew with point data
-     * container.skew = { x: 0.3, y: 0.3 }; // Diagonal skew
-     *
-     * // Reset skew
-     * container.skew.set(0, 0);
-     *
-     * // Animate skew
-     * app.ticker.add(() => {
-     *     // Create wave effect
-     *     container.skew.x = Math.sin(Date.now() / 1000) * 0.3;
-     * });
-     *
-     * // Combine with rotation
-     * container.rotation = Math.PI / 4; // 45 degrees
-     * container.skew.set(0.2, 0.2); // Skew the rotated object
-     * ```
-     * @since 4.0.0
-     * @type {ObservablePoint} Point-like object with x/y properties in radians
-     * @default {x: 0, y: 0}
-     */
+
     get skew() {
       if (this._skew === defaultSkew) {
         this._skew = new ObservablePoint(this, 0, 0);
@@ -6847,21 +4075,7 @@ Deprecated since v${version}`;
       }
       this._skew.copyFrom(value);
     }
-    /**
-     * The scale factors of this object along the local coordinate axes.
-     *
-     * The default scale is (1, 1).
-     * @example
-     * ```ts
-     * // Basic scaling
-     * container.scale.set(2, 2); // Scales to double size
-     * container.scale.set(2); // Scales uniformly to double size
-     * container.scale = 2; // Scales uniformly to double size
-     * // Scale to a specific width and height
-     * container.setSize(200, 100); // Sets width to 200 and height to 100
-     * ```
-     * @since 4.0.0
-     */
+
     get scale() {
       if (this._scale === defaultScale) {
         this._scale = new ObservablePoint(this, 1, 1);
@@ -6877,20 +4091,7 @@ Deprecated since v${version}`;
       }
       typeof value === "number" ? this._scale.set(value) : this._scale.copyFrom(value);
     }
-    /**
-     * @experimental
-     * The origin point around which the container rotates and scales without affecting its position.
-     * Unlike pivot, changing the origin will not move the container's position.
-     * @example
-     * ```ts
-     * // Rotate around center point
-     * container.origin.set(container.width / 2, container.height / 2);
-     * container.rotation = Math.PI; // Rotates around center
-     *
-     * // Reset origin
-     * container.origin.set(0, 0);
-     * ```
-     */
+
     get origin() {
       if (this._origin === defaultOrigin) {
         this._origin = new ObservablePoint(this, 0, 0);
@@ -6906,19 +4107,7 @@ Deprecated since v${version}`;
       }
       typeof value === "number" ? this._origin.set(value) : this._origin.copyFrom(value);
     }
-    /**
-     * The width of the Container, setting this will actually modify the scale to achieve the value set.
-     * > [!NOTE] Changing the width will adjust the scale.x property of the container while maintaining its aspect ratio.
-     * > [!NOTE] If you want to set both width and height at the same time, use {@link Container#setSize}
-     * as it is more optimized by not recalculating the local bounds twice.
-     * @example
-     * ```ts
-     * // Basic width setting
-     * container.width = 100;
-     * // Optimized width setting
-     * container.setSize(100, 100);
-     * ```
-     */
+
     get width() {
       return Math.abs(this.scale.x * this.getLocalBounds().width);
     }
@@ -6926,19 +4115,7 @@ Deprecated since v${version}`;
       const localWidth = this.getLocalBounds().width;
       this._setWidth(value, localWidth);
     }
-    /**
-     * The height of the Container,
-     * > [!NOTE] Changing the height will adjust the scale.y property of the container while maintaining its aspect ratio.
-     * > [!NOTE] If you want to set both width and height at the same time, use {@link Container#setSize}
-     * as it is more optimized by not recalculating the local bounds twice.
-     * @example
-     * ```ts
-     * // Basic height setting
-     * container.height = 200;
-     * // Optimized height setting
-     * container.setSize(100, 200);
-     * ```
-     */
+
     get height() {
       return Math.abs(this.scale.y * this.getLocalBounds().height);
     }
@@ -6946,23 +4123,7 @@ Deprecated since v${version}`;
       const localHeight = this.getLocalBounds().height;
       this._setHeight(value, localHeight);
     }
-    /**
-     * Retrieves the size of the container as a [Size]{@link Size} object.
-     *
-     * This is faster than get the width and height separately.
-     * @example
-     * ```ts
-     * // Basic size retrieval
-     * const size = container.getSize();
-     * console.log(`Size: ${size.width}x${size.height}`);
-     *
-     * // Reuse existing size object
-     * const reuseSize = { width: 0, height: 0 };
-     * container.getSize(reuseSize);
-     * ```
-     * @param out - Optional object to store the size in.
-     * @returns The size of the container.
-     */
+
     getSize(out2) {
       if (!out2) {
         out2 = {};
@@ -6972,20 +4133,7 @@ Deprecated since v${version}`;
       out2.height = Math.abs(this.scale.y * bounds.height);
       return out2;
     }
-    /**
-     * Sets the size of the container to the specified width and height.
-     * This is more efficient than setting width and height separately as it only recalculates bounds once.
-     * @example
-     * ```ts
-     * // Basic size setting
-     * container.setSize(100, 200);
-     *
-     * // Set uniform size
-     * container.setSize(100); // Sets both width and height to 100
-     * ```
-     * @param value - This can be either a number or a [Size]{@link Size} object.
-     * @param height - The height to set. Defaults to the value of `width` if not provided.
-     */
+
     setSize(value, height) {
       const size = this.getLocalBounds();
       if (typeof value === "object") {
@@ -6997,7 +4145,7 @@ Deprecated since v${version}`;
       value !== void 0 && this._setWidth(value, size.width);
       height !== void 0 && this._setHeight(height, size.height);
     }
-    /** Called when the skew or the rotation changes. */
+
     _updateSkew() {
       const rotation = this._rotation;
       const skew = this._skew;
@@ -7006,47 +4154,7 @@ Deprecated since v${version}`;
       this._cy = -Math.sin(rotation - skew._x);
       this._sy = Math.cos(rotation - skew._x);
     }
-    /**
-     * Updates the transform properties of the container.
-     * Allows partial updates of transform properties for optimized manipulation.
-     * @example
-     * ```ts
-     * // Basic transform update
-     * container.updateTransform({
-     *     x: 100,
-     *     y: 200,
-     *     rotation: Math.PI / 4
-     * });
-     *
-     * // Scale and rotate around center
-     * sprite.updateTransform({
-     *     pivotX: sprite.width / 2,
-     *     pivotY: sprite.height / 2,
-     *     scaleX: 2,
-     *     scaleY: 2,
-     *     rotation: Math.PI
-     * });
-     *
-     * // Update position only
-     * button.updateTransform({
-     *     x: button.x + 10, // Move right
-     *     y: button.y      // Keep same y
-     * });
-     * ```
-     * @param opts - Transform options to update
-     * @param opts.x - The x position
-     * @param opts.y - The y position
-     * @param opts.scaleX - The x-axis scale factor
-     * @param opts.scaleY - The y-axis scale factor
-     * @param opts.rotation - The rotation in radians
-     * @param opts.skewX - The x-axis skew factor
-     * @param opts.skewY - The y-axis skew factor
-     * @param opts.pivotX - The x-axis pivot point
-     * @param opts.pivotY - The y-axis pivot point
-     * @returns This container, for chaining
-     * @see {@link Container#setFromMatrix} For matrix-based transforms
-     * @see {@link Container#position} For direct position access
-     */
+
     updateTransform(opts) {
       this.position.set(
         typeof opts.x === "number" ? opts.x : this.position.x,
@@ -7071,37 +4179,11 @@ Deprecated since v${version}`;
       );
       return this;
     }
-    /**
-     * Updates the local transform properties by decomposing the given matrix.
-     * Extracts position, scale, rotation, and skew from a transformation matrix.
-     * @example
-     * ```ts
-     * // Basic matrix transform
-     * const matrix = new Matrix()
-     *     .translate(100, 100)
-     *     .rotate(Math.PI / 4)
-     *     .scale(2, 2);
-     *
-     * container.setFromMatrix(matrix);
-     *
-     * // Copy transform from another container
-     * const source = new Container();
-     * source.position.set(100, 100);
-     * source.rotation = Math.PI / 2;
-     *
-     * target.setFromMatrix(source.localTransform);
-     *
-     * // Reset transform
-     * container.setFromMatrix(Matrix.IDENTITY);
-     * ```
-     * @param matrix - The matrix to use for updating the transform
-     * @see {@link Container#updateTransform} For property-based updates
-     * @see {@link Matrix#decompose} For matrix decomposition details
-     */
+
     setFromMatrix(matrix) {
       matrix.decompose(this);
     }
-    /** Updates the local transform. */
+
     updateLocalTransform() {
       const localTransformChangeId = this._didContainerChangeTick;
       if (this._didLocalTransformChangeId === localTransformChangeId) return;
@@ -7124,32 +4206,14 @@ Deprecated since v${version}`;
       lt.tx = position._x - (px * lt.a + py * lt.c) + (ox * lt.a + oy * lt.c) - ox;
       lt.ty = position._y - (px * lt.b + py * lt.d) + (ox * lt.b + oy * lt.d) - oy;
     }
-    // / ///// color related stuff
+
     set alpha(value) {
       if (value === this.localAlpha) return;
       this.localAlpha = value;
       this._updateFlags |= UPDATE_COLOR;
       this._onUpdate();
     }
-    /**
-     * The opacity of the object relative to its parent's opacity.
-     * Value ranges from 0 (fully transparent) to 1 (fully opaque).
-     * @example
-     * ```ts
-     * // Basic transparency
-     * sprite.alpha = 0.5; // 50% opacity
-     *
-     * // Inherited opacity
-     * container.alpha = 0.5;
-     * const child = new Sprite(texture);
-     * child.alpha = 0.5;
-     * container.addChild(child);
-     * // child's effective opacity is 0.25 (0.5 * 0.5)
-     * ```
-     * @default 1
-     * @see {@link Container#visible} For toggling visibility
-     * @see {@link Container#renderable} For render control
-     */
+
     get alpha() {
       return this.localAlpha;
     }
@@ -7161,30 +4225,11 @@ Deprecated since v${version}`;
       this._updateFlags |= UPDATE_COLOR;
       this._onUpdate();
     }
-    /**
-     * The tint applied to the sprite.
-     *
-     * This can be any valid {@link ColorSource}.
-     * @example
-     * ```ts
-     * // Basic color tinting
-     * container.tint = 0xff0000; // Red tint
-     * container.tint = 'red';    // Same as above
-     * container.tint = '#00ff00'; // Green
-     * container.tint = 'rgb(0,0,255)'; // Blue
-     *
-     * // Remove tint
-     * container.tint = 0xffffff; // White = no tint
-     * container.tint = null;     // Also removes tint
-     * ```
-     * @default 0xFFFFFF
-     * @see {@link Container#alpha} For transparency
-     * @see {@link Container#visible} For visibility control
-     */
+
     get tint() {
       return bgr2rgb(this.localColor);
     }
-    // / //////////////// blend related stuff
+
     set blendMode(value) {
       if (this.localBlendMode === value) return;
       if (this.parentRenderGroup) {
@@ -7194,42 +4239,11 @@ Deprecated since v${version}`;
       this.localBlendMode = value;
       this._onUpdate();
     }
-    /**
-     * The blend mode to be applied to the sprite. Controls how pixels are blended when rendering.
-     *
-     * Setting to 'normal' will reset to default blending.
-     * > [!NOTE] More blend modes are available after importing the `pixi.js/advanced-blend-modes` sub-export.
-     * @example
-     * ```ts
-     * // Basic blend modes
-     * sprite.blendMode = 'add';        // Additive blending
-     * sprite.blendMode = 'multiply';   // Multiply colors
-     * sprite.blendMode = 'screen';     // Screen blend
-     *
-     * // Reset blend mode
-     * sprite.blendMode = 'normal';     // Normal blending
-     * ```
-     * @default 'normal'
-     * @see {@link Container#alpha} For transparency
-     * @see {@link Container#tint} For color adjustments
-     */
+
     get blendMode() {
       return this.localBlendMode;
     }
-    // / ///////// VISIBILITY / RENDERABLE /////////////////
-    /**
-     * The visibility of the object. If false the object will not be drawn,
-     * and the transform will not be updated.
-     * @example
-     * ```ts
-     * // Basic visibility toggle
-     * sprite.visible = false; // Hide sprite
-     * sprite.visible = true;  // Show sprite
-     * ```
-     * @default true
-     * @see {@link Container#renderable} For render-only control
-     * @see {@link Container#alpha} For transparency
-     */
+
     get visible() {
       return !!(this.localDisplayStatus & 2);
     }
@@ -7244,11 +4258,11 @@ Deprecated since v${version}`;
       this._onUpdate();
       this.emit("visibleChanged", value);
     }
-    /** @ignore */
+
     get culled() {
       return !(this.localDisplayStatus & 4);
     }
-    /** @ignore */
+
     set culled(value) {
       const valueNumber = value ? 0 : 4;
       if ((this.localDisplayStatus & 4) === valueNumber) return;
@@ -7259,20 +4273,7 @@ Deprecated since v${version}`;
       this.localDisplayStatus ^= 4;
       this._onUpdate();
     }
-    /**
-     * Controls whether this object can be rendered. If false the object will not be drawn,
-     * but the transform will still be updated. This is different from visible, which skips
-     * transform updates.
-     * @example
-     * ```ts
-     * // Basic render control
-     * sprite.renderable = false; // Skip rendering
-     * sprite.renderable = true;  // Enable rendering
-     * ```
-     * @default true
-     * @see {@link Container#visible} For skipping transform updates
-     * @see {@link Container#alpha} For transparency
-     */
+
     get renderable() {
       return !!(this.localDisplayStatus & 1);
     }
@@ -7286,26 +4287,11 @@ Deprecated since v${version}`;
       }
       this._onUpdate();
     }
-    /**
-     * Whether or not the object should be rendered.
-     * @advanced
-     */
+
     get isRenderable() {
       return this.localDisplayStatus === 7 && this.groupAlpha > 0;
     }
-    /**
-     * Removes all internal references and listeners as well as removes children from the display list.
-     * Do not use a Container after calling `destroy`.
-     * @param options - Options parameter. A boolean will act as if all options
-     *  have been set to that value
-     * @example
-     * ```ts
-     * container.destroy();
-     * container.destroy(true);
-     * container.destroy({ children: true });
-     * container.destroy({ children: true, texture: true, textureSource: true });
-     * ```
-     */
+
     destroy(options = false) {
       if (this.destroyed) return;
       this.destroyed = true;
@@ -7357,68 +4343,34 @@ Deprecated since v${version}`;
       this.allowChildren = false;
       this._roundPixels = 0;
       this._lastUsed = -1;
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
       this.autoGarbageCollect = true;
       this._gcLastUsed = -1;
       this._bounds = new Bounds(0, 1, 0, 0);
       this._boundsDirty = true;
       this.autoGarbageCollect = options.autoGarbageCollect ?? true;
     }
-    /**
-     * The local bounds of the view in its own coordinate space.
-     * Bounds are automatically updated when the view's content changes.
-     * @example
-     * ```ts
-     * // Get bounds dimensions
-     * const bounds = view.bounds;
-     * console.log(`Width: ${bounds.maxX - bounds.minX}`);
-     * console.log(`Height: ${bounds.maxY - bounds.minY}`);
-     * ```
-     * @returns The rectangular bounds of the view
-     * @see {@link Bounds} For bounds operations
-     */
+
     get bounds() {
       if (!this._boundsDirty) return this._bounds;
       this.updateBounds();
       this._boundsDirty = false;
       return this._bounds;
     }
-    /**
-     * Whether or not to round the x/y position of the sprite.
-     * @example
-     * ```ts
-     * // Enable pixel rounding for crisp rendering
-     * view.roundPixels = true;
-     * ```
-     * @default false
-     */
+
     get roundPixels() {
       return !!this._roundPixels;
     }
     set roundPixels(value) {
       this._roundPixels = value ? 1 : 0;
     }
-    /**
-     * Checks if the object contains the given point in local coordinates.
-     * Uses the view's bounds for hit testing.
-     * @example
-     * ```ts
-     * // Basic point check
-     * const localPoint = { x: 50, y: 25 };
-     * const contains = view.containsPoint(localPoint);
-     * console.log('Point is inside:', contains);
-     * ```
-     * @param point - The point to check in local coordinates
-     * @returns True if the point is within the view's bounds
-     * @see {@link ViewContainer#bounds} For the bounds used in hit testing
-     * @see {@link Container#toLocal} For converting global coordinates to local
-     */
+
     containsPoint(point) {
       const bounds = this.bounds;
       const { x: x2, y: y2 } = point;
       return x2 >= bounds.minX && x2 <= bounds.maxX && y2 >= bounds.minY && y2 <= bounds.maxY;
     }
-    /** @private */
+
     onViewUpdate() {
       this._didViewChangeTick++;
       this._boundsDirty = true;
@@ -7429,13 +4381,13 @@ Deprecated since v${version}`;
         renderGroup.onChildViewUpdate(this);
       }
     }
-    /** Unloads the GPU data from the view. */
+
     unload() {
       this.emit("unload", this);
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy();
       }
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
       this.onViewUpdate();
     }
     destroy(options) {
@@ -7443,13 +4395,7 @@ Deprecated since v${version}`;
       super.destroy(options);
       this._bounds = null;
     }
-    /**
-     * Collects renderables for the view container.
-     * @param instructionSet - The instruction set to collect renderables for.
-     * @param renderer - The renderer to collect renderables for.
-     * @param currentLayer - The current render layer.
-     * @internal
-     */
+
     collectRenderablesSimple(instructionSet, renderer, currentLayer) {
       const { renderPipes: renderPipes2 } = renderer;
       renderPipes2.blendMode.pushBlendMode(this, this.groupBlendMode, instructionSet);
@@ -7468,9 +4414,7 @@ Deprecated since v${version}`;
     }
   }
   class Sprite extends ViewContainer {
-    /**
-     * @param options - The options for creating the sprite.
-     */
+
     constructor(options = Texture.EMPTY) {
       if (options instanceof Texture) {
         options = { texture: options };
@@ -7501,28 +4445,7 @@ Deprecated since v${version}`;
       if (width !== void 0) this.width = width;
       if (height !== void 0) this.height = height;
     }
-    /**
-     * Creates a new sprite based on a source texture, image, video, or canvas element.
-     * This is a convenience method that automatically creates and manages textures.
-     * @example
-     * ```ts
-     * // Create from path or URL
-     * const sprite = Sprite.from('assets/image.png');
-     *
-     * // Create from existing texture
-     * const sprite = Sprite.from(texture);
-     *
-     * // Create from canvas
-     * const canvas = document.createElement('canvas');
-     * const sprite = Sprite.from(canvas, true); // Skip caching new texture
-     * ```
-     * @param source - The source to create the sprite from. Can be a path to an image, a texture,
-     * or any valid texture source (canvas, video, etc.)
-     * @param skipCache - Whether to skip adding to the texture cache when creating a new texture
-     * @returns A new sprite based on the source
-     * @see {@link Texture.from} For texture creation details
-     * @see {@link Assets} For asset loading and management
-     */
+
     static from(source2, skipCache = false) {
       if (source2 instanceof Texture) {
         return new Sprite(source2);
@@ -7544,60 +4467,21 @@ Deprecated since v${version}`;
       }
       this.onViewUpdate();
     }
-    /**
-     * The texture that is displayed by the sprite. When changed, automatically updates
-     * the sprite dimensions and manages texture event listeners.
-     * @example
-     * ```ts
-     * // Create sprite with texture
-     * const sprite = new Sprite({
-     *     texture: Texture.from('sprite.png')
-     * });
-     *
-     * // Update texture
-     * sprite.texture = Texture.from('newSprite.png');
-     *
-     * // Use texture from spritesheet
-     * const sheet = await Assets.load('spritesheet.json');
-     * sprite.texture = sheet.textures['frame1.png'];
-     *
-     * // Reset to empty texture
-     * sprite.texture = Texture.EMPTY;
-     * ```
-     * @see {@link Texture} For texture creation and management
-     * @see {@link Assets} For asset loading
-     */
+
     get texture() {
       return this._texture;
     }
-    /**
-     * The bounds of the sprite, taking into account the texture's trim area.
-     * @example
-     * ```ts
-     * const texture = new Texture({
-     *     source: new TextureSource({ width: 300, height: 300 }),
-     *     frame: new Rectangle(196, 66, 58, 56),
-     *     trim: new Rectangle(4, 4, 58, 56),
-     *     orig: new Rectangle(0, 0, 64, 64),
-     *     rotate: 2,
-     * });
-     * const sprite = new Sprite(texture);
-     * const visualBounds = sprite.visualBounds;
-     * // console.log(visualBounds); // { minX: -4, maxX: 62, minY: -4, maxY: 60 }
-     */
+
     get visualBounds() {
       updateQuadBounds(this._visualBounds, this._anchor, this._texture);
       return this._visualBounds;
     }
-    /**
-     * @deprecated
-     * @ignore
-     */
+
     get sourceBounds() {
       deprecation("8.6.1", "Sprite.sourceBounds is deprecated, use visualBounds instead.");
       return this.visualBounds;
     }
-    /** @private */
+
     updateBounds() {
       const anchor = this._anchor;
       const texture = this._texture;
@@ -7608,15 +4492,7 @@ Deprecated since v${version}`;
       bounds.minY = -anchor._y * height;
       bounds.maxY = bounds.minY + height;
     }
-    /**
-     * Destroys this sprite renderable and optionally its texture.
-     * @param options - Options parameter. A boolean will act as if all options
-     *  have been set to that value
-     * @example
-     * sprite.destroy();
-     * sprite.destroy(true);
-     * sprite.destroy({ texture: true, textureSource: true });
-     */
+
     destroy(options = false) {
       super.destroy(options);
       const destroyTexture = typeof options === "boolean" ? options : options?.texture;
@@ -7629,65 +4505,14 @@ Deprecated since v${version}`;
       this._bounds = null;
       this._anchor = null;
     }
-    /**
-     * The anchor sets the origin point of the sprite. The default value is taken from the {@link Texture}
-     * and passed to the constructor.
-     *
-     * - The default is `(0,0)`, this means the sprite's origin is the top left.
-     * - Setting the anchor to `(0.5,0.5)` means the sprite's origin is centered.
-     * - Setting the anchor to `(1,1)` would mean the sprite's origin point will be the bottom right corner.
-     *
-     * If you pass only single parameter, it will set both x and y to the same value as shown in the example below.
-     * @example
-     * ```ts
-     * // Center the anchor point
-     * sprite.anchor = 0.5; // Sets both x and y to 0.5
-     * sprite.position.set(400, 300); // Sprite will be centered at this position
-     *
-     * // Set specific x/y anchor points
-     * sprite.anchor = {
-     *     x: 1, // Right edge
-     *     y: 0  // Top edge
-     * };
-     *
-     * // Using individual coordinates
-     * sprite.anchor.set(0.5, 1); // Center-bottom
-     *
-     * // For rotation around center
-     * sprite.anchor.set(0.5);
-     * sprite.rotation = Math.PI / 4; // 45 degrees around center
-     *
-     * // For scaling from center
-     * sprite.anchor.set(0.5);
-     * sprite.scale.set(2); // Scales from center point
-     * ```
-     */
+
     get anchor() {
       return this._anchor;
     }
     set anchor(value) {
       typeof value === "number" ? this._anchor.set(value) : this._anchor.copyFrom(value);
     }
-    /**
-     * The width of the sprite, setting this will actually modify the scale to achieve the value set.
-     * @example
-     * ```ts
-     * // Set width directly
-     * sprite.width = 200;
-     * console.log(sprite.scale.x); // Scale adjusted to match width
-     *
-     * // Set width while preserving aspect ratio
-     * const ratio = sprite.height / sprite.width;
-     * sprite.width = 300;
-     * sprite.height = 300 * ratio;
-     *
-     * // For better performance when setting both width and height
-     * sprite.setSize(300, 400); // Avoids recalculating bounds twice
-     *
-     * // Reset to original texture size
-     * sprite.width = sprite.texture.orig.width;
-     * ```
-     */
+
     get width() {
       return Math.abs(this.scale.x) * this._texture.orig.width;
     }
@@ -7695,26 +4520,7 @@ Deprecated since v${version}`;
       this._setWidth(value, this._texture.orig.width);
       this._width = value;
     }
-    /**
-     * The height of the sprite, setting this will actually modify the scale to achieve the value set.
-     * @example
-     * ```ts
-     * // Set height directly
-     * sprite.height = 150;
-     * console.log(sprite.scale.y); // Scale adjusted to match height
-     *
-     * // Set height while preserving aspect ratio
-     * const ratio = sprite.width / sprite.height;
-     * sprite.height = 200;
-     * sprite.width = 200 * ratio;
-     *
-     * // For better performance when setting both width and height
-     * sprite.setSize(300, 400); // Avoids recalculating bounds twice
-     *
-     * // Reset to original texture size
-     * sprite.height = sprite.texture.orig.height;
-     * ```
-     */
+
     get height() {
       return Math.abs(this.scale.y) * this._texture.orig.height;
     }
@@ -7722,62 +4528,14 @@ Deprecated since v${version}`;
       this._setHeight(value, this._texture.orig.height);
       this._height = value;
     }
-    /**
-     * Retrieves the size of the Sprite as a [Size]{@link Size} object based on the texture dimensions and scale.
-     * This is faster than getting width and height separately as it only calculates the bounds once.
-     * @example
-     * ```ts
-     * // Basic size retrieval
-     * const sprite = new Sprite(Texture.from('sprite.png'));
-     * const size = sprite.getSize();
-     * console.log(`Size: ${size.width}x${size.height}`);
-     *
-     * // Reuse existing size object
-     * const reuseSize = { width: 0, height: 0 };
-     * sprite.getSize(reuseSize);
-     * ```
-     * @param out - Optional object to store the size in, to avoid allocating a new object
-     * @returns The size of the Sprite
-     * @see {@link Sprite#width} For getting just the width
-     * @see {@link Sprite#height} For getting just the height
-     * @see {@link Sprite#setSize} For setting both width and height
-     */
+
     getSize(out2) {
       out2 || (out2 = {});
       out2.width = Math.abs(this.scale.x) * this._texture.orig.width;
       out2.height = Math.abs(this.scale.y) * this._texture.orig.height;
       return out2;
     }
-    /**
-     * Sets the size of the Sprite to the specified width and height.
-     * This is faster than setting width and height separately as it only recalculates bounds once.
-     * @example
-     * ```ts
-     * // Basic size setting
-     * const sprite = new Sprite(Texture.from('sprite.png'));
-     * sprite.setSize(100, 200); // Width: 100, Height: 200
-     *
-     * // Set uniform size
-     * sprite.setSize(100); // Sets both width and height to 100
-     *
-     * // Set size with object
-     * sprite.setSize({
-     *     width: 200,
-     *     height: 300
-     * });
-     *
-     * // Reset to texture size
-     * sprite.setSize(
-     *     sprite.texture.orig.width,
-     *     sprite.texture.orig.height
-     * );
-     * ```
-     * @param value - This can be either a number or a {@link Size} object
-     * @param height - The height to set. Defaults to the value of `width` if not provided
-     * @see {@link Sprite#width} For setting width only
-     * @see {@link Sprite#height} For setting height only
-     * @see {@link Sprite#texture} For the source dimensions
-     */
+
     setSize(value, height) {
       if (typeof value === "object") {
         height = value.height ?? value.width;
@@ -7938,17 +4696,11 @@ Deprecated since v${version}`;
   };
   let currentAdapter = BrowserAdapter;
   const DOMAdapter = {
-    /**
-     * Returns the current adapter.
-     * @returns {environment.Adapter} The current adapter.
-     */
+
     get() {
       return currentAdapter;
     },
-    /**
-     * Sets the current adapter.
-     * @param adapter - The new adapter.
-     */
+
     set(adapter) {
       currentAdapter = adapter;
     }
@@ -7996,11 +4748,7 @@ Deprecated since v${version}`;
     static test(resource) {
       return globalThis.HTMLCanvasElement && resource instanceof HTMLCanvasElement || globalThis.OffscreenCanvas && resource instanceof OffscreenCanvas;
     }
-    /**
-     * Returns the 2D rendering context for the canvas.
-     * Caches the context after creating it.
-     * @returns The 2D rendering context of the canvas.
-     */
+
     get context2D() {
       return this._context2D || (this._context2D = this.resource.getContext("2d"));
     }
@@ -8017,7 +4765,7 @@ Deprecated since v${version}`;
     }
   }
   ImageSource.extension = ExtensionType.TextureSource;
-  var UPDATE_PRIORITY = /* @__PURE__ */ ((UPDATE_PRIORITY2) => {
+  var UPDATE_PRIORITY =                 ((UPDATE_PRIORITY2) => {
     UPDATE_PRIORITY2[UPDATE_PRIORITY2["INTERACTION"] = 50] = "INTERACTION";
     UPDATE_PRIORITY2[UPDATE_PRIORITY2["HIGH"] = 25] = "HIGH";
     UPDATE_PRIORITY2[UPDATE_PRIORITY2["NORMAL"] = 0] = "NORMAL";
@@ -8026,14 +4774,7 @@ Deprecated since v${version}`;
     return UPDATE_PRIORITY2;
   })(UPDATE_PRIORITY || {});
   class TickerListener {
-    /**
-     * Constructor
-     * @private
-     * @param fn - The listener function to be added for one update
-     * @param context - The listener context
-     * @param priority - The priority for emitting
-     * @param once - If the handler should fire once
-     */
+
     constructor(fn, context2 = null, priority = 0, once = false) {
       this.next = null;
       this.previous = null;
@@ -8043,20 +4784,11 @@ Deprecated since v${version}`;
       this.priority = priority;
       this._once = once;
     }
-    /**
-     * Simple compare function to figure out if a function and context match.
-     * @param fn - The listener function to be added for one update
-     * @param context - The listener context
-     * @returns `true` if the listener match the arguments
-     */
+
     match(fn, context2 = null) {
       return this._fn === fn && this._context === context2;
     }
-    /**
-     * Emit by calling the current function.
-     * @param ticker - The ticker emitting.
-     * @returns Next ticker
-     */
+
     emit(ticker) {
       if (this._fn) {
         if (this._context) {
@@ -8074,10 +4806,7 @@ Deprecated since v${version}`;
       }
       return redirect;
     }
-    /**
-     * Connect to the list.
-     * @param previous - Input node, previous listener
-     */
+
     connect(previous) {
       this.previous = previous;
       if (previous.next) {
@@ -8086,12 +4815,7 @@ Deprecated since v${version}`;
       this.next = previous.next;
       previous.next = this;
     }
-    /**
-     * Destroy and don't use after this.
-     * @param hard - `true` to remove the `next` reference, this
-     *        is considered a hard destroy. Soft destroy maintains the next reference.
-     * @returns The listener to redirect while emitting or removing.
-     */
+
     destroy(hard = false) {
       this._destroyed = true;
       this._fn = null;
@@ -8133,11 +4857,7 @@ Deprecated since v${version}`;
         }
       };
     }
-    /**
-     * Conditionally requests a new animation frame.
-     * If a frame has not already been requested, and if the internal
-     * emitter has listeners, a new frame is requested.
-     */
+
     _requestIfNeeded() {
       if (this._requestId === null && this._head.next) {
         this.lastTime = performance.now();
@@ -8145,21 +4865,14 @@ Deprecated since v${version}`;
         this._requestId = requestAnimationFrame(this._tick);
       }
     }
-    /** Conditionally cancels a pending animation frame. */
+
     _cancelIfNeeded() {
       if (this._requestId !== null) {
         cancelAnimationFrame(this._requestId);
         this._requestId = null;
       }
     }
-    /**
-     * Conditionally requests a new animation frame.
-     * If the ticker has been started it checks if a frame has not already
-     * been requested, and if the internal emitter has listeners. If these
-     * conditions are met, a new frame is requested. If the ticker has not
-     * been started, but autoStart is `true`, then the ticker starts now,
-     * and continues with the previous conditions to request a new frame.
-     */
+
     _startIfPossible() {
       if (this.started) {
         this._requestIfNeeded();
@@ -8167,75 +4880,15 @@ Deprecated since v${version}`;
         this.start();
       }
     }
-    /**
-     * Register a handler for tick events.
-     * @param fn - The listener function to add. Receives the Ticker instance as parameter
-     * @param context - The context for the listener
-     * @param priority - The priority of the listener
-     * @example
-     * ```ts
-     * // Access time properties through the ticker parameter
-     * ticker.add((ticker) => {
-     *     // Use deltaTime (dimensionless scalar) for frame-independent animations
-     *     sprite.rotation += 0.1 * ticker.deltaTime;
-     *
-     *     // Use deltaMS (milliseconds) for time-based calculations
-     *     const progress = ticker.deltaMS / animationDuration;
-     *
-     *     // Use elapsedMS for raw timing measurements
-     *     console.log(`Raw frame time: ${ticker.elapsedMS}ms`);
-     * });
-     * ```
-     */
+
     add(fn, context2, priority = UPDATE_PRIORITY.NORMAL) {
       return this._addListener(new TickerListener(fn, context2, priority));
     }
-    /**
-     * Add a handler for the tick event which is only executed once on the next frame.
-     * @example
-     * ```ts
-     * // Basic one-time update
-     * ticker.addOnce(() => {
-     *     console.log('Runs next frame only');
-     * });
-     *
-     * // With specific context
-     * const game = {
-     *     init(ticker) {
-     *         this.loadResources();
-     *         console.log('Game initialized');
-     *     }
-     * };
-     * ticker.addOnce(game.init, game);
-     *
-     * // With priority
-     * ticker.addOnce(
-     *     () => {
-     *         // High priority one-time setup
-     *         physics.init();
-     *     },
-     *     undefined,
-     *     UPDATE_PRIORITY.HIGH
-     * );
-     * ```
-     * @param fn - The listener function to be added for one update
-     * @param context - The listener context
-     * @param priority - The priority for emitting (default: UPDATE_PRIORITY.NORMAL)
-     * @returns This instance of a ticker
-     * @see {@link Ticker#add} For continuous updates
-     * @see {@link Ticker#remove} For removing handlers
-     */
+
     addOnce(fn, context2, priority = UPDATE_PRIORITY.NORMAL) {
       return this._addListener(new TickerListener(fn, context2, priority, true));
     }
-    /**
-     * Internally adds the event handler so that it can be sorted by priority.
-     * Priority allows certain handler (user, AnimatedSprite, Interaction) to be run
-     * before the rendering.
-     * @private
-     * @param listener - Current listener being added.
-     * @returns This instance of a ticker
-     */
+
     _addListener(listener) {
       let current = this._head.next;
       let previous = this._head;
@@ -8257,39 +4910,7 @@ Deprecated since v${version}`;
       this._startIfPossible();
       return this;
     }
-    /**
-     * Removes any handlers matching the function and context parameters.
-     * If no handlers are left after removing, then it cancels the animation frame.
-     * @example
-     * ```ts
-     * // Basic removal
-     * const onTick = () => {
-     *     sprite.rotation += 0.1;
-     * };
-     * ticker.add(onTick);
-     * ticker.remove(onTick);
-     *
-     * // Remove with context
-     * const game = {
-     *     update(ticker) {
-     *         this.physics.update(ticker.deltaTime);
-     *     }
-     * };
-     * ticker.add(game.update, game);
-     * ticker.remove(game.update, game);
-     *
-     * // Remove all matching handlers
-     * // (if same function was added multiple times)
-     * ticker.add(onTick);
-     * ticker.add(onTick);
-     * ticker.remove(onTick); // Removes all instances
-     * ```
-     * @param fn - The listener function to be removed
-     * @param context - The listener context to be removed
-     * @returns This instance of a ticker
-     * @see {@link Ticker#add} For adding handlers
-     * @see {@link Ticker#addOnce} For one-time handlers
-     */
+
     remove(fn, context2) {
       let listener = this._head.next;
       while (listener) {
@@ -8304,27 +4925,7 @@ Deprecated since v${version}`;
       }
       return this;
     }
-    /**
-     * The number of listeners on this ticker, calculated by walking through linked list.
-     * @example
-     * ```ts
-     * // Check number of active listeners
-     * const ticker = new Ticker();
-     * console.log(ticker.count); // 0
-     *
-     * // Add some listeners
-     * ticker.add(() => {});
-     * ticker.add(() => {});
-     * console.log(ticker.count); // 2
-     *
-     * // Check after cleanup
-     * ticker.destroy();
-     * console.log(ticker.count); // 0
-     * ```
-     * @readonly
-     * @see {@link Ticker#add} For adding listeners
-     * @see {@link Ticker#remove} For removing listeners
-     */
+
     get count() {
       if (!this._head) {
         return 0;
@@ -8336,57 +4937,21 @@ Deprecated since v${version}`;
       }
       return count2;
     }
-    /**
-     * Starts the ticker. If the ticker has listeners a new animation frame is requested at this point.
-     * @example
-     * ```ts
-     * // Basic manual start
-     * const ticker = new Ticker();
-     * ticker.add(() => {
-     *     // Animation code here
-     * });
-     * ticker.start();
-     * ```
-     * @see {@link Ticker#stop} For stopping the ticker
-     * @see {@link Ticker#autoStart} For automatic starting
-     * @see {@link Ticker#started} For checking ticker state
-     */
+
     start() {
       if (!this.started) {
         this.started = true;
         this._requestIfNeeded();
       }
     }
-    /**
-     * Stops the ticker. If the ticker has requested an animation frame it is canceled at this point.
-     * @example
-     * ```ts
-     * // Basic stop
-     * const ticker = new Ticker();
-     * ticker.stop();
-     * ```
-     * @see {@link Ticker#start} For starting the ticker
-     * @see {@link Ticker#started} For checking ticker state
-     * @see {@link Ticker#destroy} For cleaning up the ticker
-     */
+
     stop() {
       if (this.started) {
         this.started = false;
         this._cancelIfNeeded();
       }
     }
-    /**
-     * Destroy the ticker and don't use after this. Calling this method removes all references to internal events.
-     * @example
-     * ```ts
-     * // Clean up with active listeners
-     * const ticker = new Ticker();
-     * ticker.add(() => {});
-     * ticker.destroy(); // Removes all listeners
-     * ```
-     * @see {@link Ticker#stop} For stopping without destroying
-     * @see {@link Ticker#remove} For removing specific listeners
-     */
+
     destroy() {
       if (!this._protected) {
         this.stop();
@@ -8398,29 +4963,7 @@ Deprecated since v${version}`;
         this._head = null;
       }
     }
-    /**
-     * Triggers an update.
-     *
-     * An update entails setting the
-     * current {@link Ticker#elapsedMS|elapsedMS},
-     * the current {@link Ticker#deltaTime|deltaTime},
-     * invoking all listeners with current deltaTime,
-     * and then finally setting {@link Ticker#lastTime|lastTime}
-     * with the value of currentTime that was provided.
-     *
-     * This method will be called automatically by animation
-     * frame callbacks if the ticker instance has been started
-     * and listeners are added.
-     * @example
-     * ```ts
-     * // Basic manual update
-     * const ticker = new Ticker();
-     * ticker.update(performance.now());
-     * ```
-     * @param currentTime - The current time of execution (defaults to performance.now())
-     * @see {@link Ticker#deltaTime} For frame delta value
-     * @see {@link Ticker#elapsedMS} For raw elapsed time
-     */
+
     update(currentTime = performance.now()) {
       let elapsedMS;
       if (currentTime > this.lastTime) {
@@ -8451,51 +4994,11 @@ Deprecated since v${version}`;
       }
       this.lastTime = currentTime;
     }
-    /**
-     * The frames per second at which this ticker is running.
-     * The default is approximately 60 in most modern browsers.
-     * > [!NOTE] This does not factor in the value of
-     * > {@link Ticker#speed|speed}, which is specific
-     * > to scaling {@link Ticker#deltaTime|deltaTime}.
-     * @example
-     * ```ts
-     * // Basic FPS monitoring
-     * ticker.add(() => {
-     *     console.log(`Current FPS: ${Math.round(ticker.FPS)}`);
-     * });
-     * ```
-     * @readonly
-     */
+
     get FPS() {
       return 1e3 / this.elapsedMS;
     }
-    /**
-     * Manages the maximum amount of milliseconds allowed to
-     * elapse between invoking {@link Ticker#update|update}.
-     *
-     * This value is used to cap {@link Ticker#deltaTime|deltaTime},
-     * but does not effect the measured value of {@link Ticker#FPS|FPS}.
-     *
-     * When setting this property it is clamped to a value between
-     * `0` and `Ticker.targetFPMS * 1000` (typically 60).
-     *
-     * If `maxFPS` is currently set (non-zero) and `minFPS` is set above it,
-     * `maxFPS` is automatically raised to match. This keeps the two limits consistent.
-     * @example
-     * ```ts
-     * // Set minimum acceptable frame rate
-     * const ticker = new Ticker();
-     * ticker.minFPS = 30; // Never go below 30 FPS
-     *
-     * // Use with maxFPS for frame rate clamping
-     * ticker.minFPS = 30;
-     * ticker.maxFPS = 60;
-     *
-     * // minFPS above maxFPS pushes maxFPS up
-     * ticker.minFPS = 50; // maxFPS is raised to 50
-     * ```
-     * @default 10
-     */
+
     get minFPS() {
       return 1e3 / this._maxElapsedMS;
     }
@@ -8506,32 +5009,7 @@ Deprecated since v${version}`;
         this.maxFPS = fps;
       }
     }
-    /**
-     * Manages the minimum amount of milliseconds required to
-     * elapse between invoking {@link Ticker#update|update}.
-     *
-     * This will effect the measured value of {@link Ticker#FPS|FPS}.
-     *
-     * If it is set to `0`, then there is no limit; PixiJS will render as many frames as it can.
-     * Otherwise it will be at least `minFPS`.
-     *
-     * If `maxFPS` is set below the current `minFPS`, `minFPS` is automatically lowered to match.
-     * This keeps the two limits consistent.
-     * @example
-     * ```ts
-     * // Cap the frame rate
-     * const ticker = new Ticker();
-     * ticker.maxFPS = 60; // Never go above 60 FPS
-     *
-     * // Use with minFPS for frame rate clamping
-     * ticker.minFPS = 30;
-     * ticker.maxFPS = 60;
-     *
-     * // maxFPS below minFPS pushes minFPS down
-     * ticker.maxFPS = 20; // minFPS is now also 20
-     * ```
-     * @default 0
-     */
+
     get maxFPS() {
       if (this._minElapsedMS) {
         return Math.round(1e3 / this._minElapsedMS);
@@ -8548,49 +5026,7 @@ Deprecated since v${version}`;
         this._minElapsedMS = 1 / (fps / 1e3);
       }
     }
-    /**
-     * The shared ticker instance used by {@link AnimatedSprite} and by
-     * {@link VideoSource} to update animation frames / video textures.
-     *
-     * It may also be used by {@link Application} if created with the `sharedTicker` option property set to true.
-     *
-     * The property {@link Ticker#autoStart|autoStart} is set to `true` for this instance.
-     * Please follow the examples for usage, including how to opt-out of auto-starting the shared ticker.
-     * @example
-     * import { Ticker } from 'pixi.js';
-     *
-     * const ticker = Ticker.shared;
-     * // Set this to prevent starting this ticker when listeners are added.
-     * // By default this is true only for the Ticker.shared instance.
-     * ticker.autoStart = false;
-     *
-     * // FYI, call this to ensure the ticker is stopped. It should be stopped
-     * // if you have not attempted to render anything yet.
-     * ticker.stop();
-     *
-     * // Call this when you are ready for a running shared ticker.
-     * ticker.start();
-     * @example
-     * import { autoDetectRenderer, Container } from 'pixi.js';
-     *
-     * // You may use the shared ticker to render...
-     * const renderer = autoDetectRenderer();
-     * const stage = new Container();
-     * document.body.appendChild(renderer.view);
-     * ticker.add((time) => renderer.render(stage));
-     *
-     * // Or you can just update it manually.
-     * ticker.autoStart = false;
-     * ticker.stop();
-     * const animate = (time) => {
-     *     ticker.update(time);
-     *     renderer.render(stage);
-     *     requestAnimationFrame(animate);
-     * };
-     * animate(performance.now());
-     * @type {Ticker}
-     * @readonly
-     */
+
     static get shared() {
       if (!_Ticker2._shared) {
         const shared = _Ticker2._shared = new _Ticker2();
@@ -8599,16 +5035,7 @@ Deprecated since v${version}`;
       }
       return _Ticker2._shared;
     }
-    /**
-     * The system ticker instance used by {@link PrepareBase} for core timing
-     * functionality that shouldn't usually need to be paused, unlike the `shared`
-     * ticker which drives visual animations and rendering which may want to be paused.
-     *
-     * The property {@link Ticker#autoStart|autoStart} is set to `true` for this instance.
-     * @type {Ticker}
-     * @readonly
-     * @advanced
-     */
+
     static get system() {
       if (!_Ticker2._system) {
         const system = _Ticker2._system = new _Ticker2();
@@ -8695,7 +5122,7 @@ Deprecated since v${version}`;
         void this.load();
       }
     }
-    /** Update the video frame if the source is not destroyed and meets certain conditions. */
+
     updateFrame() {
       if (this.destroyed) {
         return;
@@ -8711,7 +5138,7 @@ Deprecated since v${version}`;
         this.update();
       }
     }
-    /** Callback to update the video frame and potentially request the next frame update. */
+
     _videoFrameRequestCallback() {
       this.updateFrame();
       if (this.destroyed) {
@@ -8722,17 +5149,11 @@ Deprecated since v${version}`;
         );
       }
     }
-    /**
-     * Checks if the resource has valid dimensions.
-     * @returns {boolean} True if width and height are set, otherwise false.
-     */
+
     get isValid() {
       return !!this.resource.videoWidth && !!this.resource.videoHeight;
     }
-    /**
-     * Start preloading the video resource.
-     * @returns {Promise<this>} Handle the validate event
-     */
+
     async load() {
       if (this._load) {
         return this._load;
@@ -8774,10 +5195,7 @@ Deprecated since v${version}`;
       });
       return this._load;
     }
-    /**
-     * Handle video error events.
-     * @param event - The error event
-     */
+
     _onError(event) {
       this.resource.removeEventListener("error", this._onError, true);
       this.emit("error", event);
@@ -8787,31 +5205,25 @@ Deprecated since v${version}`;
         this._resolve = null;
       }
     }
-    /**
-     * Checks if the underlying source is playing.
-     * @returns True if playing.
-     */
+
     _isSourcePlaying() {
       const source2 = this.resource;
       return !source2.paused && !source2.ended;
     }
-    /**
-     * Checks if the underlying source is ready for playing.
-     * @returns True if ready.
-     */
+
     _isSourceReady() {
       const source2 = this.resource;
       return source2.readyState > 2;
     }
-    /** Runs the update loop when the video is ready to play. */
+
     _onPlayStart() {
       this._configureAutoUpdate();
     }
-    /** Stops the update loop when a pause event is triggered. */
+
     _onPlayStop() {
       this._configureAutoUpdate();
     }
-    /** Handles behavior when the video completes seeking to the current playback position. */
+
     _onSeeked() {
       if (this._autoUpdate && !this._isSourcePlaying()) {
         this._msToNextUpdate = 0;
@@ -8819,7 +5231,7 @@ Deprecated since v${version}`;
         this._msToNextUpdate = 0;
       }
     }
-    /** When intrinsic size becomes known after play / canplay (common with MediaStream). */
+
     _onLoadedMetadata() {
       if (!this.isValid) {
         return;
@@ -8840,7 +5252,7 @@ Deprecated since v${version}`;
       }
       this._mediaReady();
     }
-    /** Fired when the video is loaded and ready to play. */
+
     _mediaReady() {
       const source2 = this.resource;
       if (this.isValid) {
@@ -8861,7 +5273,7 @@ Deprecated since v${version}`;
         void this.resource.play();
       }
     }
-    /** Cleans up resources and event listeners associated with this texture. */
+
     destroy() {
       this._configureAutoUpdate();
       const source2 = this.resource;
@@ -8879,7 +5291,7 @@ Deprecated since v${version}`;
       }
       super.destroy();
     }
-    /** Should the base texture automatically update itself, set to true by default. */
+
     get autoUpdate() {
       return this._autoUpdate;
     }
@@ -8889,11 +5301,7 @@ Deprecated since v${version}`;
         this._configureAutoUpdate();
       }
     }
-    /**
-     * How many times a second to update the texture from the video.
-     * Leave at 0 to update at every render.
-     * A lower fps can help performance, as updating the texture at 60fps on a 30ps video may not be efficient.
-     */
+
     get updateFPS() {
       return this._updateFPS;
     }
@@ -8903,18 +5311,7 @@ Deprecated since v${version}`;
         this._configureAutoUpdate();
       }
     }
-    /**
-     * Configures the updating mechanism based on the current state and settings.
-     *
-     * This method decides between using the browser's native video frame callback or a custom ticker
-     * for updating the video frame. It ensures optimal performance and responsiveness
-     * based on the video's state, playback status, and the desired frames-per-second setting.
-     *
-     * - If `_autoUpdate` is enabled and the video source is playing:
-     *   - It will prefer the native video frame callback if available and no specific FPS is set.
-     *   - Otherwise, it will use a custom ticker for manual updates.
-     * - If `_autoUpdate` is disabled or the video isn't playing, any active update mechanisms are halted.
-     */
+
     _configureAutoUpdate() {
       if (this._autoUpdate && this._isSourcePlaying()) {
         if (!this._updateFPS && this.resource.requestVideoFrameCallback) {
@@ -8958,21 +5355,21 @@ Deprecated since v${version}`;
   _VideoSource.extension = ExtensionType.TextureSource;
   _VideoSource.defaultOptions = {
     ...TextureSource.defaultOptions,
-    /** If true, the video will start loading immediately. */
+
     autoLoad: true,
-    /** If true, the video will start playing as soon as it is loaded. */
+
     autoPlay: true,
-    /** The number of times a second to update the texture from the video. Leave at 0 to update at every render. */
+
     updateFPS: 0,
-    /** If true, the video will be loaded with the `crossorigin` attribute. */
+
     crossorigin: true,
-    /** If true, the video will loop when it ends. */
+
     loop: false,
-    /** If true, the video will be muted. */
+
     muted: true,
-    /** If true, the video will play inline. */
+
     playsinline: true,
-    /** If true, the video will be preloaded. */
+
     preload: false
   };
   _VideoSource.MIME_TYPES = {
@@ -8992,25 +5389,19 @@ Deprecated since v${version}`;
   class CacheClass {
     constructor() {
       this._parsers = [];
-      this._cache = /* @__PURE__ */ new Map();
-      this._cacheMap = /* @__PURE__ */ new Map();
+      this._cache =                 new Map();
+      this._cacheMap =                 new Map();
     }
-    /** Clear all entries. */
+
     reset() {
       this._cacheMap.clear();
       this._cache.clear();
     }
-    /**
-     * Check if the key exists
-     * @param key - The key to check
-     */
+
     has(key) {
       return this._cache.has(key);
     }
-    /**
-     * Fetch entry by key
-     * @param key - The key of the entry to get
-     */
+
     get(key) {
       const result = this._cache.get(key);
       if (!result) {
@@ -9018,11 +5409,7 @@ Deprecated since v${version}`;
       }
       return result;
     }
-    /**
-     * Set a value by key or keys name
-     * @param key - The key or keys to set
-     * @param value - The value to store in the cache or from which cacheable assets will be derived.
-     */
+
     set(key, value) {
       const keys = convertToList(key);
       let cacheableAssets;
@@ -9055,12 +5442,7 @@ Deprecated since v${version}`;
         this._cache.set(key2, cacheableMap.get(key2));
       });
     }
-    /**
-     * Remove entry by key
-     *
-     * This function will also remove any associated alias from the cache also.
-     * @param key - The key of the entry to remove
-     */
+
     remove(key) {
       if (!this._cacheMap.has(key)) {
         warn(`[Assets] Asset id ${key} was not found in the Cache`);
@@ -9075,10 +5457,7 @@ Deprecated since v${version}`;
         this._cacheMap.delete(key2);
       });
     }
-    /**
-     * All loader parsers registered
-     * @advanced
-     */
+
     get parsers() {
       return this._parsers;
     }
@@ -9127,11 +5506,11 @@ Deprecated since v${version}`;
   Texture.from = textureFrom;
   TextureSource.from = textureSourceFrom;
   extensions.add(AlphaMask, ColorMask, StencilMask, VideoSource, ImageSource, CanvasSource, BufferImageSource);
-  const pixiUnused = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  const pixiUnused =                 Object.freeze(                Object.defineProperty({
     __proto__: null
   }, Symbol.toStringTag, { value: "Module" }));
-  const idCounts = /* @__PURE__ */ Object.create(null);
-  const idHash = /* @__PURE__ */ Object.create(null);
+  const idCounts =                 Object.create(null);
+  const idHash =                 Object.create(null);
   function createIdFromString(value, groupId) {
     let id = idHash[value];
     if (id === void 0) {
@@ -9228,23 +5607,20 @@ ${src}`;
     return src.replace("#version 300 es", "");
   }
   const processes = {
-    // strips any version headers..
+
     stripVersion,
-    // adds precision string if not already present
+
     ensurePrecision,
-    // add some defines if WebGL1 to make it more compatible with WebGL2 shaders
+
     addProgramDefines,
-    // add the program name to the shader
+
     setProgramName,
-    // add the version string to the shader header
+
     insertVersion
   };
-  const programCache$1 = /* @__PURE__ */ Object.create(null);
+  const programCache$1 =                 Object.create(null);
   const _GlProgram = class _GlProgram2 {
-    /**
-     * Creates a shiny new GlProgram. Used by WebGL renderer.
-     * @param options - The options for the program.
-     */
+
     constructor(options) {
       options = { ..._GlProgram2.defaultOptions, ...options };
       const isES300 = options.fragment.indexOf("#version 300 es") !== -1;
@@ -9274,7 +5650,7 @@ ${src}`;
       this.transformFeedbackVaryings = options.transformFeedbackVaryings;
       this._key = createIdFromString(`${this.vertex}:${this.fragment}`, "gl-program");
     }
-    /** destroys the program */
+
     destroy() {
       this.fragment = null;
       this.vertex = null;
@@ -9284,13 +5660,7 @@ ${src}`;
       this.transformFeedbackVaryings = null;
       programCache$1[this._cacheKey] = null;
     }
-    /**
-     * Helper function that creates a program for a given source.
-     * It will check the program cache if the program has already been created.
-     * If it has that one will be returned, if not a new one will be created and cached.
-     * @param options - The options for the program.
-     * @returns A program using the same source
-     */
+
     static from(options) {
       const key = `${options.vertex}:${options.fragment}`;
       if (!programCache$1[key]) {
@@ -9447,7 +5817,7 @@ ${src}`;
       return { name, members };
     }).filter(({ name }) => groups.some(
       (group) => (
-        // Handle both direct type matches and generic types like array<StructName>
+
         group.type === name || group.type.includes(`<${name}>`)
       )
     )) ?? [];
@@ -9456,7 +5826,7 @@ ${src}`;
       structs
     };
   }
-  var ShaderStage = /* @__PURE__ */ ((ShaderStage2) => {
+  var ShaderStage =                 ((ShaderStage2) => {
     ShaderStage2[ShaderStage2["VERTEX"] = 1] = "VERTEX";
     ShaderStage2[ShaderStage2["FRAGMENT"] = 2] = "FRAGMENT";
     ShaderStage2[ShaderStage2["COMPUTE"] = 4] = "COMPUTE";
@@ -9534,8 +5904,8 @@ ${src}`;
     return layout;
   }
   function removeStructAndGroupDuplicates(vertexStructsAndGroups, fragmentStructsAndGroups) {
-    const structNameSet = /* @__PURE__ */ new Set();
-    const dupeGroupKeySet = /* @__PURE__ */ new Set();
+    const structNameSet =                 new Set();
+    const dupeGroupKeySet =                 new Set();
     const structs = [...vertexStructsAndGroups.structs, ...fragmentStructsAndGroups.structs].filter((struct) => {
       if (structNameSet.has(struct.name)) {
         return false;
@@ -9553,12 +5923,9 @@ ${src}`;
     });
     return { structs, groups };
   }
-  const programCache = /* @__PURE__ */ Object.create(null);
+  const programCache =                 Object.create(null);
   class GpuProgram {
-    /**
-     * Create a new GpuProgram
-     * @param options - The options for the gpu program
-     */
+
     constructor(options) {
       this._layoutKey = 0;
       this._attributeLocationsKey = 0;
@@ -9580,7 +5947,7 @@ ${src}`;
       this.autoAssignLocalUniforms = !!(this.layout[1]?.localUniforms !== void 0);
       this._generateProgramKey();
     }
-    // TODO maker this pure
+
     _generateProgramKey() {
       const { vertex: vertex2, fragment: fragment2 } = this;
       const bigKey = vertex2.source + fragment2.source + vertex2.entryPoint + fragment2.entryPoint;
@@ -9590,7 +5957,7 @@ ${src}`;
       this._attributeData ?? (this._attributeData = extractAttributesFromGpuProgram(this.vertex));
       return this._attributeData;
     }
-    /** destroys the program */
+
     destroy() {
       this.gpuLayout = null;
       this.layout = null;
@@ -9599,13 +5966,7 @@ ${src}`;
       this.vertex = null;
       programCache[this._cacheKey] = null;
     }
-    /**
-     * Helper function that creates a program for a given source.
-     * It will check the program cache if the program has already been created.
-     * If it has that one will be returned, if not a new one will be created and cached.
-     * @param options - The options for the program.
-     * @returns A program using the same source
-     */
+
     static from(options) {
       const key = `${options.vertex.source}:${options.fragment.source}:${options.fragment.entryPoint}:${options.vertex.entryPoint}`;
       if (!programCache[key]) {
@@ -9690,11 +6051,7 @@ ${src}`;
     return null;
   }
   const _UniformGroup = class _UniformGroup2 {
-    /**
-     * Create a new Uniform group
-     * @param uniformStructures - The structures of the uniform group
-     * @param options - The optional parameters of this uniform group
-     */
+
     constructor(uniformStructures, options) {
       this._touched = 0;
       this.uid = uid$1("uniform");
@@ -9731,25 +6088,22 @@ ${src}`;
         (i2) => `${i2}-${uniformStructures[i2].type}`
       ).join("-"), "uniform-group");
     }
-    /** Call this if you want the uniform groups data to be uploaded to the GPU only useful if `isStatic` is true. */
+
     update() {
       this._dirtyId++;
     }
   };
   _UniformGroup.defaultOptions = {
-    /** if true the UniformGroup is handled as an Uniform buffer object. */
+
     ubo: false,
-    /** if true, then you are responsible for when the data is uploaded to the GPU by calling `update()` */
+
     isStatic: false
   };
   let UniformGroup = _UniformGroup;
   class BindGroup {
-    /**
-     * Create a new instance eof the Bind Group.
-     * @param resources - The resources that are bound together for use by a shader.
-     */
+
     constructor(resources) {
-      this.resources = /* @__PURE__ */ Object.create(null);
+      this.resources =                 Object.create(null);
       this._dirty = true;
       let index = 0;
       for (const i2 in resources) {
@@ -9758,11 +6112,7 @@ ${src}`;
       }
       this._updateKey();
     }
-    /**
-     * Updates the key if its flagged as dirty. This is used internally to
-     * match this bind group to a WebGPU BindGroup.
-     * @internal
-     */
+
     _updateKey() {
       if (!this._dirty) return;
       this._dirty = false;
@@ -9773,13 +6123,7 @@ ${src}`;
       }
       this._key = keyParts.join("|");
     }
-    /**
-     * Set a resource at a given index. this function will
-     * ensure that listeners will be removed from the current resource
-     * and added to the new resource.
-     * @param resource - The resource to set.
-     * @param index - The index to set the resource at.
-     */
+
     setResource(resource, index) {
       const currentResource = this.resources[index];
       if (resource === currentResource) return;
@@ -9788,21 +6132,11 @@ ${src}`;
       this.resources[index] = resource;
       this._dirty = true;
     }
-    /**
-     * Returns the resource at the current specified index.
-     * @param index - The index of the resource to get.
-     * @returns - The resource at the specified index.
-     */
+
     getResource(index) {
       return this.resources[index];
     }
-    /**
-     * Used internally to 'touch' each resource, to ensure that the GC
-     * knows that all resources in this bind group are still being used.
-     * @param now - The current time in milliseconds.
-     * @param tick - The current tick.
-     * @internal
-     */
+
     _touch(now, tick) {
       const resources = this.resources;
       for (const i2 in resources) {
@@ -9810,7 +6144,7 @@ ${src}`;
         resources[i2]._touched = tick;
       }
     }
-    /** Destroys this bind group and removes all listeners. */
+
     destroy() {
       const resources = this.resources;
       for (const i2 in resources) {
@@ -9828,7 +6162,7 @@ ${src}`;
       }
     }
   }
-  var RendererType = /* @__PURE__ */ ((RendererType2) => {
+  var RendererType =                 ((RendererType2) => {
     RendererType2[RendererType2["WEBGL"] = 1] = "WEBGL";
     RendererType2[RendererType2["WEBGPU"] = 2] = "WEBGPU";
     RendererType2[RendererType2["CANVAS"] = 4] = "CANVAS";
@@ -9839,7 +6173,7 @@ ${src}`;
     constructor(options) {
       super();
       this.uid = uid$1("shader");
-      this._uniformBindMap = /* @__PURE__ */ Object.create(null);
+      this._uniformBindMap =                 Object.create(null);
       this._ownedBindGroups = [];
       this._destroyed = false;
       let {
@@ -9928,13 +6262,7 @@ ${src}`;
       this._uniformBindMap = groupMap;
       this.resources = this._buildResourceAccessor(groups, nameHash);
     }
-    /**
-     * Sometimes a resource group will be provided later (for example global uniforms)
-     * In such cases, this method can be used to let the shader know about the group.
-     * @param name - the name of the resource group
-     * @param groupIndex - the index of the group (should match the webGPU shader group location)
-     * @param bindIndex - the index of the bind point (should match the webGPU shader bind point)
-     */
+
     addResource(name, groupIndex, bindIndex) {
       var _a, _b;
       (_a = this._uniformBindMap)[groupIndex] || (_a[groupIndex] = {});
@@ -9959,12 +6287,7 @@ ${src}`;
       }
       return uniformsOut;
     }
-    /**
-     * Use to destroy the shader when its not longer needed.
-     * It will destroy the resources and remove listeners.
-     * @param destroyPrograms - if the programs should be destroyed as well.
-     * Make sure its not being used by other shaders!
-     */
+
     destroy(destroyPrograms = false) {
       if (this._destroyed) return;
       this._destroyed = true;
@@ -10028,10 +6351,7 @@ ${src}`;
       this.blend = true;
       this.depthMask = true;
     }
-    /**
-     * Activates blending of the computed fragment color values.
-     * @default true
-     */
+
     get blend() {
       return !!(this.data & 1 << BLEND$1);
     }
@@ -10040,10 +6360,7 @@ ${src}`;
         this.data ^= 1 << BLEND$1;
       }
     }
-    /**
-     * Activates adding an offset to depth values of polygon's fragments
-     * @default false
-     */
+
     get offsets() {
       return !!(this.data & 1 << OFFSET$1);
     }
@@ -10052,7 +6369,7 @@ ${src}`;
         this.data ^= 1 << OFFSET$1;
       }
     }
-    /** The culling settings for this state none - No culling back - Back face culling front - Front face culling */
+
     set cullMode(value) {
       if (value === "none") {
         this.culling = false;
@@ -10067,10 +6384,7 @@ ${src}`;
       }
       return this.clockwiseFrontFace ? "front" : "back";
     }
-    /**
-     * Activates culling of polygons.
-     * @default false
-     */
+
     get culling() {
       return !!(this.data & 1 << CULLING$1);
     }
@@ -10079,10 +6393,7 @@ ${src}`;
         this.data ^= 1 << CULLING$1;
       }
     }
-    /**
-     * Activates depth comparisons and updates to the depth buffer.
-     * @default false
-     */
+
     get depthTest() {
       return !!(this.data & 1 << DEPTH_TEST$1);
     }
@@ -10091,10 +6402,7 @@ ${src}`;
         this.data ^= 1 << DEPTH_TEST$1;
       }
     }
-    /**
-     * Enables or disables writing to the depth buffer.
-     * @default true
-     */
+
     get depthMask() {
       return !!(this.data & 1 << DEPTH_MASK$1);
     }
@@ -10103,10 +6411,7 @@ ${src}`;
         this.data ^= 1 << DEPTH_MASK$1;
       }
     }
-    /**
-     * Specifies whether or not front or back-facing polygons can be culled.
-     * @default false
-     */
+
     get clockwiseFrontFace() {
       return !!(this.data & 1 << WINDING$1);
     }
@@ -10115,11 +6420,7 @@ ${src}`;
         this.data ^= 1 << WINDING$1;
       }
     }
-    /**
-     * The blend mode to be applied when this state is set. Apply a value of `normal` to reset the blend mode.
-     * Setting this mode to anything other than NO_BLEND will automatically switch blending on.
-     * @default 'normal'
-     */
+
     get blendMode() {
       return this._blendMode;
     }
@@ -10128,10 +6429,7 @@ ${src}`;
       this._blendMode = value;
       this._blendModeId = blendModeIds[value] || 0;
     }
-    /**
-     * The polygon offset. Setting this property to anything other than 0 will automatically enable polygon offset fill.
-     * @default 0
-     */
+
     get polygonOffset() {
       return this._polygonOffset;
     }
@@ -10142,10 +6440,7 @@ ${src}`;
     toString() {
       return `[pixi.js/core:State blendMode=${this.blendMode} clockwiseFrontFace=${this.clockwiseFrontFace} culling=${this.culling} depthMask=${this.depthMask} polygonOffset=${this.polygonOffset}]`;
     }
-    /**
-     * A quickly getting an instance of a State that is configured for 2d rendering.
-     * @returns a new State with values set for 2d rendering
-     */
+
     static for2d() {
       const state = new _State2();
       state.depthTest = false;
@@ -10156,9 +6451,7 @@ ${src}`;
   _State.default2d = _State.for2d();
   let State = _State;
   const _Filter = class _Filter2 extends Shader {
-    /**
-     * @param options - The optional parameters of this filter.
-     */
+
     constructor(options) {
       options = { ..._Filter2.defaultOptions, ...options };
       super(options);
@@ -10179,32 +6472,19 @@ ${src}`;
         this.addResource("uBackTexture", 0, 3);
       }
     }
-    /**
-     * Applies the filter
-     * @param filterManager - The renderer to retrieve the filter from
-     * @param input - The input render target.
-     * @param output - The target to output to.
-     * @param clearMode - Should the output be cleared before rendering to it
-     */
+
     apply(filterManager, input, output, clearMode) {
       filterManager.applyFilter(this, input, output, clearMode);
     }
-    /**
-     * Get the blend mode of the filter.
-     * @default "normal"
-     */
+
     get blendMode() {
       return this._state.blendMode;
     }
-    /** Sets the blend mode of the filter. */
+
     set blendMode(value) {
       this._state.blendMode = value;
     }
-    /**
-     * A short hand function to create a filter based of a vertex and fragment shader src.
-     * @param options
-     * @returns A shiny new PixiJS filter!
-     */
+
     static from(options) {
       const { gpu, gl, ...rest } = options;
       let gpuProgram;
@@ -10565,9 +6845,9 @@ ${src}`;
     return !(ax === px && ay === py) && pointInTriangle(ax, ay, bx, by, cx, cy, px, py);
   }
   function isValidDiagonal(a2, b2) {
-    return a2.next.i !== b2.i && a2.prev.i !== b2.i && !intersectsPolygon(a2, b2) && // doesn't intersect other edges
-    (locallyInside(a2, b2) && locallyInside(b2, a2) && middleInside(a2, b2) && // locally visible
-    (area(a2.prev, a2, b2.prev) || area(a2, b2.prev, b2)) || // does not create opposite-facing sectors
+    return a2.next.i !== b2.i && a2.prev.i !== b2.i && !intersectsPolygon(a2, b2) &&
+    (locallyInside(a2, b2) && locallyInside(b2, a2) && middleInside(a2, b2) &&
+    (area(a2.prev, a2, b2.prev) || area(a2, b2.prev, b2)) ||
     equals(a2, b2) && area(a2.prev, a2, a2.next) > 0 && area(b2.prev, b2, b2.next) > 0);
   }
   function area(p2, q, r2) {
@@ -10651,20 +6931,20 @@ ${src}`;
   function createNode(i2, x2, y2) {
     return {
       i: i2,
-      // vertex index in coordinates array
+
       x: x2,
       y: y2,
-      // vertex coordinates
+
       prev: null,
-      // previous and next vertex nodes in a polygon ring
+
       next: null,
       z: 0,
-      // z-order curve value
+
       prevZ: null,
-      // previous and next nodes in z-order
+
       nextZ: null,
       steiner: false
-      // indicates whether this is a steiner point
+
     };
   }
   function signedArea(data, start2, end, dim) {
@@ -10676,7 +6956,7 @@ ${src}`;
     return sum;
   }
   const earcut = earcut$1.default || earcut$1;
-  var CLEAR = /* @__PURE__ */ ((CLEAR2) => {
+  var CLEAR =                 ((CLEAR2) => {
     CLEAR2[CLEAR2["NONE"] = 0] = "NONE";
     CLEAR2[CLEAR2["COLOR"] = 16384] = "COLOR";
     CLEAR2[CLEAR2["STENCIL"] = 1024] = "STENCIL";
@@ -10688,19 +6968,12 @@ ${src}`;
     return CLEAR2;
   })(CLEAR || {});
   class SystemRunner {
-    /**
-     * @param name - The function name that will be executed on the listeners added to this Runner.
-     */
+
     constructor(name) {
       this.items = [];
       this._name = name;
     }
-    /* jsdoc/check-param-names */
-    /**
-     * Dispatch/Broadcast Runner to all listeners added to the queue.
-     * @param {...any} params - (optional) parameters to pass to each listener
-     */
-    /* jsdoc/check-param-names */
+
     emit(a0, a1, a2, a3, a4, a5, a6, a7) {
       const { name, items } = this;
       for (let i2 = 0, len = items.length; i2 < len; i2++) {
@@ -10708,24 +6981,7 @@ ${src}`;
       }
       return this;
     }
-    /**
-     * Add a listener to the Runner
-     *
-     * Runners do not need to have scope or functions passed to them.
-     * All that is required is to pass the listening object and ensure that it has contains a function that has the same name
-     * as the name provided to the Runner when it was created.
-     *
-     * Eg A listener passed to this Runner will require a 'complete' function.
-     *
-     * ```ts
-     * import { Runner } from 'pixi.js';
-     *
-     * const complete = new Runner('complete');
-     * ```
-     *
-     * The scope used will be the object itself.
-     * @param {any} item - The object that will be listening.
-     */
+
     add(item) {
       if (item[this._name]) {
         this.remove(item);
@@ -10733,10 +6989,7 @@ ${src}`;
       }
       return this;
     }
-    /**
-     * Remove a single listener from the dispatch queue.
-     * @param {any} item - The listener that you would like to remove.
-     */
+
     remove(item) {
       const index = this.items.indexOf(item);
       if (index !== -1) {
@@ -10744,35 +6997,26 @@ ${src}`;
       }
       return this;
     }
-    /**
-     * Check to see if the listener is already in the Runner
-     * @param {any} item - The listener that you would like to check.
-     */
+
     contains(item) {
       return this.items.indexOf(item) !== -1;
     }
-    /** Remove all listeners from the Runner */
+
     removeAll() {
       this.items.length = 0;
       return this;
     }
-    /** Remove all references, don't use after this. */
+
     destroy() {
       this.removeAll();
       this.items = null;
       this._name = null;
     }
-    /**
-     * `true` if there are no this Runner contains no listeners
-     * @readonly
-     */
+
     get empty() {
       return this.items.length === 0;
     }
-    /**
-     * The name of the runner.
-     * @readonly
-     */
+
     get name() {
       return this._name;
     }
@@ -10791,19 +7035,15 @@ ${src}`;
     "prerender"
   ];
   const _AbstractRenderer = class _AbstractRenderer2 extends EventEmitter {
-    /**
-     * Set up a system with a collection of SystemClasses and runners.
-     * Systems are attached dynamically to this class when added.
-     * @param config - the config for the system manager
-     */
+
     constructor(config) {
       super();
       this.tick = 0;
       this.uid = uid$1("renderer");
-      this.runners = /* @__PURE__ */ Object.create(null);
-      this.renderPipes = /* @__PURE__ */ Object.create(null);
+      this.runners =                 Object.create(null);
+      this.renderPipes =                 Object.create(null);
       this._initOptions = {};
-      this._systemsHash = /* @__PURE__ */ Object.create(null);
+      this._systemsHash =                 Object.create(null);
       this.type = config.type;
       this.name = config.name;
       this.config = config;
@@ -10811,10 +7051,7 @@ ${src}`;
       this._addRunners(...combinedRunners);
       this._unsafeEvalCheck();
     }
-    /**
-     * Initialize the renderer.
-     * @param options - The options to use to create the renderer.
-     */
+
     async init(options = {}) {
       const skip = options.skipExtensionImports === true ? true : options.manageImports === false;
       await loadEnvironmentExtensions(skip);
@@ -10866,12 +7103,7 @@ ${src}`;
       this.runners.renderEnd.emit(options);
       this.runners.postrender.emit(options);
     }
-    /**
-     * Resizes the WebGL view to the specified width and height.
-     * @param desiredScreenWidth - The desired width of the screen.
-     * @param desiredScreenHeight - The desired height of the screen.
-     * @param resolution - The resolution / device pixel ratio of the renderer.
-     */
+
     resize(desiredScreenWidth, desiredScreenHeight, resolution) {
       const previousResolution = this.view.resolution;
       this.view.resize(desiredScreenWidth, desiredScreenHeight, resolution);
@@ -10880,14 +7112,7 @@ ${src}`;
         this.runners.resolutionChange.emit(resolution);
       }
     }
-    /**
-     * Clears the render target.
-     * @param options - The options to use when clearing the render target.
-     * @param options.target - The render target to clear.
-     * @param options.clearColor - The color to clear with.
-     * @param options.clear - The clear mode to use.
-     * @advanced
-     */
+
     clear(options = {}) {
       const renderer = this;
       options.target || (options.target = renderer.renderTarget.renderTarget);
@@ -10897,7 +7122,7 @@ ${src}`;
       Color.shared.setValue(clearColor ?? this.background.colorRgba);
       renderer.renderTarget.clear(target, clear, Color.shared.toArray(), mipLevel ?? 0, layer2 ?? 0);
     }
-    /** The resolution / device pixel ratio of the renderer. */
+
     get resolution() {
       return this.view.resolution;
     }
@@ -10905,58 +7130,32 @@ ${src}`;
       this.view.resolution = value;
       this.runners.resolutionChange.emit(value);
     }
-    /**
-     * Same as view.width, actual number of pixels in the canvas by horizontal.
-     * @type {number}
-     * @readonly
-     * @default 800
-     */
+
     get width() {
       return this.view.texture.frame.width;
     }
-    /**
-     * Same as view.height, actual number of pixels in the canvas by vertical.
-     * @default 600
-     */
+
     get height() {
       return this.view.texture.frame.height;
     }
-    // NOTE: this was `view` in v7
-    /**
-     * The canvas element that everything is drawn to.
-     * @type {environment.ICanvas}
-     */
+
     get canvas() {
       return this.view.canvas;
     }
-    /**
-     * the last object rendered by the renderer. Useful for other plugins like interaction managers
-     * @readonly
-     */
+
     get lastObjectRendered() {
       return this._lastObjectRendered;
     }
-    /**
-     * Flag if we are rendering to the screen vs renderTexture
-     * @readonly
-     * @default true
-     */
+
     get renderingToScreen() {
       const renderer = this;
       return renderer.renderTarget.renderingToScreen;
     }
-    /**
-     * Measurements of the screen. (0, 0, screenWidth, screenHeight).
-     *
-     * Its safe to use as filterArea or hitArea for the whole stage.
-     */
+
     get screen() {
       return this.view.screen;
     }
-    /**
-     * Create a bunch of runners based of a collection of ids
-     * @param runnerIds - the runner ids to add
-     */
+
     _addRunners(...runnerIds) {
       runnerIds.forEach((runnerId) => {
         this.runners[runnerId] = new SystemRunner(runnerId);
@@ -10969,15 +7168,7 @@ ${src}`;
         this._addSystem(val.value, val.name);
       }
     }
-    /**
-     * Add a new system to the renderer.
-     * @param ClassRef - Class reference
-     * @param name - Property name for system, if not specified
-     *        will use a static `name` property on the class itself. This
-     *        name will be assigned as s property on the Renderer so make
-     *        sure it doesn't collide with properties on Renderer.
-     * @returns Return instance of renderer
-     */
+
     _addSystem(ClassRef, name) {
       const system = new ClassRef(this);
       if (this[name]) {
@@ -11019,91 +7210,31 @@ ${src}`;
       this.renderPipes = null;
       this.removeAllListeners();
     }
-    /**
-     * Generate a texture from a container.
-     * @param options - options or container target to use when generating the texture
-     * @returns a texture
-     */
+
     generateTexture(options) {
       return this.textureGenerator.generateTexture(options);
     }
-    /**
-     * Whether the renderer will round coordinates to whole pixels when rendering.
-     * Can be overridden on a per scene item basis.
-     */
+
     get roundPixels() {
       return !!this._roundPixels;
     }
-    /**
-     * Overridable function by `pixi.js/unsafe-eval` to silence
-     * throwing an error if platform doesn't support unsafe-evals.
-     * @private
-     * @ignore
-     */
+
     _unsafeEvalCheck() {
       if (!unsafeEvalSupported()) {
         throw new Error("Current environment does not allow unsafe-eval, please use pixi.js/unsafe-eval module to enable support.");
       }
     }
-    /**
-     * Resets the rendering state of the renderer.
-     * This is useful when you want to use the WebGL context directly and need to ensure PixiJS's internal state
-     * stays synchronized. When modifying the WebGL context state externally, calling this method before the next Pixi
-     * render will reset all internal caches and ensure it executes correctly.
-     *
-     * This is particularly useful when combining PixiJS with other rendering engines like Three.js:
-     * ```js
-     * // Reset Three.js state
-     * threeRenderer.resetState();
-     *
-     * // Render a Three.js scene
-     * threeRenderer.render(threeScene, threeCamera);
-     *
-     * // Reset PixiJS state since Three.js modified the WebGL context
-     * pixiRenderer.resetState();
-     *
-     * // Now render Pixi content
-     * pixiRenderer.render(pixiScene);
-     * ```
-     * @advanced
-     */
+
     resetState() {
       this.runners.resetState.emit();
     }
   };
   _AbstractRenderer.defaultOptions = {
-    /**
-     * Default resolution / device pixel ratio of the renderer.
-     * @default 1
-     */
+
     resolution: 1,
-    /**
-     * Should the `failIfMajorPerformanceCaveat` flag be enabled as a context option used in the `isWebGLSupported`
-     * function. If set to true, a WebGL renderer can fail to be created if the browser thinks there could be
-     * performance issues when using WebGL.
-     *
-     * In PixiJS v6 this has changed from true to false by default, to allow WebGL to work in as many
-     * scenarios as possible. However, some users may have a poor experience, for example, if a user has a gpu or
-     * driver version blacklisted by the
-     * browser.
-     *
-     * If your application requires high performance rendering, you may wish to set this to false.
-     * We recommend one of two options if you decide to set this flag to false:
-     *
-     * 1: Use the Canvas renderer as a fallback in case high performance WebGL is
-     *    not supported.
-     *
-     * 2: Call `isWebGLSupported` (which if found in the utils package) in your code before attempting to create a
-     *    PixiJS renderer, and show an error message to the user if the function returns false, explaining that their
-     *    device & browser combination does not support high performance WebGL.
-     *    This is a much better strategy than trying to create a PixiJS renderer and finding it then fails.
-     * @default false
-     */
+
     failIfMajorPerformanceCaveat: false,
-    /**
-     * Should round pixels be forced when rendering?
-     * @default false
-     */
+
     roundPixels: false
   };
   let AbstractRenderer = _AbstractRenderer;
@@ -11233,11 +7364,7 @@ ${src}`;
     priority: -10
   };
   class ResizePlugin {
-    /**
-     * Initialize the plugin with scope of application instance
-     * @private
-     * @param {object} [options] - See application options
-     */
+
     static init(options) {
       Object.defineProperty(
         this,
@@ -11292,10 +7419,7 @@ ${src}`;
       this._resizeTo = null;
       this.resizeTo = options.resizeTo || null;
     }
-    /**
-     * Clean up the ticker, scoped to application
-     * @private
-     */
+
     static destroy() {
       globalThis.removeEventListener("resize", this.queueResize);
       this._cancelResize();
@@ -11307,11 +7431,7 @@ ${src}`;
   }
   ResizePlugin.extension = ExtensionType.Application;
   class TickerPlugin {
-    /**
-     * Initialize the plugin with scope of application instance
-     * @private
-     * @param {object} [options] - See application options
-     */
+
     static init(options) {
       options = Object.assign({
         autoStart: true,
@@ -11348,10 +7468,7 @@ ${src}`;
         this.start();
       }
     }
-    /**
-     * Clean up the ticker, scoped to application.
-     * @private
-     */
+
     static destroy() {
       if (this._ticker) {
         const oldTicker = this._ticker;
@@ -11370,25 +7487,7 @@ ${src}`;
         deprecation(v8_0_0, "Application constructor options are deprecated, please use Application.init() instead.");
       }
     }
-    /**
-     * Initializes the PixiJS application with the specified options.
-     *
-     * This method must be called after creating a new Application instance.
-     * @param options - Configuration options for the application and renderer
-     * @returns A promise that resolves when initialization is complete
-     * @example
-     * ```js
-     * const app = new Application();
-     *
-     * // Initialize with custom options
-     * await app.init({
-     *     width: 800,
-     *     height: 600,
-     *     backgroundColor: 0x1099bb,
-     *     preference: 'webgl', // or 'webgpu'
-     * });
-     * ```
-     */
+
     async init(options) {
       options = { ...options };
       this.stage || (this.stage = new Container());
@@ -11397,142 +7496,28 @@ ${src}`;
         plugin.init.call(this, options);
       });
     }
-    /**
-     * Renders the current stage to the screen.
-     *
-     * When using the default setup with {@link TickerPlugin} (enabled by default), you typically don't need to call
-     * this method directly as rendering is handled automatically.
-     *
-     * Only use this method if you've disabled the {@link TickerPlugin} or need custom
-     * render timing control.
-     * @example
-     * ```js
-     * // Example 1: Default setup (TickerPlugin handles rendering)
-     * const app = new Application();
-     * await app.init();
-     * // No need to call render() - TickerPlugin handles it
-     *
-     * // Example 2: Custom rendering loop (if TickerPlugin is disabled)
-     * const app = new Application();
-     * await app.init({ autoStart: false }); // Disable automatic rendering
-     *
-     * function animate() {
-     *     app.render();
-     *     requestAnimationFrame(animate);
-     * }
-     * animate();
-     * ```
-     */
+
     render() {
       this.renderer.render({ container: this.stage });
     }
-    /**
-     * Reference to the renderer's canvas element. This is the HTML element
-     * that displays your application's graphics.
-     * @readonly
-     * @type {HTMLCanvasElement}
-     * @example
-     * ```js
-     * // Create a new application
-     * const app = new Application();
-     * // Initialize the application
-     * await app.init({...});
-     * // Add canvas to the page
-     * document.body.appendChild(app.canvas);
-     *
-     * // Access the canvas directly
-     * console.log(app.canvas); // HTMLCanvasElement
-     * ```
-     */
+
     get canvas() {
       return this.renderer.canvas;
     }
-    /**
-     * Reference to the renderer's canvas element.
-     * @type {HTMLCanvasElement}
-     * @deprecated since 8.0.0
-     * @see {@link Application#canvas}
-     */
+
     get view() {
       deprecation(v8_0_0, "Application.view is deprecated, please use Application.canvas instead.");
       return this.renderer.canvas;
     }
-    /**
-     * Reference to the renderer's screen rectangle. This represents the visible area of your application.
-     *
-     * It's commonly used for:
-     * - Setting filter areas for full-screen effects
-     * - Defining hit areas for screen-wide interaction
-     * - Determining the visible bounds of your application
-     * @readonly
-     * @example
-     * ```js
-     * // Use as filter area for a full-screen effect
-     * const blurFilter = new BlurFilter();
-     * sprite.filterArea = app.screen;
-     *
-     * // Use as hit area for screen-wide interaction
-     * const screenSprite = new Sprite();
-     * screenSprite.hitArea = app.screen;
-     *
-     * // Get screen dimensions
-     * console.log(app.screen.width, app.screen.height);
-     * ```
-     * @see {@link Rectangle} For all available properties and methods
-     */
+
     get screen() {
       return this.renderer.screen;
     }
-    /**
-     * Get the html div element that holds all DOM Container elements.
-     * @readonly
-     * @type {HTMLDivElement}
-     */
+
     get domContainerRoot() {
       return this.renderer.renderPipes.dom?._domElement;
     }
-    /**
-     * Destroys the application and all of its resources.
-     *
-     * This method should be called when you want to completely
-     * clean up the application and free all associated memory.
-     * @param rendererDestroyOptions - Options for destroying the renderer:
-     *  - `false` or `undefined`: Preserves the canvas element (default)
-     *  - `true`: Removes the canvas element
-     *  - `{ removeView: boolean }`: Object with removeView property to control canvas removal
-     * @param options - Options for destroying the application:
-     *  - `false` or `undefined`: Basic cleanup (default)
-     *  - `true`: Complete cleanup including children
-     *  - Detailed options object:
-     *    - `children`: Remove children
-     *    - `texture`: Destroy textures
-     *    - `textureSource`: Destroy texture sources
-     *    - `context`: Destroy WebGL context
-     * @example
-     * ```js
-     * // Basic cleanup
-     * app.destroy();
-     *
-     * // Remove canvas and do complete cleanup
-     * app.destroy(true, true);
-     *
-     * // Remove canvas with explicit options
-     * app.destroy({ removeView: true }, true);
-     *
-     * // Detailed cleanup with specific options
-     * app.destroy(
-     *     { removeView: true },
-     *     {
-     *         children: true,
-     *         texture: true,
-     *         textureSource: true,
-     *         context: true
-     *     }
-     * );
-     * ```
-     * > [!WARNING] After calling destroy, the application instance should no longer be used.
-     * > All properties will be null and further operations will throw errors.
-     */
+
     destroy(rendererDestroyOptions = false, options = false) {
       const plugins = _Application2._plugins.slice(0);
       plugins.reverse();
@@ -11578,7 +7563,7 @@ ${src}`;
     var numbers = args.match(number);
     return numbers ? numbers.map(Number) : [];
   }
-  const parse$1 = /* @__PURE__ */ getDefaultExportFromCjs(parseSvgPath);
+  const parse$1 =                 getDefaultExportFromCjs(parseSvgPath);
   function parseSVGPath(svgPath, path) {
     const commands = parse$1(svgPath);
     const subpaths = [];
@@ -11632,26 +7617,26 @@ ${src}`;
           path.bezierCurveTo(
             data[1],
             data[2],
-            // First control point
+
             data[3],
             data[4],
-            // Second control point
+
             lastX,
             lastY
-            // End point
+
           );
           break;
         case "c":
           path.bezierCurveTo(
             lastX + data[1],
             lastY + data[2],
-            // First control point
+
             lastX + data[3],
             lastY + data[4],
-            // Second control point
+
             lastX + data[5],
             lastY + data[6]
-            // End point
+
           );
           lastX += data[5];
           lastY += data[6];
@@ -11662,20 +7647,20 @@ ${src}`;
           path.bezierCurveToShort(
             data[1],
             data[2],
-            // Control point
+
             lastX,
             lastY
-            // End point
+
           );
           break;
         case "s":
           path.bezierCurveToShort(
             lastX + data[1],
             lastY + data[2],
-            // Control point
+
             lastX + data[3],
             lastY + data[4]
-            // End point
+
           );
           lastX += data[3];
           lastY += data[4];
@@ -11686,20 +7671,20 @@ ${src}`;
           path.quadraticCurveTo(
             data[1],
             data[2],
-            // Control point
+
             lastX,
             lastY
-            // End point
+
           );
           break;
         case "q":
           path.quadraticCurveTo(
             lastX + data[1],
             lastY + data[2],
-            // Control point
+
             lastX + data[3],
             lastY + data[4]
-            // End point
+
           );
           lastX += data[3];
           lastY += data[4];
@@ -11710,7 +7695,7 @@ ${src}`;
           path.quadraticCurveToShort(
             lastX,
             lastY
-            // End point
+
           );
           break;
         case "t":
@@ -11719,7 +7704,7 @@ ${src}`;
           path.quadraticCurveToShort(
             lastX,
             lastY
-            // End point
+
           );
           break;
         case "A":
@@ -11727,18 +7712,18 @@ ${src}`;
           lastY = data[7];
           path.arcToSvg(
             data[1],
-            // rx
+
             data[2],
-            // ry
+
             data[3],
-            // x-axis-rotation
+
             data[4],
-            // large-arc-flag
+
             data[5],
-            // sweep-flag
+
             lastX,
             lastY
-            // End point
+
           );
           break;
         case "a":
@@ -11746,18 +7731,18 @@ ${src}`;
           lastY += data[7];
           path.arcToSvg(
             data[1],
-            // rx
+
             data[2],
-            // ry
+
             data[3],
-            // x-axis-rotation
+
             data[4],
-            // large-arc-flag
+
             data[5],
-            // sweep-flag
+
             lastX,
             lastY
-            // End point
+
           );
           break;
         case "Z":
@@ -11788,65 +7773,18 @@ ${src}`;
     return path;
   }
   class Circle {
-    /**
-     * @param x - The X coordinate of the center of this circle
-     * @param y - The Y coordinate of the center of this circle
-     * @param radius - The radius of the circle
-     */
+
     constructor(x2 = 0, y2 = 0, radius = 0) {
       this.type = "circle";
       this.x = x2;
       this.y = y2;
       this.radius = radius;
     }
-    /**
-     * Creates a clone of this Circle instance.
-     * @example
-     * ```ts
-     * // Basic circle cloning
-     * const original = new Circle(100, 100, 50);
-     * const copy = original.clone();
-     *
-     * // Clone and modify
-     * const modified = original.clone();
-     * modified.radius = 75;
-     *
-     * // Verify independence
-     * console.log(original.radius); // 50
-     * console.log(modified.radius); // 75
-     * ```
-     * @returns A copy of the Circle
-     * @see {@link Circle.copyFrom} For copying into existing circle
-     * @see {@link Circle.copyTo} For copying to another circle
-     */
+
     clone() {
       return new Circle(this.x, this.y, this.radius);
     }
-    /**
-     * Checks whether the x and y coordinates given are contained within this circle.
-     *
-     * Uses the distance formula to determine if a point is inside the circle's radius.
-     *
-     * Commonly used for hit testing in PixiJS events and graphics.
-     * @example
-     * ```ts
-     * // Basic containment check
-     * const circle = new Circle(100, 100, 50);
-     * const isInside = circle.contains(120, 120);
-     *
-     * // Check mouse position
-     * const circle = new Circle(0, 0, 100);
-     * container.hitArea = circle;
-     * container.on('pointermove', (e) => {
-     *     // only called if pointer is within circle
-     * });
-     * ```
-     * @param x - The X coordinate of the point to test
-     * @param y - The Y coordinate of the point to test
-     * @returns Whether the x/y coordinates are within this Circle
-     * @see {@link Circle.strokeContains} For checking stroke intersection
-     * @see {@link Circle.getBounds} For getting bounding box
-     */
+
     contains(x2, y2) {
       if (this.radius <= 0) return false;
       const r2 = this.radius * this.radius;
@@ -11856,27 +7794,7 @@ ${src}`;
       dy *= dy;
       return dx + dy <= r2;
     }
-    /**
-     * Checks whether the x and y coordinates given are contained within this circle including the stroke.
-     * @example
-     * ```ts
-     * // Basic stroke check
-     * const circle = new Circle(100, 100, 50);
-     * const isOnStroke = circle.strokeContains(150, 100, 4); // 4px line width
-     *
-     * // Check with different alignments
-     * const innerStroke = circle.strokeContains(150, 100, 4, 1);   // Inside
-     * const centerStroke = circle.strokeContains(150, 100, 4, 0.5); // Centered
-     * const outerStroke = circle.strokeContains(150, 100, 4, 0);   // Outside
-     * ```
-     * @param x - The X coordinate of the point to test
-     * @param y - The Y coordinate of the point to test
-     * @param width - The width of the line to check
-     * @param alignment - The alignment of the stroke, 0.5 by default
-     * @returns Whether the x/y coordinates are within this Circle's stroke
-     * @see {@link Circle.contains} For checking fill containment
-     * @see {@link Circle.getBounds} For getting stroke bounds
-     */
+
     strokeContains(x2, y2, width, alignment = 0.5) {
       if (this.radius === 0) return false;
       const dx = this.x - x2;
@@ -11886,24 +7804,7 @@ ${src}`;
       const distance = Math.sqrt(dx * dx + dy * dy);
       return distance <= radius + outerWidth && distance > radius - (width - outerWidth);
     }
-    /**
-     * Returns the framing rectangle of the circle as a Rectangle object.
-     * @example
-     * ```ts
-     * // Basic bounds calculation
-     * const circle = new Circle(100, 100, 50);
-     * const bounds = circle.getBounds();
-     * // bounds: x=50, y=50, width=100, height=100
-     *
-     * // Reuse existing rectangle
-     * const rect = new Rectangle();
-     * circle.getBounds(rect);
-     * ```
-     * @param out - Optional Rectangle object to store the result
-     * @returns The framing rectangle
-     * @see {@link Rectangle} For rectangle properties
-     * @see {@link Circle.contains} For point containment
-     */
+
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       out2.x = this.x - this.radius;
@@ -11912,40 +7813,14 @@ ${src}`;
       out2.height = this.radius * 2;
       return out2;
     }
-    /**
-     * Copies another circle to this one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Circle(100, 100, 50);
-     * const target = new Circle();
-     * target.copyFrom(source);
-     * ```
-     * @param circle - The circle to copy from
-     * @returns Returns itself
-     * @see {@link Circle.copyTo} For copying to another circle
-     * @see {@link Circle.clone} For creating new circle copy
-     */
+
     copyFrom(circle) {
       this.x = circle.x;
       this.y = circle.y;
       this.radius = circle.radius;
       return this;
     }
-    /**
-     * Copies this circle to another one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Circle(100, 100, 50);
-     * const target = new Circle();
-     * source.copyTo(target);
-     * ```
-     * @param circle - The circle to copy to
-     * @returns Returns given parameter
-     * @see {@link Circle.copyFrom} For copying from another circle
-     * @see {@link Circle.clone} For creating new circle copy
-     */
+
     copyTo(circle) {
       circle.copyFrom(this);
       return circle;
@@ -11955,12 +7830,7 @@ ${src}`;
     }
   }
   class Ellipse {
-    /**
-     * @param x - The X coordinate of the center of this ellipse
-     * @param y - The Y coordinate of the center of this ellipse
-     * @param halfWidth - The half width of this ellipse
-     * @param halfHeight - The half height of this ellipse
-     */
+
     constructor(x2 = 0, y2 = 0, halfWidth = 0, halfHeight = 0) {
       this.type = "ellipse";
       this.x = x2;
@@ -11968,49 +7838,11 @@ ${src}`;
       this.halfWidth = halfWidth;
       this.halfHeight = halfHeight;
     }
-    /**
-     * Creates a clone of this Ellipse instance.
-     * @example
-     * ```ts
-     * // Basic cloning
-     * const original = new Ellipse(100, 100, 50, 25);
-     * const copy = original.clone();
-     *
-     * // Clone and modify
-     * const modified = original.clone();
-     * modified.halfWidth *= 2;
-     * modified.halfHeight *= 2;
-     *
-     * // Verify independence
-     * console.log(original.halfWidth);  // 50
-     * console.log(modified.halfWidth);  // 100
-     * ```
-     * @returns A copy of the ellipse
-     * @see {@link Ellipse.copyFrom} For copying into existing ellipse
-     * @see {@link Ellipse.copyTo} For copying to another ellipse
-     */
+
     clone() {
       return new Ellipse(this.x, this.y, this.halfWidth, this.halfHeight);
     }
-    /**
-     * Checks whether the x and y coordinates given are contained within this ellipse.
-     * Uses normalized coordinates and the ellipse equation to determine containment.
-     * @example
-     * ```ts
-     * // Basic containment check
-     * const ellipse = new Ellipse(100, 100, 50, 25);
-     * const isInside = ellipse.contains(120, 110);
-     * ```
-     * @remarks
-     * - Uses ellipse equation (x²/a² + y²/b² ≤ 1)
-     * - Returns false if dimensions are 0 or negative
-     * - Normalized to center (0,0) for calculation
-     * @param x - The X coordinate of the point to test
-     * @param y - The Y coordinate of the point to test
-     * @returns Whether the x/y coords are within this ellipse
-     * @see {@link Ellipse.strokeContains} For checking stroke intersection
-     * @see {@link Ellipse.getBounds} For getting containing rectangle
-     */
+
     contains(x2, y2) {
       if (this.halfWidth <= 0 || this.halfHeight <= 0) {
         return false;
@@ -12021,31 +7853,7 @@ ${src}`;
       normy *= normy;
       return normx + normy <= 1;
     }
-    /**
-     * Checks whether the x and y coordinates given are contained within this ellipse including stroke.
-     * @example
-     * ```ts
-     * // Basic stroke check
-     * const ellipse = new Ellipse(100, 100, 50, 25);
-     * const isOnStroke = ellipse.strokeContains(150, 100, 4); // 4px line width
-     *
-     * // Check with different alignments
-     * const innerStroke = ellipse.strokeContains(150, 100, 4, 1);   // Inside
-     * const centerStroke = ellipse.strokeContains(150, 100, 4, 0.5); // Centered
-     * const outerStroke = ellipse.strokeContains(150, 100, 4, 0);   // Outside
-     * ```
-     * @remarks
-     * - Uses normalized ellipse equations
-     * - Considers stroke alignment
-     * - Returns false if dimensions are 0
-     * @param x - The X coordinate of the point to test
-     * @param y - The Y coordinate of the point to test
-     * @param strokeWidth - The width of the line to check
-     * @param alignment - The alignment of the stroke (1 = inner, 0.5 = centered, 0 = outer)
-     * @returns Whether the x/y coords are within this ellipse's stroke
-     * @see {@link Ellipse.contains} For checking fill containment
-     * @see {@link Ellipse.getBounds} For getting stroke bounds
-     */
+
     strokeContains(x2, y2, strokeWidth, alignment = 0.5) {
       const { halfWidth, halfHeight } = this;
       if (halfWidth <= 0 || halfHeight <= 0) {
@@ -12063,29 +7871,7 @@ ${src}`;
       const outerEllipse = normalizedX * normalizedX / (outerHorizontal * outerHorizontal) + normalizedY * normalizedY / (outerVertical * outerVertical);
       return innerEllipse > 1 && outerEllipse <= 1;
     }
-    /**
-     * Returns the framing rectangle of the ellipse as a Rectangle object.
-     * @example
-     * ```ts
-     * // Basic bounds calculation
-     * const ellipse = new Ellipse(100, 100, 50, 25);
-     * const bounds = ellipse.getBounds();
-     * // bounds: x=50, y=75, width=100, height=50
-     *
-     * // Reuse existing rectangle
-     * const rect = new Rectangle();
-     * ellipse.getBounds(rect);
-     * ```
-     * @remarks
-     * - Creates Rectangle if none provided
-     * - Top-left is (x-halfWidth, y-halfHeight)
-     * - Width is halfWidth * 2
-     * - Height is halfHeight * 2
-     * @param out - Optional Rectangle object to store the result
-     * @returns The framing rectangle
-     * @see {@link Rectangle} For rectangle properties
-     * @see {@link Ellipse.contains} For checking if a point is inside
-     */
+
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       out2.x = this.x - this.halfWidth;
@@ -12094,20 +7880,7 @@ ${src}`;
       out2.height = this.halfHeight * 2;
       return out2;
     }
-    /**
-     * Copies another ellipse to this one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Ellipse(100, 100, 50, 25);
-     * const target = new Ellipse();
-     * target.copyFrom(source);
-     * ```
-     * @param ellipse - The ellipse to copy from
-     * @returns Returns itself
-     * @see {@link Ellipse.copyTo} For copying to another ellipse
-     * @see {@link Ellipse.clone} For creating new ellipse copy
-     */
+
     copyFrom(ellipse) {
       this.x = ellipse.x;
       this.y = ellipse.y;
@@ -12115,20 +7888,7 @@ ${src}`;
       this.halfHeight = ellipse.halfHeight;
       return this;
     }
-    /**
-     * Copies this ellipse to another one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Ellipse(100, 100, 50, 25);
-     * const target = new Ellipse();
-     * source.copyTo(target);
-     * ```
-     * @param ellipse - The ellipse to copy to
-     * @returns Returns given parameter
-     * @see {@link Ellipse.copyFrom} For copying from another ellipse
-     * @see {@link Ellipse.clone} For creating new ellipse copy
-     */
+
     copyTo(ellipse) {
       ellipse.copyFrom(this);
       return ellipse;
@@ -12167,13 +7927,7 @@ ${src}`;
   let tempRect$3;
   let tempRect2;
   class Polygon {
-    /**
-     * @param points - This can be an array of Points
-     *  that form the polygon, a flat array of numbers that will be interpreted as [x,y, x,y, ...], or
-     *  the arguments passed can be all the points of the polygon e.g.
-     *  `new Polygon(new Point(), new Point(), ...)`, or the arguments passed can be flat
-     *  x,y values e.g. `new Polygon(x,y, x,y, x,y, ...)` where `x` and `y` are Numbers.
-     */
+
     constructor(...points) {
       this.type = "polygon";
       let flat = Array.isArray(points[0]) ? points[0] : points;
@@ -12187,29 +7941,7 @@ ${src}`;
       this.points = flat;
       this.closePath = true;
     }
-    /**
-     * Determines whether the polygon's points are arranged in a clockwise direction.
-     * Uses the shoelace formula (surveyor's formula) to calculate the signed area.
-     *
-     * A positive area indicates clockwise winding, while negative indicates counter-clockwise.
-     *
-     * The formula sums up the cross products of adjacent vertices:
-     * For each pair of adjacent points (x1,y1) and (x2,y2), we calculate (x1*y2 - x2*y1)
-     * The final sum divided by 2 gives the signed area - positive for clockwise.
-     * @example
-     * ```ts
-     * // Check polygon winding
-     * const polygon = new Polygon([0, 0, 100, 0, 50, 100]);
-     * console.log(polygon.isClockwise()); // Check direction
-     *
-     * // Use in path construction
-     * const hole = new Polygon([25, 25, 75, 25, 75, 75, 25, 75]);
-     * if (hole.isClockwise() === shape.isClockwise()) {
-     *     hole.points.reverse(); // Reverse for proper hole winding
-     * }
-     * ```
-     * @returns `true` if the polygon's points are arranged clockwise, `false` if counter-clockwise
-     */
+
     isClockwise() {
       let area2 = 0;
       const points = this.points;
@@ -12223,26 +7955,7 @@ ${src}`;
       }
       return area2 < 0;
     }
-    /**
-     * Checks if this polygon completely contains another polygon.
-     * Used for detecting holes in shapes, like when parsing SVG paths.
-     * @example
-     * ```ts
-     * // Basic containment check
-     * const outerSquare = new Polygon([0,0, 100,0, 100,100, 0,100]); // A square
-     * const innerSquare = new Polygon([25,25, 75,25, 75,75, 25,75]); // A smaller square inside
-     *
-     * outerSquare.containsPolygon(innerSquare); // Returns true
-     * innerSquare.containsPolygon(outerSquare); // Returns false
-     * ```
-     * @remarks
-     * - Uses bounds check for quick rejection
-     * - Tests all points for containment
-     * @param polygon - The polygon to test for containment
-     * @returns True if this polygon completely contains the other polygon
-     * @see {@link Polygon.contains} For single point testing
-     * @see {@link Polygon.getBounds} For bounds calculation
-     */
+
     containsPolygon(polygon) {
       const thisBounds = this.getBounds(tempRect$3);
       const otherBounds = polygon.getBounds(tempRect2);
@@ -12259,43 +7972,14 @@ ${src}`;
       }
       return true;
     }
-    /**
-     * Creates a clone of this polygon.
-     * @example
-     * ```ts
-     * // Basic cloning
-     * const original = new Polygon([0, 0, 100, 0, 50, 100]);
-     * const copy = original.clone();
-     *
-     * // Clone and modify
-     * const modified = original.clone();
-     * modified.points[0] = 10; // Modify first x coordinate
-     * ```
-     * @returns A copy of the polygon
-     * @see {@link Polygon.copyFrom} For copying into existing polygon
-     * @see {@link Polygon.copyTo} For copying to another polygon
-     */
+
     clone() {
       const points = this.points.slice();
       const polygon = new Polygon(points);
       polygon.closePath = this.closePath;
       return polygon;
     }
-    /**
-     * Checks whether the x and y coordinates passed to this function are contained within this polygon.
-     * Uses raycasting algorithm for point-in-polygon testing.
-     * @example
-     * ```ts
-     * // Basic containment check
-     * const polygon = new Polygon([0, 0, 100, 0, 50, 100]);
-     * const isInside = polygon.contains(25, 25); // true
-     * ```
-     * @param x - The X coordinate of the point to test
-     * @param y - The Y coordinate of the point to test
-     * @returns Whether the x/y coordinates are within this polygon
-     * @see {@link Polygon.strokeContains} For checking stroke intersection
-     * @see {@link Polygon.containsPolygon} For polygon-in-polygon testing
-     */
+
     contains(x2, y2) {
       let inside = false;
       const length2 = this.points.length / 2;
@@ -12311,27 +7995,7 @@ ${src}`;
       }
       return inside;
     }
-    /**
-     * Checks whether the x and y coordinates given are contained within this polygon including the stroke.
-     * @example
-     * ```ts
-     * // Basic stroke check
-     * const polygon = new Polygon([0, 0, 100, 0, 50, 100]);
-     * const isOnStroke = polygon.strokeContains(25, 25, 4); // 4px line width
-     *
-     * // Check with different alignments
-     * const innerStroke = polygon.strokeContains(25, 25, 4, 1);   // Inside
-     * const centerStroke = polygon.strokeContains(25, 25, 4, 0.5); // Centered
-     * const outerStroke = polygon.strokeContains(25, 25, 4, 0);   // Outside
-     * ```
-     * @param x - The X coordinate of the point to test
-     * @param y - The Y coordinate of the point to test
-     * @param strokeWidth - The width of the line to check
-     * @param alignment - The alignment of the stroke (1 = inner, 0.5 = centered, 0 = outer)
-     * @returns Whether the x/y coordinates are within this polygon's stroke
-     * @see {@link Polygon.contains} For checking fill containment
-     * @see {@link Polygon.getBounds} For getting stroke bounds
-     */
+
     strokeContains(x2, y2, strokeWidth, alignment = 0.5) {
       const strokeWidthSquared = strokeWidth * strokeWidth;
       const rightWidthSquared = strokeWidthSquared * (1 - alignment);
@@ -12351,24 +8015,7 @@ ${src}`;
       }
       return false;
     }
-    /**
-     * Returns the framing rectangle of the polygon as a Rectangle object.
-     * @example
-     * ```ts
-     * // Basic bounds calculation
-     * const polygon = new Polygon([0, 0, 100, 0, 50, 100]);
-     * const bounds = polygon.getBounds();
-     * // bounds: x=0, y=0, width=100, height=100
-     *
-     * // Reuse existing rectangle
-     * const rect = new Rectangle();
-     * polygon.getBounds(rect);
-     * ```
-     * @param out - Optional rectangle to store the result
-     * @returns The framing rectangle
-     * @see {@link Rectangle} For rectangle properties
-     * @see {@link Polygon.contains} For checking if a point is inside
-     */
+
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       const points = this.points;
@@ -12390,39 +8037,13 @@ ${src}`;
       out2.height = maxY - minY;
       return out2;
     }
-    /**
-     * Copies another polygon to this one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Polygon([0, 0, 100, 0, 50, 100]);
-     * const target = new Polygon();
-     * target.copyFrom(source);
-     * ```
-     * @param polygon - The polygon to copy from
-     * @returns Returns itself
-     * @see {@link Polygon.copyTo} For copying to another polygon
-     * @see {@link Polygon.clone} For creating new polygon copy
-     */
+
     copyFrom(polygon) {
       this.points = polygon.points.slice();
       this.closePath = polygon.closePath;
       return this;
     }
-    /**
-     * Copies this polygon to another one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new Polygon([0, 0, 100, 0, 50, 100]);
-     * const target = new Polygon();
-     * source.copyTo(target);
-     * ```
-     * @param polygon - The polygon to copy to
-     * @returns Returns given parameter
-     * @see {@link Polygon.copyFrom} For copying from another polygon
-     * @see {@link Polygon.clone} For creating new polygon copy
-     */
+
     copyTo(polygon) {
       polygon.copyFrom(this);
       return polygon;
@@ -12430,85 +8051,29 @@ ${src}`;
     toString() {
       return `[pixi.js/math:PolygoncloseStroke=${this.closePath}points=${this.points.reduce((pointsDesc, currentPoint) => `${pointsDesc}, ${currentPoint}`, "")}]`;
     }
-    /**
-     * Get the last X coordinate of the polygon.
-     * @example
-     * ```ts
-     * // Basic coordinate access
-     * const polygon = new Polygon([0, 0, 100, 200, 300, 400]);
-     * console.log(polygon.lastX); // 300
-     * ```
-     * @readonly
-     * @returns The x-coordinate of the last vertex
-     * @see {@link Polygon.lastY} For last Y coordinate
-     * @see {@link Polygon.points} For raw points array
-     */
+
     get lastX() {
       return this.points[this.points.length - 2];
     }
-    /**
-     * Get the last Y coordinate of the polygon.
-     * @example
-     * ```ts
-     * // Basic coordinate access
-     * const polygon = new Polygon([0, 0, 100, 200, 300, 400]);
-     * console.log(polygon.lastY); // 400
-     * ```
-     * @readonly
-     * @returns The y-coordinate of the last vertex
-     * @see {@link Polygon.lastX} For last X coordinate
-     * @see {@link Polygon.points} For raw points array
-     */
+
     get lastY() {
       return this.points[this.points.length - 1];
     }
-    /**
-     * Get the last X coordinate of the polygon.
-     * @readonly
-     * @deprecated since 8.11.0, use {@link Polygon.lastX} instead.
-     */
+
     get x() {
       deprecation("8.11.0", "Polygon.lastX is deprecated, please use Polygon.lastX instead.");
       return this.points[this.points.length - 2];
     }
-    /**
-     * Get the last Y coordinate of the polygon.
-     * @readonly
-     * @deprecated since 8.11.0, use {@link Polygon.lastY} instead.
-     */
+
     get y() {
       deprecation("8.11.0", "Polygon.y is deprecated, please use Polygon.lastY instead.");
       return this.points[this.points.length - 1];
     }
-    /**
-     * Get the first X coordinate of the polygon.
-     * @example
-     * ```ts
-     * // Basic coordinate access
-     * const polygon = new Polygon([0, 0, 100, 200, 300, 400]);
-     * console.log(polygon.x); // 0
-     * ```
-     * @readonly
-     * @returns The x-coordinate of the first vertex
-     * @see {@link Polygon.startY} For first Y coordinate
-     * @see {@link Polygon.points} For raw points array
-     */
+
     get startX() {
       return this.points[0];
     }
-    /**
-     * Get the first Y coordinate of the polygon.
-     * @example
-     * ```ts
-     * // Basic coordinate access
-     * const polygon = new Polygon([0, 0, 100, 200, 300, 400]);
-     * console.log(polygon.y); // 0
-     * ```
-     * @readonly
-     * @returns The y-coordinate of the first vertex
-     * @see {@link Polygon.startX} For first X coordinate
-     * @see {@link Polygon.points} For raw points array
-     */
+
     get startY() {
       return this.points[1];
     }
@@ -12520,13 +8085,7 @@ ${src}`;
     return distance >= radius - strokeWidthInner && distance <= radius + strokeWidthOuter;
   };
   class RoundedRectangle {
-    /**
-     * @param x - The X coordinate of the upper-left corner of the rounded rectangle
-     * @param y - The Y coordinate of the upper-left corner of the rounded rectangle
-     * @param width - The overall width of this rounded rectangle
-     * @param height - The overall height of this rounded rectangle
-     * @param radius - Controls the radius of the rounded corners
-     */
+
     constructor(x2 = 0, y2 = 0, width = 0, height = 0, radius = 20) {
       this.type = "roundedRectangle";
       this.x = x2;
@@ -12535,27 +8094,7 @@ ${src}`;
       this.height = height;
       this.radius = radius;
     }
-    /**
-     * Returns the framing rectangle of the rounded rectangle as a Rectangle object
-     * @example
-     * ```ts
-     * // Basic bounds calculation
-     * const rect = new RoundedRectangle(100, 100, 200, 150, 20);
-     * const bounds = rect.getBounds();
-     * // bounds: x=100, y=100, width=200, height=150
-     *
-     * // Reuse existing rectangle
-     * const out = new Rectangle();
-     * rect.getBounds(out);
-     * ```
-     * @remarks
-     * - Rectangle matches outer dimensions
-     * - Ignores corner radius
-     * @param out - Optional rectangle to store the result
-     * @returns The framing rectangle
-     * @see {@link Rectangle} For rectangle properties
-     * @see {@link RoundedRectangle.contains} For checking if a point is inside
-     */
+
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       out2.x = this.x;
@@ -12564,49 +8103,11 @@ ${src}`;
       out2.height = this.height;
       return out2;
     }
-    /**
-     * Creates a clone of this Rounded Rectangle.
-     * @example
-     * ```ts
-     * // Basic cloning
-     * const original = new RoundedRectangle(100, 100, 200, 150, 20);
-     * const copy = original.clone();
-     *
-     * // Clone and modify
-     * const modified = original.clone();
-     * modified.radius = 30;
-     * modified.width *= 2;
-     *
-     * // Verify independence
-     * console.log(original.radius);  // 20
-     * console.log(modified.radius);  // 30
-     * ```
-     * @returns A copy of the rounded rectangle
-     * @see {@link RoundedRectangle.copyFrom} For copying into existing rectangle
-     * @see {@link RoundedRectangle.copyTo} For copying to another rectangle
-     */
+
     clone() {
       return new RoundedRectangle(this.x, this.y, this.width, this.height, this.radius);
     }
-    /**
-     * Copies another rectangle to this one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new RoundedRectangle(100, 100, 200, 150, 20);
-     * const target = new RoundedRectangle();
-     * target.copyFrom(source);
-     *
-     * // Chain with other operations
-     * const rect = new RoundedRectangle()
-     *     .copyFrom(source)
-     *     .getBounds(rect);
-     * ```
-     * @param rectangle - The rectangle to copy from
-     * @returns Returns itself
-     * @see {@link RoundedRectangle.copyTo} For copying to another rectangle
-     * @see {@link RoundedRectangle.clone} For creating new rectangle copy
-     */
+
     copyFrom(rectangle) {
       this.x = rectangle.x;
       this.y = rectangle.y;
@@ -12614,48 +8115,12 @@ ${src}`;
       this.height = rectangle.height;
       return this;
     }
-    /**
-     * Copies this rectangle to another one.
-     * @example
-     * ```ts
-     * // Basic copying
-     * const source = new RoundedRectangle(100, 100, 200, 150, 20);
-     * const target = new RoundedRectangle();
-     * source.copyTo(target);
-     *
-     * // Chain with other operations
-     * const result = source
-     *     .copyTo(new RoundedRectangle())
-     *     .getBounds();
-     * ```
-     * @param rectangle - The rectangle to copy to
-     * @returns Returns given parameter
-     * @see {@link RoundedRectangle.copyFrom} For copying from another rectangle
-     * @see {@link RoundedRectangle.clone} For creating new rectangle copy
-     */
+
     copyTo(rectangle) {
       rectangle.copyFrom(this);
       return rectangle;
     }
-    /**
-     * Checks whether the x and y coordinates given are contained within this Rounded Rectangle
-     * @example
-     * ```ts
-     * // Basic containment check
-     * const rect = new RoundedRectangle(100, 100, 200, 150, 20);
-     * const isInside = rect.contains(150, 125); // true
-     * // Check corner radius
-     * const corner = rect.contains(100, 100); // false if within corner curve
-     * ```
-     * @remarks
-     * - Returns false if width/height is 0 or negative
-     * - Handles rounded corners with radius check
-     * @param x - The X coordinate of the point to test
-     * @param y - The Y coordinate of the point to test
-     * @returns Whether the x/y coordinates are within this Rounded Rectangle
-     * @see {@link RoundedRectangle.strokeContains} For checking stroke intersection
-     * @see {@link RoundedRectangle.getBounds} For getting containing rectangle
-     */
+
     contains(x2, y2) {
       if (this.width <= 0 || this.height <= 0) {
         return false;
@@ -12688,27 +8153,7 @@ ${src}`;
       }
       return false;
     }
-    /**
-     * Checks whether the x and y coordinates given are contained within this rectangle including the stroke.
-     * @example
-     * ```ts
-     * // Basic stroke check
-     * const rect = new RoundedRectangle(100, 100, 200, 150, 20);
-     * const isOnStroke = rect.strokeContains(150, 100, 4); // 4px line width
-     *
-     * // Check with different alignments
-     * const innerStroke = rect.strokeContains(150, 100, 4, 1);   // Inside
-     * const centerStroke = rect.strokeContains(150, 100, 4, 0.5); // Centered
-     * const outerStroke = rect.strokeContains(150, 100, 4, 0);   // Outside
-     * ```
-     * @param pX - The X coordinate of the point to test
-     * @param pY - The Y coordinate of the point to test
-     * @param strokeWidth - The width of the line to check
-     * @param alignment - The alignment of the stroke (1 = inner, 0.5 = centered, 0 = outer)
-     * @returns Whether the x/y coordinates are within this rectangle's stroke
-     * @see {@link RoundedRectangle.contains} For checking fill containment
-     * @see {@link RoundedRectangle.getBounds} For getting stroke bounds
-     */
+
     strokeContains(pX, pY, strokeWidth, alignment = 0.5) {
       const { x: x2, y: y2, width, height, radius } = this;
       const strokeWidthOuter = strokeWidth * (1 - alignment);
@@ -12726,7 +8171,7 @@ ${src}`;
         return true;
       }
       return (
-        // Top-left
+
         pX < innerX && pY < innerY && isCornerWithinStroke(
           pX,
           pY,
@@ -12801,58 +8246,53 @@ ${src}`;
       this.float32View = new Float32Array(this.rawBinaryData);
       this.size = this.rawBinaryData.byteLength;
     }
-    /** View on the raw binary data as a `Int8Array`. */
+
     get int8View() {
       if (!this._int8View) {
         this._int8View = new Int8Array(this.rawBinaryData);
       }
       return this._int8View;
     }
-    /** View on the raw binary data as a `Uint8Array`. */
+
     get uint8View() {
       if (!this._uint8View) {
         this._uint8View = new Uint8Array(this.rawBinaryData);
       }
       return this._uint8View;
     }
-    /**  View on the raw binary data as a `Int16Array`. */
+
     get int16View() {
       if (!this._int16View) {
         this._int16View = new Int16Array(this.rawBinaryData);
       }
       return this._int16View;
     }
-    /** View on the raw binary data as a `Int32Array`. */
+
     get int32View() {
       if (!this._int32View) {
         this._int32View = new Int32Array(this.rawBinaryData);
       }
       return this._int32View;
     }
-    /** View on the raw binary data as a `Float64Array`. */
+
     get float64View() {
       if (!this._float64Array) {
         this._float64Array = new Float64Array(this.rawBinaryData);
       }
       return this._float64Array;
     }
-    /** View on the raw binary data as a `BigUint64Array`. */
+
     get bigUint64View() {
       if (!this._bigUint64Array) {
         this._bigUint64Array = new BigUint64Array(this.rawBinaryData);
       }
       return this._bigUint64Array;
     }
-    /**
-     * Returns the view of the given type.
-     * @param type - One of `int8`, `uint8`, `int16`,
-     *    `uint16`, `int32`, `uint32`, and `float32`.
-     * @returns - typed array of given type
-     */
+
     view(type) {
       return this[`${type}View`];
     }
-    /** Destroys all buffer references. Do not use after calling this. */
+
     destroy() {
       this.rawBinaryData = null;
       this.uint32View = null;
@@ -12865,12 +8305,7 @@ ${src}`;
       this._float64Array = null;
       this._bigUint64Array = null;
     }
-    /**
-     * Returns the size of the given type in bytes.
-     * @param type - One of `int8`, `uint8`, `int16`,
-     *   `uint16`, `int32`, `uint32`, and `float32`.
-     * @returns - size of the type in bytes
-     */
+
     static sizeOf(type) {
       switch (type) {
         case "int8":
@@ -12906,7 +8341,7 @@ ${src}`;
     add: "add-npm",
     screen: "screen-npm"
   };
-  var STENCIL_MODES = /* @__PURE__ */ ((STENCIL_MODES2) => {
+  var STENCIL_MODES =                 ((STENCIL_MODES2) => {
     STENCIL_MODES2[STENCIL_MODES2["DISABLED"] = 0] = "DISABLED";
     STENCIL_MODES2[STENCIL_MODES2["RENDERING_MASK_ADD"] = 1] = "RENDERING_MASK_ADD";
     STENCIL_MODES2[STENCIL_MODES2["MASK_ACTIVE"] = 2] = "MASK_ACTIVE";
@@ -12976,11 +8411,11 @@ ${src}`;
   }
   class BatchTextureArray {
     constructor() {
-      this.ids = /* @__PURE__ */ Object.create(null);
+      this.ids =                 Object.create(null);
       this.textures = [];
       this.count = 0;
     }
-    /** Clear the textures and their locations. */
+
     clear() {
       for (let i2 = 0; i2 < this.count; i2++) {
         const t2 = this.textures[i2];
@@ -13096,11 +8531,7 @@ ${src}`;
         );
       }
     }
-    /**
-     * breaks the batcher. This happens when a batch gets too big,
-     * or we need to switch to a different type of rendering (a filter for example)
-     * @param instructionSet
-     */
+
     break(instructionSet) {
       const elements = this._elements;
       if (!elements[this.elementStart]) return;
@@ -13261,18 +8692,12 @@ ${src}`;
     finish(instructionSet) {
       this.break(instructionSet);
     }
-    /**
-     * Resizes the attribute buffer to the given size (1 = 1 float32)
-     * @param size - the size in vertices to ensure (not bytes!)
-     */
+
     ensureAttributeBuffer(size) {
       if (size * 4 <= this.attributeBuffer.size) return;
       this._resizeAttributeBuffer(size * 4);
     }
-    /**
-     * Resizes the index buffer to the given size (1 = 1 float32)
-     * @param size - the size in vertices to ensure (not bytes!)
-     */
+
     ensureIndexBuffer(size) {
       if (size <= this.indexBuffer.length) return;
       this._resizeIndexBuffer(size);
@@ -13314,11 +8739,7 @@ ${src}`;
         indexBuffer[index++] = indicesOffset + indices[i2 + indexOffset] - attributeOffset;
       }
     }
-    /**
-     * Destroys the batch and its resources.
-     * @param options - destruction options
-     * @param options.shader - whether to destroy the associated shader
-     */
+
     destroy(options = {}) {
       if (this.batches === null) return;
       for (let i2 = 0; i2 < this.batchIndex; i2++) {
@@ -13346,7 +8767,7 @@ ${src}`;
     indicesInitialSize: 6
   };
   let Batcher = _Batcher;
-  var BufferUsage = /* @__PURE__ */ ((BufferUsage2) => {
+  var BufferUsage =                 ((BufferUsage2) => {
     BufferUsage2[BufferUsage2["MAP_READ"] = 1] = "MAP_READ";
     BufferUsage2[BufferUsage2["MAP_WRITE"] = 2] = "MAP_WRITE";
     BufferUsage2[BufferUsage2["COPY_SRC"] = 4] = "COPY_SRC";
@@ -13361,15 +8782,12 @@ ${src}`;
     return BufferUsage2;
   })(BufferUsage || {});
   class Buffer extends EventEmitter {
-    /**
-     * Creates a new Buffer with the given options
-     * @param options - the options for the buffer
-     */
+
     constructor(options) {
       let { data, size } = options;
       const { usage, label, shrinkToFit } = options;
       super();
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
       this._gcLastUsed = -1;
       this.autoGarbageCollect = true;
       this.uid = uid$1("buffer");
@@ -13394,7 +8812,7 @@ ${src}`;
       };
       this.shrinkToFit = shrinkToFit ?? true;
     }
-    /** the data in the buffer */
+
     get data() {
       return this._data;
     }
@@ -13407,7 +8825,7 @@ ${src}`;
       }
       return this._dataInt32;
     }
-    /** whether the buffer is static or not */
+
     get static() {
       return !!(this.descriptor.usage & BufferUsage.STATIC);
     }
@@ -13418,13 +8836,7 @@ ${src}`;
         this.descriptor.usage &= ~BufferUsage.STATIC;
       }
     }
-    /**
-     * Sets the data in the buffer to the given value. This will immediately update the buffer on the GPU.
-     * If you only want to update a subset of the buffer, you can pass in the size of the data.
-     * @param value - the data to set
-     * @param size - the size of the data in bytes
-     * @param syncGPU - should the buffer be updated on the GPU immediately?
-     */
+
     setDataWithSize(value, size, syncGPU) {
       this._updateID++;
       this._updateSize = size * value.BYTES_PER_ELEMENT;
@@ -13447,26 +8859,21 @@ ${src}`;
       }
       if (syncGPU) this.emit("update", this);
     }
-    /**
-     * updates the buffer on the GPU to reflect the data in the buffer.
-     * By default it will update the entire buffer. If you only want to update a subset of the buffer,
-     * you can pass in the size of the buffer to update.
-     * @param sizeInBytes - the new size of the buffer in bytes
-     */
+
     update(sizeInBytes) {
       this._updateSize = sizeInBytes ?? this._updateSize;
       this._updateID++;
       this.emit("update", this);
     }
-    /** Unloads the buffer from the GPU */
+
     unload() {
       this.emit("unload", this);
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy();
       }
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
     }
-    /** Destroys the buffer */
+
     destroy() {
       this.destroyed = true;
       this.unload();
@@ -13538,13 +8945,10 @@ ${src}`;
     return attribute;
   }
   class Geometry extends EventEmitter {
-    /**
-     * Create a new instance of a geometry
-     * @param options - The options for the geometry.
-     */
+
     constructor(options = {}) {
       super();
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
       this.autoGarbageCollect = true;
       this._gcLastUsed = -1;
       this.uid = uid$1("geometry");
@@ -13570,33 +8974,19 @@ ${src}`;
       this._boundsDirty = true;
       this.emit("update", this);
     }
-    /**
-     * Returns the requested attribute.
-     * @param id - The name of the attribute required
-     * @returns - The attribute requested.
-     */
+
     getAttribute(id) {
       return this.attributes[id];
     }
-    /**
-     * Returns the index buffer
-     * @returns - The index buffer.
-     */
+
     getIndex() {
       return this.indexBuffer;
     }
-    /**
-     * Returns the requested buffer.
-     * @param id - The name of the buffer required.
-     * @returns - The buffer requested.
-     */
+
     getBuffer(id) {
       return this.getAttribute(id).buffer;
     }
-    /**
-     * Used to figure out how many vertices there are in this geometry
-     * @returns the number of vertices in the geometry
-     */
+
     getSize() {
       for (const i2 in this.attributes) {
         const attribute = this.attributes[i2];
@@ -13605,11 +8995,7 @@ ${src}`;
       }
       return 0;
     }
-    /**
-     * Adds an attribute to the geometry.
-     * @param name - The name of the attribute to add.
-     * @param attributeOption - The attribute option to add.
-     */
+
     addAttribute(name, attributeOption) {
       const attribute = ensureIsAttribute(attributeOption);
       const bufferIndex = this.buffers.indexOf(attribute.buffer);
@@ -13620,32 +9006,26 @@ ${src}`;
       }
       this.attributes[name] = attribute;
     }
-    /**
-     * Adds an index buffer to the geometry.
-     * @param indexBuffer - The index buffer to add. Can be a Buffer, TypedArray, or an array of numbers.
-     */
+
     addIndex(indexBuffer) {
       this.indexBuffer = ensureIsBuffer(indexBuffer, true);
       this.buffers.push(this.indexBuffer);
     }
-    /** Returns the bounds of the geometry. */
+
     get bounds() {
       if (!this._boundsDirty) return this._bounds;
       this._boundsDirty = false;
       return getGeometryBounds(this, "aPosition", this._bounds);
     }
-    /** Unloads the geometry from the GPU. */
+
     unload() {
       this.emit("unload", this);
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy();
       }
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
     }
-    /**
-     * destroys the geometry.
-     * @param destroyBuffers - destroy the buffers associated with this geometry
-     */
+
     destroy(destroyBuffers = false) {
       this.emit("destroy", this);
       this.removeAllListeners();
@@ -13675,7 +9055,7 @@ ${src}`;
         data: placeHolderIndexData,
         label: "index-batch-buffer",
         usage: BufferUsage.INDEX | BufferUsage.COPY_DST,
-        // | BufferUsage.STATIC,
+
         shrinkToFit: false
       });
       const stride = vertexSize * 4;
@@ -13826,8 +9206,8 @@ ${parts.join("\n")}
     }
     return out2;
   }
-  const cacheMap = /* @__PURE__ */ Object.create(null);
-  const bitCacheMap = /* @__PURE__ */ new Map();
+  const cacheMap =                 Object.create(null);
+  const bitCacheMap =                 new Map();
   let CACHE_UID = 0;
   function compileHighShader({
     template,
@@ -13880,7 +9260,7 @@ ${parts.join("\n")}
     };
   }
   const vertexGPUTemplate = (
-    /* wgsl */
+
     `
     @in aPosition: vec2<f32>;
     @in aUV: vec2<f32>;
@@ -13928,7 +9308,7 @@ ${parts.join("\n")}
 `
   );
   const fragmentGPUTemplate = (
-    /* wgsl */
+
     `
     @in vUV : vec2<f32>;
     @in vColor : vec4<f32>;
@@ -13955,7 +9335,7 @@ ${parts.join("\n")}
 `
   );
   const vertexGlTemplate = (
-    /* glsl */
+
     `
     in vec2 aPosition;
     in vec2 aUV;
@@ -13995,7 +9375,7 @@ ${parts.join("\n")}
 `
   );
   const fragmentGlTemplate = (
-    /* glsl */
+
     `
 
     in vec4 vColor;
@@ -14023,7 +9403,7 @@ ${parts.join("\n")}
     name: "global-uniforms-bit",
     vertex: {
       header: (
-        /* wgsl */
+
         `
         struct GlobalUniforms {
             uProjectionMatrix:mat3x3<f32>,
@@ -14041,7 +9421,7 @@ ${parts.join("\n")}
     name: "global-uniforms-bit",
     vertex: {
       header: (
-        /* glsl */
+
         `
           uniform mat3 uProjectionMatrix;
           uniform mat3 uWorldTransformMatrix;
@@ -14093,13 +9473,13 @@ ${parts.join("\n")}
     name: "color-bit",
     vertex: {
       header: (
-        /* wgsl */
+
         `
             @in aColor: vec4<f32>;
         `
       ),
       main: (
-        /* wgsl */
+
         `
             vColor *= vec4<f32>(aColor.rgb * aColor.a, aColor.a);
         `
@@ -14110,13 +9490,13 @@ ${parts.join("\n")}
     name: "color-bit",
     vertex: {
       header: (
-        /* glsl */
+
         `
             in vec4 aColor;
         `
       ),
       main: (
-        /* glsl */
+
         `
             vColor *= vec4(aColor.rgb * aColor.a, aColor.a);
         `
@@ -14249,7 +9629,7 @@ ${parts.join("\n")}
     name: "round-pixels-bit",
     vertex: {
       header: (
-        /* wgsl */
+
         `
             fn roundPixels(position: vec2<f32>, targetSize: vec2<f32>) -> vec2<f32>
             {
@@ -14263,7 +9643,7 @@ ${parts.join("\n")}
     name: "round-pixels-bit",
     vertex: {
       header: (
-        /* glsl */
+
         `
             vec2 roundPixels(vec2 position, vec2 targetSize)
             {
@@ -14324,14 +9704,7 @@ ${parts.join("\n")}
       defaultShader ?? (defaultShader = new DefaultShader(options.maxTextures));
       this.shader = defaultShader;
     }
-    /**
-     * Packs the attributes of a DefaultBatchableMeshElement into the provided views.
-     * @param element - The DefaultBatchableMeshElement to pack.
-     * @param float32View - The Float32Array view to pack into.
-     * @param uint32View - The Uint32Array view to pack into.
-     * @param index - The starting index in the views.
-     * @param textureId - The texture ID to use.
-     */
+
     packAttributes(element, float32View, uint32View, index, textureId) {
       const textureIdAndRound = textureId << 16 | element.roundPixels & 65535;
       const wt = element.transform;
@@ -14357,14 +9730,7 @@ ${parts.join("\n")}
         uint32View[index++] = textureIdAndRound;
       }
     }
-    /**
-     * Packs the attributes of a DefaultBatchableQuadElement into the provided views.
-     * @param element - The DefaultBatchableQuadElement to pack.
-     * @param float32View - The Float32Array view to pack into.
-     * @param uint32View - The Uint32Array view to pack into.
-     * @param index - The starting index in the views.
-     * @param textureId - The texture ID to use.
-     */
+
     packQuadAttributes(element, float32View, uint32View, index, textureId) {
       const texture = element.texture;
       const wt = element.transform;
@@ -14407,11 +9773,7 @@ ${parts.join("\n")}
       uint32View[index + 22] = argb;
       uint32View[index + 23] = textureIdAndRound;
     }
-    /**
-     * Updates the maximum number of textures that can be used in the shader.
-     * @param maxTextures - The maximum number of textures that can be used in the shader.
-     * @internal
-     */
+
     _updateMaxTextures(maxTextures) {
       if (this.shader.maxTextures === maxTextures) return;
       defaultShader = new DefaultShader(maxTextures);
@@ -14431,18 +9793,14 @@ ${parts.join("\n")}
   let DefaultBatcher = _DefaultBatcher;
   class GCManagedHash {
     constructor(options) {
-      this.items = /* @__PURE__ */ Object.create(null);
+      this.items =                 Object.create(null);
       const { renderer, type, onUnload, priority, name } = options;
       this._renderer = renderer;
       renderer.gc.addResourceHash(this, "items", type, priority ?? 0);
       this._onUnload = onUnload;
       this.name = name;
     }
-    /**
-     * Add an item to the hash. No-op if already added.
-     * @param item
-     * @returns true if the item was added, false if it was already in the hash
-     */
+
     add(item) {
       if (this.items[item.uid]) return false;
       this.items[item.uid] = item;
@@ -14464,7 +9822,7 @@ ${parts.join("\n")}
     }
     destroy(...args) {
       this.removeAll(...args);
-      this.items = /* @__PURE__ */ Object.create(null);
+      this.items =                 Object.create(null);
       this._renderer = null;
       this._onUnload = null;
     }
@@ -15262,21 +10620,12 @@ ${parts.join("\n")}
         this.addColorStop(stop2.offset, stop2.color);
       });
     }
-    /**
-     * Adds a color stop to the gradient
-     * @param offset - Position of the stop (0-1)
-     * @param color - Color of the stop
-     * @returns This gradient instance for chaining
-     */
+
     addColorStop(offset2, color) {
       this.colorStops.push({ offset: offset2, color: Color.shared.setValue(color).toHexa() });
       return this;
     }
-    /**
-     * Builds the internal texture and transform for the gradient.
-     * Called automatically when the gradient is first used.
-     * @internal
-     */
+
     buildLinearGradient() {
       if (this.texture) return;
       let { x: x0, y: y0 } = this.start;
@@ -15322,11 +10671,7 @@ ${parts.join("\n")}
       }
       this.transform = m2;
     }
-    /**
-     * Builds the internal texture and transform for the gradient.
-     * Called automatically when the gradient is first used.
-     * @internal
-     */
+
     buildGradient() {
       if (!this.texture) this._tick++;
       if (this.type === "linear") {
@@ -15335,11 +10680,7 @@ ${parts.join("\n")}
         this.buildRadialGradient();
       }
     }
-    /**
-     * Builds the internal texture and transform for the radial gradient.
-     * Called automatically when the gradient is first used.
-     * @internal
-     */
+
     buildRadialGradient() {
       if (this.texture) return;
       const colorStops = this.colorStops.length ? this.colorStops : emptyColorStops;
@@ -15385,7 +10726,7 @@ ${parts.join("\n")}
       }
       this.transform = m2;
     }
-    /** Destroys the gradient, releasing resources. This will also destroy the internal texture. */
+
     destroy() {
       this.texture?.destroy(true);
       this.texture = null;
@@ -15396,11 +10737,7 @@ ${parts.join("\n")}
       this.center = null;
       this.outerCenter = null;
     }
-    /**
-     * Returns a unique key for this gradient instance.
-     * This key is used for caching and texture management.
-     * @returns {string} Unique key for the gradient
-     */
+
     get styleKey() {
       return `fill-gradient-${this.uid}-${this._tick}`;
     }
@@ -15672,11 +11009,7 @@ ${parts.join("\n")}
       this.batcher ? this.batcher._updateMaxTextures(maxTextures) : this.batcher = new DefaultBatcher({ maxTextures });
       this.instructions.reset();
     }
-    /**
-     * @deprecated since version 8.0.0
-     * Use `batcher.geometry` instead.
-     * @see {Batcher#geometry}
-     */
+
     get geometry() {
       deprecation(v8_3_4, "GraphicsContextRenderData#geometry is deprecated, please use batcher.geometry instead.");
       return this.batcher.geometry;
@@ -15693,28 +11026,15 @@ ${parts.join("\n")}
       this._renderer = renderer;
       this._managedContexts = new GCManagedHash({ renderer, type: "resource", name: "graphicsContext" });
     }
-    /**
-     * Runner init called, update the default options
-     * @ignore
-     */
+
     init(options) {
       _GraphicsContextSystem2.defaultOptions.bezierSmoothness = options?.bezierSmoothness ?? _GraphicsContextSystem2.defaultOptions.bezierSmoothness;
     }
-    /**
-     * Returns the render data for a given GraphicsContext.
-     * @param context - The GraphicsContext to get the render data for.
-     * @internal
-     */
+
     getContextRenderData(context2) {
       return context2._gpuData[this._renderer.uid].graphicsData || this._initContextRenderData(context2);
     }
-    /**
-     * Updates the GPU context for a given GraphicsContext.
-     * If the context is dirty, it will rebuild the batches and geometry data.
-     * @param context - The GraphicsContext to update.
-     * @returns The updated GpuGraphicsContext.
-     * @internal
-     */
+
     updateGpuContext(context2) {
       const hasContext = !!context2._gpuData[this._renderer.uid];
       const gpuContext = context2._gpuData[this._renderer.uid] || this._initContext(context2);
@@ -15735,13 +11055,7 @@ ${parts.join("\n")}
       }
       return gpuContext;
     }
-    /**
-     * Returns the GpuGraphicsContext for a given GraphicsContext.
-     * If it does not exist, it will initialize a new one.
-     * @param context - The GraphicsContext to get the GpuGraphicsContext for.
-     * @returns The GpuGraphicsContext for the given GraphicsContext.
-     * @internal
-     */
+
     getGpuContext(context2) {
       return context2._gpuData[this._renderer.uid] || this._initContext(context2);
     }
@@ -15800,10 +11114,7 @@ ${parts.join("\n")}
     name: "graphicsContext"
   };
   _GraphicsContextSystem.defaultOptions = {
-    /**
-     * A value from 0 to 1 that controls the smoothness of bezier curves (the higher the smoother)
-     * @default 0.5
-     */
+
     bezierSmoothness: 0.5
   };
   let GraphicsContextSystem = _GraphicsContextSystem;
@@ -15814,7 +11125,7 @@ ${parts.join("\n")}
     const scale = 1;
     const smoothing = Math.min(
       0.99,
-      // a value of 1.0 actually inverts smoothing, so we cap it at 0.99
+
       Math.max(0, smoothness ?? GraphicsContextSystem.defaultOptions.bezierSmoothness)
     );
     let distanceTolerance = (PATH_DISTANCE_EPSILON$1 - smoothing) / scale;
@@ -15887,7 +11198,7 @@ ${parts.join("\n")}
     const scale = 1;
     const smoothing = Math.min(
       0.99,
-      // a value of 1.0 actually inverts smoothing, so we cap it at 0.99
+
       Math.max(0, smoothness ?? GraphicsContextSystem.defaultOptions.bezierSmoothness)
     );
     let distanceTolerance = (PATH_DISTANCE_EPSILON - smoothing) / scale;
@@ -16270,22 +11581,12 @@ ${parts.join("\n")}
       this._graphicsPath2D = graphicsPath2D;
       this.signed = graphicsPath2D.checkForHoles;
     }
-    /**
-     * Sets the starting point for a new sub-path. Any subsequent drawing commands are considered part of this path.
-     * @param x - The x-coordinate for the starting point.
-     * @param y - The y-coordinate for the starting point.
-     * @returns The instance of the current object for chaining.
-     */
+
     moveTo(x2, y2) {
       this.startPoly(x2, y2);
       return this;
     }
-    /**
-     * Connects the current point to a new point with a straight line. This method updates the current path.
-     * @param x - The x-coordinate of the new point to connect to.
-     * @param y - The y-coordinate of the new point to connect to.
-     * @returns The instance of the current object for chaining.
-     */
+
     lineTo(x2, y2) {
       this._ensurePoly();
       const points = this._currentPoly.points;
@@ -16296,51 +11597,21 @@ ${parts.join("\n")}
       }
       return this;
     }
-    /**
-     * Adds an arc to the path. The arc is centered at (x, y)
-     *  position with radius `radius` starting at `startAngle` and ending at `endAngle`.
-     * @param x - The x-coordinate of the arc's center.
-     * @param y - The y-coordinate of the arc's center.
-     * @param radius - The radius of the arc.
-     * @param startAngle - The starting angle of the arc, in radians.
-     * @param endAngle - The ending angle of the arc, in radians.
-     * @param counterclockwise - Specifies whether the arc should be drawn in the anticlockwise direction. False by default.
-     * @returns The instance of the current object for chaining.
-     */
+
     arc(x2, y2, radius, startAngle, endAngle, counterclockwise) {
       this._ensurePoly(false);
       const points = this._currentPoly.points;
       buildArc(points, x2, y2, radius, startAngle, endAngle, counterclockwise);
       return this;
     }
-    /**
-     * Adds an arc to the path with the arc tangent to the line joining two specified points.
-     * The arc radius is specified by `radius`.
-     * @param x1 - The x-coordinate of the first point.
-     * @param y1 - The y-coordinate of the first point.
-     * @param x2 - The x-coordinate of the second point.
-     * @param y2 - The y-coordinate of the second point.
-     * @param radius - The radius of the arc.
-     * @returns The instance of the current object for chaining.
-     */
+
     arcTo(x1, y1, x2, y2, radius) {
       this._ensurePoly();
       const points = this._currentPoly.points;
       buildArcTo(points, x1, y1, x2, y2, radius);
       return this;
     }
-    /**
-     * Adds an SVG-style arc to the path, allowing for elliptical arcs based on the SVG spec.
-     * @param rx - The x-radius of the ellipse.
-     * @param ry - The y-radius of the ellipse.
-     * @param xAxisRotation - The rotation of the ellipse's x-axis relative
-     * to the x-axis of the coordinate system, in degrees.
-     * @param largeArcFlag - Determines if the arc should be greater than or less than 180 degrees.
-     * @param sweepFlag - Determines if the arc should be swept in a positive angle direction.
-     * @param x - The x-coordinate of the arc's end point.
-     * @param y - The y-coordinate of the arc's end point.
-     * @returns The instance of the current object for chaining.
-     */
+
     arcToSvg(rx, ry, xAxisRotation, largeArcFlag, sweepFlag, x2, y2) {
       const points = this._currentPoly.points;
       buildArcToSvg(
@@ -16357,19 +11628,7 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Adds a cubic Bezier curve to the path.
-     * It requires three points: the first two are control points and the third one is the end point.
-     * The starting point is the last point in the current path.
-     * @param cp1x - The x-coordinate of the first control point.
-     * @param cp1y - The y-coordinate of the first control point.
-     * @param cp2x - The x-coordinate of the second control point.
-     * @param cp2y - The y-coordinate of the second control point.
-     * @param x - The x-coordinate of the end point.
-     * @param y - The y-coordinate of the end point.
-     * @param smoothness - Optional parameter to adjust the smoothness of the curve.
-     * @returns The instance of the current object for chaining.
-     */
+
     bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2, smoothness) {
       this._ensurePoly();
       const currentPoly = this._currentPoly;
@@ -16387,16 +11646,7 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Adds a quadratic curve to the path. It requires two points: the control point and the end point.
-     * The starting point is the last point in the current path.
-     * @param cp1x - The x-coordinate of the control point.
-     * @param cp1y - The y-coordinate of the control point.
-     * @param x - The x-coordinate of the end point.
-     * @param y - The y-coordinate of the end point.
-     * @param smoothing - Optional parameter to adjust the smoothness of the curve.
-     * @returns The instance of the current object for chaining.
-     */
+
     quadraticCurveTo(cp1x, cp1y, x2, y2, smoothing) {
       this._ensurePoly();
       const currentPoly = this._currentPoly;
@@ -16412,21 +11662,12 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Closes the current path by drawing a straight line back to the start.
-     * If the shape is already closed or there are no points in the path, this method does nothing.
-     * @returns The instance of the current object for chaining.
-     */
+
     closePath() {
       this.endPoly(true);
       return this;
     }
-    /**
-     * Adds another path to the current path. This method allows for the combination of multiple paths into one.
-     * @param path - The `GraphicsPath` object representing the path to add.
-     * @param transform - An optional `Matrix` object to apply a transformation to the path before adding it.
-     * @returns The instance of the current object for chaining.
-     */
+
     addPath(path, transform) {
       this.endPoly();
       if (transform && !transform.isIdentity()) {
@@ -16460,62 +11701,28 @@ ${parts.join("\n")}
       }
       return this;
     }
-    /**
-     * Finalizes the drawing of the current path. Optionally, it can close the path.
-     * @param closePath - A boolean indicating whether to close the path after finishing. False by default.
-     */
+
     finish(closePath = false) {
       this.endPoly(closePath);
     }
-    /**
-     * Draws a rectangle shape. This method adds a new rectangle path to the current drawing.
-     * @param x - The x-coordinate of the top-left corner of the rectangle.
-     * @param y - The y-coordinate of the top-left corner of the rectangle.
-     * @param w - The width of the rectangle.
-     * @param h - The height of the rectangle.
-     * @param transform - An optional `Matrix` object to apply a transformation to the rectangle.
-     * @returns The instance of the current object for chaining.
-     */
+
     rect(x2, y2, w2, h2, transform) {
       this.drawShape(new Rectangle(x2, y2, w2, h2), transform);
       return this;
     }
-    /**
-     * Draws a circle shape. This method adds a new circle path to the current drawing.
-     * @param x - The x-coordinate of the center of the circle.
-     * @param y - The y-coordinate of the center of the circle.
-     * @param radius - The radius of the circle.
-     * @param transform - An optional `Matrix` object to apply a transformation to the circle.
-     * @returns The instance of the current object for chaining.
-     */
+
     circle(x2, y2, radius, transform) {
       this.drawShape(new Circle(x2, y2, radius), transform);
       return this;
     }
-    /**
-     * Draws a polygon shape. This method allows for the creation of complex polygons by specifying a sequence of points.
-     * @param points - An array of numbers, or or an array of PointData objects eg [{x,y}, {x,y}, {x,y}]
-     * representing the x and y coordinates of the polygon's vertices, in sequence.
-     * @param close - A boolean indicating whether to close the polygon path. True by default.
-     * @param transform - An optional `Matrix` object to apply a transformation to the polygon.
-     * @returns The instance of the current object for chaining.
-     */
+
     poly(points, close, transform) {
       const polygon = new Polygon(points);
       polygon.closePath = close;
       this.drawShape(polygon, transform);
       return this;
     }
-    /**
-     * Draws a regular polygon with a specified number of sides. All sides and angles are equal.
-     * @param x - The x-coordinate of the center of the polygon.
-     * @param y - The y-coordinate of the center of the polygon.
-     * @param radius - The radius of the circumscribed circle of the polygon.
-     * @param sides - The number of sides of the polygon. Must be 3 or more.
-     * @param rotation - The rotation angle of the polygon, in radians. Zero by default.
-     * @param transform - An optional `Matrix` object to apply a transformation to the polygon.
-     * @returns The instance of the current object for chaining.
-     */
+
     regularPoly(x2, y2, radius, sides, rotation = 0, transform) {
       sides = Math.max(sides | 0, 3);
       const startAngle = -1 * Math.PI / 2 + rotation;
@@ -16531,18 +11738,7 @@ ${parts.join("\n")}
       this.poly(polygon, true, transform);
       return this;
     }
-    /**
-     * Draws a polygon with rounded corners.
-     * Similar to `regularPoly` but with the ability to round the corners of the polygon.
-     * @param x - The x-coordinate of the center of the polygon.
-     * @param y - The y-coordinate of the center of the polygon.
-     * @param radius - The radius of the circumscribed circle of the polygon.
-     * @param sides - The number of sides of the polygon. Must be 3 or more.
-     * @param corner - The radius of the rounding of the corners.
-     * @param rotation - The rotation angle of the polygon, in radians. Zero by default.
-     * @param smoothness - Optional parameter to adjust the smoothness of the rounding.
-     * @returns The instance of the current object for chaining.
-     */
+
     roundPoly(x2, y2, radius, sides, corner, rotation = 0, smoothness) {
       sides = Math.max(sides | 0, 3);
       if (corner <= 0) {
@@ -16572,19 +11768,7 @@ ${parts.join("\n")}
       }
       return this.closePath();
     }
-    /**
-     * Draws a shape with rounded corners. This function supports custom radius for each corner of the shape.
-     * Optionally, corners can be rounded using a quadratic curve instead of an arc, providing a different aesthetic.
-     * @param points - An array of `RoundedPoint` representing the corners of the shape to draw.
-     * A minimum of 3 points is required.
-     * @param radius - The default radius for the corners.
-     * This radius is applied to all corners unless overridden in `points`.
-     * @param useQuadratic - If set to true, rounded corners are drawn using a quadraticCurve
-     *  method instead of an arc method. Defaults to false.
-     * @param smoothness - Specifies the smoothness of the curve when `useQuadratic` is true.
-     * Higher values make the curve smoother.
-     * @returns The instance of the current object for chaining.
-     */
+
     roundShape(points, radius, useQuadratic = false, smoothness) {
       if (points.length < 3) {
         return this;
@@ -16596,15 +11780,7 @@ ${parts.join("\n")}
       }
       return this.closePath();
     }
-    /**
-     * Draw Rectangle with fillet corners. This is much like rounded rectangle
-     * however it support negative numbers as well for the corner radius.
-     * @param x - Upper left corner of rect
-     * @param y - Upper right corner of rect
-     * @param width - Width of rect
-     * @param height - Height of rect
-     * @param fillet - accept negative or positive values
-     */
+
     filletRect(x2, y2, width, height, fillet) {
       if (fillet === 0) {
         return this.rect(x2, y2, width, height);
@@ -16617,15 +11793,7 @@ ${parts.join("\n")}
       const size = Math.abs(inset);
       return this.moveTo(x2, y2 + size).arcTo(x2 + dir, y2 + dir, x2 + size, y2, size).lineTo(right - size, y2).arcTo(right - dir, y2 + dir, right, y2 + size, size).lineTo(right, bottom - size).arcTo(right - dir, bottom - dir, x2 + width - size, bottom, size).lineTo(x2 + size, bottom).arcTo(x2 + dir, bottom - dir, x2, bottom - size, size).closePath();
     }
-    /**
-     * Draw Rectangle with chamfer corners. These are angled corners.
-     * @param x - Upper left corner of rect
-     * @param y - Upper right corner of rect
-     * @param width - Width of rect
-     * @param height - Height of rect
-     * @param chamfer - non-zero real number, size of corner cutout
-     * @param transform
-     */
+
     chamferRect(x2, y2, width, height, chamfer, transform) {
       if (chamfer <= 0) {
         return this.rect(x2, y2, width, height);
@@ -16658,57 +11826,23 @@ ${parts.join("\n")}
       }
       return this.poly(points, true, transform);
     }
-    /**
-     * Draws an ellipse at the specified location and with the given x and y radii.
-     * An optional transformation can be applied, allowing for rotation, scaling, and translation.
-     * @param x - The x-coordinate of the center of the ellipse.
-     * @param y - The y-coordinate of the center of the ellipse.
-     * @param radiusX - The horizontal radius of the ellipse.
-     * @param radiusY - The vertical radius of the ellipse.
-     * @param transform - An optional `Matrix` object to apply a transformation to the ellipse. This can include rotations.
-     * @returns The instance of the current object for chaining.
-     */
+
     ellipse(x2, y2, radiusX, radiusY, transform) {
       this.drawShape(new Ellipse(x2, y2, radiusX, radiusY), transform);
       return this;
     }
-    /**
-     * Draws a rectangle with rounded corners.
-     * The corner radius can be specified to determine how rounded the corners should be.
-     * An optional transformation can be applied, which allows for rotation, scaling, and translation of the rectangle.
-     * @param x - The x-coordinate of the top-left corner of the rectangle.
-     * @param y - The y-coordinate of the top-left corner of the rectangle.
-     * @param w - The width of the rectangle.
-     * @param h - The height of the rectangle.
-     * @param radius - The radius of the rectangle's corners. If not specified, corners will be sharp.
-     * @param transform - An optional `Matrix` object to apply a transformation to the rectangle.
-     * @returns The instance of the current object for chaining.
-     */
+
     roundRect(x2, y2, w2, h2, radius, transform) {
       this.drawShape(new RoundedRectangle(x2, y2, w2, h2, radius), transform);
       return this;
     }
-    /**
-     * Draws a given shape on the canvas.
-     * This is a generic method that can draw any type of shape specified by the `ShapePrimitive` parameter.
-     * An optional transformation matrix can be applied to the shape, allowing for complex transformations.
-     * @param shape - The shape to draw, defined as a `ShapePrimitive` object.
-     * @param matrix - An optional `Matrix` for transforming the shape. This can include rotations,
-     * scaling, and translations.
-     * @returns The instance of the current object for chaining.
-     */
+
     drawShape(shape, matrix) {
       this.endPoly();
       this.shapePrimitives.push({ shape, transform: matrix });
       return this;
     }
-    /**
-     * Starts a new polygon path from the specified starting point.
-     * This method initializes a new polygon or ends the current one if it exists.
-     * @param x - The x-coordinate of the starting point of the new polygon.
-     * @param y - The y-coordinate of the starting point of the new polygon.
-     * @returns The instance of the current object for chaining.
-     */
+
     startPoly(x2, y2) {
       let currentPoly = this._currentPoly;
       if (currentPoly) {
@@ -16719,14 +11853,7 @@ ${parts.join("\n")}
       this._currentPoly = currentPoly;
       return this;
     }
-    /**
-     * Ends the current polygon path. If `closePath` is set to true,
-     * the path is closed by connecting the last point to the first one.
-     * This method finalizes the current polygon and prepares it for drawing or adding to the shape primitives.
-     * @param closePath - A boolean indicating whether to close the polygon by connecting the last point
-     *  back to the starting point. False by default.
-     * @returns The instance of the current object for chaining.
-     */
+
     endPoly(closePath = false) {
       const shape = this._currentPoly;
       if (shape && shape.points.length > 2) {
@@ -16756,7 +11883,7 @@ ${parts.join("\n")}
         }
       }
     }
-    /** Builds the path. */
+
     buildPath() {
       const path = this._graphicsPath2D;
       this.shapePrimitives.length = 0;
@@ -16767,7 +11894,7 @@ ${parts.join("\n")}
       }
       this.finish();
     }
-    /** Gets the bounds of the path. */
+
     get bounds() {
       const bounds = this._bounds;
       bounds.clear();
@@ -16785,11 +11912,7 @@ ${parts.join("\n")}
     }
   }
   class GraphicsPath {
-    /**
-     * Creates a `GraphicsPath` instance optionally from an SVG path string or an array of `PathInstruction`.
-     * @param instructions - An SVG path string or an array of `PathInstruction` objects.
-     * @param signed
-     */
+
     constructor(instructions, signed = false) {
       this.instructions = [];
       this.uid = uid$1("graphicsPath");
@@ -16801,10 +11924,7 @@ ${parts.join("\n")}
         this.instructions = instructions?.slice() ?? [];
       }
     }
-    /**
-     * Provides access to the internal shape path, ensuring it is up-to-date with the current instructions.
-     * @returns The `ShapePath` instance associated with this `GraphicsPath`.
-     */
+
     get shapePath() {
       if (!this._shapePath) {
         this._shapePath = new ShapePath(this);
@@ -16815,12 +11935,7 @@ ${parts.join("\n")}
       }
       return this._shapePath;
     }
-    /**
-     * Adds another `GraphicsPath` to this path, optionally applying a transformation.
-     * @param path - The `GraphicsPath` to add.
-     * @param transform - An optional transformation to apply to the added path.
-     * @returns The instance of the current object for chaining.
-     */
+
     addPath(path, transform) {
       path = path.clone();
       this.instructions.push({ action: "addPath", data: [path, transform] });
@@ -16847,17 +11962,7 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-    /**
-     * Adds a cubic Bezier curve to the path.
-     * It requires two points: the second control point and the end point. The first control point is assumed to be
-     * The starting point is the last point in the current path.
-     * @param cp2x - The x-coordinate of the second control point.
-     * @param cp2y - The y-coordinate of the second control point.
-     * @param x - The x-coordinate of the end point.
-     * @param y - The y-coordinate of the end point.
-     * @param smoothness - Optional parameter to adjust the smoothness of the curve.
-     * @returns The instance of the current object for chaining.
-     */
+
     bezierCurveToShort(cp2x, cp2y, x2, y2, smoothness) {
       const last = this.instructions[this.instructions.length - 1];
       const lastPoint = this.getLastPoint(Point.shared);
@@ -16878,11 +11983,7 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-    /**
-     * Closes the current path by drawing a straight line back to the start.
-     * If the shape is already closed or there are no points in the path, this method does nothing.
-     * @returns The instance of the current object for chaining.
-     */
+
     closePath() {
       this.instructions.push({ action: "closePath", data: [] });
       this._dirty = true;
@@ -16907,13 +12008,7 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-    /**
-     * Adds a quadratic curve to the path. It uses the previous point as the control point.
-     * @param x - The x-coordinate of the end point.
-     * @param y - The y-coordinate of the end point.
-     * @param smoothness - Optional parameter to adjust the smoothness of the curve.
-     * @returns The instance of the current object for chaining.
-     */
+
     quadraticCurveToShort(x2, y2, smoothness) {
       const last = this.instructions[this.instructions.length - 1];
       const lastPoint = this.getLastPoint(Point.shared);
@@ -16934,28 +12029,13 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-    /**
-     * Draws a rectangle shape. This method adds a new rectangle path to the current drawing.
-     * @param x - The x-coordinate of the top-left corner of the rectangle.
-     * @param y - The y-coordinate of the top-left corner of the rectangle.
-     * @param w - The width of the rectangle.
-     * @param h - The height of the rectangle.
-     * @param transform - An optional `Matrix` object to apply a transformation to the rectangle.
-     * @returns The instance of the current object for chaining.
-     */
+
     rect(x2, y2, w2, h2, transform) {
       this.instructions.push({ action: "rect", data: [x2, y2, w2, h2, transform] });
       this._dirty = true;
       return this;
     }
-    /**
-     * Draws a circle shape. This method adds a new circle path to the current drawing.
-     * @param x - The x-coordinate of the center of the circle.
-     * @param y - The y-coordinate of the center of the circle.
-     * @param radius - The radius of the circle.
-     * @param transform - An optional `Matrix` object to apply a transformation to the circle.
-     * @returns The instance of the current object for chaining.
-     */
+
     circle(x2, y2, radius, transform) {
       this.instructions.push({ action: "circle", data: [x2, y2, radius, transform] });
       this._dirty = true;
@@ -16996,25 +12076,7 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-    /**
-     * Draws a star shape centered at a specified location. This method allows for the creation
-     *  of stars with a variable number of points, outer radius, optional inner radius, and rotation.
-     * The star is drawn as a closed polygon with alternating outer and inner vertices to create the star's points.
-     * An optional transformation can be applied to scale, rotate, or translate the star as needed.
-     * @param x - The x-coordinate of the center of the star.
-     * @param y - The y-coordinate of the center of the star.
-     * @param points - The number of points of the star.
-     * @param radius - The outer radius of the star (distance from the center to the outer points).
-     * @param innerRadius - Optional. The inner radius of the star
-     * (distance from the center to the inner points between the outer points).
-     * If not provided, defaults to half of the `radius`.
-     * @param rotation - Optional. The rotation of the star in radians, where 0 is aligned with the y-axis.
-     * Defaults to 0, meaning one point is directly upward.
-     * @param transform - An optional `Matrix` object to apply a transformation to the star.
-     * This can include rotations, scaling, and translations.
-     * @returns The instance of the current object for chaining further drawing commands.
-     */
-    // eslint-disable-next-line max-len
+
     star(x2, y2, points, radius, innerRadius, rotation, transform) {
       innerRadius || (innerRadius = radius / 2);
       const startAngle = -1 * Math.PI / 2 + rotation;
@@ -17032,14 +12094,7 @@ ${parts.join("\n")}
       this.poly(polygon, true, transform);
       return this;
     }
-    /**
-     * Creates a copy of the current `GraphicsPath` instance. This method supports both shallow and deep cloning.
-     * A shallow clone copies the reference of the instructions array, while a deep clone creates a new array and
-     * copies each instruction individually, ensuring that modifications to the instructions of the cloned `GraphicsPath`
-     * do not affect the original `GraphicsPath` and vice versa.
-     * @param deep - A boolean flag indicating whether the clone should be deep.
-     * @returns A new `GraphicsPath` instance that is a clone of the current instance.
-     */
+
     clone(deep = false) {
       const newGraphicsPath2D = new GraphicsPath();
       newGraphicsPath2D.checkForHoles = this.checkForHoles;
@@ -17058,20 +12113,7 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-    /**
-     * Applies a transformation matrix to all drawing instructions within the `GraphicsPath`.
-     * This method enables the modification of the path's geometry according to the provided
-     * transformation matrix, which can include translations, rotations, scaling, and skewing.
-     *
-     * Each drawing instruction in the path is updated to reflect the transformation,
-     * ensuring the visual representation of the path is consistent with the applied matrix.
-     *
-     * Note: The transformation is applied directly to the coordinates and control points of the drawing instructions,
-     * not to the path as a whole. This means the transformation's effects are baked into the individual instructions,
-     * allowing for fine-grained control over the path's appearance.
-     * @param matrix - A `Matrix` object representing the transformation to apply.
-     * @returns The instance of the current object for chaining further operations.
-     */
+
     transform(matrix) {
       if (matrix.isIdentity()) return this;
       const a2 = matrix.a;
@@ -17168,20 +12210,7 @@ ${parts.join("\n")}
     get bounds() {
       return this.shapePath.bounds;
     }
-    /**
-     * Retrieves the last point from the current drawing instructions in the `GraphicsPath`.
-     * This method is useful for operations that depend on the path's current endpoint,
-     * such as connecting subsequent shapes or paths. It supports various drawing instructions,
-     * ensuring the last point's position is accurately determined regardless of the path's complexity.
-     *
-     * If the last instruction is a `closePath`, the method iterates backward through the instructions
-     *  until it finds an actionable instruction that defines a point (e.g., `moveTo`, `lineTo`,
-     * `quadraticCurveTo`, etc.). For compound paths added via `addPath`, it recursively retrieves
-     * the last point from the nested path.
-     * @param out - A `Point` object where the last point's coordinates will be stored.
-     * This object is modified directly to contain the result.
-     * @returns The `Point` object containing the last point's coordinates.
-     */
+
     getLastPoint(out2) {
       let index = this.instructions.length - 1;
       let lastInstruction = this.instructions[index];
@@ -17282,31 +12311,29 @@ ${parts.join("\n")}
     return match ? match[1] : "";
   }
   const styleAttributes = {
-    // Fill properties
+
     fill: { type: "paint", default: 0 },
-    // Fill color/gradient
+
     "fill-opacity": { type: "number", default: 1 },
-    // Fill transparency
-    // Stroke properties
+
     stroke: { type: "paint", default: 0 },
-    // Stroke color/gradient
+
     "stroke-width": { type: "number", default: 1 },
-    // Width of stroke
+
     "stroke-opacity": { type: "number", default: 1 },
-    // Stroke transparency
+
     "stroke-linecap": { type: "string", default: "butt" },
-    // End cap style: butt, round, square
+
     "stroke-linejoin": { type: "string", default: "miter" },
-    // Join style: miter, round, bevel
+
     "stroke-miterlimit": { type: "number", default: 10 },
-    // Limit on miter join sharpness
+
     "stroke-dasharray": { type: "string", default: "none" },
-    // Dash pattern
+
     "stroke-dashoffset": { type: "number", default: 0 },
-    // Offset for dash pattern
-    // Global properties
+
     opacity: { type: "number", default: 1 }
-    // Overall opacity
+
   };
   function parseSVGStyle(svg, session) {
     const style = svg.getAttribute("style");
@@ -17639,11 +12666,7 @@ ${parts.join("\n")}
         texture.source.style.addressModeV = repetitionMap[repetition].addressModeV;
       }
     }
-    /**
-     * Sets the transform for the pattern
-     * @param transform - The transform matrix to apply to the pattern.
-     * If not provided, the pattern will use the default transform.
-     */
+
     setTransform(transform) {
       const texture = this.texture;
       this.transform.copyFrom(transform);
@@ -17654,7 +12677,7 @@ ${parts.join("\n")}
       );
       this._tick++;
     }
-    /** Internal texture used to render the gradient */
+
     get texture() {
       return this._texture;
     }
@@ -17663,15 +12686,11 @@ ${parts.join("\n")}
       this._texture = value;
       this._tick++;
     }
-    /**
-     * Returns a unique key for this instance.
-     * This key is used for caching.
-     * @returns {string} Unique key for the instance
-     */
+
     get styleKey() {
       return `fill-pattern-${this.uid}-${this._tick}`;
     }
-    /** Destroys the fill pattern, releasing resources. This will also destroy the internal texture. */
+
     destroy() {
       this.texture.destroy(true);
       this.texture = null;
@@ -17805,7 +12824,7 @@ ${parts.join("\n")}
   const _GraphicsContext = class _GraphicsContext2 extends EventEmitter {
     constructor() {
       super(...arguments);
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
       this.autoGarbageCollect = true;
       this._gcLastUsed = -1;
       this.uid = uid$1("graphicsContext");
@@ -17822,11 +12841,7 @@ ${parts.join("\n")}
       this._bounds = new Bounds();
       this._boundsDirty = true;
     }
-    /**
-     * Creates a new GraphicsContext object that is a clone of this instance, copying all properties,
-     * including the current drawing state, transformations, styles, and instructions.
-     * @returns A new GraphicsContext instance with the same properties and state as this one.
-     */
+
     clone() {
       const clone = new _GraphicsContext2();
       clone.batchMode = this.batchMode;
@@ -17840,42 +12855,26 @@ ${parts.join("\n")}
       clone._boundsDirty = true;
       return clone;
     }
-    /**
-     * The current fill style of the graphics context. This can be a color, gradient, pattern, or a more complex style defined by a FillStyle object.
-     */
+
     get fillStyle() {
       return this._fillStyle;
     }
     set fillStyle(value) {
       this._fillStyle = toFillStyle(value, _GraphicsContext2.defaultFillStyle);
     }
-    /**
-     * The current stroke style of the graphics context. Similar to fill styles, stroke styles can encompass colors, gradients, patterns, or more detailed configurations via a StrokeStyle object.
-     */
+
     get strokeStyle() {
       return this._strokeStyle;
     }
     set strokeStyle(value) {
       this._strokeStyle = toStrokeStyle(value, _GraphicsContext2.defaultStrokeStyle);
     }
-    /**
-     * Sets the current fill style of the graphics context. The fill style can be a color, gradient,
-     * pattern, or a more complex style defined by a FillStyle object.
-     * @param style - The fill style to apply. This can be a simple color, a gradient or pattern object,
-     *                or a FillStyle or ConvertedFillStyle object.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     setFillStyle(style) {
       this._fillStyle = toFillStyle(style, _GraphicsContext2.defaultFillStyle);
       return this;
     }
-    /**
-     * Sets the current stroke style of the graphics context. Similar to fill styles, stroke styles can
-     * encompass colors, gradients, patterns, or more detailed configurations via a StrokeStyle object.
-     * @param style - The stroke style to apply. Can be defined as a color, a gradient or pattern,
-     *                or a StrokeStyle or ConvertedStrokeStyle object.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     setStrokeStyle(style) {
       this._strokeStyle = toFillStyle(style, _GraphicsContext2.defaultStrokeStyle);
       return this;
@@ -17897,11 +12896,7 @@ ${parts.join("\n")}
       this.onUpdate();
       return this;
     }
-    /**
-     * Resets the current path. Any previous path and its commands are discarded and a new path is
-     * started. This is typically called before beginning a new shape or series of drawing commands.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     beginPath() {
       this._activePath = new GraphicsPath();
       return this;
@@ -17924,7 +12919,7 @@ ${parts.join("\n")}
       }
       this.instructions.push({
         action: "fill",
-        // TODO copy fill style!
+
         data: { style: this.fillStyle, path }
       });
       this.onUpdate();
@@ -17937,12 +12932,7 @@ ${parts.join("\n")}
       this._activePath.clear();
       this._activePath.moveTo(x2, y2);
     }
-    /**
-     * Strokes the current path with the current stroke style. This method can take an optional
-     * FillInput parameter to define the stroke's appearance, including its color, width, and other properties.
-     * @param style - (Optional) The stroke style to apply. Can be defined as a simple color or a more complex style object. If omitted, uses the current stroke style.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     stroke(style) {
       let path;
       const lastInstruction = this.instructions[this.instructions.length - 1];
@@ -17957,7 +12947,7 @@ ${parts.join("\n")}
       }
       this.instructions.push({
         action: "stroke",
-        // TODO copy fill style!
+
         data: { style: this.strokeStyle, path }
       });
       this.onUpdate();
@@ -17965,12 +12955,7 @@ ${parts.join("\n")}
       this._tick = 0;
       return this;
     }
-    /**
-     * Applies a cutout to the last drawn shape. This is used to create holes or complex shapes by
-     * subtracting a path from the previously drawn path. If a hole is not completely in a shape, it will
-     * fail to cut correctly!
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     cut() {
       for (let i2 = 0; i2 < 2; i2++) {
         const lastInstruction = this.instructions[this.instructions.length - 1 - i2];
@@ -17989,17 +12974,7 @@ ${parts.join("\n")}
       this._initNextPathLocation();
       return this;
     }
-    /**
-     * Adds an arc to the current path, which is centered at (x, y) with the specified radius,
-     * starting and ending angles, and direction.
-     * @param x - The x-coordinate of the arc's center.
-     * @param y - The y-coordinate of the arc's center.
-     * @param radius - The arc's radius.
-     * @param startAngle - The starting angle, in radians.
-     * @param endAngle - The ending angle, in radians.
-     * @param counterclockwise - (Optional) Specifies whether the arc is drawn counterclockwise (true) or clockwise (false). Defaults to false.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     arc(x2, y2, radius, startAngle, endAngle, counterclockwise) {
       this._tick++;
       const t2 = this._transform;
@@ -18013,16 +12988,7 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Adds an arc to the current path with the given control points and radius, connected to the previous point
-     * by a straight line if necessary.
-     * @param x1 - The x-coordinate of the first control point.
-     * @param y1 - The y-coordinate of the first control point.
-     * @param x2 - The x-coordinate of the second control point.
-     * @param y2 - The y-coordinate of the second control point.
-     * @param radius - The arc's radius.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     arcTo(x1, y1, x2, y2, radius) {
       this._tick++;
       const t2 = this._transform;
@@ -18035,18 +13001,7 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Adds an SVG-style arc to the path, allowing for elliptical arcs based on the SVG spec.
-     * @param rx - The x-radius of the ellipse.
-     * @param ry - The y-radius of the ellipse.
-     * @param xAxisRotation - The rotation of the ellipse's x-axis relative
-     * to the x-axis of the coordinate system, in degrees.
-     * @param largeArcFlag - Determines if the arc should be greater than or less than 180 degrees.
-     * @param sweepFlag - Determines if the arc should be swept in a positive angle direction.
-     * @param x - The x-coordinate of the arc's end point.
-     * @param y - The y-coordinate of the arc's end point.
-     * @returns The instance of the current object for chaining.
-     */
+
     arcToSvg(rx, ry, xAxisRotation, largeArcFlag, sweepFlag, x2, y2) {
       this._tick++;
       const t2 = this._transform;
@@ -18054,7 +13009,7 @@ ${parts.join("\n")}
         rx,
         ry,
         xAxisRotation,
-        // should we rotate this with transform??
+
         largeArcFlag,
         sweepFlag,
         t2.a * x2 + t2.c * y2 + t2.tx,
@@ -18062,19 +13017,7 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Adds a cubic Bezier curve to the path.
-     * It requires three points: the first two are control points and the third one is the end point.
-     * The starting point is the last point in the current path.
-     * @param cp1x - The x-coordinate of the first control point.
-     * @param cp1y - The y-coordinate of the first control point.
-     * @param cp2x - The x-coordinate of the second control point.
-     * @param cp2y - The y-coordinate of the second control point.
-     * @param x - The x-coordinate of the end point.
-     * @param y - The y-coordinate of the end point.
-     * @param smoothness - Optional parameter to adjust the smoothness of the curve.
-     * @returns The instance of the current object for chaining.
-     */
+
     bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2, smoothness) {
       this._tick++;
       const t2 = this._transform;
@@ -18089,58 +13032,31 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Closes the current path by drawing a straight line back to the start.
-     * If the shape is already closed or there are no points in the path, this method does nothing.
-     * @returns The instance of the current object for chaining.
-     */
+
     closePath() {
       this._tick++;
       this._activePath?.closePath();
       return this;
     }
-    /**
-     * Draws an ellipse at the specified location and with the given x and y radii.
-     * An optional transformation can be applied, allowing for rotation, scaling, and translation.
-     * @param x - The x-coordinate of the center of the ellipse.
-     * @param y - The y-coordinate of the center of the ellipse.
-     * @param radiusX - The horizontal radius of the ellipse.
-     * @param radiusY - The vertical radius of the ellipse.
-     * @returns The instance of the current object for chaining.
-     */
+
     ellipse(x2, y2, radiusX, radiusY) {
       this._tick++;
       this._activePath.ellipse(x2, y2, radiusX, radiusY, this._transform.clone());
       return this;
     }
-    /**
-     * Draws a circle shape. This method adds a new circle path to the current drawing.
-     * @param x - The x-coordinate of the center of the circle.
-     * @param y - The y-coordinate of the center of the circle.
-     * @param radius - The radius of the circle.
-     * @returns The instance of the current object for chaining.
-     */
+
     circle(x2, y2, radius) {
       this._tick++;
       this._activePath.circle(x2, y2, radius, this._transform.clone());
       return this;
     }
-    /**
-     * Adds another `GraphicsPath` to this path, optionally applying a transformation.
-     * @param path - The `GraphicsPath` to add.
-     * @returns The instance of the current object for chaining.
-     */
+
     path(path) {
       this._tick++;
       this._activePath.addPath(path, this._transform.clone());
       return this;
     }
-    /**
-     * Connects the current point to a new point with a straight line. This method updates the current path.
-     * @param x - The x-coordinate of the new point to connect to.
-     * @param y - The y-coordinate of the new point to connect to.
-     * @returns The instance of the current object for chaining.
-     */
+
     lineTo(x2, y2) {
       this._tick++;
       const t2 = this._transform;
@@ -18150,12 +13066,7 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Sets the starting point for a new sub-path. Any subsequent drawing commands are considered part of this path.
-     * @param x - The x-coordinate for the starting point.
-     * @param y - The y-coordinate for the starting point.
-     * @returns The instance of the current object for chaining.
-     */
+
     moveTo(x2, y2) {
       this._tick++;
       const t2 = this._transform;
@@ -18173,16 +13084,7 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Adds a quadratic curve to the path. It requires two points: the control point and the end point.
-     * The starting point is the last point in the current path.
-     * @param cpx - The x-coordinate of the control point.
-     * @param cpy - The y-coordinate of the control point.
-     * @param x - The x-coordinate of the end point.
-     * @param y - The y-coordinate of the end point.
-     * @param smoothness - Optional parameter to adjust the smoothness of the curve.
-     * @returns The instance of the current object for chaining.
-     */
+
     quadraticCurveTo(cpx, cpy, x2, y2, smoothness) {
       this._tick++;
       const t2 = this._transform;
@@ -18195,160 +13097,67 @@ ${parts.join("\n")}
       );
       return this;
     }
-    /**
-     * Draws a rectangle shape. This method adds a new rectangle path to the current drawing.
-     * @param x - The x-coordinate of the top-left corner of the rectangle.
-     * @param y - The y-coordinate of the top-left corner of the rectangle.
-     * @param w - The width of the rectangle.
-     * @param h - The height of the rectangle.
-     * @returns The instance of the current object for chaining.
-     */
+
     rect(x2, y2, w2, h2) {
       this._tick++;
       this._activePath.rect(x2, y2, w2, h2, this._transform.clone());
       return this;
     }
-    /**
-     * Draws a rectangle with rounded corners.
-     * The corner radius can be specified to determine how rounded the corners should be.
-     * An optional transformation can be applied, which allows for rotation, scaling, and translation of the rectangle.
-     * @param x - The x-coordinate of the top-left corner of the rectangle.
-     * @param y - The y-coordinate of the top-left corner of the rectangle.
-     * @param w - The width of the rectangle.
-     * @param h - The height of the rectangle.
-     * @param radius - The radius of the rectangle's corners. If not specified, corners will be sharp.
-     * @returns The instance of the current object for chaining.
-     */
+
     roundRect(x2, y2, w2, h2, radius) {
       this._tick++;
       this._activePath.roundRect(x2, y2, w2, h2, radius, this._transform.clone());
       return this;
     }
-    /**
-     * Draws a polygon shape by specifying a sequence of points. This method allows for the creation of complex polygons,
-     * which can be both open and closed. An optional transformation can be applied, enabling the polygon to be scaled,
-     * rotated, or translated as needed.
-     * @param points - An array of numbers, or an array of PointData objects eg [{x,y}, {x,y}, {x,y}]
-     * representing the x and y coordinates, of the polygon's vertices, in sequence.
-     * @param close - A boolean indicating whether to close the polygon path. True by default.
-     */
+
     poly(points, close) {
       this._tick++;
       this._activePath.poly(points, close, this._transform.clone());
       return this;
     }
-    /**
-     * Draws a regular polygon with a specified number of sides. All sides and angles are equal.
-     * @param x - The x-coordinate of the center of the polygon.
-     * @param y - The y-coordinate of the center of the polygon.
-     * @param radius - The radius of the circumscribed circle of the polygon.
-     * @param sides - The number of sides of the polygon. Must be 3 or more.
-     * @param rotation - The rotation angle of the polygon, in radians. Zero by default.
-     * @param transform - An optional `Matrix` object to apply a transformation to the polygon.
-     * @returns The instance of the current object for chaining.
-     */
+
     regularPoly(x2, y2, radius, sides, rotation = 0, transform) {
       this._tick++;
       this._activePath.regularPoly(x2, y2, radius, sides, rotation, transform);
       return this;
     }
-    /**
-     * Draws a polygon with rounded corners.
-     * Similar to `regularPoly` but with the ability to round the corners of the polygon.
-     * @param x - The x-coordinate of the center of the polygon.
-     * @param y - The y-coordinate of the center of the polygon.
-     * @param radius - The radius of the circumscribed circle of the polygon.
-     * @param sides - The number of sides of the polygon. Must be 3 or more.
-     * @param corner - The radius of the rounding of the corners.
-     * @param rotation - The rotation angle of the polygon, in radians. Zero by default.
-     * @returns The instance of the current object for chaining.
-     */
+
     roundPoly(x2, y2, radius, sides, corner, rotation) {
       this._tick++;
       this._activePath.roundPoly(x2, y2, radius, sides, corner, rotation);
       return this;
     }
-    /**
-     * Draws a shape with rounded corners. This function supports custom radius for each corner of the shape.
-     * Optionally, corners can be rounded using a quadratic curve instead of an arc, providing a different aesthetic.
-     * @param points - An array of `RoundedPoint` representing the corners of the shape to draw.
-     * A minimum of 3 points is required.
-     * @param radius - The default radius for the corners.
-     * This radius is applied to all corners unless overridden in `points`.
-     * @param useQuadratic - If set to true, rounded corners are drawn using a quadraticCurve
-     *  method instead of an arc method. Defaults to false.
-     * @param smoothness - Specifies the smoothness of the curve when `useQuadratic` is true.
-     * Higher values make the curve smoother.
-     * @returns The instance of the current object for chaining.
-     */
+
     roundShape(points, radius, useQuadratic, smoothness) {
       this._tick++;
       this._activePath.roundShape(points, radius, useQuadratic, smoothness);
       return this;
     }
-    /**
-     * Draw Rectangle with fillet corners. This is much like rounded rectangle
-     * however it support negative numbers as well for the corner radius.
-     * @param x - Upper left corner of rect
-     * @param y - Upper right corner of rect
-     * @param width - Width of rect
-     * @param height - Height of rect
-     * @param fillet - accept negative or positive values
-     */
+
     filletRect(x2, y2, width, height, fillet) {
       this._tick++;
       this._activePath.filletRect(x2, y2, width, height, fillet);
       return this;
     }
-    /**
-     * Draw Rectangle with chamfer corners. These are angled corners.
-     * @param x - Upper left corner of rect
-     * @param y - Upper right corner of rect
-     * @param width - Width of rect
-     * @param height - Height of rect
-     * @param chamfer - non-zero real number, size of corner cutout
-     * @param transform
-     */
+
     chamferRect(x2, y2, width, height, chamfer, transform) {
       this._tick++;
       this._activePath.chamferRect(x2, y2, width, height, chamfer, transform);
       return this;
     }
-    /**
-     * Draws a star shape centered at a specified location. This method allows for the creation
-     *  of stars with a variable number of points, outer radius, optional inner radius, and rotation.
-     * The star is drawn as a closed polygon with alternating outer and inner vertices to create the star's points.
-     * An optional transformation can be applied to scale, rotate, or translate the star as needed.
-     * @param x - The x-coordinate of the center of the star.
-     * @param y - The y-coordinate of the center of the star.
-     * @param points - The number of points of the star.
-     * @param radius - The outer radius of the star (distance from the center to the outer points).
-     * @param innerRadius - Optional. The inner radius of the star
-     * (distance from the center to the inner points between the outer points).
-     * If not provided, defaults to half of the `radius`.
-     * @param rotation - Optional. The rotation of the star in radians, where 0 is aligned with the y-axis.
-     * Defaults to 0, meaning one point is directly upward.
-     * @returns The instance of the current object for chaining further drawing commands.
-     */
+
     star(x2, y2, points, radius, innerRadius = 0, rotation = 0) {
       this._tick++;
       this._activePath.star(x2, y2, points, radius, innerRadius, rotation, this._transform.clone());
       return this;
     }
-    /**
-     * Parses and renders an SVG string into the graphics context. This allows for complex shapes and paths
-     * defined in SVG format to be drawn within the graphics context.
-     * @param svg - The SVG string to be parsed and rendered.
-     */
+
     svg(svg) {
       this._tick++;
       SVGParser(svg, this);
       return this;
     }
-    /**
-     * Restores the most recently saved graphics state by popping the top of the graphics state stack.
-     * This includes transformations, fill styles, and stroke styles.
-     */
+
     restore() {
       const state = this._stateStack.pop();
       if (state) {
@@ -18358,7 +13167,7 @@ ${parts.join("\n")}
       }
       return this;
     }
-    /** Saves the current graphics state, including transformations, fill styles, and stroke styles, onto a stack. */
+
     save() {
       this._stateStack.push({
         transform: this._transform.clone(),
@@ -18367,36 +13176,21 @@ ${parts.join("\n")}
       });
       return this;
     }
-    /**
-     * Returns the current transformation matrix of the graphics context.
-     * @returns The current transformation matrix.
-     */
+
     getTransform() {
       return this._transform;
     }
-    /**
-     * Resets the current transformation matrix to the identity matrix, effectively removing any transformations (rotation, scaling, translation) previously applied.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     resetTransform() {
       this._transform.identity();
       return this;
     }
-    /**
-     * Applies a rotation transformation to the graphics context around the current origin.
-     * @param angle - The angle of rotation in radians.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     rotate(angle) {
       this._transform.rotate(angle);
       return this;
     }
-    /**
-     * Applies a scaling transformation to the graphics context, scaling drawings by x horizontally and by y vertically.
-     * @param x - The scale factor in the horizontal direction.
-     * @param y - (Optional) The scale factor in the vertical direction. If not specified, the x value is used for both directions.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     scale(x2, y2 = x2) {
       this._transform.scale(x2, y2);
       return this;
@@ -18418,21 +13212,12 @@ ${parts.join("\n")}
       this._transform.append(tempMatrix$3);
       return this;
     }
-    /**
-     * Applies a translation transformation to the graphics context, moving the origin by the specified amounts.
-     * @param x - The amount to translate in the horizontal direction.
-     * @param y - (Optional) The amount to translate in the vertical direction. If not specified, the x value is used for both directions.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     translate(x2, y2 = x2) {
       this._transform.translate(x2, y2);
       return this;
     }
-    /**
-     * Clears all drawing commands from the graphics context, effectively resetting it. This includes clearing the path,
-     * and optionally resetting transformations to the identity matrix.
-     * @returns The instance of the current GraphicsContext for method chaining.
-     */
+
     clear() {
       this._activePath.clear();
       this.instructions.length = 0;
@@ -18445,7 +13230,7 @@ ${parts.join("\n")}
       this.dirty = true;
       this.emit("update", this, 16);
     }
-    /** The bounds of the graphic shape. */
+
     get bounds() {
       if (!this._boundsDirty) return this._bounds;
       this._boundsDirty = false;
@@ -18482,11 +13267,7 @@ ${parts.join("\n")}
       }
       return bounds;
     }
-    /**
-     * Check to see if a point is contained within this geometry.
-     * @param point - Point to check if it's contained.
-     * @returns {boolean} `true` if the point is contained within geometry.
-     */
+
     containsPoint(point) {
       if (!this.bounds.containsPoint(point.x, point.y)) return false;
       const instructions = this.instructions;
@@ -18527,23 +13308,15 @@ ${parts.join("\n")}
       }
       return hasHit;
     }
-    /** Unloads the GPU data from the graphics context. */
+
     unload() {
       this.emit("unload", this);
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy();
       }
-      this._gpuData = /* @__PURE__ */ Object.create(null);
+      this._gpuData =                 Object.create(null);
     }
-    /**
-     * Destroys the GraphicsData object.
-     * @param options - Options parameter. A boolean will act as if all options
-     *  have been set to that value
-     * @example
-     * context.destroy();
-     * context.destroy(true);
-     * context.destroy({ texture: true, textureSource: true });
-     */
+
     destroy(options = false) {
       if (this.destroyed) return;
       this.destroyed = true;
@@ -18573,43 +13346,43 @@ ${parts.join("\n")}
     }
   };
   _GraphicsContext.defaultFillStyle = {
-    /** The color to use for the fill. */
+
     color: 16777215,
-    /** The alpha value to use for the fill. */
+
     alpha: 1,
-    /** The texture to use for the fill. */
+
     texture: Texture.WHITE,
-    /** The matrix to apply. */
+
     matrix: null,
-    /** The fill pattern to use. */
+
     fill: null,
-    /** Whether coordinates are 'global' or 'local' */
+
     textureSpace: "local"
   };
   _GraphicsContext.defaultStrokeStyle = {
-    /** The width of the stroke. */
+
     width: 1,
-    /** The color to use for the stroke. */
+
     color: 16777215,
-    /** The alpha value to use for the stroke. */
+
     alpha: 1,
-    /** The alignment of the stroke. */
+
     alignment: 0.5,
-    /** The miter limit to use. */
+
     miterLimit: 10,
-    /** The line cap style to use. */
+
     cap: "butt",
-    /** The line join style to use. */
+
     join: "miter",
-    /** The texture to use for the fill. */
+
     texture: Texture.WHITE,
-    /** The matrix to apply. */
+
     matrix: null,
-    /** The fill pattern to use. */
+
     fill: null,
-    /** Whether coordinates are 'global' or 'local' */
+
     textureSpace: "local",
-    /** If the stroke is a pixel line. */
+
     pixelLine: false
   };
   let GraphicsContext = _GraphicsContext;
@@ -18651,8 +13424,8 @@ ${parts.join("\n")}
     cacheStepsPerColorChannel: 8,
     canUseMultiply: canUseNewCanvasBlendModes(),
     tintMethod: null,
-    _canvasSourceCache: /* @__PURE__ */ new WeakMap(),
-    _unpremultipliedCache: /* @__PURE__ */ new WeakMap(),
+    _canvasSourceCache:                 new WeakMap(),
+    _unpremultipliedCache:                 new WeakMap(),
     getCanvasSource: (texture) => {
       const source2 = texture.source;
       const resource = source2?.resource;
@@ -18769,18 +13542,7 @@ ${parts.join("\n")}
       cache[stringColor] = pattern;
       return pattern;
     },
-    /**
-     * Applies a transform to a CanvasPattern.
-     * @param pattern - The pattern to apply the transform to.
-     * @param matrix - The matrix to apply.
-     * @param matrix.a
-     * @param matrix.b
-     * @param matrix.c
-     * @param matrix.d
-     * @param matrix.tx
-     * @param matrix.ty
-     * @param invert
-     */
+
     applyPatternTransform: (pattern, matrix, invert = true) => {
       if (!matrix) return;
       const patternAny = pattern;
@@ -18929,14 +13691,7 @@ ${parts.join("\n")}
       }
       context2.putImageData(imageData, 0, 0);
     },
-    /**
-     * Applies inverse rotation transform to context for texture packer rotation compensation.
-     * Supports all 16 groupD8 symmetries (rotations and reflections).
-     * @param context - Canvas 2D context
-     * @param rotate - The groupD8 rotation value
-     * @param srcWidth - Source crop width (before rotation)
-     * @param srcHeight - Source crop height (before rotation)
-     */
+
     _applyInverseRotation: (context2, rotate, srcWidth, srcHeight) => {
       const inv = groupD8.inv(rotate);
       const a2 = groupD8.uX(inv);
@@ -18951,15 +13706,11 @@ ${parts.join("\n")}
   canvasUtils.tintMethod = canvasUtils.canUseMultiply ? canvasUtils.tintWithMultiply : canvasUtils.tintWithPerPixel;
   class CanvasPoolClass {
     constructor(canvasOptions) {
-      this._canvasPool = /* @__PURE__ */ Object.create(null);
+      this._canvasPool =                 Object.create(null);
       this.canvasOptions = canvasOptions || {};
       this.enableFullScreen = false;
     }
-    /**
-     * Creates texture with params that were specified in pool constructor.
-     * @param pixelWidth - Width of texture in pixels.
-     * @param pixelHeight - Height of texture in pixels.
-     */
+
     _createCanvasAndContext(pixelWidth, pixelHeight) {
       const canvas = DOMAdapter.get().createCanvas();
       canvas.width = pixelWidth;
@@ -18967,13 +13718,7 @@ ${parts.join("\n")}
       const context2 = canvas.getContext("2d");
       return { canvas, context: context2 };
     }
-    /**
-     * Gets a Power-of-Two render texture or fullScreen texture
-     * @param minWidth - The minimum width of the render texture.
-     * @param minHeight - The minimum height of the render texture.
-     * @param resolution - The resolution of the render texture.
-     * @returns The new render texture.
-     */
+
     getOptimalCanvasAndContext(minWidth, minHeight, resolution = 1) {
       minWidth = Math.ceil(minWidth * resolution - 1e-6);
       minHeight = Math.ceil(minHeight * resolution - 1e-6);
@@ -18989,10 +13734,7 @@ ${parts.join("\n")}
       }
       return canvasAndContext;
     }
-    /**
-     * Place a render texture back into the pool.
-     * @param canvasAndContext
-     */
+
     returnCanvasAndContext(canvasAndContext) {
       const canvas = canvasAndContext.canvas;
       const { width, height } = canvas;
@@ -19066,25 +13808,16 @@ ${parts.join("\n")}
     }
   }
   class CanvasFilterSystem {
-    /**
-     * @param renderer - The Canvas renderer
-     * @param renderer.canvasContext
-     * @param renderer.canvasContext.activeContext
-     * @param renderer.canvasContext.activeResolution
-     */
+
     constructor(renderer) {
       this._filterStack = [];
       this._filterStackIndex = 0;
       this._savedStates = [];
       this._alphaMultiplier = 1;
-      this._warnedFilterTypes = /* @__PURE__ */ new Set();
+      this._warnedFilterTypes =                 new Set();
       this.renderer = renderer;
     }
-    /**
-     * Push a filter instruction onto the stack.
-     * Called when entering a filtered container.
-     * @param instruction - The filter instruction from FilterPipe
-     */
+
     push(instruction) {
       const filterFrame = this._pushFilterFrame();
       const filters = instruction.filterEffect.filters;
@@ -19143,7 +13876,7 @@ ${parts.join("\n")}
         context2.filter = previousFilter !== "none" ? `${previousFilter} ${filterFrame.cssFilterString}` : filterFrame.cssFilterString;
       }
     }
-    /** Pop a filter from the stack. Called when exiting a filtered container. */
+
     pop() {
       const filterFrame = this._popFilterFrame();
       if (filterFrame.skip) {
@@ -19161,14 +13894,7 @@ ${parts.join("\n")}
       }
       this._alphaMultiplier = savedState.alphaMultiplier;
     }
-    /**
-     * Applies supported filters to a texture and returns a new texture.
-     * Unsupported filters are skipped with a warn-once message.
-     * @param params - The parameters for applying filters.
-     * @param params.texture
-     * @param params.filters
-     * @returns The resulting texture after filters are applied.
-     */
+
     generateFilteredTexture({ texture, filters }) {
       if (!filters?.length || filters.every((filter) => !filter.enabled)) {
         return texture;
@@ -19227,11 +13953,7 @@ ${parts.join("\n")}
       context2.globalAlpha = 1;
       return getPo2TextureFromSource(canvas, width, height, resolution);
     }
-    /**
-     * Calculate the filter area bounds.
-     * @param instruction - Filter instruction
-     * @param bounds - Bounds object to populate
-     */
+
     _calculateFilterArea(instruction, bounds) {
       if (instruction.renderables) {
         getGlobalRenderableBounds(instruction.renderables, bounds);
@@ -19278,7 +14000,7 @@ ${parts.join("\n")}
       this._filterStackIndex--;
       return this._filterStack[this._filterStackIndex];
     }
-    /** Destroys the system */
+
     destroy() {
       this._filterStack = null;
       this._savedStates = null;
@@ -19423,13 +14145,7 @@ ${parts.join("\n")}
     });
   }
   const _BlurFilterPass = class _BlurFilterPass2 extends Filter {
-    /**
-     * @param options
-     * @param options.horizontal - Do pass along the x-axis (`true`) or y-axis (`false`).
-     * @param options.strength - The strength of the blur filter.
-     * @param options.quality - The quality of the blur filter.
-     * @param options.kernelSize - The kernelSize of the blur filter.Options: 5, 7, 9, 11, 13, 15.
-     */
+
     constructor(options) {
       options = { ..._BlurFilterPass2.defaultOptions, ...options };
       const glProgram = generateBlurGlProgram(options.horizontal, options.kernelSize);
@@ -19452,13 +14168,7 @@ ${parts.join("\n")}
       this._blurUniforms = this.resources.blurUniforms;
       this._uniforms = this._blurUniforms.uniforms;
     }
-    /**
-     * Applies the filter.
-     * @param filterManager - The manager.
-     * @param input - The input target.
-     * @param output - The output target.
-     * @param clearMode - How to clear
-     */
+
     apply(filterManager, input, output, clearMode) {
       if (this.legacy) {
         this._applyLegacy(filterManager, input, output, clearMode);
@@ -19517,13 +14227,7 @@ ${parts.join("\n")}
         TexturePool.returnTexture(tempTexture);
       }
     }
-    /**
-     * Calculates the initial strength for the first blur pass so that the combined
-     * effect of all passes matches the filter's target strength.
-     *
-     * Uses variance addition property: for Gaussian blurs, σ_combined² = Σσᵢ²
-     * With halving scheme (s, s/2, s/4, ...), sum of squared coefficients = 4/3
-     */
+
     _calculateInitialStrength() {
       let sumOfSquares = 1;
       let coefficient = 0.5;
@@ -19533,10 +14237,7 @@ ${parts.join("\n")}
       }
       return this.strength / Math.sqrt(sumOfSquares);
     }
-    /**
-     * Sets the strength of both the blur.
-     * @default 16
-     */
+
     get blur() {
       return this.strength;
     }
@@ -19544,11 +14245,7 @@ ${parts.join("\n")}
       this.padding = 1 + Math.abs(value) * 2;
       this.strength = value;
     }
-    /**
-     * Sets the quality of the blur by modifying the number of passes. More passes means higher
-     * quality blurring but the lower the performance.
-     * @default 4
-     */
+
     get quality() {
       return this._quality;
     }
@@ -19558,13 +14255,13 @@ ${parts.join("\n")}
     }
   };
   _BlurFilterPass.defaultOptions = {
-    /** The strength of the blur filter. */
+
     strength: 8,
-    /** The quality of the blur filter. */
+
     quality: 4,
-    /** The kernelSize of the blur filter.Options: 5, 7, 9, 11, 13, 15. */
+
     kernelSize: 5,
-    /** Whether to use legacy blur pass behavior. */
+
     legacy: false
   };
   let BlurFilterPass = _BlurFilterPass;
@@ -19593,14 +14290,7 @@ ${parts.join("\n")}
       this.strengthY = strengthY ?? strength;
       this.repeatEdgePixels = false;
     }
-    /**
-     * Applies the filter.
-     * @param filterManager - The manager.
-     * @param input - The input target.
-     * @param output - The output target.
-     * @param clearMode - How to clear
-     * @advanced
-     */
+
     apply(filterManager, input, output, clearMode) {
       const xStrength = Math.abs(this.blurXFilter.strength);
       const yStrength = Math.abs(this.blurYFilter.strength);
@@ -19626,22 +14316,7 @@ ${parts.join("\n")}
         this.padding = Math.max(Math.abs(this.blurXFilter.blur), Math.abs(this.blurYFilter.blur)) * 2;
       }
     }
-    /**
-     * Sets the strength of both the blurX and blurY properties simultaneously.
-     * Controls the overall intensity of the Gaussian blur effect.
-     * @example
-     * ```ts
-     * // Set equal blur strength for both axes
-     * filter.strength = 8;
-     *
-     * // Will throw error if X and Y are different
-     * filter.strengthX = 4;
-     * filter.strengthY = 8;
-     * filter.strength; // Error: BlurFilter's strengthX and strengthY are different
-     * ```
-     * @default 8
-     * @throws {Error} If strengthX and strengthY are different values
-     */
+
     get strength() {
       if (this.strengthX !== this.strengthY) {
         throw new Error("BlurFilter's strengthX and strengthY are different");
@@ -19652,41 +14327,14 @@ ${parts.join("\n")}
       this.blurXFilter.blur = this.blurYFilter.blur = value;
       this.updatePadding();
     }
-    /**
-     * Sets the number of passes for blur. More passes means higher quality blurring.
-     * Controls the precision and smoothness of the blur effect at the cost of performance.
-     * @example
-     * ```ts
-     * // High quality blur (slower)
-     * filter.quality = 8;
-     *
-     * // Low quality blur (faster)
-     * filter.quality = 2;
-     * ```
-     * @default 4
-     * @remarks Higher values produce better quality but impact performance
-     */
+
     get quality() {
       return this.blurXFilter.quality;
     }
     set quality(value) {
       this.blurXFilter.quality = this.blurYFilter.quality = value;
     }
-    /**
-     * Sets the strength of horizontal blur.
-     * Controls the blur intensity along the x-axis independently.
-     * @example
-     * ```ts
-     * // Apply horizontal-only blur
-     * filter.strengthX = 8;
-     * filter.strengthY = 0;
-     *
-     * // Create motion blur effect
-     * filter.strengthX = 16;
-     * filter.strengthY = 2;
-     * ```
-     * @default 8
-     */
+
     get strengthX() {
       return this.blurXFilter.blur;
     }
@@ -19694,21 +14342,7 @@ ${parts.join("\n")}
       this.blurXFilter.blur = value;
       this.updatePadding();
     }
-    /**
-     * Sets the strength of the vertical blur.
-     * Controls the blur intensity along the y-axis independently.
-     * @example
-     * ```ts
-     * // Apply vertical-only blur
-     * filter.strengthX = 0;
-     * filter.strengthY = 8;
-     *
-     * // Create radial blur effect
-     * filter.strengthX = 8;
-     * filter.strengthY = 8;
-     * ```
-     * @default 8
-     */
+
     get strengthY() {
       return this.blurYFilter.blur;
     }
@@ -19716,12 +14350,7 @@ ${parts.join("\n")}
       this.blurYFilter.blur = value;
       this.updatePadding();
     }
-    /**
-     * Sets the strength of both the blurX and blurY properties simultaneously
-     * @default 2
-     * @deprecated since 8.3.0
-     * @see BlurFilter.strength
-     */
+
     get blur() {
       deprecation("8.3.0", "BlurFilter.blur is deprecated, please use BlurFilter.strength instead.");
       return this.strength;
@@ -19730,12 +14359,7 @@ ${parts.join("\n")}
       deprecation("8.3.0", "BlurFilter.blur is deprecated, please use BlurFilter.strength instead.");
       this.strength = value;
     }
-    /**
-     * Sets the strength of the blurX property
-     * @default 2
-     * @deprecated since 8.3.0
-     * @see BlurFilter.strengthX
-     */
+
     get blurX() {
       deprecation("8.3.0", "BlurFilter.blurX is deprecated, please use BlurFilter.strengthX instead.");
       return this.strengthX;
@@ -19744,12 +14368,7 @@ ${parts.join("\n")}
       deprecation("8.3.0", "BlurFilter.blurX is deprecated, please use BlurFilter.strengthX instead.");
       this.strengthX = value;
     }
-    /**
-     * Sets the strength of the blurY property
-     * @default 2
-     * @deprecated since 8.3.0
-     * @see BlurFilter.strengthY
-     */
+
     get blurY() {
       deprecation("8.3.0", "BlurFilter.blurY is deprecated, please use BlurFilter.strengthY instead.");
       return this.strengthY;
@@ -19758,10 +14377,7 @@ ${parts.join("\n")}
       deprecation("8.3.0", "BlurFilter.blurY is deprecated, please use BlurFilter.strengthY instead.");
       this.strengthY = value;
     }
-    /**
-     * If set to true the edge of the target will be clamped
-     * @default false
-     */
+
     get repeatEdgePixels() {
       return this._repeatEdgePixels;
     }
@@ -19771,13 +14387,13 @@ ${parts.join("\n")}
     }
   }
   BlurFilter.defaultOptions = {
-    /** The strength of the blur filter. */
+
     strength: 8,
-    /** The quality of the blur filter. */
+
     quality: 4,
-    /** The kernelSize of the blur filter.Options: 5, 7, 9, 11, 13, 15. */
+
     kernelSize: 5,
-    /** Whether to use legacy blur pass behavior. */
+
     legacy: false
   };
   var fragment$1 = "in vec2 vTextureCoord;\nout vec4 finalColor;\nuniform sampler2D uTexture;\nvoid main() {\n    finalColor = texture(uTexture, vTextureCoord);\n}\n";
@@ -19883,18 +14499,11 @@ ${parts.join("\n")}
       this._globalFilterBindGroup = new BindGroup({});
       this.renderer = renderer;
     }
-    /**
-     * The back texture of the currently active filter. Requires the filter to have `blendRequired` set to true.
-     * @readonly
-     */
+
     get activeBackTexture() {
       return this._activeFilterData?.backTexture;
     }
-    /**
-     * Pushes a filter instruction onto the filter stack.
-     * @param instruction - The instruction containing the filter effect and container.
-     * @internal
-     */
+
     push(instruction) {
       const renderer = this.renderer;
       const filters = instruction.filterEffect.filters;
@@ -19934,33 +14543,7 @@ ${parts.join("\n")}
       );
       this._setupFilterTextures(filterData, bounds, renderer, previousFilterData);
     }
-    /**
-     * Applies filters to a texture.
-     *
-     * This method takes a texture and a list of filters, applies the filters to the texture,
-     * and returns the resulting texture.
-     * @param {object} params - The parameters for applying filters.
-     * @param {Texture} params.texture - The texture to apply filters to.
-     * @param {Filter[]} params.filters - The filters to apply.
-     * @returns {Texture} The resulting texture after all filters have been applied.
-     * @example
-     *
-     * ```ts
-     * // Create a texture and a list of filters
-     * const texture = new Texture(...);
-     * const filters = [new BlurFilter(), new ColorMatrixFilter()];
-     *
-     * // Apply the filters to the texture
-     * const resultTexture = filterSystem.applyToTexture({ texture, filters });
-     *
-     * // Use the resulting texture
-     * sprite.texture = resultTexture;
-     * ```
-     *
-     * Key Points:
-     * 1. padding is not currently supported here - so clipping may occur with filters that use padding.
-     * 2. If all filters are disabled or skipped, the original texture is returned.
-     */
+
     generateFilteredTexture({ texture, filters }) {
       const filterData = this._pushFilterData();
       this._activeFilterData = filterData;
@@ -20005,7 +14588,7 @@ ${parts.join("\n")}
       outputTexture.source.alphaMode = "premultiplied-alpha";
       return outputTexture;
     }
-    /** @internal */
+
     pop() {
       const renderer = this.renderer;
       const filterData = this._popFilterData();
@@ -20021,12 +14604,7 @@ ${parts.join("\n")}
       }
       TexturePool.returnTexture(filterData.inputTexture);
     }
-    /**
-     * Copies the last render surface to a texture.
-     * @param lastRenderSurface - The last render surface to copy from.
-     * @param bounds - The bounds of the area to copy.
-     * @param previousBounds - The previous bounds to use for offsetting the copy.
-     */
+
     getBackTexture(lastRenderSurface, bounds, previousBounds) {
       const backgroundResolution = lastRenderSurface.colorTexture.source._resolution;
       const backTexture = TexturePool.getOptimalTexture(
@@ -20054,13 +14632,7 @@ ${parts.join("\n")}
       );
       return backTexture;
     }
-    /**
-     * Applies a filter to a texture.
-     * @param filter - The filter to apply.
-     * @param input - The input texture.
-     * @param output - The output render surface.
-     * @param clear - Whether to clear the output surface before applying the filter.
-     */
+
     applyFilter(filter, input, output, clear) {
       const renderer = this.renderer;
       const filterData = this._activeFilterData;
@@ -20079,14 +14651,7 @@ ${parts.join("\n")}
       const filterToApply = filter.enabled ? filter : this._getPassthroughFilter();
       this._setupBindGroupsAndRender(filterToApply, input, renderer);
     }
-    /**
-     * Multiply _input normalized coordinates_ to this matrix to get _sprite texture normalized coordinates_.
-     *
-     * Use `outputMatrix * vTextureCoord` in the shader.
-     * @param outputMatrix - The matrix to output to.
-     * @param {Sprite} sprite - The sprite to map to.
-     * @returns The mapped matrix.
-     */
+
     calculateSpriteMatrix(outputMatrix, sprite) {
       const data = this._activeFilterData;
       const mappedMatrix = outputMatrix.set(
@@ -20119,12 +14684,7 @@ ${parts.join("\n")}
       this._passthroughFilter ?? (this._passthroughFilter = new PassthroughFilter());
       return this._passthroughFilter;
     }
-    /**
-     * Sets up the bind groups and renders the filter.
-     * @param filter - The filter to apply
-     * @param input - The input texture
-     * @param renderer - The renderer instance
-     */
+
     _setupBindGroupsAndRender(filter, input, renderer) {
       if (renderer.renderPipes.uniformBatch) {
         const batchUniforms = renderer.renderPipes.uniformBatch.getUboResource(this._filterGlobalUniforms);
@@ -20145,13 +14705,7 @@ ${parts.join("\n")}
         renderer.renderTarget.finishRenderPass();
       }
     }
-    /**
-     * Sets up the filter textures including input texture and back texture if needed.
-     * @param filterData - The filter data to update
-     * @param bounds - The bounds for the texture
-     * @param renderer - The renderer instance
-     * @param previousFilterData - The previous filter data for back texture calculation
-     */
+
     _setupFilterTextures(filterData, bounds, renderer, previousFilterData) {
       filterData.backTexture = Texture.EMPTY;
       filterData.inputTexture = TexturePool.getOptimalTexture(
@@ -20170,15 +14724,7 @@ ${parts.join("\n")}
         offset: bounds
       });
     }
-    /**
-     * Calculates and sets the global frame for the filter.
-     * @param filterData - The filter data to update
-     * @param offsetX - The X offset
-     * @param offsetY - The Y offset
-     * @param globalResolution - The global resolution
-     * @param sourceWidth - The source texture width
-     * @param sourceHeight - The source texture height
-     */
+
     _calculateGlobalFrame(filterData, offsetX, offsetY, globalResolution, sourceWidth, sourceHeight) {
       const globalFrame = filterData.globalFrame;
       globalFrame.x = offsetX * globalResolution;
@@ -20186,17 +14732,7 @@ ${parts.join("\n")}
       globalFrame.width = sourceWidth * globalResolution;
       globalFrame.height = sourceHeight * globalResolution;
     }
-    /**
-     * Updates the filter uniforms with the current filter state.
-     * @param input - The input texture
-     * @param output - The output render surface
-     * @param filterData - The current filter data
-     * @param offsetX - The X offset for positioning
-     * @param offsetY - The Y offset for positioning
-     * @param resolution - The current resolution
-     * @param isFinalTarget - Whether this is the final render target
-     * @param clear - Whether to clear the output surface
-     */
+
     _updateFilterUniforms(input, output, filterData, offsetX, offsetY, resolution, isFinalTarget, clear) {
       const uniforms = this._filterGlobalUniforms.uniforms;
       const outputFrame = uniforms.uOutputFrame;
@@ -20244,11 +14780,7 @@ ${parts.join("\n")}
       outputTexture[2] = renderTarget.isRoot ? -1 : 1;
       this._filterGlobalUniforms.update();
     }
-    /**
-     * Finds the correct resolution by looking back through the filter stack.
-     * @param rootResolution - The fallback root resolution to use
-     * @returns The resolution from the previous filter or root resolution
-     */
+
     _findFilterResolution(rootResolution) {
       let currentIndex = this._filterStackIndex - 1;
       while (currentIndex > 0 && this._filterStack[currentIndex].skip) {
@@ -20256,10 +14788,7 @@ ${parts.join("\n")}
       }
       return currentIndex > 0 && this._filterStack[currentIndex].inputTexture ? this._filterStack[currentIndex].inputTexture.source._resolution : rootResolution;
     }
-    /**
-     * Finds the offset from the previous non-skipped filter in the stack.
-     * @returns The offset coordinates from the previous filter
-     */
+
     _findPreviousFilterOffset() {
       let offsetX = 0;
       let offsetY = 0;
@@ -20275,11 +14804,7 @@ ${parts.join("\n")}
       }
       return { x: offsetX, y: offsetY };
     }
-    /**
-     * Calculates the filter area bounds based on the instruction type.
-     * @param instruction - The filter instruction
-     * @param bounds - The bounds object to populate
-     */
+
     _calculateFilterArea(instruction, bounds) {
       if (instruction.renderables) {
         getGlobalRenderableBounds(instruction.renderables, bounds);
@@ -20487,10 +15012,7 @@ ${parts.join("\n")}
     constructor() {
       this.isBatchable = false;
     }
-    /**
-     * Reset cached canvas data.
-     * @advanced
-     */
+
     reset() {
       this.isBatchable = false;
       this.context = null;
@@ -20499,10 +15021,7 @@ ${parts.join("\n")}
         this.graphicsData = null;
       }
     }
-    /**
-     * Destroy the cached data.
-     * @advanced
-     */
+
     destroy() {
       this.reset();
     }
@@ -20511,17 +15030,11 @@ ${parts.join("\n")}
     constructor() {
       this.instructions = new InstructionSet();
     }
-    /**
-     * Initialize render data.
-     * @advanced
-     */
+
     init() {
       this.instructions.reset();
     }
-    /**
-     * Destroy render data.
-     * @advanced
-     */
+
     destroy() {
       this.instructions.destroy();
       this.instructions = null;
@@ -20532,28 +15045,16 @@ ${parts.join("\n")}
       this._renderer = renderer;
       this._managedContexts = new GCManagedHash({ renderer, type: "resource", name: "graphicsContext" });
     }
-    /**
-     * Runner init called, update the default options
-     * @ignore
-     */
+
     init(options) {
       _CanvasGraphicsContextSystem2.defaultOptions.bezierSmoothness = options?.bezierSmoothness ?? _CanvasGraphicsContextSystem2.defaultOptions.bezierSmoothness;
     }
-    /**
-     * Returns the render data for a given GraphicsContext.
-     * @param context - The GraphicsContext to get the render data for.
-     * @internal
-     */
+
     getContextRenderData(context2) {
       const gpuContext = this.getGpuContext(context2);
       return gpuContext.graphicsData || this._initContextRenderData(context2);
     }
-    /**
-     * Updates the GPU context for a given GraphicsContext.
-     * @param context - The GraphicsContext to update.
-     * @returns The updated CanvasGraphicsContext.
-     * @internal
-     */
+
     updateGpuContext(context2) {
       const gpuData = context2._gpuData;
       const hasContext = !!gpuData[this._renderer.uid];
@@ -20567,13 +15068,7 @@ ${parts.join("\n")}
       }
       return gpuContext;
     }
-    /**
-     * Returns the CanvasGraphicsContext for a given GraphicsContext.
-     * If it does not exist, it will initialize a new one.
-     * @param context - The GraphicsContext to get the CanvasGraphicsContext for.
-     * @returns The CanvasGraphicsContext for the given GraphicsContext.
-     * @internal
-     */
+
     getGpuContext(context2) {
       const gpuData = context2._gpuData;
       return gpuData[this._renderer.uid] || this._initContext(context2);
@@ -20604,10 +15099,7 @@ ${parts.join("\n")}
     name: "graphicsContext"
   };
   _CanvasGraphicsContextSystem.defaultOptions = {
-    /**
-     * A value from 0 to 1 that controls the smoothness of bezier curves (the higher the smoother)
-     * @default 0.5
-     */
+
     bezierSmoothness: 0.5
   };
   let CanvasGraphicsContextSystem = _CanvasGraphicsContextSystem;
@@ -20789,10 +15281,7 @@ ${parts.join("\n")}
   extensions.add(CanvasGraphicsContextSystem);
   extensions.add(GraphicsContextSystem);
   class Graphics extends ViewContainer {
-    /**
-     * Creates a new Graphics object.
-     * @param options - Options for the Graphics.
-     */
+
     constructor(options) {
       if (options instanceof GraphicsContext) {
         options = { context: options };
@@ -20824,107 +15313,22 @@ ${parts.join("\n")}
       this._context.on("unload", this.unload, this);
       this.onViewUpdate();
     }
-    /**
-     * The underlying graphics context used for drawing operations.
-     * Controls how shapes and paths are rendered.
-     * @example
-     * ```ts
-     * // Create a shared context
-     * const sharedContext = new GraphicsContext();
-     *
-     * // Create graphics objects sharing the same context
-     * const graphics1 = new Graphics();
-     * const graphics2 = new Graphics();
-     *
-     * // Assign shared context
-     * graphics1.context = sharedContext;
-     * graphics2.context = sharedContext;
-     *
-     * // Both graphics will show the same shapes
-     * sharedContext
-     *     .rect(0, 0, 100, 100)
-     *     .fill({ color: 0xff0000 });
-     * ```
-     * @see {@link GraphicsContext} For drawing operations
-     * @see {@link GraphicsOptions} For context configuration
-     */
+
     get context() {
       return this._context;
     }
-    /**
-     * The local bounds of the graphics object.
-     * Returns the boundaries after all graphical operations but before any transforms.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Draw a shape
-     * graphics
-     *     .rect(0, 0, 100, 100)
-     *     .fill({ color: 0xff0000 });
-     *
-     * // Get bounds information
-     * const bounds = graphics.bounds;
-     * console.log(bounds.width);  // 100
-     * console.log(bounds.height); // 100
-     * ```
-     * @readonly
-     * @see {@link Bounds} For bounds operations
-     * @see {@link Container#getBounds} For transformed bounds
-     */
+
     get bounds() {
       return this._context.bounds;
     }
-    /**
-     * Graphics objects do not need to update their bounds as the context handles this.
-     * @private
-     */
+
     updateBounds() {
     }
-    /**
-     * Checks if the object contains the given point.
-     * Returns true if the point lies within the Graphics object's rendered area.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Draw a shape
-     * graphics
-     *     .rect(0, 0, 100, 100)
-     *     .fill({ color: 0xff0000 });
-     *
-     * // Check point intersection
-     * if (graphics.containsPoint({ x: 50, y: 50 })) {
-     *     console.log('Point is inside rectangle!');
-     * }
-     * ```
-     * @param point - The point to check in local coordinates
-     * @returns True if the point is inside the Graphics object
-     * @see {@link Graphics#bounds} For bounding box checks
-     * @see {@link PointData} For point data structure
-     */
+
     containsPoint(point) {
       return this._context.containsPoint(point);
     }
-    /**
-     * Destroys this graphics renderable and optionally its context.
-     * @param options - Options parameter. A boolean will act as if all options
-     *
-     * If the context was created by this graphics and `destroy(false)` or `destroy()` is called
-     * then the context will still be destroyed.
-     *
-     * If you want to explicitly not destroy this context that this graphics created,
-     * then you should pass destroy({ context: false })
-     *
-     * If the context was passed in as an argument to the constructor then it will not be destroyed
-     * @example
-     * ```ts
-     * // Destroy the graphics and its context
-     * graphics.destroy();
-     * graphics.destroy(true);
-     * graphics.destroy({ context: true, texture: true, textureSource: true });
-     * ```
-     */
+
     destroy(options) {
       if (this._ownedContext && !options) {
         this._ownedContext.destroy(options);
@@ -20935,10 +15339,7 @@ ${parts.join("\n")}
       this._context = null;
       super.destroy(options);
     }
-    /**
-     * @param now - The current time in milliseconds.
-     * @internal
-     */
+
     _onTouch(now) {
       this._gcLastUsed = now;
       this._context._gcLastUsed = now;
@@ -20947,205 +15348,29 @@ ${parts.join("\n")}
       this.context[method](...args);
       return this;
     }
-    // --------------------------------------- GraphicsContext methods ---------------------------------------
-    /**
-     * Sets the current fill style of the graphics context.
-     * The fill style can be a color, gradient, pattern, or a complex style object.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Basic color fill
-     * graphics
-     *     .setFillStyle({ color: 0xff0000 }) // Red fill
-     *     .rect(0, 0, 100, 100)
-     *     .fill();
-     *
-     * // Gradient fill
-     * const gradient = new FillGradient({
-     *    end: { x: 1, y: 0 },
-     *    colorStops: [
-     *         { offset: 0, color: 0xff0000 }, // Red at start
-     *         { offset: 0.5, color: 0x00ff00 }, // Green at middle
-     *         { offset: 1, color: 0x0000ff }, // Blue at end
-     *    ],
-     * });
-     *
-     * graphics
-     *     .setFillStyle(gradient)
-     *     .circle(100, 100, 50)
-     *     .fill();
-     *
-     * // Pattern fill
-     * const pattern = new FillPattern(texture);
-     * graphics
-     *     .setFillStyle({
-     *         fill: pattern,
-     *         alpha: 0.5
-     *     })
-     *     .rect(0, 0, 200, 200)
-     *     .fill();
-     * ```
-     * @param {FillInput} args - The fill style to apply
-     * @returns The Graphics instance for chaining
-     * @see {@link FillStyle} For fill style options
-     * @see {@link FillGradient} For gradient fills
-     * @see {@link FillPattern} For pattern fills
-     */
+
     setFillStyle(...args) {
       return this._callContextMethod("setFillStyle", args);
     }
-    /**
-     * Sets the current stroke style of the graphics context.
-     * Similar to fill styles, stroke styles can encompass colors, gradients, patterns, or more detailed configurations.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Basic color stroke
-     * graphics
-     *     .setStrokeStyle({
-     *         width: 2,
-     *         color: 0x000000
-     *     })
-     *     .rect(0, 0, 100, 100)
-     *     .stroke();
-     *
-     * // Complex stroke style
-     * graphics
-     *     .setStrokeStyle({
-     *         width: 4,
-     *         color: 0xff0000,
-     *         alpha: 0.5,
-     *         join: 'round',
-     *         cap: 'round',
-     *         alignment: 0.5
-     *     })
-     *     .circle(100, 100, 50)
-     *     .stroke();
-     *
-     * // Gradient stroke
-     * const gradient = new FillGradient({
-     *    end: { x: 1, y: 0 },
-     *    colorStops: [
-     *         { offset: 0, color: 0xff0000 }, // Red at start
-     *         { offset: 0.5, color: 0x00ff00 }, // Green at middle
-     *         { offset: 1, color: 0x0000ff }, // Blue at end
-     *    ],
-     * });
-     *
-     * graphics
-     *     .setStrokeStyle({
-     *         width: 10,
-     *         fill: gradient
-     *     })
-     *     .poly([0,0, 100,50, 0,100])
-     *     .stroke();
-     * ```
-     * @param {StrokeInput} args - The stroke style to apply
-     * @returns The Graphics instance for chaining
-     * @see {@link StrokeStyle} For stroke style options
-     * @see {@link FillGradient} For gradient strokes
-     * @see {@link FillPattern} For pattern strokes
-     */
+
     setStrokeStyle(...args) {
       return this._callContextMethod("setStrokeStyle", args);
     }
     fill(...args) {
       return this._callContextMethod("fill", args);
     }
-    /**
-     * Strokes the current path with the current stroke style or specified style.
-     * Outlines the shape using the stroke settings.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Stroke with direct color
-     * graphics
-     *     .circle(50, 50, 25)
-     *     .stroke({
-     *         width: 2,
-     *         color: 0xff0000
-     *     }); // 2px red stroke
-     *
-     * // Fill with texture
-     * graphics
-     *    .rect(0, 0, 100, 100)
-     *    .stroke(myTexture); // Fill with texture
-     *
-     * // Stroke with gradient
-     * const gradient = new FillGradient({
-     *     end: { x: 1, y: 0 },
-     *     colorStops: [
-     *         { offset: 0, color: 0xff0000 },
-     *         { offset: 0.5, color: 0x00ff00 },
-     *         { offset: 1, color: 0x0000ff },
-     *     ],
-     * });
-     *
-     * graphics
-     *     .rect(0, 0, 100, 100)
-     *     .stroke({
-     *         width: 4,
-     *         fill: gradient,
-     *         alignment: 0.5,
-     *         join: 'round'
-     *     });
-     * ```
-     * @param {StrokeStyle} args - Optional stroke style to apply. Can be:
-     * - A stroke style object with width, color, etc.
-     * - A gradient
-     * - A pattern
-     * If omitted, uses current stroke style.
-     * @returns The Graphics instance for chaining
-     * @see {@link StrokeStyle} For stroke style options
-     * @see {@link FillGradient} For gradient strokes
-     * @see {@link setStrokeStyle} For setting default stroke style
-     */
+
     stroke(...args) {
       return this._callContextMethod("stroke", args);
     }
     texture(...args) {
       return this._callContextMethod("texture", args);
     }
-    /**
-     * Resets the current path. Any previous path and its commands are discarded and a new path is
-     * started. This is typically called before beginning a new shape or series of drawing commands.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     * graphics
-     *     .circle(150, 150, 50)
-     *     .fill({ color: 0x00ff00 })
-     *     .beginPath() // Starts a new path
-     *     .circle(250, 150, 50)
-     *     .fill({ color: 0x0000ff });
-     * ```
-     * @returns The Graphics instance for chaining
-     * @see {@link Graphics#moveTo} For starting a new subpath
-     * @see {@link Graphics#closePath} For closing the current path
-     */
+
     beginPath() {
       return this._callContextMethod("beginPath", []);
     }
-    /**
-     * Applies a cutout to the last drawn shape. This is used to create holes or complex shapes by
-     * subtracting a path from the previously drawn path.
-     *
-     * If a hole is not completely in a shape, it will fail to cut correctly.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Draw outer circle
-     * graphics
-     *     .circle(100, 100, 50)
-     *     .fill({ color: 0xff0000 });
-     *     .circle(100, 100, 25) // Inner circle
-     *     .cut() // Cuts out the inner circle from the outer circle
-     * ```
-     */
+
     cut() {
       return this._callContextMethod("cut", []);
     }
@@ -21161,25 +15386,7 @@ ${parts.join("\n")}
     bezierCurveTo(...args) {
       return this._callContextMethod("bezierCurveTo", args);
     }
-    /**
-     * Closes the current path by drawing a straight line back to the start point.
-     *
-     * This is useful for completing shapes and ensuring they are properly closed for fills.
-     * @example
-     * ```ts
-     * // Create a triangle with closed path
-     * const graphics = new Graphics();
-     * graphics
-     *     .moveTo(50, 50)
-     *     .lineTo(100, 100)
-     *     .lineTo(0, 100)
-     *     .closePath()
-     * ```
-     * @returns The Graphics instance for method chaining
-     * @see {@link Graphics#beginPath} For starting a new path
-     * @see {@link Graphics#fill} For filling closed paths
-     * @see {@link Graphics#stroke} For stroking paths
-     */
+
     closePath() {
       return this._callContextMethod("closePath", []);
     }
@@ -21234,98 +15441,15 @@ ${parts.join("\n")}
     restore(...args) {
       return this._callContextMethod("restore", args);
     }
-    /**
-     * Saves the current graphics state onto a stack. The state includes:
-     * - Current transformation matrix
-     * - Current fill style
-     * - Current stroke style
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Save state before complex operations
-     * graphics.save();
-     *
-     * // Create transformed and styled shape
-     * graphics
-     *     .translateTransform(100, 100)
-     *     .rotateTransform(Math.PI / 4)
-     *     .setFillStyle({
-     *         color: 0xff0000,
-     *         alpha: 0.5
-     *     })
-     *     .rect(-25, -25, 50, 50)
-     *     .fill();
-     *
-     * // Restore to original state
-     * graphics.restore();
-     *
-     * // Continue drawing with previous state
-     * graphics
-     *     .circle(50, 50, 25)
-     *     .fill();
-     * ```
-     * @returns The Graphics instance for method chaining
-     * @see {@link Graphics#restore} For restoring the saved state
-     * @see {@link Graphics#setTransform} For setting transformations
-     */
+
     save() {
       return this._callContextMethod("save", []);
     }
-    /**
-     * Returns the current transformation matrix of the graphics context.
-     * This matrix represents all accumulated transformations including translate, scale, and rotate.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Apply some transformations
-     * graphics
-     *     .translateTransform(100, 100)
-     *     .rotateTransform(Math.PI / 4);
-     *
-     * // Get the current transform matrix
-     * const matrix = graphics.getTransform();
-     * console.log(matrix.tx, matrix.ty); // 100, 100
-     *
-     * // Use the matrix for other operations
-     * graphics
-     *     .setTransform(matrix)
-     *     .circle(0, 0, 50)
-     *     .fill({ color: 0xff0000 });
-     * ```
-     * @returns The current transformation matrix.
-     * @see {@link Graphics#setTransform} For setting the transform matrix
-     * @see {@link Matrix} For matrix operations
-     */
+
     getTransform() {
       return this.context.getTransform();
     }
-    /**
-     * Resets the current transformation matrix to the identity matrix, effectively removing
-     * any transformations (rotation, scaling, translation) previously applied.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Apply transformations
-     * graphics
-     *     .translateTransform(100, 100)
-     *     .scaleTransform(2, 2)
-     *     .circle(0, 0, 25)
-     *     .fill({ color: 0xff0000 });
-     * // Reset transform to default state
-     * graphics
-     *     .resetTransform()
-     *     .circle(50, 50, 25) // Will draw at actual coordinates
-     *     .fill({ color: 0x00ff00 });
-     * ```
-     * @returns The Graphics instance for method chaining
-     * @see {@link Graphics#getTransform} For getting the current transform
-     * @see {@link Graphics#setTransform} For setting a specific transform
-     * @see {@link Graphics#save} For saving the current transform state
-     * @see {@link Graphics#restore} For restoring a previous transform state
-     */
+
     resetTransform() {
       return this._callContextMethod("resetTransform", []);
     }
@@ -21344,173 +15468,25 @@ ${parts.join("\n")}
     translateTransform(...args) {
       return this._callContextMethod("translate", args);
     }
-    /**
-     * Clears all drawing commands from the graphics context, effectively resetting it.
-     * This includes clearing the current path, fill style, stroke style, and transformations.
-     *
-     * > [!NOTE] Graphics objects are not designed to be continuously cleared and redrawn.
-     * > Instead, they are intended to be used for static or semi-static graphics that
-     * > can be redrawn as needed. Frequent clearing and redrawing may lead to performance issues.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Draw some shapes
-     * graphics
-     *     .circle(100, 100, 50)
-     *     .fill({ color: 0xff0000 })
-     *     .rect(200, 100, 100, 50)
-     *     .fill({ color: 0x00ff00 });
-     *
-     * // Clear all graphics
-     * graphics.clear();
-     *
-     * // Start fresh with new shapes
-     * graphics
-     *     .circle(150, 150, 30)
-     *     .fill({ color: 0x0000ff });
-     * ```
-     * @returns The Graphics instance for method chaining
-     * @see {@link Graphics#beginPath} For starting a new path without clearing styles
-     * @see {@link Graphics#save} For saving the current state
-     * @see {@link Graphics#restore} For restoring a previous state
-     */
+
     clear() {
       return this._callContextMethod("clear", []);
     }
-    /**
-     * Gets or sets the current fill style for the graphics context. The fill style determines
-     * how shapes are filled when using the fill() method.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Basic color fill
-     * graphics.fillStyle = {
-     *     color: 0xff0000,  // Red
-     *     alpha: 1
-     * };
-     *
-     * // Using gradients
-     * const gradient = new FillGradient({
-     *     end: { x: 0, y: 1 }, // Vertical gradient
-     *     stops: [
-     *         { offset: 0, color: 0xff0000, alpha: 1 }, // Start color
-     *         { offset: 1, color: 0x0000ff, alpha: 1 }  // End color
-     *     ]
-     * });
-     *
-     * graphics.fillStyle = {
-     *     fill: gradient,
-     *     alpha: 0.8
-     * };
-     *
-     * // Using patterns
-     * graphics.fillStyle = {
-     *     texture: myTexture,
-     *     alpha: 1,
-     *     matrix: new Matrix()
-     *         .scale(0.5, 0.5)
-     *         .rotate(Math.PI / 4)
-     * };
-     * ```
-     * @type {ConvertedFillStyle}
-     * @see {@link FillStyle} For all available fill style options
-     * @see {@link FillGradient} For creating gradient fills
-     * @see {@link Graphics#fill} For applying the fill to paths
-     */
+
     get fillStyle() {
       return this._context.fillStyle;
     }
     set fillStyle(value) {
       this._context.fillStyle = value;
     }
-    /**
-     * Gets or sets the current stroke style for the graphics context. The stroke style determines
-     * how paths are outlined when using the stroke() method.
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Basic stroke style
-     * graphics.strokeStyle = {
-     *     width: 2,
-     *     color: 0xff0000,
-     *     alpha: 1
-     * };
-     *
-     * // Using with gradients
-     * const gradient = new FillGradient({
-     *   end: { x: 0, y: 1 },
-     *   stops: [
-     *       { offset: 0, color: 0xff0000, alpha: 1 },
-     *       { offset: 1, color: 0x0000ff, alpha: 1 }
-     *   ]
-     * });
-     *
-     * graphics.strokeStyle = {
-     *     width: 4,
-     *     fill: gradient,
-     *     alignment: 0.5,
-     *     join: 'round',
-     *     cap: 'round'
-     * };
-     *
-     * // Complex stroke settings
-     * graphics.strokeStyle = {
-     *     width: 6,
-     *     color: 0x00ff00,
-     *     alpha: 0.5,
-     *     join: 'miter',
-     *     miterLimit: 10,
-     * };
-     * ```
-     * @see {@link StrokeStyle} For all available stroke style options
-     * @see {@link Graphics#stroke} For applying the stroke to paths
-     */
+
     get strokeStyle() {
       return this._context.strokeStyle;
     }
     set strokeStyle(value) {
       this._context.strokeStyle = value;
     }
-    /**
-     * Creates a new Graphics object that copies the current graphics content.
-     * The clone can either share the same context (shallow clone) or have its own independent
-     * context (deep clone).
-     * @example
-     * ```ts
-     * const graphics = new Graphics();
-     *
-     * // Create original graphics content
-     * graphics
-     *     .circle(100, 100, 50)
-     *     .fill({ color: 0xff0000 });
-     *
-     * // Create a shallow clone (shared context)
-     * const shallowClone = graphics.clone();
-     *
-     * // Changes to original affect the clone
-     * graphics
-     *     .circle(200, 100, 30)
-     *     .fill({ color: 0x00ff00 });
-     *
-     * // Create a deep clone (independent context)
-     * const deepClone = graphics.clone(true);
-     *
-     * // Modify deep clone independently
-     * deepClone
-     *     .translateTransform(100, 100)
-     *     .circle(0, 0, 40)
-     *     .fill({ color: 0x0000ff });
-     * ```
-     * @param deep - Whether to create a deep clone of the graphics object.
-     *              If false (default), the context will be shared between objects.
-     *              If true, creates an independent copy of the context.
-     * @returns A new Graphics instance with either shared or copied context
-     * @see {@link Graphics#context} For accessing the underlying graphics context
-     * @see {@link GraphicsContext} For understanding the shared context behavior
-     */
+
     clone(deep = false) {
       if (deep) {
         return new Graphics(this._context.clone());
@@ -21519,13 +15495,7 @@ ${parts.join("\n")}
       const clone = new Graphics(this._context);
       return clone;
     }
-    // -------- v7 deprecations ---------
-    /**
-     * @param width
-     * @param color
-     * @param alpha
-     * @deprecated since 8.0.0 Use {@link Graphics#setStrokeStyle} instead
-     */
+
     lineStyle(width, color, alpha) {
       deprecation(v8_0_0, "Graphics#lineStyle is no longer needed. Use Graphics#setStrokeStyle to set the stroke style.");
       const strokeStyle = {};
@@ -21535,11 +15505,7 @@ ${parts.join("\n")}
       this.context.strokeStyle = strokeStyle;
       return this;
     }
-    /**
-     * @param color
-     * @param alpha
-     * @deprecated since 8.0.0 Use {@link Graphics#fill} instead
-     */
+
     beginFill(color, alpha) {
       deprecation(v8_0_0, "Graphics#beginFill is no longer needed. Use Graphics#fill to fill the shape with the desired style.");
       const fillStyle = {};
@@ -21548,9 +15514,7 @@ ${parts.join("\n")}
       this.context.fillStyle = fillStyle;
       return this;
     }
-    /**
-     * @deprecated since 8.0.0 Use {@link Graphics#fill} instead
-     */
+
     endFill() {
       deprecation(v8_0_0, "Graphics#endFill is no longer needed. Use Graphics#fill to fill the shape with the desired style.");
       this.context.fill();
@@ -21560,50 +15524,32 @@ ${parts.join("\n")}
       }
       return this;
     }
-    /**
-     * @param {...any} args
-     * @deprecated since 8.0.0 Use {@link Graphics#circle} instead
-     */
+
     drawCircle(...args) {
       deprecation(v8_0_0, "Graphics#drawCircle has been renamed to Graphics#circle");
       return this._callContextMethod("circle", args);
     }
-    /**
-     * @param {...any} args
-     * @deprecated since 8.0.0 Use {@link Graphics#ellipse} instead
-     */
+
     drawEllipse(...args) {
       deprecation(v8_0_0, "Graphics#drawEllipse has been renamed to Graphics#ellipse");
       return this._callContextMethod("ellipse", args);
     }
-    /**
-     * @param {...any} args
-     * @deprecated since 8.0.0 Use {@link Graphics#poly} instead
-     */
+
     drawPolygon(...args) {
       deprecation(v8_0_0, "Graphics#drawPolygon has been renamed to Graphics#poly");
       return this._callContextMethod("poly", args);
     }
-    /**
-     * @param {...any} args
-     * @deprecated since 8.0.0 Use {@link Graphics#rect} instead
-     */
+
     drawRect(...args) {
       deprecation(v8_0_0, "Graphics#drawRect has been renamed to Graphics#rect");
       return this._callContextMethod("rect", args);
     }
-    /**
-     * @param {...any} args
-     * @deprecated since 8.0.0 Use {@link Graphics#roundRect} instead
-     */
+
     drawRoundedRect(...args) {
       deprecation(v8_0_0, "Graphics#drawRoundedRect has been renamed to Graphics#roundRect");
       return this._callContextMethod("roundRect", args);
     }
-    /**
-     * @param {...any} args
-     * @deprecated since 8.0.0 Use {@link Graphics#star} instead
-     */
+
     drawStar(...args) {
       deprecation(v8_0_0, "Graphics#drawStar has been renamed to Graphics#star");
       return this._callContextMethod("star", args);
@@ -21612,7 +15558,7 @@ ${parts.join("\n")}
   const localUniformBit = {
     vertex: {
       header: (
-        /* wgsl */
+
         `
 
             struct LocalUniforms {
@@ -21625,14 +15571,14 @@ ${parts.join("\n")}
         `
       ),
       main: (
-        /* wgsl */
+
         `
             vColor *= localUniforms.uColor;
             modelMatrix *= localUniforms.uTransformMatrix;
         `
       ),
       end: (
-        /* wgsl */
+
         `
             if(localUniforms.uRound == 1)
             {
@@ -21645,7 +15591,7 @@ ${parts.join("\n")}
   ({
     vertex: {
       ...localUniformBit.vertex,
-      // replace the group!
+
       header: localUniformBit.vertex.header.replace("group(1)", "group(2)")
     }
   });
@@ -21653,7 +15599,7 @@ ${parts.join("\n")}
     name: "local-uniform-bit",
     vertex: {
       header: (
-        /* glsl */
+
         `
 
             uniform mat3 uTransformMatrix;
@@ -21662,14 +15608,14 @@ ${parts.join("\n")}
         `
       ),
       main: (
-        /* glsl */
+
         `
             vColor *= uColor;
             modelMatrix = uTransformMatrix;
         `
       ),
       end: (
-        /* glsl */
+
         `
             if(uRound == 1.)
             {
@@ -21906,8 +15852,8 @@ ${parts.join("\n")}
   const _BatcherPipe = class _BatcherPipe2 {
     constructor(renderer, adaptor) {
       this.state = State.for2d();
-      this._batchersByInstructionSet = /* @__PURE__ */ Object.create(null);
-      this._activeBatches = /* @__PURE__ */ Object.create(null);
+      this._batchersByInstructionSet =                 Object.create(null);
+      this._activeBatches =                 Object.create(null);
       this.renderer = renderer;
       this._adaptor = adaptor;
       this._adaptor.init?.(this);
@@ -21918,7 +15864,7 @@ ${parts.join("\n")}
     buildStart(instructionSet) {
       let batchers = this._batchersByInstructionSet[instructionSet.uid];
       if (!batchers) {
-        batchers = this._batchersByInstructionSet[instructionSet.uid] = /* @__PURE__ */ Object.create(null);
+        batchers = this._batchersByInstructionSet[instructionSet.uid] =                 Object.create(null);
         batchers.default || (batchers.default = new DefaultBatcher({
           maxTextures: this.renderer.limits.maxBatchableTextures
         }));
@@ -21992,7 +15938,7 @@ ${parts.join("\n")}
     ],
     name: "batch"
   };
-  _BatcherPipe._availableBatchers = /* @__PURE__ */ Object.create(null);
+  _BatcherPipe._availableBatchers =                 Object.create(null);
   let BatcherPipe = _BatcherPipe;
   extensions.handleByMap(ExtensionType.Batcher, BatcherPipe._availableBatchers);
   extensions.add(DefaultBatcher);
@@ -22000,13 +15946,13 @@ ${parts.join("\n")}
     name: "texture-bit",
     vertex: {
       header: (
-        /* glsl */
+
         `
             uniform mat3 uTextureMatrix;
         `
       ),
       main: (
-        /* glsl */
+
         `
             uv = (uTextureMatrix * vec3(uv, 1.0)).xy;
         `
@@ -22014,15 +15960,14 @@ ${parts.join("\n")}
     },
     fragment: {
       header: (
-        /* glsl */
+
         `
         uniform sampler2D uTexture;
-
 
         `
       ),
       main: (
-        /* glsl */
+
         `
             outColor = texture(uTexture, vUV);
         `
@@ -22407,7 +16352,7 @@ ${parts.join("\n")}
   }
   class CanvasStencilMaskPipe {
     constructor(renderer) {
-      this._warnedMaskTypes = /* @__PURE__ */ new Set();
+      this._warnedMaskTypes =                 new Set();
       this._canvasMaskStack = [];
       this._renderer = renderer;
     }
@@ -22541,7 +16486,7 @@ ${parts.join("\n")}
   class StencilMaskPipe {
     constructor(renderer) {
       this._maskStackHash = {};
-      this._maskHash = /* @__PURE__ */ new WeakMap();
+      this._maskHash =                 new WeakMap();
       this._renderer = renderer;
     }
     push(mask, _container, instructionSet) {
@@ -22660,7 +16605,7 @@ ${parts.join("\n")}
   const FALLBACK_BLEND = "source-over";
   function mapCanvasBlendModesToPixi() {
     const supportsAdvanced = canUseNewCanvasBlendModes();
-    const map = /* @__PURE__ */ Object.create(null);
+    const map =                 Object.create(null);
     map.inherit = FALLBACK_BLEND;
     map.none = FALLBACK_BLEND;
     map.normal = "source-over";
@@ -22698,9 +16643,7 @@ ${parts.join("\n")}
   }
   const tempMatrix$2 = new Matrix();
   class CanvasContextSystem {
-    /**
-     * @param renderer - The owning CanvasRenderer.
-     */
+
     constructor(renderer) {
       this.activeResolution = 1;
       this.smoothProperty = "imageSmoothingEnabled";
@@ -22708,13 +16651,13 @@ ${parts.join("\n")}
       this._activeBlendMode = "normal";
       this._projTransform = null;
       this._outerBlend = false;
-      this._warnedBlendModes = /* @__PURE__ */ new Set();
+      this._warnedBlendModes =                 new Set();
       this._renderer = renderer;
     }
     resolutionChange(resolution) {
       this.activeResolution = resolution;
     }
-    /** Initializes the root context and smoothing flag selection. */
+
     init() {
       const alpha = this._renderer.background.alpha < 1;
       this.rootContext = this._renderer.canvas.getContext(
@@ -22736,13 +16679,7 @@ ${parts.join("\n")}
         }
       }
     }
-    /**
-     * Sets the current transform on the active context.
-     * @param transform - Transform to apply.
-     * @param roundPixels - Whether to round translation to integers.
-     * @param localResolution - Optional local resolution multiplier.
-     * @param skipGlobalTransform - If true, skip applying the global world transform matrix.
-     */
+
     setContextTransform(transform, roundPixels, localResolution, skipGlobalTransform) {
       const globalTransform = skipGlobalTransform ? Matrix.IDENTITY : this._renderer.globalUniforms.globalUniformData?.worldTransformMatrix || Matrix.IDENTITY;
       let mat = tempMatrix$2;
@@ -22777,11 +16714,7 @@ ${parts.join("\n")}
         );
       }
     }
-    /**
-     * Clears the current render target, optionally filling with a color.
-     * @param clearColor - Color to fill after clearing.
-     * @param alpha - Alpha override for the clear color.
-     */
+
     clear(clearColor, alpha) {
       const context2 = this.activeContext;
       const renderer = this._renderer;
@@ -22794,10 +16727,7 @@ ${parts.join("\n")}
         context2.globalAlpha = 1;
       }
     }
-    /**
-     * Sets the active blend mode.
-     * @param blendMode - Pixi blend mode.
-     */
+
     setBlendMode(blendMode) {
       if (this._activeBlendMode === blendMode) return;
       this._activeBlendMode = blendMode;
@@ -22815,7 +16745,7 @@ ${parts.join("\n")}
       }
       this.activeContext.globalCompositeOperation = mappedBlend;
     }
-    /** Releases context references. */
+
     destroy() {
       this.rootContext = null;
       this.activeContext = null;
@@ -23337,7 +17267,7 @@ ${parts.join("\n")}
     constructor(renderer) {
       this._blendModeStack = [];
       this._isAdvanced = false;
-      this._filterHash = /* @__PURE__ */ Object.create(null);
+      this._filterHash =                 Object.create(null);
       this._renderer = renderer;
       this._renderer.runners.prerender.add(this);
     }
@@ -23345,33 +17275,18 @@ ${parts.join("\n")}
       this._activeBlendMode = "normal";
       this._isAdvanced = false;
     }
-    /**
-     * Push a blend mode onto the internal stack and apply it to the instruction set if needed.
-     * @param renderable - The renderable or {@link RenderGroup} associated with the change.
-     * @param blendMode - The blend mode to activate.
-     * @param instructionSet - The instruction set being built.
-     */
+
     pushBlendMode(renderable, blendMode, instructionSet) {
       this._blendModeStack.push(blendMode);
       this.setBlendMode(renderable, blendMode, instructionSet);
     }
-    /**
-     * Pop the last blend mode from the stack and apply the new top-of-stack mode.
-     * @param instructionSet - The instruction set being built.
-     */
+
     popBlendMode(instructionSet) {
       this._blendModeStack.pop();
       const blendMode = this._blendModeStack[this._activeBlendMode.length - 1] ?? "normal";
       this.setBlendMode(null, blendMode, instructionSet);
     }
-    /**
-     * Ensure a blend mode switch is added to the instruction set when the mode changes.
-     * If an advanced blend mode is active, subsequent renderables will be collected so they can be
-     * rendered within a single filter pass.
-     * @param renderable - The renderable or {@link RenderGroup} to associate with the change, or null when unwinding.
-     * @param blendMode - The target blend mode.
-     * @param instructionSet - The instruction set being built.
-     */
+
     setBlendMode(renderable, blendMode, instructionSet) {
       const isRenderGroup = renderable instanceof RenderGroup;
       if (this._activeBlendMode === blendMode) {
@@ -23424,24 +17339,16 @@ ${parts.join("\n")}
         canBundle: false
       });
     }
-    /**
-     * called when the instruction build process is starting this will reset internally to the default blend mode
-     * @internal
-     */
+
     buildStart() {
       this._isAdvanced = false;
     }
-    /**
-     * called when the instruction build process is finished, ensuring that if there is an advanced blend mode
-     * active, we add the final render instructions added to the instruction set
-     * @param instructionSet - The instruction set we are adding to
-     * @internal
-     */
+
     buildEnd(instructionSet) {
       if (!this._isAdvanced) return;
       this._endAdvancedBlendMode(instructionSet);
     }
-    /** @internal */
+
     destroy() {
       this._renderer = null;
       this._renderableList = null;
@@ -23733,10 +17640,7 @@ ${parts.join("\n")}
       this.color = this._backgroundColor;
       this.alpha = 1;
     }
-    /**
-     * initiates the background system
-     * @param options - the options for the background colors
-     */
+
     init(options) {
       options = { ..._BackgroundSystem2.defaultOptions, ...options };
       this.clearBeforeRender = options.clearBeforeRender;
@@ -23744,7 +17648,7 @@ ${parts.join("\n")}
       this.alpha = options.backgroundAlpha;
       this._backgroundColor.setAlpha(options.backgroundAlpha);
     }
-    /** The background color to fill if not transparent */
+
     get color() {
       return this._backgroundColor;
     }
@@ -23757,21 +17661,18 @@ ${parts.join("\n")}
       }
       this._backgroundColor.setValue(value);
     }
-    /** The background color alpha. Setting this to 0 will make the canvas transparent. */
+
     get alpha() {
       return this._backgroundColor.alpha;
     }
     set alpha(value) {
       this._backgroundColor.setAlpha(value);
     }
-    /** The background color as an [R, G, B, A] array. */
+
     get colorRgba() {
       return this._backgroundColor.toArray();
     }
-    /**
-     * destroys the background system
-     * @internal
-     */
+
     destroy() {
     }
   };
@@ -23785,20 +17686,11 @@ ${parts.join("\n")}
     priority: 0
   };
   _BackgroundSystem.defaultOptions = {
-    /**
-     * {@link WebGLOptions.backgroundAlpha}
-     * @default 1
-     */
+
     backgroundAlpha: 1,
-    /**
-     * {@link WebGLOptions.backgroundColor}
-     * @default 0x000000
-     */
+
     backgroundColor: 0,
-    /**
-     * {@link WebGLOptions.clearBeforeRender}
-     * @default true
-     */
+
     clearBeforeRender: true
   };
   let BackgroundSystem = _BackgroundSystem;
@@ -23808,7 +17700,7 @@ ${parts.join("\n")}
     webp: "image/webp"
   };
   const _ExtractSystem = class _ExtractSystem2 {
-    /** @param renderer - The renderer this System works for. */
+
     constructor(renderer) {
       this._renderer = renderer;
     }
@@ -23824,75 +17716,13 @@ ${parts.join("\n")}
         ...options
       };
     }
-    /**
-     * Creates an IImage from a display object or texture.
-     * @param options - Options for creating the image, or the target to extract
-     * @returns Promise that resolves with the generated IImage
-     * @example
-     * ```ts
-     * // Basic usage with a sprite
-     * const sprite = new Sprite(texture);
-     * const image = await renderer.extract.image(sprite);
-     * document.body.appendChild(image);
-     *
-     * // Advanced usage with options
-     * const image = await renderer.extract.image({
-     *     target: container,
-     *     format: 'webp',
-     *     quality: 0.8,
-     *     frame: new Rectangle(0, 0, 100, 100),
-     *     resolution: 2,
-     *     clearColor: '#ff0000',
-     *     antialias: true
-     * });
-     *
-     * // Extract directly from a texture
-     * const texture = Texture.from('myTexture.png');
-     * const image = await renderer.extract.image(texture);
-     * ```
-     * @see {@link ExtractImageOptions} For detailed options
-     * @see {@link ExtractSystem.base64} For base64 string output
-     * @see {@link ExtractSystem.canvas} For canvas output
-     * @see {@link ImageLike} For the image interface
-     * @category rendering
-     */
+
     async image(options) {
       const image = DOMAdapter.get().createImage();
       image.src = await this.base64(options);
       return image;
     }
-    /**
-     * Converts the target into a base64 encoded string.
-     *
-     * This method works by first creating
-     * a canvas using `Extract.canvas` and then converting it to a base64 string.
-     * @param options - The options for creating the base64 string, or the target to extract
-     * @returns Promise that resolves with the base64 encoded string
-     * @example
-     * ```ts
-     * // Basic usage with a sprite
-     * const sprite = new Sprite(texture);
-     * const base64 = await renderer.extract.base64(sprite);
-     * console.log(base64); // data:image/png;base64,...
-     *
-     * // Advanced usage with options
-     * const base64 = await renderer.extract.base64({
-     *     target: container,
-     *     format: 'webp',
-     *     quality: 0.8,
-     *     frame: new Rectangle(0, 0, 100, 100),
-     *     resolution: 2
-     * });
-     * ```
-     * @throws Will throw an error if the platform doesn't support any of:
-     * - ICanvas.toDataURL
-     * - ICanvas.toBlob
-     * - ICanvas.convertToBlob
-     * @see {@link ExtractImageOptions} For detailed options
-     * @see {@link ExtractSystem.canvas} For canvas output
-     * @see {@link ExtractSystem.image} For HTMLImage output
-     * @category rendering
-     */
+
     async base64(options) {
       options = this._normalizeOptions(
         options,
@@ -23928,46 +17758,7 @@ ${parts.join("\n")}
       }
       throw new Error("Extract.base64() requires ICanvas.toDataURL, ICanvas.toBlob, or ICanvas.convertToBlob to be implemented");
     }
-    /**
-     * Creates a Canvas element, renders the target to it and returns it.
-     * This method is useful for creating static images or when you need direct canvas access.
-     * @param options - The options for creating the canvas, or the target to extract
-     * @returns A Canvas element with the texture rendered on
-     * @example
-     * ```ts
-     * // Basic canvas extraction from a sprite
-     * const sprite = new Sprite(texture);
-     * const canvas = renderer.extract.canvas(sprite);
-     * document.body.appendChild(canvas);
-     *
-     * // Extract with custom region
-     * const canvas = renderer.extract.canvas({
-     *     target: container,
-     *     frame: new Rectangle(0, 0, 100, 100)
-     * });
-     *
-     * // Extract with high resolution
-     * const canvas = renderer.extract.canvas({
-     *     target: sprite,
-     *     resolution: 2,
-     *     clearColor: '#ff0000'
-     * });
-     *
-     * // Extract directly from a texture
-     * const texture = Texture.from('myTexture.png');
-     * const canvas = renderer.extract.canvas(texture);
-     *
-     * // Extract with anti-aliasing
-     * const canvas = renderer.extract.canvas({
-     *     target: graphics,
-     *     antialias: true
-     * });
-     * ```
-     * @see {@link ExtractOptions} For detailed options
-     * @see {@link ExtractSystem.image} For HTMLImage output
-     * @see {@link ExtractSystem.pixels} For raw pixel data
-     * @category rendering
-     */
+
     canvas(options) {
       options = this._normalizeOptions(options);
       const target = options.target;
@@ -23980,36 +17771,7 @@ ${parts.join("\n")}
       texture.destroy(true);
       return canvas;
     }
-    /**
-     * Returns a one-dimensional array containing the pixel data of the entire texture in RGBA order,
-     * with integer values between 0 and 255 (inclusive).
-     * > [!NOE] The returned array is a flat Uint8Array where every 4 values represent RGBA
-     * @param options - The options for extracting the image, or the target to extract
-     * @returns One-dimensional Uint8Array containing the pixel data in RGBA format
-     * @example
-     * ```ts
-     * // Basic pixel extraction
-     * const sprite = new Sprite(texture);
-     * const pixels = renderer.extract.pixels(sprite);
-     * console.log(pixels[0], pixels[1], pixels[2], pixels[3]); // R,G,B,A values
-     *
-     * // Extract with custom region
-     * const pixels = renderer.extract.pixels({
-     *     target: sprite,
-     *     frame: new Rectangle(0, 0, 100, 100)
-     * });
-     *
-     * // Extract with high resolution
-     * const pixels = renderer.extract.pixels({
-     *     target: sprite,
-     *     resolution: 2
-     * });
-     * ```
-     * @see {@link ExtractOptions} For detailed options
-     * @see {@link ExtractSystem.canvas} For canvas output
-     * @see {@link ExtractSystem.image} For image output
-     * @category rendering
-     */
+
     pixels(options) {
       options = this._normalizeOptions(options);
       const target = options.target;
@@ -24021,98 +17783,13 @@ ${parts.join("\n")}
       }
       return pixelInfo;
     }
-    /**
-     * Creates a texture from a display object or existing texture.
-     *
-     * This is useful for creating
-     * reusable textures from rendered content or making copies of existing textures.
-     * > [!NOTE] The returned texture should be destroyed when no longer needed
-     * @param options - The options for creating the texture, or the target to extract
-     * @returns A new texture containing the extracted content
-     * @example
-     * ```ts
-     * // Basic texture extraction from a sprite
-     * const sprite = new Sprite(texture);
-     * const extractedTexture = renderer.extract.texture(sprite);
-     *
-     * // Extract with custom region
-     * const regionTexture = renderer.extract.texture({
-     *     target: container,
-     *     frame: new Rectangle(0, 0, 100, 100)
-     * });
-     *
-     * // Extract with high resolution
-     * const hiResTexture = renderer.extract.texture({
-     *     target: sprite,
-     *     resolution: 2,
-     *     clearColor: '#ff0000'
-     * });
-     *
-     * // Create a new sprite from extracted texture
-     * const newSprite = new Sprite(
-     *     renderer.extract.texture({
-     *         target: graphics,
-     *         antialias: true
-     *     })
-     * );
-     *
-     * // Clean up when done
-     * extractedTexture.destroy(true);
-     * ```
-     * @see {@link ExtractOptions} For detailed options
-     * @see {@link Texture} For texture management
-     * @see {@link GenerateTextureSystem} For texture generation
-     * @category rendering
-     */
+
     texture(options) {
       options = this._normalizeOptions(options);
       if (options.target instanceof Texture) return options.target;
       return this._renderer.textureGenerator.generateTexture(options);
     }
-    /**
-     * Extracts and downloads content from the renderer as an image file.
-     * This is a convenient way to save screenshots or export rendered content.
-     * > [!NOTE] The download will use PNG format regardless of the filename extension
-     * @param options - The options for downloading and extracting the image, or the target to extract
-     * @example
-     * ```ts
-     * // Basic download with default filename
-     * const sprite = new Sprite(texture);
-     * renderer.extract.download(sprite); // Downloads as 'image.png'
-     *
-     * // Download with custom filename
-     * renderer.extract.download({
-     *     target: sprite,
-     *     filename: 'screenshot.png'
-     * });
-     *
-     * // Download with custom region
-     * renderer.extract.download({
-     *     target: container,
-     *     filename: 'region.png',
-     *     frame: new Rectangle(0, 0, 100, 100)
-     * });
-     *
-     * // Download with high resolution and background
-     * renderer.extract.download({
-     *     target: stage,
-     *     filename: 'hd-screenshot.png',
-     *     resolution: 2,
-     *     clearColor: '#ff0000'
-     * });
-     *
-     * // Download with anti-aliasing
-     * renderer.extract.download({
-     *     target: graphics,
-     *     filename: 'smooth.png',
-     *     antialias: true
-     * });
-     * ```
-     * @see {@link ExtractDownloadOptions} For detailed options
-     * @see {@link ExtractSystem.image} For creating images without download
-     * @see {@link ExtractSystem.canvas} For canvas output
-     * @category rendering
-     */
+
     download(options) {
       options = this._normalizeOptions(options);
       const canvas = this.canvas(options);
@@ -24123,22 +17800,7 @@ ${parts.join("\n")}
       link.click();
       document.body.removeChild(link);
     }
-    /**
-     * Logs the target to the console as an image. This is a useful way to debug what's happening in the renderer.
-     * The image will be displayed in the browser's console using CSS background images.
-     * @param options - The options for logging the image, or the target to log
-     * @param options.width - The width of the logged image preview in the console (in pixels)
-     * @example
-     * ```ts
-     * // Basic usage
-     * const sprite = new Sprite(texture);
-     * renderer.extract.log(sprite);
-     * ```
-     * @see {@link ExtractSystem.canvas} For getting raw canvas output
-     * @see {@link ExtractSystem.pixels} For raw pixel data
-     * @category rendering
-     * @advanced
-     */
+
     log(options) {
       const width = options.width ?? 200;
       options = this._normalizeOptions(options);
@@ -24171,15 +17833,7 @@ ${parts.join("\n")}
   };
   let ExtractSystem = _ExtractSystem;
   class RenderTexture extends Texture {
-    /**
-     * Creates a RenderTexture. Pass `dynamic: true` in options to allow resizing after creation.
-     * @param options - Options for the RenderTexture, including width, height, textureOptions, and dynamic.
-     * @returns A new RenderTexture instance.
-     * @example
-     * const textureOptions = { defaultAnchor: { x: 0.5, y: 0.5 } };
-     * const rt = RenderTexture.create({ width: 100, height: 100, dynamic: true, textureOptions });
-     * rt.resize(500, 500);
-     */
+
     static create(options) {
       const { dynamic, textureOptions, ...rest } = options;
       return new RenderTexture({
@@ -24188,13 +17842,7 @@ ${parts.join("\n")}
         dynamic: dynamic ?? false
       });
     }
-    /**
-     * Resizes the render texture.
-     * @param width - The new width of the render texture.
-     * @param height - The new height of the render texture.
-     * @param resolution - The new resolution of the render texture.
-     * @returns This texture.
-     */
+
     resize(width, height, resolution) {
       this.source.resize(width, height, resolution);
       return this;
@@ -24207,42 +17855,7 @@ ${parts.join("\n")}
     constructor(renderer) {
       this._renderer = renderer;
     }
-    /**
-     * Creates a texture from a display object that can be used for creating sprites and other textures.
-     * This is particularly useful for optimizing performance when a complex container needs to be reused.
-     * @param options - Generate texture options or a container to convert to texture
-     * @returns A new RenderTexture containing the rendered display object
-     * @example
-     * ```ts
-     * // Basic usage with a container
-     * const container = new Container();
-     * container.addChild(
-     *     new Graphics()
-     *         .circle(0, 0, 50)
-     *         .fill('red')
-     * );
-     *
-     * const texture = renderer.textureGenerator.generateTexture(container);
-     *
-     * // Advanced usage with options
-     * const texture = renderer.textureGenerator.generateTexture({
-     *     target: container,
-     *     frame: new Rectangle(0, 0, 100, 100), // Specific region
-     *     resolution: 2,                        // High DPI
-     *     clearColor: '#ff0000',               // Red background
-     *     antialias: true                      // Smooth edges
-     * });
-     *
-     * // Create a sprite from the generated texture
-     * const sprite = new Sprite(texture);
-     *
-     * // Clean up when done
-     * texture.destroy(true);
-     * ```
-     * @see {@link GenerateTextureOptions} For detailed texture generation options
-     * @see {@link RenderTexture} For the type of texture created
-     * @category rendering
-     */
+
     generateTexture(options) {
       if (options instanceof Container) {
         options = {
@@ -24307,7 +17920,7 @@ ${parts.join("\n")}
       }
     }
     if (!clean) return hash;
-    const cleanHash2 = /* @__PURE__ */ Object.create(null);
+    const cleanHash2 =                 Object.create(null);
     for (const i2 in hash) {
       const value = hash[i2];
       if (value) {
@@ -24329,10 +17942,7 @@ ${parts.join("\n")}
     return arr;
   }
   const _GCSystem = class _GCSystem2 {
-    /**
-     * Creates a new GCSystem instance.
-     * @param renderer - The renderer this garbage collection system works for
-     */
+
     constructor(renderer) {
       this._managedResources = [];
       this._managedResourceHashes = [];
@@ -24340,10 +17950,7 @@ ${parts.join("\n")}
       this._ready = false;
       this._renderer = renderer;
     }
-    /**
-     * Initializes the garbage collection system with the provided options.
-     * @param options - Configuration options
-     */
+
     init(options) {
       options = { ..._GCSystem2.defaultOptions, ...options };
       this.maxUnusedTime = options.gcMaxUnusedTime;
@@ -24351,18 +17958,11 @@ ${parts.join("\n")}
       this.enabled = options.gcActive;
       this.now = performance.now();
     }
-    /**
-     * Gets whether the garbage collection system is currently enabled.
-     * @returns True if GC is enabled, false otherwise
-     */
+
     get enabled() {
       return !!this._handler;
     }
-    /**
-     * Enables or disables the garbage collection system.
-     * When enabled, schedules periodic cleanup of resources.
-     * When disabled, cancels all scheduled cleanups.
-     */
+
     set enabled(value) {
       if (this.enabled === value) return;
       if (value) {
@@ -24393,27 +17993,19 @@ ${parts.join("\n")}
         this._collectionsHandler = 0;
       }
     }
-    /**
-     * Called before rendering. Updates the current timestamp.
-     * @param options - The render options
-     * @param options.container - The container to render
-     */
+
     prerender({ container }) {
       this.now = performance.now();
       container.renderGroup.gcTick = this._renderer.tick++;
       this._updateInstructionGCTick(container.renderGroup, container.renderGroup.gcTick);
     }
-    /** Performs garbage collection after rendering. */
+
     postrender() {
       if (!this._ready || !this.enabled) return;
       this.run();
       this._ready = false;
     }
-    /**
-     * Updates the GC tick counter for a render group and its children.
-     * @param renderGroup - The render group to update
-     * @param gcTick - The new tick value
-     */
+
     _updateInstructionGCTick(renderGroup, gcTick) {
       renderGroup.instructionSet.gcTick = gcTick;
       renderGroup.gcTick = gcTick;
@@ -24421,12 +18013,7 @@ ${parts.join("\n")}
         this._updateInstructionGCTick(child, gcTick);
       }
     }
-    /**
-     * Registers a collection for garbage collection tracking.
-     * @param context - The object containing the collection
-     * @param collection - The property name on context that holds the collection
-     * @param type - The type of collection to track ('hash' or 'array')
-     */
+
     addCollection(context2, collection, type) {
       this._managedCollections.push({
         context: context2,
@@ -24434,11 +18021,7 @@ ${parts.join("\n")}
         type
       });
     }
-    /**
-     * Registers a resource for garbage collection tracking.
-     * @param resource - The resource to track
-     * @param type - The type of resource to track
-     */
+
     addResource(resource, type) {
       if (resource._gcLastUsed !== -1) {
         resource._gcLastUsed = this.now;
@@ -24455,11 +18038,7 @@ ${parts.join("\n")}
       resource.once("unload", this.removeResource, this);
       this._managedResources.push(resource);
     }
-    /**
-     * Removes a resource from garbage collection tracking.
-     * Call this when manually destroying a resource.
-     * @param resource - The resource to stop tracking
-     */
+
     removeResource(resource) {
       const gcData = resource._gcData;
       if (!gcData) return;
@@ -24474,14 +18053,7 @@ ${parts.join("\n")}
       resource._gcData = null;
       resource._gcLastUsed = -1;
     }
-    /**
-     * Registers a hash-based resource collection for garbage collection tracking.
-     * Resources in the hash will be automatically tracked and cleaned up when unused.
-     * @param context - The object containing the hash property
-     * @param hash - The property name on context that holds the resource hash
-     * @param type - The type of resources in the hash ('resource' or 'renderable')
-     * @param priority - Processing priority (lower values are processed first)
-     */
+
     addResourceHash(context2, hash, type, priority = 0) {
       this._managedResourceHashes.push({
         context: context2,
@@ -24491,10 +18063,7 @@ ${parts.join("\n")}
       });
       this._managedResourceHashes.sort((a2, b2) => a2.priority - b2.priority);
     }
-    /**
-     * Performs garbage collection by cleaning up unused resources.
-     * Removes resources that haven't been used for longer than maxUnusedTime.
-     */
+
     run() {
       const now = performance.now();
       const managedResourceHashes = this._managedResourceHashes;
@@ -24534,14 +18103,9 @@ ${parts.join("\n")}
       }
       return writeIndex;
     }
-    /**
-     * Creates a clone of the hash, copying all non-null entries up to (but not including) the stop key.
-     * @param hashValue - The original hash to clone from
-     * @param stopKey - The key to stop at (exclusive)
-     * @returns A new hash object with copied entries
-     */
+
     _createHashClone(hashValue, stopKey) {
-      const hashClone = /* @__PURE__ */ Object.create(null);
+      const hashClone =                 Object.create(null);
       for (const k2 in hashValue) {
         if (k2 === stopKey) break;
         if (hashValue[k2] !== null) hashClone[k2] = hashValue[k2];
@@ -24597,7 +18161,7 @@ ${parts.join("\n")}
         context2[hash] = hashClone;
       }
     }
-    /** Cleans up the garbage collection system. Disables GC and removes all tracked resources. */
+
     destroy() {
       this.enabled = false;
       this._managedResources.forEach((resource) => {
@@ -24619,11 +18183,11 @@ ${parts.join("\n")}
     priority: 0
   };
   _GCSystem.defaultOptions = {
-    /** Enable/disable the garbage collector */
+
     gcActive: true,
-    /** Time in ms before an unused resource is collected (default 1 minute) */
+
     gcMaxUnusedTime: 6e4,
-    /** How often to run garbage collection in ms (default 30 seconds) */
+
     gcFrequency: 3e4
   };
   let GCSystem = _GCSystem;
@@ -24721,7 +18285,7 @@ ${parts.join("\n")}
       const globalUniforms = new UniformGroup({
         uProjectionMatrix: { value: new Matrix(), type: "mat3x3<f32>" },
         uWorldTransformMatrix: { value: new Matrix(), type: "mat3x3<f32>" },
-        // TODO - someone smart - set this to be a unorm8x4 rather than a vec4<f32>
+
         uWorldColorAlpha: { value: new Float32Array(4), type: "vec4<f32>" },
         uResolution: { value: [0, 0], type: "vec2<f32>" }
       }, {
@@ -24753,17 +18317,11 @@ ${parts.join("\n")}
       this._tasks = [];
       this._offset = 0;
     }
-    /** Initializes the scheduler system and starts the ticker. */
+
     init() {
       Ticker.system.add(this._update, this);
     }
-    /**
-     * Schedules a repeating task.
-     * @param func - The function to execute.
-     * @param duration - The interval duration in milliseconds.
-     * @param useOffset - this will spread out tasks so that they do not all run at the same time
-     * @returns The unique identifier for the scheduled task.
-     */
+
     repeat(func, duration, useOffset = true) {
       const id = uid++;
       let offset2 = 0;
@@ -24782,10 +18340,7 @@ ${parts.join("\n")}
       });
       return id;
     }
-    /**
-     * Cancels a scheduled task.
-     * @param id - The unique identifier of the task to cancel.
-     */
+
     cancel(id) {
       for (let i2 = 0; i2 < this._tasks.length; i2++) {
         if (this._tasks[i2].id === id) {
@@ -24794,10 +18349,7 @@ ${parts.join("\n")}
         }
       }
     }
-    /**
-     * Updates and executes the scheduled tasks.
-     * @private
-     */
+
     _update() {
       const now = performance.now();
       for (let i2 = 0; i2 < this._tasks.length; i2++) {
@@ -24809,10 +18361,7 @@ ${parts.join("\n")}
         }
       }
     }
-    /**
-     * Destroys the scheduler system and removes all tasks.
-     * @internal
-     */
+
     destroy() {
       Ticker.system.remove(this._update, this);
       this._tasks.length = 0;
@@ -24854,10 +18403,7 @@ ${parts.join("\n")}
     constructor(renderer) {
       this._renderer = renderer;
     }
-    /**
-     * It all starts here! This initiates every system, passing in the options for any system by name.
-     * @param options - the config for the renderer and all its systems
-     */
+
     init(options) {
       if (options.hello) {
         let name = this._renderer.name;
@@ -24878,78 +18424,50 @@ ${parts.join("\n")}
     priority: -2
   };
   HelloSystem.defaultOptions = {
-    /** {@link WebGLOptions.hello} */
+
     hello: false
   };
   const _RenderableGCSystem = class _RenderableGCSystem2 {
-    /**
-     * Creates a new RenderableGCSystem instance.
-     * @param renderer - The renderer this garbage collection system works for
-     */
+
     constructor(renderer) {
       this._renderer = renderer;
     }
-    /**
-     * Initializes the garbage collection system with the provided options.
-     * @param options - Configuration options for the renderer
-     */
+
     init(options) {
       options = { ..._RenderableGCSystem2.defaultOptions, ...options };
       this.maxUnusedTime = options.renderableGCMaxUnusedTime;
     }
-    /**
-     * Gets whether the garbage collection system is currently enabled.
-     * @returns True if GC is enabled, false otherwise
-     */
+
     get enabled() {
       deprecation("8.15.0", "RenderableGCSystem.enabled is deprecated, please use the GCSystem.enabled instead.");
       return this._renderer.gc.enabled;
     }
-    /**
-     * Enables or disables the garbage collection system.
-     * When enabled, schedules periodic cleanup of resources.
-     * When disabled, cancels all scheduled cleanups.
-     */
+
     set enabled(value) {
       deprecation("8.15.0", "RenderableGCSystem.enabled is deprecated, please use the GCSystem.enabled instead.");
       this._renderer.gc.enabled = value;
     }
-    /**
-     * Adds a hash table to be managed by the garbage collector.
-     * @param context - The object containing the hash table
-     * @param hash - The property name of the hash table
-     */
+
     addManagedHash(context2, hash) {
       deprecation("8.15.0", "RenderableGCSystem.addManagedHash is deprecated, please use the GCSystem.addCollection instead.");
       this._renderer.gc.addCollection(context2, hash, "hash");
     }
-    /**
-     * Adds an array to be managed by the garbage collector.
-     * @param context - The object containing the array
-     * @param hash - The property name of the array
-     */
+
     addManagedArray(context2, hash) {
       deprecation("8.15.0", "RenderableGCSystem.addManagedArray is deprecated, please use the GCSystem.addCollection instead.");
       this._renderer.gc.addCollection(context2, hash, "array");
     }
-    /**
-     * Starts tracking a renderable for garbage collection.
-     * @param _renderable - The renderable to track
-     * @deprecated since 8.15.0
-     */
+
     addRenderable(_renderable) {
       deprecation("8.15.0", "RenderableGCSystem.addRenderable is deprecated, please use the GCSystem instead.");
       this._renderer.gc.addResource(_renderable, "renderable");
     }
-    /**
-     * Performs garbage collection by cleaning up unused renderables.
-     * Removes renderables that haven't been used for longer than maxUnusedTime.
-     */
+
     run() {
       deprecation("8.15.0", "RenderableGCSystem.run is deprecated, please use the GCSystem instead.");
       this._renderer.gc.run();
     }
-    /** Cleans up the garbage collection system. Disables GC and removes all tracked resources. */
+
     destroy() {
       this._renderer = null;
     }
@@ -24964,28 +18482,20 @@ ${parts.join("\n")}
     priority: 0
   };
   _RenderableGCSystem.defaultOptions = {
-    /** Enable/disable the garbage collector */
+
     renderableGCActive: true,
-    /** Time in ms before an unused resource is collected (default 1 minute) */
+
     renderableGCMaxUnusedTime: 6e4,
-    /** How often to run garbage collection in ms (default 30 seconds) */
+
     renderableGCFrequency: 3e4
   };
   let RenderableGCSystem = _RenderableGCSystem;
   const _TextureGCSystem = class _TextureGCSystem2 {
-    /**
-     * Frame count since started.
-     * @readonly
-     * @deprecated since 8.15.0
-     */
+
     get count() {
       return this._renderer.tick;
     }
-    /**
-     * Frame count since last garbage collection.
-     * @readonly
-     * @deprecated since 8.15.0
-     */
+
     get checkCount() {
       return this._checkCount;
     }
@@ -24993,11 +18503,7 @@ ${parts.join("\n")}
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
       this._checkCount = value;
     }
-    /**
-     * Maximum idle frames before a texture is destroyed by garbage collection.
-     * @see TextureGCSystem.defaultMaxIdle
-     * @deprecated since 8.15.0
-     */
+
     get maxIdle() {
       return this._renderer.gc.maxUnusedTime / 1e3 * 60;
     }
@@ -25005,23 +18511,14 @@ ${parts.join("\n")}
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
       this._renderer.gc.maxUnusedTime = value / 60 * 1e3;
     }
-    /**
-     * Frames between two garbage collections.
-     * @see TextureGCSystem.defaultCheckCountMax
-     * @deprecated since 8.15.0
-     */
-    // eslint-disable-next-line dot-notation
+
     get checkCountMax() {
       return Math.floor(this._renderer.gc["_frequency"] / 1e3);
     }
     set checkCountMax(_value) {
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
     }
-    /**
-     * Current garbage collection mode.
-     * @see TextureGCSystem.defaultMode
-     * @deprecated since 8.15.0
-     */
+
     get active() {
       return this._renderer.gc.enabled;
     }
@@ -25029,7 +18526,7 @@ ${parts.join("\n")}
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
       this._renderer.gc.enabled = value;
     }
-    /** @param renderer - The renderer this System works for. */
+
     constructor(renderer) {
       this._renderer = renderer;
       this._checkCount = 0;
@@ -25045,11 +18542,7 @@ ${parts.join("\n")}
         this.checkCountMax = options.textureGCCheckCountMax;
       }
     }
-    /**
-     * Checks to see when the last time a texture was used.
-     * If the texture has not been used for a specified amount of time, it will be removed from the GPU.
-     * @deprecated since 8.15.0
-     */
+
     run() {
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
       this._renderer.gc.run();
@@ -25066,32 +18559,18 @@ ${parts.join("\n")}
     name: "textureGC"
   };
   _TextureGCSystem.defaultOptions = {
-    /**
-     * If set to true, this will enable the garbage collector on the GPU.
-     * @default true
-     */
+
     textureGCActive: true,
-    /**
-     * @deprecated since 8.3.0
-     * @see {@link TextureGCSystemOptions.textureGCMaxIdle}
-     */
+
     textureGCAMaxIdle: null,
-    /**
-     * The maximum idle frames before a texture is destroyed by garbage collection.
-     * @default 60 * 60
-     */
+
     textureGCMaxIdle: 60 * 60,
-    /**
-     * Frames between two garbage collections.
-     * @default 600
-     */
+
     textureGCCheckCountMax: 600
   };
   let TextureGCSystem = _TextureGCSystem;
   const _RenderTarget = class _RenderTarget2 {
-    /**
-     * @param [descriptor] - Options for creating a render target.
-     */
+
     constructor(descriptor = {}) {
       this.uid = uid$1("renderTarget");
       this.colorTextures = [];
@@ -25156,11 +18635,7 @@ ${parts.join("\n")}
     onSourceResize(source2) {
       this.resize(source2.width, source2.height, source2._resolution, true);
     }
-    /**
-     * This will ensure a depthStencil texture is created for this render target.
-     * Most likely called by the mask system to make sure we have stencil buffer added.
-     * @internal
-     */
+
     ensureDepthStencilTexture() {
       if (!this.depthStencilTexture) {
         this.depthStencilTexture = new TextureSource({
@@ -25171,7 +18646,7 @@ ${parts.join("\n")}
           autoGenerateMipmaps: false,
           antialias: false,
           mipLevelCount: 1
-          // sampleCount: handled by the render target system..
+
         });
       }
     }
@@ -25199,26 +18674,25 @@ ${parts.join("\n")}
     }
   };
   _RenderTarget.defaultOptions = {
-    /** the width of the RenderTarget */
+
     width: 0,
-    /** the height of the RenderTarget */
+
     height: 0,
-    /** the resolution of the RenderTarget */
+
     resolution: 1,
-    /** an array of textures, or a number indicating how many color textures there should be */
+
     colorTextures: 1,
-    /** should this render target have a stencil buffer? */
+
     stencil: false,
-    /** should this render target have a depth buffer? */
+
     depth: false,
-    /** should this render target be antialiased? */
+
     antialias: false,
-    // save on perf by default!
-    /** is this a root element, true if this is gl context owners render target */
+
     isRoot: false
   };
   let RenderTarget = _RenderTarget;
-  const canvasCache = /* @__PURE__ */ new Map();
+  const canvasCache =                 new Map();
   GlobalResourceRegistry.register(canvasCache);
   function getCanvasTexture(canvas, options) {
     if (!canvasCache.has(canvas)) {
@@ -25240,18 +18714,14 @@ ${parts.join("\n")}
     return canvasCache.get(canvas);
   }
   const _ViewSystem = class _ViewSystem2 {
-    /**
-     * Whether CSS dimensions of canvas view should be resized to screen dimensions automatically.
-     * This is only supported for HTMLCanvasElement and will be ignored if the canvas is an OffscreenCanvas.
-     * @type {boolean}
-     */
+
     get autoDensity() {
       return this.texture.source.autoDensity;
     }
     set autoDensity(value) {
       this.texture.source.autoDensity = value;
     }
-    /** The resolution / device pixel ratio of the renderer. */
+
     get resolution() {
       return this.texture.source._resolution;
     }
@@ -25262,10 +18732,7 @@ ${parts.join("\n")}
         value
       );
     }
-    /**
-     * initiates the view system
-     * @param options - the options for the view
-     */
+
     init(options) {
       options = {
         ..._ViewSystem2.defaultOptions,
@@ -25287,25 +18754,13 @@ ${parts.join("\n")}
       this.texture.source.transparent = options.backgroundAlpha < 1;
       this.resolution = options.resolution;
     }
-    /**
-     * Resizes the screen and canvas to the specified dimensions.
-     * @param desiredScreenWidth - The new width of the screen.
-     * @param desiredScreenHeight - The new height of the screen.
-     * @param resolution
-     */
+
     resize(desiredScreenWidth, desiredScreenHeight, resolution) {
       this.texture.source.resize(desiredScreenWidth, desiredScreenHeight, resolution);
       this.screen.width = this.texture.frame.width;
       this.screen.height = this.texture.frame.height;
     }
-    /**
-     * Destroys this System and optionally removes the canvas from the dom.
-     * @param {options | false} options - The options for destroying the view, or "false".
-     * @example
-     * viewSystem.destroy();
-     * viewSystem.destroy(true);
-     * viewSystem.destroy({ removeView: true });
-     */
+
     destroy(options = false) {
       const removeView = typeof options === "boolean" ? options : !!options?.removeView;
       if (removeView && this.canvas.parentNode) {
@@ -25324,25 +18779,13 @@ ${parts.join("\n")}
     priority: 0
   };
   _ViewSystem.defaultOptions = {
-    /**
-     * {@link WebGLOptions.width}
-     * @default 800
-     */
+
     width: 800,
-    /**
-     * {@link WebGLOptions.height}
-     * @default 600
-     */
+
     height: 600,
-    /**
-     * {@link WebGLOptions.autoDensity}
-     * @default false
-     */
+
     autoDensity: false,
-    /**
-     * {@link WebGLOptions.antialias}
-     * @default false
-     */
+
     antialias: false
   };
   let ViewSystem = _ViewSystem;
@@ -25392,27 +18835,17 @@ ${parts.join("\n")}
       this.onRenderTargetChange = new SystemRunner("onRenderTargetChange");
       this.projectionMatrix = new Matrix();
       this.defaultClearColor = [0, 0, 0, 0];
-      this._renderSurfaceToRenderTargetHash = /* @__PURE__ */ new Map();
-      this._gpuRenderTargetHash = /* @__PURE__ */ Object.create(null);
+      this._renderSurfaceToRenderTargetHash =                 new Map();
+      this._gpuRenderTargetHash =                 Object.create(null);
       this._renderTargetStack = [];
       this._renderer = renderer;
       renderer.gc.addCollection(this, "_gpuRenderTargetHash", "hash");
     }
-    /** called when dev wants to finish a render pass */
+
     finishRenderPass() {
       this.adaptor.finishRenderPass(this.renderTarget);
     }
-    /**
-     * called when the renderer starts to render a scene.
-     * @param options
-     * @param options.target - the render target to render to
-     * @param options.clear - the clear mode to use. Can be true or a CLEAR number 'COLOR | DEPTH | STENCIL' 0b111
-     * @param options.clearColor - the color to clear to
-     * @param options.frame - the frame to render to
-     * @param options.mipLevel - the mip level to render to
-     * @param options.layer - The layer of the render target to render to. Used for array or 3D textures, or when rendering
-     * to a specific layer of a layered render target. Optional.
-     */
+
     renderStart({
       target,
       clear,
@@ -25438,31 +18871,7 @@ ${parts.join("\n")}
     postrender() {
       this.adaptor.postrender?.(this.rootRenderTarget);
     }
-    /**
-     * Binding a render surface! This is the main function of the render target system.
-     * It will take the RenderSurface (which can be a texture, canvas, or render target) and bind it to the renderer.
-     * Once bound all draw calls will be rendered to the render surface.
-     *
-     * If a frame is not provided and the render surface is a {@link Texture}, the frame of the texture will be used.
-     *
-     * IMPORTANT:
-     * - `frame` is treated as **base mip (mip 0) pixel space**.
-     * - When `mipLevel > 0`, the viewport derived from `frame` is scaled by \(2^{mipLevel}\) and clamped to the
-     *   mip dimensions. This keeps "render the same region" semantics consistent across mip levels.
-     * - When `renderSurface` is a {@link Texture}, `renderer.render({ container, target: texture, mipLevel })` will
-     *   render into
-     *   the underlying {@link TextureSource} (Pixi will create/use a {@link RenderTarget} for the source) using the
-     *   texture's frame to define the region (in mip 0 space).
-     * @param renderSurface - the render surface to bind
-     * @param clear - the clear mode to use. Can be true or a CLEAR number 'COLOR | DEPTH | STENCIL' 0b111
-     * @param clearColor - the color to clear to
-     * @param frame - the frame to render to
-     * @param mipLevel - the mip level to render to
-     * @param layer - the layer (or slice) of the render surface to render to. For array textures,
-     * 3D textures, or cubemaps, this specifies the target layer or face. Defaults to 0 (the first layer/face).
-     * Ignored for surfaces that do not support layers.
-     * @returns the render target that was bound
-     */
+
     bind(renderSurface, clear = true, clearColor, frame, mipLevel = 0, layer2 = 0) {
       const renderTarget = this.getRenderTarget(renderSurface);
       const didChange = this.renderTarget !== renderTarget;
@@ -25544,18 +18953,9 @@ ${parts.join("\n")}
       );
     }
     contextChange() {
-      this._gpuRenderTargetHash = /* @__PURE__ */ Object.create(null);
+      this._gpuRenderTargetHash =                 Object.create(null);
     }
-    /**
-     * Push a render surface to the renderer. This will bind the render surface to the renderer,
-     * @param renderSurface - the render surface to push
-     * @param clear - the clear mode to use. Can be true or a CLEAR number 'COLOR | DEPTH | STENCIL' 0b111
-     * @param clearColor - the color to clear to
-     * @param frame - the frame to use when rendering to the render surface
-     * @param mipLevel - the mip level to render to
-     * @param layer - The layer of the render surface to render to. For array textures or cube maps, this specifies
-     * which layer or face to target. Defaults to 0 (the first layer).
-     */
+
     push(renderSurface, clear = CLEAR.ALL, clearColor, frame, mipLevel = 0, layer2 = 0) {
       const renderTarget = this.bind(renderSurface, clear, clearColor, frame, mipLevel, layer2);
       this._renderTargetStack.push({
@@ -25566,7 +18966,7 @@ ${parts.join("\n")}
       });
       return renderTarget;
     }
-    /** Pops the current render target from the renderer and restores the previous render target. */
+
     pop() {
       this._renderTargetStack.pop();
       const currentRenderTargetData = this._renderTargetStack[this._renderTargetStack.length - 1];
@@ -25579,58 +18979,14 @@ ${parts.join("\n")}
         currentRenderTargetData.layer
       );
     }
-    /**
-     * Gets the render target from the provide render surface. Eg if its a texture,
-     * it will return the render target for the texture.
-     * If its a render target, it will return the same render target.
-     * @param renderSurface - the render surface to get the render target for
-     * @returns the render target for the render surface
-     */
+
     getRenderTarget(renderSurface) {
       if (renderSurface.isTexture) {
         renderSurface = renderSurface.source;
       }
       return this._renderSurfaceToRenderTargetHash.get(renderSurface) ?? this._initRenderTarget(renderSurface);
     }
-    /**
-     * Copies a render surface to another texture.
-     *
-     * NOTE:
-     * for sourceRenderSurfaceTexture, The render target must be something that is written too by the renderer
-     *
-     * The following is not valid:
-     * @example
-     * const canvas = document.createElement('canvas')
-     * canvas.width = 200;
-     * canvas.height = 200;
-     *
-     * const ctx = canvas2.getContext('2d')!
-     * ctx.fillStyle = 'red'
-     * ctx.fillRect(0, 0, 200, 200);
-     *
-     * const texture = RenderTexture.create({
-     *   width: 200,
-     *   height: 200,
-     * })
-     * const renderTarget = renderer.renderTarget.getRenderTarget(canvas2);
-     *
-     * renderer.renderTarget.copyToTexture(renderTarget,texture, {x:0,y:0},{width:200,height:200},{x:0,y:0});
-     *
-     * The best way to copy a canvas is to create a texture from it. Then render with that.
-     *
-     * Parsing in a RenderTarget canvas context (with a 2d context)
-     * @param sourceRenderSurfaceTexture - the render surface to copy from
-     * @param {Texture} destinationTexture - the texture to copy to
-     * @param {object} originSrc - the origin of the copy
-     * @param {number} originSrc.x - the x origin of the copy
-     * @param {number} originSrc.y - the y origin of the copy
-     * @param {object} size - the size of the copy
-     * @param {number} size.width - the width of the copy
-     * @param {number} size.height - the height of the copy
-     * @param {object} originDest - the destination origin (top left to paste from!)
-     * @param {number} originDest.x - the x origin of the paste
-     * @param {number} originDest.y - the y origin of the paste
-     */
+
     copyToTexture(sourceRenderSurfaceTexture, destinationTexture, originSrc, size, originDest) {
       if (originSrc.x < 0) {
         size.width += originSrc.x;
@@ -25653,17 +19009,14 @@ ${parts.join("\n")}
         originDest
       );
     }
-    /**
-     * ensures that we have a depth stencil buffer available to render to
-     * This is used by the mask system to make sure we have a stencil buffer.
-     */
+
     ensureDepthStencil() {
       if (!this.renderTarget.stencil) {
         this.renderTarget.stencil = true;
         this.adaptor.startRenderPass(this.renderTarget, false, null, this.viewport, 0, this.layer);
       }
     }
-    /** nukes the render target system */
+
     destroy() {
       this._renderer = null;
       this._renderSurfaceToRenderTargetHash.forEach((renderTarget, key) => {
@@ -25672,7 +19025,7 @@ ${parts.join("\n")}
         }
       });
       this._renderSurfaceToRenderTargetHash.clear();
-      this._gpuRenderTargetHash = /* @__PURE__ */ Object.create(null);
+      this._gpuRenderTargetHash =                 Object.create(null);
     }
     _initRenderTarget(renderSurface) {
       let renderTarget = null;
@@ -25710,21 +19063,12 @@ ${parts.join("\n")}
     }
   }
   class CanvasRenderTargetAdaptor {
-    /**
-     * Initializes the adaptor.
-     * @param renderer - Canvas renderer instance.
-     * @param renderTargetSystem - The render target system.
-     * @advanced
-     */
+
     init(renderer, renderTargetSystem) {
       this._renderer = renderer;
       this._renderTargetSystem = renderTargetSystem;
     }
-    /**
-     * Creates a GPU render target for canvas.
-     * @param renderTarget - Render target to initialize.
-     * @advanced
-     */
+
     initGpuRenderTarget(renderTarget) {
       const colorTexture = renderTarget.colorTexture;
       const { canvas, context: context2 } = this._ensureCanvas(colorTexture);
@@ -25735,25 +19079,14 @@ ${parts.join("\n")}
         height: canvas.height
       };
     }
-    /**
-     * Resizes the backing canvas for a render target.
-     * @param renderTarget - Render target to resize.
-     * @advanced
-     */
+
     resizeGpuRenderTarget(renderTarget) {
       const colorTexture = renderTarget.colorTexture;
       const { canvas } = this._ensureCanvas(colorTexture);
       canvas.width = renderTarget.pixelWidth;
       canvas.height = renderTarget.pixelHeight;
     }
-    /**
-     * Starts a render pass on the canvas target.
-     * @param renderTarget - Target to render to.
-     * @param clear - Clear mode.
-     * @param clearColor - Optional clear color.
-     * @param viewport - Optional viewport.
-     * @advanced
-     */
+
     startRenderPass(renderTarget, clear, clearColor, viewport) {
       const gpuRenderTarget = this._renderTargetSystem.getGpuRenderTarget(renderTarget);
       this._renderer.canvasContext.activeContext = gpuRenderTarget.context;
@@ -25762,14 +19095,7 @@ ${parts.join("\n")}
         this.clear(renderTarget, clear, clearColor, viewport);
       }
     }
-    /**
-     * Clears the render target.
-     * @param renderTarget - Target to clear.
-     * @param _clear - Clear mode (unused).
-     * @param clearColor - Optional clear color.
-     * @param viewport - Optional viewport rectangle.
-     * @advanced
-     */
+
     clear(renderTarget, _clear, clearColor, viewport) {
       const gpuRenderTarget = this._renderTargetSystem.getGpuRenderTarget(renderTarget);
       const context2 = gpuRenderTarget.context;
@@ -25786,27 +19112,10 @@ ${parts.join("\n")}
         }
       }
     }
-    /**
-     * Finishes the render pass (no-op for canvas).
-     * @advanced
-     */
+
     finishRenderPass() {
     }
-    /**
-     * Copies a render target into a texture source.
-     * @param {RenderTarget} sourceRenderSurfaceTexture - Source render target.
-     * @param {Texture} destinationTexture - Destination texture.
-     * @param {object} originSrc - Source origin.
-     * @param {number} originSrc.x - Source x origin.
-     * @param {number} originSrc.y - Source y origin.
-     * @param {object} size - Copy size.
-     * @param {number} size.width - Copy width.
-     * @param {number} size.height - Copy height.
-     * @param {object} [originDest] - Destination origin.
-     * @param {number} originDest.x - Destination x origin.
-     * @param {number} originDest.y - Destination y origin.
-     * @advanced
-     */
+
     copyToTexture(sourceRenderSurfaceTexture, destinationTexture, originSrc, size, originDest) {
       const sourceGpuTarget = this._renderTargetSystem.getGpuRenderTarget(sourceRenderSurfaceTexture);
       const sourceCanvas = sourceGpuTarget.canvas;
@@ -25828,11 +19137,7 @@ ${parts.join("\n")}
       destSource.update();
       return destinationTexture;
     }
-    /**
-     * Destroys a GPU render target (no-op for canvas).
-     * @param _gpuRenderTarget - Target to destroy.
-     * @advanced
-     */
+
     destroyGpuRenderTarget(_gpuRenderTarget) {
     }
     _ensureCanvas(source2) {
@@ -25861,24 +19166,16 @@ ${parts.join("\n")}
     name: "renderTarget"
   };
   class CanvasTextureSystem {
-    /**
-     * @param renderer - The owning CanvasRenderer.
-     */
+
     constructor(renderer) {
     }
-    /** Initializes the system (no-op for canvas). */
+
     init() {
     }
-    /**
-     * Initializes a texture source (no-op for canvas).
-     * @param _source - Texture source.
-     */
+
     initSource(_source) {
     }
-    /**
-     * Creates a canvas containing the texture's frame.
-     * @param texture - Texture to render.
-     */
+
     generateCanvas(texture) {
       const canvas = DOMAdapter.get().createCanvas();
       const context2 = canvas.getContext("2d");
@@ -25907,10 +19204,7 @@ ${parts.join("\n")}
       );
       return canvas;
     }
-    /**
-     * Reads pixel data from a texture.
-     * @param texture - Texture to read.
-     */
+
     getPixels(texture) {
       const canvas = this.generateCanvas(texture);
       const context2 = canvas.getContext("2d", { willReadFrequently: true });
@@ -25921,7 +19215,7 @@ ${parts.join("\n")}
         height: canvas.height
       };
     }
-    /** Destroys the system (no-op for canvas). */
+
     destroy() {
     }
   }
@@ -25971,11 +19265,11 @@ ${parts.join("\n")}
       super(systemConfig);
     }
   }
-  const CanvasRenderer$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  const CanvasRenderer$1 =                 Object.freeze(                Object.defineProperty({
     __proto__: null,
     CanvasRenderer
   }, Symbol.toStringTag, { value: "Module" }));
-  var BUFFER_TYPE = /* @__PURE__ */ ((BUFFER_TYPE2) => {
+  var BUFFER_TYPE =                 ((BUFFER_TYPE2) => {
     BUFFER_TYPE2[BUFFER_TYPE2["ELEMENT_ARRAY_BUFFER"] = 34963] = "ELEMENT_ARRAY_BUFFER";
     BUFFER_TYPE2[BUFFER_TYPE2["ARRAY_BUFFER"] = 34962] = "ARRAY_BUFFER";
     BUFFER_TYPE2[BUFFER_TYPE2["UNIFORM_BUFFER"] = 35345] = "UNIFORM_BUFFER";
@@ -26000,11 +19294,9 @@ ${parts.join("\n")}
     }
   }
   class GlBufferSystem {
-    /**
-     * @param {Renderer} renderer - The renderer this System works for.
-     */
+
     constructor(renderer) {
-      this._boundBufferBases = /* @__PURE__ */ Object.create(null);
+      this._boundBufferBases =                 Object.create(null);
       this._minBaseLocation = 0;
       this._nextBindBaseIndex = this._minBaseLocation;
       this._bindCallId = 0;
@@ -26016,14 +19308,14 @@ ${parts.join("\n")}
         name: "glBuffer"
       });
     }
-    /** @ignore */
+
     destroy() {
       this._managedBuffers.destroy();
       this._renderer = null;
       this._gl = null;
       this._boundBufferBases = {};
     }
-    /** Sets up the renderer context and necessary buffers. */
+
     contextChange() {
       this._gl = this._renderer.gl;
       this.destroyAll(true);
@@ -26033,22 +19325,13 @@ ${parts.join("\n")}
       buffer._gcLastUsed = this._renderer.gc.now;
       return buffer._gpuData[this._renderer.uid] || this.createGLBuffer(buffer);
     }
-    /**
-     * This binds specified buffer. On first run, it will create the webGL buffers for the context too
-     * @param buffer - the buffer to bind to the renderer
-     */
+
     bind(buffer) {
       const { _gl: gl } = this;
       const glBuffer = this.getGlBuffer(buffer);
       gl.bindBuffer(glBuffer.type, glBuffer.buffer);
     }
-    /**
-     * Binds an uniform buffer to at the given index.
-     *
-     * A cache is used so a buffer will not be bound again if already bound.
-     * @param glBuffer - the buffer to bind
-     * @param index - the base index to bind it to.
-     */
+
     bindBufferBase(glBuffer, index) {
       const { _gl: gl } = this;
       if (this._boundBufferBases[index] !== glBuffer) {
@@ -26104,14 +19387,7 @@ ${parts.join("\n")}
       }
       return -1;
     }
-    /**
-     * Binds a buffer whilst also binding its range.
-     * This will make the buffer start from the offset supplied rather than 0 when it is read.
-     * @param glBuffer - the buffer to bind
-     * @param index - the base index to bind at, defaults to 0
-     * @param offset - the offset to bind at (this is blocks of 256). 0 = 0, 1 = 256, 2 = 512 etc
-     * @param size - the size to bind at (this is blocks of 256).
-     */
+
     bindBufferRange(glBuffer, index, offset2, size) {
       const { _gl: gl } = this;
       offset2 || (offset2 = 0);
@@ -26119,10 +19395,7 @@ ${parts.join("\n")}
       this._boundBufferBases[index] = null;
       gl.bindBufferRange(gl.UNIFORM_BUFFER, index || 0, glBuffer.buffer, offset2 * 256, size || 256);
     }
-    /**
-     * Will ensure the data in the buffer is uploaded to the GPU.
-     * @param {Buffer} buffer - the buffer to update
-     */
+
     updateBuffer(buffer) {
       const { _gl: gl } = this;
       const glBuffer = this.getGlBuffer(buffer);
@@ -26146,10 +19419,7 @@ ${parts.join("\n")}
       }
       return glBuffer;
     }
-    /**
-     * dispose all WebGL resources of all managed buffers
-     * @param contextLost
-     */
+
     destroyAll(contextLost = false) {
       this._managedBuffers.removeAll(contextLost);
     }
@@ -26158,11 +19428,7 @@ ${parts.join("\n")}
       if (!glBuffer) return;
       if (!contextLost) this._gl.deleteBuffer(glBuffer.buffer);
     }
-    /**
-     * creates and attaches a GLBuffer object tied to the current context.
-     * @param buffer
-     * @protected
-     */
+
     createGLBuffer(buffer) {
       const { _gl: gl } = this;
       let type = BUFFER_TYPE.ARRAY_BUFFER;
@@ -26177,7 +19443,7 @@ ${parts.join("\n")}
       return glBuffer;
     }
     resetState() {
-      this._boundBufferBases = /* @__PURE__ */ Object.create(null);
+      this._boundBufferBases =                 Object.create(null);
     }
   }
   GlBufferSystem.extension = {
@@ -26187,40 +19453,34 @@ ${parts.join("\n")}
     name: "buffer"
   };
   const _GlContextSystem = class _GlContextSystem2 {
-    /** @param renderer - The renderer this System works for. */
+
     constructor(renderer) {
       this.supports = {
-        /** Support for 32-bit indices buffer. */
+
         uint32Indices: true,
-        /** Support for UniformBufferObjects */
+
         uniformBufferObject: true,
-        /** Support for VertexArrayObjects */
+
         vertexArrayObject: true,
-        /** Support for SRGB texture format */
+
         srgbTextures: true,
-        /** Support for wrapping modes if a texture is non-power of two */
+
         nonPowOf2wrapping: true,
-        /** Support for MSAA (antialiasing of dynamic textures) */
+
         msaa: true,
-        /** Support for mipmaps if a texture is non-power of two */
+
         nonPowOf2mipmaps: true
       };
       this._renderer = renderer;
-      this.extensions = /* @__PURE__ */ Object.create(null);
+      this.extensions =                 Object.create(null);
       this.handleContextLost = this.handleContextLost.bind(this);
       this.handleContextRestored = this.handleContextRestored.bind(this);
     }
-    /**
-     * `true` if the context is lost
-     * @readonly
-     */
+
     get isLost() {
       return !this.gl || this.gl.isContextLost();
     }
-    /**
-     * Handles the context change event.
-     * @param {WebGLRenderingContext} gl - New WebGL context.
-     */
+
     contextChange(gl) {
       this.gl = gl;
       this._renderer.gl = gl;
@@ -26266,11 +19526,7 @@ ${parts.join("\n")}
         canvas.height = Math.max(targetCanvas.height, targetCanvas.height);
       }
     }
-    /**
-     * Initializes the context.
-     * @protected
-     * @param {WebGLRenderingContext} gl - WebGL context
-     */
+
     initFromContext(gl) {
       this.gl = gl;
       this.webGLVersion = gl instanceof DOMAdapter.get().getWebGLRenderingContext() ? 1 : 2;
@@ -26281,13 +19537,7 @@ ${parts.join("\n")}
       element.addEventListener("webglcontextlost", this.handleContextLost, false);
       element.addEventListener("webglcontextrestored", this.handleContextRestored, false);
     }
-    /**
-     * Initialize from context options
-     * @protected
-     * @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
-     * @param preferWebGLVersion
-     * @param {object} options - context attributes
-     */
+
     createContext(preferWebGLVersion, options) {
       let gl;
       const canvas = this.canvas;
@@ -26303,7 +19553,7 @@ ${parts.join("\n")}
       this.gl = gl;
       this.initFromContext(this.gl);
     }
-    /** Auto-populate the {@link GlContextSystem.extensions extensions}. */
+
     getExtensions() {
       const { gl } = this;
       const common = {
@@ -26311,7 +19561,7 @@ ${parts.join("\n")}
         floatTextureLinear: gl.getExtension("OES_texture_float_linear"),
         s3tc: gl.getExtension("WEBGL_compressed_texture_s3tc"),
         s3tc_sRGB: gl.getExtension("WEBGL_compressed_texture_s3tc_srgb"),
-        // eslint-disable-line camelcase
+
         etc: gl.getExtension("WEBGL_compressed_texture_etc"),
         etc1: gl.getExtension("WEBGL_compressed_texture_etc1"),
         pvrtc: gl.getExtension("WEBGL_compressed_texture_pvrtc") || gl.getExtension("WEBKIT_WEBGL_compressed_texture_pvrtc"),
@@ -26328,7 +19578,7 @@ ${parts.join("\n")}
           depthTexture: gl.getExtension("WEBGL_depth_texture"),
           vertexArrayObject: gl.getExtension("OES_vertex_array_object") || gl.getExtension("MOZ_OES_vertex_array_object") || gl.getExtension("WEBKIT_OES_vertex_array_object"),
           uint32ElementIndex: gl.getExtension("OES_element_index_uint"),
-          // Floats and half-floats
+
           floatTexture: gl.getExtension("OES_texture_float"),
           floatTextureLinear: gl.getExtension("OES_texture_float_linear"),
           textureHalfFloat: gl.getExtension("OES_texture_half_float"),
@@ -26347,10 +19597,7 @@ ${parts.join("\n")}
         }
       }
     }
-    /**
-     * Handles a lost webgl context
-     * @param {WebGLContextEvent} event - The context lost event.
-     */
+
     handleContextLost(event) {
       event.preventDefault();
       if (this._contextLossForced) {
@@ -26362,7 +19609,7 @@ ${parts.join("\n")}
         }, 0);
       }
     }
-    /** Handles a restored webgl context. */
+
     handleContextRestored() {
       this.getExtensions();
       this._renderer.runners.contextChange.emit(this.gl);
@@ -26375,21 +19622,12 @@ ${parts.join("\n")}
       this.gl.useProgram(null);
       this.extensions.loseContext?.loseContext();
     }
-    /**
-     * this function can be called to force a webGL context loss
-     * this will release all resources on the GPU.
-     * Useful if you need to put Pixi to sleep, and save some GPU memory
-     *
-     * As soon as render is called - all resources will be created again.
-     */
+
     forceContextLoss() {
       this.extensions.loseContext?.loseContext();
       this._contextLossForced = true;
     }
-    /**
-     * Validate context.
-     * @param {WebGLRenderingContext} gl - Render context.
-     */
+
     validateContext(gl) {
       const attributes = gl.getContextAttributes();
       if (attributes && !attributes.stencil) {
@@ -26417,35 +19655,17 @@ ${parts.join("\n")}
     name: "context"
   };
   _GlContextSystem.defaultOptions = {
-    /**
-     * {@link WebGLOptions.context}
-     * @default null
-     */
+
     context: null,
-    /**
-     * {@link WebGLOptions.premultipliedAlpha}
-     * @default true
-     */
+
     premultipliedAlpha: true,
-    /**
-     * {@link WebGLOptions.preserveDrawingBuffer}
-     * @default false
-     */
+
     preserveDrawingBuffer: false,
-    /**
-     * {@link WebGLOptions.powerPreference}
-     * @default default
-     */
+
     powerPreference: void 0,
-    /**
-     * {@link WebGLOptions.webGLVersion}
-     * @default 2
-     */
+
     preferWebGLVersion: 2,
-    /**
-     * {@link WebGLOptions.multiView}
-     * @default false
-     */
+
     multiView: false
   };
   let GlContextSystem = _GlContextSystem;
@@ -26483,7 +19703,7 @@ ${parts.join("\n")}
       tempStart[attribute.buffer.uid] += getAttributeInfoFromFormat(attribute.format).stride;
     }
   }
-  var GL_FORMATS = /* @__PURE__ */ ((GL_FORMATS2) => {
+  var GL_FORMATS =                 ((GL_FORMATS2) => {
     GL_FORMATS2[GL_FORMATS2["RGBA"] = 6408] = "RGBA";
     GL_FORMATS2[GL_FORMATS2["RGB"] = 6407] = "RGB";
     GL_FORMATS2[GL_FORMATS2["RG"] = 33319] = "RG";
@@ -26499,7 +19719,7 @@ ${parts.join("\n")}
     GL_FORMATS2[GL_FORMATS2["DEPTH_STENCIL"] = 34041] = "DEPTH_STENCIL";
     return GL_FORMATS2;
   })(GL_FORMATS || {});
-  var GL_TARGETS = /* @__PURE__ */ ((GL_TARGETS2) => {
+  var GL_TARGETS =                 ((GL_TARGETS2) => {
     GL_TARGETS2[GL_TARGETS2["TEXTURE_2D"] = 3553] = "TEXTURE_2D";
     GL_TARGETS2[GL_TARGETS2["TEXTURE_CUBE_MAP"] = 34067] = "TEXTURE_CUBE_MAP";
     GL_TARGETS2[GL_TARGETS2["TEXTURE_2D_ARRAY"] = 35866] = "TEXTURE_2D_ARRAY";
@@ -26511,7 +19731,7 @@ ${parts.join("\n")}
     GL_TARGETS2[GL_TARGETS2["TEXTURE_CUBE_MAP_NEGATIVE_Z"] = 34074] = "TEXTURE_CUBE_MAP_NEGATIVE_Z";
     return GL_TARGETS2;
   })(GL_TARGETS || {});
-  var GL_TYPES = /* @__PURE__ */ ((GL_TYPES2) => {
+  var GL_TYPES =                 ((GL_TYPES2) => {
     GL_TYPES2[GL_TYPES2["UNSIGNED_BYTE"] = 5121] = "UNSIGNED_BYTE";
     GL_TYPES2[GL_TYPES2["UNSIGNED_SHORT"] = 5123] = "UNSIGNED_SHORT";
     GL_TYPES2[GL_TYPES2["UNSIGNED_SHORT_5_6_5"] = 33635] = "UNSIGNED_SHORT_5_6_5";
@@ -26574,14 +19794,14 @@ ${parts.join("\n")}
   };
   class GlGeometryGpuData {
     constructor() {
-      this.vaoCache = /* @__PURE__ */ Object.create(null);
+      this.vaoCache =                 Object.create(null);
     }
     destroy() {
-      this.vaoCache = /* @__PURE__ */ Object.create(null);
+      this.vaoCache =                 Object.create(null);
     }
   }
   class GlGeometrySystem {
-    /** @param renderer - The renderer this System works for. */
+
     constructor(renderer) {
       this._renderer = renderer;
       this._activeGeometry = null;
@@ -26595,7 +19815,7 @@ ${parts.join("\n")}
         name: "glGeometry"
       });
     }
-    /** Sets up the renderer context and necessary buffers. */
+
     contextChange() {
       const gl = this.gl = this._renderer.gl;
       if (!this._renderer.context.supports.vertexArrayObject) {
@@ -26621,11 +19841,7 @@ ${parts.join("\n")}
       this._activeGeometry = null;
       this._activeVao = null;
     }
-    /**
-     * Binds geometry so that is can be drawn. Creating a Vao if required
-     * @param geometry - Instance of geometry to bind.
-     * @param program - Instance of program to use vao for.
-     */
+
     bind(geometry, program) {
       const gl = this.gl;
       this._activeGeometry = geometry;
@@ -26636,11 +19852,11 @@ ${parts.join("\n")}
       }
       this.updateBuffers();
     }
-    /** Reset and unbind any active VAO and geometry. */
+
     resetState() {
       this.unbind();
     }
-    /** Update buffers of the currently bound geometry. */
+
     updateBuffers() {
       const geometry = this._activeGeometry;
       const bufferSystem = this._renderer.buffer;
@@ -26650,11 +19866,7 @@ ${parts.join("\n")}
       }
       geometry._gcLastUsed = this._renderer.gc.now;
     }
-    /**
-     * Check compatibility between a geometry and a program
-     * @param geometry - Geometry instance.
-     * @param program - Program instance.
-     */
+
     checkCompatibility(geometry, program) {
       const geometryAttributes = geometry.attributes;
       const shaderAttributes = program._attributeData;
@@ -26664,12 +19876,7 @@ ${parts.join("\n")}
         }
       }
     }
-    /**
-     * Takes a geometry and program and generates a unique signature for them.
-     * @param geometry - To get signature from.
-     * @param program - To test geometry against.
-     * @returns - Unique signature of the geometry and program
-     */
+
     getSignature(geometry, program) {
       const attribs = geometry.attributes;
       const shaderAttributes = program._attributeData;
@@ -26684,14 +19891,7 @@ ${parts.join("\n")}
     getVao(geometry, program) {
       return geometry._gpuData[this._renderer.uid]?.vaoCache[program._key] || this.initGeometryVao(geometry, program);
     }
-    /**
-     * Creates or gets Vao with the same structure as the geometry and stores it on the geometry.
-     * If vao is created, it is bound automatically. We use a shader to infer what and how to set up the
-     * attribute locations.
-     * @param geometry - Instance of geometry to to generate Vao for.
-     * @param program
-     * @param _incRefCount - Increment refCount of all geometry buffers.
-     */
+
     initGeometryVao(geometry, program, _incRefCount = true) {
       const gl = this._renderer.gl;
       const bufferSystem = this._renderer.buffer;
@@ -26737,18 +19937,11 @@ ${parts.join("\n")}
         }
       }
     }
-    /**
-     * Dispose all WebGL resources of all managed geometries.
-     * @param [contextLost=false] - If context was lost, we suppress `gl.delete` calls
-     */
+
     destroyAll(contextLost = false) {
       this._managedGeometries.removeAll(contextLost);
     }
-    /**
-     * Activate vertex array object.
-     * @param geometry - Geometry instance.
-     * @param program - Shader program instance.
-     */
+
     activateVao(geometry, program) {
       const gl = this._renderer.gl;
       const bufferSystem = this._renderer.buffer;
@@ -26800,17 +19993,7 @@ ${parts.join("\n")}
         }
       }
     }
-    /**
-     * Draws the currently bound geometry.
-     * @param topology - The type primitive to render.
-     * @param size - The number of elements to be rendered. If not specified, all vertices after the
-     *  starting vertex will be drawn.
-     * @param start - The starting vertex in the geometry to start drawing from. If not specified,
-     *  drawing will start from the first vertex.
-     * @param instanceCount - The number of instances of the set of elements to execute. If not specified,
-     *  all instances will be drawn.
-     * @returns This instance of the geometry system.
-     */
+
     draw(topology, size, start2, instanceCount) {
       const { gl } = this._renderer;
       const geometry = this._activeGeometry;
@@ -26831,7 +20014,7 @@ ${parts.join("\n")}
       }
       return this;
     }
-    /** Unbind/reset everything. */
+
     unbind() {
       this.gl.bindVertexArray(null);
       this._activeVao = null;
@@ -26856,13 +20039,13 @@ ${parts.join("\n")}
       aPosition: [
         -1,
         -1,
-        // Bottom left corner
+
         3,
         -1,
-        // Bottom right corner, extending beyond right edge
+
         -1,
         3
-        // Top left corner, extending beyond top edge
+
       ]
     }
   });
@@ -26912,11 +20095,7 @@ ${parts.join("\n")}
         }
       });
     }
-    /**
-     * This is called before the RenderTargetSystem is started. This is where
-     * we replace the target with the back buffer if required.
-     * @param options - The options for this render.
-     */
+
     renderStart(options) {
       const renderTarget = this._renderer.renderTarget.getRenderTarget(options.target);
       this._useBackBufferThisRender = this.useBackBuffer && !!renderTarget.isRoot;
@@ -26957,7 +20136,7 @@ ${parts.join("\n")}
       );
       return this._backBufferTexture;
     }
-    /** destroys the back buffer */
+
     destroy() {
       if (this._backBufferTexture) {
         this._backBufferTexture.destroy();
@@ -26973,7 +20152,7 @@ ${parts.join("\n")}
     priority: 1
   };
   _GlBackBufferSystem.defaultOptions = {
-    /** if true will use the back buffer where required */
+
     useBackBuffer: false
   };
   let GlBackBufferSystem = _GlBackBufferSystem;
@@ -27114,7 +20293,7 @@ ${parts.join("\n")}
         stencilReference: 0,
         stencilMode: STENCIL_MODES.NONE
       };
-      this._renderTargetStencilState = /* @__PURE__ */ Object.create(null);
+      this._renderTargetStencilState =                 Object.create(null);
       renderer.renderTarget.onRenderTargetChange.add(this);
     }
     contextChange(gl) {
@@ -27192,15 +20371,11 @@ ${parts.join("\n")}
   };
   class UboSystem {
     constructor(adaptor) {
-      this._syncFunctionHash = /* @__PURE__ */ Object.create(null);
+      this._syncFunctionHash =                 Object.create(null);
       this._adaptor = adaptor;
       this._systemCheck();
     }
-    /**
-     * Overridable function by `pixi.js/unsafe-eval` to silence
-     * throwing an error if platform doesn't support unsafe-evals.
-     * @private
-     */
+
     _systemCheck() {
       if (!unsafeEvalSupported()) {
         throw new Error("Current environment does not allow unsafe-eval, please use pixi.js/unsafe-eval module to enable support.");
@@ -27271,22 +20446,7 @@ ${parts.join("\n")}
     "mat2x2<f32>": 16 * 2,
     "mat3x3<f32>": 16 * 3,
     "mat4x4<f32>": 16 * 4
-    // TODO - not essential for now but support these in the future
-    // int:      4,
-    // ivec2:    8,
-    // ivec3:    12,
-    // ivec4:    16,
-    // uint:     4,
-    // uvec2:    8,
-    // uvec3:    12,
-    // uvec4:    16,
-    // bool:     4,
-    // bvec2:    8,
-    // bvec3:    12,
-    // bvec4:    16,
-    // mat2:     16 * 2,
-    // mat3:     16 * 3,
-    // mat4:     16 * 4,
+
   };
   function createUboElementsSTD40(uniformData) {
     const uboElements = uniformData.map((data) => ({
@@ -27321,7 +20481,7 @@ ${parts.join("\n")}
     return { uboElements, size: offset2 };
   }
   const uniformParsers = [
-    // uploading pixi matrix object to mat3
+
     {
       type: "mat3x3<f32>",
       test: (data) => {
@@ -27344,7 +20504,7 @@ ${parts.join("\n")}
             gl.uniformMatrix3fv(ud[name].location, false, uv[name].toArray(true));
         `
     },
-    // uploading a pixi rectangle as a vec4
+
     {
       type: "vec4<f32>",
       test: (data) => data.type === "vec4<f32>" && data.size === 1 && data.value.width !== void 0,
@@ -27367,7 +20527,7 @@ ${parts.join("\n")}
             }
         `
     },
-    // uploading a pixi point as a vec2
+
     {
       type: "vec2<f32>",
       test: (data) => data.type === "vec2<f32>" && data.size === 1 && data.value.x !== void 0,
@@ -27386,7 +20546,7 @@ ${parts.join("\n")}
             }
         `
     },
-    // uploading a pixi color as a vec4
+
     {
       type: "vec4<f32>",
       test: (data) => data.type === "vec4<f32>" && data.size === 1 && data.value.red !== void 0,
@@ -27409,7 +20569,7 @@ ${parts.join("\n")}
             }
         `
     },
-    // uploading a pixi color as a vec3
+
     {
       type: "vec3<f32>",
       test: (data) => data.type === "vec3<f32>" && data.size === 1 && data.value.red !== void 0,
@@ -27467,7 +20627,7 @@ ${parts.join("\n")}
           const template = singleSettersMap[uboElement.data.type];
           offset2 = uboElement.offset / 4;
           funcFragments.push(
-            /* wgsl */
+
             `
                     v = uv.${name};
                     offset += ${offset2 - prev};
@@ -28003,15 +21163,7 @@ ${parts.join("\n")}
     name: "renderTarget"
   };
   class BufferResource extends EventEmitter {
-    /**
-     * Create a new Buffer Resource.
-     * @param options - The options for the buffer resource
-     * @param options.buffer - The underlying buffer that this resource is using
-     * @param options.offset - The offset of the buffer this resource is using.
-     * If not provided, then it will use the offset of the buffer.
-     * @param options.size - The size of the buffer this resource is using.
-     * If not provided, then it will use the size of the buffer.
-     */
+
     constructor({ buffer, offset: offset2, size }) {
       super();
       this.uid = uid$1("buffer");
@@ -28029,11 +21181,7 @@ ${parts.join("\n")}
       this._resourceId = uid$1("resource");
       this.emit("change", this);
     }
-    /**
-     * Destroys this resource. Make sure the underlying buffer is not used anywhere else
-     * if you want to destroy it as well, or code will explode
-     * @param destroyBuffer - Should the underlying buffer be destroyed as well?
-     */
+
     destroy(destroyBuffer = false) {
       this.destroyed = true;
       if (destroyBuffer) {
@@ -28110,11 +21258,7 @@ ${parts.join("\n")}
     return new Function("r", "s", "sD", functionSource);
   }
   class GlProgramData {
-    /**
-     * Makes a new Pixi program.
-     * @param program - webgl program
-     * @param uniformData - uniforms
-     */
+
     constructor(program, uniformData) {
       this.program = program;
       this.uniformData = uniformData;
@@ -28122,7 +21266,7 @@ ${parts.join("\n")}
       this.uniformDirtyGroups = {};
       this.uniformBlockBindings = {};
     }
-    /** Destroys this program. */
+
     destroy() {
       this.uniformData = null;
       this.uniformGroups = null;
@@ -28295,7 +21439,7 @@ ${parts.join("\n")}
       const format = mapGlToVertexFormat(gl, attribData.type);
       attributes[attribData.name] = {
         location: 0,
-        // set further down..
+
         format,
         stride: getAttributeInfoFromFormat(format).stride,
         offset: 0,
@@ -28440,22 +21584,17 @@ ${parts.join("\n")}
   class GlShaderSystem {
     constructor(renderer) {
       this._activeProgram = null;
-      this._programDataHash = /* @__PURE__ */ Object.create(null);
-      this._shaderSyncFunctions = /* @__PURE__ */ Object.create(null);
+      this._programDataHash =                 Object.create(null);
+      this._shaderSyncFunctions =                 Object.create(null);
       this._renderer = renderer;
     }
     contextChange(gl) {
       this._gl = gl;
-      this._programDataHash = /* @__PURE__ */ Object.create(null);
-      this._shaderSyncFunctions = /* @__PURE__ */ Object.create(null);
+      this._programDataHash =                 Object.create(null);
+      this._shaderSyncFunctions =                 Object.create(null);
       this._activeProgram = null;
     }
-    /**
-     * Changes the current shader to the one given in parameter.
-     * @param shader - the new shader
-     * @param skipSync - false if the shader should automatically sync its uniforms.
-     * @returns the glProgram that belongs to the shader.
-     */
+
     bind(shader, skipSync) {
       this._setProgram(shader.glProgram);
       if (skipSync) return;
@@ -28468,19 +21607,11 @@ ${parts.join("\n")}
       this._renderer.buffer.nextBindBase(!!shader.glProgram.transformFeedbackVaryings);
       syncFunction(this._renderer, shader, defaultSyncData);
     }
-    /**
-     * Updates the uniform group.
-     * @param uniformGroup - the uniform group to update
-     */
+
     updateUniformGroup(uniformGroup) {
       this._renderer.uniformGroup.updateUniformGroup(uniformGroup, this._activeProgram, defaultSyncData);
     }
-    /**
-     * Binds a uniform block to the shader.
-     * @param uniformGroup - the uniform group to bind
-     * @param name - the name of the uniform block
-     * @param index - the index of the uniform block
-     */
+
     bindUniformBlock(uniformGroup, name, index = 0) {
       const bufferSystem = this._renderer.buffer;
       const programData = this._getProgramData(this._activeProgram);
@@ -28512,10 +21643,7 @@ ${parts.join("\n")}
       const programData = this._getProgramData(program);
       this._gl.useProgram(programData.program);
     }
-    /**
-     * @param program - the program to get the data for
-     * @internal
-     */
+
     _getProgramData(program) {
       return this._programDataHash[program._key] || this._createProgramData(program);
     }
@@ -28534,14 +21662,7 @@ ${parts.join("\n")}
       this._renderer = null;
       this._gl = null;
     }
-    /**
-     * Creates a function that can be executed that will sync the shader as efficiently as possible.
-     * Overridden by the unsafe eval package if you don't want eval used in your project.
-     * @param shader - the shader to generate the sync function for
-     * @param shaderSystem - the shader system to use
-     * @returns - the generated sync function
-     * @ignore
-     */
+
     _generateShaderSync(shader, shaderSystem) {
       return generateShaderSyncCode(shader, shaderSystem);
     }
@@ -28720,7 +21841,7 @@ ${parts.join("\n")}
     return new Function("ud", "uv", "renderer", "syncData", funcFragments.join("\n"));
   }
   class GlUniformGroupSystem {
-    /** @param renderer - The renderer this System works for. */
+
     constructor(renderer) {
       this._cache = {};
       this._uniformGroupSyncHash = {};
@@ -28731,13 +21852,7 @@ ${parts.join("\n")}
     contextChange(gl) {
       this.gl = gl;
     }
-    /**
-     * Uploads the uniforms values to the currently bound shader.
-     * @param group - the uniforms values that be applied to the current shader
-     * @param program
-     * @param syncData
-     * @param syncData.textureCount
-     */
+
     updateUniformGroup(group, program, syncData) {
       const programData = this._renderer.shader._getProgramData(program);
       if (!group.isStatic || group._dirtyId !== programData.uniformDirtyGroups[group.uid]) {
@@ -28746,11 +21861,7 @@ ${parts.join("\n")}
         syncFunc(programData.uniformData, group.uniforms, this._renderer, syncData);
       }
     }
-    /**
-     * Overridable by the pixi.js/unsafe-eval package to use static syncUniforms instead.
-     * @param group
-     * @param program
-     */
+
     _getUniformSyncFunction(group, program) {
       return this._uniformGroupSyncHash[group._signature]?.[program._key] || this._createUniformSyncFunction(group, program);
     }
@@ -28766,14 +21877,7 @@ ${parts.join("\n")}
     _generateUniformsSync(group, uniformData) {
       return generateUniformsSync(group, uniformData);
     }
-    /**
-     * Takes a uniform group and data and generates a unique signature for them.
-     * @param group - The uniform group to get signature of
-     * @param group.uniforms
-     * @param uniformData - Uniform information generated by the shader
-     * @param preFix
-     * @returns Unique signature of the uniform group
-     */
+
     _getSignature(group, uniformData, preFix) {
       const uniforms = group.uniforms;
       const strings = [`${preFix}-`];
@@ -28785,7 +21889,7 @@ ${parts.join("\n")}
       }
       return strings.join("-");
     }
-    /** Destroys this System and removes all its textures. */
+
     destroy() {
       this._renderer = null;
       this._cache = null;
@@ -28859,10 +21963,7 @@ ${parts.join("\n")}
       this.blendModesMap = mapWebGLBlendModesToPixi(gl);
       this.resetState();
     }
-    /**
-     * Sets the current state
-     * @param {*} state - The state to set.
-     */
+
     set(state) {
       state || (state = this.defaultState);
       if (this.stateId !== state.data) {
@@ -28881,10 +21982,7 @@ ${parts.join("\n")}
         this.checks[i2](this, state);
       }
     }
-    /**
-     * Sets the state, when previous state is unknown.
-     * @param {*} state - The state to set
-     */
+
     forceState(state) {
       state || (state = this.defaultState);
       for (let i2 = 0; i2 < this.map.length; i2++) {
@@ -28895,40 +21993,25 @@ ${parts.join("\n")}
       }
       this.stateId = state.data;
     }
-    /**
-     * Sets whether to enable or disable blending.
-     * @param value - Turn on or off WebGl blending.
-     */
+
     setBlend(value) {
       this._updateCheck(_GlStateSystem2._checkBlendMode, value);
       this.gl[value ? "enable" : "disable"](this.gl.BLEND);
     }
-    /**
-     * Sets whether to enable or disable polygon offset fill.
-     * @param value - Turn on or off webgl polygon offset testing.
-     */
+
     setOffset(value) {
       this._updateCheck(_GlStateSystem2._checkPolygonOffset, value);
       this.gl[value ? "enable" : "disable"](this.gl.POLYGON_OFFSET_FILL);
     }
-    /**
-     * Sets whether to enable or disable depth test.
-     * @param value - Turn on or off webgl depth testing.
-     */
+
     setDepthTest(value) {
       this.gl[value ? "enable" : "disable"](this.gl.DEPTH_TEST);
     }
-    /**
-     * Sets whether to enable or disable depth mask.
-     * @param value - Turn on or off webgl depth mask.
-     */
+
     setDepthMask(value) {
       this.gl.depthMask(value);
     }
-    /**
-     * Sets whether to enable or disable cull face.
-     * @param {boolean} value - Turn on or off webgl cull face.
-     */
+
     setCullFace(value) {
       this._cullFace = value;
       this.gl[value ? "enable" : "disable"](this.gl.CULL_FACE);
@@ -28936,10 +22019,7 @@ ${parts.join("\n")}
         this.setFrontFace(this._frontFace);
       }
     }
-    /**
-     * Sets the gl front face.
-     * @param {boolean} value - true is clockwise and false is counter-clockwise
-     */
+
     setFrontFace(value) {
       this._frontFace = value;
       this._frontFaceDirty = false;
@@ -28949,10 +22029,7 @@ ${parts.join("\n")}
         this.gl.frontFace(this.gl[faceMode ? "CW" : "CCW"]);
       }
     }
-    /**
-     * Sets the blend mode.
-     * @param {number} value - The blend mode to set to.
-     */
+
     setBlendMode(value) {
       if (!this.blendModesMap[value]) {
         value = "normal";
@@ -28976,15 +22053,11 @@ ${parts.join("\n")}
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
       }
     }
-    /**
-     * Sets the polygon offset.
-     * @param {number} value - the polygon offset
-     * @param {number} scale - the polygon offset scale
-     */
+
     setPolygonOffset(value, scale) {
       this.gl.polygonOffset(value, scale);
     }
-    /** Resets all the logic and disables the VAOs. */
+
     resetState() {
       this._glFrontFace = false;
       this._frontFace = false;
@@ -28998,15 +22071,7 @@ ${parts.join("\n")}
       this.blendMode = "";
       this.setBlendMode("normal");
     }
-    /**
-     * Checks to see which updates should be checked based on which settings have been activated.
-     *
-     * For example, if blend is enabled then we should check the blend modes each time the state is changed
-     * or if polygon fill is activated then we need to check if the polygon offset changes.
-     * The idea is that we only check what we have too.
-     * @param func - the checking function to add or remove
-     * @param value - should the check function be added or removed.
-     */
+
     _updateCheck(func, value) {
       const index = this.checks.indexOf(func);
       if (value && index === -1) {
@@ -29015,23 +22080,15 @@ ${parts.join("\n")}
         this.checks.splice(index, 1);
       }
     }
-    /**
-     * A private little wrapper function that we call to check the blend mode.
-     * @param system - the System to perform the state check on
-     * @param state - the state that the blendMode will pulled from
-     */
+
     static _checkBlendMode(system, state) {
       system.setBlendMode(state.blendMode);
     }
-    /**
-     * A private little wrapper function that we call to check the polygon offset.
-     * @param system - the System to perform the state check on
-     * @param state - the state that the blendMode will pulled from
-     */
+
     static _checkPolygonOffset(system, state) {
       system.setPolygonOffset(1, state.polygonOffset);
     }
-    /** @ignore */
+
     destroy() {
       this.gl = null;
       this.checks.length = 0;
@@ -29107,8 +22164,7 @@ ${parts.join("\n")}
     "bc6h-rgb-float": true,
     "bc7-rgba-unorm": true,
     "bc7-rgba-unorm-srgb": true,
-    // ETC2 compressed formats usable if "texture-compression-etc2" is both
-    // supported by the device/user agent and enabled in requestDevice.
+
     "etc2-rgb8unorm": true,
     "etc2-rgb8unorm-srgb": true,
     "etc2-rgb8a1unorm": true,
@@ -29119,8 +22175,7 @@ ${parts.join("\n")}
     "eac-r11snorm": true,
     "eac-rg11unorm": true,
     "eac-rg11snorm": true,
-    // ASTC compressed formats usable if "texture-compression-astc" is both
-    // supported by the device/user agent and enabled in requestDevice.
+
     "astc-4x4-unorm": true,
     "astc-4x4-unorm-srgb": true,
     "astc-5x4-unorm": true,
@@ -29203,10 +22258,9 @@ ${parts.join("\n")}
             glTexture,
             gl,
             webGLVersion,
-            // Use the face target for the current face. cube faces ids go up 1 so
-            // GL_TARGETS.TEXTURE_CUBE_MAP_POSITIVE_X + i addresses the i'th face target.
+
             GL_TARGETS.TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
-            // Force allocation for the first upload of each face.
+
             (glTexture._layerInitMask & 1 << faceIndex) === 0
           );
           glTexture._layerInitMask |= 1 << faceIndex;
@@ -29426,12 +22480,12 @@ ${parts.join("\n")}
   }
   function mapFormatToGlFormat(gl) {
     return {
-      // 8-bit formats
+
       r8unorm: gl.RED,
       r8snorm: gl.RED,
       r8uint: gl.RED,
       r8sint: gl.RED,
-      // 16-bit formats
+
       r16uint: gl.RED,
       r16sint: gl.RED,
       r16float: gl.RED,
@@ -29439,7 +22493,7 @@ ${parts.join("\n")}
       rg8snorm: gl.RG,
       rg8uint: gl.RG,
       rg8sint: gl.RG,
-      // 32-bit formats
+
       r32uint: gl.RED,
       r32sint: gl.RED,
       r32float: gl.RED,
@@ -29448,7 +22502,7 @@ ${parts.join("\n")}
       rg16float: gl.RG,
       rgba8unorm: gl.RGBA,
       "rgba8unorm-srgb": gl.RGBA,
-      // Packed 32-bit formats
+
       rgba8snorm: gl.RGBA,
       rgba8uint: gl.RGBA,
       rgba8sint: gl.RGBA,
@@ -29457,18 +22511,18 @@ ${parts.join("\n")}
       rgb9e5ufloat: gl.RGB,
       rgb10a2unorm: gl.RGBA,
       rg11b10ufloat: gl.RGB,
-      // 64-bit formats
+
       rg32uint: gl.RG,
       rg32sint: gl.RG,
       rg32float: gl.RG,
       rgba16uint: gl.RGBA,
       rgba16sint: gl.RGBA,
       rgba16float: gl.RGBA,
-      // 128-bit formats
+
       rgba32uint: gl.RGBA,
       rgba32sint: gl.RGBA,
       rgba32float: gl.RGBA,
-      // Depth/stencil formats
+
       stencil8: gl.STENCIL_INDEX8,
       depth16unorm: gl.DEPTH_COMPONENT,
       depth24plus: gl.DEPTH_COMPONENT,
@@ -29493,12 +22547,12 @@ ${parts.join("\n")}
       };
     }
     return {
-      // 8-bit formats
+
       r8unorm: gl.R8,
       r8snorm: gl.R8_SNORM,
       r8uint: gl.R8UI,
       r8sint: gl.R8I,
-      // 16-bit formats
+
       r16uint: gl.R16UI,
       r16sint: gl.R16I,
       r16float: gl.R16F,
@@ -29506,7 +22560,7 @@ ${parts.join("\n")}
       rg8snorm: gl.RG8_SNORM,
       rg8uint: gl.RG8UI,
       rg8sint: gl.RG8I,
-      // 32-bit formats
+
       r32uint: gl.R32UI,
       r32sint: gl.R32I,
       r32float: gl.R32F,
@@ -29515,7 +22569,7 @@ ${parts.join("\n")}
       rg16float: gl.RG16F,
       rgba8unorm: gl.RGBA,
       ...srgb,
-      // Packed 32-bit formats
+
       rgba8snorm: gl.RGBA8_SNORM,
       rgba8uint: gl.RGBA8UI,
       rgba8sint: gl.RGBA8I,
@@ -29523,25 +22577,25 @@ ${parts.join("\n")}
       rgb9e5ufloat: gl.RGB9_E5,
       rgb10a2unorm: gl.RGB10_A2,
       rg11b10ufloat: gl.R11F_G11F_B10F,
-      // 64-bit formats
+
       rg32uint: gl.RG32UI,
       rg32sint: gl.RG32I,
       rg32float: gl.RG32F,
       rgba16uint: gl.RGBA16UI,
       rgba16sint: gl.RGBA16I,
       rgba16float: gl.RGBA16F,
-      // 128-bit formats
+
       rgba32uint: gl.RGBA32UI,
       rgba32sint: gl.RGBA32I,
       rgba32float: gl.RGBA32F,
-      // Depth/stencil formats
+
       stencil8: gl.STENCIL_INDEX8,
       depth16unorm: gl.DEPTH_COMPONENT16,
       depth24plus: gl.DEPTH_COMPONENT24,
       "depth24plus-stencil8": gl.DEPTH24_STENCIL8,
       depth32float: gl.DEPTH_COMPONENT32F,
       "depth32float-stencil8": gl.DEPTH32F_STENCIL8,
-      // Compressed formats
+
       ...extensions2.s3tc ? {
         "bc1-rgba-unorm": extensions2.s3tc.COMPRESSED_RGBA_S3TC_DXT1_EXT,
         "bc2-rgba-unorm": extensions2.s3tc.COMPRESSED_RGBA_S3TC_DXT3_EXT,
@@ -29572,9 +22626,9 @@ ${parts.join("\n")}
         "etc2-rgba8unorm": extensions2.etc.COMPRESSED_RGBA8_ETC2_EAC,
         "etc2-rgba8unorm-srgb": extensions2.etc.COMPRESSED_SRGB8_ALPHA8_ETC2_EAC,
         "eac-r11unorm": extensions2.etc.COMPRESSED_R11_EAC,
-        // 'eac-r11snorm'
+
         "eac-rg11unorm": extensions2.etc.COMPRESSED_SIGNED_RG11_EAC
-        // 'eac-rg11snorm'
+
       } : {},
       ...extensions2.astc ? {
         "astc-4x4-unorm": extensions2.astc.COMPRESSED_RGBA_ASTC_4x4_KHR,
@@ -29610,12 +22664,12 @@ ${parts.join("\n")}
   }
   function mapFormatToGlType(gl) {
     return {
-      // 8-bit formats
+
       r8unorm: gl.UNSIGNED_BYTE,
       r8snorm: gl.BYTE,
       r8uint: gl.UNSIGNED_BYTE,
       r8sint: gl.BYTE,
-      // 16-bit formats
+
       r16uint: gl.UNSIGNED_SHORT,
       r16sint: gl.SHORT,
       r16float: gl.HALF_FLOAT,
@@ -29623,7 +22677,7 @@ ${parts.join("\n")}
       rg8snorm: gl.BYTE,
       rg8uint: gl.UNSIGNED_BYTE,
       rg8sint: gl.BYTE,
-      // 32-bit formats
+
       r32uint: gl.UNSIGNED_INT,
       r32sint: gl.INT,
       r32float: gl.FLOAT,
@@ -29632,7 +22686,7 @@ ${parts.join("\n")}
       rg16float: gl.HALF_FLOAT,
       rgba8unorm: gl.UNSIGNED_BYTE,
       "rgba8unorm-srgb": gl.UNSIGNED_BYTE,
-      // Packed 32-bit formats
+
       rgba8snorm: gl.BYTE,
       rgba8uint: gl.UNSIGNED_BYTE,
       rgba8sint: gl.BYTE,
@@ -29641,18 +22695,18 @@ ${parts.join("\n")}
       rgb9e5ufloat: gl.UNSIGNED_INT_5_9_9_9_REV,
       rgb10a2unorm: gl.UNSIGNED_INT_2_10_10_10_REV,
       rg11b10ufloat: gl.UNSIGNED_INT_10F_11F_11F_REV,
-      // 64-bit formats
+
       rg32uint: gl.UNSIGNED_INT,
       rg32sint: gl.INT,
       rg32float: gl.FLOAT,
       rgba16uint: gl.UNSIGNED_SHORT,
       rgba16sint: gl.SHORT,
       rgba16float: gl.HALF_FLOAT,
-      // 128-bit formats
+
       rgba32uint: gl.UNSIGNED_INT,
       rgba32sint: gl.INT,
       rgba32float: gl.FLOAT,
-      // Depth/stencil formats
+
       stencil8: gl.UNSIGNED_BYTE,
       depth16unorm: gl.UNSIGNED_SHORT,
       depth24plus: gl.UNSIGNED_INT,
@@ -29666,7 +22720,7 @@ ${parts.join("\n")}
       "2d": gl.TEXTURE_2D,
       cube: gl.TEXTURE_CUBE_MAP,
       "1d": null,
-      // WebGL2 only
+
       "3d": gl?.TEXTURE_3D || null,
       "2d-array": gl?.TEXTURE_2D_ARRAY || null,
       "cube-array": gl?.TEXTURE_CUBE_MAP_ARRAY || null
@@ -29675,10 +22729,10 @@ ${parts.join("\n")}
   const BYTES_PER_PIXEL = 4;
   class GlTextureSystem {
     constructor(renderer) {
-      this._glSamplers = /* @__PURE__ */ Object.create(null);
+      this._glSamplers =                 Object.create(null);
       this._boundTextures = [];
       this._activeTextureLocation = -1;
-      this._boundSamplers = /* @__PURE__ */ Object.create(null);
+      this._boundSamplers =                 Object.create(null);
       this._premultiplyAlpha = false;
       this._useSeparateSamplers = false;
       this._renderer = renderer;
@@ -29699,9 +22753,7 @@ ${parts.join("\n")}
         cube: createGlUploadCubeTextureResource(baseUploaders)
       };
     }
-    /**
-     * @deprecated since 8.15.0
-     */
+
     get managedTextures() {
       return Object.values(this._managedTextures.items);
     }
@@ -29714,18 +22766,14 @@ ${parts.join("\n")}
         this._mapViewDimensionToGlTarget = mapViewDimensionToGlTarget(gl);
       }
       this._managedTextures.removeAll(true);
-      this._glSamplers = /* @__PURE__ */ Object.create(null);
-      this._boundSamplers = /* @__PURE__ */ Object.create(null);
+      this._glSamplers =                 Object.create(null);
+      this._boundSamplers =                 Object.create(null);
       this._premultiplyAlpha = false;
       for (let i2 = 0; i2 < 16; i2++) {
         this.bind(Texture.EMPTY, i2);
       }
     }
-    /**
-     * Initializes a texture source, if it has already been initialized nothing will happen.
-     * @param source - The texture source to initialize.
-     * @returns The initialized texture source.
-     */
+
     initSource(source2) {
       this.bind(source2);
     }
@@ -29830,7 +22878,7 @@ ${parts.join("\n")}
         this._renderer.context.extensions.anisotropicFiltering,
         "texParameteri",
         glTexture.target,
-        // will force a clamp to edge if the texture is not a power of two
+
         !this._renderer.context.supports.nonPowOf2wrapping && !source2.isPowerOfTwo,
         firstCreation
       );
@@ -29982,12 +23030,7 @@ ${parts.join("\n")}
         h2 = Math.max(h2 >> 1, 1);
       }
     }
-    /**
-     * Applies a mip range to the currently-bound texture so WebGL2 considers the texture "mipmap complete"
-     * for the declared `mipLevelCount` (especially important for partial mip chains rendered via FBO).
-     * @param glTexture - The GL texture wrapper.
-     * @param source - The texture source describing mipLevelCount.
-     */
+
     _applyMipRange(glTexture, source2) {
       if (this._renderer.context.webGLVersion !== 2) return;
       if (source2.mipLevelCount <= 1) return;
@@ -30068,7 +23111,7 @@ ${parts.join("\n")}
     resetState() {
       this._activeTextureLocation = -1;
       this._boundTextures.fill(Texture.EMPTY.source);
-      this._boundSamplers = /* @__PURE__ */ Object.create(null);
+      this._boundSamplers =                 Object.create(null);
       const gl = this._gl;
       this._premultiplyAlpha = false;
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, this._premultiplyAlpha);
@@ -30231,7 +23274,7 @@ ${parts.join("\n")}
       super(systemConfig);
     }
   }
-  const WebGLRenderer$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  const WebGLRenderer$1 =                 Object.freeze(                Object.defineProperty({
     __proto__: null,
     WebGLRenderer
   }, Symbol.toStringTag, { value: "Module" }));
@@ -30239,139 +23282,49 @@ ${parts.join("\n")}
   const MIO_DEFAULTS = {
     appearance: {
       radius: 56,
-      /*
-       * Void, the palette's base — not `#000000`.
-       *
-       * The brand's own Mio is `fill="none"`: a stroked outline with
-       * no body at all, drawn over the Void page. The shell cannot
-       * copy that, because Mio floats over whatever wallpaper the
-       * user picked and a transparent body would show it through. So
-       * the body is filled with the colour the artwork's own
-       * background is. Pure black is not in the palette.
-       */
+
       bodyColor: 789263,
       bodyAlpha: 1,
-      /*
-       * Read off Miomesh, Mio's own gradient in the OpenStation brand
-       * guidelines — `assets/miomesh.svg`, and the `mioGrad` the
-       * mascot on that page is stroked with. Four stops:
-       *
-       *   #F252FC  hue 296.5  Pulse    at the gradient's start
-       *   #AA67FF  hue 266.4  violet   48% along
-       *   #A580FF  hue 257.5  violet   71% along
-       *   #4B3EFF  hue 244.0  blue     at the end
-       *
-       * so the sweep is 296.5 → 244, a span of −52.5. Two numbers
-       * reproduce four stops here because the brand's own ramp is
-       * near-linear in hue: the middle pair land within ~5° of where
-       * this puts them.
-       *
-       * **Pulse belongs at the upper left.** `mioGrad` runs
-       * `(0%,10%) → (90%,100%)`, so its start sits on the upper-left
-       * shoulder and its end on the lower-right. `hueAngle` is where
-       * `hueStart` is pinned, in degrees clockwise from 3 o'clock —
-       * upper-left is 225.
-       */
+
       hueStart: 296.5,
       hueSpan: -52.5,
       hueAngle: 225,
-      // The official Mio holds still. `hueLoop` is what lets it: a
-      // straight ramp ends a span away from where it started, and
-      // with no rotation to keep that seam moving it just sits there.
-      /*
-       * Both still, and they are not the same kind of still.
-       *
-       * `hueDrift` rewrites the hues, so Mio cycles through colours
-       * that are not its own — that is the one thing the official
-       * palette must never do. `hueSpin` turns the same
-       * magenta→violet→blue sweep around the ring, which keeps the
-       * palette exactly and is the most a default Mio should ever
-       * animate. Shipped at zero to match the artwork; the panel has
-       * a slider for anyone who wants the ring to turn.
-       */
+
       hueDrift: 0,
       hueSpin: 0,
       hueLoop: true,
-      // Miomesh's stops run 0.966–1. Pulse is the only one under
-      // full, by three hundredths, which is not a difference anything
-      // downstream could show.
+
       saturation: 1,
-      /*
-       * The *brightest* point of the ring, not its average:
-       * `chromaRing` rides a cosine hump over this, from `0.72 ×` on
-       * the shaded side to `1 ×` on the lit one.
-       *
-       * So this is Miomesh's brightest stop, `#A580FF` at `0.751`.
-       * At the old `0.66` the whole ring rendered below the brand —
-       * `0.475`–`0.661` against Miomesh's `0.622`–`0.751`, every part
-       * of it darker than the darkest stop of the gradient it was
-       * supposed to be reproducing.
-       */
+
       lightness: 0.75,
-      /*
-       * Off, because the brand's Mio has no hologram: Miomesh is a
-       * flat four-stop gradient, and this is the value that
-       * reproduces it. Zero also switches off the interior sheen,
-       * which the artwork likewise doesn't have.
-       *
-       * The effect is not gone, just not the default — "Make it
-       * yours" has a slider, and one number here brings it back for a
-       * whole site.
-       */
+
       iridescence: 0,
-      // The artwork strokes its ring at 13 units on a body of roughly
-      // 240 — 5.4%, which at this radius is 3px.
+
       outlineWidth: 3,
-      // Reach of the light, as a multiple of Mio's own radius (see
-      // `GLOW_REACH` in `render.ts`): `10` carries the wash about one
-      // and a half radii past the outline.
-      //
-      // Deliberately generous. `mio.svg` is a flat piece of artwork
-      // on white and its own glow is a pair of soft washes at 34%;
-      // the shell puts Mio on a dark desk, where the glow is the
-      // thing that makes her read as lit rather than drawn. The
-      // slider runs to `20` from here.
-      //
-      // Must match `openstation_mio_config()` in `includes/mio.php`.
+
       glow: 10,
       glowBlur: true,
-      // Starlight, the palette's white — what the brand's own mascot
-      // fills its two eye pills with. `#ffffff` is not in the
-      // palette; Starlight is a hair warm of it.
+
       eyeColor: 16776191,
       eyeScale: 0.3
     },
     physics: {
-      // The rim is a simulation resolution, not a drawing one: the
-      // renderer resamples it into a smooth curve, so points beyond
-      // what the shape needs buy nothing but per-frame cost and a
-      // busier, twitchier silhouette.
+
       points: 12,
-      // Nearly round, with a shallow dimple at the bottom centre and a
-      // little extra fullness at the lower left and right — the
-      // reference silhouette. `idleWobble` supplies the asymmetry that
-      // keeps it from looking constructed.
+
       shapePreset: "blob",
-      // Only read by the `custom` preset.
+
       shapeLobes: 3,
       shapeAmount: 1,
       shapeAngle: 0,
-      // Restless by design: a companion that is exactly the same shape
-      // every time you look at it stops being a companion.
+
       shapeShuffle: 60,
-      // Deliberately soft and SLOW. Spring frequency is √k, so
-      // these set how fast the outline chases the shape underneath
-      // it: at k≈500 the rim answers at ~3.5 Hz, which reads as a
-      // gel settling. Triple them and the same motion becomes a
-      // 6-plus-Hz buzz — technically the same simulation, visually
-      // a shiver.
+
       radialStiffness: 460,
       edgeStiffness: 540,
       bendStiffness: 170,
       pressure: 2400,
-      // The companion to the above: enough internal damping that
-      // the rim is closer to critically damped than to ringing.
-      // Low damping here is what reads as "too many springs".
+
       damping: 9,
       airDamping: 0.5,
       magnetStrength: 2200,
@@ -30409,15 +23362,15 @@ ${parts.join("\n")}
     } catch {
     }
   }
-  const MAGNET_KINDS = /* @__PURE__ */ new Set([
+  const MAGNET_KINDS =                 new Set([
     "window",
     "widget"
   ]);
-  const CHROME_KINDS = /* @__PURE__ */ new Set([
+  const CHROME_KINDS =                 new Set([
     "dock",
     "shell"
   ]);
-  const FORBIDDEN_KINDS = /* @__PURE__ */ new Set([
+  const FORBIDDEN_KINDS =                 new Set([
     "dock"
   ]);
   function collectObstacles(surfaces, origin, bounds) {
@@ -30711,8 +23664,8 @@ ${parts.join("\n")}
   }
   const MAX_STALE_MS = 250;
   function keyed(obstacles) {
-    const out2 = /* @__PURE__ */ new Map();
-    const seen = /* @__PURE__ */ new Map();
+    const out2 =                 new Map();
+    const seen =                 new Map();
     for (const o2 of obstacles) {
       const n2 = seen.get(o2.id) ?? 0;
       seen.set(o2.id, n2 + 1);
@@ -30737,8 +23690,8 @@ ${parts.join("\n")}
   }
   function createObstacleTrack(intervalMs) {
     const interval = Math.max(1, intervalMs);
-    let previous = /* @__PURE__ */ new Map();
-    let current = /* @__PURE__ */ new Map();
+    let previous =                 new Map();
+    let current =                 new Map();
     let currentList = [];
     let sampledAt = 0;
     let still = true;
@@ -30792,7 +23745,7 @@ ${parts.join("\n")}
     let position = null;
     let leaveTimer = null;
     let destroyed = false;
-    const frameCache = /* @__PURE__ */ new WeakMap();
+    const frameCache =                 new WeakMap();
     const cancelLeave = () => {
       if (leaveTimer !== null) {
         clearTimeout(leaveTimer);
@@ -31155,11 +24108,7 @@ ${parts.join("\n")}
         samples,
         colors,
         dilate((i2 + 1) / n2 * reachPx),
-        // Only the innermost shell reaches back inside the outline;
-        // the rest start where their neighbour stopped. Every shell
-        // uses the same stride, so those shared boundaries are
-        // computed identically and tile without a seam — the same
-        // invariant that makes one band continuous.
+
         dilate(i2 === 0 ? -bleed : i2 / n2 * reachPx),
         alpha,
         stride
@@ -31533,10 +24482,7 @@ ${parts.join("\n")}
       rim,
       radius,
       profile,
-      // Area of the regular n-gon inscribed in the rest circle —
-      // NOT πr². Using the circle's area would leave the polygon
-      // permanently under-inflated and the pressure term would push
-      // forever.
+
       restArea: 0.5 * n2 * radius * radius * Math.sin(2 * Math.PI / n2),
       elapsed: 0,
       accumulator: 0
@@ -32474,13 +25420,7 @@ ${parts.join("\n")}
       stepSoftBody(body, seconds, {
         physics: config.physics,
         magnet,
-        // Windows stay solid even while you're dragging: the
-        // Mio lives ON the desk, and being able to shove it
-        // inside a window reads as the physics giving up. The
-        // crush that used to cause is handled at the source
-        // instead, by `physics.dragMaxAccel` bounding how hard
-        // the drag spring can press the body into something it
-        // cannot pass through.
+
         obstacles,
         bounds,
         dragTarget
@@ -32634,13 +25574,9 @@ ${parts.join("\n")}
       return config;
     }
     return {
-      // Both ways the ring can move on its own: rewriting the hues,
-      // and turning the gradient around the ring. Neither is
-      // something the user asked for.
+
       appearance: { ...config.appearance, hueDrift: 0, hueSpin: 0 },
-      // The silhouette shuffle goes with the bob and the shimmer: a
-      // Mio that reshapes itself while you are reading is textbook
-      // unsolicited animation.
+
       physics: { ...config.physics, floatAmplitude: 0, shapeShuffle: 0 }
     };
   }
@@ -32688,8 +25624,7 @@ ${parts.join("\n")}
           new pixi.BlurFilter({
             strength: blur,
             quality: 2,
-            // Without this the pass stops being additive. See
-            // {@link GLOW_BLEND}.
+
             blendMode: GLOW_BLEND
           })
         ];
@@ -32712,10 +25647,7 @@ ${parts.join("\n")}
             Math.max(3, config.appearance.radius * 0.12)
           ),
           quality: 2,
-          // Same trap as the halo, and the same fix. The sheen is
-          // only ever meant to *lift* the black interior toward
-          // colour; under normal alpha it washes it out instead.
-          // See {@link GLOW_BLEND}.
+
           blendMode: GLOW_BLEND
         })
       ];
@@ -32796,22 +25728,10 @@ ${parts.join("\n")}
       }
       out2.push({
         id: `mio-marker:${index}`,
-        /*
-         * `window`, not `custom`.
-         *
-         * Both are solid, but only `window` is in Mio's magnet set
-         * — the kinds it is drawn toward and settles onto. A
-         * `custom` heading would be something Mio bounces off if
-         * thrown at it and otherwise drifts past; a `window`
-         * heading is somewhere it goes to sit. The second is what
-         * "collision markers" is for, and it is the exact
-         * behaviour Mio has around a window on a real desk.
-         */
+
         kind: "window",
         rect,
-        // Only read for chrome (`dock` / `shell`), which inflates
-        // away from its solid face. A window-kind rect is solid all
-        // the way through, so this is carried, not used.
+
         face: "top",
         element: el
       });
@@ -32853,13 +25773,7 @@ ${parts.join("\n")}
 }
 
 #${LAYER_ID} .os-mio__handle {
-	/*
-	 * PHYSICAL top/left, deliberately: the handle is placed every
-	 * frame by a translate3d() carrying canvas coordinates, and
-	 * transform is always physical. A logical inset-inline-start would
-	 * flip the origin under RTL while the translation kept pushing
-	 * rightwards, and the handle would walk off screen.
-	 */
+
 	position: absolute;
 	top: 0;
 	left: 0;
@@ -33014,10 +25928,10 @@ ${parts.join("\n")}
   }
   extensions.add(FilterSystem, CanvasFilterSystem);
   extensions.add(FilterPipe);
-  const browserAll = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  const browserAll =                 Object.freeze(                Object.defineProperty({
     __proto__: null
   }, Symbol.toStringTag, { value: "Module" }));
-  const webworkerAll = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  const webworkerAll =                 Object.freeze(                Object.defineProperty({
     __proto__: null
   }, Symbol.toStringTag, { value: "Module" }));
   return api;

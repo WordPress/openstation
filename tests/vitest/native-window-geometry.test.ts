@@ -1,14 +1,3 @@
-/**
- * Tests for the per-baseId native-window geometry store.
- *
- * Native windows are excluded from the server-side session snapshot
- * because their `render` callback is a JS closure. This module keeps
- * "the size I picked last time" on the client in localStorage —
- * orthogonal from the session restore but reads in the same
- * `openFromEntry` path so a user's resize survives a reload.
- *
- * @see https://github.com/Automattic/wp-desktop-mode/issues/203
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
 	__resetNativeWindowGeometryForTests,
@@ -73,8 +62,6 @@ describe( 'native-window-geometry', () => {
 	test( 'save with empty baseId is a no-op', () => {
 		saveNativeWindowGeometry( '', { width: 800, height: 600 } );
 
-		// No key would be created — the next call returns the
-		// default-empty store.
 		expect(
 			window.localStorage.getItem( NATIVE_GEOMETRY_STORAGE_KEY ),
 		).toBeNull();
@@ -117,8 +104,7 @@ describe( 'native-window-geometry', () => {
 	} );
 
 	test( 'trims the store to a bounded size, evicting the oldest', () => {
-		// Save 70 distinct ids — exceeds the 64-entry cap. The first
-		// few should be evicted to make room for the latest.
+
 		for ( let i = 0; i < 70; i++ ) {
 			saveNativeWindowGeometry( `app-${ i }`, {
 				width: 800 + i,
@@ -126,7 +112,6 @@ describe( 'native-window-geometry', () => {
 			} );
 		}
 
-		// The earliest entries are gone; recent ones survive.
 		expect( loadNativeWindowGeometry( 'app-0' ) ).toBeNull();
 		expect( loadNativeWindowGeometry( 'app-5' ) ).toBeNull();
 		expect( loadNativeWindowGeometry( 'app-69' ) ).toEqual( {
@@ -297,7 +282,7 @@ describe( 'native-window-geometry', () => {
 					demo: {
 						width: 1500,
 						height: 900,
-						state: 'rotated-3d', // unsupported
+						state: 'rotated-3d',
 					},
 				} ),
 			);
@@ -317,12 +302,8 @@ describe( 'native-window-geometry', () => {
 			} );
 		}
 
-		// Touch app-0 — should now be the youngest, not the oldest.
 		saveNativeWindowGeometry( 'app-0', { width: 1500, height: 900 } );
 
-		// One more save pushes the store back past the cap. With the
-		// move-to-end behavior, app-1 (the next oldest) gets evicted,
-		// not app-0.
 		saveNativeWindowGeometry( 'app-99', { width: 800, height: 600 } );
 
 		expect( loadNativeWindowGeometry( 'app-0' ) ).toEqual( {

@@ -1,26 +1,10 @@
-/**
- * The Living Tree — trunk ivy (pages).
- *
- * Pages are the site's evergreen, structural content — so they render as
- * an evergreen cloak: small dark ivy leaves climbing the trunk and the
- * heavy boughs (exactly the wood the canopy's leaf placer disqualifies).
- * Coverage follows `structure01`; a page-less site has bare bark, a
- * page-heavy one is wrapped to the first forks. Pure decoration — it
- * never changes geometry. (This channel replaced an earlier pages→girth
- * modulation that read as "the trunk is arbitrarily fatter", which
- * nobody could decode.)
- */
-
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';
 import type { BranchNode } from '../types';
 
-/** Ivy leaf texture raster size. */
 const IVY_TEX_SIZE = 24;
 
-/** Max ivy leaves at structure01 = 1 (scaled by available thick wood). */
 const MAX_IVY = 260;
 
-/** Ivy greens — deep evergreen range, darker than the canopy. */
 const IVY_SHADES = [ 0x1e4620, 0x27562a, 0x1a3d22, 0x2f6233 ];
 
 interface IvyLeaf {
@@ -29,19 +13,11 @@ interface IvyLeaf {
 	alphaMax: number;
 }
 
-/**
- * How many ivy leaves a structure level buys. Pure; unit-tested with the
- * other decoration budgets.
- *
- * @param structure01 Evergreen-content hormone, 0..1.
- * @return Sprite budget at full wood availability.
- */
 export function computeIvyBudget( structure01: number ): number {
 	const s = Math.min( 1, Math.max( 0, structure01 ) );
 	return Math.round( MAX_IVY * Math.pow( s, 0.8 ) );
 }
 
-/** Rasterize a rounded three-lobe ivy leaf, white for tinting. */
 function buildIvyTexture( pixi: PixiNamespace ): PixiTexture {
 	const size = IVY_TEX_SIZE;
 	const canvas = document.createElement( 'canvas' );
@@ -53,7 +29,7 @@ function buildIvyTexture( pixi: PixiNamespace ): PixiTexture {
 	}
 	const c = size / 2;
 	ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
-	// Three overlapping lobes + a pointed tip read as ivy at this scale.
+
 	for ( const [ lx, ly, lr ] of [
 		[ c, c - 3, 6 ],
 		[ c - 5, c + 2, 5 ],
@@ -78,25 +54,11 @@ export class IvyLayer {
 	private readonly layer: PixiContainer;
 	private readonly pixi: PixiNamespace;
 
-	/**
-	 * @param layer Layer just above the branches (ivy hugs the wood).
-	 * @param pixi  The vendor Pixi namespace.
-	 */
 	constructor( layer: PixiContainer, pixi: PixiNamespace ) {
 		this.layer = layer;
 		this.pixi = pixi;
 	}
 
-	/**
-	 * Cloak the thick wood in ivy, coverage from `structure01`.
-	 *
-	 * Climbing pattern: leaves fill from the ground UP — low structure
-	 * rings the trunk base, full structure reaches the first boughs.
-	 *
-	 * @param nodes       The revealed skeleton (radius from computeGirth).
-	 * @param structure01 Evergreen-content hormone, 0..1.
-	 * @param rng         Seeded PRNG — the cloak is stable per site.
-	 */
 	public populate(
 		nodes: BranchNode[],
 		structure01: number,
@@ -109,8 +71,6 @@ export class IvyLayer {
 		}
 		this.texture = this.texture ?? buildIvyTexture( this.pixi );
 
-		// Host wood: the THICK segments the canopy ignores. Sorted by
-		// height (deepest first) so coverage climbs bottom → up.
 		let trunkBase = 1;
 		for ( const node of nodes ) {
 			trunkBase = Math.max( trunkBase, node.radius );
@@ -127,8 +87,7 @@ export class IvyLayer {
 			computeIvyBudget( structure01 ),
 			hosts.length * 8,
 		);
-		// Climb: only the lower `structure01` share of the thick wood
-		// hosts ivy, so coverage height itself tells the story.
+
 		const reachable = Math.max(
 			1,
 			Math.round( hosts.length * ( 0.25 + 0.75 * structure01 ) ),
@@ -137,7 +96,7 @@ export class IvyLayer {
 		for ( let i = 0; i < budget; i++ ) {
 			const host = hosts[ Math.floor( rng() * reachable ) ];
 			const parent = nodes[ host.parent as number ];
-			// Scatter along the segment and across the wood's width.
+
 			const t = rng();
 			const bx = parent.pos.x + ( host.pos.x - parent.pos.x ) * t;
 			const by = parent.pos.y + ( host.pos.y - parent.pos.y ) * t;
@@ -160,16 +119,8 @@ export class IvyLayer {
 		}
 	}
 
-	/** True once every leaf has finished fading in. */
 	private settled = false;
 
-	/**
-	 * Fade in, then go fully static — ivy hugs wood that doesn't sway,
-	 * and per-frame work on ~200 settled sprites is money for nothing.
-	 *
-	 * @param dt Delta time (seconds).
-	 * @param t  Elapsed scene time (seconds).
-	 */
 	public update( dt: number, t: number ): void {
 		void t;
 		if ( this.settled ) {
@@ -193,7 +144,6 @@ export class IvyLayer {
 		this.leaves.length = 0;
 	}
 
-	/** Release sprites + the shared texture. */
 	public destroy(): void {
 		this.clear();
 		if ( this.texture ) {

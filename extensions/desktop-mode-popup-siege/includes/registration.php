@@ -1,15 +1,7 @@
 <?php
-/**
- * OpenStation registration for Popup Siege.
- *
- * @package OpenStationPopupSiege
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register Popup Siege's discovery metadata and lazy-loaded browser runtime.
- */
 function popup_siege_register_game() {
 	if ( ! function_exists( 'openstation_register_game' ) ) {
 		return;

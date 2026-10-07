@@ -1,23 +1,3 @@
-/**
- * App Framework runtime — DOM morph.
- *
- * Reconciles a live subtree against freshly rendered HTML without
- * throwing the live nodes away: attributes are synced in place,
- * children are matched by `os-key` / `id` (or position when
- * unkeyed), text is updated, leftovers are removed. Custom elements
- * therefore keep their shadow roots and internal state across a
- * re-render, focus stays where the user put it, and a `<pre>` the
- * user was scrolling doesn't jump.
- *
- * Two escape hatches: `os-preserve` on an element means "mine, never
- * touch it" (a canvas a client script owns), and the focused control
- * keeps its `value` so a response that raced the keyboard can't
- * rewind what the user typed.
- *
- * @public
- */
-
-/** Replace `parent`'s children with `html`, morphing where possible. */
 export function morphChildren( parent: Element, html: string ): void {
 	const template = document.createElement( 'template' );
 	template.innerHTML = html;
@@ -67,11 +47,7 @@ function morphChildList( parent: Element, toNodes: Node[] ): void {
 			const candidate = keyed.get( key );
 			if ( candidate && compatible( candidate, to ) ) {
 				from = candidate;
-				// One live node per key. Without this, a view that emits
-				// the same `os-key` twice would match, move and morph the
-				// SAME node for both occurrences — the second render
-				// silently loses a row. Spending the key here makes the
-				// duplicate fall through to "insert a fresh node".
+
 				keyed.delete( key );
 				if ( candidate !== current ) {
 					parent.insertBefore( candidate, current );
@@ -112,9 +88,7 @@ function morphNode( from: Node, to: Node, active: Element | null ): void {
 
 	const focused = !! active && ( fromEl === active || fromEl.contains( active ) );
 	syncAttributes( fromEl, toEl, focused );
-	// Children first: a `<select>`'s value can only be set to an option
-	// it already holds, so assigning it before the new `<option>`s are
-	// morphed in makes selecting a freshly added option fail silently.
+
 	morphChildList( fromEl, Array.from( toEl.childNodes ) );
 	syncFormValue( fromEl, toEl, focused );
 }
@@ -139,10 +113,6 @@ function syncAttributes( from: Element, to: Element, focused: boolean ): void {
 	}
 }
 
-/**
- * Native form controls hold their live value as a property, not the
- * attribute — mirror it, unless the user is in the control.
- */
 function syncFormValue( from: Element, to: Element, focused: boolean ): void {
 	if ( focused ) {
 		return;

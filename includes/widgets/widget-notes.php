@@ -1,25 +1,7 @@
 <?php
-/**
- * OpenStation — Note Pad widget PHP registration.
- *
- * The composer surface for pinned notes: a pad of pastel paper on the
- * widget column. The user writes on the top sheet and drags it out of
- * the pad onto the wallpaper, where it becomes a pinned `wpd_note`
- * (see `includes/notes/bootstrap.php` for the data layer).
- *
- * Same registration shape as every widget (template:
- * `includes/widgets/widget-starter.php`): register the script + style
- * handles at `init@5`, announce the widget at `init@6`, eagerly
- * enqueue only the CSS on shell pages.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the JS bundle and CSS stylesheet handles.
- */
 function openstation_register_notes_widget_assets() {
 	$suffix  = openstation_asset_suffix();
 	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
@@ -27,10 +9,6 @@ function openstation_register_notes_widget_assets() {
 	$js_path  = OPENSTATION_DIR . 'assets/js/widget-notes' . $suffix . '.js';
 	$css_path = OPENSTATION_DIR . 'assets/js/widget-notes' . $suffix . '.css';
 
-	// Depends on `os-files` because the pad's sheets wear the
-	// canonical `.os-file-tile` chrome while being dragged — anything
-	// that restyles a tile has to print after the file that declares
-	// one, whatever order the two handles were enqueued in.
 	wp_register_style(
 		'os-notes-widget',
 		OPENSTATION_URL . 'assets/js/widget-notes' . $suffix . '.css',
@@ -48,12 +26,6 @@ function openstation_register_notes_widget_assets() {
 }
 add_action( 'init', 'openstation_register_notes_widget_assets', 5 );
 
-/**
- * Eagerly enqueue the CSS on OpenStation shell pages.
- *
- * The JS loads lazily (widget server-sync); the CSS must be present
- * before first mount to avoid a flash of unstyled pad.
- */
 function openstation_enqueue_notes_widget_styles() {
 	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
@@ -65,9 +37,6 @@ function openstation_enqueue_notes_widget_styles() {
 }
 add_action( 'admin_enqueue_scripts', 'openstation_enqueue_notes_widget_styles', 20 );
 
-/**
- * Announce the widget to OpenStation.
- */
 function openstation_register_notes_widget() {
 	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;

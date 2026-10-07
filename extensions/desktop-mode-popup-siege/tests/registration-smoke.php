@@ -1,9 +1,4 @@
 <?php
-/**
- * Framework-free registration and score-contract smoke test.
- *
- * @package OpenStationPopupSiege
- */
 
 define( 'ABSPATH', __DIR__ . '/' );
 
@@ -12,56 +7,23 @@ $popup_siege_filters    = array();
 $popup_siege_scripts    = array();
 $popup_siege_registered = array();
 
-/**
- * Minimal WP_Error stand-in.
- */
 class WP_Error {
-	/**
-	 * Error code.
-	 *
-	 * @var string
-	 */
+
 	public $code;
 
-	/**
-	 * Error message.
-	 *
-	 * @var string
-	 */
 	public $message;
 
-	/**
-	 * Constructor.
-	 *
-	 * @param string $code Error code.
-	 * @param string $message Error message.
-	 */
 	public function __construct( $code, $message ) {
 		$this->code    = $code;
 		$this->message = $message;
 	}
 }
 
-/**
- * Record action registration.
- *
- * @param string   $hook Hook name.
- * @param callable $callback Callback.
- * @param int      $priority Priority.
- */
 function add_action( $hook, $callback, $priority = 10 ) {
 	global $popup_siege_actions;
 	$popup_siege_actions[ $hook ][] = array( $callback, $priority );
 }
 
-/**
- * Record filter registration.
- *
- * @param string   $hook Hook name.
- * @param callable $callback Callback.
- * @param int      $priority Priority.
- * @param int      $accepted_args Accepted arguments.
- */
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 	global $popup_siege_filters;
 	$popup_siege_filters[ $hook ][] = array(
@@ -71,70 +33,29 @@ function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 	);
 }
 
-/**
- * Return a plugin directory path.
- *
- * @param string $file Plugin file.
- * @return string
- */
 function plugin_dir_path( $file ) {
 	return trailingslashit( dirname( $file ) );
 }
 
-/**
- * Return a stable fake plugin URL.
- *
- * @param string $file Plugin file.
- * @return string
- */
 function plugin_dir_url( $file ) {
 	unset( $file );
 	return 'https://example.test/wp-content/plugins/desktop-mode-popup-siege/';
 }
 
-/**
- * Build a fake plugin asset URL.
- *
- * @param string $path Relative asset path.
- * @param string $file Plugin file.
- * @return string
- */
 function plugins_url( $path, $file ) {
 	unset( $file );
 	return plugin_dir_url( '' ) . ltrim( $path, '/' );
 }
 
-/**
- * Add a trailing slash.
- *
- * @param string $value Path.
- * @return string
- */
 function trailingslashit( $value ) {
 	return rtrim( $value, '/\\' ) . '/';
 }
 
-/**
- * Return a translated string unchanged.
- *
- * @param string $text Source text.
- * @param string $domain Text domain.
- * @return string
- */
 function __( $text, $domain ) {
 	unset( $domain );
 	return $text;
 }
 
-/**
- * Record lazy script registration.
- *
- * @param string $handle Handle.
- * @param string $src Source URL.
- * @param array  $dependencies Dependencies.
- * @param string $version Version.
- * @param bool   $footer Footer flag.
- */
 function wp_register_script( $handle, $src, $dependencies, $version, $footer ) {
 	global $popup_siege_scripts;
 	$popup_siege_scripts[ $handle ] = compact(
@@ -145,23 +66,11 @@ function wp_register_script( $handle, $src, $dependencies, $version, $footer ) {
 	);
 }
 
-/**
- * Record game registration.
- *
- * @param string $id Game id.
- * @param array  $args Registration arguments.
- */
 function openstation_register_game( $id, $args ) {
 	global $popup_siege_registered;
 	$popup_siege_registered[ $id ] = $args;
 }
 
-/**
- * Fail the test unless a condition is true.
- *
- * @param bool   $condition Condition.
- * @param string $message Failure message.
- */
 function popup_siege_test_assert( $condition, $message ) {
 	if ( ! $condition ) {
 		throw new RuntimeException( $message );

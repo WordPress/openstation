@@ -1,16 +1,3 @@
-/**
- * Server-driven window-control sync.
- *
- * Same shape as `src/window-chrome/themes/server-sync.ts` and the
- * rest of the server-sync family. Plugins opt in server-side via
- * `openstation_register_window_control_script()`; this module loads
- * each opted-in script on activation and tears down owner-tagged
- * controls on deactivation.
- *
- * Built-in controls (`core/*`) carry no `owner` so server-sync's
- * owner-bulk teardown can never blow them away.
- */
-
 import { doAction, HOOKS } from '../../hooks';
 import { loadVendorScript } from '../../wallpapers/vendor-loader';
 import {
@@ -41,8 +28,7 @@ export function createWindowControlRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-				// The packages the bundle declares, brought in first; the
-				// document skips what it already ran.
+
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,

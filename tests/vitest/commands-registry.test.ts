@@ -1,19 +1,3 @@
-/**
- * Unit tests for the new 0.16.0 command-registry surface:
- *
- *   - `unregisterByOwner( owner )` bulk-evicts every command sharing
- *     the given owner tag. Used by the iframe-command bridge on focus
- *     change / window close, and by the command server-sync on plugin
- *     deactivation.
- *   - `listEagerCommands()` returns only commands flagged `eager`. The
- *     palette renders these on empty input (before the user types `/`);
- *     slash-only commands remain hidden.
- *   - The two surfaces are disjoint: a command flagged `eager` shows
- *     in `listEagerCommands()` but not in `filterCommands( '' )`-style
- *     slash-only flows (asserted indirectly — `eager`-filtered slash
- *     results are produced by the palette, not the registry; we only
- *     check that the eager flag round-trips through the registry).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -22,11 +6,7 @@ type CommandsModule = typeof import( '../../src/commands' );
 async function load(): Promise< CommandsModule > {
 	vi.resetModules();
 	const mod = await import( '../../src/commands' );
-	// The registry now lives in a `createSharedStore` slot on `window`
-	// so the desktop + ai-assistant bundles share it at runtime.
-	// `vi.resetModules()` clears the module graph but not the global
-	// slot, so without this loop commands from a previous test leak
-	// into the next. Drain the registry between loads.
+
 	for ( const cmd of mod.listCommands() ) {
 		mod.unregisterCommand( cmd.slug );
 	}
@@ -87,7 +67,6 @@ describe( 'commands.ts — 0.16.0 additions', () => {
 			unregisterByOwner( 'iframe:win-1' );
 			expect( calls ).toBe( 1 );
 
-			// Second call — nothing to remove, must not notify.
 			unregisterByOwner( 'iframe:win-1' );
 			expect( calls ).toBe( 1 );
 

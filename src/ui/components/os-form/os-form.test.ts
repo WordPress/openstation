@@ -77,7 +77,7 @@ describe( '<os-form>', () => {
 		expect( username.hasAttribute( 'invalid' ) ).toBe( true );
 		const email = host.querySelector( 'os-text-field[name="email"]' )!;
 		expect( email.hasAttribute( 'invalid' ) ).toBe( false );
-		// Form-level error shown.
+
 		expect( form.getAttribute( 'error' ) ).toContain( 'Username' );
 	} );
 

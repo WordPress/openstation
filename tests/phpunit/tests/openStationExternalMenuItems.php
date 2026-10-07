@@ -1,18 +1,5 @@
 <?php
-/**
- * Tests for how the dock payload treats admin-menu entries that point
- * off-site, and for the wp-admin originals a host leaves behind when it
- * swaps one in.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- *
- * @covers ::openstation_build_dock_items
- * @covers ::openstation_menu_item_is_external
- * @covers ::openstation_menu_item_is_hidden
- */
+
 class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -23,10 +10,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
 
-		// On multisite a plain administrator lacks the super-admin-only
-		// capabilities these tests exercise (update_core, edit_users,
-		// activate_plugins and friends). The admin fixture means "the
-		// fully-capable admin", which multisite spells super admin.
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -70,7 +53,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 		);
 	}
 
-	/** Make `$slug` resolve to a regular plugin, the way the admin_menu tracker would. */
 	private function attribute_to_plugin( $slug, $plugin_file = 'my-plugin/my-plugin.php' ) {
 		$map          = &openstation_menu_attribution_map();
 		$map[ $slug ] = $plugin_file;
@@ -185,9 +167,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_hidden_original_is_restored_when_its_off_site_replacement_is_dropped() {
 		global $menu, $submenu;
-		// The shape Jetpack leaves behind on WordPress.com: the wp-admin
-		// row marked `hide-if-js`, a Calypso duplicate carrying the same
-		// label added in front of it.
+
 		$menu                  = array( $this->make_menu_row( 'Appearance', 'switch_themes', 'themes.php' ) );
 		$submenu['themes.php'] = array(
 			array( 'Themes', 'switch_themes', 'https://wordpress.com/themes/example.com' ),
@@ -197,11 +177,9 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 		$items = openstation_build_dock_items();
 
-		// The restored row is the parent's own page, so it collapses
-		// into `selfLabel` rather than becoming a child.
 		$this->assertSame( 'Themes', $items[0]['selfLabel'] );
 		$this->assertSame( admin_url( 'themes.php' ), $items[0]['url'] );
-		// `Add Theme` is OpenStation's own injected Appearance tab.
+
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
 		$this->assertContains( 'Editor', $titles );
 		$this->assertNotContains( 'Themes', $titles );
@@ -230,9 +208,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_top_level_menu_pointing_off_site_falls_back_to_its_restored_child() {
 		global $menu, $submenu;
-		// `Base_Admin_Menu::update_menu()` rewrites the top-level slug
-		// itself when the menu has no visible children left, hiding the
-		// self-link on the way past.
+
 		$menu                   = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
 		$submenu['https://wordpress.com/plugins/example.com'] = array(
 			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
@@ -247,10 +223,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_restored_child_does_not_steal_the_parent_url() {
 		global $menu, $submenu;
-		// The Plugins shape on WordPress.com: Jetpack moves Add New to
-		// the top, points it at Calypso, and leaves the wp-admin row
-		// behind at the end of the list. Restoring it must not make
-		// "Plugins" open the installer.
+
 		$menu                   = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'plugins.php' ) );
 		$submenu['plugins.php'] = array(
 			array( 'Add Plugin', 'install_plugins', 'https://wordpress.com/plugins/example.com' ),
@@ -270,11 +243,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_host_filter_on_self_admin_url_does_not_move_a_restored_original_off_site() {
 		global $menu, $submenu;
-		// wpcomsh's `wpcomsh_update_plugin_link_destination()`: on the
-		// default WordPress.com interface every `self_admin_url()` call
-		// for the installer answers with the Calypso URL. Resolved through
-		// that filter, the hidden wp-admin original reads as off-site too
-		// and Plugins loses Add Plugin altogether.
+
 		add_filter(
 			'self_admin_url',
 			static function ( $url, $path ) {
@@ -304,10 +273,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_container_menu_whose_children_were_all_off_site_is_dropped() {
 		global $menu, $submenu;
-		// The WordPress.com Upgrades shape: `add_menu_page()` with a
-		// null callback, its self-link removed, and every child a
-		// wordpress.com URL. Keeping the tile would point it at core's
-		// "Cannot load paid-upgrades.php." page.
+
 		$menu = array(
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 			$this->make_menu_row( 'Upgrades', 'manage_options', 'paid-upgrades.php' ),
@@ -338,8 +304,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_container_menu_with_a_registered_page_is_kept() {
 		global $menu, $submenu;
-		// Same shape, but something is listening on the page hook — the
-		// menu renders, so it keeps its tile even with no children left.
+
 		$menu                    = array( $this->make_menu_row( 'My Plugin', 'manage_options', 'my-plugin' ) );
 		$submenu['my-plugin']    = array(
 			array( 'Account', 'manage_options', 'https://example.org/account' ),
@@ -359,8 +324,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_container_check_leaves_menus_without_off_site_children_alone() {
 		global $menu;
-		// No off-site row was dropped here, so the container check never
-		// runs and a callback-less menu keeps behaving as it always did.
+
 		$menu = array( $this->make_menu_row( 'Empty', 'manage_options', 'empty-menu' ) );
 
 		$items = openstation_build_dock_items();
@@ -371,9 +335,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_rescued_tile_takes_the_identity_of_the_slug_it_adopted() {
 		global $menu, $submenu;
-		// Identity has to move with the URL. Left on the off-site slug,
-		// this reads as a plugin menu owned by whoever registered the
-		// replacement, and sorts away from the Core tiles.
+
 		$this->attribute_to_plugin( 'https://wordpress.com/plugins/example.com', 'jetpack/jetpack.php' );
 
 		$menu = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
@@ -426,8 +388,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 		$items = openstation_build_dock_items();
 
-		// The label match picks the menu's own row, not whichever hidden
-		// row happens to come first.
 		$this->assertCount( 1, $items );
 		$this->assertSame( admin_url( 'plugins.php' ), $items[0]['url'] );
 		$this->assertSame( array(), $items[0]['submenu'] );
@@ -435,9 +395,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_off_site_parent_falls_back_to_any_hidden_on_site_row() {
 		global $menu, $submenu;
-		// A host that relabelled the menu row without relabelling the
-		// self-link it had already generated. Nothing matches by label,
-		// and dropping the menu would lose a page that works.
+
 		$menu = array( $this->make_menu_row( 'Manage plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
 		$submenu['https://wordpress.com/plugins/example.com'] = array(
 			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
@@ -452,8 +410,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_off_site_parent_prefers_an_on_site_child_over_a_hidden_row() {
 		global $menu, $submenu;
-		// A visible on-site child is a better stand-in than a row
-		// someone hid, so the fallback stays out of the way.
+
 		$menu = array( $this->make_menu_row( 'Manage plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
 		$submenu['https://wordpress.com/plugins/example.com'] = array(
 			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
@@ -483,8 +440,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 		$svg  = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
 		$menu = array( $this->make_menu_row( 'Jetpack', 'manage_options', 'jetpack', '', '', '', $svg ) );
 
-		// Snapshot while the icon is still an icon, then let something
-		// on `admin_menu` blank it the way Jetpack's SVG override does.
 		openstation_snapshot_menu_icons();
 		$menu[0][6] = 'none';
 
@@ -498,8 +453,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 		$svg  = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
 		$menu = array( $this->make_menu_row( 'Thing', 'manage_options', 'thing', '', '', '', $svg ) );
 
-		// Sampled once while the icon is real, again after a rewrite —
-		// the second pass must not record the blank over the first.
 		openstation_snapshot_menu_icons();
 		$menu[0][6] = 'none';
 		openstation_snapshot_menu_icons();
@@ -514,8 +467,7 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 		$menu = array( $this->make_menu_row( 'Thing', 'manage_options', 'thing', '', '', '', 'dashicons-cart' ) );
 
 		openstation_snapshot_menu_icons();
-		// A menu that genuinely swaps its icon still ships the new one;
-		// the snapshot is a fallback, not an override.
+
 		$menu[0][6] = 'dashicons-chart-bar';
 
 		$items = openstation_build_dock_items();

@@ -30,7 +30,6 @@ test( 'reduced motion keeps a static thinking expression', () => {
 	expect( advanceMioThinking( 0, true, 0.01, true ) ).toBe( 1 );
 } );
 
-
 test( 'the mascot itself breathes, tilts and narrows its eyes without moving its anchor', () => {
 	const frame = sampleFrame();
 	const original = JSON.parse( JSON.stringify( frame ) );

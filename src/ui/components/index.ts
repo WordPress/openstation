@@ -1,15 +1,3 @@
-/**
- * os-ui components barrel.
- *
- * Importing this file side-effect-registers every component in the
- * first batch with `customElements.define()`. After this import,
- * any `<os-*>` tag in the DOM upgrades automatically.
- *
- * Each component lives in its own folder with co-located styles
- * (`*.styles.ts`) and tests (`*.test.ts`), so a future refactor of
- * one component doesn't require touching any shared file.
- */
-
 export { OsSection } from './os-section/os-section';
 export { OsButton } from './os-button/os-button';
 export { OsSwatch } from './os-swatch/os-swatch';
@@ -114,12 +102,4 @@ export { OsTokenField } from './os-token-field/os-token-field';
 export type { OsTokenDefinition } from './os-token-field/os-token-field';
 export type { OsProgressTone } from './os-progress-bar/os-progress-bar';
 
-// List of tags registered by this barrel. Defined in `./tags`
-// (the single source of truth, kept side-effect-free so tag-only
-// consumers don't drag every component module into their bundle)
-// and re-exported here for convenience. `doAction(
-// COMPONENTS_REGISTERED, { tags } )` fires once from
-// `src/desktop.ts` after the module graph settles, so
-// subscribers needing to defer work until every `<os-*>` is
-// callable have a single signal to latch onto.
 export { OS_COMPONENT_TAGS } from './tags';

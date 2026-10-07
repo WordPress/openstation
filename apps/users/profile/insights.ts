@@ -1,11 +1,3 @@
-/**
- * `<os-user-profile>` — the read-only surfaces over the insights
- * payload: the sidebar summary (avatar, roles, completeness, KPI
- * tiles, 12-month sparkline) and the activity feed below the form
- * (recent posts + comments, sessions and app-password summary). Pure
- * painters: the element fetches the payload once and hands it to both.
- */
-
 import { __, _n, formatDate, sprintf } from '@openstation/app';
 import { openUserFootprintWindow } from '../../../src/open-targets/footprint-target';
 import { relativeTimeNode, serverDateMs } from './client';
@@ -28,7 +20,6 @@ function div( css: string, text?: string | Node ): HTMLElement {
 	return el;
 }
 
-/** The "Loading…" placeholder both regions show while the payload is on its way. */
 export function paintInsightsLoading( host: HTMLElement ): void {
 	host.replaceChildren(
 		div(
@@ -38,16 +29,14 @@ export function paintInsightsLoading( host: HTMLElement ): void {
 	);
 }
 
-/** The failure both regions show. */
 export function paintInsightsError( host: HTMLElement, err: unknown ): void {
 	const msg = document.createElement( 'p' );
 	msg.style.cssText = 'padding:24px;color:var(--os-ui-danger, #b32d2e);font-size:13px;text-align:center;';
-	// translators: %s is an error message.
+
 	msg.textContent = sprintf( __( 'Could not load insights (%s).' ), String( ( err as Error )?.message ?? err ) );
 	host.replaceChildren( msg );
 }
 
-/** The compact summary for the sidebar (`<aside>`). */
 export function paintAside( host: HTMLElement, data: UserInsightsPayload, cfg: ProfileConfig ): void {
 	const parts: HTMLElement[] = [ buildAsideSummary( data, cfg ), buildAsideStatGrid( data ), buildContentSparkline( data ) ];
 	if ( cfg.canViewFootprint ) {
@@ -56,7 +45,6 @@ export function paintAside( host: HTMLElement, data: UserInsightsPayload, cfg: P
 	host.replaceChildren( ...parts );
 }
 
-/** The full-width activity feed below the form. */
 export function paintActivity( host: HTMLElement, data: UserInsightsPayload ): void {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'os-user-edit__activity';
@@ -68,7 +56,6 @@ export function paintActivity( host: HTMLElement, data: UserInsightsPayload ): v
 	host.replaceChildren( wrap );
 }
 
-/** Role chips, labelled from the catalogue the host ships. */
 export function roleChips( roles: string[], cfg: ProfileConfig ): HTMLElement {
 	const wrap = div( 'display:flex;flex-wrap:wrap;gap:4px;justify-content:center;' );
 	const labels = cfg.allRoles ?? {};
@@ -87,7 +74,6 @@ export function roleChips( roles: string[], cfg: ProfileConfig ): HTMLElement {
 	return wrap;
 }
 
-/** Aside top — avatar + name + role chips + completeness bar. */
 function buildAsideSummary( data: UserInsightsPayload, cfg: ProfileConfig ): HTMLElement {
 	const card = div(
 		[
@@ -138,7 +124,6 @@ function buildAsideSummary( data: UserInsightsPayload, cfg: ProfileConfig ): HTM
 	return card;
 }
 
-/** Aside KPI tiles — 2x2 grid of compact stat cards. */
 function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	const grid = div( 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;' );
 	const tile = ( label: string, value: string | Node, sub?: string ): HTMLElement => {
@@ -165,7 +150,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 		tile(
 			__( 'Posts' ),
 			String( stats.posts ),
-			// translators: %d is a count of pages.
+
 			stats.pages > 0 ? sprintf( _n( '+ %d page', '+ %d pages', stats.pages ), stats.pages ) : undefined,
 		),
 	);
@@ -173,7 +158,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 		tile(
 			__( 'Comments' ),
 			String( stats.commentsAuthored ),
-			// translators: %d is a count of received comments.
+
 			stats.commentsReceived > 0 ? sprintf( __( '%d received' ), stats.commentsReceived ) : undefined,
 		),
 	);
@@ -186,7 +171,6 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	);
 	let memberValue = '—';
 	if ( stats.daysSinceRegistration !== null ) {
-		// translators: %d is a number of days.
 		memberValue = sprintf( _n( '%d day', '%d days', stats.daysSinceRegistration ), stats.daysSinceRegistration );
 	}
 	grid.appendChild(
@@ -195,13 +179,6 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	return grid;
 }
 
-/**
- * The sidebar's door to the activity footprint — the year-long
- * GitHub-style view WP Explorer renders. The Users table's row action
- * and the explorer's own dossier keep their doors; this one is the
- * short way in from the profile itself. The hand-off is the shared
- * footprint target, so the explorer bundle need not be loaded yet.
- */
 function buildFootprintDoor( data: UserInsightsPayload ): HTMLElement {
 	const wrap = div( 'margin:0 0 22px;' );
 	const button = document.createElement( 'os-button' );
@@ -221,7 +198,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 	const head = div( 'display:flex;justify-content:space-between;align-items:baseline;margin:0 0 8px;' );
 	head.appendChild( div( 'font-size:13px;font-weight:600;', __( 'Posts published — last 12 months' ) ) );
 	const total = data.contentByMonth.reduce( ( s, m ) => s + m.count, 0 );
-	// translators: %d is a count of posts.
+
 	head.appendChild( div( 'font-size:11px;color:var(--os-ui-fg-muted, #50575e);', sprintf( __( '%d total' ), total ) ) );
 	wrap.appendChild( head );
 
@@ -248,7 +225,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 				'transition:height 360ms ease',
 			].join( ';' ),
 		);
-		// translators: %1$s is a YYYY-MM month, %2$d is post count.
+
 		bar.title = sprintf( __( '%1$s — %2$d posts' ), month.month, month.count );
 		col.appendChild( bar );
 		bars.appendChild( col );
@@ -284,7 +261,7 @@ function buildRecentLists( data: UserInsightsPayload ): HTMLElement {
 				primary: p.title,
 				when: p.dateGmt,
 				tag: p.status !== 'publish' ? p.status : null,
-				// translators: %d is a count of comments.
+
 				badge: p.commentCount > 0 ? sprintf( __( '%d 💬' ), p.commentCount ) : null,
 			} ) ),
 		),
@@ -296,7 +273,7 @@ function buildRecentLists( data: UserInsightsPayload ): HTMLElement {
 			data.recentComments.map( ( c ) => ( {
 				primary: c.excerpt || __( '(empty comment)' ),
 				when: c.dateGmt,
-				// translators: %s is a post title.
+
 				context: c.postTitle ? sprintf( __( 'on "%s"' ), c.postTitle ) : undefined,
 				tag: c.approved ? null : __( 'pending' ),
 				badge: null,
@@ -376,7 +353,7 @@ function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 	let appSub: string | Node;
 	if ( apps.lastUsedAt && apps.lastUsedName ) {
 		const frag = document.createDocumentFragment();
-		// translators: %s is the app password name.
+
 		frag.append( sprintf( __( '"%s" last used' ), apps.lastUsedName ), ' ', relativeTimeNode( apps.lastUsedAt ) );
 		appSub = frag;
 	} else {

@@ -1,33 +1,15 @@
 <?php
-/**
- * Failure-safe reconciliation of stored rows and upload bytes.
- *
- * @package OpenStation
- */
+
 defined( 'ABSPATH' ) || exit;
 
 require_once dirname( __DIR__ ) . '/storage-primary.php';
 
-/**
- * Serialize upload registration, placement creation and each cleanup candidate.
- *
- * Connection-scoped MySQL locks work without committing a caller's transaction.
- * The name includes the database and site prefix; unrelated sites never wait.
- * Nested calls on this connection are balanced by MySQL's lock reference count.
- * No filesystem traversal is performed while the lock is held.
- *
- * @internal
- * @param callable $callback Operation to protect.
- * @param bool     $cleanup Require a real advisory lock for destructive reconciliation.
- * @return mixed|WP_Error Callback result, or a retryable lock error.
- */
 function openstation_stored_files_locked( $callback, $cleanup = false ) {
 	global $wpdb;
 	openstation_storage_use_primary();
 	$name = 'os-files-' . md5( $wpdb->dbname . ':' . $wpdb->prefix );
 	$lock = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $name ) );
-	// SQLite translates GET_LOCK to a successful no-op. Keep intake working,
-	// but never run destructive reconciliation without mutual exclusion.
+
 	if ( '1=1' === $lock && ! $cleanup ) {
 		return $callback();
 	}
@@ -41,15 +23,6 @@ function openstation_stored_files_locked( $callback, $cleanup = false ) {
 	}
 }
 
-/**
- * Protect only the current reference check and placement insert.
- * Authorization, collision recovery and extension callbacks run outside the lock.
- *
- * @internal
- * @param string   $ref Stored-file reference.
- * @param callable $insert Placement insert.
- * @return array|WP_Error
- */
 function openstation_stored_files_place_insert( $ref, $insert ) {
 	return openstation_stored_files_locked(
 		static function () use ( $ref, $insert ) {
@@ -67,37 +40,14 @@ function openstation_stored_files_place_insert( $ref, $insert ) {
 	);
 }
 
-/**
- * Report a failed cleanup operation without exposing SQL or filesystem paths.
- *
- * @internal
- * @param string $stage Failed operation.
- * @return void
- */
 function openstation_stored_files_reconcile_failed( $stage ) {
-	/**
-	 * Fires when reconciliation skips bytes or stops after a failed safety check.
-	 *
-	 * @param WP_Error $error Error whose data contains the failing stage.
-	 */
+
 	do_action(
 		'openstation_stored_files_reconcile_failed',
 		new WP_Error( 'openstation_reconcile_failed', __( 'A file cleanup operation could not be completed.', 'desktop-mode' ), array( 'stage' => $stage ) )
 	);
 }
 
-/**
- * Remove one old placement-less row, rechecking under the upload writer lock.
- *
- * Delete the database row before bytes. A failed DELETE leaves bytes untouched;
- * a failed unlink leaves row-less bytes for a later sweep. Trashed placements
- * count as references, so cleanup never consumes the recycle bin's files.
- *
- * @internal
- * @param int $id Candidate id.
- * @param int $cutoff_ms Oldest retained creation timestamp.
- * @return bool Whether the check and any required deletion succeeded.
- */
 function openstation_stored_files_reconcile_row( $id, $cutoff_ms ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
@@ -141,27 +91,16 @@ function openstation_stored_files_reconcile_row( $id, $cutoff_ms ) {
 				openstation_stored_files_reconcile_failed( 'unlink_row_bytes' );
 			}
 		}
-		/** This action is documented in includes/desktop-files/stored-files-store.php. */
+
 		do_action( 'openstation_stored_file_deleted', (int) $row['id'], $row );
 	}
 	return true;
 }
 
-/**
- * Revalidate one row-less disk file against current DB state before unlinking.
- *
- * @internal
- * @param int    $owner_id Owner directory.
- * @param string $entry Candidate path.
- * @param int    $cutoff Unix seconds cutoff.
- * @return bool Whether the check succeeded.
- */
 function openstation_stored_files_reconcile_bytes( $owner_id, $entry, $cutoff ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
-	// A locking read sees current committed rows even inside a caller's
-	// REPEATABLE READ transaction, rather than an earlier empty snapshot.
-	// Engines that reject the changed snapshot take the failure path below.
+
 	$known = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['stored_files']} WHERE owner_id = %d AND disk_name = %s LIMIT 1 FOR UPDATE",
@@ -187,14 +126,6 @@ function openstation_stored_files_reconcile_bytes( $owner_id, $entry, $cutoff ) 
 	return true;
 }
 
-/**
- * Daily reconciliation. Any failed lookup aborts the remaining sweep.
- *
- * The one-day grace period protects uploads between their filesystem move and
- * row insertion. Missing bytes retain their row, allowing manual recovery.
- *
- * @return void
- */
 function openstation_stored_files_reconcile() {
 	global $wpdb;
 	$tables    = openstation_files_table_names();

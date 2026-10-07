@@ -1,11 +1,3 @@
-/**
- * Tile renderer — `placement.meta.iconUrl` precedence.
- *
- * The favicon resolver attaches a base64 data URI to the
- * placement's meta during `link` creation; the tile renderer
- * must paint that data URI in place of the file type's generic
- * dashicon.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
@@ -75,11 +67,9 @@ describe( 'file-tile — meta.iconUrl precedence', () => {
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( PNG_DATA_URI );
-		// `<img>` is `draggable=true` by default — leaving it that
-		// way lets the browser hijack the parent tile's pointer
-		// gesture with a native image-drag, breaking rearrange.
+
 		expect( img!.draggable ).toBe( false );
-		// The dashicon span must NOT be present — meta wins.
+
 		expect(
 			tile.querySelector( 'span.os-file-tile__icon.dashicons' ),
 		).toBeNull();

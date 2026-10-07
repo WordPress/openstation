@@ -1,7 +1,3 @@
-/**
- * Test doubles for the Preferences app's context: the `data()`
- * payload and the config extra, as the PHP side ships them.
- */
 import type { AppData, AppExtra } from '../../../apps/os-settings/parts/types';
 
 export function appData( overrides: Partial< AppData > = {} ): AppData {

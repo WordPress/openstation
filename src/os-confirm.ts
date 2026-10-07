@@ -1,21 +1,3 @@
-/**
- * `osConfirm` — main-bundle wrapper around `<os-confirm-dialog>`.
- *
- * The component class itself lives in the lazy
- * `shell-overlays[.min].js` bundle (registered there as a side
- * effect — see `src/shell-overlays/entry.ts`). This file holds
- * only the imperative shim: it awaits the bundle load, then
- * constructs the element, sets attributes, listens for
- * `os-confirm` / `os-cancel`, resolves the promise.
- *
- * The implementation previously lived inside
- * `src/ui/components/os-confirm-dialog/os-confirm-dialog.ts`
- * alongside the class. Splitting it out lets Rollup tree-shake
- * the class out of `desktop.min.js` since the only references
- * left in main are this function — which only uses
- * `document.createElement( 'os-confirm-dialog' )` and DOM APIs.
- */
-
 import {
 	ensureShellOverlaysLoaded,
 	shellOverlaysBundleUrl,
@@ -24,12 +6,6 @@ import type { OsConfirmOptions } from './ui/components/os-confirm-dialog/os-conf
 
 export type { OsConfirmOptions };
 
-/**
- * Modal Yes/No replacement for the native `confirm()`. Returns a
- * Promise that resolves to `true` on confirm and `false` on cancel
- * (Escape or the cancel button). Renders the lazy
- * `<os-confirm-dialog>` web component.
- */
 export async function osConfirm(
 	options: OsConfirmOptions,
 ): Promise< boolean > {
@@ -64,9 +40,6 @@ export async function osConfirm(
 			resolve( ok );
 		};
 		dialog.addEventListener( 'os-confirm', ( e: Event ) => {
-			// Only on confirm: a question the user backed out of was
-			// never answered, so "don't ask again" cannot have been
-			// what they meant by it.
 			options.onRemember?.(
 				( e as CustomEvent< { remember?: boolean } > ).detail
 					?.remember === true,
@@ -75,8 +48,5 @@ export async function osConfirm(
 		} );
 		dialog.addEventListener( 'os-cancel', () => cleanup( false ) );
 		document.body.appendChild( dialog );
-		// Focus is the component's job — it captures the opener when
-		// `open` is set and moves into the dialog once the first
-		// render lands, which has not happened yet at this point.
 	} );
 }

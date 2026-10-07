@@ -1,57 +1,27 @@
 <?php
-/**
- * Site-scoped presence storage and recoverable legacy-option import.
- *
- * @package OpenStation
- */
+
 defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/storage-primary.php';
 
-/** Storage migration checkpoint; kept separate from unrelated migrations. */
 const OPENSTATION_PRESENCE_STORAGE_OPTION = 'openstation_presence_storage';
 
-// This group must never survive a request, including with persistent caches.
 wp_cache_add_non_persistent_groups( 'openstation_presence_request' );
 
-/**
- * Current connection/site request cache key.
- *
- * @internal
- * @return string
- */
 function openstation_presence_cache_key() {
 	global $wpdb;
 	return spl_object_id( $wpdb ) . ':' . openstation_presence_table();
 }
 
-/**
- * Invalidate reads after writes, including legacy fallback and pruning.
- *
- * @internal
- * @return void
- */
 function openstation_presence_invalidate_records() {
 	wp_cache_delete( openstation_presence_cache_key(), 'openstation_presence_request' );
 }
 
-/**
- * Current site's table; never use the network's base prefix for presence.
- *
- * @internal
- * @return string
- */
 function openstation_presence_table() {
 	global $wpdb;
 	return $wpdb->prefix . 'openstation_presence';
 }
 
-/**
- * Read the legacy option directly, bypassing caches held by another worker.
- *
- * @internal
- * @return array|WP_Error Normalized records, or a failed read.
- */
 function openstation_presence_legacy_records() {
 	global $wpdb;
 	$raw = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = %s", OPENSTATION_PRESENCE_OPTION ) );
@@ -72,19 +42,6 @@ function openstation_presence_legacy_records() {
 	return $out;
 }
 
-/**
- * Merge timestamps atomically. Away is an explicit user intent, not activity.
- *
- * The private inactive_at_ms fence keeps a delayed active request from undoing
- * a later "set away" request. A genuinely newer active request clears away.
- * Ordinary inactive heartbeats pass zero activity, never a stale readback.
- *
- * @internal
- * @param int   $user_id User id.
- * @param array $record Timestamps to merge.
- * @param bool  $away Whether to set away at last_seen_ms.
- * @return bool
- */
 function openstation_presence_upsert( $user_id, $record, $away = false ) {
 	global $wpdb;
 	openstation_storage_use_primary();
@@ -107,17 +64,6 @@ function openstation_presence_upsert( $user_id, $record, $away = false ) {
 	return $result;
 }
 
-/**
- * Ensure storage exists and import before publishing the completed checkpoint.
- *
- * A connection lock serializes concurrent installers. Upserts and verification
- * make partial imports retryable without overwriting live timestamps. A short
- * bridge imports late writes from requests still executing the old plugin.
- * After five minutes the legacy option is retained but never read or written.
- *
- * @internal
- * @return bool Whether the table is ready for use.
- */
 function openstation_presence_migrate_storage() {
 	global $wpdb;
 	$state = get_option( OPENSTATION_PRESENCE_STORAGE_OPTION, array() );
@@ -128,18 +74,18 @@ function openstation_presence_migrate_storage() {
 	if ( wp_cache_get( $failure_key, 'openstation_presence_request' ) ) {
 		return false;
 	}
-	// Remember failure pessimistically; remove only after verified completion.
+
 	wp_cache_set( $failure_key, true, 'openstation_presence_request' );
 	openstation_storage_use_primary();
 	$table = openstation_presence_table();
 	$name  = 'os-presence-' . md5( $wpdb->dbname . ':' . $table );
 	$lock  = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', $name ) );
-	// SQLite's compatibility shim is a no-op; the import is idempotent.
+
 	if ( ! in_array( (string) $lock, array( '1', '1=1' ), true ) ) {
 		return false;
 	}
 	try {
-		// A worker that waited for the lock must see the winner's checkpoint.
+
 		wp_cache_delete( OPENSTATION_PRESENCE_STORAGE_OPTION, 'options' );
 		$notoptions = wp_cache_get( 'notoptions', 'options' );
 		if ( is_array( $notoptions ) && isset( $notoptions[ OPENSTATION_PRESENCE_STORAGE_OPTION ] ) ) {
@@ -175,7 +121,7 @@ function openstation_presence_migrate_storage() {
 				return false;
 			}
 		}
-		// Verify even an empty import against all required columns.
+
 		$rows = $wpdb->get_results( "SELECT user_id, last_seen_ms, last_active_ms, inactive_at_ms FROM $table", OBJECT_K );
 		if ( '' !== $wpdb->last_error ) {
 			return false;
@@ -201,12 +147,6 @@ function openstation_presence_migrate_storage() {
 	}
 }
 
-/**
- * Import late legacy heartbeats during the bounded deployment bridge.
- *
- * @internal
- * @return void
- */
 function openstation_presence_migration_tick() {
 	if ( ! openstation_presence_migrate_storage() ) {
 		return;
@@ -227,7 +167,7 @@ function openstation_presence_migration_tick() {
 	}
 	foreach ( $records as $uid => $record ) {
 		if ( $record['last_seen_ms'] > $cut ) {
-			// Old idle heartbeats retain zero activity: they are not fresh away intent.
+
 			if ( ! openstation_presence_upsert( $uid, $record, false ) ) {
 				return;
 			}
@@ -237,13 +177,6 @@ function openstation_presence_migration_tick() {
 	update_option( OPENSTATION_PRESENCE_STORAGE_OPTION, $state, false );
 }
 
-/**
- * Read one or all records, retaining the public two-timestamp shape.
- *
- * @internal
- * @param int|null $user_id Restrict to one user, or null for all.
- * @return array|WP_Error Map keyed by user id.
- */
 function openstation_presence_read_records( $user_id = null ) {
 	global $wpdb;
 	$key    = openstation_presence_cache_key();
@@ -264,7 +197,7 @@ function openstation_presence_read_records( $user_id = null ) {
 	openstation_storage_use_primary();
 	$table = openstation_presence_table();
 	$sql   = "SELECT user_id, last_seen_ms, last_active_ms, inactive_at_ms FROM $table";
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table is internal; reuse this request snapshot for user lists.
+
 	$rows = $wpdb->get_results( $sql, ARRAY_A );
 	if ( '' !== $wpdb->last_error ) {
 		return new WP_Error( 'openstation_presence_read_failed', __( 'Could not read presence.', 'desktop-mode' ) );
@@ -280,15 +213,6 @@ function openstation_presence_read_records( $user_id = null ) {
 	return null === $user_id ? $out : array_intersect_key( $out, array( $user_id => true ) );
 }
 
-/**
- * Persist one heartbeat, falling back only when storage cannot be installed.
- *
- * @internal
- * @param int   $user_id User id.
- * @param array $record Fresh timestamps (zero activity for an idle heartbeat).
- * @param bool  $away Explicit away intent.
- * @return bool
- */
 function openstation_presence_write_record( $user_id, $record, $away = false ) {
 	if ( openstation_presence_migrate_storage() ) {
 		return openstation_presence_upsert( $user_id, $record, $away );

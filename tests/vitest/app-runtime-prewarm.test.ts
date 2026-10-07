@@ -1,13 +1,3 @@
-/**
- * App Framework runtime — the hover-intent prewarm.
- *
- * `wp.os.apps.prewarm( id )` sends a closed app window's first `mount`
- * ahead of the open; the session that opens takes the answer instead
- * of fetching. What these tests pin: the request is the one the
- * session would have sent (silent, declared state, no params), a warm
- * is held once and taken once, it goes stale, a deep link never takes
- * it, and a warm that failed falls through to a real request.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PREWARM_TTL_MS, __resetPrewarmForTests, hasPrewarm, startPrewarm, takePrewarm } from '../../src/app-runtime/prewarm';
 import { createSession } from '../../src/app-runtime/session';
@@ -90,7 +80,6 @@ describe( 'startPrewarm', () => {
 		} );
 		expect( opts ).toEqual( { source: `openstation/app/${ APP }/prewarm`, silent: true } );
 
-		// A hover that lingers never costs a second request.
 		expect( startPrewarm( config(), host.fetch ) ).toBe( false );
 		expect( fetchSpy ).toHaveBeenCalledTimes( 1 );
 		expect( hasPrewarm( APP ) ).toBe( true );
@@ -108,7 +97,7 @@ describe( 'startPrewarm', () => {
 		vi.advanceTimersByTime( PREWARM_TTL_MS + 1 );
 		expect( hasPrewarm( APP ) ).toBe( false );
 		expect( takePrewarm( APP ) ).toBeUndefined();
-		// …and a new hover warms again.
+
 		expect( startPrewarm( config(), host.fetch ) ).toBe( true );
 	} );
 
@@ -136,7 +125,7 @@ describe( 'a session opening on a warm', () => {
 		expect( root.querySelector( 'p' )?.getAttribute( 'data-loading' ) ).toBe( 'false' );
 		expect( session.state ).toEqual( { page: 1 } );
 		expect( session.data ).toEqual( { rows: [ 'warm' ] } );
-		// The next mount of another open fetches: the warm was taken.
+
 		expect( hasPrewarm( APP ) ).toBe( false );
 	} );
 

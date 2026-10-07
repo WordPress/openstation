@@ -1,74 +1,18 @@
-/**
- * `<os-token-field>` — a text field whose value contains tokens, and
- * a catalogue for discovering them.
- *
- * Anything templated has this problem. An email body accepts
- * `{field:f2}`, a webhook payload accepts `{all_fields}`, a filename
- * pattern accepts `{date}` — and the syntax is undiscoverable, so
- * every plugin that has one grows the same three things: a picker
- * listing what's available, a note about what each one means, and
- * some way to see what you're actually going to get.
- *
- * ```js
- * const field = document.querySelector( 'os-token-field' );
- * field.value = 'Hi {field:1}, we got your entry.';
- * field.tokens = [
- *     { group: 'Questions', label: 'Full name', token: '{field:1}', sample: 'Ada Lovelace' },
- *     { group: 'Questions', label: 'Email',     token: '{field:2}', sample: 'ada@example.com' },
- *     { group: 'Form',      token: '{all_fields}', label: 'All answers' },
- * ];
- *
- * field.addEventListener( 'os-token-field-input', ( e ) => save( e.detail.value ) );
- * ```
- *
- * **Insertion is at the caret**, not at the end — a token is usually
- * wanted mid-sentence, and a picker that appends to the end makes
- * the user cut and paste it into place. After inserting, focus and
- * selection return to just past the token so typing continues where
- * the user was.
- *
- * **The preview is the discoverability.** Tokens that carry a
- * `sample` render a "reads as" line under the field with the samples
- * substituted, so the user sees the shape of the result before
- * saving. It is deliberately a plain substitution: this component
- * cannot know the server's templating rules, and a preview that
- * pretends to be authoritative is worse than one that is obviously
- * an illustration. Tokens with no `sample` are left as-is in the
- * preview, which reads correctly as "this one resolves elsewhere".
- *
- * The consumer owns `value`. Like `<os-tag-input>`, this component
- * reports intent and never writes to its own value property behind
- * the consumer's back — except through the field's own native
- * editing, which is the user typing and is echoed on
- * `os-token-field-input`.
- *
- * @public
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-token-field.styles';
 import '../os-button/os-button';
 import '../os-icon/os-icon';
 
-/** One row in the catalogue. */
 export interface OsTokenDefinition {
-	/**
-	 * The literal inserted into the value — `{field:2}`,
-	 * `%%first_name%%`, `${order.total}`. Opaque to the component.
-	 */
+
 	token: string;
-	/** Human name shown in the picker. */
+
 	label: string;
-	/** Section heading. Rows with no group sort last, ungrouped. */
+
 	group?: string;
-	/**
-	 * What this resolves to on this site — used for the "reads as"
-	 * preview and shown next to the label. Omit for a token whose
-	 * value can't be known up front; the preview then leaves the
-	 * token visible.
-	 */
+
 	sample?: string;
-	/** Longer explanation shown under the label in the picker. */
+
 	description?: string;
 }
 
@@ -177,10 +121,9 @@ export class OsTokenField extends Component {
 
 	private _tokens: OsTokenDefinition[] = [];
 	private _value = '';
-	/** Caret at the moment the catalogue opened — insertion point. */
+
 	private caret: { start: number; end: number } | null = null;
 
-	/** The catalogue. */
 	public get tokens(): OsTokenDefinition[] {
 		return this._tokens;
 	}
@@ -189,16 +132,13 @@ export class OsTokenField extends Component {
 		this.requestUpdate();
 	}
 
-	/** Field contents. */
 	public get value(): string {
 		return this._value;
 	}
 	public set value( next: string ) {
 		this._value = typeof next === 'string' ? next : '';
 		const field = this.field;
-		// Keep the live control in step when the consumer assigns
-		// while the user is elsewhere. Guarded so an assignment that
-		// echoes what the user just typed doesn't reset their caret.
+
 		if ( field && field.value !== this._value ) {
 			field.value = this._value;
 		}
@@ -217,7 +157,6 @@ export class OsTokenField extends Component {
 		return this.hasAttribute( 'open' );
 	}
 
-	/** Catalogue rows in group order, ungrouped last. */
 	private grouped(): Array< [ string, OsTokenDefinition[] ] > {
 		const groups = new Map< string, OsTokenDefinition[] >();
 		for ( const def of this._tokens ) {
@@ -240,14 +179,6 @@ export class OsTokenField extends Component {
 		} );
 	}
 
-	/**
-	 * The value with every token that has a sample replaced by it.
-	 *
-	 * Returns `null` when nothing would change — no tokens present,
-	 * or none of the present ones carry a sample — which is the
-	 * signal to hide the preview rather than echo the input back at
-	 * the user.
-	 */
 	private preview(): string | null {
 		let out = this._value;
 		let substituted = false;
@@ -268,12 +199,6 @@ export class OsTokenField extends Component {
 		this.requestUpdate();
 	};
 
-	/**
-	 * Remember where the caret is on every interaction, because by
-	 * the time a token is picked the field has lost focus to the
-	 * catalogue and `selectionStart` reads 0 — which would insert
-	 * every token at the very beginning.
-	 */
 	private rememberCaret = (): void => {
 		const field = this.field;
 		if ( ! field ) {
@@ -286,11 +211,6 @@ export class OsTokenField extends Component {
 	};
 
 	private toggleCatalogue = (): void => {
-		// Guarded here and not only on the trigger: `disabled` on a
-		// custom element is an attribute, not the native semantics,
-		// so the click still arrives. A readonly field must not offer
-		// insertion either — the catalogue's only purpose is to write
-		// into a value the user isn't allowed to change.
 		if ( this.hasAttribute( 'disabled' ) || this.hasAttribute( 'readonly' ) ) {
 			return;
 		}
@@ -320,10 +240,6 @@ export class OsTokenField extends Component {
 		this.emit( 'os-token-field-input', { value: this._value } );
 		this.requestUpdate();
 
-		// Put the user back where they were, just past what we
-		// inserted, on the next frame — the re-render has to land
-		// first or the selection is set on a control about to be
-		// replaced.
 		const caretAt = before.length + def.token.length;
 		this.caret = { start: caretAt, end: caretAt };
 		queueMicrotask( () => {
@@ -346,10 +262,7 @@ export class OsTokenField extends Component {
 		const hint = ( this as unknown as { hint: string | null } ).hint || '';
 		const placeholder =
 			( this as unknown as { placeholder: string | null } ).placeholder || '';
-		// Kebab props live under their literal name — the base class
-		// defines the accessor from the `static props` string and
-		// only kebab-cases the ATTRIBUTE, so `this.insertLabel` would
-		// be undefined and quietly fall back to the default.
+
 		const attrs = this as unknown as Record< string, string | null >;
 		const insertLabel = attrs[ 'insert-label' ] || 'Insert a value';
 		const previewLabel = attrs[ 'preview-label' ] || 'Reads as';

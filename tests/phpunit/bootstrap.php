@@ -1,19 +1,5 @@
 <?php
-/**
- * PHPUnit bootstrap for the WP OpenStation plugin.
- *
- * Loads the WordPress test framework and activates the plugin before
- * each run so the plugin's hooks are wired in the test environment.
- *
- * Designed to run inside the dedicated wp-env tests instance
- * (`.wp-env.tests.json`), whose `cli` container ships WordPress' test
- * library at /wordpress-phpunit and exposes it via WP_TESTS_DIR.
- *
- * @package OpenStation
- */
 
-// Composer autoload brings in phpunit-polyfills (required by modern
-// WordPress test suites on PHPUnit 9).
 $_autoload = dirname( __DIR__, 2 ) . '/vendor/autoload.php';
 if ( file_exists( $_autoload ) ) {
 	require_once $_autoload;
@@ -40,17 +26,10 @@ tests_add_filter(
 	static function () {
 		require dirname( __DIR__, 2 ) . '/desktop-mode.php';
 
-		// The games framework is opt-in (off by default) and only
-		// loads on `plugins_loaded` when enabled — force it on so the
-		// games test classes have the module available. Tests that
-		// exercise the disabled state remove this filter locally (the
-		// test framework restores hooks after every test).
 		add_filter( 'openstation_games_enabled', '__return_true' );
 
-		// Same deal for the agents framework — force it on so the
-		// agents test classes have the module available.
 		add_filter( 'openstation_agents_enabled', '__return_true' );
-		// The OpenStation Network is opt-in too; the suite exercises it.
+
 		add_filter( 'openstation_network_enabled', '__return_true' );
 	}
 );

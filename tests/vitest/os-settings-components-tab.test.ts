@@ -1,18 +1,3 @@
-/**
- * Preferences → Components lists EVERY declared component, not just
- * the ones some other screen happened to load.
- *
- * Two things this pins:
- *
- * 1. The tab's barrel import registers every `OS_COMPONENT_TAGS`
- *    entry on `customElements`. Feature code imports components one
- *    file at a time, so before the tab side-effect-imported the
- *    barrel, any component nothing happened to use was tree-shaken
- *    out of every bundle and silently missing from the list.
- * 2. The search filters by name, tag, prop and event text — AND-ed,
- *    order-free, case-insensitive — and never leaves the detail pane
- *    blank while results exist.
- */
 import { beforeEach, describe, expect, test } from 'vitest';
 import { render } from '../../src/ui/core';
 import { mockViewContext } from '../../src/app-runtime/testing';
@@ -34,10 +19,6 @@ function navTags( el: HTMLElement ): string[] {
 	);
 }
 
-/**
- * Drive the search field the way a user does: let the component emit
- * `os-input-change` with the typed value.
- */
 function search( el: HTMLElement, term: string ): void {
 	const field = el.querySelector( '.os-settings__help-search' );
 	if ( ! field ) {
@@ -90,8 +71,7 @@ describe( 'OS Settings — Components tab', () => {
 	} );
 
 	test( 'search matches prop and event descriptions, not only names', () => {
-		// "clamp" appears in the number field's min/max prop
-		// descriptions and nowhere in its title or tag.
+
 		search( el, 'clamp' );
 		expect( navTags( el ) ).toContain( 'os-number-field' );
 	} );

@@ -1,32 +1,3 @@
-/**
- * OpenStation — Built-in `svg-splines` window-link renderer.
- *
- * Draws one cubic-Bézier spline per derived edge of the relation
- * graph, terminated by circular endpoint dots. Circles are
- * rotation-invariant, so a tie meeting a window border at any angle
- * looks the same — arrowheads needed tangent orientation and read
- * wrong whenever the spline approached an edge at a skewed angle.
- * Direction survives as dot SIZE:
- *
- *  - `child-root` edges (a comment window → its post's window) carry
- *    the LARGER dot on the root window — "belongs to";
- *  - `reference` edges (a post hyperlinking another open post) carry
- *    it on the referenced window; MUTUAL references arrive from the
- *    engine as one `bidirectional` edge and get large dots at both
- *    ends.
- *
- * Paths are keyed and reused across frames — per-frame work is only
- * `d`-attribute updates; elements are created/removed exclusively on
- * edge-structure changes.
- *
- * Registered through the very same public API a plugin's renderer
- * uses (`wp.os.registerWindowLinkRenderer`), so the shipped
- * default dogfoods the extensibility surface. Styling lives in
- * `assets/css/window-links.css` on the custom properties
- * `--os-window-link-*` — themes and plugins restyle the
- * splines without touching this module.
- */
-
 import { __ } from '../../i18n';
 import { registerWindowLinkRenderer } from '../renderer-registry';
 import {
@@ -44,10 +15,6 @@ import type { WindowLinkFrame } from '../types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/**
- * Marker ids are namespaced per mount so two shells in one document
- * (tests) can't cross-reference each other's defs.
- */
 let _mountSeq = 0;
 
 interface EdgeElements {
@@ -55,16 +22,6 @@ interface EdgeElements {
 	path: SVGPathElement;
 }
 
-/**
- * Best anchor for an edge endpoint. The classic center-ray border
- * intersection wins while it is actually VISIBLE — that keeps several
- * ties fanning naturally into the same window instead of piling onto
- * one midpoint. When that point is covered by a higher window (the
- * cascaded-comments case), the anchor relocates to the midpoint of
- * the closest visible border stretch, so the tie starts where the
- * user can see the window. A fully covered window falls back to the
- * classic anchor — the tie then honestly emerges from under the pile.
- */
 function endpointAnchor(
 	rect: LinkRect,
 	zIndex: number | null,
@@ -85,24 +42,13 @@ function endpointAnchor(
 	);
 }
 
-/**
- * Marker ids for both endpoint sizes, resting and active.
- */
 interface EndpointMarkers {
-	/** Larger dot — the edge TARGET (root / referenced window). */
+
 	dot: { normal: string; active: string };
-	/** Smaller dot — the edge source. */
+
 	port: { normal: string; active: string };
 }
 
-/**
- * Build the `<defs>` endpoint markers: circles, centered ON the path
- * endpoint (which the geometry places on the window border), so each
- * tie ends in a "port" half over the window edge. Circles need no
- * `orient` — that's the point: they look identical from every
- * approach angle. Resting / active variants exist because a
- * `<marker>` can't read its referencing path's class.
- */
 function buildMarkers(
 	svg: SVGSVGElement,
 	idBase: string,
@@ -154,11 +100,6 @@ registerWindowLinkRenderer( {
 		'Curved connectors between related windows, ending in circular dots — the larger dot sits on the window the content belongs to; windows that reference each other get large dots on both ends.',
 	),
 	mount: ( ctx ) => {
-		// Two drawing surfaces: the base layer (always behind windows)
-		// and the elevated layer the host lifts to the focused group's
-		// ceiling. Each edge routes by `edge.elevated`, so only the
-		// focused window's ties ride above other windows. Markers are
-		// per-surface (a marker reference can't cross <svg> roots).
 		const seq = ++_mountSeq;
 		const buildSurface = (
 			container: HTMLElement,
@@ -201,7 +142,7 @@ registerWindowLinkRenderer( {
 			const seen = new Set< string >();
 			for ( const edge of frame.edges ) {
 				if ( ! edge.from || ! edge.to ) {
-					continue; // an endpoint is minimized / hidden
+					continue;
 				}
 				const key = `${ edge.fromWindowId }→${ edge.toWindowId }:${ edge.kind }`;
 				seen.add( key );
@@ -209,9 +150,6 @@ registerWindowLinkRenderer( {
 				const surfaceName = edge.elevated ? 'elevated' : 'base';
 				let el = edges.get( key );
 				if ( el && el.surface !== surfaceName ) {
-					// The edge switched layers (focus moved onto / off
-					// one of its endpoints) — rebuild it on the other
-					// surface; markers differ per surface.
 					el.group.remove();
 					edges.delete( key );
 					el = undefined;
@@ -228,11 +166,7 @@ registerWindowLinkRenderer( {
 				}
 
 				const obstacles = frame.obstacles ?? [];
-				// Anchor preference, per endpoint: (1) the SHORTEST
-				// edge-to-edge connection between the two windows —
-				// when that point is actually visible; (2) otherwise
-				// the occlusion-aware chain (classic center-ray while
-				// visible, else the closest visible border stretch).
+
 				const shortest = closestBorderAnchors( edge.from, edge.to );
 				const visibleAt = (
 					anchor: LinkAnchor,
@@ -278,9 +212,7 @@ registerWindowLinkRenderer( {
 						edge.toZIndex,
 						edge.toWindowId,
 						obstacles,
-						// Aim the target anchor at the resolved source
-						// anchor so the curve's two ends agree when
-						// either moved off the shortest pair.
+
 						{ x: start.x, y: start.y },
 					);
 				}
@@ -296,10 +228,6 @@ registerWindowLinkRenderer( {
 					`M ${ start.x } ${ start.y } C ${ c1.x } ${ c1.y }, ${ c2.x } ${ c2.y }, ${ end.x } ${ end.y }`,
 				);
 
-				// Direction as dot size: the LARGE dot always sits on the
-				// edge target (`to` — the root / referenced window), the
-				// small one on the source; bidirectional reference edges
-				// get the large dot at both ends.
 				const markers = surfaces[ el.surface ].markers;
 				const variant = edge.focused ? 'active' : 'normal';
 				el.path.setAttribute(
@@ -320,8 +248,6 @@ registerWindowLinkRenderer( {
 				);
 			}
 
-			// Structure changed — drop edges whose endpoints vanished
-			// (window closed / minimized / navigated away).
 			for ( const [ key, el ] of Array.from( edges ) ) {
 				if ( ! seen.has( key ) ) {
 					el.group.remove();

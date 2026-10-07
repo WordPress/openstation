@@ -1,17 +1,5 @@
-/**
- * Plugins app — the focused inspector stylesheet.
- *
- * The rich detail panel uses its own shadow root. Adopt one stylesheet
- * containing the overview, fact cards, changelog, FAQ and reviews.
- * Every selector is namespaced under .os-plugins__; colors read the
- * palette tokens with the original literal values as fallbacks.
- *
- * @public
- */
-
 import { REVIEW_STYLES } from './reviews';
 
-/** The rich detail panel. */
 const PANEL_STYLES = `
 .os-plugins__detail { display: block; background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.025 ) ); border-block-start: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ); border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ); color: var( --os-ui-fg, inherit ); font-size: 13px; line-height: 1.55; }
 .os-plugins__detail-hero { background: var( --os-ui-surface-raised, rgba( 255, 255, 255, 0.6 ) ); border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ); }
@@ -70,16 +58,10 @@ const PANEL_STYLES = `
 @media ( max-width: 720px ) { .os-plugins__reviews-grid, .os-plugins__detail-grid { grid-template-columns: 1fr !important; } }
 `;
 
-/** Everything the inspector needs: the panel and reviews. */
 export const DETAIL_STYLES = PANEL_STYLES + REVIEW_STYLES;
 
 const adopted = new WeakMap< ShadowRoot, Set< string > >();
 
-/**
- * Adopt a stylesheet onto a shadow root once. Constructable
- * stylesheets when the engine has them (one parsed sheet shared by
- * every row), a single `<style>` otherwise.
- */
 export function adoptStyles( root: ShadowRoot, key: string, css: string ): void {
 	let keys = adopted.get( root );
 	if ( ! keys ) {

@@ -1,9 +1,3 @@
-/**
- * Tests for the release-card module (`showReleaseCard`). The art paint is
- * skipped in jsdom (the image never loads), so we assert the DOM the card
- * builds and its close / update behavior.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { showReleaseCard, type ReleaseCardOptions } from './release-card';
 import { isNoticeDismissed } from './ui/components/os-notice/storage';
@@ -67,7 +61,7 @@ describe( 'showReleaseCard', () => {
 		const { root } = open();
 		( root.querySelector( '.dm-rc__close' ) as HTMLButtonElement ).click();
 		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0' ) ).toBe( true );
-		// Fade started: entrance animation cleared + opacity transition set.
+
 		expect( root.style.animation ).toBe( 'none' );
 		expect( root.style.transition ).toContain( 'opacity' );
 	} );

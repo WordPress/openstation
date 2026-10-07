@@ -1,14 +1,3 @@
-/**
- * Content Graph — REST client.
- *
- * Thin layer over `trackedFetch` that talks to the
- * `desktop-mode/v1/content-graph/*` routes. `tagged: source` so the
- * activity bus and per-window spinner can attribute requests
- * correctly (per AGENTS.md).
- *
- * @public
- */
-
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { restErrorFromResponse } from '../core/api-client';
@@ -68,10 +57,7 @@ export async function fetchGraph(
 	types: string[],
 ): Promise< GraphPayload > {
 	const url = new URL( `${ cfg.apiBase }/nodes` );
-	// Omission means "use every registered type" to the REST route;
-	// an explicit empty value means "show no types". Always send the
-	// parameter so switching off the final toolbar chip cannot fall
-	// back to the route's default and repopulate the board.
+
 	url.searchParams.set( 'types', types.join( ',' ) );
 	const res = await trackedFetch(
 		url.toString(),
@@ -99,13 +85,6 @@ export async function fetchPostDetail(
 	return ( await res.json() ) as PostDetail;
 }
 
-/**
- * Reach into My WordPress's pre-computed dossier endpoints. They
- * already aggregate everything the contextual panel needs (counts,
- * recent posts, milestones, activity histogram), gated on the same
- * `is_user_logged_in()` checks we already use. Avoids the need for
- * content-graph to re-implement the per-entity stats roll-ups.
- */
 export async function fetchUserStats(
 	cfg: ContentGraphConfig,
 	userId: number,

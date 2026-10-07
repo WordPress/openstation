@@ -1,10 +1,5 @@
 <?php
-/**
- * Tests for the critical-path resource preload/prefetch hints.
- *
- * @group openstation
- * @group os-preload
- */
+
 class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 
 	protected static $user_id;
@@ -16,16 +11,11 @@ class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$user_id );
-		// `openstation_print_preload_hints()` gates on `is_admin()`.
+
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
-		// Re-establish the enabled baseline every test. The disabled-state
-		// test below flips the meta to '' for its assertion; setting it here
-		// (rather than once in wpSetUpBeforeClass) means it doesn't have to
-		// restore the value afterwards — so a failed assertion can't leave
-		// later tests stuck in a disabled-DM state.
+
 		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
-		// Ensure the style handles are registered so the version-match
-		// assertion can read the registered stylesheet version.
+
 		openstation_register_assets();
 	}
 
@@ -41,13 +31,6 @@ class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 		return (string) ob_get_clean();
 	}
 
-	/**
-	 * Critical assets (shell bundle + base CSS) are `preload`; the lazy
-	 * bundles injected later are `prefetch` — otherwise Chrome warns the
-	 * preloads went unused within a few seconds of load.
-	 *
-	 * @covers ::openstation_print_preload_hints
-	 */
 	public function test_lazy_bundles_use_prefetch_and_critical_use_preload() {
 		$html = $this->capture_hints();
 		$this->assertNotEmpty( $html );
@@ -68,13 +51,6 @@ class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'rel="prefetch"', $line_for( 'assets/js/shell-overlays' ) );
 	}
 
-	/**
-	 * The regression: the `desktop.css` preload hint must carry the same
-	 * `?ver=` as the registered stylesheet, or the browser never matches
-	 * them and reports the preload as unused.
-	 *
-	 * @covers ::openstation_print_preload_hints
-	 */
 	public function test_desktop_css_preload_version_matches_registered_stylesheet() {
 		$css_path     = OPENSTATION_DIR . 'assets/css/desktop.css';
 		$expected_ver = file_exists( $css_path )
@@ -97,13 +73,8 @@ class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_print_preload_hints
-	 */
 	public function test_no_hints_when_openstation_disabled() {
-		// set_up() re-enables OpenStation before the next test, so there's
-		// no need to restore the meta here — and no risk of leaking the
-		// disabled state if this assertion fails.
+
 		update_user_meta( self::$user_id, 'desktop_mode_mode', '' );
 
 		$this->assertSame( '', $this->capture_hints() );

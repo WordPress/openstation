@@ -1,23 +1,3 @@
-/**
- * OpenStation — Heartbeat widget (lazy bundle).
- *
- * Built as its own Vite target (`widget-heartbeat`) — both JS and
- * the widget's CSS ship out of the main `desktop.min.js` bundle.
- * PHP registers the widget via `openstation_register_widget()`
- * with the script handle `os-heartbeat-widget`; the
- * shell's widgets `server-sync` loads this bundle the first time
- * the picker renders or the widget mounts.
- *
- * The bundle's only side effect is publishing a mount callback on
- * `window.openStationWidgets[ 'desktop-mode/heartbeat' ]`.
- */
-
-// Side-effect CSS import — Vite emits a separate
-// `widget-heartbeat[.min].css` chunk next to the JS. PHP eagerly
-// enqueues this stylesheet via `openstation_enqueue_heartbeat_widget_styles`
-// so it's in the DOM before the (lazy-loaded) JS runs — avoids
-// any flash of unstyled content while the layout is still
-// computing flex constraints.
 import './styles.css';
 
 import type { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
@@ -26,14 +6,6 @@ import { createSharedStore } from '../../shared-store';
 import { clampToViewport } from '../../ui/util/menu-position';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
-/**
- * Bridge to the main bundle's lazy module loader. Each IIFE
- * bundle has its OWN copy of `src/modules/registry.ts` — the
- * `pixijs` module is registered in the main bundle's copy
- * (see `desktop.ts`), not ours. We can't import the registry
- * directly and have it work; we have to reach for the public
- * `wp.os.loadModules()` API that lives on the main bundle.
- */
 async function loadPixi(): Promise< void > {
 	const wp = ( window as unknown as {
 		wp?: { os?: { loadModules?: ( ids: string[] ) => Promise< void > } };
@@ -66,15 +38,6 @@ type JQueryLike = ( target: unknown ) => {
 	off: ( event: string, handler: ( ...args: unknown[] ) => void ) => unknown;
 };
 
-/**
- * Singleton WP-heartbeat tracker. Survives widget mount/unmount —
- * re-adding the widget no longer resets `lastTickAt` to "now"
- * (the bug where the countdown restarted at the full interval).
- *
- * The bus is bootstrapped lazily the first time any heartbeat
- * widget mounts. From then on it owns the jQuery listeners and
- * widgets just subscribe to the store.
- */
 interface WpBeatState {
 	lastTickAt: number;
 	lastSendAt: number;
@@ -102,21 +65,8 @@ function bootWpBeatTracker(): void {
 	s.state.booted = true;
 	s.state.intervalSecs = wpHeartbeatInterval();
 
-	// Estimate the initial `lastTickAt` so the countdown starts
-	// moving immediately rather than displaying "—" until the
-	// first real tick arrives. Wrong by up to one interval — the
-	// next real `heartbeat-tick` snaps it to the truth and the
-	// bar/readout stay accurate from then on.
 	s.state.lastTickAt = performance.now();
 
-	// WordPress Core's Heartbeat API publishes its lifecycle as
-	// jQuery custom events on `document`:
-	//   - `heartbeat-send` — about to fire an AJAX request.
-	//   - `heartbeat-tick` — server response received.
-	// There is NO native CustomEvent equivalent in Core, so the
-	// only way to observe the real ticks is to subscribe through
-	// jQuery. The existing `src/heartbeat.ts` framework module
-	// works the same way; we mirror its pattern here.
 	const jq = ( window as unknown as { jQuery?: JQueryLike } ).jQuery;
 	if ( ! jq ) {
 		return;
@@ -128,24 +78,12 @@ function bootWpBeatTracker(): void {
 	$doc.on( 'heartbeat-tick', () => {
 		s.state.lastTickAt = performance.now();
 		s.state.intervalSecs = wpHeartbeatInterval();
-		// Bump the sequence — widgets watch this to know "a tick
-		// happened, fire the big-beat animation now."
+
 		s.state.tickSeq += 1;
 		s.notify();
 	} );
-
-	// We don't call `wp.heartbeat.connectNow()`. It would force
-	// an immediate round-trip which resyncs `lastTickAt` within
-	// a second — but the resync makes the countdown jump
-	// backwards from the boot estimate, which feels like the
-	// widget is broken. Letting WordPress fire its next tick on
-	// its natural schedule produces a smooth, monotonic
-	// countdown that resyncs once and then stays correct forever.
 }
 
-// Heart palette — bottom-to-top gradient stack approximates a soft
-// 3D inflation. Outer rim is darkest, body warmest, inner glow is
-// the lightest.
 const HEART_PALETTE = {
 	rim: 0x6a0f25,
 	deep: 0x991f3a,
@@ -157,13 +95,6 @@ const HEART_COLOR_REST = HEART_PALETTE.bright;
 const HEART_COLOR_BEAT = HEART_PALETTE.hi;
 const HEART_SIZE = 52;
 
-/**
- * Mount callback. The framework's widget `server-sync` reads this
- * from `window.openStationWidgets` after the bundle loads and
- * pairs it with the server-supplied metadata from
- * `openstation_register_widget()`. Sizing constraints
- * (310 × 230, non-resizable) live on the PHP side now.
- */
 const mount = async (
 	container: HTMLElement,
 	ctx: WidgetContext,
@@ -177,9 +108,6 @@ const mount = async (
 	return mountWithPixi( container, ctx );
 };
 
-// `__()` is here for the i18n string-extractor — translations
-// the runtime widget surfaces. Without a real reference TypeScript
-// would mark it as unused.
 void __;
 
 function logoUrl( ctx: WidgetContext ): string {
@@ -196,29 +124,8 @@ function renderFallback( container: HTMLElement, message: string ): void {
 	container.appendChild( wrap );
 }
 
-/**
- * Heights applied to the widget frame (`.os-widgets__card`)
- * when the user toggles the heart visibility from the right-click
- * menu. Width stays locked at 310 in both modes.
- */
 const FRAME_HEIGHT_WITH_HEART = 230;
-// Compact mode is just `title bar + label/time + progress bar` —
-// no stage, no heart. The actual content adds up to:
-//
-//   chrome           32
-// + card-body pad    16   (8 + 8, this widget's override)
-// + meta row         16
-// + 8-px gap          8
-// + bar              10
-// ─────────────────────
-//   ≈ 82 px
-//
-// 88 leaves a couple of pixels of breathing room without the
-// large empty band the old 130-px frame produced (the user-
-// reported "strange gap at the top"). The meta row keeps its
-// `margin-top: auto` so any remaining slack settles between the
-// title bar and the label, NOT below the progress bar — the bar
-// should always hug the card's bottom edge as a status footer.
+
 const FRAME_HEIGHT_NO_HEART = 88;
 
 async function mountWithPixi(
@@ -233,8 +140,6 @@ async function mountWithPixi(
 
 	container.classList.add( 'os-widget-heartbeat' );
 
-	// User preference (per-widget instance, persisted in
-	// `localStorage` via the framework's namespaced storage).
 	let showHeart = ctx.storage.get< boolean >( 'showHeart' ) ?? true;
 	if ( ! showHeart ) {
 		container.classList.add( 'os-widget-heartbeat--no-heart' );
@@ -273,8 +178,6 @@ async function mountWithPixi(
 	} );
 	stage.appendChild( app.canvas );
 
-	// Soft halo behind the heart (pulses with glow), the heart
-	// itself in the middle, and a centred WP logo sprite on top.
 	const halo: Graphics = buildHalo( pixi );
 	const { view: heart, body: heartBody } = buildHeart( pixi );
 	const logo: Container = buildLogoSprite( pixi, logoUrl( ctx ) );
@@ -292,19 +195,13 @@ async function mountWithPixi(
 	const ro = new ResizeObserver( () => centre() );
 	ro.observe( stage );
 
-	// Boot the singleton WP-heartbeat tracker. Idempotent — if
-	// another instance of this widget is already mounted, this is
-	// a no-op.
 	bootWpBeatTracker();
 
-	// Per-widget animation state.
 	let pulseAccum = 0;
-	let bigBeatT = 0; // 0 → 1 envelope when a big beat is firing.
-	let glow = 0; // 0 → 1 halo intensity, decays.
+	let bigBeatT = 0;
+	let glow = 0;
 	let lastSeenSeq = wpBeatStore.state.tickSeq;
 
-	// Subscribe to the shared store; when the sequence advances
-	// a real WP tick happened, so trigger the big-beat animation.
 	const unsubscribe = wpBeatStore.subscribe( ( s ) => {
 		if ( s.tickSeq !== lastSeenSeq ) {
 			lastSeenSeq = s.tickSeq;
@@ -313,8 +210,6 @@ async function mountWithPixi(
 		}
 	} );
 
-	// On the jQuery-less fallback path (rare — stripped-down
-	// pages), simulate ticks at the heartbeat interval.
 	const jq = ( window as unknown as { jQuery?: JQueryLike } ).jQuery;
 	let simHandle: ReturnType< typeof setInterval > | null = null;
 	if ( ! jq ) {
@@ -331,32 +226,14 @@ async function mountWithPixi(
 		}
 	};
 
-	// Ticker — one update path computes the resting pulse, the
-	// big-beat envelope, the halo, and the progress bar each frame.
 	const tick = (): void => {
 		const dt = app.ticker.deltaMS / 1000;
 		pulseAccum += dt;
 
-		// Resting breath — single soft sine cycle every 4 seconds.
-		// Amplitude is ±0.8% of scale: just enough to confirm the
-		// widget is alive without drawing the eye. The user's
-		// attention should land on the BIG beat that fires when WP
-		// actually ticks; this is just the idle hum.
 		const restPhase = ( pulseAccum / 4.0 ) * Math.PI * 2;
 		const restingScaleBase = 1 + 0.008 * Math.sin( restPhase );
 		let restingScale = restingScaleBase;
 
-		// Big beat envelope — dramatic contraction with squish +
-		// overshoot. Decays over ~900 ms.
-		//
-		// Timeline (t = 0 at fire, 1 when done):
-		//   0.00 → 0.10  rapid swell to peak (+55 % scale)
-		//   0.10 → 0.28  brief dip below resting (+5 %) — feels
-		//                like a heart momentarily relaxing
-		//   0.28 → 0.55  bounce-back overshoot (+15 %)
-		//   0.55 → 1.00  damped return to resting
-		// During 0.00 → 0.20 we also squish horizontally a touch
-		// (wider, slightly shorter) like a real contracting muscle.
 		let squishX = 0;
 		let squishY = 0;
 		if ( bigBeatT > 0 ) {
@@ -375,7 +252,6 @@ async function mountWithPixi(
 			}
 			restingScale += env;
 
-			// Squish — strongest at peak contraction, fades by t=0.28.
 			if ( t < 0.20 ) {
 				const sP = Math.sin( ( t / 0.20 ) * Math.PI );
 				squishX = 0.10 * sP;
@@ -386,33 +262,17 @@ async function mountWithPixi(
 		heart.scale.x = restingScale * ( 1 + squishX );
 		heart.scale.y = restingScale * ( 1 + squishY );
 
-		// Halo: dim, large, follows glow level with easing. Peak
-		// scale ×1.15 — tuned (alongside the radii in `buildHalo`)
-		// so the outer ring stays inside the 140 px stage at the
-		// big-beat peak. A larger multiplier blew the halo past
-		// the stage edges and made the glow look chopped.
 		glow = Math.max( 0, glow - dt / 1.2 );
 		halo.alpha = 0.10 + glow * 0.55;
 		const haloScale = 1 + glow * 0.15;
 		halo.scale.set( haloScale );
 
-		// Color tint: blend toward the lighter "beating" hue with
-		// the big-beat envelope so the colour and the scale move
-		// together. Tint ONLY the gradient body sprite — tinting the
-		// whole heart container multiplied the white WP logo and the
-		// specular highlights down to the body's own red, camouflaging
-		// them against the heart (the "barely visible W" bug).
 		heartBody.tint = lerpColor(
 			HEART_COLOR_REST,
 			HEART_COLOR_BEAT,
 			Math.min( 1, glow * 0.6 + bigBeatT * 0.4 ),
 		);
 
-		// Progress bar — reads from the SHARED store so re-adding
-		// the widget keeps the countdown accurate across mount/
-		// unmount cycles. Until the first real `heartbeat-tick`
-		// arrives, `lastTickAt` is an estimate from boot; after
-		// that it's the truth from the server.
 		const elapsed = ( performance.now() - wpBeatStore.state.lastTickAt ) / 1000;
 		const intervalSecs = wpBeatStore.state.intervalSecs;
 		const progress = clamp( elapsed / Math.max( intervalSecs, 1 ), 0, 1 );
@@ -422,20 +282,11 @@ async function mountWithPixi(
 	};
 	app.ticker.add( tick );
 
-	// When the heart is shown — either at mount, or via the
-	// right-click toggle — PIXI may have initialized with a
-	// 0×0 stage (compact mode hides the stage with `display:
-	// none`). `resizeTo: stage` only sees a real size AFTER the
-	// stage gains its 170 px height; force a re-measure on the
-	// next frame so the canvas + heart paint at full scale.
 	const resyncCanvasToStage = (): void => {
 		requestAnimationFrame( () => {
 			try {
 				( app as unknown as { resize?: () => void } ).resize?.();
 			} catch ( _e ) {
-				// Defensive — older PIXI versions exposed
-				// `renderer.resize(w, h)` instead. Fall back to
-				// reading the live stage dimensions.
 				try {
 					const sw = stage.clientWidth;
 					const sh = stage.clientHeight;
@@ -443,16 +294,13 @@ async function mountWithPixi(
 						( app.renderer as unknown as { resize: ( w: number, h: number ) => void } ).resize( sw, sh );
 					}
 				} catch ( _err ) {
-					// Last-resort: nothing to do, the resting tick
-					// will rerun layout next frame anyway.
+
 				}
 			}
 			centre();
 		} );
 	};
 
-	// Right-click — open a tiny context menu with the
-	// "Show heart" toggle. Resize the widget frame on toggle.
 	const onContextMenu = ( e: MouseEvent ): void => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -467,16 +315,8 @@ async function mountWithPixi(
 	};
 	container.addEventListener( 'contextmenu', onContextMenu );
 
-	// Apply the initial frame size — synchronously after mount so
-	// there's no flash of full-height when the user previously
-	// turned the heart off.
 	applyHeartVisibility( container, showHeart );
 	if ( showHeart ) {
-		// Even on a fresh mount with `showHeart=true`, the stage
-		// can be measured at 0×0 if the widget body hasn't been
-		// laid out yet (the framework appends the body and only
-		// then runs flex sizing). Schedule a resync so the heart
-		// always paints at the correct size on first frame.
 		resyncCanvasToStage();
 	}
 
@@ -485,16 +325,11 @@ async function mountWithPixi(
 		detach();
 		ro.disconnect();
 		app.ticker.remove( tick );
-		// Same Pixi v8 multi-Application destroy race as
-		// posts-window/categories-mindmap.ts and posts-window/tags-
-		// cloud.ts — calling `app.destroy()` while another Pixi.
-		// Application is on the page (e.g. the Content Graph window)
-		// corrupts the surviving app's batcher pipe map. Detach the
-		// canvas and let the page GC reclaim once references drop.
+
 		try {
 			( app as unknown as { canvas?: { remove(): void } } ).canvas?.remove();
 		} catch {
-			// Best-effort.
+
 		}
 		container.classList.remove( 'os-widget-heartbeat' );
 		container.classList.remove( 'os-widget-heartbeat--no-heart' );
@@ -505,13 +340,6 @@ function applyHeartVisibility( container: HTMLElement, showHeart: boolean ): voi
 	container.classList.toggle( 'os-widget-heartbeat--no-heart', ! showHeart );
 	const card = container.closest< HTMLElement >( '.os-widgets__card' );
 	if ( card ) {
-		// Class on the card lets a stylesheet (see desktop.css)
-		// flip the card into `display: flex; flex-direction:
-		// column; overflow: hidden`. The card-body inside then
-		// becomes a flex item that fills available space and
-		// stays bounded by the card's height — without this the
-		// body grew with content and the progress bar escaped
-		// the card frame on compact mode.
 		card.classList.add( 'os-widgets__card--heartbeat' );
 		const h = showHeart ? FRAME_HEIGHT_WITH_HEART : FRAME_HEIGHT_NO_HEART;
 		card.style.height = `${ h }px`;
@@ -523,8 +351,6 @@ function openHeartbeatMenu(
 	showHeart: boolean,
 	onToggle: ( next: boolean ) => void,
 ): void {
-	// Drop any stale menus this widget left behind on a previous
-	// open — guards against quick repeated right-clicks.
 	document
 		.querySelectorAll( '.os-widget-heartbeat__menu' )
 		.forEach( ( el ) => el.remove() );
@@ -567,8 +393,7 @@ function openHeartbeatMenu(
 	} );
 
 	document.body.appendChild( menu );
-	// Clamp menu to viewport, measured a frame later once the
-	// component has rendered. See `src/ui/util/menu-position.ts`.
+
 	clampToViewport( menu );
 
 	document.addEventListener( 'pointerdown', onOutside, true );
@@ -577,16 +402,7 @@ function openHeartbeatMenu(
 
 function buildHalo( pixi: typeof import( 'pixi.js' ) ): Graphics {
 	const g = new pixi.Graphics();
-	// Soft radial gradient by stacking translucent circles. PIXI v8
-	// has filters/shaders for real gradients but a stack of fills
-	// is cheap and visually identical at this scale.
-	//
-	// Radii are sized so the OUTER ring, at peak scale (×1.15 — see
-	// the ticker), is roughly 144 px wide — just under the 140 px
-	// stage with a touch of clip on the very faint outermost edge.
-	// Previous values (1.8 / 1.4 / 1.0) projected a 262 px halo at
-	// peak which clipped massively on a 140 px stage, so the rings
-	// looked truncated.
+
 	const radii = [ HEART_SIZE * 1.20, HEART_SIZE * 1.05, HEART_SIZE * 0.85 ];
 	const alphas = [ 0.12, 0.18, 0.28 ];
 	radii.forEach( ( r, i ) => {
@@ -597,17 +413,6 @@ function buildHalo( pixi: typeof import( 'pixi.js' ) ): Graphics {
 	return g;
 }
 
-/**
- * Parametric heart curve. Bounding box for the unscaled formula
- * (y negated for screen coords, so +y is the bottom tip):
- *   x ∈ [-17.28, 17.28]   →   width  ≈ 34.6  (incl. the 1.08 stretch)
- *   y ∈ [-11.92, 17.00]   →   height ≈ 28.9
- * We add a small x-axis stretch (× 1.08) so the silhouette reads
- * unambiguously wider — closer to a Hallmark heart than a
- * mathematically pure one. Y is left alone; per-layer Y offsets
- * are gone (they were stretching the silhouette in the old
- * stacked-fills approach).
- */
 function heartPath( scaleMul = 1 ): number[] {
 	const samples = 240;
 	const pts: number[] = [];
@@ -626,19 +431,12 @@ function heartPath( scaleMul = 1 ): number[] {
 	return pts;
 }
 
-/**
- * Build the heart. Returns the container (`view`) plus the gradient
- * body sprite (`body`) so the ticker can tint the body alone — the
- * highlights, outline, and logo must stay untinted or they dissolve
- * into the body color.
- */
 function buildHeart(
 	pixi: typeof import( 'pixi.js' ),
 ): { view: Container; body: Sprite } {
 	const wrap = new pixi.Container();
 	const bounds = heartBoundingY();
 
-	// Drop shadow — large, soft, centred under the heart.
 	const shadow = new pixi.Graphics();
 	shadow.poly( heartPath( 1.05 ) );
 	shadow.fill( { color: 0x000000, alpha: 0.55 } );
@@ -646,25 +444,16 @@ function buildHeart(
 	shadow.alpha = 0.55;
 	wrap.addChild( shadow );
 
-	// REAL gradient. We render a vertical CSS-style linear
-	// gradient onto a 2 × 512 canvas, wrap it in a PIXI Texture,
-	// stretch it across the heart's bounding box as a Sprite, and
-	// mask the sprite with the heart polygon. This sidesteps any
-	// PIXI v8 FillGradient quirks (which were silently falling
-	// back to a solid fill on the user's build) and gives us a
-	// truly continuous gradient — no banding, no stacked layers.
 	const gradientCanvas = makeGradientCanvas();
 	const gradientTexture: Texture = pixi.Texture.from( gradientCanvas );
 	const gradientSprite = new pixi.Sprite( gradientTexture );
 	const heartHeight = bounds.maxY - bounds.minY;
-	const overscan = HEART_SIZE * 2.5; // give the sprite room laterally
+	const overscan = HEART_SIZE * 2.5;
 	gradientSprite.width = overscan;
 	gradientSprite.height = heartHeight;
 	gradientSprite.x = -overscan / 2;
 	gradientSprite.y = bounds.minY;
 
-	// Start at the resting tint so the first painted frame matches
-	// what the ticker will keep writing.
 	gradientSprite.tint = HEART_COLOR_REST;
 
 	const mask = new pixi.Graphics();
@@ -675,9 +464,6 @@ function buildHeart(
 	wrap.addChild( mask );
 	wrap.addChild( gradientSprite );
 
-	// Specular highlight on the left lobe — small, restrained.
-	// Backed off from the previous alpha 0.65 so the underlying
-	// gradient is the dominant lighting cue, not this overlay.
 	const hi1 = new pixi.Graphics();
 	hi1.ellipse(
 		-HEART_SIZE * 0.32,
@@ -689,7 +475,6 @@ function buildHeart(
 	hi1.rotation = -0.5;
 	wrap.addChild( hi1 );
 
-	// Tiny secondary highlight on the right lobe.
 	const hi2 = new pixi.Graphics();
 	hi2.ellipse(
 		HEART_SIZE * 0.20,
@@ -701,7 +486,6 @@ function buildHeart(
 	hi2.rotation = 0.4;
 	wrap.addChild( hi2 );
 
-	// Silhouette outline.
 	const outline = new pixi.Graphics();
 	outline.poly( heartPath( 1.0 ) );
 	outline.stroke( { color: 0xffffff, alpha: 0.18, width: 1 } );
@@ -710,17 +494,6 @@ function buildHeart(
 	return { view: wrap, body: gradientSprite };
 }
 
-/**
- * Vertical span of the heart path in local pixels — used to size
- * the gradient sprite exactly.
- *
- * Derived from the sampled path itself rather than hardcoded: a
- * previous hand-computed range (−15…+9) undershot the curve's real
- * extent (−11.92…+17.0), so the gradient sprite ended ~28% above
- * the heart's bottom tip — the mask had nothing to reveal there
- * except the black drop-shadow, painting the tip as a flat dark
- * band with a hard horizontal seam.
- */
 function heartBoundingY(): { minY: number; maxY: number } {
 	const pts = heartPath( 1.0 );
 	let minY = Infinity;
@@ -736,12 +509,6 @@ function heartBoundingY(): { minY: number; maxY: number } {
 	return { minY, maxY };
 }
 
-/**
- * Build a 2 × 512 canvas painted with the heart's vertical
- * gradient. 2 px wide instead of 1 because some browsers refuse
- * to upload 1-px-wide textures cleanly. 512 px tall gives enough
- * resolution that the gradient is smooth at any heart size.
- */
 function makeGradientCanvas(): HTMLCanvasElement {
 	const c = document.createElement( 'canvas' );
 	c.width = 2;
@@ -766,17 +533,9 @@ function buildLogoSprite(
 	url: string,
 ): Container {
 	const wrap = new pixi.Container();
-	// Visual centre — pulled a touch BELOW the heart's geometric
-	// midline so the W mark sits in the meaty mid-body of the
-	// heart rather than floating between the upper lobes. The
-	// optical centre of a heart shape is below its geometric one
-	// because the lobes are visually heavier than the V-cleft.
+
 	wrap.y = HEART_SIZE * 0.08;
 
-	// Soft drop shadow — a dark copy of the mark nudged down. The
-	// white glyph alone sat directly on the mid-body reds and could
-	// wash out; the shadow gives every stroke a dark edge to read
-	// against, whatever the current beat tint.
 	const shadow = new pixi.Sprite();
 	shadow.anchor.set( 0.5 );
 	shadow.tint = HEART_PALETTE.rim;
@@ -789,20 +548,14 @@ function buildLogoSprite(
 	wrap.addChild( mark );
 
 	const targetWidth = HEART_SIZE * 0.92;
-	// The source PNG is 1000 × 1000 but renders at ~48 CSS px. Sampling
-	// that big texture directly leaves the GPU's linear filter (no
-	// mipmaps in PIXI v8 by default) to skip most texels at ~20×
-	// minification — visibly pixelated edges. Rasterize once to a
-	// canvas at the exact display size instead, so the GPU samples
-	// near 1:1 and the mark stays crisp.
+
 	const img = new Image();
 	img.src = url;
 	img
 		.decode()
 		.then( () => {
 			const resolution = Math.min( window.devicePixelRatio || 1, 2 );
-			// ×1.7 headroom keeps the mark sharp at the big-beat peak
-			// (heart scales to ×1.55 plus the squish overshoot).
+
 			const widthPx = Math.ceil( targetWidth * resolution * 1.7 );
 			const canvas = rasterizeLogo( img, widthPx );
 			const texture: Texture = pixi.Texture.from( canvas );
@@ -813,20 +566,12 @@ function buildLogoSprite(
 			mark.scale.set( scale );
 		} )
 		.catch( () => {
-			// PNG missing or CSP block — heart still looks fine
-			// without the logo.
+
 		} );
 
 	return wrap;
 }
 
-/**
- * Downscale the logo image to `widthPx` via canvas, halving in steps.
- * A single drawImage from 1000 px straight to ~160 px undersamples on
- * some engines (Firefox ignores `imageSmoothingQuality`) and shimmers;
- * step-halving to ≤ 2× the target first keeps every stage within the
- * filter's window, then the final draw lands on the exact size.
- */
 function rasterizeLogo(
 	img: HTMLImageElement,
 	widthPx: number,
@@ -875,15 +620,12 @@ function wpHeartbeatInterval(): number {
 			}
 		}
 	} catch ( e ) {
-		// Heartbeat API may be initializing — fall through to default.
+
 	}
 	return 15;
 }
 
 function lerpColor( a: number, b: number, t: number ): number {
-	// Decompose 24-bit RGB without bitwise ops (the codebase forbids
-	// bitwise via lint). Math.floor/Math.trunc on the integer-divided
-	// channel gives the same byte values as `>>` shifts.
 	const ar = Math.trunc( a / 65536 ) % 256;
 	const ag = Math.trunc( a / 256 ) % 256;
 	const ab = a % 256;
@@ -906,8 +648,6 @@ function clamp( v: number, lo: number, hi: number ): number {
 	return v;
 }
 
-// Side-effect: publish on the framework's well-known global so
-// `widgets/server-sync.ts` pairs us with the PHP-side def.
 const w = window as unknown as {
 	openStationWidgets?: Record<
 		string,

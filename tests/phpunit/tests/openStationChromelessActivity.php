@@ -1,32 +1,5 @@
 <?php
-/**
- * Tests for the activity bracketing the chromeless bridge emits.
- *
- * The bridge wraps `fetch` and `XMLHttpRequest` inside every iframe
- * window and posts `os-iframe-activity` around each request, which is
- * what lets an admin page's own jQuery calls move the window's status
- * ring without knowing the shell exists.
- *
- * What is worth pinning here is the *quiet*, because getting it wrong
- * is invisible in a screenshot and constant in use. Three classes of
- * request must never reach the ring:
- *
- *   - Reads. A GET changed nothing, so nothing can have failed to
- *     change, and an admin page fires them constantly on its own.
- *   - Heartbeat. A poll nobody initiated, every 15 seconds, forever.
- *   - Anything whose `begin` was refused: the `end` has to be gated on
- *     the same token, or an unbalanced decrement settles the ring
- *     while other requests are still in flight.
- *
- * The assertions read the emitted script because that is where this
- * logic lives — it runs in a document PHPUnit never loads.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-chromeless
- */
+
 class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -48,19 +21,11 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Capture the inline bridge script the footer emits.
-	 *
-	 * @return string Script markup.
-	 */
 	private function bridge_markup() {
 		ob_start();
 		openstation_chromeless_bridge_script();
 		$printed = (string) ob_get_clean();
 
-		// The bridge code ships as a built bundle now; PHP enqueues it
-		// and attaches per-request data instead of printing the script
-		// inline. Behaviour assertions read the bundle's source.
 		if ( ! openstation_is_chromeless_request() ) {
 			return $printed;
 		}
@@ -70,9 +35,6 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_chromeless_bridge_script
-	 */
 	public function test_the_bridge_brackets_requests_for_the_status_ring() {
 		$markup = $this->bridge_markup();
 
@@ -80,18 +42,6 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		$this->assertStringContainsString( "phase: 'end'", $markup );
 	}
 
-	/**
-	 * A read has no "did it go through?" attached, and an admin page
-	 * fires them constantly on its own — list tables, dashboard
-	 * widgets, autosave checks, media queries.
-	 *
-	 * QUERY is in the list for a reason worth keeping: it is a safe,
-	 * idempotent read that carries a BODY, so any heuristic that
-	 * separates reads from writes by asking whether there's a payload
-	 * gets it exactly backwards.
-	 *
-	 * @covers ::openstation_chromeless_bridge_script
-	 */
 	public function test_reads_never_reach_the_ring() {
 		$markup = $this->bridge_markup();
 
@@ -105,16 +55,6 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		}
 	}
 
-	// Request classification and wrapper behavior are exercised in
-	// tests/vitest/media-bridge-lifecycle.test.ts by executing the bridge.
-
-	/**
-	 * An `end` for a request that was never counted would decrement a
-	 * counter it never incremented, settling the ring while other
-	 * requests are still on the wire.
-	 *
-	 * @covers ::openstation_chromeless_bridge_script
-	 */
 	public function test_the_end_is_gated_on_the_begin_token() {
 		$markup = $this->bridge_markup();
 
@@ -122,41 +62,18 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'if ( ! tracked ) {', $markup );
 	}
 
-	/**
-	 * `fetch` resolves for 4xx / 5xx, so the ring has to settle on the
-	 * response and not on the promise — the same bug the parent-side
-	 * `wp.os.fetch` had.
-	 *
-	 * @covers ::openstation_chromeless_bridge_script
-	 */
 	public function test_an_http_error_settles_as_a_failure() {
 		$markup = $this->bridge_markup();
 
 		$this->assertStringContainsString( 'osActivityEnd( tracked, ! res.ok, res.status )', $markup );
 	}
 
-	/**
-	 * Capture what the head hook prints.
-	 *
-	 * @return string Script markup.
-	 */
 	private function navigation_ping_markup() {
 		ob_start();
 		openstation_chromeless_navigation_ping_script();
 		return (string) ob_get_clean();
 	}
 
-	/**
-	 * A submit is answered by a whole new document, and the ring
-	 * cannot settle until something in it reports back. The bridge is
-	 * the wrong messenger for that one job: enqueued on
-	 * `admin_footer`, it runs after every other admin script in the
-	 * document — a second or more after the browser painted the notice
-	 * the ring is confirming. The report is addressed to the shell
-	 * that owns this iframe and to nothing else.
-	 *
-	 * @covers ::openstation_chromeless_navigation_ping_script
-	 */
 	public function test_a_landing_document_reports_from_the_head() {
 		$markup = $this->navigation_ping_markup();
 
@@ -165,12 +82,6 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'window.location.origin', $markup );
 	}
 
-	/**
-	 * Classic admin has no shell listening, and `window.parent` there
-	 * is the window itself.
-	 *
-	 * @covers ::openstation_chromeless_navigation_ping_script
-	 */
 	public function test_classic_admin_is_left_alone() {
 		unset( $_GET['openstation_chromeless'] );
 

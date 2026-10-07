@@ -1,18 +1,3 @@
-/**
- * OS Settings — what a save actually puts on the wire.
- *
- * Every save used to POST the complete settings object, which made
- * one session's snapshot a weapon against another's. Session B boots,
- * session A changes the wallpaper, B changes only its accent — and
- * B's save carried its own stale wallpaper along with the accent,
- * silently reverting A.
- *
- * The contract pinned here: a save sends only the fields that moved
- * since the last state the server confirmed, so a field this session
- * never touched is absent from the request and the server keeps what
- * it holds. The server-side half of the deal — absent key means keep,
- * not reset — lives in `Tests_OpenStation_OsSettingsRest`.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { OsSettingsState } from '../../src/settings/types';
 
@@ -24,22 +9,16 @@ type StateModule = typeof import( '../../src/settings/state' );
 let fetchMock: FetchMock;
 let state_: StateModule;
 
-/** Options POSTed by the nth request, in call order. */
 function sentSettings( call = 0 ): Partial< OsSettingsState > {
 	const init = fetchMock.mock.calls[ call ][ 1 ] as { body: string };
 	return ( JSON.parse( init.body ) as { settings: Partial< OsSettingsState > } )
 		.settings;
 }
 
-/** Let the 250 ms sync debounce elapse and the fetch promise settle. */
 async function flush(): Promise< void > {
 	await vi.advanceTimersByTimeAsync( SYNC_DEBOUNCE_MS + 10 );
 }
 
-/**
- * A session that booted from the server: state loaded, rollback
- * baseline primed from it (what `OsSettings`'s constructor does).
- */
 function bootedSession(): OsSettingsState {
 	const state = state_.structuredDefaults();
 	state_.setLastConfirmedState( state );
@@ -47,9 +26,7 @@ function bootedSession(): OsSettingsState {
 }
 
 beforeEach( async () => {
-	// The confirmed-state baseline is module-level, so each test gets
-	// a fresh copy of the module rather than inheriting the previous
-	// test's idea of what the server has agreed to.
+
 	vi.resetModules();
 	state_ = await import( '../../src/settings/state' );
 	vi.useFakeTimers();
@@ -84,8 +61,7 @@ describe( 'OS Settings — partial saves', () => {
 	} );
 
 	test( 'an untouched field is absent, so it cannot overwrite another session', async () => {
-		// Session B booted with the wallpaper it knew about, then
-		// session A changed it server-side. B changes only its accent.
+
 		const state = bootedSession();
 		const bootWallpaper = state.wallpaper;
 
@@ -96,8 +72,7 @@ describe( 'OS Settings — partial saves', () => {
 		const sent = sentSettings();
 		expect( sent.accent ).toBe( 'wp-midnight' );
 		expect( 'wallpaper' in sent ).toBe( false );
-		// The stale value is still in this session's own state — the
-		// point is that it never reaches the wire.
+
 		expect( state.wallpaper ).toBe( bootWallpaper );
 	} );
 
@@ -120,7 +95,6 @@ describe( 'OS Settings — partial saves', () => {
 	test( 'nested and array fields are diffed by value, not identity', async () => {
 		const state = bootedSession();
 
-		// Re-assigned to an equal-but-distinct object: no change.
 		state.customGradient = { ...state.customGradient };
 		state.nativePostsHiddenColumns = state.nativePostsHiddenColumns.slice();
 		state.nativePagesHiddenColumns = state.nativePagesHiddenColumns.slice();
@@ -130,7 +104,6 @@ describe( 'OS Settings — partial saves', () => {
 
 		expect( sentSettings() ).toEqual( { accent: 'wp-midnight' } );
 
-		// A real change inside the object does travel.
 		state.customGradient = { ...state.customGradient, angle: 123 };
 		state_.saveState( state );
 		await flush();
@@ -175,7 +148,6 @@ describe( 'OS Settings — partial saves', () => {
 		state_.saveState( state );
 		await flush();
 
-		// Rollback reverted the cache; the panel re-applies the change.
 		state.accent = 'wp-midnight';
 		state.dockSize = 'large';
 		state_.saveState( state );
@@ -205,10 +177,7 @@ describe( 'OS Settings — partial saves', () => {
 	} );
 
 	test( 'a cache-loaded boot does NOT prime the baseline — the first save heals it', async () => {
-		// No `osSettings` on the config, so `loadState()` falls back
-		// to localStorage. That cache can hold values a previous
-		// session never got as far as saving; treating them as
-		// server-confirmed would mean never sending them again.
+
 		window.localStorage.setItem(
 			'desktop-mode-os-settings',
 			JSON.stringify( { ...state_.structuredDefaults(), wallpaper: 'dark' } ),
@@ -225,8 +194,6 @@ describe( 'OS Settings — partial saves', () => {
 		state_.saveState( state );
 		await flush();
 
-		// Full snapshot — including the wallpaper the server may
-		// never have been told about.
 		const sent = sentSettings();
 		expect( sent.accent ).toBe( 'wp-midnight' );
 		expect( sent.wallpaper ).toBe( 'dark' );
@@ -234,9 +201,7 @@ describe( 'OS Settings — partial saves', () => {
 	} );
 
 	test( 'without a primed baseline the full snapshot is sent', async () => {
-		// Defensive path: no `setLastConfirmedState()` call, so there is
-		// nothing to diff against and a partial payload would be a
-		// guess. Falls back to the pre-existing behaviour.
+
 		const fresh = state_.structuredDefaults();
 		fresh.accent = 'wp-midnight';
 		state_.saveState( fresh );

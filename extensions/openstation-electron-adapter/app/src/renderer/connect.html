@@ -2,18 +2,13 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<!--
-		Everything inline and same-origin: the CSP below blocks any
-		outbound request this page could be tricked into making. A
-		first-run screen that takes a URL from the user is exactly the
-		wrong place to be permissive.
-	-->
+
 	<meta http-equiv="Content-Security-Policy"
 		content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src 'self' data:; form-action 'none';">
 	<title>Connect to your site — OpenStation</title>
 	<style>
 		:root {
-			/* Brand palette — Void base, Obsidian surface, Pulse accent. */
+
 			--void: #0c0b0f;
 			--obsidian: #1a1721;
 			--pulse: #f252fc;
@@ -47,12 +42,6 @@
 			max-width: 440px;
 		}
 
-		/*
-		 * The OpenStation mark, straight from `.wordpress-org/icon.svg`
-		 * — the same artwork the plugin ships to WordPress.org, so the
-		 * app and the plugin listing cannot drift apart. The glow is the
-		 * mark's own Pulse, spilled onto the Void behind it.
-		 */
 		.mark {
 			display: block;
 			width: 56px;

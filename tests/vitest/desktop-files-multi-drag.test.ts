@@ -1,12 +1,3 @@
-/**
- * Multi-item drag: lifting a selection carries the whole set, and the
- * drop targets act on all of it.
- *
- * The payload half is asserted directly (what the manager is handed),
- * because it is the contract every drop target — ours and a plugin's
- * — reads. The end-to-end drop is asserted through the REST calls the
- * canvas issues.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import {
@@ -101,7 +92,6 @@ function rect( el: HTMLElement, x: number, y: number, w: number, h: number ) {
 	} );
 }
 
-/** A drag manager that records what it was asked to lift. */
 function installRecordingManager(): StartedDrag[] {
 	const started: StartedDrag[] = [];
 	const w = window as unknown as { wp: Record< string, unknown > };
@@ -185,10 +175,10 @@ describe( 'multi-item drag', () => {
 
 		expect( started ).toHaveLength( 1 );
 		const data = started[ 0 ].payload.data;
-		// Byte-identical to what every pre-multi-drag target expects.
+
 		expect( data.placements ).toBeUndefined();
 		expect( ( data.placement as { id: number } ).id ).toBe( 1 );
-		// …and the shared reader still reports the one item.
+
 		expect( dragPlacements( data as never ).map( ( p ) => p.id ) ).toEqual( [
 			1,
 		] );
@@ -212,8 +202,7 @@ describe( 'multi-item drag', () => {
 		expect( dragPlacements( data as never ).map( ( p ) => p.id ) ).toEqual( [
 			1, 2,
 		] );
-		// The grabbed tile stays the primary, so a target that only
-		// reads `placement` acts on what the user pointed at.
+
 		expect( ( data.placement as { id: number } ).id ).toBe( 2 );
 		handle.dispose();
 	} );
@@ -236,13 +225,9 @@ describe( 'multi-item drag', () => {
 		expect( dragPlacements( data as never ).map( ( p ) => p.id ) ).toEqual( [
 			3,
 		] );
-		// Crucially the selection has NOT moved yet: mutating it here
-		// repaints the tile mid-gesture and costs the user their
-		// click (and therefore their double-click).
+
 		expect( handle.getSelection().map( ( p ) => p.id ) ).toEqual( [ 1, 2 ] );
 
-		// Once the gesture proves itself a drag, the highlight catches
-		// up with what's moving.
 		document.dispatchEvent( new CustomEvent( 'os.drag.start' ) );
 		expect( handle.getSelection().map( ( p ) => p.id ) ).toEqual( [ 3 ] );
 		handle.dispose();
@@ -260,20 +245,14 @@ describe( 'multi-item drag', () => {
 		rect( tile, 100, 0, 88, 96 );
 		tile.dispatchEvent( pointerEvent( 'pointerdown', 140, 40, tile ) );
 		document.dispatchEvent( pointerEvent( 'pointerup', 140, 40 ) );
-		// The armed sync must be dropped on pointerup, or an unrelated
-		// drag later in the session would apply it.
+
 		document.dispatchEvent( new CustomEvent( 'os.drag.start' ) );
 		expect( handle.getSelection().map( ( p ) => p.id ) ).toEqual( [ 1 ] );
 		handle.dispose();
 	} );
 
 	test( 'a selection change never rebuilds the tile’s children', async () => {
-		// The regression this guards: `<os-tile>._paint()` replaces the
-		// visual + label on every attribute change. If that happens
-		// between `mousedown` and `mouseup`, the browser synthesizes no
-		// `click` — so no `dblclick`, and the tile can no longer be
-		// opened. A folder that had just been dropped on was the first
-		// place it showed up.
+
 		installRecordingManager();
 		const { host, handle } = await mount( [
 			placement( 1, 0, 0 ),
@@ -286,7 +265,7 @@ describe( 'multi-item drag', () => {
 
 		click( tile );
 		expect( tile.hasAttribute( 'selected' ) ).toBe( true );
-		// Same nodes — only classes and ARIA moved.
+
 		expect( tile.querySelector( '.os-file-tile__visual' ) ).toBe(
 			visualBefore,
 		);
@@ -313,8 +292,6 @@ describe( 'multi-item drag', () => {
 		const opened: unknown[] = [];
 		tile.addEventListener( 'dblclick', ( e ) => opened.push( e ) );
 
-		// The full gesture: press, release, click, click, dblclick.
-		// Nothing in it may destroy the node the events are landing on.
 		rect( tile, 0, 0, 88, 96 );
 		tile.dispatchEvent( pointerEvent( 'pointerdown', 40, 40, tile ) );
 		const visual = tile.querySelector( '.os-file-tile__visual' );
@@ -347,14 +324,11 @@ describe( 'multi-item drag', () => {
 		).toBe( '3' );
 		expect( ghost?.hint?.neutral ).toBe( 'Moving 3 items' );
 
-		// Dimming waits for the lift — a press that turns out to be a
-		// click must leave the canvas as it found it.
 		expect(
 			tileFor( host, 2 ).classList.contains( 'os-file-tile--dragging' ),
 		).toBe( false );
 		document.dispatchEvent( new CustomEvent( 'os.drag.start' ) );
-		// The other two tiles dim too — the manager only knows about
-		// the source.
+
 		expect(
 			tileFor( host, 2 ).classList.contains( 'os-file-tile--dragging' ),
 		).toBe( true );
@@ -401,7 +375,7 @@ describe( 'multi-item drag', () => {
 	} );
 
 	test( 'dropping a set on the canvas moves every item', async () => {
-		// Real manager this time, so the canvas drop target runs.
+
 		const { DragManager } = await import( '../../src/drag/manager' );
 		const { __resetRecoveryForTests } = await import(
 			'../../src/drag/recovery'
@@ -440,7 +414,7 @@ describe( 'multi-item drag', () => {
 					( call[ 1 ] as RequestInit | undefined )?.method === 'PATCH',
 			)
 			.map( ( call ) => String( call[ 0 ] ) );
-		// BOTH placements were persisted, not just the grabbed one.
+
 		expect( patched.some( ( u ) => u.includes( '/placements/1' ) ) ).toBe(
 			true,
 		);
@@ -463,7 +437,6 @@ describe( 'multi-item drag', () => {
 			dragManager: manager,
 		};
 
-		// Two tiles side by side, one grid cell apart.
 		const { host, handle, store } = await mount( [
 			placement( 1, 0, 0 ),
 			placement( 2, 96, 0 ),
@@ -484,19 +457,18 @@ describe( 'multi-item drag', () => {
 		const list = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
 		const a = list.find( ( p ) => p.id === 1 )!;
 		const b = list.find( ( p ) => p.id === 2 )!;
-		// Still on the same row, still one cell apart — three icons
-		// dropped in a row give you three icons in a row.
+
 		expect( b.y ).toBe( a.y );
 		expect( b.x ).toBeGreaterThan( a.x );
 		handle.dispose();
 	} );
 
 	test( 'shortcut payloads expose their set the same way', () => {
-		// Single item: the top-level fields ARE the one item.
+
 		expect(
 			dragShortcutItems( { kind: 'post', ref: '7' } ).map( ( i ) => i.ref ),
 		).toEqual( [ '7' ] );
-		// Multi: the `items` array wins.
+
 		expect(
 			dragShortcutItems( {
 				kind: 'post',

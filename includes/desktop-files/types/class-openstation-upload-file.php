@@ -1,45 +1,17 @@
 <?php
-/**
- * OpenStation — `upload` file type.
- *
- * A real uploaded file with bytes on the server. The reference is
- * the row id in `{$wpdb->prefix}desktop_mode_stored_files`. Unlike
- * every other built-in type, the placement OWNS the entity — see
- * the deletion contract in `stored-files-store.php`.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * The `upload` desktop file type.
- */
 class OpenStation_Upload_File extends OpenStation_File {
 
-	/**
-	 * Get the file type identifier.
-	 *
-	 * @return string
-	 */
 	public static function type(): string {
 		return 'upload';
 	}
 
-	/**
-	 * Whether the stored-file row still exists in the database.
-	 *
-	 * @return bool
-	 */
 	public function exists(): bool {
 		return null !== $this->row();
 	}
 
-	/**
-	 * Get the display name, falling back to a generic label.
-	 *
-	 * @return string
-	 */
 	public function title(): string {
 		$row = $this->row();
 		if ( ! $row ) {
@@ -48,11 +20,6 @@ class OpenStation_Upload_File extends OpenStation_File {
 		return '' !== (string) $row['display_name'] ? (string) $row['display_name'] : __( 'file', 'desktop-mode' );
 	}
 
-	/**
-	 * Resolve a Dashicon class based on the coarse mime category.
-	 *
-	 * @return string
-	 */
 	public function icon(): string {
 		switch ( $this->kind() ) {
 			case 'image':
@@ -72,12 +39,6 @@ class OpenStation_Upload_File extends OpenStation_File {
 		}
 	}
 
-	/**
-	 * Delegate to the stored-file capability resolver.
-	 *
-	 * @param int $user_id
-	 * @return bool
-	 */
 	public function can_read( int $user_id ): bool {
 		$row = $this->row();
 		if ( ! $row ) {
@@ -86,12 +47,6 @@ class OpenStation_Upload_File extends OpenStation_File {
 		return openstation_stored_file_user_can_read( (int) $row['id'], $user_id );
 	}
 
-	/**
-	 * Augment the base serialized shape with owner id, size, mime,
-	 * kind slug, and whether the Media Library would accept the file.
-	 *
-	 * @return array
-	 */
 	public function serialize(): array {
 		$shape              = parent::serialize();
 		$row                = $this->row();
@@ -105,12 +60,6 @@ class OpenStation_Upload_File extends OpenStation_File {
 		return $shape;
 	}
 
-	/**
-	 * Coarse mime-category slug used for the tile icon and by the
-	 * JS type for rendering decisions.
-	 *
-	 * @return string image|video|audio|pdf|archive|text|file
-	 */
 	private function kind(): string {
 		$row  = $this->row();
 		$mime = $row ? strtolower( (string) $row['mime'] ) : '';
@@ -133,11 +82,6 @@ class OpenStation_Upload_File extends OpenStation_File {
 		return 'file';
 	}
 
-	/**
-	 * Lazily resolve the stored-file row from the database.
-	 *
-	 * @return array|null Null when the row is gone or the ref is invalid.
-	 */
 	private function row(): ?array {
 		$id = (int) $this->ref;
 		if ( $id <= 0 || ! function_exists( 'openstation_stored_files_get' ) ) {

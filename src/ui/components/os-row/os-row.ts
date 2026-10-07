@@ -1,36 +1,3 @@
-/**
- * `<os-row>` — horizontal 12-column grid row.
- *
- * Bootstrap-style ergonomics in the component kit. A `<os-row>`
- * lays out its direct children on a twelve-track grid; each child
- * declares its width via a `col="N"` attribute where N is 1..12.
- * Children without `col` span the full row — matching the intuition
- * that a lone child shouldn't shrink to 1/12th.
- *
- * ```html
- * <os-row>
- *     <os-text-field col="6" label="First name"></os-text-field>
- *     <os-text-field col="6" label="Last name"></os-text-field>
- * </os-row>
- *
- * <os-row>
- *     <os-select col="4" label="Currency">…</os-select>
- *     <os-number-field col="8" label="Amount"></os-number-field>
- * </os-row>
- * ```
- *
- * The `col` attribute lives on the CHILD, not on os-row, so any
- * element type works — `<os-*>` components, plain `<div>`s,
- * third-party custom elements. The row's shadow CSS reads the
- * attribute through `::slotted` and sets `grid-column: span N`.
- *
- * Attributes on `<os-row>`:
- *   - `gap`         — px between children on both axes (default 12).
- *   - `column-gap`  — px between columns (overrides `gap` on the x-axis).
- *   - `row-gap`     — px between rows when children wrap
- *                     (overrides `gap` on the y-axis).
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-row.styles';
 

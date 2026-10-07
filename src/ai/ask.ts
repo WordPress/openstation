@@ -1,23 +1,3 @@
-/**
- * `wp.os.ai.ask( query, opts? )` — programmatic access to the
- * AI Copilot, the same endpoint the built-in overlay talks to.
- *
- * Three jobs:
- *   1. POST `/desktop-mode/v1/ai/search` with the user's query plus
- *      whichever extension knobs the caller passed (system prompt
- *      override, command-tool harvest opt-in).
- *   2. Resolve with the server's answer payload — transparent for
- *      `answer_type: entity | navigation | chat`.
- *   3. When the server returns `answer_type: 'tool_call'` (the model
- *      decided the user's request matches a slash-command), look up
- *      the command in the client registry, invoke its `run()` with
- *      a `CommandContext`, and fold the return value into the final
- *      resolved shape so every caller has one place to read the
- *      outcome.
- *
- * The `ask()` contract is deliberately narrow: one call, one promise.
- */
-
 import {
 	listAiCallableCommands,
 	findCommand,
@@ -30,79 +10,18 @@ import type { DesktopConfig } from '../types';
 import { trackedFetch } from '../tracked-fetch';
 
 export interface AskOptions {
-	/** AbortSignal for cancellation. Propagates to the underlying `fetch`. */
+
 	signal?: AbortSignal;
 
-	/**
-	 * Resume a previous exhausted search from the `continue` pointer
-	 * a prior `ask()` returned. Pass them through verbatim.
-	 */
 	resumeTool?: 'search_posts' | 'search_pages' | 'search_comments';
 	startOffset?: number;
 
-	/**
-	 * Opt into including the registered slash-commands as tools the
-	 * AI can invoke on the user's behalf.
-	 *
-	 *   - `false` (default) — no command tools are sent.
-	 *   - `'aiCallable'`    — every command with `aiCallable: true`
-	 *                         is harvested and sent as a tool.
-	 *   - `string[]`        — explicit slug allowlist (subset of the
-	 *                         `aiCallable: true` set).
-	 *   - `( slug ) => bool` — custom predicate; receives the
-	 *                         command's slug and returns whether it
-	 *                         should be offered. Use this for per-user
-	 *                         gating or env-specific overrides.
-	 *
-	 * Regardless of the value passed here, only commands the plugin
-	 * flagged `aiCallable: true` are ever visible — the predicate
-	 * can only narrow, never widen. Security rationale: a command
-	 * registration is the authoritative "is this safe for AI
-	 * invocation?" signal.
-	 */
 	tools?: boolean | 'aiCallable' | string[] | ( ( slug: string ) => boolean );
 
-	/**
-	 * Context object handed to any command's `run()` when the AI
-	 * decides to invoke one. Falls back to a minimal stub that
-	 * closes the assistant and opens wp-admin URLs via the window
-	 * manager — same as what the built-in overlay provides.
-	 */
 	commandContext?: CommandContext;
 
-	/**
-	 * Ask the AI to compose a natural-language reply *about* the
-	 * command it just dispatched. Off by default (one-shot mode —
-	 * `res.message` is whatever the plugin's `run()` returned).
-	 *
-	 * When `true`, after the command runs locally, `ask()` fires a
-	 * second `/ai/search` request carrying the tool outcome. The
-	 * server runs a single-turn, no-tool provider call that produces
-	 * a one- or two-sentence confirmation in the voice of the
-	 * system prompt (e.g. "Done — your office light is on now").
-	 *
-	 * Cost: one extra provider round-trip per command invocation.
-	 * Latency: roughly doubles. Use for voice / chat / assistant
-	 * surfaces where the conversational reply matters. Skip for
-	 * one-tap "execute" buttons where the raw `run()` return is
-	 * fine.
-	 *
-	 * If the follow-up call fails (network, API, etc.), `ask()`
-	 * degrades gracefully — the primary `toolCall.result` is
-	 * preserved and `message` falls back to the raw `run()` return.
-	 */
 	followUp?: boolean;
 
-	/**
-	 * Optional system-prompt override. Two shapes:
-	 *   - `string`  — appended to the built-in prompt (safe).
-	 *   - `{ mode: 'append' | 'replace', text }` — explicit mode.
-	 *
-	 * Server-side, `mode: 'replace'` is gated on a capability that
-	 * defaults to `manage_options` and is filterable via
-	 * `openstation_ai_system_prompt_replace_capability`. Non-admin
-	 * callers sending `replace` get a silent downgrade to `append`.
-	 */
 	systemPrompt?:
 		| string
 		| { mode: 'append' | 'replace'; text: string };
@@ -111,7 +30,7 @@ export interface AskOptions {
 export interface AskToolCall {
 	slug: string;
 	args: string;
-	/** The value the command's `run()` returned (or threw). */
+
 	result: CommandResult | { error: string };
 }
 
@@ -120,11 +39,11 @@ export interface AskResult {
 	message: string;
 	entity?: CommandEntity | null;
 	admin_links?: CommandAdminLink[] | null;
-	/** Present only when `answer_type === 'tool_call'`. */
+
 	toolCall?: AskToolCall;
-	/** Server-issued UUID for tracing across hooks. */
+
 	request_id?: string;
-	/** Continuation pointer when the agent exhausted its budget. */
+
 	continue?: { tool: string; offset: number; label: string } | null;
 }
 
@@ -133,22 +52,11 @@ interface AskDeps {
 		aiSearchUrl?: string;
 		restNonce?: string;
 	};
-	/**
-	 * Builds the default `CommandContext` handed to a command's
-	 * `run()` when the caller doesn't pass their own. Required —
-	 * `desktop.ts` wires a real one that closes the assistant and
-	 * opens windows via the window manager. Tests pass whatever
-	 * minimal stub they need.
-	 */
+
 	fallbackContext: () => CommandContext;
 }
 
 const isAbortError = ( err: unknown ): boolean => {
-	// `instanceof DOMException` is the textbook check, but it fails in
-	// jsdom / cross-realm when the thrown value's prototype chain
-	// doesn't include the current realm's DOMException. Duck-type on
-	// `name === 'AbortError'` — matches the platform spec, survives
-	// the realm split.
 	if ( ! err || typeof err !== 'object' ) {
 		return false;
 	}
@@ -166,11 +74,6 @@ const normaliseToolsOpt = (
 		return all;
 	}
 	if ( Array.isArray( tools ) ) {
-		// Slugs stored in the registry are already lowercase (enforced
-		// at `registerCommand` time), so we can match them directly —
-		// the caller's list is compared against canonical slugs, with
-		// a `.toLowerCase()` on the caller's side only if they passed
-		// mixed-case strings.
 		const allowed = new Set( tools.map( ( s ) => s.toLowerCase() ) );
 		return all.filter( ( c ) => allowed.has( c.slug ) );
 	}
@@ -208,11 +111,6 @@ const normaliseSystemPrompt = (
 	return null;
 };
 
-/**
- * Pick the first non-empty string out of the command's return value
- * and the server's initial payload. Used to seed `message` when the
- * follow-up leg is skipped. Extracted so the logic has one home.
- */
 function liftMessage(
 	payloadMessage: string | undefined,
 	result: CommandResult | { error: string },
@@ -235,12 +133,6 @@ function liftMessage(
 	return '';
 }
 
-/**
- * Serialise the command's return value into the shape
- * `/ai/search`'s `follow_up.result` expects. Non-object returns
- * (string / void) get wrapped as `{ value: … }` so the server
- * always sees an object it can JSON-encode.
- */
 function serialiseOutcome(
 	result: CommandResult | { error: string } | undefined,
 ): Record< string, unknown > {
@@ -253,16 +145,7 @@ function serialiseOutcome(
 	return { value: result };
 }
 
-/**
- * Factory — binds to a config getter so the caller (desktop.ts) can
- * hand in the live shell config without this module reading globals.
- */
 export function createAsk( deps: AskDeps ) {
-	// ------------------------------------------------------------
-	// Helper — POST to /ai/search + normalise errors. Used for both
-	// the primary leg and the follow-up leg. Keeps network + error
-	// semantics in one place.
-	// ------------------------------------------------------------
 	const postToSearch = async (
 		body: Record< string, unknown >,
 		signal: AbortSignal | undefined,
@@ -302,12 +185,6 @@ export function createAsk( deps: AskDeps ) {
 		}
 	};
 
-	// ------------------------------------------------------------
-	// Helper — when the server returned `tool_call`, find the
-	// command in the client registry, build a CommandContext, run
-	// it, and catch failures into a structured `{ error }` payload
-	// so the `AskResult` shape stays uniform.
-	// ------------------------------------------------------------
 	const dispatchToolCall = async (
 		payload: AskResult & { tool?: { slug: string; args: string } },
 		opts: AskOptions,
@@ -356,13 +233,6 @@ export function createAsk( deps: AskDeps ) {
 		return { ok: true, slug, args, result };
 	};
 
-	// ------------------------------------------------------------
-	// Helper — second-leg fetch that asks the server to compose a
-	// natural-language reply about the command outcome. Swallows
-	// network / HTTP failures so the command result is never lost
-	// to a degraded follow-up; `AbortError` still propagates so
-	// `AbortController.abort()` behaves uniformly across legs.
-	// ------------------------------------------------------------
 	const composeFollowUp = async (
 		text: string,
 		slug: string,
@@ -390,7 +260,7 @@ export function createAsk( deps: AskDeps ) {
 			if ( isAbortError( err ) ) {
 				throw err;
 			}
-			// Degrade — primary result wins.
+
 			return null;
 		}
 		if ( ! res.ok ) {
@@ -409,12 +279,6 @@ export function createAsk( deps: AskDeps ) {
 	): Promise< AskResult > {
 		const text = ( query ?? '' ).trim();
 		if ( text === '' ) {
-			// Empty query with non-default options is almost certainly
-			// a caller bug (someone built up an `opts` object then
-			// forgot to populate `query`). Throw loudly for the mixed
-			// case; preserve the silent no-op only for bare empty
-			// calls where the caller may legitimately want a harmless
-			// noop (e.g. debouncing an input field).
 			const hasMeaningfulOpts =
 				opts.tools !== undefined ||
 				opts.systemPrompt !== undefined ||
@@ -437,10 +301,6 @@ export function createAsk( deps: AskDeps ) {
 		const commandTools = normaliseToolsOpt( opts.tools );
 		const sp = normaliseSystemPrompt( opts.systemPrompt );
 
-		// The REST endpoint's request body uses snake_case field names
-		// (WordPress convention) — assigned via property access, which
-		// the camelcase ESLint rule allows; only bare-identifier
-		// locals are required to be camelCase.
 		const body: Record< string, unknown > = { query: text };
 		if ( opts.resumeTool ) {
 			body.resume_tool = opts.resumeTool;

@@ -1,19 +1,3 @@
-/**
- * OpenStation — Split overview.
- *
- * After a snap commit, the shell shows an overview of every OTHER
- * non-minimized window on the active desktop, laid out as thumbnails
- * in the HALF opposite the snapped window. Clicking a thumbnail fills
- * that opposite half with the picked window (a "partner snap").
- * Clicking the desktop backdrop dismisses the overview without
- * picking — the user just keeps the single-snapped window.
- *
- * The flow reuses the same `computeOverviewLayout` grid + label
- * builders as full overview, but confines the grid to a rect (the
- * opposite half) and doesn't render the desktops top bar. Click
- * commit semantics differ: fill-half instead of maximize.
- */
-
 import { doAction, HOOKS } from '../hooks';
 import type { Window } from '../window';
 import { computeOverviewLayout } from './geometry';
@@ -21,11 +5,6 @@ import { createOverviewLabel } from './overview';
 import { oppositeHalfRect, type SnapZone } from './snap-zones';
 import type { WindowManager } from './index';
 
-/**
- * Mount the split overview for `anchor`'s opposite half. `anchor` is
- * the window that just snapped — it stays visible at its snapped
- * geometry, NOT participating in the overview grid.
- */
 export function enterSplitOverview(
 	mgr: WindowManager,
 	anchor: Window,
@@ -38,8 +17,6 @@ export function enterSplitOverview(
 	mgr._splitOverviewAnchor = anchor;
 	mgr._splitOverviewZone = zone;
 
-	// Only non-minimized windows on the active desktop participate,
-	// minus the anchor itself (it's already placed).
 	const eligible = mgr._stack.filter(
 		( w ) =>
 			w !== anchor &&
@@ -47,13 +24,10 @@ export function enterSplitOverview(
 			w.config.desktopId === mgr._activeDesktopId,
 	);
 	if ( eligible.length === 0 ) {
-		// Nothing to show. The snap committed; just exit silently so
-		// the user isn't left looking for a picker that can't help.
 		cleanupSplitOverviewState( mgr );
 		return;
 	}
 
-	// Snapshot current transforms so dismiss can restore them.
 	mgr._splitOverviewSnapshot.clear();
 	for ( const w of eligible ) {
 		mgr._splitOverviewSnapshot.set( w.id, {
@@ -62,7 +36,6 @@ export function enterSplitOverview(
 		} );
 	}
 
-	// Lay out the grid in the opposite-half rect.
 	mgr._desktop.classList.add( 'os-area--split-overview' );
 	const rect = oppositeHalfRect( mgr, zone );
 	const layout = computeOverviewLayout( eligible, rect, 0 );
@@ -80,14 +53,6 @@ export function enterSplitOverview(
 		mgr._splitOverviewLabels.set( item.win.id, label );
 	}
 
-	// Click routing.
-	//
-	// Thumbnails arm a fill-opposite-half commit. Anything else —
-	// the backdrop, the snapped anchor window, a widget below, empty
-	// space — arms a dismiss. The press-same-element invariant
-	// (press target rect must contain the release point) keeps quick
-	// drags from committing either flow by mistake, matching the
-	// feel of regular overview click handling.
 	const pressTargetForEvent = (
 		e: PointerEvent,
 	): { id: string; element: HTMLElement } | null => {
@@ -102,11 +67,6 @@ export function enterSplitOverview(
 			};
 		}
 		if ( target ) {
-			// Any non-thumbnail target is a dismiss. We hit-test
-			// against the desktop-area rect so the pointer-up commit
-			// check (see below) only fires when the release also
-			// lands somewhere in the desktop — consistent with how
-			// regular overview treats backdrop presses.
 			return { id: 'dismiss', element: mgr._desktop };
 		}
 		return null;
@@ -186,18 +146,6 @@ export function enterSplitOverview(
 	document.addEventListener( 'keydown', mgr._splitOverviewKey );
 }
 
-/**
- * Commit: snap the selected window into the half opposite the
- * anchor's half. Then tear down the split overview.
- *
- * Exported (marked `@internal`) so the test suite can drive the
- * partner-fill path without synthesizing PointerEvents, which jsdom
- * doesn't ship. Not part of the public API — callers outside this
- * folder should never touch it; only the pointer handler in
- * `enterSplitOverview` routes here during real user input.
- *
- * @internal
- */
 export function fillOppositeHalfAndExit( mgr: WindowManager, selected: Window ): void {
 	const anchorZone = mgr._splitOverviewZone;
 	if ( ! anchorZone ) {
@@ -206,28 +154,12 @@ export function fillOppositeHalfAndExit( mgr: WindowManager, selected: Window ):
 	}
 	const partnerZone: SnapZone = anchorZone === 'left' ? 'right' : 'left';
 
-	// Clear the overview transform FIRST so the slide starts from the
-	// thumbnail's current visual position, not from `(0,0)`. The base
-	// transition covers both `transform → ''` and the new inline
-	// left/top/width/height, so they animate as one composite pass.
 	selected.element.style.transform = '';
-	// Drop the overview class on the picked window so its iframe +
-	// title bar go back to normal pointer-events. Without this,
-	// clicks on the picked window silently early-return from
-	// `Window.bindEvents` (which skips the focus request when
-	// `--overview` is set) and children are unclickable — the user
-	// sees a window that won't activate.
+
 	selected.element.classList.remove( 'os-window--overview' );
 
-	// Run through the shared snap applier so the partner fill uses
-	// the exact same geometry + class + state logic as a live edge
-	// snap or a session-restore. One source of truth for
-	// "half-screen snapped."
 	selected.applySnap( partnerZone );
 
-	// Drop the picked window out of the overview snapshot — we just
-	// moved it, so the exit path shouldn't snap its transform back to
-	// whatever it was before the overview began.
 	mgr._splitOverviewSnapshot.delete( selected.id );
 
 	mgr.focus( selected );
@@ -236,16 +168,10 @@ export function fillOppositeHalfAndExit( mgr: WindowManager, selected: Window ):
 		windowId: selected.id,
 		zone: partnerZone,
 	} );
-	// `applySnap` already fired `_emitChange('state')` → the session
-	// saver is queued. No extra dispatch here.
 
 	exitSplitOverview( mgr );
 }
 
-/**
- * Tear down the split overview. Restores each non-picked window's
- * pre-overview transform so the fade-back is smooth.
- */
 export function exitSplitOverview( mgr: WindowManager ): void {
 	if ( ! mgr._splitOverviewActive ) {
 		return;
@@ -268,9 +194,6 @@ export function exitSplitOverview( mgr: WindowManager ): void {
 	const ANIMATION_MS = 260;
 	window.setTimeout( () => {
 		for ( const w of mgr._stack ) {
-			// Only clear overview from windows that were in the
-			// snapshot — anchor + newly-snapped partner never had the
-			// class.
 			if ( mgr._splitOverviewSnapshot.has( w.id ) ) {
 				w.element.classList.remove( 'os-window--overview' );
 			}

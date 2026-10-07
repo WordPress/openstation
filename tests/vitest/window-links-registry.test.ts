@@ -1,14 +1,3 @@
-/**
- * Unit tests for the window-link renderer registry
- * (`src/window-links/renderer-registry.ts`):
- *
- *   - validation (id shape, reserved `none`, label, mount) with
- *     audible RegistrationError throws
- *   - replace-on-reregister semantics
- *   - owner-based bulk unregistration (server-sync deactivation path)
- *   - the `os.window-links.renderers` list filter
- *   - subscriber notifications
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { HOOKS } from '../../src/hooks';

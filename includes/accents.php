@@ -1,39 +1,10 @@
 <?php
-/**
- * OpenStation — Accent color swatches.
- *
- * The OS Settings panel lets users pick an accent color that the shell
- * applies to `--wp-admin-theme-color` on the parent frame. Themes and
- * plugins can extend or restrict the swatch list via the
- * {@see 'openstation_accent_colors'} filter — e.g. a brand theme that
- * injects its corporate palette, or a compliance plugin that collapses
- * the list to a single approved value.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Returns the list of accent-color swatches shown in OS Settings.
- *
- * Each entry is an array shaped `{ id, label, value }`:
- *
- *   - `id` is a stable slug (persisted in `localStorage`).
- *   - `label` is the human-readable name used in the picker tooltip.
- *   - `value` is a hex color applied to `--wp-admin-theme-color`.
- *
- * The defaults ship with six WordPress-adjacent swatches. Consumers
- * mutate the list via the `openstation_accent_colors` filter — entries
- * whose `value` fails `sanitize_hex_color()` are dropped silently so a
- * bad filter return can't inject arbitrary CSS into the shell.
- *
- * @return array<int, array{id: string, label: string, value: string}>
- */
 function openstation_get_accent_colors() {
 	$defaults = array(
-		// The brand accents lead the list: Pulse is the identity
-		// colour and the shipped default, Nebula its softer twin.
+
 		array(
 			'id'    => 'pulse',
 			'label' => __( 'Pulse', 'desktop-mode' ),
@@ -44,11 +15,7 @@ function openstation_get_accent_colors() {
 			'label' => __( 'Nebula', 'desktop-mode' ),
 			'value' => '#ec9bff',
 		),
-		// The other brand accents. Sirius is the cool counterweight to
-		// Pulse; Lagoon sits between the two families and is what the
-		// guide reaches for when Pulse is too loud and WordPress Blue
-		// too corporate; Starlight is the brand's light, for a station
-		// with no colour at all.
+
 		array(
 			'id'    => 'sirius',
 			'label' => __( 'Sirius', 'desktop-mode' ),
@@ -96,27 +63,6 @@ function openstation_get_accent_colors() {
 		),
 	);
 
-	/**
-	 * Filters the list of accent-color swatches offered in OS Settings.
-	 *
-	 * ```php
-	 * add_filter( 'openstation_accent_colors', function ( $colors ) {
-	 *     $colors[] = array(
-	 *         'id'    => 'brand',
-	 *         'label' => __( 'Brand', 'my-plugin' ),
-	 *         'value' => '#ff00ff',
-	 *     );
-	 *     return $colors;
-	 * } );
-	 * ```
-	 *
-	 * Non-array return values fall back to the built-in defaults.
-	 * Individual entries missing an `id`, `label`, or whose `value`
-	 * isn't a valid hex color are dropped — the shell can't render
-	 * half-formed swatches safely.
-	 *
-	 * @param array $defaults Built-in swatches.
-	 */
 	$filtered = apply_filters( 'openstation_accent_colors', $defaults );
 	if ( ! is_array( $filtered ) ) {
 		return $defaults;
@@ -145,7 +91,5 @@ function openstation_get_accent_colors() {
 		);
 	}
 
-	// If every entry was dropped (e.g. a filter returned all garbage),
-	// fall back to defaults so the picker is never empty.
 	return empty( $clean ) ? $defaults : $clean;
 }

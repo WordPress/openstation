@@ -1,17 +1,3 @@
-/**
- * Phone-layer lazy bundle — loader (main-bundle side).
- *
- * Ships in `desktop.min.js`. Owns the `<script>`-injection contract
- * for `assets/js/mobile[.min].js`, mirroring
- * `src/window-system/loader.ts`: a single in-flight promise, a
- * `data-os-mobile="1"` marker for dedupe, and readiness judged by
- * the bundle's own `window.openStationMobile` factory rather than
- * by any DOM the bundle happens to create.
- *
- * The bundle is fetched only when the mode resolves to `mobile` —
- * at boot on a phone, or on the first crossing into the band later.
- * A desktop never pays for it.
- */
 import type { MobileApi } from './types';
 
 let inflight: Promise< MobileApi > | null = null;
@@ -58,7 +44,6 @@ function injectScript( scriptUrl: string ): Promise< MobileApi > {
 	} );
 }
 
-/** The bundle URL the config blob carries; `''` when absent. */
 export function mobileBundleUrl(): string {
 	const cfg = ( window as unknown as {
 		openStationConfig?: { mobileBundleUrl?: string };
@@ -66,11 +51,6 @@ export function mobileBundleUrl(): string {
 	return cfg?.mobileBundleUrl ?? '';
 }
 
-/**
- * Await the phone layer's factory. Resolves at once when the bundle
- * is already present (a unit test that imported the entry, a second
- * mount after a mode round-trip); otherwise injects the script.
- */
 export function ensureMobileLoaded( scriptUrl: string ): Promise< MobileApi > {
 	const api = loaded();
 	if ( api ) {
@@ -86,7 +66,6 @@ export function ensureMobileLoaded( scriptUrl: string ): Promise< MobileApi > {
 	}
 	if ( ! inflight ) {
 		inflight = injectScript( scriptUrl ).catch( ( err ) => {
-			// Reset so a later call can retry.
 			inflight = null;
 			throw err;
 		} );

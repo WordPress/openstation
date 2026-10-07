@@ -1,32 +1,13 @@
-/**
- * Desktop-theme registry.
- *
- * Backed by `createSharedStore` rather than module-level state,
- * because the library is written by the always-on shell bundle and
- * read by the lazily-loaded OS Settings panel bundle. Two bundles,
- * two compiled copies of any plain module state — the exact class of
- * bug documented in AGENTS.md → "Cross-bundle state".
- */
-
 import { createSharedStore } from '../shared-store';
 import { trackedFetch } from '../tracked-fetch';
 import { restErrorFromResponse } from '../core/api-client';
 import { sanitizeRecommendedOsSettings } from './recommended';
 import type { DesktopThemeEntry, DesktopThemeState } from './types';
 
-/** Slug charset — mirrors PHP's `sanitize_key()`. */
 const SLUG_PATTERN = /^[a-z0-9_-]+$/;
 
-/** Upper bound on icon slots we accept from one theme. */
 const MAX_ICON_SLOTS = 128;
 
-/**
- * Whether a payload icon value is something we're willing to paint.
- *
- * PHP already validated these, but the shell must not assume the
- * payload is trustworthy: a filter (`openstation_desktop_themes`)
- * runs after sanitization and can put anything in.
- */
 function isPaintableIcon( value: unknown ): value is string {
 	if ( typeof value !== 'string' || value === '' || value.length > 2048 ) {
 		return false;
@@ -39,12 +20,6 @@ function isPaintableIcon( value: unknown ): value is string {
 	);
 }
 
-/**
- * Coerce one raw payload entry into a `DesktopThemeEntry`, or return
- * `null` when it is too malformed to use.
- *
- * @internal
- */
 export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
 	if ( ! raw || typeof raw !== 'object' ) {
 		return null;
@@ -136,11 +111,6 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
 	};
 }
 
-/**
- * Read + sanitize the boot payload. Runs once, inside the store's
- * seed thunk, so a bundle that never touches themes never pays for
- * it.
- */
 function seed(): DesktopThemeState {
 	const globals = window as unknown as {
 		openStationConfig?: { serverDesktopThemes?: unknown };
@@ -164,26 +134,14 @@ const store = createSharedStore< DesktopThemeState >(
 	seed,
 );
 
-/** The shared store handle. Exported for `apply.ts` and tests. */
 export function getStore() {
 	return store;
 }
 
-/**
- * Every theme in the library, in payload order.
- *
- * @public
- */
 export function listDesktopThemes(): DesktopThemeEntry[] {
 	return store.getState().themes.slice();
 }
 
-/**
- * One theme by slug (or by full id — `vendor/neon` resolves to the
- * `vendor-neon` slug, matching what PHP stored).
- *
- * @public
- */
 export function getDesktopTheme( id: string ): DesktopThemeEntry | null {
 	if ( typeof id !== 'string' || id === '' ) {
 		return null;
@@ -196,22 +154,10 @@ export function getDesktopTheme( id: string ): DesktopThemeEntry | null {
 	);
 }
 
-/**
- * Slug of the active theme, or `null` for the system default.
- *
- * @public
- */
 export function getActiveDesktopThemeId(): string | null {
 	return store.getState().activeId;
 }
 
-/**
- * Insert or replace one library entry. Used by the upload flow so a
- * freshly-installed theme appears in the picker without waiting for
- * the next payload refresh.
- *
- * @public
- */
 export function upsertDesktopTheme( raw: unknown ): DesktopThemeEntry | null {
 	const entry = normalizeEntry( raw );
 	if ( ! entry ) {
@@ -229,29 +175,8 @@ export function upsertDesktopTheme( raw: unknown ): DesktopThemeEntry | null {
 	return entry;
 }
 
-/**
- * In-flight fetch of the full theme library, so concurrent callers
- * share one request. NOT in the shared store: a Promise doesn't
- * survive structured sharing, and a second bundle re-fetching once
- * is acceptable where a corrupted store is not.
- */
 let fullLibraryFetch: Promise< void > | null = null;
 
-/**
- * Fetch the FULL theme entries and upsert them over the slimmed boot
- * copies.
- *
- * The boot payload ships the library without `cssText` / `tokens`
- * (marked `cssDeferred: true`) because nothing reads them at boot —
- * the active theme's stylesheet is server-delivered, and an inactive
- * theme's CSS matters only at the moment the user picks it. This is
- * that moment's data path: `GET desktop-mode/v1/desktop-themes`
- * returns the same builder's full entries, and upserting them clears
- * the flags. Resolves even on failure — the caller re-checks the
- * entry it needs and decides what a still-deferred theme means.
- *
- * @public
- */
 export function ensureFullDesktopThemes(): Promise< void > {
 	if ( fullLibraryFetch ) {
 		return fullLibraryFetch;
@@ -281,27 +206,15 @@ export function ensureFullDesktopThemes(): Promise< void > {
 			}
 		} )
 		.catch( () => {
-			// Allow a retry on the next call — a flaky connection
-			// must not permanently strand the picker on slim entries.
 			fullLibraryFetch = null;
 		} );
 	return fullLibraryFetch;
 }
 
-/** Test-only: forget the in-flight library fetch. */
 export function __resetFullDesktopThemesFetchForTests(): void {
 	fullLibraryFetch = null;
 }
 
-/**
- * Drop one library entry.
- *
- * Does NOT deactivate it — that is `applyDesktopTheme( '' )`'s job,
- * and the caller decides (deleting a theme the CURRENT user isn't
- * using shouldn't disturb their shell).
- *
- * @public
- */
 export function removeDesktopTheme( slug: string ): void {
 	const themes = store.state.themes.filter( ( theme ) => theme.slug !== slug );
 	if ( themes.length !== store.state.themes.length ) {
@@ -309,11 +222,6 @@ export function removeDesktopTheme( slug: string ): void {
 	}
 }
 
-/**
- * Replace the whole library (server-sync path).
- *
- * @internal
- */
 export function setDesktopThemes( list: readonly unknown[] ): void {
 	const themes: DesktopThemeEntry[] = [];
 	for ( const item of list ) {
@@ -325,14 +233,6 @@ export function setDesktopThemes( list: readonly unknown[] ): void {
 	store.setState( { themes } );
 }
 
-/**
- * Subscribe to library / active-theme changes.
- *
- * @public
- *
- * @param cb Called on every mutation with the live state.
- * @return Unsubscribe function.
- */
 export function subscribeDesktopThemes(
 	cb: ( state: Readonly< DesktopThemeState > ) => void,
 ): () => void {

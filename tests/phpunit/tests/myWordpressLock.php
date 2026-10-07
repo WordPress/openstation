@@ -1,19 +1,5 @@
 <?php
-/**
- * Tests for the My WordPress contributors payload capability gate
- * (`includes/my-wordpress/lock.php`).
- *
- * The `openstation_contributors` REST field surfaces revision-author
- * identities (user id, display name, avatar). Like the sibling
- * `openstation_lock` field, it must be gated on `edit_post` so users
- * who can't edit a post never learn who else has edited it.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group desktop-mode-my-wordpress
- */
+
 class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -36,8 +22,6 @@ class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		do_action( 'rest_api_init' );
 
-		// Published post owned by the author; the editor saved it
-		// most recently (`_edit_last`), making them a contributor.
 		$this->post_id = self::factory()->post->create(
 			array(
 				'post_author' => self::$author_id,
@@ -60,27 +44,14 @@ class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Privileged viewers (edit_post passes) see the contributor list.
-	 *
-	 * @covers ::openstation_my_wordpress_post_contributors_payload
-	 */
 	public function test_contributors_visible_to_users_who_can_edit_the_post() {
 		wp_set_current_user( self::$admin_id );
 		$this->assertContains( self::$editor_id, $this->contributor_ids() );
 
-		// The post's own author can edit it, too.
 		wp_set_current_user( self::$author_id );
 		$this->assertContains( self::$editor_id, $this->contributor_ids() );
 	}
 
-	/**
-	 * Users who can't edit the post get an empty array — revision
-	 * authors and `_edit_last` identities must not leak to read-only
-	 * viewers.
-	 *
-	 * @covers ::openstation_my_wordpress_post_contributors_payload
-	 */
 	public function test_contributors_empty_for_users_who_cannot_edit_the_post() {
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertSame( array(), openstation_my_wordpress_post_contributors_payload( $this->post_id ) );
@@ -89,12 +60,6 @@ class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_my_wordpress_post_contributors_payload( $this->post_id ) );
 	}
 
-	/**
-	 * The gate runs BEFORE the filter — plugin-supplied ids are not
-	 * exposed to viewers who can't edit the post either.
-	 *
-	 * @covers ::openstation_my_wordpress_post_contributors_payload
-	 */
 	public function test_gate_applies_before_the_contributors_filter() {
 		$filter_ran = false;
 		add_filter(
@@ -111,14 +76,6 @@ class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 		$this->assertFalse( $filter_ran );
 	}
 
-	/**
-	 * End-to-end through the REST field: a subscriber reading a
-	 * published post over `/wp/v2/posts/<id>` receives an empty
-	 * `openstation_contributors` array, while an admin receives the
-	 * populated one.
-	 *
-	 * @covers ::openstation_my_wordpress_register_lock_field
-	 */
 	public function test_rest_field_respects_the_gate() {
 		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . $this->post_id );
 

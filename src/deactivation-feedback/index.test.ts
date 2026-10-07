@@ -1,9 +1,3 @@
-/**
- * Tests for the deactivation feedback dialog.
- *
- * Two promises are worth guarding: nothing is sent unless the admin
- * clicks Send, and the deactivation goes ahead whatever the send did.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 type FetchArgs = ( url: string, init?: RequestInit, opts?: unknown ) => Promise< unknown >;
@@ -27,7 +21,6 @@ function config(): DeactivationFeedbackConfig {
 	};
 }
 
-/** A classic plugins.php row for our plugin, plus one for a bystander. */
 function mountRows(): HTMLAnchorElement {
 	document.body.innerHTML =
 		'<table><tbody>' +
@@ -68,10 +61,9 @@ describe( 'interceptPluginsScreen', () => {
 		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
 		expect( dialog() ).not.toBeNull();
 		expect( navigate ).not.toHaveBeenCalled();
-		// Send is inert until a reason is ticked.
+
 		expect( button( 'primary' ).disabled ).toBe( true );
 
-		// The "too buggy" question comes and goes with its box.
 		const head = document.querySelector< HTMLElement >( '.os-deactivation-feedback__field-head' )!;
 		const details = document.querySelector< HTMLTextAreaElement >( '.os-deactivation-feedback__details' )!;
 		expect( head.hasAttribute( 'data-asking' ) ).toBe( false );
@@ -105,8 +97,7 @@ describe( 'interceptPluginsScreen', () => {
 		}
 		const details = document.querySelector< HTMLTextAreaElement >( '.os-deactivation-feedback__details' )!;
 		expect( details.placeholder ).toMatch( /page or plugin/ );
-		// "Too buggy" swaps the field's label for the question, which the
-		// field then points at.
+
 		const head = document.querySelector< HTMLElement >( '.os-deactivation-feedback__field-head' )!;
 		const prompt = document.querySelector< HTMLElement >( '.os-deactivation-feedback__prompt' )!;
 		expect( head.hasAttribute( 'data-asking' ) ).toBe( true );

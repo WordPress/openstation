@@ -1,8 +1,3 @@
-/**
- * Unit tests for `src/hooks.ts` — the typed wrapper around
- * `window.wp.hooks`. Each test starts with a freshly-installed
- * in-memory hooks stub so state doesn't leak across cases.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
 	HOOKS,
@@ -27,9 +22,7 @@ describe( 'hooks.ts', () => {
 
 	test( 'throws a readable error when wp.hooks is missing', () => {
 		clearHooksStub();
-		// The real error message uses backticks around
-		// `window.wp.hooks`, so the regex has to tolerate interstitial
-		// characters between "hooks" and "is not available".
+
 		expect( () => doAction( 'whatever' ) ).toThrow(
 			/wp\.hooks.*is not available/
 		);
@@ -77,7 +70,7 @@ describe( 'hooks.ts', () => {
 		whenReady( () => {
 			fired = true;
 		} );
-		// Immediate-fire path schedules on a microtask; flush.
+
 		await Promise.resolve();
 		expect( fired ).toBe( true );
 	} );
@@ -89,15 +82,12 @@ describe( 'hooks.ts', () => {
 		} );
 		expect( fired ).toBe( false );
 
-		// Firing init should trigger the queued callback.
 		doAction( HOOKS.INIT );
 		expect( fired ).toBe( true );
 	} );
 
 	test( 'HOOKS catalog carries stable hook-name constants', () => {
-		// Spot-check a few load-bearing names. A typo here would
-		// silently break every downstream consumer — the constants
-		// exist specifically to keep them in one place.
+
 		expect( HOOKS.INIT ).toBe( 'os.init' );
 		expect( HOOKS.WALLPAPERS ).toBe( 'os.wallpapers' );
 		expect( HOOKS.WINDOW_OPENED ).toBe( 'os.window.opened' );

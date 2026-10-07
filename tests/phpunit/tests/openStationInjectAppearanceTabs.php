@@ -1,21 +1,5 @@
 <?php
-/**
- * Tests for the `openstation_inject_appearance_tabs()` filter
- * callback, which prepends an "Add Theme" entry to the Appearance
- * dock item's submenu so the in-window tab strip exposes
- * `theme-install.php` directly (the in-page page-title-action
- * button is hidden in chromeless mode — see
- * assets/css/chromeless.css).
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- *
- * @covers ::openstation_inject_appearance_tabs
- * @covers ::openstation_render_themes_workspace_intro
- * @covers ::openstation_theme_install_active_tab_script
- */
+
 class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -24,10 +8,6 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 
-		// On multisite a plain administrator lacks the super-admin-only
-		// capabilities these tests exercise (update_core, edit_users,
-		// activate_plugins and friends). The admin fixture means "the
-		// fully-capable admin", which multisite spells super admin.
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -39,11 +19,6 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 	}
 
-	/**
-	 * Unconditional cleanup: the chromeless flag and the opt-in meta are
-	 * request-global, so a mid-test failure would otherwise leak them into
-	 * every sibling test in the suite.
-	 */
 	public function tear_down() {
 		unset( $_GET['openstation_chromeless'], $GLOBALS['pagenow'] );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
@@ -51,10 +26,6 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Helper: a minimal dock-item shape matching what
-	 * `openstation_build_dock_items()` hands to the filter.
-	 */
 	private function make_dock_item( array $overrides = array() ) {
 		return array_merge(
 			array(
@@ -85,13 +56,12 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 
 		$this->assertCount( 2, $result['submenu'] );
 		$this->assertSame( 'Add Theme', $result['submenu'][0]['title'] );
-		// `?browse=popular` makes the iframe land on the Popular tab
-		// without relying on WP's JS-router default-redirect.
+
 		$this->assertSame(
 			admin_url( 'theme-install.php?browse=popular' ),
 			$result['submenu'][0]['url']
 		);
-		// Existing entries stay in place after the prepended one.
+
 		$this->assertSame( 'Editor', $result['submenu'][1]['title'] );
 	}
 
@@ -106,7 +76,6 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 
 		$result = openstation_inject_appearance_tabs( $dock_item, 'edit.php' );
 
-		// Unchanged — the filter only fires for themes.php.
 		$this->assertCount( 1, $result['submenu'] );
 		$this->assertSame( 'All Posts', $result['submenu'][0]['title'] );
 	}
@@ -142,7 +111,6 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 
 		$result = openstation_inject_appearance_tabs( $dock_item, 'themes.php' );
 
-		// No duplicate — the existing theme-install entry was detected.
 		$this->assertCount( 1, $result['submenu'] );
 		$this->assertSame( 'Custom Add Theme', $result['submenu'][0]['title'] );
 	}
@@ -158,16 +126,8 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 		$this->assertSame( 'Add Theme', $result['submenu'][0]['title'] );
 	}
 
-	/**
-	 * Pin the integration via the `openstation_dock_item` filter — the
-	 * production `add_filter()` call in `includes/themes-tabs.php` is
-	 * what actually wires this into the dock builder. Re-register
-	 * defensively because earlier tests in the suite call
-	 * `remove_all_filters( 'openstation_dock_item' )` in their
-	 * tear_down.
-	 */
 	public function test_filter_is_registered_at_priority_10() {
-		// Ensure registration regardless of prior tear_down state.
+
 		add_filter( 'openstation_dock_item', 'openstation_inject_appearance_tabs', 10, 2 );
 
 		$priority = has_filter(
@@ -185,9 +145,6 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Helper: renders the intro and returns the captured markup.
-	 */
 	private function capture_themes_workspace_intro() {
 		ob_start();
 		openstation_render_themes_workspace_intro();
@@ -208,20 +165,11 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'openstation-themes-intro__count', $output );
 	}
 
-	/**
-	 * Pages registered with `add_theme_page()` share themes.php's `$pagenow`
-	 * but get their own hook-suffix body class, so none of the workspace CSS
-	 * (scoped to `.themes-php`) reaches them. Emitting the header there would
-	 * drop unstyled marketing copy on top of an unrelated Appearance screen.
-	 */
 	public function test_themes_workspace_intro_skips_appearance_subpages() {
 		$_GET['openstation_chromeless'] = '1';
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		set_current_screen( 'appearance_page_custom-header' );
 
-		// The condition that made the `$pagenow` gate wrong: an
-		// `add_theme_page()` screen reports themes.php as its $pagenow while
-		// carrying an `appearance_page_*` body class.
 		$GLOBALS['pagenow'] = 'themes.php';
 
 		$this->assertSame( '', $this->capture_themes_workspace_intro() );
@@ -242,12 +190,6 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 		$this->assertSame( '', $this->capture_themes_workspace_intro() );
 	}
 
-	/**
-	 * Tests that openstation_theme_install_active_tab_script() registers on
-	 * `admin_footer` at priority 100 and outputs the inline active tab script.
-	 *
-	 * @covers ::openstation_theme_install_active_tab_script
-	 */
 	public function test_theme_install_active_tab_script_registered_and_emits_dynamic_browse_param() {
 		$priority = has_action(
 			'admin_footer',

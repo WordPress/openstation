@@ -1,18 +1,19 @@
 <?php
-/**
- * Plugin Name:       OpenStation — Popup Siege
- * Description:       Adds the Popup Siege arcade game to OpenStation, including leaderboards and score-to-beat challenges.
- * Version:           0.1.0
- * Requires at least: 6.5
- * Requires PHP:      7.4
- * Requires Plugins:  desktop-mode
- * Author:            OpenStation Contributors
- * License:           GPL-2.0-or-later
- * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       desktop-mode-popup-siege
- *
- * @package OpenStationPopupSiege
- */
+
+<<<'OPENSTATION_PLUGIN_METADATA'
+Plugin Name:       OpenStation — Popup Siege
+Description:       Adds the Popup Siege arcade game to OpenStation, including leaderboards and score-to-beat challenges.
+Version:           0.1.0
+Requires at least: 6.5
+Requires PHP:      7.4
+Requires Plugins:  desktop-mode
+Author:            OpenStation Contributors
+License:           GPL-2.0-or-later
+License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain:       desktop-mode-popup-siege
+
+@package OpenStationPopupSiege
+OPENSTATION_PLUGIN_METADATA;
 
 defined( 'ABSPATH' ) || exit;
 

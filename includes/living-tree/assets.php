@@ -1,23 +1,7 @@
 <?php
-/**
- * OpenStation — Living Tree: asset registration.
- *
- * Registers the `os-living-tree-wallpaper` script handle (built
- * bundle `assets/js/living-tree-wallpaper[.min].js`). The wallpaper
- * `server-sync` lazy-loads it when the user selects the `wp-living-tree`
- * wallpaper (or opens OS Settings → Wallpaper and the picker pulls the
- * def in). The bundle's only side effect is publishing the `WallpaperDef`
- * on `window.openStationWallpapers['wp-living-tree']`. Mirrors the
- * animated-logo block in `includes/assets.php`.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Register the Living Tree wallpaper script handle.
- */
 function openstation_living_tree_register_assets() {
 	$version = OPENSTATION_VERSION;
 	$suffix  = openstation_asset_suffix();

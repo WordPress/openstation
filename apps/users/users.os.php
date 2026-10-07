@@ -1,23 +1,4 @@
 <?php
-/**
- * Users — the Users window, as an OpenStation app.
- *
- * Claims the FROZEN id `desktop-mode-users` (see AGENTS.md) so the
- * `users.php` URL remap, session restores and every hook keep
- * working. The body is `users.os.ts`, a client view over the rows
- * `data()` reads from `wp/v2/users` in-process — the same collection,
- * fields and filterable query, plus a page of content counts in two
- * grouped queries. The mutations are actions over the functions in
- * `parts/rest.php`, which the `desktop-mode/v1/users*` routes expose
- * too. The Profile tab hosts `<os-user-profile>` from the companion
- * bundle `parts/profile-script.php` registers.
- *
- * (Header kept short on purpose: Plugin Check's direct-access scan
- * reads only the first 50 raw lines, and the guard below must land
- * inside that window.)
- *
- * @package OpenStation
- */
 
 namespace OpenStation\Apps\Users;
 
@@ -25,7 +6,6 @@ use OpenStation\App;
 use OpenStation\App\Os;
 use OpenStation\App\State;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
@@ -40,15 +20,8 @@ require_once __DIR__ . '/parts/facts.php';
 require_once __DIR__ . '/parts/rest.php';
 require_once __DIR__ . '/parts/profile-script.php';
 
-/** The `orderby` values `wp/v2/users` accepts that the table offers. */
 const SORT_KEYS = array( 'name', 'registered_date', 'email' );
 
-/**
- * The query the list reads — the filterable defaults plus the state.
- *
- * @param State $state State.
- * @return array<string,mixed>
- */
 function list_query( State $state ) {
 	$query             = openstation_users_window_default_query_args();
 	$query['page']     = max( 1, (int) $state->get( 'page' ) );
@@ -61,7 +34,7 @@ function list_query( State $state ) {
 	}
 	$role = trim( (string) $state->get( 'role' ) );
 	if ( 'none' === $role ) {
-		// As users.php does: the accounts with no role on this site, or nobody.
+
 		$ids              = wp_get_users_with_no_role();
 		$query['include'] = $ids ? array_map( 'intval', $ids ) : array( 0 );
 	} elseif ( '' !== $role ) {
@@ -70,14 +43,6 @@ function list_query( State $state ) {
 	return $query;
 }
 
-/**
- * Say what a mutation did.
- *
- * @param Os              $os     Host handle.
- * @param array|\WP_Error $result The mutation's answer.
- * @param callable        $ok     `function ( array $result ): string` — the success message.
- * @return bool Whether it succeeded.
- */
 function report( Os $os, $result, callable $ok ) {
 	if ( is_wp_error( $result ) ) {
 		$os->toast( $result->get_error_message() );
@@ -87,12 +52,6 @@ function report( Os $os, $result, callable $ok ) {
 	return true;
 }
 
-/**
- * How many of a bulk result's rows succeeded.
- *
- * @param array<string,mixed> $result Bulk result.
- * @return int
- */
 function ok_count( array $result ) {
 	return count(
 		array_filter(
@@ -109,21 +68,16 @@ return App::define( 'desktop-mode-users' )
 	->icon( 'dashicons-admin-users' )
 	->size( 1100, 720 )
 	->min_size( 720, 480 )
-	// The Users dock tile lives in WordPress's `$menu`; the URL remap
-	// routes its click here when the opt-in is on.
+
 	->placement( 'none' )
 	->can(
 		static function () {
 			return openstation_users_window_user_can_register();
 		}
 	)
-	// Resolved when the window registers, for the viewer registering it.
+
 	->config( 'openstation_users_profile_facts' )
-	// The Users menu, while this window is the one answering for it:
-	// the dock's submenu becomes these tabs, same labels, same order,
-	// and picking one opens the window on it. The window's own strip
-	// renders from the same list (`menuTabs` in the config extra), so
-	// the two cannot drift.
+
 	->menu(
 		'users.php',
 		static function () {
@@ -154,26 +108,22 @@ return App::define( 'desktop-mode-users' )
 			'page'        => 1,
 			'perPage'     => 20,
 			'search'      => '',
-			// The role filter: a slug, or `none` for accounts with no
-			// role on this site, as `users.php?role=none` spells it. A
-			// server-side scope, so a group picked on the Roles tab is
-			// a fresh collection rather than a slice of the loaded pages.
+
 			'role'        => '',
-			// The presence filter (All / Online / Active 30d / Never
-			// logged in) — a client-side slice of the page.
+
 			'status'      => '',
 			'orderby'     => 'name',
 			'order'       => 'asc',
-			// The tab strip: `all` | `add-new` | `edit`.
+
 			'tab'         => 'all',
-			// The Add User form's last failure, for the field it names.
+
 			'createError' => '',
 			'createField' => '',
-			// Bumped on every successful create — the form resets on it.
+
 			'created'     => 0,
 		)
 	)
-	// A query change replaces the result set — back to the first page.
+
 	->action(
 		'filter',
 		static function ( State $state ) {
@@ -186,7 +136,7 @@ return App::define( 'desktop-mode-users' )
 			$state->set( 'page', max( 1, (int) ( $args['page'] ?? 1 ) ) );
 		}
 	)
-	// A column header click; the table's keys map to the collection's.
+
 	->action(
 		'sort',
 		static function ( State $state, Os $os, array $args ) {
@@ -212,7 +162,7 @@ return App::define( 'desktop-mode-users' )
 					if ( 0 === $ok ) {
 						return __( 'No users updated.', 'desktop-mode' );
 					}
-					// translators: %1$d users updated, %2$d failed.
+
 					return sprintf( __( 'Role updated for %1$d user(s) (%2$d skipped).', 'desktop-mode' ), $ok, count( $ids ) - $ok );
 				}
 			);
@@ -235,7 +185,7 @@ return App::define( 'desktop-mode-users' )
 				$result,
 				static function ( array $result ) use ( $ids ) {
 					$ok = ok_count( $result );
-					// translators: %1$d users deleted, %2$d skipped.
+
 					return sprintf( __( '%1$d user(s) deleted (%2$d skipped).', 'desktop-mode' ), $ok, count( $ids ) - $ok );
 				}
 			);
@@ -253,7 +203,7 @@ return App::define( 'desktop-mode-users' )
 					? openstation_users_window_send_password_reset( (int) ( $args['id'] ?? 0 ) )
 					: new \WP_Error( 'openstation_users_forbidden', __( 'You are not allowed to email this user.', 'desktop-mode' ) ),
 				static function ( array $result ) {
-					// translators: %s is the user's email address.
+
 					return sprintf( __( 'Reset email sent to %s.', 'desktop-mode' ), $result['email'] );
 				}
 			);
@@ -268,7 +218,7 @@ return App::define( 'desktop-mode-users' )
 					? openstation_users_window_resend_welcome( (int) ( $args['id'] ?? 0 ) )
 					: new \WP_Error( 'openstation_users_forbidden', __( 'You are not allowed to email this user.', 'desktop-mode' ) ),
 				static function ( array $result ) {
-					// translators: %s is the user's email address.
+
 					return sprintf( __( 'Welcome email resent to %s.', 'desktop-mode' ), $result['email'] );
 				}
 			);
@@ -300,37 +250,33 @@ return App::define( 'desktop-mode-users' )
 				$os->toast( $result->get_error_message() );
 				return;
 			}
-			// translators: %s is the user's email address.
+
 			$os->toast( sprintf( __( 'User created — welcome email sent to %s.', 'desktop-mode' ), $result['email'] ) );
 			$os->announce( 'user', 'created', array( (int) $result['user_id'] ) );
-			// Back to the list, first page, so the new user shows up.
+
 			$state->set( 'tab', 'all' );
 			$state->set( 'page', 1 );
 			$state->set( 'created', (int) $state->get( 'created' ) + 1 );
 		}
 	)
-	// A profile saved in the User Edit window, a role changed here, a
-	// user created anywhere: the list repaints (the app's own announces
-	// are skipped by the runtime — the action already returned the rows).
+
 	->watch( 'user' )
 	->data(
 		static function ( State $state ) {
 			$list = openstation_app_rest_page( 'wp/v2/users', list_query( $state ) );
-			// Page out of range — the user was on page 7 and changed the
-			// page size. Land on page 1 rather than paint an empty table.
+
 			if ( $state->get( 'page' ) > 1 && openstation_app_rest_page_is_out_of_range( $list ) ) {
 				$state->set( 'page', 1 );
 				$list = openstation_app_rest_page( 'wp/v2/users', list_query( $state ) );
 			}
-			// The Content column: the page's counts in two grouped
-			// queries, merged in under the name the REST field uses.
+
 			$stats = openstation_users_window_stats_for( wp_list_pluck( $list['items'], 'id' ) );
 			foreach ( $list['items'] as $i => $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
 				if ( isset( $stats[ $id ] ) ) {
 					$list['items'][ $i ]['openstation_user_stats'] = $stats[ $id ];
 				}
-				// Core's row carries the name as stored (`&amp;`); the view paints text.
+
 				if ( isset( $row['name'] ) ) {
 					$list['items'][ $i ]['name'] = openstation_plain_text_title( $row['name'] );
 				}

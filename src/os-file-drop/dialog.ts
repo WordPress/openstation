@@ -1,16 +1,3 @@
-/**
- * OS-file drop manager — upload confirmation dialog.
- *
- * Renders a `<os-modal>` with one editable form per dropped
- * file. Every field arrives pre-filled with a sensible default
- * (see `defaultFields()` in `manager.ts`) but is fully editable.
- *
- * The dialog drives the upload loop itself — it doesn't hand
- * the result back to the manager. This keeps the per-file
- * progress + error state local to the dialog (the manager is
- * stateless between drops).
- */
-
 import '../ui/components/os-modal/os-modal';
 import '../ui/components/os-text-field/os-text-field';
 import '../ui/components/os-textarea/os-textarea';
@@ -48,52 +35,27 @@ interface OpenDialogArgs {
 	context: DropContext;
 	mediaUrl: string;
 	restNonce: string;
-	/** Files REST base — enables the desktop-storage destination. */
+
 	filesUrl?: string;
 	storage?: DesktopStorageConfig;
-	/** Folder drops: the Media Library has no tree concept. */
+
 	forceDesktop?: boolean;
-	/**
-	 * Soft desktop preference — used by the explicit "Upload
-	 * files…" pickers, whose whole point is desktop storage. Unlike
-	 * `forceDesktop` the selector stays visible.
-	 */
+
 	preferDesktop?: boolean;
-	/** Empty directories from a tree drop, created after the files. */
+
 	emptyDirs?: string[];
-	/**
-	 * Per-file cap for the Media Library sink (`dropConfig.maxSize`,
-	 * server default `wp_max_upload_size()`). The Desktop sink's cap
-	 * rides on `storage.maxBytes`. 0 = no client-side cap.
-	 */
+
 	mediaMaxBytes?: number;
 }
 
-/** Grid math mirrored from `src/desktop-files/grid.ts` (16/96/110). */
 function snapToGrid( x: number, y: number ): { x: number; y: number } {
 	const col = Math.max( 0, Math.round( ( x - 16 ) / 96 ) );
 	const row = Math.max( 0, Math.round( ( y - 16 ) / 110 ) );
 	return { x: 16 + col * 96, y: 16 + row * 110 };
 }
 
-/** image/video/audio are "media kinds" — the Media Library's home turf. */
 const MEDIA_KIND_RE = /^(image|video|audio)\//;
 
-/**
- * Destination default, by drop intent:
- *
- *   1. Folder-tree drops and the explicit desktop pickers →
- *      Desktop.
- *   2. WordPress admin windows (Media, Posts, Pages, …) → Media
- *      Library.
- *   3. A drop aimed at a folder (window or closed tile) → Desktop,
- *      into that folder.
- *   4. Flat files on the desk: Media Library when EVERY file is a
- *      media kind (image/video/audio — the things the Media
- *      Library exists for), Desktop otherwise.
- *
- * Exported for tests.
- */
 export function resolveDefaultDestination( opts: {
 	desktopAllowed: boolean;
 	surface: DropContext[ 'surface' ];
@@ -120,13 +82,6 @@ export function resolveDefaultDestination( opts: {
 	return allMedia ? 'media' : 'desktop';
 }
 
-/**
- * The one live dialog. A drop while a dialog is already open (and
- * not yet uploading) REPLACES its pending batch with the latest
- * drop — no stacked modals, and no mixing of two drops with
- * different intents (destination defaults, target folder, tree
- * semantics) into one batch.
- */
 let activeDialog: {
 	replace: ( next: OpenDialogArgs ) => void;
 } | null = null;
@@ -135,8 +90,7 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 	if ( args.entries.length === 0 && ! args.emptyDirs?.length ) {
 		return;
 	}
-	// Second drop while a dialog is open: the dialog updates to the
-	// latest drop and the earlier, unconfirmed batch is discarded.
+
 	if ( activeDialog ) {
 		activeDialog.replace( args );
 		return;
@@ -164,8 +118,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		}
 		let title = `Upload ${ count } files to ${ target }`;
 		if ( count === 0 ) {
-			// Pure empty-dirs tree drop — matches the "Create
-			// folders" primary button.
 			title = ( args.context.folderId ?? 0 ) > 0
 				? 'Create folders in this folder'
 				: 'Create folders on Desktop';
@@ -183,8 +135,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 	const renderBody = (): void => {
 		modal.innerHTML = '';
 
-		// Destination selector — only when both sinks are viable.
-		// Folder drops force desktop storage (no selector).
 		if ( desktopAllowed && ! args.forceDesktop ) {
 			const destWrap = document.createElement( 'div' );
 			destWrap.style.cssText =
@@ -222,9 +172,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			modal.appendChild( note );
 		}
 
-		// Per-file size cap for the active destination — the server's
-		// `wp_max_upload_size()` (min of upload_max_filesize and
-		// post_max_size), each sink independently filterable.
 		const maxBytes =
 			destination === 'desktop'
 				? args.storage?.maxBytes ?? 0
@@ -259,7 +206,7 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		const upload = document.createElement( 'os-button' );
 		upload.setAttribute( 'variant', 'primary' );
 		if ( args.entries.length === 0 ) {
-			upload.textContent = 'Create folders'; // Pure empty-dirs tree drop.
+			upload.textContent = 'Create folders';
 		} else {
 			upload.textContent =
 				args.entries.length === 1
@@ -304,8 +251,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		wrap.appendChild( heading );
 
 		if ( destination === 'desktop' ) {
-			// Desktop storage keeps only the filename — title / alt /
-			// caption / description are Media Library metadata.
 			if ( entry.relativePath ) {
 				const path = document.createElement( 'div' );
 				path.textContent = entry.relativePath;
@@ -336,8 +281,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		uploadBtn: HTMLElement,
 		cancelBtn: HTMLElement,
 	): Promise< void > => {
-		// The batch is now frozen — a drop from here on opens a
-		// fresh dialog instead of merging into a running upload.
 		if ( activeDialog === handle ) {
 			activeDialog = null;
 		}
@@ -348,23 +291,12 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		let successes = 0;
 		let failures = 0;
 		let cancelled = 0;
-		// Per-file failure messages — kept for single-file batches
-		// where the summary toast doesn't carry the error detail.
+
 		const failureDetails: string[] = [];
-		// Desktop destination: place the FIRST flat file at the
-		// snapped drop point; every other file omits coords so the
-		// server picks the next free grid slot (no origin stacking).
+
 		const parentId = args.context.folderId ?? 0;
 		let firstFlatPlaced = false;
-		// NOTE: sequential `await` — uploads run one at a time on
-		// purpose. The HUD assumes one active progress bar per
-		// `UPLOAD_STARTED` and won't reconcile concurrent streams
-		// (the per-file state is keyed by `File`, but the panel's
-		// "Uploading N of M…" header reads from a single counter).
-		// Parallelising here would also let a 10-file batch swamp
-		// the WordPress process pool / fpm workers on shared hosts.
-		// If a future change introduces a concurrency knob, the HUD
-		// header logic and the rate-limit story both need a look.
+
 		for ( let i = 0; i < total; i++ ) {
 			const entry = args.entries[ i ];
 			try {
@@ -403,14 +335,10 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 				successes++;
 			} catch ( err ) {
 				if ( err instanceof UploadCancelledError ) {
-					// Plugin filter blocked it — count as a soft skip
-					// alongside user cancellations so the summary
-					// reads consistently.
 					cancelled++;
 					continue;
 				}
 				if ( err instanceof UploadAbortedError ) {
-					// User cancelled mid-flight via the HUD button.
 					cancelled++;
 					continue;
 				}
@@ -420,27 +348,19 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 				failureDetails.push( `“${ entry.file.name }” — ${ message }` );
 			}
 		}
-		// Empty directories from a tree drop — created after the
-		// files so shared path segments already exist and dedupe.
+
 		if ( destination === 'desktop' && args.emptyDirs?.length ) {
 			for ( const dir of args.emptyDirs ) {
 				try {
 					const res = await ensureUploadPath( parentId, dir );
-					// Same immediacy as the file responses: the new
-					// folder tile paints as soon as it exists.
+
 					ingestCreatedFolders( res.createdFolders, 'local' );
 				} catch {
-					// Non-fatal: the tree's files made it; an empty
-					// stub folder failing is cosmetic.
+
 				}
 			}
 		}
-		// Tree uploads create FOLDER rows + placements server-side
-		// (mkdir-p from relativePath / emptyDirs) that the per-file
-		// responses never carry — each response only holds that
-		// file's own placement. Without a resync the new folder tile
-		// stays invisible until the next heartbeat tick. Pull the
-		// canonical container list, same pattern share-accept uses.
+
 		const createdFolders =
 			args.entries.some( ( e ) => e.relativePath ) ||
 			!! args.emptyDirs?.length;
@@ -453,7 +373,7 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 				setFolders( foldersRes.folders );
 				setFolderPlacements( parentId, placementsRes.placements );
 			} catch {
-				// Non-fatal — the heartbeat delta catches up.
+
 			}
 		}
 		modal.remove();
@@ -469,8 +389,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 
 	const handle = {
 		replace: ( next: OpenDialogArgs ): void => {
-			// Adopt the new drop wholesale — files, tree metadata,
-			// and the drop's context (target folder, coordinates).
 			args.entries = next.entries;
 			args.emptyDirs = next.emptyDirs;
 			args.forceDesktop = next.forceDesktop;
@@ -481,9 +399,7 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			for ( const entry of next.entries ) {
 				draft.push( { ...entry.fields } );
 			}
-			// Recompute the destination default for the NEW drop's
-			// intent — a manual pick on the discarded batch does not
-			// carry over.
+
 			destination = resolveDefaultDestination( {
 				desktopAllowed,
 				surface: next.context.surface,
@@ -510,7 +426,7 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			modal.remove();
 			finish();
 		} );
-		// Resolve when the modal leaves the DOM.
+
 		const observer = new MutationObserver( () => {
 			if ( ! modal.isConnected ) {
 				observer.disconnect();
@@ -565,26 +481,11 @@ interface BatchSummaryArgs {
 	destination: Destination;
 }
 
-/**
- * One-line summary toast for the end of a batch. The phrasing
- * adapts to what actually happened:
- *
- *   - All succeeded → "Uploaded N files to Media Library."
- *   - All cancelled → "All uploads cancelled."
- *   - All failed → either the lone error or "N uploads failed."
- *   - Mixed → "Uploaded N. Cancelled X. Failed Y." (only the
- *     non-zero clauses appear, so two-state batches stay short).
- *
- * Single-file batches keep the existing "<file> — <error>" toast
- * for failures because there's no other way to surface the
- * server's message.
- */
 function showBatchSummaryToast( args: BatchSummaryArgs ): void {
 	const { total, successes, failures, cancelled, failureDetails } = args;
 	const target =
 		args.destination === 'desktop' ? 'your desktop' : 'Media Library';
 
-	// Empty batch — a pure empty-dirs tree drop still deserves an ack.
 	if ( total === 0 ) {
 		if ( args.destination === 'desktop' ) {
 			showToast( { message: 'Folder created on your desktop.' } );
@@ -592,8 +493,6 @@ function showBatchSummaryToast( args: BatchSummaryArgs ): void {
 		return;
 	}
 
-	// Single-file batch — preserve the original tight feedback:
-	// one toast that either confirms or carries the server error.
 	if ( total === 1 ) {
 		if ( successes === 1 ) {
 			showToast( { message: `Uploaded to ${ target }.` } );
@@ -605,7 +504,6 @@ function showBatchSummaryToast( args: BatchSummaryArgs ): void {
 		return;
 	}
 
-	// Single-state shortcuts.
 	if ( successes === total ) {
 		showToast( {
 			message: `Uploaded ${ successes } files to ${ target }.`,
@@ -626,7 +524,6 @@ function showBatchSummaryToast( args: BatchSummaryArgs ): void {
 		return;
 	}
 
-	// Mixed result — assemble the non-zero clauses.
 	const parts: string[] = [];
 	if ( successes > 0 ) {
 		parts.push(

@@ -1,18 +1,3 @@
-/**
- * The two arrangements a workspace's `layout` adds: columns and focus.
- *
- * Both are geometry, so both are asserted as geometry. The rules worth
- * pinning are the ones that are wrong in a way nobody notices until
- * they are using it:
- *
- * - columns covers the full work-area height and hands off to `tile()`
- *   past four windows, where a column is narrower than an admin table;
- * - focus leads with the FOCUSED window, not the first in the stack,
- *   so re-applying after clicking into the reference list does not
- *   demote the thing the user just reached for;
- * - focus with one window is "maximize politely" — no margin reserved
- *   for a stack that does not exist.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
@@ -39,7 +24,6 @@ function openConfig( id: string ) {
 	};
 }
 
-/** Pixel value off an inline style, as a number. */
 function px( el: HTMLElement, prop: 'left' | 'top' | 'width' | 'height' ): number {
 	return parseInt( el.style[ prop ] || '0', 10 );
 }
@@ -101,8 +85,6 @@ describe( 'Arrange — columns + focus', () => {
 
 		manager.columns();
 
-		// padding 16 both sides, gap 12 between three columns:
-		// ( 1600 - 32 - 24 ) / 3 = 514.67 → 514.
 		for ( const win of [ a, b, c ] ) {
 			expect( px( win.element, 'width' ) ).toBe( 514 );
 			expect( px( win.element, 'height' ) ).toBe( 900 - 32 );
@@ -123,21 +105,16 @@ describe( 'Arrange — columns + focus', () => {
 		const c = await manager.open( openConfig( 'c' ) );
 
 		manager.columns();
-		// 1568 - 24 of gaps = 1544: the wide one takes 800, the other
-		// two split the 744 left.
+
 		expect( [ px( wide.element, 'left' ), px( wide.element, 'width' ) ] ).toEqual( [ 16, 800 ] );
 		expect( [ px( b.element, 'left' ), px( b.element, 'width' ) ] ).toEqual( [ 828, 372 ] );
 		expect( [ px( c.element, 'left' ), px( c.element, 'width' ) ] ).toEqual( [ 1212, 372 ] );
 
-		// Focus with the wide window in the stack: the lead gives up
-		// part of its 64% so the stack keeps 800.
 		manager.focus( b );
 		manager.focusLayout();
 		expect( px( b.element, 'width' ) ).toBe( 1568 - 12 - 800 );
 		expect( [ px( wide.element, 'left' ), px( wide.element, 'width' ) ] ).toEqual( [ 16 + 1568 - 800, 800 ] );
 
-		// Minimums that cannot all fit: each keeps its own, spread edge
-		// to edge inside the work area. Stack order: focusing `b` raised it.
 		for ( const w of [ wide, b, c ] ) {
 			w.config.minWidth = 600;
 		}
@@ -157,8 +134,6 @@ describe( 'Arrange — columns + focus', () => {
 
 		manager.columns();
 
-		// A fifth column would be narrower than an admin table's own
-		// minimum; the honest answer is a grid.
 		expect(
 			log.some( ( e ) => e.name === 'os.arrange.columns.applied' ),
 		).toBe( false );
@@ -171,14 +146,12 @@ describe( 'Arrange — columns + focus', () => {
 		const a = await manager.open( openConfig( 'a' ) );
 		const b = await manager.open( openConfig( 'b' ) );
 		const c = await manager.open( openConfig( 'c' ) );
-		// Reach for the FIRST window — the arrangement has to honour
-		// that rather than leading with the top of the stack.
+
 		manager.focus( a );
 		const log = recordActions( hooks, LAYOUT_HOOKS );
 
 		manager.focusLayout();
 
-		// area 1568 wide after padding; lead = floor( 1568 * 0.64 ).
 		const leadWidth = Math.floor( 1568 * 0.64 );
 		expect( px( a.element, 'width' ) ).toBe( leadWidth );
 		expect( px( a.element, 'height' ) ).toBe( 868 );
@@ -209,8 +182,7 @@ describe( 'Arrange — columns + focus', () => {
 	test( 'the focus split is filterable, and nonsense falls back', async () => {
 		const a = await manager.open( openConfig( 'a' ) );
 		await manager.open( openConfig( 'b' ) );
-		// `a` has to be the lead for its width to be the split — the
-		// second window is focused by virtue of having opened last.
+
 		manager.focus( a );
 
 		hooks.addFilter(
@@ -221,9 +193,6 @@ describe( 'Arrange — columns + focus', () => {
 		manager.focusLayout();
 		expect( px( a.element, 'width' ) ).toBe( Math.floor( 1568 * 0.5 ) );
 
-		// Outside the band: a lead that leaves no room for the stack is
-		// not an arrangement, so the shipped value stands rather than
-		// being clamped to something the plugin did not ask for either.
 		hooks.removeFilter( 'os.arrange.focus.split', 'test/half' );
 		hooks.addFilter( 'os.arrange.focus.split', 'test/absurd', () => 12 );
 		manager.focusLayout();

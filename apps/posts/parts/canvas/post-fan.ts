@@ -1,12 +1,3 @@
-/**
- * Posts app — the satellite post fan both term canvases deploy around
- * a focused node: the paged fetch (with a per-(term, page) cache), the
- * ring of post chips easing out from the centre, the in-world ◀ N / M ▶
- * pager, the radial edges, and the "open this post in a window" door.
- *
- * @public
- */
-
 import { __ } from '@openstation/app';
 import type { CanvasPalette } from './palette';
 import type { CanvasEnv } from '../app';
@@ -61,20 +52,20 @@ export interface PostFanDeps {
 	postChipLayer: PixiContainer;
 	postEdgeGfx: PixiGraphics;
 	env: CanvasEnv;
-	/** The `wp/v2/posts` query param naming the term (`categories` | `tags`). */
+
 	param: 'categories' | 'tags';
 	interaction: Interaction;
-	/** Chip text size and rasterisation resolution. */
+
 	chipFontSize: number;
 	chipTextRes: number;
 	pagerLabelSize: number;
 	pagerGlyphSize: number;
 	pagerTextRes?: number;
-	/** The focused node's position + tone, or null when it is gone. */
+
 	getCenter: ( id: number ) => { x: number; y: number; tone: number } | null;
-	/** The authoritative `X-WP-Total` landed for a term. */
+
 	onCountReconciled: ( termId: number, total: number ) => void;
-	/** A satellite was opened — the canvas closes its focus. */
+
 	onOpenPost: () => void;
 }
 
@@ -83,17 +74,17 @@ export interface PostFan {
 	focusId: number | null;
 	focusPage: number;
 	focusTotalPages: number;
-	/** Fetch (or serve from cache) and render the fan for the focus. */
+
 	load(): Promise< void >;
-	/** Drop the fan and hide the pager. */
+
 	clear(): void;
-	/** Invalidate any in-flight load — on close focus. */
+
 	invalidate(): void;
-	/** Per frame: ease the satellites toward their ring slots. */
+
 	ease(): void;
-	/** Radial lines from the centre to each satellite. */
+
 	drawEdges(): void;
-	/** Per frame: position + counter-scale the chips, fade them in. */
+
 	syncChips( counterScale: number ): void;
 }
 
@@ -102,15 +93,9 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 	const posts = new Map< number, PostMini >();
 	const chips = new Map< number, PostChip >();
 	const cache = new Map< string, PostsCacheEntry >();
-	// Monotonic token for in-flight loads: a fast click between nodes
-	// (or a page flip during a slow fetch) must not land stale
-	// satellites on the wrong term.
+
 	let loadSeq = 0;
 
-	// Pager — one container, painted once and toggled with `.visible`.
-	// `passive` so pointer events pass to the children, which opt in
-	// with explicit hit areas (a static container with no hitArea
-	// falls back to the union of child bounds and steals clicks).
 	const pager = new pixi.Container();
 	pager.eventMode = 'passive';
 	pager.visible = false;
@@ -137,7 +122,7 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 			return;
 		}
 		stopBubble( interaction, e );
-		// The DOM click that follows must not read as "empty canvas".
+
 		interaction.lastFocusChange = performance.now();
 		if ( fan.focusPage > 1 ) {
 			fan.focusPage--;
@@ -240,7 +225,7 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 		const container = new pixi.Container();
 		container.eventMode = 'static';
 		container.cursor = 'pointer';
-		// Starts invisible; `syncChips` fades it in with the ring motion.
+
 		container.alpha = 0;
 		const bg = new pixi.Graphics();
 		const dot = new pixi.Graphics();
@@ -260,9 +245,7 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 			if ( isPinchGesture( interaction ) ) {
 				return;
 			}
-			// Open the post AND release the camera in the same gesture.
-			// Leave the list window's fullscreen first, where a normal-z
-			// window would open behind it.
+
 			env.leaveFullscreen();
 			env.openUrl( post.editUrl, post.title, 'dashicons-admin-post' );
 			deps.onOpenPost();
@@ -288,8 +271,7 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 		const ringR = POST_RING_RADIUS + Math.max( 0, count - 8 ) * 6;
 		items.forEach( ( item, idx ) => {
 			const angle = ( ( 2 * Math.PI ) / Math.max( 1, count ) ) * idx - Math.PI / 2;
-			// `gfx` only carries a position for the edge drawing; the chip
-			// is the visual.
+
 			const gfx = new pixi.Graphics();
 			postLayer.addChild( gfx );
 			const post: PostMini = {
@@ -313,7 +295,7 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 
 	function apply( entry: PostsCacheEntry, termId: number ): void {
 		fan.focusTotalPages = entry.totalPages;
-		// The authoritative count, even on a cache hit.
+
 		if ( Number.isFinite( entry.realTotal ) && entry.realTotal >= 0 ) {
 			deps.onCountReconciled( termId, entry.realTotal );
 		}

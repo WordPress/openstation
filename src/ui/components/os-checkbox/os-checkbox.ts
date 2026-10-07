@@ -1,29 +1,3 @@
-/**
- * `<os-checkbox>` — standalone checkbox primitive.
- *
- * Counterpart to `<os-checkbox-label>` (which ships an opinionated
- * label-row layout). This component paints just the native checkbox
- * styled with the admin accent colour, optionally with an inline
- * label to its right. Use when you need full control over label
- * placement — a form row with the label above the box, a table
- * cell, a settings panel that groups two boxes under one label.
- *
- * ```html
- * <os-checkbox checked value="hd" label="HD only"></os-checkbox>
- * ```
- *
- * Or without the inline label — caller owns the layout:
- *
- * ```html
- * <label for="only-hd">HD only</label>
- * <os-checkbox id="only-hd" value="hd"></os-checkbox>
- * ```
- *
- * Emits `os-checkbox-change` with `{ checked, value }` on user
- * toggles — same event name `<os-checkbox-label>` uses so callers
- * can listen at a common ancestor and treat both identically.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-checkbox.styles';
 
@@ -107,9 +81,7 @@ export class OsCheckbox extends Component {
 	private _onChange( e: Event ): void {
 		const input = e.target as HTMLInputElement;
 		const next = input.checked;
-		// Reflect to attribute so CSS + future reads (including
-		// declarative snapshots) see the new state without touching
-		// the DOM.
+
 		if ( next ) {
 			this.setAttribute( 'checked', '' );
 		} else {

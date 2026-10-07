@@ -1,16 +1,3 @@
-/**
- * Tests for the display half of `src/mode/` — `standalone` versus
- * `browser`.
- *
- * Pins:
- * - `resolveDisplay()` is the one rule: the display-mode query, else
- *   Safari's `navigator.standalone`, else `browser`;
- * - `installMode()` stamps `data-os-display` on the root at once,
- *   re-stamps when the query flips (an install while the tab is
- *   open), and exposes it as `getDisplay()` / `isStandalone()`;
- * - the leaf stamp helpers read what the head stamp wrote;
- * - `dispose()` lets go of the query.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { installMode, resolveDisplay, STANDALONE_QUERY } from '../../src/mode';
 import {
@@ -21,7 +8,6 @@ import {
 } from '../../src/mode/stamp';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
-/** A `matchMedia` whose display-mode answer can be flipped from the test. */
 function fakeMatchMedia( standalone: { value: boolean } ) {
 	const listeners = new Set< ( e: MediaQueryListEvent ) => void >();
 	let displayList: MediaQueryList | null = null;

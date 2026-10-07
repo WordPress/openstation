@@ -1,12 +1,3 @@
-/**
- * Tests for `maybeShowUpdate()` — the async core-update notification
- * picker — and `updateMessage()`. `showToast` is mocked; the art
- * resolver, image preloader, and card renderer are injected as fakes
- * (the same seam production uses to reach the lazy `release-card`
- * bundle) so we assert which surface is chosen without touching the
- * network or loading any bundle.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { maybeShowUpdate, updateMessage } from './update-notice';
 import { showToast, type ToastOptions } from './toast';
@@ -74,13 +65,13 @@ describe( 'maybeShowUpdate', () => {
 			openUrl, resolveArt, loadImage, showCard,
 		} );
 		expect( toastMock ).not.toHaveBeenCalled();
-		// Crossing → the resolver may retry a missing announcement sooner.
+
 		expect( resolveArt ).toHaveBeenCalledWith( '7.0', true );
 		const c = lastCard();
-		// Crossing → branch version + codename in the message.
+
 		expect( c.message ).toBe( 'WordPress 7.0 "Armstrong" is available.' );
 		expect( c.artUrl ).toBe( ART.artUrl );
-		// Dismissal keyed on the exact available version, not the branch.
+
 		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0.1' );
 	} );
 
@@ -89,7 +80,7 @@ describe( 'maybeShowUpdate', () => {
 			update: { version: '7.0.1', branch: '7.0', url: '/u', crossing: false },
 			openUrl, resolveArt, loadImage, showCard,
 		} );
-		// Not crossing → exact version, no codename.
+
 		expect( lastCard().message ).toBe( 'WordPress 7.0.1 is available.' );
 	} );
 
@@ -113,7 +104,6 @@ describe( 'maybeShowUpdate', () => {
 		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0.1:no-art' ) ).toBe( true );
 		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0.1' ) ).toBe( false );
 
-		// Dismissed → the toast doesn't come back.
 		toastMock.mockClear();
 		await maybeShowUpdate( { update, openUrl, resolveArt, loadImage, showCard } );
 		expect( toastMock ).not.toHaveBeenCalled();
@@ -125,7 +115,6 @@ describe( 'maybeShowUpdate', () => {
 		await maybeShowUpdate( { update, openUrl, resolveArt, loadImage, showCard } );
 		lastToast().onDismiss!();
 
-		// The announcement post lands later, so the art now resolves.
 		resolveArt.mockResolvedValue( ART );
 		await maybeShowUpdate( { update, openUrl, resolveArt, loadImage, showCard } );
 		expect( lastCard().dismissKey ).toBe( 'desktop-mode/core-update:7.1' );

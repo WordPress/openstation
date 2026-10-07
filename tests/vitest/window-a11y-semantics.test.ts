@@ -1,17 +1,3 @@
-/**
- * Accessibility semantics of the window shell.
- *
- * Three things a screen-reader user relies on, none of which are
- * visible and all of which regressed silently before:
- *
- *   1. Every window-control button has to have an accessible name.
- *      The label lives on the `<os-window-button>` host, but focus
- *      lands on a `<button>` inside its shadow root — the component
- *      forwards it.
- *   2. A window with no sub-pages must not advertise an empty tab
- *      list (nor a `<nav>` landmark with nothing in it).
- *   3. A window whose content is still loading has to say so.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { createWindowElement, syncTabStripSemantics } from '../../src/window/dom';
 import {
@@ -27,8 +13,7 @@ import { paintWindowControls } from '../../src/window-chrome/controls/render';
 import { registerBuiltInControls } from '../../src/window-chrome/controls/built-ins';
 import type { Window as DesktopWindow } from '../../src/window';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
-// Side-effect import — defines `<os-window-button>` so the painted
-// controls upgrade and expose a shadow root to assert against.
+
 import '../../src/ui/components/os-window-button/os-window-button';
 
 const tick = (): Promise< void > => Promise.resolve();
@@ -80,11 +65,10 @@ describe( 'window-control buttons — accessible names', () => {
 			return inner.getAttribute( 'aria-label' ) ?? '';
 		} );
 
-		// Named…
 		for ( const name of names ) {
 			expect( name.length ).toBeGreaterThan( 0 );
 		}
-		// …and distinguishable from one another.
+
 		expect( new Set( names ).size ).toBe( names.length );
 	} );
 } );
@@ -102,7 +86,7 @@ describe( 'tab strip — no empty tablist', () => {
 	test( 'a window with no submenu exposes no tablist and no nav landmark', () => {
 		const el = createWindowElement( { ...BASE_CONFIG, id: 'a11y-no-subs' } );
 		const strip = el.querySelector< HTMLElement >( '.os-window__tabs' )!;
-		// The element still exists — external sub-tabs can arrive later.
+
 		expect( strip.getAttribute( 'role' ) ).toBe( 'presentation' );
 		expect( strip.hasAttribute( 'aria-label' ) ).toBe( false );
 	} );
@@ -157,7 +141,7 @@ describe( 'loading state — exposed, not hidden', () => {
 		expect( overlay.getAttribute( 'aria-hidden' ) ).toBeNull();
 		expect( overlay.getAttribute( 'role' ) ).toBe( 'status' );
 		expect( overlay.getAttribute( 'aria-live' ) ).toBe( 'polite' );
-		// The spinner carries the announced text.
+
 		expect(
 			overlay.querySelector( 'os-spinner' )!.getAttribute( 'label' ),
 		).toBe( 'Loading window content' );
@@ -166,8 +150,7 @@ describe( 'loading state — exposed, not hidden', () => {
 	test( 'aria-busy tracks the loading → ready → loading cycle', () => {
 		const el = createWindowElement( { ...BASE_CONFIG, id: 'a11y-busy' } );
 		document.body.appendChild( el );
-		// Born busy — construction marks the window loading before it
-		// is in the document.
+
 		expect( el.getAttribute( 'aria-busy' ) ).toBe( 'true' );
 
 		markWindowContentReady( 'a11y-busy' );

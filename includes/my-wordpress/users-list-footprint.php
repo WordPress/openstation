@@ -1,42 +1,7 @@
 <?php
-/**
- * OpenStation — "View activity footprint" row action in the classic
- * Users list table.
- *
- * Adds a hover row action to `wp-admin/users.php` that, inside the
- * desktop shell's chromeless iframe, opens the user's GitHub-style
- * activity footprint in the "My WordPress" native window. The link's
- * `href` is a real profile-edit URL so a no-JS load or a modifier /
- * middle click degrades to a sensible page; inside the shell the
- * chromeless bridge (`includes/render/chromeless-bridge.php`)
- * intercepts the `data-os-footprint` attribute and
- * postMessages the parent to open the footprint WITHOUT navigating the
- * Users list away.
- *
- * Only rendered on chromeless requests — the one context where the
- * desktop shell is present to receive the message. In a detached
- * classic tab (`?desktop_mode_classic=1`) or with OpenStation off the
- * action is omitted rather than shown as a link that would mislabel the
- * profile editor as the footprint. When the native Users window opt-in
- * is on, `users.php` is remapped to that window and never renders this
- * classic list, so there is no conflict.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Append the "View activity footprint" action to a Users-table row.
- *
- * Hooked on `user_row_actions`. Returns the actions unchanged outside
- * a chromeless request, for an invalid user object, or when the
- * `openstation_user_footprint_row_action` filter opts the row out.
- *
- * @param string[] $actions     Row action links keyed by slug.
- * @param WP_User  $user_object The user the row represents.
- * @return string[] Filtered row actions.
- */
 function openstation_user_footprint_row_action( $actions, $user_object ) {
 	if ( ! openstation_is_chromeless_request() ) {
 		return $actions;
@@ -48,26 +13,10 @@ function openstation_user_footprint_row_action( $actions, $user_object ) {
 
 	$user_id = (int) $user_object->ID;
 
-	/**
-	 * Filters whether the "View activity footprint" row action is shown
-	 * for a user in the classic Users list table.
-	 *
-	 * Return false to suppress the action — e.g. to scope it to a role,
-	 * or to hide it on the current user's own row. Default true for any
-	 * chromeless request that reaches this filter (where the row is
-	 * already gated by the `list_users` capability the table requires).
-	 *
-	 * @param bool    $show        Whether to show the action. Default true.
-	 * @param WP_User $user_object The user the row represents.
-	 */
 	if ( ! apply_filters( 'openstation_user_footprint_row_action', true, $user_object ) ) {
 		return $actions;
 	}
 
-	// Graceful fallback target, followed only when JS is off or on a
-	// modifier / middle click: the profile-edit screen for this user
-	// (own profile uses profile.php). Inside the shell the chromeless
-	// bridge preventDefaults the click and opens the footprint instead.
 	$fallback_url = get_current_user_id() === $user_id
 		? admin_url( 'profile.php' )
 		: add_query_arg( 'user_id', $user_id, admin_url( 'user-edit.php' ) );

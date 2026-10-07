@@ -1,24 +1,3 @@
-/**
- * The shell-bundle diet's boundary.
- *
- * Five features moved out of `desktop[.min].js` into gesture- and
- * presence-gated bundles: the OS-file-drop machinery (`file-drop`),
- * the click-opened desktop-files surfaces (`files-overlays`), pinned
- * notes (`notes`), the dock hover flyout (`dock-constellation`), and
- * the window-link visuals (`window-link-visuals`). Each leaves only
- * a small sentinel / loader / leaf behind.
- *
- * The IIFE build is why this test exists: rollup INLINES dynamic
- * imports in single-chunk output, so a well-meaning
- * `void import( './heavy' )` lands the whole module in the shell
- * bundle anyway — that is exactly how the file-drop machinery, the
- * share modal and the upload dialog were all riding boot despite
- * lazy-looking call sites. The walk below therefore follows dynamic
- * imports too, and holds the main bundle's reach into each split
- * area to a named allowlist. Reintroducing a static OR dynamic
- * import of a split module from shell code fails here with the
- * offending edge named.
- */
 import { describe, expect, test } from 'vitest';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -26,12 +5,6 @@ import { dirname, join, relative, resolve } from 'node:path';
 const ROOT = resolve( __dirname, '../..' );
 const MAIN_ENTRY = resolve( ROOT, 'src/desktop.ts' );
 
-/**
- * Per split area: the directory (relative to `src/`) and the files
- * inside it the shell IS allowed to reach. Everything else in the
- * directory must only be reachable from the split bundle's own
- * entry.
- */
 const SPLIT_AREAS: ReadonlyArray< {
 	dir: string;
 	allowed: readonly string[];
@@ -40,9 +13,9 @@ const SPLIT_AREAS: ReadonlyArray< {
 	{
 		dir: 'os-file-drop',
 		allowed: [
-			// The sentinel IS the shell-side half of the split.
+
 			'os-file-drop/sentinel.ts',
-			// Zero-dependency leaves shared with resident features.
+
 			'os-file-drop/format-bytes.ts',
 			'os-file-drop/hooks.ts',
 			'os-file-drop/types.ts',
@@ -53,7 +26,7 @@ const SPLIT_AREAS: ReadonlyArray< {
 		dir: 'notes',
 		allowed: [
 			'notes/sentinel.ts',
-			// Constants + types only; the Note Pad widget shares it.
+
 			'notes/types.ts',
 		],
 		why: 'presence-gated on hasNotes / first note-creating gesture',
@@ -62,18 +35,13 @@ const SPLIT_AREAS: ReadonlyArray< {
 		dir: 'dock-constellation',
 		allowed: [
 			'dock-constellation/sentinel.ts',
-			// Deliberate zero-import leaf — dock-peek stands down
-			// while the flyout owns the hover gesture.
+
 			'dock-constellation/active.ts',
 		],
 		why: 'loads on the first pointer entering a dock rail',
 	},
 ];
 
-/**
- * Individual split FILES inside directories that otherwise stay in
- * the shell.
- */
 const SPLIT_FILES: ReadonlyArray< { file: string; why: string } > = [
 	{
 		file: 'desktop-files/share-settings-modal.ts',
@@ -112,11 +80,6 @@ function resolveSpecifier( spec: string, from: string ): string | null {
 
 const depsCache = new Map< string, string[] >();
 
-/**
- * Runtime imports of one module — static AND dynamic (`import(…)`),
- * because the IIFE build inlines both. `import type` is erased and
- * skipped.
- */
 function runtimeDeps( file: string ): string[] {
 	const cached = depsCache.get( file );
 	if ( cached ) {
@@ -129,9 +92,7 @@ function runtimeDeps( file: string ): string[] {
 		depsCache.set( file, [] );
 		return [];
 	}
-	// Comments off before scanning — several modules narrate their
-	// own old `import( '…' )` call sites in prose, and a crude regex
-	// walker would read those as real edges.
+
 	source = source
 		.replace( /\/\*[\s\S]*?\*\//g, '' )
 		.replace( /(^|[^:])\/\/[^\n]*/g, '$1' );
@@ -163,7 +124,6 @@ function runtimeDeps( file: string ): string[] {
 	return out;
 }
 
-/** Every file reachable from an entry, with one example import path. */
 function reachable( entry: string ): Map< string, string[] > {
 	const seen = new Map< string, string[] >();
 	const queue: Array< { file: string; path: string[] } > = [
@@ -228,8 +188,7 @@ describe( 'shell-bundle boundary', () => {
 	} );
 
 	test( 'each split bundle entry actually reaches its feature', () => {
-		// The inverse guard: a split whose entry stopped importing the
-		// feature would ship an empty bundle and a dead sentinel.
+
 		const expectations: Array< [ string, string ] > = [
 			[ 'src/os-file-drop/entry.ts', 'os-file-drop/dialog.ts' ],
 			[ 'src/desktop-files/overlays-entry.ts', 'desktop-files/share-settings-modal.ts' ],

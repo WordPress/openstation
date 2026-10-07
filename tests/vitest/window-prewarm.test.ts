@@ -1,20 +1,3 @@
-/**
- * Tests for `WindowManager.prewarm()` / adoption — hover-intent
- * speculative windows.
- *
- * Contract under test:
- *   - a prewarmed window mounts hidden (display:none + aria-hidden),
- *     stays OUT of the stack, and announces nothing
- *   - `open()` for the same page adopts it: same Window instance,
- *     revealed, stacked, `os-window-opened` fired exactly then
- *   - so does `openNew()`, the door every menu click takes
- *   - `open()` for a different URL under the same baseId discards the
- *     speculation and builds a fresh window
- *   - discard tears the element down without announcing a close
- *   - the slot is single-occupancy (newest prediction evicts) and
- *     refuses to warm a page that is already open
- *   - the TTL reaps an unclaimed prewarm
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
@@ -117,7 +100,7 @@ describe( 'WindowManager.prewarm', () => {
 		expect( manager.getAll() ).toHaveLength( 1 );
 		expect( manager.getFocused() ).toBe( win );
 		expect( openedEvents ).toEqual( [ 'edit-php' ] );
-		// Exactly one window element — adoption, not a duplicate build.
+
 		expect(
 			desktopArea.querySelectorAll( '.os-window' ),
 		).toHaveLength( 1 );
@@ -154,7 +137,7 @@ describe( 'WindowManager.prewarm', () => {
 
 		expect( desktopArea.querySelector( '#wp-window-edit-php' ) ).toBeNull();
 		expect( closedEvents ).toHaveLength( 0 );
-		// Slot free again.
+
 		expect( await manager.prewarm( openConfig( 'edit-php' ) ) ).toBe( true );
 	} );
 
@@ -176,12 +159,7 @@ describe( 'WindowManager.prewarm', () => {
 	} );
 
 	test( 'a click landing mid-prewarm does not leave two windows on one id', async () => {
-		// `prewarm()` awaits its bundles before it can record the slot,
-		// and a prewarmed window stays OUT of the stack — so an
-		// `open()` arriving during that await found nothing to adopt
-		// and built its own. Storing the speculation afterwards left
-		// two Window instances answering to the same id, one of them
-		// invisible and holding an admin iframe.
+
 		const warming = manager.prewarm( openConfig( 'edit-php' ) );
 		await manager.open( openConfig( 'edit-php' ) );
 		const warmed = await warming;
@@ -192,18 +170,12 @@ describe( 'WindowManager.prewarm', () => {
 		expect(
 			desktopArea.querySelectorAll( '#wp-window-edit-php' ),
 		).toHaveLength( 1 );
-		// Exactly one open announced — the click's. The discarded
-		// speculation must not announce anything.
+
 		expect( openedEvents ).toEqual( [ 'edit-php' ] );
 	} );
 
 	test( 'discarding releases the connection bridge without announcing a close', async () => {
-		// A prewarmed iframe loads a real admin page, so its bridge
-		// posts `os-ready` and the parent registers the window with the
-		// connection bridge — keyed by id, and normally released on
-		// WINDOW_CLOSED. This path must not fire that event (nothing
-		// ever announced the open), so the registration was simply
-		// never released and every unadopted hover leaked one.
+
 		const closed: string[] = [];
 		(
 			globalThis as unknown as {

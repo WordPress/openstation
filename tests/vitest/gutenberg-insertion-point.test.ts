@@ -1,11 +1,3 @@
-/**
- * Tests for the insertion-point lookup the Gutenberg drop receiver
- * runs on every streamed pointer position: which block list, and
- * which index in it, a pointer over the editor DOM maps to.
- *
- * jsdom has no layout, so every block gets an explicit rect and
- * `elementFromPoint` is answered from those rects.
- */
 import { afterEach, describe, expect, test } from 'vitest';
 import {
 	computeInsertionPoint,
@@ -37,27 +29,18 @@ function contains( el: HTMLElement, x: number, y: number ): boolean {
 	return x >= r.left && x < r.right && y >= r.top && y < r.bottom;
 }
 
-/**
- * Answer `elementFromPoint` with the deepest element whose rect
- * contains the point, walking the given list in document order.
- */
 function installHitTest( doc: Document, candidates: HTMLElement[] ): void {
 	doc.elementFromPoint = ( x: number, y: number ) => {
 		let hit: HTMLElement | null = null;
 		for ( const el of candidates ) {
 			if ( contains( el, x, y ) ) {
-				hit = el; // later (deeper) candidates win
+				hit = el;
 			}
 		}
 		return hit;
 	};
 }
 
-/**
- * Root layout 0–400 wide, 0–300 tall: block A (0–100), block B
- * (100–200) which is a Group holding a nested layout with block C
- * (110–190), then empty space to 300.
- */
 function mountEditor( doc: Document = document ): {
 	root: HTMLElement;
 	a: HTMLElement;
@@ -107,16 +90,16 @@ describe( 'computeInsertionPoint', () => {
 
 	test( 'a nested block resolves against its parent list', () => {
 		mountEditor();
-		// C sits inside B's inner list: before C, then after C.
+
 		expect( computeInsertionPoint( document, 50, 120 ) ).toEqual( { rootClientId: 'bbb', index: 0 } );
 		expect( computeInsertionPoint( document, 50, 180 ) ).toEqual( { rootClientId: 'bbb', index: 1 } );
 	} );
 
 	test( 'the empty space of a list appends, or inserts before the first block below', () => {
 		mountEditor();
-		// Below every root block.
+
 		expect( computeInsertionPoint( document, 50, 250 ) ).toEqual( { rootClientId: '', index: 2 } );
-		// Inside B's inner list but above C (105–110).
+
 		expect( computeInsertionPoint( document, 50, 107 ) ).toEqual( { rootClientId: 'bbb', index: 0 } );
 	} );
 
@@ -166,8 +149,7 @@ describe( 'blocks inside the editor-canvas iframe', () => {
 		document.body.appendChild( frame );
 		setRect( frame, { left: 40, top: 60, width: 800, height: 600 } );
 		const canvasDoc = frame.contentDocument as Document;
-		// The bug this pins: the canvas document's elements are not
-		// `instanceof` the receiver realm's HTMLElement.
+
 		expect( canvasDoc.body instanceof HTMLElement ).toBe( false );
 		mountEditor( canvasDoc );
 
@@ -175,13 +157,13 @@ describe( 'blocks inside the editor-canvas iframe', () => {
 			const p = resolveCanvasPoint( document, x, y );
 			return computeInsertionPoint( p.doc, p.x, p.y );
 		};
-		// (90, 80) in the outer viewport is (50, 20) in the canvas: A's top half.
+
 		expect( lookup( 90, 80 ) ).toEqual( { rootClientId: '', index: 0 } );
-		// (90, 140) → (50, 80): A's bottom half.
+
 		expect( lookup( 90, 140 ) ).toEqual( { rootClientId: '', index: 1 } );
-		// (90, 240) → (50, 180): after C, inside B's list.
+
 		expect( lookup( 90, 240 ) ).toEqual( { rootClientId: 'bbb', index: 1 } );
-		// (90, 310) → (50, 250): below every root block.
+
 		expect( lookup( 90, 310 ) ).toEqual( { rootClientId: '', index: 2 } );
 	} );
 } );

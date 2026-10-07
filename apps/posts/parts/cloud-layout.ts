@@ -1,19 +1,8 @@
-/**
- * Posts app — the Tags cloud's pure layout: the count → font-size
- * mapping, the per-slug hue and rotation that give the wall its
- * hand-arranged texture, the Archimedean spiral packer (cluster-aware
- * when co-occurrence data is in), and the localStorage persistence of
- * dragged chip positions.
- *
- * @public
- */
-
 import type { TermNeighbor } from './types';
 
 const MIN_FONT_SIZE = 11;
 const MAX_FONT_SIZE = 28;
-// Extra padding around each chip's AABB so they don't kiss — ~12px
-// reads as a sticker wall, not a brick.
+
 const SPIRAL_PADDING = 14;
 
 export interface Aabb {
@@ -23,7 +12,6 @@ export interface Aabb {
 	h: number;
 }
 
-/** What the packer needs from a chip: its size, and where it lands. */
 export interface PackBox {
 	id: number;
 	count: number;
@@ -34,8 +22,6 @@ export interface PackBox {
 }
 
 export function fontSizeFor( count: number, max: number ): number {
-	// sqrt() compresses the high tail so one 1000-post tag doesn't
-	// dwarf everything — the same mapping as the mind map's radii.
 	const ratio = Math.sqrt( count / Math.max( 1, max ) );
 	return Math.round( MIN_FONT_SIZE + ( MAX_FONT_SIZE - MIN_FONT_SIZE ) * ratio );
 }
@@ -44,11 +30,6 @@ function aabbIntersect( a: Aabb, b: Aabb ): boolean {
 	return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-/**
- * Stable per-slug hash. A plain modular accumulator (no bitwise ops —
- * the lint rule bans them); the 2^31 modulus keeps multiplication
- * exact across long slugs.
- */
 function slugHash( slug: string ): number {
 	let h = 0;
 	for ( let i = 0; i < slug.length; i++ ) {
@@ -57,23 +38,16 @@ function slugHash( slug: string ): number {
 	return h;
 }
 
-/** A stable per-slug hue, offset from the admin theme hue. */
 export function tagHue( slug: string, baseHue: number ): number {
 	return ( ( ( baseHue + ( slugHash( slug ) % 256 ) * 1.4 ) % 360 ) + 360 ) % 360;
 }
 
-/** A tiny per-slug rotation, ~[-3°, +3°] in radians. */
 export function tagRotation( slug: string ): number {
 	const h = slugHash( slug );
 	const sign = h % 2 === 0 ? -1 : 1;
 	return sign * ( Math.floor( h / 2 ) % 4 ) * 0.011;
 }
 
-/**
- * Walk an Archimedean spiral outward from the anchor in fine angular
- * steps, picking the first slot whose padded AABB clears every placed
- * one. The slight Y stretch (0.7×) gives the cloud a newspaper aspect.
- */
 export function findSpiralSlot( w: number, h: number, placed: Aabb[], anchorX = 0, anchorY = 0 ): { x: number; y: number } {
 	if ( placed.length === 0 ) {
 		return { x: anchorX, y: anchorY };
@@ -83,7 +57,7 @@ export function findSpiralSlot( w: number, h: number, placed: Aabb[], anchorX = 
 		const aabb = { x: cx - w / 2 - padding, y: cy - h / 2 - padding, w: w + padding * 2, h: h + padding * 2 };
 		return ! placed.some( ( p ) => aabbIntersect( aabb, p ) );
 	};
-	// The anchor itself first — a free centroid places the chip exactly there.
+
 	if ( free( anchorX, anchorY ) ) {
 		return { x: anchorX, y: anchorY };
 	}
@@ -97,18 +71,10 @@ export function findSpiralSlot( w: number, h: number, placed: Aabb[], anchorX = 
 			return { x: cx, y: cy };
 		}
 	}
-	// Unreachable on an unbounded spiral; a safe fallback keeps the function total.
+
 	return { x: anchorX, y: anchorY + ( placed.length + 1 ) * ( h + padding ) };
 }
 
-/**
- * Cluster-aware pack. Each box's anchor is the shared-count-weighted
- * centroid of its already-placed co-occurring siblings; a box with no
- * placed neighbour starts a new cluster on a coarse golden-angle
- * meta-spiral. With an empty map every box anchors at the origin —
- * the pure popularity spiral. Mutates `placed` / `placedById` so later
- * boxes see earlier ones, and writes `tx` / `ty`.
- */
 export function packBoxesWithClusters(
 	boxesInOrder: PackBox[],
 	placed: Aabb[],
@@ -161,8 +127,6 @@ export function packBoxesWithClusters(
 	}
 }
 
-// ---- localStorage — the user's dragged positions, scoped per site ----
-
 export interface PersistedPosition {
 	x: number;
 	y: number;
@@ -194,7 +158,7 @@ export function readPersistedPositions( key: string ): Map< number, PersistedPos
 			}
 		}
 	} catch {
-		// Unreadable storage: start clean.
+
 	}
 	return out;
 }
@@ -207,6 +171,6 @@ export function writePersistedPositions( key: string, positions: Map< number, Pe
 		}
 		window.localStorage.setItem( key, JSON.stringify( obj ) );
 	} catch {
-		// localStorage may be disabled; lose the persistence quietly.
+
 	}
 }

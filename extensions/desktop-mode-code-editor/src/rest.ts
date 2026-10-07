@@ -1,14 +1,3 @@
-/**
- * Code Editor — REST glue.
- *
- * Single thin layer over `fetch()` so every endpoint inherits the
- * same `X-WP-Nonce` header, AbortController plumbing, and JSON
- * decoding. Callers see typed promises; errors surface as a typed
- * `RestError` with the WP error `code` for branching.
- *
- * @public
- */
-
 import type { CodeEditorConfig } from './monaco-bootstrap';
 
 export interface TreeEntry {
@@ -33,7 +22,6 @@ export interface FileResponse {
 	encoding: string;
 }
 
-/** Typed REST error — carries the server's WP_Error `code` for branching. */
 export class RestError extends Error {
 	public readonly code: string;
 	public readonly status: number;
@@ -103,9 +91,6 @@ async function getJson< T >(
 	return body as T;
 }
 
-/**
- * GET /desktop-mode-code-editor/v1/tree?path=<rel>
- */
 export function fetchTree(
 	path: string,
 	signal?: AbortSignal,
@@ -117,9 +102,6 @@ export function fetchTree(
 	);
 }
 
-/**
- * GET /desktop-mode-code-editor/v1/file?path=<rel>
- */
 export function fetchFile(
 	path: string,
 	signal?: AbortSignal,
@@ -131,13 +113,8 @@ export function fetchFile(
 	);
 }
 
-// ---------------------------------------------------------------------------
-// PHP symbol lookup
-// ---------------------------------------------------------------------------
-
 export type PhpSymbolKind = 'function' | 'action' | 'filter' | 'class' | 'constant';
 
-/** List-mode entry — trim shape, no full PHPDoc. */
 export interface PhpSymbolMatch {
 	name: string;
 	kind: PhpSymbolKind;
@@ -153,7 +130,6 @@ export interface PhpSymbolsResponse {
 	matches: PhpSymbolMatch[];
 }
 
-/** Detail-mode entry — full PHPDoc + parameter list. */
 export interface PhpSymbolDetail extends PhpSymbolMatch {
 	doc: string;
 	params?: Array< {
@@ -164,19 +140,12 @@ export interface PhpSymbolDetail extends PhpSymbolMatch {
 		by_ref: boolean;
 		type: string | null;
 	} >;
-	/** Workspace symbols only — relative path under the workspace root. */
+
 	file?: string;
-	/** Workspace symbols only — 1-indexed line of the declaration. */
+
 	line?: number;
 }
 
-/**
- * GET /desktop-mode-code-editor/v1/php-symbols?prefix=…&kinds=…
- *
- * Returns the trimmed list shape (no full doc strings) — Monaco
- * fetches the heavy `PhpSymbolDetail` lazily via {@link fetchPhpSymbolDetail}
- * only when the user hovers / requests resolve.
- */
 export function fetchPhpSymbols(
 	prefix: string,
 	kinds: PhpSymbolKind[],
@@ -193,12 +162,6 @@ export function fetchPhpSymbols(
 	);
 }
 
-/**
- * GET /desktop-mode-code-editor/v1/php-symbols/<name>
- *
- * Full record for one symbol — PHPDoc summary, parameters, source.
- * Drives the hover popover.
- */
 export async function fetchPhpSymbolDetail(
 	name: string,
 	signal?: AbortSignal,
@@ -236,25 +199,18 @@ export async function fetchPhpSymbolDetail(
 	return body as PhpSymbolDetail;
 }
 
-/** Server's response to a successful save. */
 export interface SaveResponse {
 	path: string;
 	mtime: number;
 	size: number;
 }
 
-/** Error data shape on a 409 conflict. */
 export interface ConflictData {
 	server_mtime: number;
 	server_content: string;
 	server_size: number;
 }
 
-/**
- * Encode a JS string to base64. UTF-safe — `btoa()` alone fails on
- * any non-ASCII character; we go through TextEncoder and then base64
- * the bytes.
- */
 function utf8ToBase64( str: string ): string {
 	const bytes = new TextEncoder().encode( str );
 	let bin = '';
@@ -264,17 +220,6 @@ function utf8ToBase64( str: string ): string {
 	return btoa( bin );
 }
 
-/**
- * POST /desktop-mode-code-editor/v1/file — write a file's contents.
- * The server registers both PUT and POST on this route; the client
- * sends POST because some hosts' WAFs block PUT requests containing
- * `<?php` strings.
- *
- * On a 409 conflict (file changed on disk since the editor opened
- * it) the thrown {@link RestError} carries `data` shaped as
- * {@link ConflictData} — caller can branch and offer "reload from
- * disk" / "overwrite anyway".
- */
 export async function saveFile(
 	path: string,
 	content: string,

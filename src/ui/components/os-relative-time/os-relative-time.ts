@@ -1,44 +1,6 @@
-/**
- * `<os-relative-time>` — auto-ticking relative timestamp.
- *
- * Renders "5 minutes ago" / "yesterday" / "in 3 hours" via
- * `Intl.RelativeTimeFormat` and updates itself on a shared
- * 30-second ticker so a long-lived UI (the Recycle Bin window,
- * a notifications widget, a log view) shows accurate copy
- * without asking the consumer to plumb a refresh.
- *
- * Usage:
- *
- *   <os-relative-time datetime="2026-04-28T13:00:00Z"></os-relative-time>
- *   → "5 minutes ago"
- *
- * Accepts ISO 8601 (`2026-04-28T13:00:00Z`, `…+02:00`) or a value with
- * no timezone designator at all — MySQL-style (`2026-04-28 13:00:00`)
- * or bare ISO (`2026-04-28T13:00:00`). **Anything without a designator
- * is read as UTC**, which is what WordPress's `*_gmt` columns and REST
- * fields hand back.
- *
- * That rule matters when picking which field to pass. WordPress emits
- * `date` (site timezone) and `date_gmt` (UTC) in the same shape, so the
- * string alone cannot say which it is — pass the `*_gmt` variant. A
- * site-local value handed to this component is read as UTC and will be
- * wrong by the site's offset.
- *
- * The pointer tooltip (`title`) carries the absolute, locale-
- * formatted datetime so users can always reach the precise
- * timestamp without losing the at-a-glance relative copy.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-relative-time.styles';
 
-/**
- * Single ticker shared by every mounted instance. We use one
- * `setInterval` instead of per-instance timers so 100 visible
- * relative-time elements cost one tick, not 100. The interval is
- * armed only while at least one element is connected and torn
- * down again the moment the DOM goes empty.
- */
 const _instances = new Set< OsRelativeTime >();
 let _ticker: number | null = null;
 
@@ -62,11 +24,6 @@ function stopTickerIfIdle(): void {
 	}
 }
 
-/**
- * Parse the `datetime` attribute. ISO 8601 is preferred; we also
- * accept the MySQL-flavoured `Y-m-d H:i:s` PHP hands us from
- * `*_gmt` columns. Anything unparseable returns `null`.
- */
 function parseDatetime( raw: string | null ): Date | null {
 	if ( ! raw ) {
 		return null;
@@ -78,37 +35,16 @@ function parseDatetime( raw: string | null ): Date | null {
 	if ( hasTimezone( raw ) ) {
 		return tryDate( raw );
 	}
-	// No designator → UTC, per this component's contract. Normalize the
-	// MySQL space separator to `T` on the way through.
+
 	return tryDate( raw.replace( ' ', 'T' ) + 'Z' );
 }
 
-/**
- * Whether the string carries an explicit timezone designator.
- *
- * The check matters more than it looks. ECMAScript parses a date-time
- * WITHOUT a designator as LOCAL time, and WordPress hands back two
- * shapes that are identical apart from meaning:
- *
- *   date     → "2026-07-28T22:12:34"  (site timezone)
- *   date_gmt → "2026-07-28T20:12:34"  (UTC)
- *
- * The old test was `raw.includes( 'T' )`, which took the presence of a
- * `T` as proof the value was fully qualified and handed it to `Date`
- * as-is — so every `*_gmt` value in ISO form was read as local and came
- * out wrong by the viewer's offset (a comment an hour old reading "3
- * hours ago" at UTC+2). Only a real designator counts now.
- *
- * Scoped to the time portion on purpose: the date part's own hyphens
- * ("2026-07-28") are not offsets.
- */
 function hasTimezone( raw: string ): boolean {
 	const sep = Math.max( raw.indexOf( 'T' ), raw.indexOf( ' ' ) );
 	const timePart = sep === -1 ? '' : raw.slice( sep + 1 );
 	return /(?:[Zz]|[+-]\d{2}:?\d{2})$/.test( timePart );
 }
 
-/** Lazily-built formatter — Intl objects are non-trivial to construct. */
 let _rtfCache: Intl.RelativeTimeFormat | null = null;
 let _narrowRtfCache: Intl.RelativeTimeFormat | null = null;
 
@@ -118,19 +54,11 @@ function locale(): string {
 
 function getRtf(): Intl.RelativeTimeFormat {
 	if ( ! _rtfCache ) {
-		// `numeric: 'auto'` produces "yesterday" / "tomorrow" /
-		// "last week" instead of "1 day ago" / "in 1 week" — much
-		// closer to what humans actually say.
 		_rtfCache = new Intl.RelativeTimeFormat( locale(), { numeric: 'auto' } );
 	}
 	return _rtfCache;
 }
 
-/**
- * Narrow-style formatter for `compact`. `numeric: 'always'` here on
- * purpose: "yesterday" is longer than "1d" and defeats the point of
- * the compact form.
- */
 function getNarrowRtf(): Intl.RelativeTimeFormat {
 	if ( ! _narrowRtfCache ) {
 		_narrowRtfCache = new Intl.RelativeTimeFormat( locale(), {
@@ -141,12 +69,6 @@ function getNarrowRtf(): Intl.RelativeTimeFormat {
 	return _narrowRtfCache;
 }
 
-/**
- * Bucket the diff into the largest unit that fits. Mirrors how
- * humans read time: "a few seconds" → "5 minutes" → "2 hours" →
- * "yesterday" → "3 weeks" → "a year", picking the unit so the
- * count stays small.
- */
 function relativeText( date: Date, now: number ): string {
 	const rtf = getRtf();
 	const diffMs = date.getTime() - now;
@@ -159,7 +81,6 @@ function relativeText( date: Date, now: number ): string {
 	return relativeTextFrom( rtf, diffSec );
 }
 
-/** Shared bucketing for the long form, split out so `compact` reuses it. */
 function relativeTextFrom(
 	rtf: Intl.RelativeTimeFormat,
 	diffSec: number,
@@ -185,24 +106,13 @@ function relativeTextFrom(
 	return rtf.format( diffYear, 'year' );
 }
 
-/**
- * Compact form for dense lists — "now", "5m", "3h", "2d", then a
- * locale short date once the age passes a week.
- *
- * Uses `Intl.RelativeTimeFormat` with `style: 'narrow'`, so the
- * abbreviations are the ones the user's locale actually uses rather
- * than English initials pasted into a `sprintf`. Locales with no
- * narrow form fall back to their short form automatically.
- */
 function compactText( date: Date, now: number ): string {
 	const diffSec = Math.round( ( date.getTime() - now ) / 1000 );
 	const abs = Math.abs;
 	if ( abs( diffSec ) < 45 ) {
 		return getNarrowRtf().format( 0, 'second' );
 	}
-	// Past a week the relative reading stops being useful in a narrow
-	// cell ("7w" vs "13w" reads as noise) — a short date is denser
-	// AND more informative.
+
 	if ( abs( diffSec ) > 7 * 24 * 60 * 60 ) {
 		return date.toLocaleDateString( undefined, {
 			month: 'short',
@@ -253,7 +163,6 @@ export class OsRelativeTime extends Component {
 		stopTickerIfIdle();
 	}
 
-	/** Public — the shared ticker calls this on every interval. */
 	public tick(): void {
 		this.requestUpdate();
 	}
@@ -262,8 +171,6 @@ export class OsRelativeTime extends Component {
 		const raw = ( this as unknown as { datetime: string | null } ).datetime;
 		const date = parseDatetime( raw );
 		if ( ! date ) {
-			// Show the raw string verbatim so a malformed input is
-			// visible rather than silently rendering empty.
 			return html`<span>${ raw ?? '' }</span>`;
 		}
 		const now = Date.now();
@@ -271,9 +178,7 @@ export class OsRelativeTime extends Component {
 			? compactText( date, now )
 			: relativeText( date, now );
 		const absolute = date.toLocaleString();
-		// Native `<time>` element with a typed `datetime` attribute
-		// — search engines, accessibility tools, and copy-paste
-		// flows all benefit from machine-readable timestamps.
+
 		return html`<time datetime=${ date.toISOString() } title=${ absolute }
 			>${ text }</time
 		>`;

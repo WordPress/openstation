@@ -1,24 +1,3 @@
-/**
- * Unit tests for the "View revisions" ⋯ menu row (`src/revisions/`):
- *
- *   - row registration through the public window-action registry, and
- *     `isVisible` / `label` following the identity's `revisionsUrl` /
- *     `revisionCount`
- *   - the pick: window id is a per-post singleton, the config carries
- *     the seeded `revisions` identity rooted at the post (so the tie
- *     draws before the iframe loads), the opened hook + CustomEvent
- *     fire, a missing URL toasts instead of opening
- *   - the `os.revisions.window-config` filter, including an invalid
- *     return falling back to the default
- *   - opening geometry: computed beside the editor on a first open,
- *     left alone once the window has remembered geometry
- *   - `revisionWindowPlacement` — right, left, and the diagonal corner
- *     fallback, plus clamping
- *   - the engine's handling of the two new identity keys: same-origin
- *     only, count only alongside a URL, and a revisions-only change
- *     still firing `content-changed` (the first save of a draft
- *     changes nothing else)
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { HOOKS } from '../../src/hooks';
@@ -51,11 +30,6 @@ interface FakeWin {
 	element: HTMLElement;
 }
 
-/**
- * A window fake positioned inside a fake `#os-area`, so the placement
- * math has real `offsetLeft` / `offsetWidth` numbers to read. jsdom
- * reports 0 for every offset metric, so they are defined outright.
- */
 function fakeWin(
 	id: string,
 	box: { x: number; y: number; width: number; height: number } | null = null,
@@ -74,7 +48,6 @@ function fakeWin(
 	return { id, element };
 }
 
-/** A desktop area of the given size, as `openingGeometry()` reads it. */
 function fakeArea( width: number, height: number ): HTMLElement {
 	const area = document.createElement( 'div' );
 	area.id = 'os-area';
@@ -86,7 +59,6 @@ function fakeArea( width: number, height: number ): HTMLElement {
 	return area;
 }
 
-/** A manager fake: `open()` records the config and returns a window. */
 function fakeManager() {
 	const windows = new Map< string, FakeWin >();
 	const open = vi.fn(
@@ -114,8 +86,7 @@ beforeEach( () => {
 	hooks = installHooksStub();
 	showToastSpy.mockClear();
 	window.localStorage.clear();
-	// Desktop width by default — the small-screen branch skips the
-	// placement entirely.
+
 	vi.stubGlobal(
 		'matchMedia',
 		vi.fn( ( query: string ) => ( {
@@ -135,7 +106,6 @@ afterEach( () => {
 	document.body.innerHTML = '';
 } );
 
-/** Boot the module against a fresh fake manager and hand back its row. */
 async function boot() {
 	const api = await load();
 	const manager = fakeManager();
@@ -221,14 +191,13 @@ describe( 'openRevisionsWindow', () => {
 		expect( config.url ).toBe( REVISIONS_URL );
 		expect( config.title ).toBe( 'Revisions: Hello world' );
 		expect( config.icon ).toBe( 'dashicons-backup' );
-		// Seeded identity: a child of the post, so the spline to the
-		// editor draws without waiting on the iframe.
+
 		expect( config.content ).toMatchObject( {
 			type: 'revisions',
 			id: 7,
 			root: { type: 'post', id: 7 },
 		} );
-		// Restorable with the session — the URL carries no nonce.
+
 		expect( config.ephemeral ).toBeUndefined();
 	} );
 
@@ -363,7 +332,7 @@ describe( 'opening geometry', () => {
 		await openRevisionsWindow( manager, win );
 
 		const config = manager.open.mock.calls[ 0 ][ 0 ];
-		// Right of the editor (40 + 700 + 16), top-aligned with it.
+
 		expect( config.x ).toBe( 756 );
 		expect( config.y ).toBe( 60 );
 		expect( config.width ).toBeGreaterThan( 0 );
@@ -402,7 +371,7 @@ describe( 'opening geometry', () => {
 		const { manager, openRevisionsWindow, setWindowContent } =
 			await boot();
 		fakeArea( 1600, 1000 );
-		const win = fakeWin( 'w1' ); // No offset metrics defined.
+		const win = fakeWin( 'w1' );
 		manager.add( win );
 		setWindowContent( 'w1', {
 			type: 'post',
@@ -441,8 +410,7 @@ describe( 'revisionWindowPlacement', () => {
 	} );
 
 	test( 'takes the opposite corner when neither side fits', () => {
-		// A near-full-width editor leaning top-left leaves no gap on
-		// either side, so the window goes bottom-right.
+
 		const rect = revisionWindowPlacement(
 			{ x: 20, y: 20, width: 1500, height: 500 },
 			desktop,
@@ -517,8 +485,6 @@ describe( 'identity handling in the relations engine', () => {
 		const { setWindowContent } = await load();
 		const log = recordActions( hooks, [ HOOKS.WINDOW_CONTENT_CHANGED ] );
 
-		// A draft with nothing else on its identity — exactly the
-		// shape the first save changes.
 		setWindowContent( 'w1', { type: 'post', id: 1, label: 'Draft' } );
 		expect( log ).toHaveLength( 1 );
 
@@ -531,7 +497,6 @@ describe( 'identity handling in the relations engine', () => {
 		} );
 		expect( log ).toHaveLength( 2 );
 
-		// …and a genuinely identical re-announce still no-ops.
 		setWindowContent( 'w1', {
 			type: 'post',
 			id: 1,

@@ -1,29 +1,10 @@
-/**
- * Code Blue — the client half.
- *
- * The body, as a function of the state `code-blue.os.php` declared
- * and the data it returns: source picker + time range + search in the
- * toolbar, headline stat tiles, a stacked severity histogram whose
- * legend doubles as a series filter, and a grouped issue list with
- * expandable stack traces. Everything that only re-slices the entries
- * already in the browser — range, search, sort, legend, expand — is
- * a `local` action or a bound write and never waits for a request;
- * switching source, refreshing and clearing dispatch to PHP.
- *
- * Pure model functions first (grouping, filtering, time buckets),
- * then the view. `code-blue.test.ts` exercises the model directly.
- */
-
 import { __, _n, copyText, defineApp, formatBytes, formatDate, html, sprintf } from '@openstation/app';
-
-// ------------------------------------------------------------ types
 
 type LogLevel = 'fatal' | 'error' | 'warning' | 'deprecated' | 'notice' | 'info';
 export type Bucket = 'error' | 'warning' | 'deprecated' | 'info';
 type RangeKey = '1h' | '24h' | '7d' | '30d' | 'all';
 type SortMode = 'recent' | 'frequent';
 
-/** One parsed entry, as `log-reader.php` shapes it. */
 export interface LogEntry {
 	timestamp: number | null;
 	level: LogLevel;
@@ -33,11 +14,10 @@ export interface LogEntry {
 	line: number;
 	trace: string;
 	signature: string;
-	/** Whose code the file belongs to — classified server-side by `log-reader.php`. */
+
 	origin: Origin;
 }
 
-/** Whose code a file belongs to. `slug` is a directory name, not a plugin title. */
 export interface Origin {
 	kind: 'plugin' | 'mu-plugin' | 'theme' | 'core' | 'unknown';
 	slug: string;
@@ -99,9 +79,6 @@ export interface IssueGroup {
 	origin: Origin;
 }
 
-// ------------------------------------------------------------ model
-
-/** Stack/legend order, bottom first; the two pale hues stay non-adjacent. */
 export const BUCKETS: readonly Bucket[] = [ 'error', 'warning', 'deprecated', 'info' ];
 
 const BUCKET_OF: Record< LogLevel, Bucket > = {
@@ -122,7 +99,6 @@ const RANGE_SECONDS: Record< RangeKey, number > = { '1h': 3600, '24h': 86400, '7
 export const bucketOf = ( level: LogLevel ): Bucket => BUCKET_OF[ level ] ?? 'info';
 const rank = ( level: LogLevel ): number => RANK[ level ] ?? 6;
 
-/** Keep entries at/after `since`, matching `query`, outside `hidden`. Untimestamped entries fail a time floor. */
 export function filterEntries( entries: readonly LogEntry[], since: number | null, query: string, hidden: readonly Bucket[] ): LogEntry[] {
 	const q = query.trim().toLowerCase();
 	return entries.filter( ( e ) => {
@@ -144,7 +120,6 @@ export function countBuckets( entries: readonly LogEntry[] ): Record< Bucket, nu
 	return totals;
 }
 
-/** Fold entries into issue groups by signature: most severe level, latest message, longest trace. */
 export function groupEntries( entries: readonly LogEntry[] ): IssueGroup[] {
 	const byKey = new Map< string, IssueGroup >();
 	for ( const e of entries ) {
@@ -198,7 +173,6 @@ export function sortGroups( groups: readonly IssueGroup[], mode: SortMode ): Iss
 	);
 }
 
-/** Bucket timestamped entries into `count` stacked columns between `since` (or the oldest) and `now`. */
 export function bucketize( entries: readonly LogEntry[], since: number | null, now: number, count: number ): { start: number; end: number; columns: number[][] } {
 	const stamps = entries.map( ( e ) => e.timestamp ).filter( ( t ): t is number => t !== null );
 	if ( stamps.length === 0 ) {
@@ -219,7 +193,7 @@ export function bucketize( entries: readonly LogEntry[], since: number | null, n
 
 const UNKNOWN_ORIGIN: Origin = { kind: 'unknown', slug: '' };
 
-const rowKey = ( g: IssueGroup ): string => g.signature; // Signatures are already the stable identity.
+const rowKey = ( g: IssueGroup ): string => g.signature;
 const envTone = ( on: boolean | null ): string => {
 	if ( on === null ) {
 		return 'info';
@@ -247,16 +221,8 @@ const originKindLabel = ( kind: Origin[ 'kind' ] ): string =>
 const originLabel = ( o: Origin ): string =>
 	o.slug === ''
 		? originKindLabel( o.kind )
-		: sprintf( /* translators: 1: origin kind, e.g. "Plugin". 2: directory slug, e.g. "woocommerce". */ __( '%1$s — %2$s' ), originKindLabel( o.kind ), o.slug );
+		: sprintf( __( '%1$s — %2$s' ), originKindLabel( o.kind ), o.slug );
 
-/**
- * One issue as a paste-ready Markdown report — the thing that actually
- * gets typed by hand into a GitHub issue or a support thread, assembled
- * from what this window already knows: the message, where it came from,
- * how often, and the environment it happened in. Copying an error
- * without its PHP version and its debug flags is how a bug report
- * becomes a conversation about what the reporter forgot to include.
- */
 export function buildReport( g: IssueGroup, origin: Origin, environment: readonly EnvRow[] ): string {
 	const facts: string[] = [];
 	if ( g.file !== '' ) {
@@ -284,8 +250,6 @@ export function buildReport( g: IssueGroup, origin: Origin, environment: readonl
 const fullTime = ( sec: number ): string => formatDate( sec * 1000, 'datetime' );
 const fileBase = ( path: string ): string => path.split( /[\\/]/ ).pop() || path;
 const iso = ( sec: number ): string => formatDate( sec * 1000, 'iso' );
-
-// ------------------------------------------------------------- view
 
 export default defineApp< State, Data >( 'openstation-code-blue', {
 	local: {
@@ -373,7 +337,7 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 				<os-cluster gap="10" align="end" class="os-cb__toolbar">
 					<os-select label=${ __( 'Log source' ) } class="os-cb__source" os-bind="source" os-action="source" value=${ state.source }>
 						${ data.sources.map( ( s ) => html`<os-option value=${ s.id } ?disabled=${ s.exists && ! s.readable }>${
-							s.exists ? `${ s.label } (${ formatBytes( s.size ) })` : sprintf( /* translators: %s: log source label. */ __( '%s (empty)' ), s.label )
+							s.exists ? `${ s.label } (${ formatBytes( s.size ) })` : sprintf( __( '%s (empty)' ), s.label )
 						}</os-option>` ) }
 					</os-select>
 					<os-segmented label=${ __( 'Time range' ) } os-bind="range" value=${ state.range }>
@@ -389,7 +353,7 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 					<os-button variant="secondary" os-action="refresh">${ __( 'Refresh' ) }</os-button>
 					<os-button variant="danger" os-action="clear" os-confirm-danger
 						os-confirm-title=${ __( 'Clear this log?' ) } os-confirm-label=${ __( 'Clear log' ) }
-						os-confirm=${ sprintf( /* translators: %s: log file path. */ __( 'Every entry in %s will be deleted from disk. This cannot be undone.' ), source?.path ?? '' ) }
+						os-confirm=${ sprintf( __( 'Every entry in %s will be deleted from disk. This cannot be undone.' ), source?.path ?? '' ) }
 						?disabled=${ clearDisabled }>${ __( 'Clear log' ) }</os-button>
 				</os-cluster>
 
@@ -413,7 +377,7 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 					empty=${ __( 'No events in this range.' ) }></os-histogram>
 
 				<section class="os-cb__card os-cb__issues">
-					<div class="os-cb__card-head"><h2 class="os-cb__card-title">${ sprintf( /* translators: %s: number of grouped issues. */ _n( 'Issues (%s)', 'Issues (%s)', groups.length ), groups.length.toLocaleString() ) }</h2></div>
+					<div class="os-cb__card-head"><h2 class="os-cb__card-title">${ sprintf( _n( 'Issues (%s)', 'Issues (%s)', groups.length ), groups.length.toLocaleString() ) }</h2></div>
 					<ul class="os-cb__list">
 						${ groups.length === 0 ? html`<li class="os-cb__list-empty"><os-empty-state heading=${ empty[ 0 ] } description=${ empty[ 1 ] }></os-empty-state></li>` : groups.map( issue ) }
 					</ul>
@@ -422,8 +386,8 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 				${ source
 					? html`<os-cluster justify="space-between" class="os-cb__footer">
 						<span>${ [
-							sprintf( /* translators: 1: bytes scanned, 2: total file size. */ __( 'Scanned %1$s of %2$s' ), formatBytes( data.scanned ), formatBytes( source.size ) ),
-							sprintf( /* translators: %s: number of parsed log entries. */ _n( '%s entry', '%s entries', data.entries.length ), data.entries.length.toLocaleString() ),
+							sprintf( __( 'Scanned %1$s of %2$s' ), formatBytes( data.scanned ), formatBytes( source.size ) ),
+							sprintf( _n( '%s entry', '%s entries', data.entries.length ), data.entries.length.toLocaleString() ),
 							data.truncated ? __( 'older entries not shown' ) : '',
 						].filter( Boolean ).join( ' · ' ) }</span>
 						<span>${ __( 'Updated' ) } <os-relative-time datetime=${ iso( data.now ) }></os-relative-time></span>

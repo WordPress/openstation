@@ -1,97 +1,16 @@
-/**
- * Custom ESLint rule — `os-component-registration`.
- *
- * Catches the regression class that broke posts / pages / users /
- * plugins / comments / recycle-bin after Stage 1 of the bundle-size
- * work: a module constructs a `<os-foo>` element at runtime (via
- * `document.createElement('os-foo')` or a literal `'os-foo'`
- * argument to any `createElement` callee) yet does NOT side-effect-
- * import the matching `'<…>/os-foo/os-foo'` module — so the
- * `defineComponent( 'os-foo', OsFoo )` side effect never reaches
- * the bundle.
- *
- * Why this matters
- * ----------------
- * Every `<os-*>` component file ends in a top-level
- * `defineComponent( 'os-foo', OsFoo )` call that registers the
- * custom element. The registration is a *side effect of importing
- * the module*. TypeScript imports of the form
- *
- *     import { OsFoo, OsFooColumn } from '…/os-foo/os-foo';
- *
- * look like they pull the class in, but if every named binding is
- * only used in a type position (`const c: OsFooColumn<...>`,
- * `querySelector< OsFoo< … > >( … )`, …) esbuild / TS elide the
- * whole import. The side effect — and therefore the registration —
- * never reaches the bundle. `createElement( 'os-foo' )` then
- * returns an inert custom element with no upgrade, and the UI
- * silently renders nothing.
- *
- * Detection
- * ---------
- * Per file:
- *   1. Collect every `os-…` tag used in a runtime construction:
- *      any call whose callee identifier (or member-expression
- *      property) is `createElement` and whose first argument is a
- *      string literal `'os-…'`.
- *   2. Resolve which tags are *registered* in the same bundle by
- *      considering:
- *      a. `defineComponent( 'os-X', X )` calls in the current
- *         file (handles `os-foo/os-foo.ts` constructing its own
- *         tag, and components like `os-tabs.ts` that also
- *         register `<os-tab>` / `<os-tabpanel>`).
- *      b. Imports of the form `'<…>/os-X/os-X'` (or its `.ts`
- *         twin) — recursively read the imported file and harvest
- *         every `defineComponent( … )` call from it. A bare
- *         side-effect import counts unconditionally; a named-
- *         specifier import counts only if at least one of its
- *         non-`type`-modifier bindings is referenced in a value
- *         position (so we don't trust an import esbuild will
- *         elide).
- *   3. Any tag from step 1 that is not in the registered set from
- *      step 2 is reported on the `createElement` call site.
- *
- * Fix hint
- * --------
- * Add a leaf side-effect import next to the existing one:
- *
- *     import '…/os-foo/os-foo';
- *
- * `defineComponent` is idempotent, so it's always safe to side-
- * effect-import a tag — even if another bundle also registers it.
- */
-
 'use strict';
 
 const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 
-/**
- * Tags whose component class lives in the lazy
- * `shell-overlays[.min].js` bundle and is registered globally
- * after `desktop.ts`'s post-first-paint preload.
- *
- * Any file that constructs one of these tags is expected to
- * `await openWithShellOverlays( … )` (or otherwise gate on
- * `ensureShellOverlaysLoaded()`) before the `createElement` call.
- * The rule doesn't enforce that gating today — it just accepts
- * the construction because the registration is guaranteed by
- * boot's preload, not by a per-file leaf import. Keep this list
- * in sync with `src/shell-overlays/entry.ts`.
- *
- * @since 0.8.4
- */
 const SHELL_OVERLAYS_TAGS = new Set( [
-	// Stage 9 — action-triggered overlays.
+
 	'os-toast',
 	'os-toast-container',
 	'os-confirm-dialog',
 	'os-context-menu',
 	'os-context-menu-option',
-	// Stage 10 — window chrome + folder-dialog components. All
-	// constructed only after the user has triggered some action
-	// (open a window, open a folder, open the rename dialog) so
-	// the shell-overlays preload covers them.
+
 	'os-menu',
 	'os-menu-item',
 	'os-window-button',
@@ -141,10 +60,6 @@ function bindingIsValueReferenced( variable ) {
 	return false;
 }
 
-/**
- * Cache: absolute file path → set of tags the file registers via
- * top-level `defineComponent( 'os-X', X )` calls.
- */
 const tagsRegisteredByFileCache = new Map();
 
 function tagsRegisteredByFile( absPath ) {
@@ -159,8 +74,7 @@ function tagsRegisteredByFile( absPath ) {
 		tagsRegisteredByFileCache.set( absPath, out );
 		return out;
 	}
-	// Strip line + block comments so we don't match
-	// `// defineComponent('os-foo', …)` text in a JSDoc example.
+
 	const stripped = source
 		.replace( /\/\*[\s\S]*?\*\//g, '' )
 		.replace( /\/\/.*$/gm, '' );
@@ -173,18 +87,6 @@ function tagsRegisteredByFile( absPath ) {
 	return out;
 }
 
-/**
- * Resolve an import specifier (relative or @-aliased) to the
- * absolute filesystem path of the corresponding `.ts` source.
- *
- * Only handles the project's two flavours of import paths:
- *   - relative (`./foo`, `../foo`)
- *   - the `@<alias>/` paths set up in `vite.config.js` /
- *     `tsconfig.json`. The aliases all root under `src/`.
- *
- * Returns `null` for bare module specifiers (`'pixi.js'`, …) or
- * paths that don't resolve to an existing `.ts` file under `src/`.
- */
 const ALIAS_PREFIXES = [
 	[ '@/', 'src/' ],
 	[ '@api/', 'src/api/' ],
@@ -219,7 +121,7 @@ function resolveImportPath( fromFile, source, projectRoot ) {
 			const stat = fs.statSync( candidate );
 			if ( stat.isFile() ) return candidate;
 		} catch {
-			// not found; keep trying
+
 		}
 	}
 	return null;
@@ -241,12 +143,11 @@ module.exports = {
 
 	create( context ) {
 		const filename = context.getFilename();
-		// Test files have their own jsdom + customElements setup;
-		// registration there isn't gated on bundle wiring.
+
 		if ( /\.test\.tsx?$/.test( filename ) ) {
 			return {};
 		}
-		// Project root = nearest ancestor containing `package.json`.
+
 		let projectRoot = path.dirname( filename );
 		while (
 			projectRoot !== path.dirname( projectRoot ) &&
@@ -255,14 +156,9 @@ module.exports = {
 			projectRoot = path.dirname( projectRoot );
 		}
 
-		const tagsConstructed = new Map(); // tag → reporting node
+		const tagsConstructed = new Map();
 		const tagsRegistered = new Set();
 
-		// Tags this file itself registers via top-level
-		// `defineComponent( 'os-X', … )` calls. Important for both
-		// the component file itself (`os-foo/os-foo.ts` defining
-		// `<os-foo>`) and compound modules (`os-tabs.ts` also
-		// registers `<os-tab>` / `<os-tabpanel>`).
 		for ( const tag of tagsRegisteredByFile( filename ) ) {
 			tagsRegistered.add( tag );
 		}
@@ -274,9 +170,7 @@ module.exports = {
 				if ( ! first || first.type !== 'Literal' ) return;
 				const tag = first.value;
 				if ( typeof tag !== 'string' || ! tag.startsWith( 'os-' ) ) return;
-				// Tags shipped in the lazy `shell-overlays[.min].js`
-				// bundle and pre-registered globally at boot — the
-				// per-file leaf-import contract doesn't apply here.
+
 				if ( SHELL_OVERLAYS_TAGS.has( tag ) ) return;
 				if ( ! tagsConstructed.has( tag ) ) {
 					tagsConstructed.set( tag, node );
@@ -293,19 +187,15 @@ module.exports = {
 				);
 				if ( ! resolved ) return;
 
-				// Bare side-effect import always registers everything
-				// the imported file defines.
 				if ( node.specifiers.length === 0 ) {
 					for ( const tag of tagsRegisteredByFile( resolved ) ) {
 						tagsRegistered.add( tag );
 					}
 					return;
 				}
-				// `import type { … } from '…';` never registers.
+
 				if ( node.importKind === 'type' ) return;
 
-				// Mixed / value imports: defer to `Program:exit` so
-				// every binding's value-vs-type usage is known.
 				node._wpdResolved = resolved;
 				node._wpdScope = context.getScope();
 			},

@@ -1,10 +1,3 @@
-/**
- * Unit tests for focus-on-drag-hover.
- *
- * The module is driven entirely by `DRAG_EVENTS` CustomEvents on
- * `document`, so no real DragManager is needed — the tests dispatch
- * MOVE/END directly and assert against a fake focus host.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { addFilter, HOOKS } from '../../src/hooks';
@@ -25,11 +18,6 @@ import {
 
 interface Rect { x: number; y: number; w: number; h: number }
 
-/**
- * Build a window root (`.os-window` + `wp-window-<id>`)
- * with an inner body element — `elementFromPoint` in the real shell
- * returns an inner element, never the root itself.
- */
 function makeWindowRoot( id: string ): { root: HTMLElement; inner: HTMLElement } {
 	const root = document.createElement( 'div' );
 	root.className = 'os-window';
@@ -41,11 +29,6 @@ function makeWindowRoot( id: string ): { root: HTMLElement; inner: HTMLElement }
 	return { root, inner };
 }
 
-/**
- * jsdom computes no layout, so hit-testing is stubbed: each region
- * maps a client-space rect to the element `elementFromPoint` should
- * return there. Later regions win on overlap.
- */
 function installElementFromPointStub( regions: Array< { el: Element; rect: Rect } > ): void {
 	document.elementFromPoint = ( x: number, y: number ): Element | null => {
 		for ( let i = regions.length - 1; i >= 0; i -= 1 ) {
@@ -96,11 +79,6 @@ function dispatchEnd(): void {
 	);
 }
 
-/**
- * jsdom doesn't construct `DragEvent`s — synthesize a plain Event
- * with the fields the module reads, same trick as `pointerEvent` in
- * `drag-manager.test.ts`.
- */
 function dragEvent(
 	type: 'dragover' | 'drop' | 'dragend' | 'dragleave',
 	opts: {
@@ -159,7 +137,7 @@ describe( 'focus-on-drag-hover', () => {
 
 		dispatchMove( 50, 50 );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS - 50 );
-		dispatchMove( 500, 500 ); // wallpaper — no window
+		dispatchMove( 500, 500 );
 		vi.advanceTimersByTime( 1000 );
 		expect( host.focus ).not.toHaveBeenCalled();
 	} );
@@ -176,9 +154,9 @@ describe( 'focus-on-drag-hover', () => {
 		const host = makeHost( [ winB, winC ] );
 		installFocusWindowOnDragHover( host );
 
-		dispatchMove( 50, 50 ); // over B
+		dispatchMove( 50, 50 );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS - 50 );
-		dispatchMove( 150, 50 ); // over C — restarts the dwell
+		dispatchMove( 150, 50 );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS );
 		expect( host.focus ).toHaveBeenCalledTimes( 1 );
 		expect( host.focus ).toHaveBeenCalledWith( winC );
@@ -192,9 +170,9 @@ describe( 'focus-on-drag-hover', () => {
 
 		dispatchMove( 20, 20 );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS / 2 );
-		dispatchMove( 60, 60 ); // still over B
+		dispatchMove( 60, 60 );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS / 2 );
-		// Fires at the original deadline — the second move didn't reset it.
+
 		expect( host.focus ).toHaveBeenCalledTimes( 1 );
 	} );
 
@@ -246,7 +224,7 @@ describe( 'focus-on-drag-hover', () => {
 	test( 'window closed mid-dwell is a silent no-op', () => {
 		const b = makeWindowRoot( 'b' );
 		installElementFromPointStub( [ { el: b.inner, rect: { x: 0, y: 0, w: 100, h: 100 } } ] );
-		const host = makeHost( [] ); // getById finds nothing
+		const host = makeHost( [] );
 		installFocusWindowOnDragHover( host );
 
 		dispatchMove( 50, 50 );
@@ -268,8 +246,6 @@ describe( 'focus-on-drag-hover', () => {
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS );
 		expect( host.focus ).toHaveBeenCalledTimes( 1 );
 
-		// Leave, then come back — the window is focused now, so the
-		// second dwell resolves to a no-op.
 		dispatchMove( 500, 500 );
 		dispatchMove( 50, 50 );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS );
@@ -321,17 +297,14 @@ describe( 'focus-on-drag-hover — native HTML5 channel', () => {
 			},
 		);
 
-		// OS file drag.
 		document.dispatchEvent( dragEvent( 'dragover', { clientX: 50, clientY: 50, types: [ 'Files' ] } ) );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS );
 		document.dispatchEvent( dragEvent( 'drop' ) );
 
-		// Arbitrary external drag (text/html).
 		document.dispatchEvent( dragEvent( 'dragover', { clientX: 50, clientY: 50, types: [ 'text/html' ] } ) );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS );
 		document.dispatchEvent( dragEvent( 'dragend' ) );
 
-		// Bridge session — kind takes precedence over DataTransfer sniffing.
 		document.dispatchEvent(
 			new CustomEvent( DRAG_BRIDGE_EVENTS.START, {
 				detail: { payload: { kind: 'attachment', id: 1, url: '', title: '', alt: '', mime: 'image/jpeg' } },
@@ -395,10 +368,6 @@ describe( 'focus-on-drag-hover — native HTML5 channel', () => {
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS );
 		expect( host.focus ).toHaveBeenCalledTimes( 1 );
 
-		// Signals stop (drag ended out of sight). After the watchdog,
-		// a fresh drag over the same still-unfocused window must
-		// re-run the dwell rather than being swallowed by the
-		// same-window check.
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_WATCHDOG_MS );
 		document.dispatchEvent( dragEvent( 'dragover', { clientX: 50, clientY: 50 } ) );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS );
@@ -420,7 +389,6 @@ describe( 'focus-on-drag-hover — iframe message channel', () => {
 		document.body.innerHTML = '';
 	} );
 
-	/** Build a window host carrying an iframe, jsdom-style. */
 	function makeIframeWindow( id: string ): HTMLIFrameElement {
 		const hostEl = document.createElement( 'div' );
 		hostEl.className = 'os-window';
@@ -528,7 +496,7 @@ describe( 'window-at-point', () => {
 		const el = document.createElement( 'div' );
 		el.className = 'os-window';
 		expect( windowIdFromRoot( el ) ).toBeNull();
-		el.id = 'wp-window-'; // prefix with no id
+		el.id = 'wp-window-';
 		expect( windowIdFromRoot( el ) ).toBeNull();
 	} );
 } );

@@ -1,34 +1,9 @@
 <?php
-/**
- * Plugins app — the wp.org reviews scrape.
- *
- * Part of the `desktop-mode-plugins` app: required by `plugins.os.php`,
- * plain `.php` on purpose — only `*.os.php` files are app entries to
- * the framework loader. `plugins_api()` ships no review text, so the
- * Reviews tab reads the top of a plugin's wp.org reviews page over
- * admin-ajax (`wp_ajax_openstation_plugins_reviews`) and parses it
- * with DOMDocument — best effort: any failure answers `parsed: false`
- * and the client shows the histogram with a link instead.
- *
- * @package OpenStation
- */
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/**
- * `wp_ajax_openstation_plugins_reviews` — best-effort scrape of the
- * top reviews from a plugin's wp.org page.
- *
- * Body params:
- *   - slug  string, required
- *
- * Returns either `{ items: [...], parsed: true }` or
- * `{ items: [], parsed: false, reason: '<code>' }`. Success is cached
- * 1h, failure 15m so wp.org can recover quickly.
- */
 function openstation_plugins_window_ajax_reviews() {
 	$guard = openstation_plugins_window_ajax_guard( 'install_plugins' );
 	if ( is_wp_error( $guard ) ) {
@@ -48,17 +23,6 @@ function openstation_plugins_window_ajax_reviews() {
 		return;
 	}
 
-	/**
-	 * Filter to swap out the default DOMDocument-based review parser.
-	 *
-	 * Return an array of items to short-circuit; return `null` to
-	 * fall through to the default parser. Items must each be an
-	 * associative array with `author`, `stars` (int 1–5), `excerpt`,
-	 * `date`, and (optional) `url` keys.
-	 *
-	 * @param array|null $items Override list, or null for default behaviour.
-	 * @param string     $slug  Plugin slug.
-	 */
 	$override = apply_filters( 'openstation_plugins_window_review_parser', null, $slug );
 	if ( is_array( $override ) ) {
 		openstation_plugins_window_send_reviews( $cache_key, array_values( $override ) );
@@ -97,15 +61,6 @@ function openstation_plugins_window_ajax_reviews() {
 }
 add_action( 'wp_ajax_openstation_plugins_reviews', 'openstation_plugins_window_ajax_reviews' );
 
-/**
- * Cache and send the reviews payload — the parsed items, or the
- * failure with its reason.
- *
- * @param string     $cache_key Transient key.
- * @param array|null $items     Parsed items, or null on failure.
- * @param string     $reason    Failure code when `$items` is null.
- * @return void
- */
 function openstation_plugins_window_send_reviews( $cache_key, $items, $reason = '' ) {
 	if ( null === $items ) {
 		$payload = array(
@@ -124,18 +79,6 @@ function openstation_plugins_window_send_reviews( $cache_key, $items, $reason = 
 	wp_send_json_success( $payload );
 }
 
-/**
- * Default DOMDocument-based parser for the wp.org plugin reviews
- * page. Returns an array of `{ author, stars, excerpt, date, url }`
- * on success, or `null` when parsing fails.
- *
- * The wp.org review HTML may change without notice — every navigation
- * is inside one `try`, and any failure bails to `null` so the client
- * falls back to the histogram-only view.
- *
- * @param string $html The page.
- * @return array<int,array<string,mixed>>|null
- */
 function openstation_plugins_window_parse_reviews_html( $html ) {
 	if ( ! class_exists( 'DOMDocument' ) ) {
 		return null;
@@ -144,17 +87,13 @@ function openstation_plugins_window_parse_reviews_html( $html ) {
 	try {
 		$prev = libxml_use_internal_errors( true );
 		$doc  = new DOMDocument();
-		// Force UTF-8 — wp.org output is UTF-8 but loadHTML defaults
-		// to ISO-8859-1.
+
 		$doc->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NOERROR | LIBXML_NOWARNING );
 		libxml_clear_errors();
 		libxml_use_internal_errors( $prev );
 
 		$xpath = new DOMXPath( $doc );
 
-		// wp.org wraps each review in `<div class="review">` with a
-		// reviewer block, a body paragraph, star-rating spans and a
-		// permalink. The first 5.
 		$reviews = $xpath->query( '//*[contains(concat(" ", normalize-space(@class), " "), " review ")]' );
 		if ( ! $reviews instanceof DOMNodeList || 0 === $reviews->length ) {
 			return null;
@@ -175,19 +114,11 @@ function openstation_plugins_window_parse_reviews_html( $html ) {
 		}
 		return $out;
 	} catch ( Throwable $e ) {
-		// Malformed HTML, libxml gone — the histogram-only fallback.
+
 		return null;
 	}
 }
 
-/**
- * One review node → `{ author, stars, excerpt, date, url }`, or null
- * when it carries neither an author nor a body.
- *
- * @param DOMXPath $xpath  The document's XPath.
- * @param DOMNode  $review The `.review` node.
- * @return array<string,mixed>|null
- */
 function openstation_plugins_window_parse_review( DOMXPath $xpath, DOMNode $review ) {
 	$class = static function ( $name ) {
 		return 'contains(concat(" ", normalize-space(@class), " "), " ' . $name . ' ")';
@@ -212,7 +143,7 @@ function openstation_plugins_window_parse_review( DOMXPath $xpath, DOMNode $revi
 		} elseif ( preg_match( '/(\d+)\s*star/i', $rating_text, $m ) ) {
 			$stars = (int) $m[1];
 		} else {
-			// Fall back to counting filled-star elements.
+
 			$filled = $xpath->query( './/*[' . $class( 'star' ) . ' and ' . $class( 'filled' ) . ']', $rating_nodes->item( 0 ) );
 			if ( $filled instanceof DOMNodeList ) {
 				$stars = (int) $filled->length;

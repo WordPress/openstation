@@ -1,18 +1,10 @@
 import { css } from '../../core';
 import { holoTokens, holoField } from '../../holo';
 
-/**
- * Styles for `<os-textarea>` — multi-line text input. Visually
- * matches `<os-text-field>` (same border, padding, focus ring) so
- * forms can mix the two without a seam — and now literally so: both
- * take their hover, focus, placeholder and selection states from the
- * shared `holoField` fragment rather than each declaring its own.
- */
 export const textareaStyles = css`
 	${ holoTokens }
 	${ holoField }
 
-	/* Sizing tokens: see os-text-field.styles.ts. */
 	:host {
 		--_field-size: var( --os-ui-field-font-size, 13px );
 		--_field-radius: var( --os-ui-field-radius, 6px );
@@ -56,7 +48,6 @@ export const textareaStyles = css`
 		background: var( --os-ui-hover, rgba( 0, 0, 0, 0.03 ) );
 	}
 
-	/* Outranks the shared focus ring — see the :where() note in holoField. */
 	textarea[ aria-invalid='true' ],
 	textarea[ aria-invalid='true' ]:hover:not( :disabled ) {
 		border-color: var( --os-ui-danger, #d63638 );
@@ -68,7 +59,6 @@ export const textareaStyles = css`
 			0 0 0 4px rgba( 214, 54, 56, 0.18 );
 	}
 
-	/* Auto-grow mode: hide native resize affordance — we manage rows. */
 	:host( [ auto-grow ] ) textarea {
 		resize: none;
 		overflow: hidden;

@@ -1,28 +1,3 @@
-/**
- * OpenStation — Pinned notes drop handlers.
- *
- * Wires the note payloads into the desktop-files drop surfaces:
- *
- *   - Wallpaper canvas (Seam A, `canvas-payloads.ts`):
- *       `'note-draft'` → create a note where the sheet lands.
- *       `'note'`       → reposition an existing note.
- *     Both are gated to the wallpaper root (`folderId === 0`) —
- *     paper doesn't pin inside folder windows.
- *
- *   - Recycle bin (Seam B, `recycle-bin-payloads.ts`):
- *       `'note'` → crumple + soft-trash with Undo. `accept` is gated
- *       on `canEdit` — viewers can't start these drags anyway, but
- *       the payload is plain data, so verify at the drop side too.
- *
- * Deliberately NO drop target of our own: a drop landing on top of a
- * pinned note hit-tests through the note's ancestor chain to the
- * wallpaper host, which the FilesLayer canvas target claims — that
- * target natively accepts file payloads (notes never block file
- * drops) and consults Seam A for ours. Registering a notes-root
- * target here would claim-reject 'desktop-file'/'shortcut' drops
- * over every note (the registry has no fall-through).
- */
-
 import {
 	registerCanvasPayloadHandler,
 	type CanvasPayloadContext,
@@ -37,12 +12,6 @@ import {
 } from './types';
 import type { NotesLayer } from './layer';
 
-/**
- * Normalized top-left position for a drop: cursor minus the ghost's
- * grab offset, relative to the notes host. Mirrors the ghost-offset
- * math the files layer uses so the note lands exactly where the user
- * sees the ghost paper.
- */
 function normalizedDropPosition(
 	layer: NotesLayer,
 	session: DragSession,
@@ -69,8 +38,7 @@ function handleDraftDrop(
 		return;
 	}
 	const { x, y } = normalizedDropPosition( layer, session, ev );
-	// Shared with the wallpaper context menu, which wants everything
-	// but the ghost-offset math above.
+
 	layer.createNoteAt( {
 		x,
 		y,
@@ -94,9 +62,6 @@ function handleNoteDrop(
 	controller.moveTo( x, y );
 }
 
-/**
- * Install every note drop route. Returns a teardown (tests).
- */
 export function installNoteDropHandlers( layer: NotesLayer ): () => void {
 	const deregisters: Array< () => void > = [];
 
@@ -128,8 +93,7 @@ export function installNoteDropHandlers( layer: NotesLayer ): () => void {
 					return;
 				}
 				const note = controller.note;
-				// Crumple at the release point; the trash (with its
-				// Undo toast) runs immediately underneath it.
+
 				void controller.playCrumpleAt( ev.clientX, ev.clientY );
 				layer.trashNote( note );
 			},

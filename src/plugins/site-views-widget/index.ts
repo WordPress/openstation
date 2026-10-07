@@ -1,25 +1,3 @@
-/**
- * OpenStation — Site Views Widget (lazy bundle).
- *
- * Smooth SVG sparkline of page views for the last 7 days,
- * total view count, and a week-over-week delta arrow.
- *
- * Data priority:
- *   1. Jetpack Stats      /desktop-mode/v1/site-views-jetpack
- *      (server reads WPCOM_Stats::get_visits(), gated on Jetpack's own
- *      stats permission; answers available: false when it cannot)
- *   2. Meta-key fallback  /desktop-mode/v1/site-views-meta
- *      (reads _post_views_YYYY-MM-DD meta written by post-views plugins)
- *
- * Both are asked at once; the order above only decides which answer
- * wins.
- *
- * Shows a friendly "no source" state rather than failing silently
- * when neither source has data, and says so when Jetpack Stats has the
- * numbers but withholds them from this user.
- *
- * Refresh: every 10 minutes.
- */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
@@ -85,8 +63,6 @@ async function tryMeta(): Promise< DayRow[] | null > {
 }
 
 async function fetchViewData(): Promise< ViewResult > {
-	// Together, not in turn: the Jetpack read can wait on WordPress.com,
-	// and the fallback should not start only once that has settled.
 	const [ jetpack, meta ] = await Promise.all( [ tryJetpack(), tryMeta() ] );
 	if ( jetpack.days?.length ) {
 		return { source: 'jetpack', days: jetpack.days };

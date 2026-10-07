@@ -1,9 +1,3 @@
-/**
- * OpenStation — Dock rail renderer barrel.
- *
- * Public re-exports so plugin authors only need one import path.
- */
-
 export {
 	register as registerDockRailRenderer,
 	unregister as unregisterDockRailRenderer,
@@ -31,13 +25,6 @@ export type {
 import { register } from './registry';
 import { defaultDockRailRenderer } from './default-renderer';
 
-/**
- * Bootstrap the registry with the built-in `'default'` icon-strip
- * renderer. Idempotent — calling twice replaces the entry but
- * doesn't double up. Called from the shell boot path before any
- * plugin script runs, so plugins that want to *replace* the
- * default can register their own `id: 'default'` and override.
- */
 export function installDefaultDockRailRenderer(): void {
 	register( defaultDockRailRenderer );
 }

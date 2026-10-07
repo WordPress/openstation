@@ -1,12 +1,3 @@
-/**
- * `<os-notice>` — full-width banner styles.
- *
- * The host stretches edge-to-edge of its container (intended for the
- * window's `after-titlebar` slot host, which itself spans the window
- * width). Tone variants colorize the left accent stripe + background;
- * the label inherits the surrounding text color so links inside slot
- * content still pick up the admin theme link color.
- */
 import { css } from '../../core';
 
 export const styles = css`
@@ -54,27 +45,7 @@ export const styles = css`
 		color: var( --os-ui-notice-link, var( --wp-admin-theme-color, #2271b1 ) );
 		border-radius: 2px;
 	}
-	/*
-	 * Hover / focus resolve through a SECOND token, not the base one.
-	 * Both fell back to the admin theme colour before, so the two
-	 * states painted identically and the link looked inert.
-	 *
-	 * The palette declares both names (Nebula, lifting to Starlight),
-	 * and neither routes through --wp-admin-theme-color any more:
-	 * OpenStation Preferences → Appearance writes that property inline on
-	 * the html element from the user's accent picker, and a notice's
-	 * link is the last text on the surface that should be legible only
-	 * for some accents. The fallbacks below stay at the pre-brand admin
-	 * values for the unstyled case.
-	 *
-	 * Inside the shell these rules do not decide the colour. A slotted
-	 * link belongs to the document tree, and CSS Scoping hands normal
-	 * declarations to the OUTER tree on a collision, so wp-admin's own
-	 * bare anchor rule wins over anything ::slotted() says. desktop.css
-	 * carries a document-tree rule reading the same tokens; keep the two
-	 * in step. These stay for hosts outside wp-admin, where nothing is
-	 * competing and the component should still style its own links.
-	 */
+
 	::slotted( a:hover ),
 	::slotted( a:focus-visible ) {
 		color: var(
@@ -128,10 +99,6 @@ export const styles = css`
 		height: 14px;
 	}
 
-	/* ─── Tones ──────────────────────────────────────────────────────
-	   Same palette as <os-badge> so the two surfaces feel like a set.
-	   Plugins can override any single tone via the variables below
-	   without redefining the rest. */
 	:host( [ tone='info' ] ) {
 		--os-ui-notice-accent: var( --os-ui-notice-info, var( --os-ui-info-fg, #0969da ) );
 		--os-ui-notice-bg: var( --os-ui-notice-info-bg, rgba( 9, 105, 218, 0.08 ) );

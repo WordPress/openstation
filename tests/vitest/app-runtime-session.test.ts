@@ -1,11 +1,3 @@
-/**
- * App Framework runtime — a mounted window's session.
- *
- * Exercises the client half of the state cycle against a stub host:
- * the `mount` dispatch, triggers → dispatches, `os-bind` writes,
- * debouncing, confirmation gating, serialised requests, effects,
- * error toasts, and `os-poll` timers.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSession, type Session } from '../../src/app-runtime/session';
 import type { AppConfig, DispatchResponse, RuntimeHost } from '../../src/app-runtime/types';
@@ -309,8 +301,7 @@ describe( 'createSession', () => {
 			const h = harness(
 				'<os-text-field os-bind="query" os-action="search"></os-text-field><button os-action="refresh">r</button>',
 			);
-			// Gate the FIRST response so a keystroke can land mid-flight —
-			// the shape of typing while a watch refresh is on the wire.
+
 			let release!: () => void;
 			const gate = new Promise< void >( ( resolve ) => {
 				release = resolve;
@@ -331,22 +322,14 @@ describe( 'createSession', () => {
 			expect( h.host.sent ).toHaveLength( 1 );
 			expect( h.host.sent[ 0 ] ).toMatchObject( { action: 'refresh', state: { query: '' } } );
 
-			// The user types while that request is on the wire: the bind
-			// writes immediately, the search dispatch debounces behind it.
 			h.root.firstElementChild!.dispatchEvent(
 				new CustomEvent( 'os-input-change', { bubbles: true, detail: { value: 'hello' } } ),
 			);
 
-			// The refresh's response lands, echoing the EMPTY query it was
-			// sent with. The newer local write must survive the echo —
-			// this is the search box snapping back mid-word.
 			release();
 			await vi.advanceTimersByTimeAsync( 0 );
 			expect( h.session.state.query ).toBe( 'hello' );
 
-			// And the queued search must carry the typed value, not the
-			// stomped one — otherwise the text merely FLASHES right and
-			// the request that matters still searches for nothing.
 			await vi.advanceTimersByTimeAsync( 300 );
 			expect( h.host.sent ).toHaveLength( 2 );
 			expect( h.host.sent[ 1 ] ).toMatchObject( { action: 'search', state: { query: 'hello' } } );
@@ -426,7 +409,7 @@ describe( 'createSession', () => {
 				host,
 				session,
 				respond: () => undefined,
-				// A broadcast reaches the exact subscription and the wildcard.
+
 				fire: ( topic ) => {
 					subscribers.get( topic )?.( topic );
 					subscribers.get( '*' )?.( topic );
@@ -463,7 +446,7 @@ describe( 'createSession', () => {
 			h.session.setPaused( false );
 			await flush();
 			expect( h.host.sent.map( ( s ) => s.action ) ).toEqual( [ 'set' ] );
-			// A clean restore does not refresh again.
+
 			h.session.setPaused( true );
 			h.session.setPaused( false );
 			await flush();
@@ -478,7 +461,7 @@ describe( 'createSession', () => {
 			h.fire( 'os-window-focused' );
 			h.fire( 'os.data-refresh' );
 			await flush();
-			// Only os.<type>.changed topics count.
+
 			expect( h.host.sent ).toHaveLength( 1 );
 		} );
 
@@ -552,7 +535,7 @@ describe( 'createSession', () => {
 			await h.session.dispatch( 'mount' );
 			const first = h.ctx().ui( () => ( { open: false } ) );
 			first.open = true;
-			// Same bag on every call, factory run once.
+
 			expect( h.ctx().ui( () => ( { open: false } ) ) ).toBe( first );
 			const before = h.renders();
 			const requests = h.fetches.length;
@@ -570,7 +553,7 @@ describe( 'createSession', () => {
 			const headers = new Headers( call?.init?.headers );
 			expect( headers.get( 'X-WP-Nonce' ) ).toBe( 'nonce' );
 			expect( headers.get( 'Accept' ) ).toBe( 'application/json' );
-			// An absolute URL passes through untouched.
+
 			await h.ctx().fetch( 'https://elsewhere.test/x' );
 			expect( h.fetches.at( -1 )?.input ).toBe( 'https://elsewhere.test/x' );
 		} );
@@ -623,8 +606,7 @@ describe( 'createSession', () => {
 			document.body.appendChild( root );
 			let captured: Ctx | undefined;
 			const host: RuntimeHost = {
-				// Echo the sent state back with `selected` grown — the
-				// shape of a real selection changing after mount.
+
 				fetch: async ( _input, init ) => {
 					const body = JSON.parse( String( init?.body ) ) as {
 						state: Record< string, unknown >;
@@ -649,8 +631,7 @@ describe( 'createSession', () => {
 					hasLocal: () => false,
 					runLocal: ( _a, s ) => s,
 					render: ( c ) => {
-						// The drag-out shape: mounted() captures the FIRST
-						// context it is handed and closes over it forever.
+
 						captured ??= c as Ctx;
 					},
 					mounted: () => undefined,
@@ -658,9 +639,9 @@ describe( 'createSession', () => {
 			} );
 			await session.dispatch( 'mount' );
 			expect( ( captured!.state as { selected: number[] } ).selected ).toEqual( [] );
-			// The user selects four things (a later dispatch adopts them).
+
 			await session.dispatch( 'select', { selected: [ 1, 2, 3, 4 ] } );
-			// The context captured at mount answers with the CURRENT state.
+
 			expect( ( captured!.state as { selected: number[] } ).selected ).toEqual( [ 1, 2, 3, 4 ] );
 			expect( captured!.data ).toEqual( { selected: [ 1, 2, 3, 4 ] } );
 			session.dispose();

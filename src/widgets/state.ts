@@ -1,41 +1,9 @@
-/**
- * OpenStation — Widget persistence.
- *
- * Three separate localStorage records:
- *
- *   - `desktop-mode-widgets`           — ordered list of enabled widget
- *                                      ids (today's format; unchanged
- *                                      so first-run seeding still
- *                                      works).
- *   - `desktop-mode-widgets-geometry`  — per-id `{ x, y, width, height }`
- *                                      for widgets the user has
- *                                      liberated from the column.
- *                                      Missing keys mean "still docked
- *                                      in the column."
- *   - `desktop-mode-widgets-docked-heights` — per-id height (px) for
- *                                      resizable widgets the user has
- *                                      height-resized while docked.
- *                                      Kept apart from the geometry
- *                                      record because a geometry
- *                                      entry's mere presence marks a
- *                                      widget as floating at boot.
- *
- * Each record writes-through independently so a quota failure in one
- * doesn't corrupt the other.
- */
-
 import type { WidgetGeometry } from './types';
 
 const IDS_KEY = 'desktop-mode-widgets';
 const GEOMETRY_KEY = 'desktop-mode-widgets-geometry';
 const DOCKED_HEIGHTS_KEY = 'desktop-mode-widgets-docked-heights';
 
-/**
- * Raw read so callers can distinguish "never saved" (null) from
- * "user explicitly cleared the list" (empty array serialised as
- * `[]`). The difference is what lets the layer seed the default
- * clock widget only on genuine first-run.
- */
 export function readRawEnabled(): string | null {
 	try {
 		return window.localStorage.getItem( IDS_KEY );
@@ -64,7 +32,7 @@ export function saveEnabledIds( ids: string[] ): void {
 	try {
 		window.localStorage.setItem( IDS_KEY, JSON.stringify( ids ) );
 	} catch {
-		/* private mode / quota exceeded — best-effort */
+
 	}
 }
 
@@ -97,7 +65,7 @@ export function saveGeometry(
 	try {
 		window.localStorage.setItem( GEOMETRY_KEY, JSON.stringify( geometry ) );
 	} catch {
-		/* best-effort */
+
 	}
 }
 
@@ -132,15 +100,10 @@ export function saveDockedHeights(
 			JSON.stringify( heights ),
 		);
 	} catch {
-		/* best-effort */
+
 	}
 }
 
-/**
- * Reject entries with NaN / non-finite / negative-size coords. A
- * widget whose stored geometry is garbage falls back to default
- * (column-docked) rather than rendering invisibly offscreen.
- */
 function sanitizeGeometry( raw: unknown ): WidgetGeometry | null {
 	if ( ! raw || typeof raw !== 'object' ) {
 		return null;

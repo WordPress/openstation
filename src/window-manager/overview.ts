@@ -1,19 +1,3 @@
-/**
- * OpenStation — Overview (zoom-out grid).
- *
- * Animate every eligible window to a grid thumbnail, plus a top bar
- * showing one tile per virtual desktop. Clicking a thumbnail exits
- * overview, focusing and bringing the clicked window to the front. Pressing Escape or
- * clicking the backdrop exits without selection.
- *
- * The lifecycle is big (enter/exit + click + key handlers + top bar
- * + label builders) so it lives here rather than piling onto the
- * orchestrator. `desktops.ts` reaches back into `createOverviewLabel`
- * during mid-overview desktop closes; the resulting import cycle is
- * a function-level one (safe at runtime as long as neither side calls
- * the other at module-load time).
- */
-
 import { doAction, HOOKS } from '../hooks';
 import { _n, __, sprintf } from '../i18n';
 import { osIconSvg } from '../ui/icons';
@@ -28,9 +12,7 @@ import {
 } from './desktops';
 import type { Window } from '../window';
 import { updateFullscreenBodyClass } from '../window/dom';
-// Leaf import, not the `../workspaces` barrel: the bar needs the one
-// control builder, and the barrel also carries the public API and the
-// editor loader.
+
 import {
 	createWorkspaceFromOverview,
 	editWorkspaceFromOverview,
@@ -40,17 +22,6 @@ import {
 } from '../workspaces/overview-control';
 import type { WindowManager } from './index';
 
-/**
- * Element IDs of background chrome to make inert during overview.
- *
- * These elements sit in the DOM between `#wpadminbar` (deliberately
- * left active) and the overview-top-bar tiles. Without inert the
- * browser's Tab order would traverse them before reaching any
- * visible tile, wasting keyboard-user keystrokes on hidden UI
- * (admin menu, dock buttons, widget controls ).
- *
- * Each element is restored to non-inert on overview exit.
- */
 const OVERVIEW_INERT_ELEMENTS = [
 	'adminmenumain',
 	'adminmenuback',
@@ -61,19 +32,8 @@ const OVERVIEW_INERT_ELEMENTS = [
 
 const OVERVIEW_FULLSCREEN_DATA_KEY = 'osHadFullscreenBeforeOverview';
 
-/**
- * How long a click on a tile's NAME waits for a second one before it
- * switches desks. The name is the rename target (see
- * `buildDesktopTile`); the rest of the tile switches on the first
- * click, undelayed.
- */
 const TILE_LABEL_DOUBLE_CLICK_MS = 250;
 
-/**
- * Make a window usable as an overview thumbnail without changing its
- * logical state. Fullscreen styling and minimized render suppression
- * are restored when the window returns to its desktop layout.
- */
 export function prepareWindowForOverviewLayout( w: Window ): void {
 	if (
 		w.state === 'fullscreen' ||
@@ -106,7 +66,6 @@ function restoreOverviewFullscreenState( w: Window ): void {
 	updateFullscreenBodyClass();
 }
 
-/** Restore any render-suppression / state-class changes made for overview. */
 export function restoreWindowAfterOverviewLayout(
 	w: Window,
 	restoreFullscreen = true,
@@ -122,11 +81,6 @@ export function restoreWindowAfterOverviewLayout(
 	}
 }
 
-/**
- * Toggle inert on every direct child of #wpbody-content so focus
- * can't land on hidden screen-options, help panels, or admin
- * notices during overview.
- */
 function inertWpBodyContentChildren( inactive: boolean ): void {
 	const content = document.getElementById( 'wpbody-content' );
 	if ( ! content ) {
@@ -137,11 +91,6 @@ function inertWpBodyContentChildren( inactive: boolean ): void {
 	}
 }
 
-/**
- * Toggle inert on every direct child of window elements so keyboard focus
- * cannot land on inner controls / titlebar buttons / iframes during overview,
- * while leaving the window root element non-inert so thumbnail pointer hits succeed.
- */
 function inertWindowChildren( mgr: WindowManager, inactive: boolean ): void {
 	for ( const w of mgr._stack ) {
 		for ( const child of Array.from( w.element.children ) ) {
@@ -150,56 +99,35 @@ function inertWindowChildren( mgr: WindowManager, inactive: boolean ): void {
 	}
 }
 
-/**
- * Enter overview mode — animate every eligible window to a grid
- * thumbnail layout. Clicking a thumbnail exits overview,
- * focusing and bringing the clicked window to the front. Pressing Escape
- * or clicking the backdrop exits without selection.
- */
 export function enterOverview( mgr: WindowManager ): void {
 	if ( mgr._overviewActive ) {
 		return;
 	}
-	// A previous exit may still be mid-animation (the user double-tapped
-	// the trigger). Settle it now so its timer can't fire inside the
-	// session we're about to build. See `flushPendingOverviewExit`.
+
 	flushPendingOverviewExit( mgr );
-	// Overview shows windows on the active desktop, including minimized
-	// ones. Minimized windows are rendered with a visual indicator
-	// (lower opacity) so the user can see all their work at a glance.
-	// Clicking a minimized thumbnail restores + focuses it on exit.
+
 	const eligible = mgr._stack.filter(
 		( w ) =>
 			w.config.desktopId === mgr._activeDesktopId,
 	);
-	// Even with zero windows on the active desktop we still enter
-	// overview — otherwise an empty desktop would have no way to
-	// reach the top bar to switch to one with windows.
+
 	mgr._overviewActive = true;
 
 	doAction( HOOKS.OVERVIEW_ENTERING, {} );
-	// The dock only re-reads system-tile predicates when told to.
+
 	doAction( HOOKS.DOCK_REFRESH_ACTIVE, {} );
 
-	// Make background left admin bar and the Dock inert so Tab focus doesn't traverse them.
-	// We deliberately leave the top admin bar (wpadminbar) active and reachable.
 	for ( const id of OVERVIEW_INERT_ELEMENTS ) {
 		const el = document.getElementById( id );
 		if ( el ) {
 			( el as HTMLElement & { inert: boolean } ).inert = true;
 		}
 	}
-	// Make all siblings of the shell inside wpbody-content inert
-	// so focus doesn't land on hidden screen options / help buttons.
+
 	inertWpBodyContentChildren( true );
-	// Make all window children (iframes, titlebars, tabs) inert so
-	// keyboard focus cannot traverse hidden window controls during
-	// overview, while leaving window root elements non-inert for clicks.
+
 	inertWindowChildren( mgr, true );
 
-	// Snapshot current transform + transition so exit can restore
-	// exactly — matters when plugins have applied custom transforms
-	// of their own.
 	mgr._overviewSnapshot.clear();
 	for ( const w of eligible ) {
 		mgr._overviewSnapshot.set( w.id, {
@@ -208,31 +136,10 @@ export function enterOverview( mgr: WindowManager ): void {
 		} );
 	}
 
-	// Fullscreen-state windows escape the shell's stacking context;
-	// suspend their visual class before computing layout so the
-	// transform math stays consistent without changing their logical
-	// state or saved geometry.
 	for ( const w of eligible ) {
 		prepareWindowForOverviewLayout( w );
 	}
 
-	// Target rect for the layout. `computeOverviewLayout` expects
-	// area-relative coordinates (same space as `offsetLeft` /
-	// `offsetTop`), so left + top are 0. Width accounts for the
-	// dock rails' imminent collapse: every horizontally-placed
-	// dock element (`#os-dock` when bottom-placed
-	// doesn't affect width; `#os-side-dock` AND any
-	// bottom dock placed left/right via the layout dispatcher do)
-	// is about to shrink to width 0 over the next ~280 ms, and we
-	// lay out as if the animation has already settled so
-	// thumbnails land at their final positions in a single pass.
-	//
-	// Sum every visible `.os-dock` whose CURRENT bounding
-	// rect overlaps the desktop area's vertical extent — those are
-	// the rails actually consuming horizontal space right now.
-	// Bottom-placed docks (full-width, sitting below the desktop
-	// area) won't overlap the area's vertical extent except at
-	// their top-edge fringe, so they're correctly excluded.
 	const currentRect = mgr._desktop.getBoundingClientRect();
 	const docks = Array.from(
 		document.querySelectorAll< HTMLElement >( '.os-dock' ),
@@ -258,15 +165,9 @@ export function enterOverview( mgr: WindowManager ): void {
 	const shell = document.getElementById( 'os-shell' );
 	shell?.classList.add( 'os-shell--overview' );
 
-	// Build + mount the top bar. Belongs INSIDE the desktop area so
-	// it shares the dim backdrop, but its own clicks are allowed past
-	// the click blocker (see below).
 	mgr._overviewTopBar = buildOverviewTopBar( mgr );
 	mgr._desktop.appendChild( mgr._overviewTopBar );
 
-	// Reserve vertical space at the top for the bar so the grid
-	// shifts down (and shrinks to fit) — thumbnails never land behind
-	// the tile strip.
 	const layout = computeOverviewLayout(
 		eligible,
 		targetRect,
@@ -279,37 +180,15 @@ export function enterOverview( mgr: WindowManager ): void {
 		el.classList.add( 'os-window--overview' );
 		const dx = item.x - el.offsetLeft;
 		const dy = item.y - el.offsetTop;
-		// transform-origin: top left (set in CSS) so translate + scale
-		// compose without drift.
+
 		el.style.transform = `translate(${ dx }px, ${ dy }px) scale(${ item.scale })`;
 
-		// Label above the thumbnail. Position in desktop-area
-		// coordinates so it's unaffected by the window's transform —
-		// critical for readability when thumbnails shrink to
-		// icon-size. The `data-window-id` attribute enables the
-		// adjacent-sibling CSS rule that keeps this label bright when
-		// its window is hovered (see windows.css).
 		const label = createOverviewLabel( item );
-		// Insert immediately AFTER the window element so the
-		// adjacent-sibling CSS selector ( `:hover + .label` ) can
-		// target the right label.
+
 		el.insertAdjacentElement( 'afterend', label );
 		mgr._overviewLabels.set( item.win.id, label );
 	}
 
-	// Press-in-same-element semantics, commit-on-release. Matches how
-	// native buttons / links feel: a press "arms" the element, and
-	// the release either fires the action (if it lands inside the
-	// armed element's visible bounds) or cancels (if the pointer
-	// moved off). We deliberately skip the `click` event here because
-	// its target is the common ancestor of the down/up pair, which
-	// produced the "press on A, release on B → browser synthesizes
-	// click on desktop → exits overview" bug we saw before.
-	//
-	// Hit-testing at release uses the pressed element's bounding rect
-	// rather than `e.target` equality — bounding rect is forgiving of
-	// a few pixels of finger drift during a quick tap, which strict
-	// target equality rejected (noticeable on small thumbnails).
 	const pressTargetForEvent = (
 		e: PointerEvent,
 	): { id: string; element: HTMLElement } | null => {
@@ -330,17 +209,12 @@ export function enterOverview( mgr: WindowManager ): void {
 	};
 
 	mgr._overviewPointerDownHandler = ( e: PointerEvent ) => {
-		// Only primary button / single-touch — ignore right-click,
-		// middle-click, and pen-eraser so they don't latch a press
-		// target that a left-click up would then match against.
 		if ( e.button !== 0 ) {
 			mgr._overviewPressTarget = null;
 			return;
 		}
 		mgr._overviewPressTarget = pressTargetForEvent( e );
-		// Swallow the down so iframes / inner UI can't start a
-		// drag-select or native focus operation while we're acting
-		// as a click surface.
+
 		if ( mgr._overviewPressTarget ) {
 			e.preventDefault();
 			e.stopPropagation();
@@ -363,8 +237,6 @@ export function enterOverview( mgr: WindowManager ): void {
 			e.clientY >= rect.top &&
 			e.clientY <= rect.bottom;
 		if ( ! inside ) {
-			// Release landed outside the pressed element's visible
-			// bounds — treat as a drag-off cancel.
 			return;
 		}
 		e.preventDefault();
@@ -383,15 +255,8 @@ export function enterOverview( mgr: WindowManager ): void {
 			exitOverview( mgr );
 			return;
 		}
-		// Enter commits whatever the keyboard cursor is parked on:
-		//
-		//   - "+" tile  → create a new desktop and exit onto it.
-		//   - desktop   → exit overview onto the currently active
-		//                 desktop (arrow keys keep that in sync as the
-		//                 cursor moves through tiles).
+
 		if ( e.key === 'Enter' ) {
-			// If the user is parked on an explicit button (like the close X or desktop tile),
-			// let the native click event handle it.
 			const target = e.target as HTMLElement | null;
 			const doc = target?.ownerDocument || document;
 			if ( doc.activeElement && doc.activeElement.tagName === 'BUTTON' ) {
@@ -415,12 +280,7 @@ export function enterOverview( mgr: WindowManager ): void {
 		mgr._overviewPointerUpHandler,
 		true,
 	);
-	// Sticky capture-phase click blocker. Stops the browser-synthesized
-	// click that follows every pointerdown+pointerup pair from ever
-	// reaching the desktop area's "minimize every window" click
-	// handler. Top-bar clicks are exempt — those are deliberate UI
-	// interactions (switch desktop, create, close) that need their
-	// own handlers to fire.
+
 	mgr._overviewClickBlocker = ( e: MouseEvent ) => {
 		const target = e.target as HTMLElement | null;
 		if ( target?.closest( '.os-overview-top-bar' ) ) {
@@ -436,11 +296,6 @@ export function enterOverview( mgr: WindowManager ): void {
 	);
 	document.addEventListener( 'keydown', mgr._overviewKeyHandler );
 
-	// Hover delegation — mouseover bubbles up to the desktop area, so
-	// one handler covers every thumbnail. We track the last-hovered
-	// window id so we can fire paired hover/unhover actions even when
-	// the pointer moves directly from one thumbnail to the next
-	// without crossing empty space.
 	mgr._lastOverviewHoverId = null;
 	mgr._overviewMouseHandler = ( e: MouseEvent ) => {
 		const target = e.target as HTMLElement | null;
@@ -465,10 +320,6 @@ export function enterOverview( mgr: WindowManager ): void {
 	};
 	mgr._desktop.addEventListener( 'mouseover', mgr._overviewMouseHandler );
 
-	// Signal "entered" after the grid animation settles. Matches the
-	// 280 ms transform transition — plugins listening here can safely
-	// read final layout positions. Handle is tracked so `destroy()`
-	// can cancel it if the manager is discarded before it fires.
 	mgr._overviewEnterTimeoutId = window.setTimeout( () => {
 		mgr._overviewEnterTimeoutId = null;
 		if ( mgr._overviewActive ) {
@@ -477,23 +328,6 @@ export function enterOverview( mgr: WindowManager ): void {
 	}, 300 ) as unknown as number;
 }
 
-/**
- * Run the pending exit-animation cleanup now, cancelling its timer.
- *
- * The timer itself calls this; so does `enterOverview()`, because a
- * re-entry inside the 280 ms exit window would otherwise leave a live
- * timer that fires MID-session and undoes the new session's setup —
- * stripping `os-window--overview` from every thumbnail, re-adding
- * `os-window--fullscreen` to a window whose class was suspended for
- * layout (blowing one thumbnail up to fullscreen size and hiding the
- * admin bar with it), and removing the top bar that enter just built.
- *
- * Settling the outgoing session first is what makes double-tapping
- * the overview trigger safe: `OVERVIEW_EXITED` lands before
- * `OVERVIEW_ENTERING`, in the order a listener expects.
- *
- * No-op when nothing is pending.
- */
 export function flushPendingOverviewExit( mgr: WindowManager ): void {
 	if ( mgr._overviewExitTimeoutId !== null ) {
 		window.clearTimeout( mgr._overviewExitTimeoutId );
@@ -504,12 +338,6 @@ export function flushPendingOverviewExit( mgr: WindowManager ): void {
 	finalize?.();
 }
 
-/**
- * Cancel any pending overview transition timers without running their
- * callbacks. Called from `WindowManager.destroy()` so a discarded
- * manager can never fire a delayed `doAction()` that reaches for
- * globals torn down after the manager itself.
- */
 export function cancelOverviewTimers( mgr: WindowManager ): void {
 	if ( mgr._overviewEnterTimeoutId !== null ) {
 		window.clearTimeout( mgr._overviewEnterTimeoutId );
@@ -519,25 +347,12 @@ export function cancelOverviewTimers( mgr: WindowManager ): void {
 		window.clearTimeout( mgr._overviewExitTimeoutId );
 		mgr._overviewExitTimeoutId = null;
 	}
-	// Dropped, not run — `destroy()` wants the callback gone, and its
-	// `doAction()` would reach for globals this teardown is removing.
+
 	mgr._overviewExitFinalizer = null;
 }
 
-/**
- * A row the shell puts ABOVE the desktop tiles — the site switcher on a
- * network, where every site is its own OpenStation with its own desks.
- * Overview cannot build it (it has a `WindowManager` and nothing else),
- * so the shell installs a builder once at boot and every bar build
- * calls it; `null` from the builder means no row, which is what every
- * single-site shell and every existing overview test gets.
- */
 let overviewHeaderBuilder: ( () => HTMLElement | null ) | null = null;
 
-/**
- * Install the builder for the row above the desktop tiles. Returns a
- * teardown so a discarded shell leaves nothing behind.
- */
 export function installOverviewHeader(
 	build: () => HTMLElement | null,
 ): () => void {
@@ -547,7 +362,6 @@ export function installOverviewHeader(
 	};
 }
 
-/** Build the overview top bar — a tile per virtual desktop plus "+". */
 function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	const bar = document.createElement( 'div' );
 	bar.className = 'os-overview-top-bar';
@@ -564,12 +378,6 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	list.className = 'os-overview-top-bar__list';
 	bar.appendChild( list );
 
-	// Whether every tile reserves a Restore row under it. Restore is on
-	// the desks that have something to restore, and the bar only grows
-	// the row once at least one of them does. Reserved for ALL tiles
-	// or none, never per tile: the rows sit below the tile, so a tile
-	// that reserved fewer would ride up out of line with its
-	// neighbours. A user with no workspaces gets the bar they had.
 	if ( mgr._desktops.some( workspaceCanRestore ) ) {
 		list.classList.add( 'os-overview-top-bar__list--restorable' );
 	}
@@ -578,28 +386,17 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 		list.appendChild( buildDesktopTile( mgr, d ) );
 	}
 
-	// Trailing "+" tile.
 	const addTile = document.createElement( 'button' );
 	addTile.type = 'button';
 	addTile.className =
 		'os-overview-top-bar__tile os-overview-top-bar__tile--add';
 	if ( mgr._overviewAddTileFocused ) {
-		// Mirrors the `--active` highlight on the active desktop tile —
-		// signals "this is where Enter will land". Distinct class name
-		// so future styling can diverge from the active-desktop look
-		// without touching click handlers.
 		addTile.classList.add(
 			'os-overview-top-bar__tile--cursor',
 		);
 	}
 	addTile.setAttribute( 'aria-label', __( 'Add new workspace' ) );
-	// The same two rows a desk tile has: a preview band with the glyph
-	// centred in it, and a label strip below. Empty ones, but present,
-	// so the dashed box is the height of a tile BY CONSTRUCTION rather
-	// than by a number copied from the tile's rules that would drift
-	// the first time one of them changed. The label carries a
-	// non-breaking space because an empty span has no line box, and
-	// the strip has to be as tall as the one holding "Workspace 1".
+
 	addTile.innerHTML =
 		'<span class="os-overview-top-bar__tile-preview">' +
 		'<span class="os-overview-top-bar__tile-plus" aria-hidden="true">+</span>' +
@@ -610,13 +407,7 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 		e.stopPropagation();
 		commitAddTile( mgr );
 	} );
-	// Wrapped like a desk, so it is the height of one. The list
-	// stretches its children to the tallest, and a desk is a tile
-	// PLUS the action rows underneath it; unwrapped, the `+` stretched
-	// to cover both and stood a third taller than the tiles beside it.
-	// The wrapper gives it the same column and an empty actions block
-	// in place of the buttons a desk has, so the dashed box ends level
-	// with the tiles and the empty row below it lines up too.
+
 	const addWrapper = document.createElement( 'div' );
 	addWrapper.className =
 		'os-overview-top-bar__tile-wrapper os-overview-top-bar__tile-wrapper--add';
@@ -629,28 +420,14 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 	return bar;
 }
 
-/**
- * Create a new desktop, switch to it, and exit overview onto it.
- * Shared by the "+" tile click handler AND the Enter-key commit path
- * when the keyboard cursor is parked on the "+" tile. macOS Spaces
- * ergonomics — pressing "+" lands you on the freshly-created blank
- * space without an extra hop.
- */
 export function commitAddTile( mgr: WindowManager ): void {
 	mgr._overviewAddTileFocused = false;
 	const created = createDesktop( mgr );
 	exitOverviewToDesktop( mgr, created.id );
-	// The wizard runs over the blank desk, not over overview: the user
-	// dresses the canvas they are standing on and can see, and the
-	// wizard's "Use the windows I have open now" acts on the active
-	// desk. Its first step is a blank desktop, preselected and one
-	// Enter away, so the fast path is as fast as it was. A shell that
-	// never wired workspaces answers `false` and the user is simply on
-	// the new desk, which is what the `+` alone has always meant.
+
 	createWorkspaceFromOverview( created.id );
 }
 
-/** Build a single desktop tile for the overview top bar. */
 function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	const wrapper = document.createElement( 'div' );
 	wrapper.className = 'os-overview-top-bar__tile-wrapper';
@@ -659,21 +436,13 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	tile.type = 'button';
 	tile.className = 'os-overview-top-bar__tile';
 	tile.dataset.desktopId = d.id;
-	// Active highlight follows the keyboard cursor: when the cursor is
-	// parked on the "+" tile, no desktop tile should also light up.
-	// The active desktop's windows still render in the grid behind the
-	// bar, so there's still context — but the visual selection is
-	// unambiguous: only the "+" reads as "Enter lands here".
+
 	if ( d.id === mgr._activeDesktopId && ! mgr._overviewAddTileFocused ) {
 		tile.classList.add( 'os-overview-top-bar__tile--active' );
 	}
-	// translators: %s is the desktop label
+
 	tile.setAttribute( 'aria-label', sprintf( __( 'Switch to %s' ), d.label ) );
 
-	// A workspace wears its identity here too, not only on the
-	// switcher pill: overview is where the user compares desks, and a
-	// row of identical grey tiles is exactly where "which one was the
-	// shop?" gets asked. A plain Space has no profile and stays plain.
 	const profile = d.profile;
 	if ( profile?.color ) {
 		wrapper.style.setProperty( '--os-workspace-accent', profile.color );
@@ -688,11 +457,7 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 		glyph.setAttribute( 'aria-hidden', 'true' );
 		preview.appendChild( glyph );
 	}
-	// Window-count badge inside the preview area gives users a quick
-	// "what's on this desktop" hint without needing real per-window
-	// thumbnails (a follow-up enhancement). Includes native windows —
-	// they're windows just like iframes from the user's
-	// count-what's-open perspective.
+
 	const count = mgr._stack.filter(
 		( w ) => w.config.desktopId === d.id,
 	).length;
@@ -707,24 +472,14 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	const label = document.createElement( 'span' );
 	label.className = 'os-overview-top-bar__tile-label';
 	label.textContent = d.label;
-	// The name is ellipsized when it doesn't fit, so the tooltip
-	// carries it in full — and, with it, the one hint that the rename
-	// gesture exists.
+
 	label.title = sprintf(
-		// translators: %s is the desktop name.
+
 		__( '%s — double-click to rename' ),
 		d.label,
 	);
 	tile.appendChild( label );
 
-	// Renaming is the one thing people come back to, and the pencil
-	// spends a modal on it. Double-clicking the name edits it in
-	// place instead.
-	//
-	// The first click of that pair would otherwise have switched desks
-	// and torn overview down before the second one landed, so a click
-	// on the NAME waits out the double-click interval; the rest of the
-	// tile still switches on the first click.
 	let switchTimer: number | undefined;
 	label.addEventListener( 'click', ( e: MouseEvent ) => {
 		if ( label.hasAttribute( 'contenteditable' ) ) {
@@ -737,15 +492,13 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 		}
 		switchTimer = window.setTimeout( () => {
 			switchTimer = undefined;
-			// Overview can have been left by other means while we
-			// waited — a close X on the last tile, Escape, the dock.
+
 			if ( mgr._overviewActive ) {
 				exitOverviewToDesktop( mgr, d.id );
 			}
 		}, TILE_LABEL_DOUBLE_CLICK_MS );
 	} );
 	label.addEventListener( 'dblclick', ( e: MouseEvent ) => {
-		// Mid-edit, a double-click is the user selecting a word.
 		if ( label.hasAttribute( 'contenteditable' ) ) {
 			return;
 		}
@@ -759,24 +512,13 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	tile.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
-		// A space typed into the label activates this <button> — the
-		// browser synthesises a click. That is a default action, so no
-		// `stopPropagation` upstream reaches it; the click has to be
-		// refused here.
+
 		if ( label.hasAttribute( 'contenteditable' ) ) {
 			return;
 		}
 		exitOverviewToDesktop( mgr, d.id );
 	} );
 
-	// Wrapper, not tile: a control nested in the tile's <button> is
-	// invalid markup and unclickable.
-	//
-	// One pencil, one meaning: it opens the wizard on this desk, which
-	// has its own Name step. A second "Edit" under the tile read as a
-	// rival to it. Offered on every desk, plain Spaces included: for
-	// one of those it is how it BECOMES a workspace. A shell that never
-	// wired the wizard gets the inline rename the pencil always did.
 	const editable = isWorkspaceOverviewInstalled();
 	const editBtn = document.createElement( 'button' );
 	editBtn.type = 'button';
@@ -784,11 +526,10 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	if ( editable ) {
 		editBtn.setAttribute(
 			'aria-label',
-			// translators: %s is the desktop name.
+
 			sprintf( __( 'Edit %s — its apps, widgets, look and windows' ), d.label ),
 		);
 	} else {
-		// translators: %s is the desktop label
 		editBtn.setAttribute( 'aria-label', sprintf( __( 'Rename %s' ), d.label ) );
 	}
 	editBtn.title = editBtn.getAttribute( 'aria-label' ) ?? '';
@@ -800,26 +541,18 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 			beginRename( mgr, label, d );
 			return;
 		}
-		// Land on the desk first: the wizard's "Use the windows I have
-		// open now" acts on the active desk, and a modal is not
-		// something overview should stay open under.
+
 		exitOverviewToDesktop( mgr, d.id );
 		editWorkspaceFromOverview( d.id );
 	} );
 
-	// Close X — hidden via CSS when only one desktop exists, so users
-	// can't soft-lock themselves out of the last one. We still render
-	// the button (rather than omitting) so its presence/absence
-	// doesn't reflow the tile.
 	const closeBtn = document.createElement( 'button' );
 	closeBtn.type = 'button';
 	closeBtn.className = 'os-overview-top-bar__tile-close';
-	// translators: %s is the desktop label
+
 	closeBtn.setAttribute( 'aria-label', sprintf( __( 'Close %s' ), d.label ) );
 	closeBtn.innerHTML = osIconSvg( 'close', { size: 16 } );
 	closeBtn.addEventListener( 'click', ( e: MouseEvent ) => {
-		// stopPropagation so the wrapper's layout doesn't trigger
-		// anything, though the tile is a sibling, not a parent.
 		e.preventDefault();
 		e.stopPropagation();
 		closeDesktop( mgr, d.id );
@@ -830,16 +563,6 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	wrapper.appendChild( editBtn );
 	wrapper.appendChild( closeBtn );
 
-	// The desk's actions, in a column BELOW the tile — not over its
-	// preview, which is the tile's picture of the desk, and not in the
-	// corners, which edit and close already have. **Restore** puts the
-	// desk back the way its workspace defines it. Always visible, but
-	// only on a desk with something to restore (see
-	// `workspaceCanRestore`): a button that visibly does nothing is
-	// worse than no button, so its absence is information.
-	//
-	// The column keeps its height whether or not Restore is present,
-	// so every tile box stays on the same line.
 	const actions = document.createElement( 'div' );
 	actions.className = 'os-overview-top-bar__tile-actions';
 
@@ -848,12 +571,10 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 		restoreBtn.type = 'button';
 		restoreBtn.className =
 			'os-overview-top-bar__tile-action os-overview-top-bar__tile-restore';
-		// The visible word is short; the accessible name is the whole
-		// sentence, because "Restore" alone could be read as the
-		// session restore the shell does at boot.
+
 		restoreBtn.setAttribute(
 			'aria-label',
-			// translators: %s is the workspace name.
+
 			sprintf( __( 'Restore %s — reopen its windows, widgets and look' ), d.label ),
 		);
 		restoreBtn.title = restoreBtn.getAttribute( 'aria-label' ) ?? '';
@@ -862,9 +583,6 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 			e.preventDefault();
 			e.stopPropagation();
 			if ( restoreWorkspace( d.id ) ) {
-				// Land on the desk being restored — the windows are
-				// opening there, and watching that happen from inside
-				// overview would show a grid mid-rebuild.
 				exitOverview( mgr );
 			}
 		} );
@@ -878,14 +596,6 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	return wrapper;
 }
 
-/**
- * Edit a tile's label in place. Enter commits, Escape reverts, blur
- * commits.
- *
- * The label itself becomes editable rather than being covered by an
- * `<input>`: an overlay has to be re-measured onto the label's box and
- * font to keep the name from moving, and never matched exactly.
- */
 function beginRename(
 	mgr: WindowManager,
 	label: HTMLElement,
@@ -894,14 +604,12 @@ function beginRename(
 	if ( label.hasAttribute( 'contenteditable' ) ) {
 		return;
 	}
-	// Attribute first: it is what the re-entry guard and `finish` read,
-	// and the IDL setter below is a silent no-op on some engines.
-	// `plaintext-only` keeps pasted markup out where supported.
+
 	label.setAttribute( 'contenteditable', 'true' );
 	try {
 		label.contentEditable = 'plaintext-only';
 	} catch {
-		/* `true` stands. */
+
 	}
 	label.spellcheck = false;
 	label.focus();
@@ -923,21 +631,13 @@ function beginRename(
 		if ( commit ) {
 			renameDesktop( mgr, d.id, label.textContent ?? '' );
 		}
-		// Rebuild to restore the label from data, repaint the
-		// aria-labels that embed the name, and drop these listeners
-		// with the element. Not while closing: blur lands mid-teardown,
-		// and replacing the bar there throws out of the exit finaliser.
+
 		if ( mgr._overviewActive ) {
 			refreshOverviewTopBar( mgr );
 		}
 	};
 
 	label.addEventListener( 'keydown', ( e: KeyboardEvent ) => {
-		// Overview reads Escape as "leave" and Enter as "commit the
-		// cursor", both mid-edit. The shell's other bare-key shortcuts
-		// listen in the capture phase, where this cannot reach them —
-		// they guard themselves with `isTextEntryFocus`, which covers
-		// contenteditable.
 		e.stopPropagation();
 		if ( e.key === 'Enter' || e.key === 'Escape' ) {
 			e.preventDefault();
@@ -945,19 +645,10 @@ function beginRename(
 		}
 	} );
 	label.addEventListener( 'blur', () => finish( true ) );
-	// Clicking to place the caret must not reach the tile beneath,
-	// which switches desktops.
+
 	label.addEventListener( 'click', ( e: MouseEvent ) => e.stopPropagation() );
 }
 
-/**
- * Re-render the top bar in place. Called after any operation that
- * mutates the desktop list (create, close) so the bar reflects the
- * new state without a full overview exit/re-enter cycle. Exported so
- * cross-module callers (e.g. `switchDesktop` in `desktops.ts`) can
- * refresh the `--active` tile highlight when the user navigates
- * between desktops mid-overview.
- */
 export function refreshOverviewTopBar( mgr: WindowManager ): void {
 	if ( ! mgr._overviewTopBar ) {
 		return;
@@ -967,47 +658,22 @@ export function refreshOverviewTopBar( mgr: WindowManager ): void {
 	mgr._overviewTopBar = fresh;
 }
 
-/**
- * Switch to the given desktop, then exit overview without a specific
- * window selection. Used by top-bar tile clicks and the post-create
- * flow.
- */
 function exitOverviewToDesktop( mgr: WindowManager, desktopId: string ): void {
 	switchDesktop( mgr, desktopId );
-	// Exit overview WITHOUT selecting a specific window — the active
-	// desktop has its own focus state that the switch already
-	// restored.
+
 	exitOverview( mgr );
 }
 
-/**
- * Build the floating caption that sits above an overview thumbnail.
- * Carries the window's icon + title, plus a secondary line with the
- * external-tab count when the window has any — so users can tell at a
- * glance "oh this one has 3 sub-tabs open" without expanding a
- * thumbnail.
- *
- * Label sits OUTSIDE the window's transform (as a sibling in the
- * desktop area), so scaling the thumbnail has no effect on its text
- * size.
- */
 export function createOverviewLabel( item: OverviewLayoutItem ): HTMLElement {
 	const label = document.createElement( 'div' );
 	label.className = 'os-overview-label';
 	label.dataset.windowId = item.win.id;
 
-	// Position: horizontally aligned with the thumbnail, sitting just
-	// above its top edge. The 34 px offset = label height (28) + a
-	// 6 px gap. Width matches the thumbnail so the label ellipsizes
-	// rather than overflowing into a neighbor.
 	const thumbW = item.win.element.offsetWidth * item.scale;
 	label.style.left = `${ item.x }px`;
 	label.style.top = `${ item.y - 34 }px`;
 	label.style.width = `${ thumbW }px`;
 
-	// Icon — mirrors the dashicon the window's title bar uses.
-	// `config.icon` is already a Dashicons class string by
-	// construction, but guard against unexpected values.
 	const iconClass = item.win.config.icon || 'dashicons-admin-generic';
 	const icon = document.createElement( 'span' );
 	icon.className = `os-overview-label__icon dashicons ${ iconClass }`;
@@ -1019,14 +685,12 @@ export function createOverviewLabel( item: OverviewLayoutItem ): HTMLElement {
 	title.textContent = item.win.config.title;
 	label.appendChild( title );
 
-	// Secondary: external-tab count. Only appended when > 0 so we
-	// don't waste visual weight on the common "no extras" case.
 	const tabCount = item.win.getExternalTabCount();
 	if ( tabCount > 0 ) {
 		const meta = document.createElement( 'span' );
 		meta.className = 'os-overview-label__meta';
 		meta.textContent = sprintf(
-			// translators: %d is the number of external sub-tabs open on this window.
+
 			_n( '· %d open tab', '· %d open tabs', tabCount ),
 			tabCount,
 		);
@@ -1036,12 +700,6 @@ export function createOverviewLabel( item: OverviewLayoutItem ): HTMLElement {
 	return label;
 }
 
-/**
- * Exit overview mode. When `selected` is given and `maximize` is
- * true, the clicked window animates directly from its grid thumbnail
- * position to maximized bounds — one smooth pass, no back-to-original-
- * then-forward-to-maximized round trip.
- */
 export function exitOverview(
 	mgr: WindowManager,
 	selected?: Window,
@@ -1051,29 +709,16 @@ export function exitOverview(
 		return;
 	}
 	mgr._overviewActive = false;
-	// Drop the keyboard cursor's "+ focused" state so the next overview
-	// session starts with the cursor on the active desktop, not on
-	// whatever tile the previous session left it on.
+
 	mgr._overviewAddTileFocused = false;
 
 	doAction( HOOKS.OVERVIEW_EXITING, {
 		windowId: selected ? selected.id : undefined,
 		reason: selected ? 'select' : 'cancel',
 	} );
-	// Must fire AFTER the flag drops: an exit via desktop switch has
-	// already refreshed the dock from `switchDesktop`, while overview
-	// was still active, leaving the dot lit on a closed overview.
+
 	doAction( HOOKS.DOCK_REFRESH_ACTIVE, {} );
 
-	// Remove area + shell classes AT T=0 so the backdrop fades and
-	// the dock slides back in IN PARALLEL with the windows animating
-	// home. Previously these were deferred to the end of the window
-	// animation — producing a visible two-phase unwind (windows
-	// first, then dock) that felt sequential. The only class we
-	// DON'T remove yet is `os-window--overview` on each
-	// window: it carries `transform-origin: top left`, needed for
-	// the in-flight transform transition. Yanking it here would
-	// shift the origin to center mid-animation and wobble the path.
 	mgr._desktop.classList.remove( 'os-area--overview' );
 	const shell = document.getElementById( 'os-shell' );
 	shell?.classList.remove( 'os-shell--overview' );
@@ -1087,9 +732,6 @@ export function exitOverview(
 	inertWpBodyContentChildren( false );
 	inertWindowChildren( mgr, false );
 
-	// Unselected windows: transform → '' (snaps back to their
-	// pre-overview inline geometry). Selected window (if any):
-	// transform is cleared the same way, AND focused to top of stack.
 	for ( const [ id, snap ] of mgr._overviewSnapshot ) {
 		const w = mgr.getById( id );
 		if ( ! w ) {
@@ -1098,52 +740,33 @@ export function exitOverview(
 		w.element.style.transform = snap.transform;
 	}
 	if ( selected ) {
-		// Restore minimized windows before focusing so the user lands
-		// on a visible window, not an invisible-but-focused one.
 		if ( selected.state === 'minimized' ) {
 			restoreOverviewFullscreenState( selected );
 			selected.restore();
 		}
-		// Focus first so z-index and focused-class are right from the
-		// moment the animation starts — no pop-to-top late in the
-		// transition.
+
 		mgr.focus( selected );
 		if ( maximize ) {
 			selected.maximize();
 		}
 	}
 
-	// Remove overview class immediately for windows that are STILL minimized
-	// (unselected ones). This strips the opacity override and transform-origin,
-	// allowing them to smoothly fade out and shrink into their minimized state
-	// during the 280ms transition, instead of staying visible and snapping away.
 	for ( const w of mgr._stack ) {
 		if ( w.state === 'minimized' ) {
 			w.element.classList.remove( 'os-window--overview' );
 		}
 	}
 
-	// Start labels fading immediately — they overshoot the area when
-	// a selected window focuses, and we don't want them lingering
-	// over it during the 300ms transition. Opacity transition is CSS-side
-	// (see `.os-overview-label--out`).
 	for ( const label of mgr._overviewLabels.values() ) {
 		label.classList.add( 'os-overview-label--out' );
 	}
 
-	// Top bar fades out in parallel with the windows. Removed fully
-	// when the animation settles (in the setTimeout below).
 	if ( mgr._overviewTopBar ) {
 		mgr._overviewTopBar.classList.add(
 			'os-overview-top-bar--out',
 		);
 	}
 
-	// After the animation completes, strip the per-window overview
-	// class (kept in place through the transition for the
-	// transform-origin reason noted above) and the labels. Handle is
-	// tracked so `destroy()` can cancel it if the manager is
-	// discarded before it fires.
 	const ANIMATION_MS = 280;
 	mgr._overviewExitFinalizer = () => {
 		for ( const w of mgr._stack ) {
@@ -1162,11 +785,7 @@ export function exitOverview(
 			mgr._overviewTopBar.remove();
 			mgr._overviewTopBar = null;
 		}
-		// Click blocker lifts LAST, on the same tick the overview
-		// officially ends. By this point the browser-synthesized
-		// click that followed the user's final pointerup has long
-		// fired and been swallowed — releasing earlier would let
-		// that click through to "minimize all".
+
 		if ( mgr._overviewClickBlocker ) {
 			mgr._desktop.removeEventListener(
 				'click',
@@ -1213,9 +832,7 @@ export function exitOverview(
 		);
 		mgr._overviewMouseHandler = null;
 	}
-	// Fire a final unhover if pointer was over a thumbnail when exit
-	// kicked in — paired-hover guarantee for plugin authors doing
-	// accounting.
+
 	if ( mgr._lastOverviewHoverId ) {
 		doAction( HOOKS.OVERVIEW_WINDOW_UNHOVER, {
 			windowId: mgr._lastOverviewHoverId,

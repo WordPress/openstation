@@ -1,23 +1,5 @@
-/**
- * Plugins app — the card galleries (Browse and Featured).
- *
- * Part of the `desktop-mode-plugins` client view. Both tabs paint a
- * grid of {@link buildCard}s into an `os-preserve` host and share
- * everything but their source: the Browse gallery pages through
- * `plugins_api( 'query_plugins' )` with an IntersectionObserver
- * sentinel (infinite scroll), the Featured gallery loads the curated
- * + discovered list once. Neither fetches until its tab is the one on
- * screen. Card CTAs read the installed state off the app's live
- * `data()` and repaint whenever it changes, so an install or activation
- * anywhere (the table, the flyout, the upload dialog, the chromeless
- * bridge) flips them without a fetch of their own.
- *
- * @public
- */
-
 import { __, sprintf } from '@openstation/app';
-// The galleries paint under `os-preserve` hosts, outside the runtime's
-// on-demand component loading — the tags they build register here.
+
 import '../../../src/ui/components/os-ribbon/os-ribbon';
 import { setBusy } from './actions';
 import { buildCard, buildSkeletonCard, repaintCardCta, type CardCallbacks, type InstalledIndex } from './card';
@@ -39,13 +21,12 @@ interface GalleryDeps {
 	flyout: () => HTMLElement | null;
 }
 
-/** What a mounted gallery keeps between paints. */
 interface GalleryCore {
-	/** Every plugin painted, by slug — the CTA repaint and the dedupe read it. */
+
 	plugins: Map< string, { plugin: WpOrgBrowsePlugin; card: HTMLElement } >;
 	callbacks: CardCallbacks;
 	installedIndex: () => InstalledIndex;
-	/** Repaint every card's CTA against the current installed list. */
+
 	repaintCtas: () => void;
 	addCard: ( gallery: HTMLElement, plugin: WpOrgBrowsePlugin, before: Node | null, featured: boolean ) => void;
 	clear: () => void;
@@ -101,8 +82,6 @@ function createCore( deps: GalleryDeps ): GalleryCore {
 		addCard: ( gallery, plugin, before, featured ) => {
 			const card = buildCard( plugin, installedIndex(), callbacks );
 			if ( featured ) {
-				// `<os-ribbon>` anchors to the card host's `position:
-				// relative` (`os-plugins__card--featured`) — keep paired.
 				card.classList.add( 'os-plugins__card--featured' );
 				const ribbon = document.createElement( 'os-ribbon' );
 				ribbon.textContent = __( 'Featured', 'desktop-mode' );
@@ -124,10 +103,8 @@ function createCore( deps: GalleryDeps ): GalleryCore {
 	};
 }
 
-// ─── Browse ────────────────────────────────────────────────────────
-
 export interface BrowseGallery {
-	/** Re-wire after a paint; a changed filter / query starts over once the tab is on screen. */
+
 	sync: ( opts: {
 		gallery: HTMLElement | null;
 		status: HTMLElement | null;
@@ -135,7 +112,7 @@ export interface BrowseGallery {
 		query: string;
 		active: boolean;
 	} ) => void;
-	/** Start over on the current filter / query (the Refresh button). */
+
 	reset: () => void;
 	repaintCtas: () => void;
 	dispose: () => void;
@@ -170,8 +147,7 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 		for ( let i = 0; i < 6; i++ ) {
 			gallery.appendChild( buildSkeletonCard() );
 		}
-		// The sentinel stays LAST so it scrolls with the content and
-		// the observer (rooted on the gallery) keeps seeing it.
+
 		gallery.appendChild( sentinel );
 		await loadMore();
 	};
@@ -199,7 +175,7 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 				gallery.replaceChildren();
 				gallery.appendChild( sentinel );
 			}
-			// `info.pages` is wp.org's authoritative page count.
+
 			const info = ( data.info ?? {} ) as { pages?: number };
 			if ( typeof info.pages === 'number' && info.pages > 0 ) {
 				totalPages = info.pages;
@@ -218,7 +194,7 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 				}
 			}
 			page++;
-			// Two exhaustion signals — trust whichever fires first.
+
 			if ( totalPages > 0 ? page > totalPages : incoming.length < BROWSE_PAGE_SIZE ) {
 				exhausted = true;
 			}
@@ -227,7 +203,7 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 			core.showStatus(
 				status,
 				sprintf(
-					/* translators: %s: error message */
+
 					__( 'Could not load plugins: %s', 'desktop-mode' ),
 					describeError( err ),
 				),
@@ -250,8 +226,6 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 				observer = null;
 				key = '';
 				if ( gallery ) {
-					// `root: gallery` so the observer fires against the
-					// gallery's own scroll, not the document viewport.
 					observer = new IntersectionObserver(
 						( entries ) => {
 							if ( entries.some( ( entry ) => entry.isIntersecting ) ) {
@@ -264,8 +238,7 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 				}
 			}
 			const next = `${ opts.filter }|${ opts.query }`;
-			// A hidden tab never fetches: the first load waits for the
-			// user to open Browse, and a filter typed elsewhere waits too.
+
 			if ( gallery && opts.active && next !== key ) {
 				key = next;
 				filter = opts.filter;
@@ -282,10 +255,8 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 	};
 }
 
-// ─── Featured ──────────────────────────────────────────────────────
-
 export interface FeaturedGallery {
-	/** Re-wire after a paint; loads once, the first time its tab is on screen. */
+
 	sync: ( opts: { gallery: HTMLElement | null; status: HTMLElement | null; active: boolean } ) => void;
 	repaintCtas: () => void;
 }
@@ -327,7 +298,7 @@ export function createFeaturedGallery( deps: GalleryDeps ): FeaturedGallery {
 				core.showStatus(
 					status,
 					sprintf(
-						/* translators: %s: error message */
+
 						__( 'Could not load featured plugins: %s', 'desktop-mode' ),
 						describeError( err ),
 					),

@@ -1,9 +1,3 @@
-/**
- * Resolves a release's album art + codename from its wordpress.org/news
- * announcement (titled `WordPress <X.Y> "Codename"`), cached in
- * `localStorage` per branch.
- */
-
 import { trackedFetch } from './tracked-fetch';
 
 export interface ReleaseArt {
@@ -11,14 +5,9 @@ export interface ReleaseArt {
 	artUrl: string;
 }
 
-// The `v1` segment versions the cache — bump it when the resolution logic
-// changes so stale hits/misses from an older algorithm are discarded.
 const CACHE_PREFIX = 'desktop-mode/release-art:v1:';
-const MISS_TTL_MS = 6 * 60 * 60 * 1000; // retry a miss after 6h
-// A new major is offered as an update hours before its announcement
-// post goes up, so a miss there means "not published yet" rather than
-// "nothing to find" — retry it soon enough that the card replaces the
-// fallback toast the same day.
+const MISS_TTL_MS = 6 * 60 * 60 * 1000;
+
 const PENDING_MISS_TTL_MS = 30 * 60 * 1000;
 
 function str( v: unknown ): string {
@@ -30,14 +19,12 @@ function prop( o: unknown, key: string ): unknown {
 		: undefined;
 }
 
-/** Decode HTML entities in a REST `title.rendered` (e.g. `&#8220;` → `“`). */
 function decodeEntities( s: string ): string {
 	const el = document.createElement( 'textarea' );
 	el.innerHTML = s;
 	return el.value;
 }
 
-/** Best featured-image size for the ~150px sleeve, falling back up the ladder. */
 function pickMedia( post: unknown ): string {
 	const media = prop( prop( post, '_embedded' ), 'wp:featuredmedia' );
 	const first = Array.isArray( media ) ? media[ 0 ] : undefined;
@@ -51,10 +38,6 @@ function pickMedia( post: unknown ): string {
 	return str( prop( first, 'source_url' ) );
 }
 
-/**
- * Find the major-announcement post for `branch` in a news-feed response
- * and extract its codename + art. Exported for tests.
- */
 export function parseReleaseArt(
 	posts: unknown,
 	branch: string,
@@ -63,8 +46,7 @@ export function parseReleaseArt(
 		return null;
 	}
 	const escaped = branch.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' );
-	// "WordPress <branch> "<Codename>"" — version followed by a quoted
-	// codename (curly or straight). Excludes "7.0.1 Maintenance Release".
+
 	const re = new RegExp(
 		'^WordPress ' + escaped + '\\s*[“"]([^”"]+)[”"]',
 	);
@@ -102,7 +84,7 @@ function readCache(
 		) {
 			return 'miss';
 		}
-		return null; // stale miss → refetch
+		return null;
 	} catch {
 		return null;
 	}
@@ -112,19 +94,10 @@ function writeCache( branch: string, value: object ): void {
 	try {
 		localStorage.setItem( CACHE_PREFIX + branch, JSON.stringify( value ) );
 	} catch {
-		// Storage unavailable / full — resolution just won't be cached.
+
 	}
 }
 
-/**
- * Resolve `{ name, artUrl }` for a branch, from cache or the news feed.
- * Returns `null` when no announcement/art is found (the shell then falls
- * back to the plain toast).
- *
- * Pass `announcementPending` for a branch whose announcement is still
- * expected (a major that just landed) to cache a miss for minutes
- * instead of hours.
- */
 export async function resolveReleaseArt(
 	branch: string,
 	announcementPending = false,
@@ -144,14 +117,6 @@ export async function resolveReleaseArt(
 	}
 
 	try {
-		// per_page=100 (the REST max): an older branch's announcement can
-		// sit well below the newer maintenance posts / betas that also
-		// match the version in a relevance-ranked search. `_fields` +
-		// `_embed=wp:featuredmedia` trim each post to the title and
-		// featured image we actually read; without them the response
-		// carries the full rendered content of 100 posts (~1.3 MB vs
-		// ~115 KB). `_links` must stay in `_fields` (the REST API only
-		// embeds relations whose links survive the field filter).
 		const url =
 			'https://wordpress.org/news/wp-json/wp/v2/posts?search=' +
 			encodeURIComponent( branch ) +
@@ -178,10 +143,6 @@ export async function resolveReleaseArt(
 	}
 }
 
-/**
- * Preload an image, resolving `true` once it's decoded (so the card can
- * mount with art already painted), `false` on error / timeout.
- */
 export function preloadImage(
 	url: string,
 	timeoutMs = 5000,

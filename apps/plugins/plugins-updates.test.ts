@@ -1,4 +1,3 @@
-/** Batch updates must paint each server-confirmed result before moving on. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext, renderedText } from '../../src/app-runtime/testing';
 import type { OsTable } from '../../src/ui/components/os-table/os-table';

@@ -1,24 +1,7 @@
 <?php
-/**
- * A small, opt-in allowlist of well-known *library* admin notices that render
- * globally (so they repeat in every desktop window) and can be re-derived from
- * authoritative state. Unlike arbitrary plugin `admin_notices` — which we
- * deliberately leave alone — these are shared
- * libraries bundled across many plugins, common enough to warrant a targeted
- * case. Each entry is detached in-window and surfaced once in the shell, the
- * same pattern as the core notices.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * The allowlisted plugin/library notices for the current user, as shell
- * descriptors (same shape as `openstation_get_core_notices()`).
- *
- * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
- */
 function openstation_get_plugin_notices() {
 	$builders = array(
 		'openstation_plugin_notice_action_scheduler',
@@ -32,37 +15,15 @@ function openstation_get_plugin_notices() {
 		}
 	}
 
-	/**
-	 * Filters the allowlisted plugin/library notices surfaced once in the
-	 * desktop shell. Return an empty array to suppress them all, or unset
-	 * individual entries by `id`.
-	 *
-	 * @param array $notices List of notice descriptors.
-	 */
 	return apply_filters( 'openstation_plugin_notices', $notices );
 }
 
-/**
- * Action Scheduler's "N past-due actions found" warning — bundled by
- * WooCommerce, Jetpack, and many other plugins, and printed globally on
- * `admin_notices` (with no throttle while past-due actions exist, so it
- * repeats in every window). Re-derived here from Action Scheduler's own store,
- * mirroring `ActionScheduler_AdminView::check_pastdue_actions()` including its
- * filters, so the count matches what Action Scheduler would show.
- *
- * @return array|null
- */
 function openstation_plugin_notice_action_scheduler() {
-	// Every filter applied below is Action Scheduler's own. Mirroring its
-	// check means honouring the same extension points a site has already
-	// hooked; prefixing them would consult filters nobody implements and
-	// silently diverge from the count Action Scheduler itself shows.
-	// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+
 	if ( ! class_exists( 'ActionScheduler_Store' ) || ! function_exists( 'as_get_datetime_object' ) ) {
 		return null;
 	}
 
-	// Capability gate — mirrors `action_scheduler_check_pastdue_actions`.
 	if ( ! apply_filters( 'action_scheduler_check_pastdue_actions', current_user_can( 'manage_options' ) ) ) {
 		return null;
 	}
@@ -70,8 +31,6 @@ function openstation_plugin_notice_action_scheduler() {
 	$threshold_seconds = (int) apply_filters( 'action_scheduler_pastdue_actions_seconds', DAY_IN_SECONDS );
 	$threshold_min     = (int) apply_filters( 'action_scheduler_pastdue_actions_min', 1 );
 
-	// A third party can preempt Action Scheduler's own check; when it does the
-	// count is opaque, so mirror Action Scheduler and don't surface.
 	if ( ! is_null( apply_filters( 'action_scheduler_pastdue_actions_check_pre', null ) ) ) {
 		return null;
 	}
@@ -94,7 +53,6 @@ function openstation_plugin_notice_action_scheduler() {
 	if ( ! $check ) {
 		return null;
 	}
-	// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
 	$url = add_query_arg(
 		array(
@@ -109,7 +67,7 @@ function openstation_plugin_notice_action_scheduler() {
 		'id'          => 'action-scheduler-pastdue',
 		'title'       => __( 'Scheduled Actions', 'desktop-mode' ),
 		'message'     => sprintf(
-			/* translators: %d: number of past-due scheduled actions. */
+
 			_n(
 				'Action Scheduler: %d past-due action found; something may be wrong.',
 				'Action Scheduler: %d past-due actions found; something may be wrong.',
@@ -123,19 +81,11 @@ function openstation_plugin_notice_action_scheduler() {
 	);
 }
 
-/**
- * Detaches the allowlisted plugin/library notices inside chromeless iframes so
- * they don't repeat in every window — the shell surfaces each once (see
- * `openstation_get_plugin_notices()`).
- */
 function openstation_chromeless_suppress_plugin_notices() {
 	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 
-	// Action Scheduler registers the notice as an instance method on its
-	// `ActionScheduler_AdminView` singleton (during `init`, before this runs).
-	// Detect the actual priority it registered at rather than assuming 10.
 	if ( class_exists( 'ActionScheduler_AdminView' ) ) {
 		$callback = array( ActionScheduler_AdminView::instance(), 'maybe_check_pastdue_actions' );
 		$priority = has_action( 'admin_notices', $callback );

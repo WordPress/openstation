@@ -1,37 +1,13 @@
 <?php
-/**
- * OpenStation — deactivation feedback: the screen hook, the payload
- * and the forwarder.
- *
- * Three surfaces show the dialog and all three call the same REST
- * route: the classic `plugins.php` (the primary surface — the sites
- * we most need to hear from never opened OpenStation), the same page
- * inside a chromeless window, and the native Plugins app. The first
- * two get the bundle from `admin_enqueue_scripts` below; the app
- * lazy-loads it from the config block `apps/plugins/plugins.os.php`
- * ships through {@see openstation_deactivation_feedback_client_config()}.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** The reasons the dialog offers, as the slugs the intake stores. */
 const OPENSTATION_FEEDBACK_REASONS = array( 'changed_too_much', 'missing_features', 'too_buggy', 'other' );
 
-/** Where a submission came from. */
 const OPENSTATION_FEEDBACK_CONTEXTS = array( 'classic', 'chromeless', 'app' );
 
-/** Longest free-text `details` forwarded, in characters. */
 const OPENSTATION_FEEDBACK_DETAILS_MAX = 1000;
 
-/**
- * The static half of what the dialog needs, shared by the screen hook
- * and the Plugins app config.
- *
- * @param string $context One of {@see OPENSTATION_FEEDBACK_CONTEXTS}.
- * @return array{ plugin:string, restUrl:string, restNonce:string, context:string }
- */
 function openstation_deactivation_feedback_client_config( $context ) {
 	if ( ! in_array( $context, OPENSTATION_FEEDBACK_CONTEXTS, true ) ) {
 		$context = 'classic';
@@ -44,18 +20,6 @@ function openstation_deactivation_feedback_client_config( $context ) {
 	);
 }
 
-/**
- * What the native Plugins app needs to lazy-load the dialog, or
- * `null` when the feature is off. Rides the app's per-viewer config
- * (`apps/plugins/plugins.os.php`).
- *
- * The bundle goes through the shell's `loadVendorScript`, which
- * appends a raw `<script src>` and never prints the handle, so the
- * translations `wp_set_script_translations()` attached are harvested
- * here the way every other lazy bundle's are.
- *
- * @return array{ script:array{ url:string, translations:string }, styleUrl:string, restUrl:string }|null
- */
 function openstation_deactivation_feedback_app_config() {
 	if ( ! openstation_deactivation_feedback_enabled() ) {
 		return null;
@@ -76,17 +40,6 @@ function openstation_deactivation_feedback_app_config() {
 	);
 }
 
-/**
- * Enqueue the dialog bundle on the Plugins screen — classic admin,
- * chromeless window and network admin alike — for anyone who can
- * deactivate a plugin.
- *
- * The bundle intercepts the Deactivate link on OpenStation's own row.
- * It is not in the chromeless trim list (`includes/render/chromeless-trim.php`
- * drops the admin-bar family only), so it survives inside a window.
- *
- * @param string $hook_suffix Current admin page.
- */
 function openstation_feedback_enqueue_deactivation_dialog( $hook_suffix ) {
 	if ( 'plugins.php' !== $hook_suffix || ! current_user_can( 'activate_plugins' ) ) {
 		return;
@@ -107,20 +60,6 @@ function openstation_feedback_enqueue_deactivation_dialog( $hook_suffix ) {
 }
 add_action( 'admin_enqueue_scripts', 'openstation_feedback_enqueue_deactivation_dialog' );
 
-/**
- * The real moment a first-run stamp records, in epoch seconds, or
- * `null` when it is absent or its age is unknown.
- *
- * `includes/first-run/stamps.php` writes `{ at, via }`: `via` is
- * `activation` when the stamp was written at the real moment and
- * `backfill` when it was reconstructed later for an install that
- * predates it. A backfilled `at` is the moment we noticed, not the
- * moment it happened, so it is reported as unknown rather than as a
- * number wrong by an arbitrary amount.
- *
- * @param array{at:int,via:string}|null $stamp A normalised stamp.
- * @return int|null
- */
 function openstation_feedback_stamp_moment( $stamp ) {
 	if ( null === $stamp || 'activation' !== $stamp['via'] || $stamp['at'] <= 0 ) {
 		return null;
@@ -128,14 +67,6 @@ function openstation_feedback_stamp_moment( $stamp ) {
 	return (int) $stamp['at'];
 }
 
-/**
- * Whole days between two moments, floored at zero, or `null` when
- * either is unknown.
- *
- * @param int|null $from Earlier moment, epoch seconds.
- * @param int|null $to   Later moment, epoch seconds.
- * @return int|null
- */
 function openstation_feedback_days_between( $from, $to ) {
 	if ( null === $from || null === $to ) {
 		return null;
@@ -143,22 +74,8 @@ function openstation_feedback_days_between( $from, $to ) {
 	return max( 0, (int) floor( ( $to - $from ) / DAY_IN_SECONDS ) );
 }
 
-/**
- * Build the anonymous payload for one submission.
- *
- * Deliberately no site id, no home URL hash, no user data. The random
- * per-submission id exists only so the intake can ignore a retry.
- * Every field is listed in `readme.txt` under "External services";
- * add one here and add it there in the same change.
- *
- * @param string[] $reasons Any of {@see OPENSTATION_FEEDBACK_REASONS}; the
- *                          dialog lets the admin tick several.
- * @param string   $details Free text, optional.
- * @param string   $context One of {@see OPENSTATION_FEEDBACK_CONTEXTS}.
- * @return array
- */
 function openstation_deactivation_feedback_payload( $reasons, $details = '', $context = 'classic' ) {
-	// Known slugs only, deduplicated, in the dialog's own order.
+
 	$reasons = array_values(
 		array_intersect( OPENSTATION_FEEDBACK_REASONS, array_map( 'strval', (array) $reasons ) )
 	);
@@ -182,10 +99,6 @@ function openstation_deactivation_feedback_payload( $reasons, $details = '', $co
 	$installed_at     = openstation_feedback_stamp_moment( openstation_get_install_stamp() );
 	$first_enabled_at = openstation_feedback_stamp_moment( openstation_get_first_enabled_stamp() );
 
-	// Site-activated plugins, plus the network-activated ones on a
-	// multisite: `active_plugins` alone would under-count a network.
-	// Deduplicated, because network activation does not remove a
-	// plugin from a site's own list.
 	$active_plugins = count(
 		array_unique(
 			array_merge(
@@ -214,22 +127,8 @@ function openstation_deactivation_feedback_payload( $reasons, $details = '', $co
 	);
 }
 
-/**
- * Forward one payload to the intake. Synchronous, short and
- * best-effort: the plugin is about to be deactivated, so a cron job
- * would never run, and the admin should wait three seconds at most.
- *
- * @param array $payload The filtered payload.
- * @return bool True on a 2xx answer.
- */
 function openstation_deactivation_feedback_forward( array $payload ) {
-	/**
-	 * Filters the intake URL. Hosts that run their own intake (an
-	 * internal one, say) point this at it; it receives the JSON
-	 * payload by POST.
-	 *
-	 * @param string $endpoint Default {@see OPENSTATION_FEEDBACK_ENDPOINT}.
-	 */
+
 	$endpoint = (string) apply_filters( 'openstation_deactivation_feedback_endpoint', OPENSTATION_FEEDBACK_ENDPOINT );
 	if ( '' === $endpoint ) {
 		return false;

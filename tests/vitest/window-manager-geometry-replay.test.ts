@@ -1,15 +1,3 @@
-/**
- * Tests that `WindowManager.createWindow` consults the per-baseId
- * geometry store as a fallback when the caller doesn't pin
- * dimensions or state.
- *
- * This covers the path used by classic (iframe-backed) windows
- * opened from a dock-icon click or a desktop icon, where no
- * width / height is provided and the default cascade-from-rect math
- * would otherwise win.
- *
- * @see https://github.com/Automattic/wp-desktop-mode/issues/203
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
@@ -77,9 +65,8 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 	test( 'no saved entry: falls back to the desktopRect-based default size', async () => {
 		const win = await manager.open( openConfig( 'edit-php' ) );
 
-		// Default is min(rect.width * 0.8, 1200) = min(1280, 1200) = 1200.
 		expect( win.config.width ).toBe( 1200 );
-		// Default is min(rect.height * 0.8, 800) = min(720, 800) = 720.
+
 		expect( win.config.height ).toBe( 720 );
 	} );
 
@@ -96,8 +83,7 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 	} );
 
 	test( 'explicit width / height from the caller wins over the saved entry', async () => {
-		// Session restore passes explicit dimensions. The saved
-		// localStorage value must not override.
+
 		saveNativeWindowGeometry( 'edit-php', {
 			width: 1400,
 			height: 880,
@@ -199,15 +185,12 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 
 			const win = await manager.open( openConfig( 'edit-php' ) );
 
-			// Default cascade is `40 + (0 % 8) * CASCADE_OFFSET = 40`.
 			expect( win.config.x ).toBe( 40 );
 			expect( win.config.y ).toBe( 40 );
 		} );
 
 		test( 'a saved position outside the current viewport is clamped back inside', async () => {
-			// Simulates an ultrawide-to-laptop transition. The
-			// 1600x900 desktop in this harness can't honour a saved
-			// x=2800.
+
 			saveNativeWindowGeometry( 'edit-php', {
 				width: 800,
 				height: 600,
@@ -216,9 +199,8 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 
 			const win = await manager.open( openConfig( 'edit-php' ) );
 
-			// max-x = desktopWidth - winWidth - margin = 1600 - 800 - 12 = 788.
 			expect( win.config.x ).toBe( 788 );
-			// max-y = 900 - 600 - 12 = 288.
+
 			expect( win.config.y ).toBe( 288 );
 		} );
 
@@ -244,9 +226,6 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 			} );
 			saveNativeWindowPosition( 'edit-php', { x: 240, y: 160 } );
 
-			// Every menu click takes this door, and most of them find
-			// nothing of that page open: the first window still lands
-			// where the user left the last one.
 			const win = await manager.openNew( openConfig( 'edit-php' ) );
 
 			expect( win.config.x ).toBe( 240 );
@@ -265,16 +244,13 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 				openConfig( 'edit-php', { multi: true } ),
 			);
 
-			// Duplicate gets a cascade slot, not the saved primary
-			// position. The primary consumed cascade index 0, so the
-			// duplicate's is 1: 40 + 30.
 			expect( win.config.x ).toBe( 70 );
 			expect( win.config.y ).toBe( 70 );
 		} );
 	} );
 
 	test( '"Open windows as" maximizes a fresh window, and Focused minimizes the rest', async () => {
-		// A window applies its initial state on the next frame.
+
 		const frame = () => new Promise< void >( ( r ) => requestAnimationFrame( () => r() ) );
 		const first = await manager.openNew( openConfig( 'edit' ) );
 		manager.openWindowsAs = () => 'maximized';
@@ -290,7 +266,6 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 		expect( first.state ).toBe( 'minimized' );
 		expect( second.state ).toBe( 'minimized' );
 
-		// A caller that decided keeps its decision.
 		const placed = await manager.openNew( openConfig( 'tools', { openAs: 'default' } ) );
 		await frame();
 		expect( placed.state ).toBe( 'normal' );

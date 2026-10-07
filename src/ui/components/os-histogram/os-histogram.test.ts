@@ -1,6 +1,3 @@
-/**
- * `<os-histogram>` — data in, SVG + legend out, toggles announced.
- */
 import { afterEach, describe, expect, it } from 'vitest';
 import { OsHistogram, niceCeil } from './os-histogram';
 

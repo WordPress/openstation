@@ -1,15 +1,3 @@
-/**
- * OpenStation — Send-challenge dialog.
- *
- * `<os-modal>` hosting a `<os-user-search>` opponent picker
- * (pointed at the games-scoped search endpoint) and a summary of
- * the score being thrown down. Picked users show a presence dot via
- * `<os-avatar user-id>`, so challenging someone who's online right
- * now is one glance away.
- */
-
-// Side-effect imports — register the `<os-*>` components this module
-// constructs. `defineComponent` is idempotent across bundles.
 import '../ui/components/os-avatar/os-avatar';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-modal/os-modal';
@@ -48,9 +36,6 @@ function usersSearchUrl(): string {
 	return joinRestUrl( restUrl, 'desktop-mode/v1/games/users/search' );
 }
 
-/**
- * Open the dialog. Resolves when it closes (sent or cancelled).
- */
 export function openChallengeDialog(
 	args: ChallengeDialogArgs,
 ): Promise< void > {
@@ -66,7 +51,7 @@ export function openChallengeDialog(
 		const summary = document.createElement( 'p' );
 		summary.className = 'os-games__challenge-summary';
 		summary.textContent = sprintf(
-			/* translators: 1: game title, 2: score. */
+
 			__( 'Challenge someone to beat your %1$s score of %2$s.' ),
 			args.gameTitle,
 			String( args.score ),
@@ -153,7 +138,7 @@ export function openChallengeDialog(
 				.then( () => {
 					showToast( {
 						message: sprintf(
-							/* translators: %s: opponent display name. */
+
 							__( 'Challenge sent to %s.' ),
 							opponent!.name,
 						),

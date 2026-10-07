@@ -1,9 +1,3 @@
-/**
- * `wp.os.startOAuth` tests — pin the contract on the popup
- * orchestration: `/oauth/start` POST, popup open, postMessage
- * resolution, popup-closed-without-callback rejection, origin
- * validation.
- */
 import {
 	afterEach,
 	beforeEach,
@@ -50,7 +44,7 @@ describe( 'startOAuth', () => {
 	} );
 
 	function stubFetch( body: unknown, ok = true ): void {
-		// eslint-disable-next-line no-restricted-syntax -- test stub
+
 		window.fetch = vi.fn( async () => {
 			return new Response( JSON.stringify( body ), {
 				status: ok ? 200 : 500,
@@ -70,10 +64,6 @@ describe( 'startOAuth', () => {
 		} );
 		const promise = startOAuth( 'tumblrlike' );
 
-		// Drain the start fetch + open the popup. Use a macrotask
-		// boundary because trackedFetch awaits the Response then
-		// awaits res.json() (one microtask each, plus Promise
-		// chaining), so two microtasks isn't always enough.
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 
 		const fetchMock = window.fetch as unknown as ReturnType< typeof vi.fn >;
@@ -86,7 +76,6 @@ describe( 'startOAuth', () => {
 		);
 		expect( init.body ).toBe( JSON.stringify( { service: 'tumblrlike' } ) );
 
-		// Resolve the flow so the test cleans up.
 		window.dispatchEvent(
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
@@ -160,7 +149,6 @@ describe( 'startOAuth', () => {
 		const promise = startOAuth( 'tumblrlike' );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 
-		// Cross-origin attempt — must NOT resolve.
 		window.dispatchEvent(
 			new MessageEvent( 'message', {
 				origin: 'https://attacker.example',
@@ -170,7 +158,7 @@ describe( 'startOAuth', () => {
 				},
 			} ),
 		);
-		// Then a legitimate same-origin success message.
+
 		window.dispatchEvent(
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
@@ -191,7 +179,6 @@ describe( 'startOAuth', () => {
 		const promise = startOAuth( 'tumblrlike' );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 
-		// Wrong type — must NOT resolve.
 		window.dispatchEvent(
 			new MessageEvent( 'message', {
 				origin: window.location.origin,

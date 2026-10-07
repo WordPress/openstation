@@ -1,17 +1,5 @@
 <?php
-/**
- * Tests for the admin-menu signature the chromeless bridge ships on
- * every page so the shell can live-refresh the dock when the menu
- * changes off the plugins/themes/update allowlist (GH#325) — e.g. a
- * custom post type registered through a settings tool.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- *
- * @covers ::openstation_menu_signature
- */
+
 class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -40,10 +28,6 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Helper: build a $menu row in the canonical 7-element layout used
-	 * throughout wp-admin/menu.php.
-	 */
 	private function make_menu_row( $title, $cap, $slug, $icon = 'dashicons-admin-post' ) {
 		return array(
 			$title,
@@ -76,11 +60,6 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		$this->assertSame( $first, $second, 'Signature must be deterministic for an unchanged menu.' );
 	}
 
-	/**
-	 * The core GH#325 scenario: a new top-level menu (e.g. a custom post
-	 * type registered by a settings tool) must move the signature so the
-	 * shell knows to refresh.
-	 */
 	public function test_changes_when_a_top_level_menu_is_added() {
 		global $menu;
 		$menu = array(
@@ -119,13 +98,6 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		$this->assertNotSame( $before, $after );
 	}
 
-	/**
-	 * Transient update badges (`<span class="update-plugins count-N">`)
-	 * ride inside the menu title HTML and fluctuate constantly. They
-	 * must NOT move the signature — otherwise the dock would refresh on
-	 * every moderation/update-count tick. Mirrors the badge-strip in
-	 * openstation_build_dock_items().
-	 */
 	public function test_ignores_update_badge_count_changes() {
 		global $menu;
 		$menu = array(
@@ -141,7 +113,6 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		);
 		$two = openstation_menu_signature();
 
-		// Same menu, only the badge count moved 2 -> 5.
 		$menu[0][0] = 'Plugins <span class="update-plugins count-5"><span class="plugin-count">5</span></span>';
 		$five       = openstation_menu_signature();
 
@@ -162,13 +133,6 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		$this->assertNotSame( $before, $after, 'A new submenu entry must move the signature.' );
 	}
 
-	/**
-	 * The signature is computed against the *current user's*
-	 * capability-passing view — the same gate the dock uses. A menu the
-	 * viewer can't see must neither appear in nor churn the signature,
-	 * so activation of an admin-only tool never triggers a wasted
-	 * refresh for a lower-privileged user.
-	 */
 	public function test_respects_capability_gating() {
 		global $menu;
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
@@ -177,17 +141,12 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		$menu   = array( $this->make_menu_row( 'Dashboard', 'read', 'index.php' ) );
 		$before = openstation_menu_signature();
 
-		// Add a menu the subscriber cannot access.
 		$menu[] = $this->make_menu_row( 'Settings', 'manage_options', 'options-general.php' );
 		$after  = openstation_menu_signature();
 
 		$this->assertSame( $before, $after, 'An item the viewer lacks the cap for must not move their signature.' );
 	}
 
-	/**
-	 * Separator rows carry no slug/title the dock renders; they must be
-	 * skipped so a Core reshuffle of separators doesn't churn the hash.
-	 */
 	public function test_ignores_separators() {
 		global $menu;
 		$menu = array(

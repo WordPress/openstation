@@ -1,30 +1,3 @@
-/**
- * `<os-chip>` — small dismissible pill primitive.
- *
- * Renders a labelled pill with an optional leading icon slot and an
- * optional trailing close (×) button. Use it directly for read-only
- * chip lists (categories, statuses, badges with text) or compose
- * inside `<os-tag-input>` for full add/remove ergonomics.
- *
- * ```html
- * <!-- Read-only chip -->
- * <os-chip label="Drafts" tone="warning"></os-chip>
- *
- * <!-- Dismissible chip with leading icon -->
- * <os-chip label="WordPress" dismissible>
- *     <span slot="icon" class="dashicons dashicons-wordpress"></span>
- * </os-chip>
- * ```
- *
- * Emits `os-chip-dismiss` `{ label }` when the close button is
- * clicked or activated via the keyboard. Consumers handle the
- * actual removal — the component does NOT remove itself from the
- * DOM, leaving lifecycle to the parent (so REST roll-back, undo
- * affordances, animations are all consumer-driven).
- *
- * @public
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { osIcon } from '../../icons';
 import { styles } from './os-chip.styles';
@@ -156,9 +129,7 @@ export class OsChip extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-		// Activate dismiss with the keyboard too — listening on the
-		// host (not just the inner button) so chips remain accessible
-		// from outside the shadow boundary.
+
 		this.addEventListener( 'keydown', this._onHostKeyDown );
 	}
 
@@ -220,10 +191,7 @@ export class OsChip extends Component {
 		if ( ! dismissible ) {
 			return;
 		}
-		// Activate the dismiss action when focus is on the host (or
-		// inside the shadow boundary) and the user presses Backspace
-		// or Delete — matches the OS-level "remove this token"
-		// muscle memory.
+
 		if ( e.key === 'Backspace' || e.key === 'Delete' ) {
 			e.preventDefault();
 			const disabled =

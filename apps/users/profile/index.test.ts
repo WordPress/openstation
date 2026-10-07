@@ -1,10 +1,3 @@
-/**
- * `<os-user-profile>` — the element's lifecycle: idle without an id,
- * one mount per id with the record and the insights fetched ONCE each,
- * a retarget that re-mounts once, the properties the host feeds, and
- * an aside that refreshes ITSELF after a save (not the first aside in
- * the document).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import '../../../src/ui/components/os-form/os-form';
 import '../../../src/ui/components/os-select/os-select';
@@ -12,8 +5,7 @@ import '../../../src/ui/components/os-text-field/os-text-field';
 import '../../../src/ui/components/os-textarea/os-textarea';
 import '../../../src/ui/components/os-checkbox-label/os-checkbox-label';
 import '../../../src/ui/components/os-button/os-button';
-// A side-effect import: the module's evaluation is what defines the
-// tag, and a type-only use of the class would let the import be elided.
+
 import './index';
 import type { OsUserProfile } from './index';
 import type { ProfileConfig } from './types';
@@ -77,7 +69,6 @@ const config: ProfileConfig = {
 	colorSchemes: {},
 };
 
-/** A fetch that answers by path and counts what was asked. */
 function fakeFetch( names: Record< number, string > = {} ) {
 	const calls: string[] = [];
 	const fetch = vi.fn( async ( path: string, init?: RequestInit ) => {
@@ -137,9 +128,7 @@ describe( '<os-user-profile>', () => {
 	test( 'mounts once per id, fetching the record and the insights ONCE each through the host’s fetch', async () => {
 		const { fetch, calls } = fakeFetch();
 		const el = mountProfile( 2, { fetch } );
-		// The properties land in the same task as the attribute; the
-		// mount waits a microtask for them, so the first fetch is the
-		// host's, not the shell fallback.
+
 		await wait( 10 );
 		expect( calls.filter( ( c ) => c.includes( '/insights' ) ) ).toEqual( [ 'GET desktop-mode/v1/users/2/insights' ] );
 		expect( calls.filter( ( c ) => c.startsWith( 'GET wp/v2/users/2' ) ).length ).toBe( 1 );
@@ -147,7 +136,6 @@ describe( '<os-user-profile>', () => {
 		expect( el.querySelector( '[data-os-user-profile-aside]' )?.textContent ).toContain( 'User 2' );
 		expect( el.querySelector( '[data-os-user-profile-activity]' )?.textContent ).toContain( 'Recent activity' );
 
-		// A repaint that sets the same attribute again mounts nothing.
 		el.setAttribute( 'user-id', '2' );
 		await wait( 10 );
 		expect( calls.filter( ( c ) => c.includes( '/insights' ) ).length ).toBe( 1 );
@@ -175,7 +163,6 @@ describe( '<os-user-profile>', () => {
 		await wait( 10 );
 		expect( a.querySelector( '[data-os-user-profile-aside]' )?.textContent ).toContain( 'User 2' );
 
-		// Save from the SECOND element: only its insights are re-fetched.
 		( b.querySelector( 'os-form' ) as HTMLElement & { submit: () => void } ).submit();
 		await wait( 30 );
 		expect( second.calls.filter( ( c ) => c.includes( '/insights' ) ) ).toEqual( [

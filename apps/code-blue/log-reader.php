@@ -1,22 +1,9 @@
 <?php
-/**
- * Code Blue — the log model.
- *
- * Discovery, tailing, parsing and clearing of the logs an install can
- * produce — the server half. Grouping, filtering and time buckets
- * run in the browser (`code-blue.os.ts`) so every filter is instant.
- * Everything here is a plain namespaced function that talks to the
- * host only through `$os`, so the same code runs on WordPress and on
- * a bare PHP host.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\Apps\CodeBlue;
 
 use OpenStation\App\Os;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
@@ -24,33 +11,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 const MAX_BYTES   = 1048576;
 const MAX_ENTRIES = 3000;
 
-/**
- * Whether the acting user may use Code Blue: site management (network
- * management on a network — the logs are shared files) AND Developer
- * mode in OpenStation Preferences.
- *
- * @param Os $os Host handle.
- * @return bool
- */
 function can_use( Os $os ) {
 	$can = $os->can( $os->env->is_network() ? 'manage_network_options' : 'manage_options' )
 		&& ! empty( $os->preference( 'developerModeEnabled' ) );
 
-	/**
-	 * Filter whether the current user can see the Code Blue window.
-	 *
-	 * @param bool $can Default: Developer mode on AND `manage_options`
-	 *                  (`manage_network_options` on a network).
-	 */
 	return (bool) $os->filter( 'openstation_code_blue_user_can_use', $can );
 }
 
-/**
- * The PHP error-label → severity map; the single source of truth for
- * both the parse regex and the label lookup.
- *
- * @return array<string,string>
- */
 function level_map() {
 	return array(
 		'fatal error'             => 'fatal',
@@ -70,15 +37,6 @@ function level_map() {
 	);
 }
 
-/**
- * Grouping key: numbers and hex addresses collapse so two occurrences
- * of the same problem land together.
- *
- * @param string $level   Severity slug.
- * @param string $message Message without the location suffix.
- * @param string $file    File path, may be ''.
- * @return string
- */
 function signature( $level, $message, $file = '' ) {
 	$norm = preg_replace( '/0x[0-9a-f]+/i', 'N', (string) $message );
 	$norm = preg_replace( '/\d+/', 'N', (string) $norm );
@@ -86,17 +44,6 @@ function signature( $level, $message, $file = '' ) {
 	return $level . '|' . substr( (string) $norm, 0, 240 ) . '|' . $file;
 }
 
-/**
- * Build one entry: strip well-formed HTML (`_doing_it_wrong()` logs
- * markup; a bare `<` from a parse error must survive), pull the
- * `in /file on line N` suffix out, derive the signature.
- *
- * @param int|null $timestamp Unix seconds or null.
- * @param string   $level     Severity slug.
- * @param string   $label     Human label, e.g. `PHP Fatal error`.
- * @param string   $message   Message text.
- * @return array<string,mixed>
- */
 function make_entry( $timestamp, $level, $label, $message ) {
 	$message = trim( (string) preg_replace( '/<\/?[a-zA-Z][^<>]*>/', '', (string) $message ) );
 	$file    = '';
@@ -118,28 +65,6 @@ function make_entry( $timestamp, $level, $label, $message ) {
 	);
 }
 
-/**
- * Whose code is this? The first question anyone asks of a log line,
- * and the last one the log itself answers — the path is right there in
- * every entry, and reading `wp-content/plugins/<slug>/` off it turns
- * "some fatal error" into "WooCommerce's fatal error", which is the
- * difference between triage and archaeology.
- *
- * Deliberately conservative: a path that is not clearly under the
- * content directory or clearly inside core answers `unknown` rather
- * than guessing, because a wrong attribution sends someone into the
- * wrong codebase. Single-file plugins and mu-plugins keep their
- * basename as the slug; there is no directory to name them by.
- *
- * This is the ONLY implementation. The window renders what it returns
- * and the debugging abilities report it verbatim — a second copy of
- * this classification would let the two disagree about whose bug it is.
- *
- * @param string $file        Absolute path from a log entry, may be ''.
- * @param string $content_dir The install's `wp-content` equivalent.
- * @return array{kind:string,slug:string} `kind` is one of `plugin`,
- *                                        `mu-plugin`, `theme`, `core`, `unknown`.
- */
 function origin( $file, $content_dir ) {
 	$path    = str_replace( '\\', '/', (string) $file );
 	$content = rtrim( str_replace( '\\', '/', (string) $content_dir ), '/' );
@@ -169,13 +94,6 @@ function origin( $file, $content_dir ) {
 	);
 }
 
-/**
- * Parse `22-Aug-2026 09:14:02 UTC` (or the same without a zone,
- * read as UTC).
- *
- * @param string $raw Text between the brackets.
- * @return int|null
- */
 function parse_timestamp( $raw ) {
 	$raw  = trim( (string) $raw );
 	$date = \DateTime::createFromFormat( 'd-M-Y H:i:s T', $raw );
@@ -189,17 +107,6 @@ function parse_timestamp( $raw ) {
 	return $date->getTimestamp();
 }
 
-/**
- * Parse raw log text into entries, oldest first.
- *
- * Understands `[stamp] PHP <label>:  message in /file on line N` (and
- * the `:N` form), `[stamp] WordPress database error … for query …`,
- * Xdebug frames, untimestamped trace lines (attached to the previous
- * entry), and treats anything else as an `info` entry of its own.
- *
- * @param string $raw Raw log text.
- * @return array[]
- */
 function parse( $raw ) {
 	$entries   = array();
 	$current   = null;
@@ -261,14 +168,6 @@ function parse( $raw ) {
 	return $entries;
 }
 
-/**
- * Read the trailing window of a file, dropping the first (partial)
- * line when the file was longer than the window.
- *
- * @param string $path      Absolute path.
- * @param int    $max_bytes Window size.
- * @return array{raw:string,truncated:bool,scanned_bytes:int}
- */
 function tail( $path, $max_bytes ) {
 	$result = array(
 		'raw'           => '',
@@ -282,7 +181,7 @@ function tail( $path, $max_bytes ) {
 	if ( 0 === $size ) {
 		return $result;
 	}
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming the tail of a multi-megabyte log; WP_Filesystem has no seek-and-read.
+
 	$handle = fopen( $path, 'rb' );
 	if ( ! $handle ) {
 		return $result;
@@ -293,7 +192,7 @@ function tail( $path, $max_bytes ) {
 		$result['truncated'] = true;
 	}
 	$raw = stream_get_contents( $handle );
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Pairs with the fopen above.
+
 	fclose( $handle );
 	if ( false === $raw ) {
 		return $result;
@@ -307,12 +206,6 @@ function tail( $path, $max_bytes ) {
 	return $result;
 }
 
-/**
- * The log files this install offers, normalised with file metadata.
- *
- * @param Os $os Host handle.
- * @return array[] Each: `id`, `label`, `path`, `exists`, `readable`, `writable`, `size`, `mtime`.
- */
 function sources( Os $os ) {
 	$sources    = array();
 	$debug_log  = $os->env->constant( 'WP_DEBUG_LOG', false );
@@ -343,12 +236,6 @@ function sources( Os $os ) {
 		}
 	}
 
-	/**
-	 * Filter the log sources Code Blue offers. Each: `id`, `label`,
-	 * `path` — metadata is derived after filtering.
-	 *
-	 * @param array[] $sources Default: WP debug log + PHP error log.
-	 */
 	$sources = $os->filter( 'openstation_code_blue_log_sources', $sources );
 
 	$out  = array();
@@ -367,7 +254,7 @@ function sources( Os $os ) {
 			'path'     => $path,
 			'exists'   => $exists,
 			'readable' => $exists && is_readable( $path ),
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- Probing a server-side log path from the host-agnostic model; `wp_is_writable()` does not exist on a standalone host.
+
 			'writable' => $exists && is_writable( $path ),
 			'size'     => $exists ? (int) filesize( $path ) : 0,
 			'mtime'    => $exists ? (int) filemtime( $path ) : 0,
@@ -376,33 +263,10 @@ function sources( Os $os ) {
 	return $out;
 }
 
-/**
- * Whether a source can be read as a log: a missing file is an EMPTY
- * log; only exists-but-unreadable is dead.
- *
- * @param array<string,mixed> $source Normalised source.
- * @return bool
- */
 function usable( array $source ) {
 	return $source['readable'] || ! $source['exists'];
 }
 
-/**
- * Read + parse one source.
- *
- * Deliberately uncached. A log reader's product is freshness, and an
- * object cache would have to be keyed on more than the file: the
- * `entries` / `max_bytes` / `max_entries` filters all shape the result,
- * and `parse()` bakes localized level labels into it — on a Redis or
- * Memcached install a filter change would lag and two admins in
- * different locales would read each other's labels. A bounded tail
- * (1 MB by default) parsed on an explicit Refresh is cheap enough that
- * none of that is worth buying.
- *
- * @param Os                  $os     Host handle.
- * @param array<string,mixed> $source Normalised source.
- * @return array{entries:array[],truncated:bool,scanned_bytes:int,dropped:int,error:string}
- */
 function read( Os $os, array $source ) {
 	$empty = array(
 		'entries'       => array(),
@@ -422,18 +286,9 @@ function read( Os $os, array $source ) {
 	$max_bytes   = max( 4096, (int) $os->filter( 'openstation_code_blue_max_bytes', MAX_BYTES ) );
 	$max_entries = max( 100, (int) $os->filter( 'openstation_code_blue_max_entries', MAX_ENTRIES ) );
 	$tail        = tail( $source['path'], $max_bytes );
-	/**
-	 * Filter the parsed entries for one source — re-parse `$raw`
-	 * yourself for a format the built-in parser doesn't know.
-	 *
-	 * @param array[] $entries Parsed entries, oldest first.
-	 * @param array   $source  Normalised source.
-	 * @param string  $raw     The scanned tail.
-	 */
+
 	$entries = (array) $os->filter( 'openstation_code_blue_entries', parse( $tail['raw'] ), $source, $tail['raw'] );
 
-	// Attribution runs AFTER the filter so entries a plugin's own parser
-	// contributed are attributed too — `parse()` never sees them.
 	$content_dir = $os->env->content_dir();
 	foreach ( $entries as $index => $entry ) {
 		$entries[ $index ]['origin'] = origin( isset( $entry['file'] ) ? $entry['file'] : '', $content_dir );
@@ -454,13 +309,6 @@ function read( Os $os, array $source ) {
 	);
 }
 
-/**
- * Truncate a source's file.
- *
- * @param Os                  $os     Host handle.
- * @param array<string,mixed> $source Normalised source.
- * @return true|string `true`, or an error message.
- */
 function clear( Os $os, array $source ) {
 	if ( ! $source['exists'] ) {
 		return true;
@@ -468,48 +316,20 @@ function clear( Os $os, array $source ) {
 	if ( ! $source['writable'] ) {
 		return __( 'The log file is not writable, so it cannot be cleared.', 'desktop-mode' );
 	}
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Truncating a server-side log the descriptor already validated.
+
 	if ( false === file_put_contents( $source['path'], '' ) ) {
 		return __( 'Clearing the log file failed.', 'desktop-mode' );
 	}
-	/**
-	 * Fires after Code Blue truncates a log file.
-	 *
-	 * @param string $id   Source id.
-	 * @param string $path Absolute path.
-	 */
+
 	$os->action( 'openstation_code_blue_log_cleared', $source['id'], $source['path'] );
 	return true;
 }
 
-/**
- * The URL template the "Search the web" link on an issue resolves
- * against — `%s` is the URL-encoded message. Looking an unfamiliar
- * error up is the next thing anyone does after reading it, and where
- * they look is a house style: an agency may want its own wiki, a
- * hosting platform its own knowledge base.
- *
- * Return an empty string to drop the link entirely.
- *
- * @param Os $os Host handle.
- * @return string URL template containing `%s`, or '' for no link.
- */
 function search_url( Os $os ) {
-	/**
-	 * Filter the search URL template for a log message.
-	 *
-	 * @param string $template `%s` is replaced with the URL-encoded
-	 *                         message. Empty string hides the link.
-	 */
+
 	return (string) $os->filter( 'openstation_code_blue_search_url', 'https://duckduckgo.com/?q=%s' );
 }
 
-/**
- * The environment card: debug switches and versions.
- *
- * @param Os $os Host handle.
- * @return array[] Each: `label`, `value`, `on` (bool|null).
- */
 function environment( Os $os ) {
 	$rows = array();
 	foreach ( array( 'WP_DEBUG', 'WP_DEBUG_LOG', 'WP_DEBUG_DISPLAY', 'SCRIPT_DEBUG', 'SAVEQUERIES' ) as $constant ) {
@@ -537,10 +357,5 @@ function environment( Os $os ) {
 		'on'    => null,
 	);
 
-	/**
-	 * Filter the environment rows shown in the Code Blue window.
-	 *
-	 * @param array[] $rows Each: `label`, `value`, `on` (bool|null).
-	 */
 	return (array) $os->filter( 'openstation_code_blue_environment', $rows );
 }

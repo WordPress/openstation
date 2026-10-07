@@ -1,20 +1,3 @@
-/**
- * Picking a command in the palette, from real input events.
- *
- * Issue #705 was reported as "the palette lists third-party commands
- * and never invokes them": a row that highlighted, accepted Enter and
- * a click, and then did nothing — no error, no console line, no
- * network request. The two behaviours that made a real failure look
- * like nothing at all are pinned here:
- *
- *   - a command whose `run()` throws renders as a failure in the
- *     panel, rather than leaving the surface exactly as it was;
- *   - a row runs the command it was RENDERED from, not whatever has
- *     since slid into its index — the shell harvester republishes by
- *     dropping every `owner: 'global'` command and re-adding it,
- *     which reorders the registry under a list already on screen.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -30,34 +13,29 @@ const CONFIG: AiAssistantConfig = {
 	aiSearchUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/search',
 	restNonce: 'test-nonce',
 	adminUrl: 'https://example.test/wp-admin/',
-	// Commands mode only — the palette half of the assistant is what
-	// #705 is about, and it is the surface every install has.
+
 	isAiAvailable: () => false,
 	isOverrideEnabled: () => false,
 };
 
-/** Drain the shared registry between tests. */
 function clearRegistry(): void {
 	for ( const cmd of listCommands() ) {
 		unregisterCommand( cmd.slug );
 	}
 }
 
-/** The palette input, once the overlay is mounted. */
 function paletteInput(): HTMLInputElement {
 	return document.querySelector< HTMLInputElement >(
 		'#desktop-mode-ai-assistant .os-ai__input',
 	)!;
 }
 
-/** Type into the palette the way a person does — value plus `input`. */
 function typeQuery( query: string ): void {
 	const input = paletteInput();
 	input.value = query;
 	input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
 }
 
-/** The rendered command rows. */
 function rows(): HTMLButtonElement[] {
 	return Array.from(
 		document.querySelectorAll< HTMLButtonElement >(
@@ -66,7 +44,6 @@ function rows(): HTMLButtonElement[] {
 	);
 }
 
-/** The panel's results text, whitespace-collapsed. */
 function resultsText(): string {
 	return (
 		document
@@ -146,10 +123,7 @@ describe( 'AiAssistant — picking a command', () => {
 	test( 'a clicked row runs the command it displays, through a republish', async () => {
 		const alpha = vi.fn();
 		const beta = vi.fn();
-		// `owner: 'global'` mirrors the shell harvester's tag — the
-		// republish below is exactly what that harvester does on every
-		// `core/commands` tick whose fingerprint changed: drop every
-		// global command, re-add it, moving the rest in insertion order.
+
 		registerCommand( { slug: 'global/a', label: 'ZZZ Alpha', owner: 'global', run: alpha } );
 		registerCommand( { slug: 'plugin/b', label: 'ZZZ Beta', run: beta } );
 
@@ -161,8 +135,6 @@ describe( 'AiAssistant — picking a command', () => {
 		unregisterCommand( 'global/a' );
 		registerCommand( { slug: 'global/a', label: 'ZZZ Alpha', owner: 'global', run: alpha } );
 
-		// Whatever the republish did to the order, the row on screen
-		// and the command it runs are the same one.
 		const [ topRow ] = rows();
 		const topLabel = topRow.textContent ?? '';
 		topRow.click();
@@ -189,12 +161,6 @@ describe( 'AiAssistant — picking a command', () => {
 			expect( resultsText() ).toContain( 'Hello from the command' ),
 		);
 
-		// The Core palette runtime settles when it settles: seconds
-		// after the panel opened on a slow connection, and with a
-		// rejection when one of its scripts 404s. Its commands register
-		// as it lands, and both the registration and the loading row
-		// coming down used to repaint the list over whatever the panel
-		// was showing.
 		registerCommand( {
 			slug: 'core/add-new-post',
 			label: 'Add new post',

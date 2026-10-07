@@ -1,14 +1,3 @@
-/**
- * Tests for how `wp.os.fetch` reports outcomes on the window
- * activity indicator.
- *
- * The bug these pin: `fetch()` resolves normally for HTTP errors, so
- * tracking the raw promise settled the indicator as `saved` — a green
- * check in the title bar, and a "Saved" announcement to screen
- * readers — for a request the server had refused with a 500. The
- * indicator has to settle on the *response*, while the promise handed
- * back to the caller keeps native fetch semantics.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { trackedFetch } from '../../src/boot/tracked-fetch';
 import type { WindowManager } from '../../src/window-manager';
@@ -16,17 +5,11 @@ import type { Window as DesktopWindow } from '../../src/window';
 import { activity } from '../../src/activity';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
-
 interface Settlement {
 	ok: boolean;
 	error?: string;
 }
 
-/**
- * A stand-in for the tracked window. `trackActivity` mirrors the real
- * one: resolve → success, reject → failure with the error message,
- * promise re-thrown either way.
- */
 function makeTarget() {
 	const settled: Settlement[] = [];
 	const target = {
@@ -62,7 +45,6 @@ function response( status: number, statusText: string ): Response {
 	} as Response;
 }
 
-/** Let the tracked `.then` chain run before asserting. */
 async function flush(): Promise< void > {
 	await Promise.resolve();
 	await Promise.resolve();
@@ -161,13 +143,6 @@ describe( 'trackedFetch — activity outcome', () => {
 	} );
 } );
 
-/**
- * The activity-bus half of what `wp.os.fetch` documents. Before
- * `os/request-settled` existed, `opts.source` was declared on the
- * options type, described in four places in the JavaScript
- * reference, and passed by a dozen in-tree callers — and read by
- * nothing. These pin the publish, not the argument.
- */
 describe( 'os/request-settled', () => {
 	beforeEach( () => {
 		vi.restoreAllMocks();
@@ -208,8 +183,7 @@ describe( 'os/request-settled', () => {
 		await trackedFetch( manager, '/wp-json/x/v1/y' );
 		await flush();
 		off();
-		// Absent rather than undefined: a subscriber grouping by tag
-		// should see "untagged", not a key whose value is nothing.
+
 		expect( seen[ 0 ] ).not.toHaveProperty( 'source' );
 	} );
 
@@ -225,8 +199,7 @@ describe( 'os/request-settled', () => {
 		await trackedFetch( manager, '/wp-json/x/v1/y', { method: 'post' } );
 		await flush();
 		off();
-		// The method is normalised, so a subscriber can group on it
-		// without case-folding every row itself.
+
 		expect( seen[ 0 ] ).toMatchObject( {
 			ok: false,
 			status: 500,
@@ -249,9 +222,7 @@ describe( 'os/request-settled', () => {
 		await flush();
 		off();
 		expect( seen[ 0 ] ).toMatchObject( { error: 'offline', source: 'probe/x' } );
-		// There was no response, so `status` and `ok` are left off
-		// rather than faked as 0 / false, which a subscriber could not
-		// tell apart from a server that really answered.
+
 		expect( seen[ 0 ] ).not.toHaveProperty( 'status' );
 		expect( seen[ 0 ] ).not.toHaveProperty( 'ok' );
 	} );
@@ -269,9 +240,7 @@ describe( 'os/request-settled', () => {
 		} );
 		await flush();
 		off();
-		// `silent` suppresses the title-bar ring, which is a question
-		// about the window's chrome, not about whether the request
-		// happened. The indicator stays quiet; the bus does not.
+
 		expect( settled ).toHaveLength( 0 );
 		expect( seen ).toHaveLength( 1 );
 		expect( seen[ 0 ] ).toMatchObject( { silent: true, source: 'probe/x' } );
@@ -285,14 +254,13 @@ describe( 'os/request-settled', () => {
 			seen.push( p ),
 		);
 		const named = { id: 'notes' } as unknown as DesktopWindow;
-		// Foreground and unnamed: the focused window, whose ring moves.
+
 		await trackedFetch( manager, '/a' );
-		// Silent and unnamed: no ring, so no window. Otherwise every
-		// background poll lands on whatever the user clicked last.
+
 		await trackedFetch( manager, '/b', undefined, { silent: true } );
-		// Silent but named: the caller's own attribution stands.
+
 		await trackedFetch( manager, '/c', undefined, { silent: true, window: named } );
-		// Named but closed, silent: not re-pinned on the focused window.
+
 		await trackedFetch( manager, '/d', undefined, { silent: true, windowId: 'gone' } );
 		await flush();
 		off();
@@ -310,8 +278,7 @@ describe( 'os/request-settled', () => {
 		const off = activity.subscribe( 'os/request-settled', ( p ) =>
 			seen.push( p as Record< string, unknown > ),
 		);
-		// `abort( reason )` rejects with the reason, not an AbortError,
-		// so only the signal can tell.
+
 		const controller = new AbortController();
 		controller.abort( 'superseded' );
 		vi.spyOn( window, 'fetch' ).mockRejectedValueOnce( 'superseded' );
@@ -333,24 +300,18 @@ describe( 'os/request-settled', () => {
 		const off = activity.subscribe( 'os/request-settled', () => {
 			throw new Error( 'bad subscriber' );
 		} );
-		// `publish` calls subscribers synchronously and goes through
-		// `wp.hooks`, and this runs on every request the shell makes —
-		// so an unguarded publish would hang an unhandled rejection off
-		// the caller's fetch. The observability channel must not be
-		// able to break the thing it observes.
+
 		const rejections: unknown[] = [];
 		const onRejection = ( err: unknown ) => rejections.push( err );
 		process.on( 'unhandledRejection', onRejection );
 		const res = await trackedFetch( manager, '/wp-json/x/v1/y' );
-		// Building the payload is inside the same guard: a rejection
-		// value with no string form must not escape either.
+
 		vi.spyOn( window, 'fetch' ).mockRejectedValueOnce( Object.create( null ) );
 		await trackedFetch( manager, '/wp-json/x/v1/z', undefined, {
 			silent: true,
 		} ).catch( () => {} );
 		await flush();
-		// A rejection is reported on the next macrotask, not the next
-		// microtask, so the flush above is not enough to see one.
+
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		process.off( 'unhandledRejection', onRejection );
 		off();

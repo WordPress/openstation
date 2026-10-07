@@ -1,30 +1,3 @@
-/**
- * OS-file drop manager — uploader.
- *
- * Thin wrapper around `wp/v2/media` that:
- *
- *   1. Runs the `os.drop.before-upload` filter (a
- *      plugin can return `null` to cancel or swap the file out).
- *   2. POSTs a `multipart/form-data` body via `XMLHttpRequest` so
- *      the `upload.progress` event surface is observable. The
- *      single-shot multipart write keeps the dialog's pre-filled
- *      `title`, `alt_text`, `caption`, and `description` attached
- *      to the binary in one round-trip (the alternative — raw body
- *      + a follow-up PATCH — leaks half-attached media on failure).
- *   3. Emits `os.drop.upload-started` at send time with an
- *      `abort()` handle, `os.drop.upload-progress` on every
- *      progress event, and `os.drop.after-upload` /
- *      `os.drop.upload-failed` on the way out.
- *
- * `fetch` cannot be substituted here — the spec exposes upload
- * progress only via XHR's `upload.onprogress` callback (the Streams-
- * based fetch upload-progress proposal isn't yet broadly supported,
- * and our floating HUD needs determinate bars). Activity-bus
- * visibility comes from the progress HUD (`progress-hud.ts`
- * publishes `os/upload-hud-complete` on completion) —
- * XHR doesn't route through `wp.os.fetch` by design.
- */
-
 import { applyFilters, doAction } from '../hooks';
 import { FILE_DROP_HOOKS } from './hooks';
 import type {
@@ -86,33 +59,22 @@ export async function uploadFile(
 		xhr.responseType = 'text';
 
 		let aborted = false;
-		// Body-fully-sent flag — set when `upload.load` fires. After
-		// this point the server may have already stored the attachment,
-		// so an `xhr.abort()` won't actually undo the upload. We deal
-		// with that by letting the request finish and DELETE-ing the
-		// resulting attachment in the load handler below.
+
 		let bodyFullySent = false;
 		let cancelRequested = false;
 		const abort = (): void => {
 			cancelRequested = true;
 			if ( bodyFullySent ) {
-				// Too late to bin the request on the wire — wait for
-				// the server's response so we know the attachment id,
-				// then delete it. The xhr's `load` handler below sees
-				// `cancelRequested` and routes accordingly.
 				return;
 			}
 			aborted = true;
 			try {
 				xhr.abort();
 			} catch {
-				/* already done */
+
 			}
 		};
 
-		// `upload-started` lands AFTER `open()` but BEFORE `send()` so
-		// subscribers can attach their own onprogress observers via the
-		// hook bus and get a working `abort()` handle in the same tick.
 		doAction( FILE_DROP_HOOKS.UPLOAD_STARTED, {
 			file: filtered.file,
 			fields: filtered.fields,
@@ -131,11 +93,6 @@ export async function uploadFile(
 			} );
 		} );
 
-		// Some browsers fire `load` on the upload stream slightly before
-		// the response body arrives — surface a synthetic 100% there so
-		// the HUD doesn't sit at 99% during server-side processing.
-		// We also use this to flip `bodyFullySent` so a late `abort()`
-		// switches to the "wait + delete" path.
 		xhr.upload.addEventListener( 'load', () => {
 			bodyFullySent = true;
 			doAction( FILE_DROP_HOOKS.UPLOAD_PROGRESS, {
@@ -154,11 +111,7 @@ export async function uploadFile(
 			}
 			const error = new Error( 'Network error during upload.' );
 			doAction( FILE_DROP_HOOKS.UPLOAD_FAILED, {
-				// `filtered.file` — same identity as UPLOAD_STARTED /
-				// _PROGRESS / AFTER_UPLOAD. A BEFORE_UPLOAD filter
-				// that swapped the File would otherwise route this
-				// failure to a row keyed by the original (pre-swap)
-				// File, leaving the HUD row stuck in "running".
+
 				file: filtered.file,
 				error,
 				context: args.context,
@@ -169,11 +122,7 @@ export async function uploadFile(
 		xhr.addEventListener( 'abort', () => {
 			const error = new UploadAbortedError();
 			doAction( FILE_DROP_HOOKS.UPLOAD_FAILED, {
-				// `filtered.file` — same identity as UPLOAD_STARTED /
-				// _PROGRESS / AFTER_UPLOAD. A BEFORE_UPLOAD filter
-				// that swapped the File would otherwise route this
-				// failure to a row keyed by the original (pre-swap)
-				// File, leaving the HUD row stuck in "running".
+
 				file: filtered.file,
 				error,
 				context: args.context,
@@ -218,13 +167,7 @@ export async function uploadFile(
 				reject( error );
 				return;
 			}
-			// Late-cancel cleanup. The user clicked Cancel after the
-			// body had been fully sent — the server still went on to
-			// create the attachment. DELETE it before we surface
-			// success / fire AFTER_UPLOAD, so live-refresh subscribers
-			// (My WordPress media-list, classic Media Library iframe)
-			// never see a "cancelled" file. Force=true skips trash so
-			// the cleanup is final.
+
 			if ( cancelRequested && data.id ) {
 				void deleteAttachment(
 					args.mediaUrl,
@@ -260,12 +203,6 @@ export async function uploadFile(
 	} );
 }
 
-/**
- * Marker thrown by `uploadFile` when a `before-upload` filter
- * returned `null`. Callers can `instanceof`-check this and
- * silently move on (the filter is by definition declaring
- * "I handled this; the manager shouldn't fall through").
- */
 export class UploadCancelledError extends Error {
 	constructor() {
 		super( 'Upload cancelled by os.drop.before-upload filter.' );
@@ -273,13 +210,6 @@ export class UploadCancelledError extends Error {
 	}
 }
 
-/**
- * Marker thrown by `uploadFile` when the caller invoked the
- * `abort()` handle exposed via the `upload-started` action (e.g.
- * a HUD "Cancel" button). Distinct from `UploadCancelledError` so
- * subscribers can tell "the filter blocked this" apart from "the
- * user cancelled mid-flight".
- */
 export class UploadAbortedError extends Error {
 	constructor() {
 		super( 'Upload aborted by the caller.' );
@@ -287,16 +217,6 @@ export class UploadAbortedError extends Error {
 	}
 }
 
-/**
- * Best-effort cleanup for a "late cancel" — the upload's body had
- * already been received by the server when the user pressed Cancel,
- * so we DELETE the attachment that was created. Force=true so the
- * file is removed outright instead of sitting in trash (which would
- * itself surface in the user's Media Library). Failures here are
- * silent; the attachment will eventually be visible to the user and
- * they can delete it manually. We deliberately don't route through
- * `trackedFetch` — this is invisible cleanup, not user activity.
- */
 function deleteAttachment(
 	mediaUrl: string,
 	restNonce: string,
@@ -309,13 +229,7 @@ function deleteAttachment(
 	cleanup.setRequestHeader( 'X-WP-Nonce', restNonce );
 	return new Promise( ( resolve ) => {
 		cleanup.addEventListener( 'loadend', () => {
-			// Cleanup failures are recoverable from the user's
-			// perspective (they can delete the file manually), so
-			// we don't reject — but a warning makes the "phantom
-			// attachment" class of bug discoverable instead of
-			// silent for plugin authors investigating.
 			if ( cleanup.status < 200 || cleanup.status >= 300 ) {
-				// eslint-disable-next-line no-console
 				console.warn(
 					`[os-file-drop] late-cancel cleanup failed for attachment ${ id } (HTTP ${ cleanup.status }). The attachment remains in the Media Library; delete it manually.`,
 				);
@@ -323,7 +237,6 @@ function deleteAttachment(
 			resolve();
 		} );
 		cleanup.addEventListener( 'error', () => {
-			// eslint-disable-next-line no-console
 			console.warn(
 				`[os-file-drop] late-cancel cleanup network error for attachment ${ id }. The attachment remains in the Media Library; delete it manually.`,
 			);
@@ -332,7 +245,6 @@ function deleteAttachment(
 		try {
 			cleanup.send();
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.warn(
 				`[os-file-drop] late-cancel cleanup could not be dispatched for attachment ${ id }:`,
 				err,
@@ -354,7 +266,7 @@ function extractXhrMessage( xhr: XMLHttpRequest ): string {
 			return data.message;
 		}
 	} catch {
-		/* fall through */
+
 	}
 	return fallback;
 }

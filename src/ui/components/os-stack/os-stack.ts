@@ -1,31 +1,3 @@
-/**
- * `<os-stack>` — vertical flex layout with a gap. The "stack"
- * primitive every design system ends up inventing, delivered here
- * so plugin authors don't each rediscover
- * `display: flex; flex-direction: column`.
- *
- * Usage:
- *
- *   <os-stack gap="12">
- *     <os-section heading="Foo">…</os-section>
- *     <os-section heading="Bar">…</os-section>
- *   </os-stack>
- *
- * `gap` is attribute-driven + coerced to a CSS pixel value so HTML
- * callers reach it without JS. Default gap is 12 px — matches the
- * widget card rhythm and OS Settings section spacing.
- *
- * `align` controls cross-axis alignment ( `start` | `center` |
- * `end` | `stretch` ). Default `stretch` matches flex-column's
- * natural behaviour: full-width children.
- *
- * `padding` accepts an integer (px) and writes it as inset padding
- * on the host. Pass `0` for edge-to-edge content. Used by the
- * native-window tab wrap so plugin authors can dial inset via the
- * `main_tab_padding` registration arg + the
- * `openstation_native_window_tab_wrap_padding` filter.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-stack.styles';
 
@@ -79,9 +51,6 @@ export class OsStack extends Component {
 		const align = ( this as unknown as { align: string | null } ).align;
 		const padding = ( this as unknown as { padding: string | null } ).padding;
 
-		// Write gap / align / padding into custom-properties on the host
-		// rather than inlining them on every child — lets the CSS rule
-		// do the layout, keeps the shadow tree a bare `<slot>`.
 		const gapPx = gap && /^\d+$/.test( gap ) ? `${ gap }px` : '';
 		if ( gapPx ) {
 			this.style.setProperty( '--os-ui-stack-gap', gapPx );
@@ -89,8 +58,7 @@ export class OsStack extends Component {
 		if ( align ) {
 			this.style.setProperty( '--os-ui-stack-align', align );
 		}
-		// Padding accepts a bare integer (px). `padding="0"` is
-		// meaningful (edge-to-edge), so test the regex, not truthiness.
+
 		if ( padding !== null && /^\d+$/.test( padding ) ) {
 			this.style.setProperty( '--os-ui-stack-padding', `${ padding }px` );
 		}

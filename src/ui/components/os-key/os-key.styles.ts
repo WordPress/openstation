@@ -1,25 +1,6 @@
 import { css } from '../../core';
 import { holoTokens, holoSheen, holoGlint, holoRing } from '../../holo';
 
-/**
- * `<os-key>` — the keypad tile.
- *
- * A key is pressed far more often than it is looked at, so the
- * holographic layer here is the *quietest* one in the kit: the hover
- * film, no edge and no mesh. A grid of twenty iridescent tiles would
- * be a screensaver.
- *
- * `variant="primary"` is the exception, and stays an accent fill
- * rather than a mesh for the same reason a primary button does — on a
- * calculator that variant is the `=` key, and it is on screen next to
- * nineteen others every second the window is open.
- *
- * It does get both motions, though, and a keypad is where they earn
- * the most: the glint on hover, and the press ring on `:active`. A key
- * already squashes (`scale( 0.96 )` plus an inset shadow) — the ring
- * is what makes a *fast repeated* press legible, where the squash
- * alone blurs into one continuous dent.
- */
 export const styles = css`
 	${ holoTokens }
 	${ holoSheen }
@@ -32,10 +13,7 @@ export const styles = css`
 	}
 	:host( [ fill-cell ] ),
 	:host {
-		/* Keys default to filling their cell; the calculator use
-		 * case is the common one. Callers who want an inline key
-		 * tile can override with display:inline-flex and width:auto
-		 * on the host. */
+
 		display: flex;
 		width: 100%;
 	}
@@ -70,8 +48,7 @@ export const styles = css`
 		outline: none;
 		box-shadow: var( --_holo-focus );
 	}
-	/* A disabled key must not light up under the pointer — the film
-	   would advertise a press that will not happen. */
+
 	button:disabled::before {
 		opacity: 0 !important;
 	}
@@ -94,9 +71,7 @@ export const styles = css`
 		color: var( --os-ui-danger, #d63638 );
 		border: 1px solid currentColor;
 	}
-	/* Pressed — both click-flash and keyboard-hold resolve here. The
-	 * visual is deliberately tactile: inset shadow + subtle scale-down
-	 * so the key reads as "squeezed" rather than "disappeared." */
+
 	:host( .os-key--pressed ) button,
 	button:active:not( :disabled ) {
 		transform: scale( 0.96 );

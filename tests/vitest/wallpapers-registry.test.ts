@@ -1,10 +1,3 @@
-/**
- * Unit tests for `src/wallpapers/registry.ts`.
- *
- * The registry is module-scoped state, so we import it fresh in
- * each `beforeEach` via Vitest's `resetModules` to prevent entries
- * from one test leaking into the next.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { WallpaperDef } from '../../src/wallpapers/types';
@@ -23,11 +16,7 @@ import { CUSTOM_GRADIENT_ID } from '../../src/settings/constants';
 type Registry = typeof import( '../../src/wallpapers/registry' );
 
 async function loadRegistry(): Promise<Registry> {
-	// Reset shared-store records first — the wallpaper registry's
-	// seed lives on a `createSharedStore`-backed `window` slot since
-	// 0.8.4 (so the main bundle and the Preferences app's bundle
-	// share one registry). `vi.resetModules()` alone wouldn't clear
-	// that slot; the dedicated helper does.
+
 	_resetAllSharedStoresForTests();
 	vi.resetModules();
 	return await import( '../../src/wallpapers/registry' );
@@ -78,7 +67,6 @@ describe( 'wallpapers/registry.ts', () => {
 		register( makeCssDef( { id: 'a' } ) );
 		register( makeCssDef( { id: 'b' } ) );
 
-		// Filter that drops anything named 'b'.
 		const hooks = ( window as unknown as { wp: { hooks: { addFilter: Function } } } ).wp.hooks;
 		hooks.addFilter(
 			'os.wallpapers',
@@ -128,7 +116,7 @@ describe( 'wallpapers/registry.ts', () => {
 			'vitest/bad',
 			() => 'not an array',
 		);
-		// Should NOT throw; falls back to the seed list.
+
 		const result = all();
 		expect( result ).toHaveLength( 1 );
 		expect( result[ 0 ].id ).toBe( 'test' );
@@ -144,7 +132,7 @@ describe( 'wallpapers/registry.ts', () => {
 
 describe( 'wallpapers/tone.ts', () => {
 	test( 'a declared tone is taken at its word, measuring nothing', async () => {
-		// A Void gradient that SAYS it is light still gets light.
+
 		await expect(
 			resolveWallpaperTone( {
 				id: 'declared',
@@ -158,7 +146,7 @@ describe( 'wallpapers/tone.ts', () => {
 	} );
 
 	test( 'an undeclared wallpaper is dark, whatever it is made of', async () => {
-		// The canvas branch: nothing to read, so no guessing.
+
 		await expect(
 			resolveWallpaperTone( {
 				id: 'canvas',
@@ -189,14 +177,12 @@ describe( 'wallpapers/tone.ts', () => {
 	} );
 
 	test( 'an authored gradient is never measured, however bright it averages', async () => {
-		// These three run dark-to-bright and average ABOVE the
-		// threshold, while the corner the icon grid starts in stays
-		// dark. Measuring them put Void icons on a midnight blue.
+
 		const tones = await Promise.all(
 			[
-				'linear-gradient(135deg, #1a2980 0%, #26d0ce 100%)', // Aurora
-				'linear-gradient(135deg, #ff512f 0%, #dd2476 100%)', // Sunset
-				'linear-gradient(135deg, #134e5e 0%, #71b280 100%)', // Forest
+				'linear-gradient(135deg, #1a2980 0%, #26d0ce 100%)',
+				'linear-gradient(135deg, #ff512f 0%, #dd2476 100%)',
+				'linear-gradient(135deg, #134e5e 0%, #71b280 100%)',
 			].map( ( value, i ) =>
 				resolveWallpaperTone( {
 					id: `preset-${ i }`,
@@ -209,17 +195,13 @@ describe( 'wallpapers/tone.ts', () => {
 		);
 		expect( tones ).toEqual( [ 'dark', 'dark', 'dark' ] );
 
-		// Averaged as light, which is why the exclusion is by id rather
-		// than by a kinder threshold.
 		expect(
 			toneFromCssColors( 'linear-gradient(135deg, #1a2980 0%, #26d0ce 100%)' ),
 		).toBe( 'light' );
 	} );
 
 	test( 'the threshold is where Void ink overtakes Starlight', () => {
-		// #808080 is L 0.2159, above the crossover; #6b6b6b is L 0.1441,
-		// below. Drifting past either flips a band of mid-tones to the
-		// ink that reads worse on them.
+
 		expect( toneForLuminance( relativeLuminance( 128, 128, 128 ) ) ).toBe(
 			'light',
 		);
@@ -229,8 +211,7 @@ describe( 'wallpapers/tone.ts', () => {
 	} );
 
 	test( 'an image outranks a colour sitting beside it', async () => {
-		// The custom-image value carries a solid behind the photograph.
-		// Averaging that in would describe the backstop, not the desk.
+
 		expect(
 			firstCssUrl( 'url("/uploads/desk.jpg") center/cover no-repeat, #1d2327' ),
 		).toBe( '/uploads/desk.jpg' );

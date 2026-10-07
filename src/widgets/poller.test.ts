@@ -1,10 +1,6 @@
-/**
- * Tests for the visibility-aware widget poller.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startVisibilityAwarePoller } from './poller';
 
-/** Flip jsdom's document.hidden and fire visibilitychange. */
 function setHidden( hidden: boolean ): void {
 	Object.defineProperty( document, 'hidden', {
 		configurable: true,
@@ -43,8 +39,6 @@ describe( 'startVisibilityAwarePoller', () => {
 		vi.advanceTimersByTime( 5000 );
 		expect( refresh ).not.toHaveBeenCalled();
 
-		// Reveal after >1 interval hidden → immediate catch-up run,
-		// then the timer cadence resumes.
 		setHidden( false );
 		expect( refresh ).toHaveBeenCalledTimes( 1 );
 		vi.advanceTimersByTime( 1000 );
@@ -84,8 +78,6 @@ describe( 'startVisibilityAwarePoller', () => {
 		vi.advanceTimersByTime( 5000 );
 		expect( refresh ).not.toHaveBeenCalled();
 
-		// First reveal: created-time counts as the last run, so a
-		// >1-interval gap triggers the catch-up.
 		setHidden( false );
 		expect( refresh ).toHaveBeenCalledTimes( 1 );
 		poller.stop();

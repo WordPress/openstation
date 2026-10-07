@@ -1,4 +1,3 @@
-/** Opt-in, per-instance residency. One owner, one layer, cancellable handoffs. */
 import { addAction, doAction, HOOKS } from '../hooks';
 import { __ } from '../i18n';
 import { registerMioWindowToggle } from './window-toggle';
@@ -33,13 +32,7 @@ interface ResidencyOptions {
 	enabled: () => boolean;
 	chatAvailable?: () => boolean;
 	wallpaperVisible?: () => boolean;
-	/**
-	 * The shell tour is holding Mio on the desk. No window takes it,
-	 * however focused, and it shows on the wallpaper whatever the
-	 * user's setting says: the tour walks Mio beside its cards, which
-	 * point at the dock and the desk, and a Mio that moved into the
-	 * Preferences window the tour itself opened was clamped inside it.
-	 */
+
 	held?: () => boolean;
 	ready: () => Promise<void>;
 }
@@ -206,7 +199,7 @@ export class MioResidency {
 			resident.toggle?.dispose();
 			observer.disconnect();
 			this.refresh();
-			// The layer may still be shrinking here. Move it out before removing its parent.
+
 			const layer = this.options.layer();
 			if ( layer && frame.contains( layer ) ) {
 				this.options.shell.appendChild( layer );
@@ -359,7 +352,6 @@ export class MioResidency {
 					resident.frame.hidden = resident !== next;
 				}
 				if ( layer ) {
-					// Measure the full layout, never the zero-sized shrink transform.
 					layer.style.opacity = '0';
 					this.animation?.cancel();
 					this.animation = null;
@@ -383,11 +375,11 @@ export class MioResidency {
 					windowId: next?.id ?? null,
 					previousWindowId: previous?.id ?? null,
 				} );
-				// Paint the new body position during growth, not only after the reveal ends.
+
 				this.options.handle()?.setAnimating( ! document.hidden );
 				await animate( 0, 1 );
 			} catch {
-				// A newer focus change cancels the obsolete animation.
+
 			} finally {
 				if ( revision === this.revision ) {
 					this.animation?.cancel();

@@ -1,28 +1,3 @@
-/**
- * Posts app — the Tags tab: a Pixi-driven tag cloud on the term canvas
- * (`canvas/term-canvas.ts`).
- *
- * Tags are flat, so the metaphor is a sticker wall: each tag is a
- * hashtag pill, its size encodes the post count, a stable per-slug hue
- * and a tiny rotation give the wall its hand-arranged texture. Layout
- * is a deterministic spiral pack sorted by count — popular tags at the
- * centre, the long tail outward — pulled into clusters once the
- * co-occurrence data lands. Chips are `cloud-chips.ts`, the packer and
- * the persisted positions `cloud-layout.ts`, the sidebar editor
- * `cloud-sidebar.ts`.
- *
- * Interactions:
- *   - **Click** a chip → focus: camera eases in, other chips dim and
- *     push outward, posts fan radially (10 per page, ◀ ▶ paginate), the
- *     sidebar edits it.
- *   - **Drag** a chip → reposition (persisted per site to localStorage).
- *   - **Drag** empty canvas → pan; **wheel** → cursor-anchored zoom.
- *   - **Add tag** → a draft form; **Reflow** → repack from scratch.
- *   - **Click empty space** → close the focus.
- *
- * @public
- */
-
 import { __ } from '@openstation/app';
 import type { CanvasEnv } from './app';
 import { isPinchGesture, pointerTravel, stopBubble, type Bounds } from './canvas/camera';
@@ -42,11 +17,6 @@ import {
 import { paintSidebar, type CloudSidebarHost } from './cloud-sidebar';
 import type { TermNeighbor } from './types';
 
-/**
- * Mount the tag cloud inside `host`. Fetches the tag list on mount;
- * renames / creates / deletes go through REST and are reflected
- * locally. Returns the teardown.
- */
 export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promise< () => void > {
 	const built = await createTermCanvas( host, env, {
 		taxonomy: 'tags',
@@ -69,19 +39,18 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 			searchAria: __( 'Search tags in the cloud' ),
 			hint: __( 'Click a tag to focus + edit · drag to reposition · scroll or pinch to zoom' ),
 		},
-		// Back to front: post edges → tag pills → post markers → post chips.
+
 		layers: [ 'postEdge', 'chip', 'post', 'postChip' ],
 		fan: { chipFontSize: 12, chipTextRes: CHIP_TEXT_RES, pagerLabelSize: 12, pagerGlyphSize: 14 },
 	} );
 	if ( ! built ) {
 		return () => {};
 	}
-	// A non-null binding the closures below can capture.
+
 	const canvas: TermCanvas = built;
 	const { pixi, layers, fan, camera, interaction, world, palette } = canvas;
 	const { client } = env;
 
-	// --- State --------------------------------------------------------
 	const tags = new Map< number, TagBox >();
 	let dragChip: TagBox | null = null;
 	let dragOffset: PixiPoint = { x: 0, y: 0 };
@@ -90,8 +59,7 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 	let draft = false;
 	const positionsKey = computePositionsKey();
 	const persistedPositions = readPersistedPositions( positionsKey );
-	// tag id → co-occurring siblings; empty until the fetch lands, and
-	// then the packer becomes cluster-aware.
+
 	let cooccurrenceMap: Map< number, TermNeighbor[] > = new Map();
 	let themeHue = readAdminThemeHue( host );
 	const focused = ( id: number ): boolean => fan.focusId === id;
@@ -108,11 +76,9 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 				tags.delete( id );
 			}
 		}
-		// Sizes against the population max, so the dynamic range is the
-		// same at any tag count.
+
 		const maxCount = Math.max( 1, ...terms.map( ( t ) => t.count ) );
-		// Existing boxes keep their positions; new terms enter cold and
-		// are spiral-packed below.
+
 		const fresh: TagBox[] = [];
 		for ( const term of terms ) {
 			const fontSize = fontSizeFor( term.count, maxCount );
@@ -166,12 +132,10 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 		fresh.sort( ( a, b ) => b.count - a.count );
 		packBoxesWithClusters( fresh, placed, placedById, cooccurrenceMap );
 		for ( const box of fresh ) {
-			// Fresh chips paint at their slot instead of easing from 0,0.
 			box.x = box.tx;
 			box.y = box.ty;
 		}
-		// The hint goes the moment the first tag lands, and comes back
-		// when the last one is deleted.
+
 		canvas.syncEmptyHint( terms.length === 0 );
 	}
 
@@ -199,10 +163,7 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 		} );
 	}
 
-	// --- Per frame ---------------------------------------------------
 	function drift( dt: number ): void {
-		// Chips drift toward their targets (back into place after a
-		// drag lifts, out of the spotlight zone while a chip is focused).
 		const nudge = canvas.nudge;
 		for ( const box of tags.values() ) {
 			if ( box === dragChip ) {
@@ -234,8 +195,7 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 			const c = box.chip.container;
 			c.x = box.x;
 			c.y = box.y;
-			// The packer reserves world-space rectangles. Keep labels in that
-			// space too, so zooming out cannot enlarge them into their neighbours.
+
 			c.scale.set( 1 );
 			c.rotation = box.rotation;
 			const targetAlpha = ! anyFocus || fan.focusId === box.id ? 1 : 0.32;
@@ -264,7 +224,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 		}
 	}
 
-	// --- Sidebar ------------------------------------------------------
 	const sidebarHost: CloudSidebarHost = {
 		sidebar: canvas.sidebar,
 		client,
@@ -291,7 +250,7 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 			box.name = patch.name;
 			box.description = patch.description;
 			box.slug = patch.slug;
-			// Hue and rotation derive from the slug.
+
 			box.hue = tagHue( box.slug || box.name, themeHue );
 			box.rotation = tagRotation( box.slug || box.name );
 			layoutChip( box );
@@ -319,8 +278,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 		return b;
 	}
 
-	// Re-pack every non-persisted chip around the user's dragged ones
-	// once co-occurrence data arrives; the frame eases them over.
 	function relayoutWithCooccurrence(): void {
 		const placed: Aabb[] = [];
 		const placedById = new Map< number, { x: number; y: number } >();
@@ -344,7 +301,7 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 				relayoutWithCooccurrence();
 			}
 		} catch {
-			// Non-fatal — the pure spiral stays.
+
 		}
 	}
 
@@ -355,8 +312,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 		paintSidebar( sidebarHost );
 	} );
 	reflowBtn.addEventListener( 'click', () => {
-		// Wipe the persisted positions and repack from scratch with the
-		// latest co-occurrence map; chips ease into their new slots.
 		persistedPositions.clear();
 		writePersistedPositions( positionsKey, persistedPositions );
 		for ( const box of tags.values() ) {
@@ -369,7 +324,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 		void refreshCooccurrence();
 	} );
 
-	// --- Bootstrap ---------------------------------------------------
 	buildCloud();
 	paintSidebar( sidebarHost );
 	canvas.start( {
@@ -406,7 +360,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 			syncChipPositions();
 		},
 		countsChanged: () => {
-			// Font sizes track the fresh population max; positions stay put.
 			const maxCount = Math.max( 1, ...canvas.terms.map( ( t ) => t.count ) );
 			for ( const t of canvas.terms ) {
 				const box = tags.get( t.id );

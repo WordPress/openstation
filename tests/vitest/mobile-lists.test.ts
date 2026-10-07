@@ -1,19 +1,3 @@
-/**
- * The native list windows on a phone — the stylesheet contract.
- *
- * Pins what the phone layouts of Trash, Posts / Pages / Users,
- * Plugins and WP Explorer depend on and a refactor would not notice
- * breaking:
- *
- * - the card layout the lists wear (`<os-table stacked>`) is a block
- *   layout with no header and nothing pinned;
- * - Trash's table can scroll sideways in a narrow desk window (the
- *   flex minimum that clipped it is 0);
- * - each list's selection actions become a bar along the bottom on a
- *   phone, clearing the home indicator, with its buttons sharing the
- *   width;
- * - WP Explorer's item page fills the body and stacks its actions.
- */
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -26,15 +10,12 @@ const read = ( rel: string ): string => readFileSync( join( ROOT, rel ), 'utf8' 
 
 const table = String( ( styles as unknown as { cssText?: string } ).cssText ?? styles );
 const bin = read( 'assets/css/recycle-bin.css' );
-// The list layout Posts, Pages and Users share is the framework's
-// (`.os-app-list__*` in the runtime sheet); the two canvases keep
-// their fold in the Posts app's own sheet.
+
 const lists = read( 'assets/css/app-runtime.css' );
 const posts = read( 'apps/posts/posts.css' );
 const plugins = read( 'apps/plugins/plugins.css' ) + libraryStyles.cssText;
 const explorer = read( 'apps/my-wordpress/my-wordpress.css' );
 
-/** The declarations of one rule, by a unique selector fragment. */
 function block( css: string, selector: string ): string {
 	const at = css.indexOf( selector );
 	expect( at, `rule for ${ selector }` ).toBeGreaterThan( -1 );
@@ -45,11 +26,7 @@ function block( css: string, selector: string ): string {
 
 describe( '<os-table stacked> is a card list', () => {
 	test( 'every :host() argument is one compound selector', () => {
-		// A space between two attribute selectors inside :host() makes
-		// a descendant selector, which :host() rejects — and a rule
-		// list with one invalid selector is dropped whole, silently.
-		// That is how every card kept the grid's borders and stripes
-		// on the first pass.
+
 		expect( table ).not.toMatch( /:host\(\s*\[[^\]]*\]\s+\[/ );
 	} );
 
@@ -68,7 +45,7 @@ describe( '<os-table stacked> is a card list', () => {
 		expect( body ).not.toMatch( /\bdisplay\s*:/ );
 		expect( body ).not.toMatch( /\bwidth\s*:/ );
 		expect( body ).not.toMatch( /\bvertical-align\s*:/ );
-		// The base cell rule is where the layout lives.
+
 		const base = block( table, ':host( [ stacked ] ) tbody td {' );
 		expect( base ).toMatch( /display:\s*block/ );
 		expect( base ).toMatch( /width:\s*auto/ );
@@ -140,8 +117,7 @@ describe( 'Posts, Pages and Users', () => {
 	} );
 
 	test( 'the Categories and Tags editors fold under the stage on a phone, and only while a term is focused', () => {
-		// One canvas base (`.os-term-canvas`) serves the mind map and the
-		// tag cloud; the fold is written once.
+
 		expect( block( posts, 'html[data-os-mode="mobile"] .os-term-canvas__layout {' ) ).toMatch( /flex-direction:\s*column/ );
 		const sidebar = block( posts, 'html[data-os-mode="mobile"] .os-term-canvas__sidebar {' );
 		expect( sidebar ).toMatch( /max-block-size:\s*50%/ );
@@ -150,7 +126,7 @@ describe( 'Posts, Pages and Users', () => {
 		expect(
 			block( posts, 'html[data-os-mode="mobile"] .os-term-canvas__sidebar:has( > .os-term-canvas__sidebar-empty ) {' ),
 		).toMatch( /display:\s*none/ );
-		// The same fold under a narrow desk window.
+
 		expect( posts ).toMatch( /@container \( max-width: 640px \)[\s\S]*\.os-term-canvas__layout \{/ );
 	} );
 } );
@@ -170,8 +146,7 @@ describe( 'Plugins', () => {
 	test( 'a narrow window gives the inspector a full pane and clears the library', () => {
 		expect( plugins ).toMatch( /@container \( max-width: 760px \)/ );
 		expect( block( plugins, '.os-plugins__workspace[data-detail-open="true"] > .os-plugins__library {' ) ).toMatch( /display:\s*none/ );
-		// Card fitting belongs to the shared grid; the browser layout suite
-		// verifies its actual geometry below the requested minimum.
+
 		expect( read( 'apps/plugins/parts/installed-library.ts' ) ).toContain( '<os-grid class="os-plugins__module-grid" min-item-width="310" gap="12">' );
 	} );
 } );

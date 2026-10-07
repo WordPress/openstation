@@ -92,7 +92,6 @@ describe( '<os-notice>', () => {
 		( el1 as unknown as { dismiss(): void } ).dismiss();
 		expect( el1.hidden ).toBe( true );
 
-		// Re-mount a fresh instance with the same id.
 		host.innerHTML = '';
 		host.innerHTML = `<os-notice notice-id="t/persist">Hi again</os-notice>`;
 		await tick();
@@ -120,7 +119,7 @@ describe( '<os-notice>', () => {
 		const el = host.querySelector( 'os-notice' )! as HTMLElement;
 		( el as unknown as { dismiss(): void } ).dismiss();
 		expect( el.hidden ).toBe( true );
-		// No record stored; a second instance with no id always shows.
+
 		host.innerHTML = '';
 		host.innerHTML = `<os-notice>Again</os-notice>`;
 		await tick();

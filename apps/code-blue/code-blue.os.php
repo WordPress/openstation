@@ -1,18 +1,4 @@
 <?php
-/**
- * Code Blue — an error-log reader, as an OpenStation app.
- *
- * This file is the window: title, size, icon, the title-bar Refresh
- * button, the ⋯-menu Clear row, the state schema, the server actions,
- * and the DATA the browser paints from. The body itself is rendered
- * in the browser by `code-blue.os.ts` — a function of that state and
- * data — so range, search, sort, legend and expand never wait for a
- * request; only reading a different source, refreshing and clearing
- * round-trip. The log model (discovery, tailing, parsing, clearing)
- * lives in `log-reader.php`.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\Apps\CodeBlue;
 
@@ -20,24 +6,14 @@ use OpenStation\App;
 use OpenStation\App\Os;
 use OpenStation\App\State;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
 require_once __DIR__ . '/log-reader.php';
 
-/** A vitals monitor: flatline, a beat, flatline, the live cursor dot. */
 const ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M6 34 H20 L26 16 L36 50 L42 28 L46 34 H52" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="57" cy="34" r="4.5" fill="currentColor"/></svg>';
 
-/**
- * The source the window is showing: the state's pick when it is
- * still offered, else the first usable one (recorded in the state).
- *
- * @param State   $state   State.
- * @param array[] $sources Normalised sources.
- * @return array<string,mixed>|null
- */
 function current_source( State $state, array $sources ) {
 	foreach ( $sources as $source ) {
 		if ( $source['id'] === $state->get( 'source' ) && usable( $source ) ) {
@@ -95,7 +71,7 @@ return App::define( 'openstation-code-blue' )
 			),
 		)
 	)
-	// Re-reading the log is the whole action; `data()` below does it.
+
 	->action(
 		'refresh',
 		static function ( State $state ) {

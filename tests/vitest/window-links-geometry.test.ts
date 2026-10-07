@@ -1,13 +1,3 @@
-/**
- * Unit tests for the occlusion-aware anchor math
- * (`src/window-links/geometry.ts`):
- *
- *   - interval subtraction (the core sweep)
- *   - point visibility against higher-z occluders
- *   - visible-border anchoring: picks the midpoint of the closest
- *     visible stretch, ignores lower/self windows, respects the
- *     minimum-segment threshold, and returns null when fully covered
- */
 import { describe, expect, test } from 'vitest';
 import {
 	anchorOnBorder,
@@ -19,7 +9,7 @@ import {
 	type LinkObstacle,
 } from '../../src/window-links/geometry';
 
-const RECT = { x: 100, y: 100, width: 200, height: 100 }; // 100..300 × 100..200
+const RECT = { x: 100, y: 100, width: 200, height: 100 };
 
 function obstacle(
 	windowId: string,
@@ -93,13 +83,12 @@ describe( 'visibleBorderAnchor', () => {
 			x: 500,
 			y: 150,
 		} );
-		// Target is due right — the right border midpoint is closest.
+
 		expect( anchor ).toEqual( { x: 300, y: 150, side: 'right' } );
 	} );
 
 	test( 'a sibling covering part of the right edge shifts the anchor to the visible stretch', () => {
-		// Occluder covers the right border from y=100 to y=160 — the
-		// visible remainder is y∈[160, 200], midpoint 180.
+
 		const obstacles = [ obstacle( 'sibling', 250, 80, 100, 80, 5 ) ];
 		const anchor = visibleBorderAnchor( RECT, 1, obstacles, 'me', {
 			x: 500,
@@ -109,9 +98,7 @@ describe( 'visibleBorderAnchor', () => {
 	} );
 
 	test( 'stretches shorter than the minimum are skipped', () => {
-		// Occluder leaves only 10px visible at the bottom of the right
-		// edge (< MIN_VISIBLE_SEGMENT) — the anchor moves to another
-		// side entirely.
+
 		const obstacles = [
 			obstacle( 'sibling', 250, 80, 100, 200 - 80 - 10, 5 ),
 		];
@@ -147,7 +134,7 @@ describe( 'visibleBorderAnchor', () => {
 describe( 'closestBorderAnchors', () => {
 	test( 'vertical spans overlapping → straight horizontal connector at the overlap midpoint', () => {
 		const a = { x: 0, y: 0, width: 100, height: 100 };
-		const b = { x: 300, y: 40, width: 100, height: 100 }; // y overlap [40,100] → mid 70
+		const b = { x: 300, y: 40, width: 100, height: 100 };
 		expect( closestBorderAnchors( a, b ) ).toEqual( {
 			from: { x: 100, y: 70, side: 'right' },
 			to: { x: 300, y: 70, side: 'left' },
@@ -156,7 +143,7 @@ describe( 'closestBorderAnchors', () => {
 
 	test( 'horizontal spans overlapping → straight vertical connector', () => {
 		const a = { x: 0, y: 0, width: 100, height: 100 };
-		const b = { x: 40, y: 300, width: 100, height: 100 }; // x overlap [40,100] → mid 70
+		const b = { x: 40, y: 300, width: 100, height: 100 };
 		expect( closestBorderAnchors( a, b ) ).toEqual( {
 			from: { x: 70, y: 100, side: 'bottom' },
 			to: { x: 70, y: 300, side: 'top' },
@@ -165,7 +152,7 @@ describe( 'closestBorderAnchors', () => {
 
 	test( 'no overlap on either axis → facing corners, exit along the larger gap', () => {
 		const a = { x: 0, y: 0, width: 100, height: 100 };
-		const b = { x: 400, y: 200, width: 100, height: 100 }; // gapX 300 > gapY 100
+		const b = { x: 400, y: 200, width: 100, height: 100 };
 		expect( closestBorderAnchors( a, b ) ).toEqual( {
 			from: { x: 100, y: 100, side: 'right' },
 			to: { x: 400, y: 200, side: 'left' },

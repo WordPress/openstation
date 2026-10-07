@@ -1,13 +1,3 @@
-/**
- * Tests for the central native URL remap registry — the dispatcher
- * the Dock and the portal both consult before falling back to an
- * iframe open. Each new native window that replaces a classic admin
- * page (Posts, future Pages / Media / Users) registers a single
- * entry here; a slip in the registry's contract makes ALL of them
- * silently fall back to the iframe path, which is exactly the kind
- * of UX regression you only notice once it's already shipped.
- */
-
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	_resetNativeUrlRemap,
@@ -45,8 +35,7 @@ describe( 'tryNativeUrlRemap — short-circuit cases', () => {
 			nativeWindowId: 'desktop-mode-posts',
 			matches: () => true,
 		} );
-		// No `bindNativeUrlRemap` call — the snapshot accessor and the
-		// opener don't exist yet, so the walk must fail-closed.
+
 		expect( tryNativeUrlRemap( '/wp-admin/edit.php' ) ).toBe( false );
 	} );
 
@@ -112,13 +101,13 @@ describe( 'registry registration semantics', () => {
 	} );
 
 	test( 'malformed entries are silently dropped (defensive)', () => {
-		// @ts-expect-error — purposeful malformed entry
+
 		registerNativeUrlRemap( null );
-		// @ts-expect-error — purposeful malformed entry
+
 		registerNativeUrlRemap( { id: '', nativeWindowId: 'x', matches: () => true } );
-		// @ts-expect-error — purposeful malformed entry
+
 		registerNativeUrlRemap( { id: 'demo', nativeWindowId: '', matches: () => true } );
-		// @ts-expect-error — purposeful malformed entry
+
 		registerNativeUrlRemap( { id: 'demo', nativeWindowId: 'x' } );
 		expect( listNativeUrlRemaps() ).toHaveLength( 0 );
 	} );
@@ -176,10 +165,7 @@ describe( 'tryNativeUrlRemap — Posts case', () => {
 	} );
 
 	test( 'opt-in on but openById says "not registered" → falls through', () => {
-		// `openById` returning false simulates a user who flipped the
-		// toggle on but somehow lost `edit_posts` (or the window
-		// registration failed). The registry must NOT swallow the
-		// click — the iframe path is the safe fallback.
+
 		const openById = postsEntry( { enabled: true, openOk: false } );
 		expect( tryNativeUrlRemap( ADMIN_URL + 'edit.php' ) ).toBe( false );
 		expect( openById ).toHaveBeenCalledWith( 'desktop-mode-posts' );
@@ -229,9 +215,7 @@ describe( 'tryNativeUrlRemap — the tab a click means', () => {
 	} );
 
 	test( 'os_tab names the tab, over whatever the entry asked for', () => {
-		// Every row the dock builds for a window that declared a menu
-		// carries it, so the walker reads it for EVERY remap rather
-		// than each entry re-reading the flag. Junk is not a tab name.
+
 		const { openById } = bind();
 		expect( tryNativeUrlRemap( ADMIN_URL + 'edit.php?os_tab=categories' ) ).toBe( true );
 		expect( openById ).toHaveBeenLastCalledWith( 'desktop-mode-posts', {
@@ -252,8 +236,7 @@ describe( 'tryNativeUrlRemap — multiple entries', () => {
 			openById,
 			adminUrl: ADMIN_URL,
 		} );
-		// `a` claims the URL but openById returns false → fall through.
-		// `b` also claims and openById returns true → win.
+
 		registerNativeUrlRemap( {
 			id: 'a',
 			nativeWindowId: 'a',
@@ -310,10 +293,6 @@ describe( 'tryNativeUrlRemap — open-time params', () => {
 
 		tryNativeUrlRemap( ADMIN_URL + 'edit.php' );
 
-		// Not `( 'plain', undefined )`. The opener's signature is
-		// older than the params hook and most remaps will never use
-		// it; a trailing `undefined` would change what every existing
-		// caller observes for no benefit.
 		expect( openById ).toHaveBeenCalledWith( 'plain' );
 	} );
 
@@ -329,8 +308,6 @@ describe( 'tryNativeUrlRemap — open-time params', () => {
 			},
 		} );
 
-		// Same tolerance `onMatch` has: the window opens, just
-		// without whatever the hook meant to tell it.
 		expect( tryNativeUrlRemap( ADMIN_URL + 'edit.php' ) ).toBe( true );
 		expect( openById ).toHaveBeenCalledWith( 'boom' );
 	} );

@@ -1,7 +1,3 @@
-/**
- * Unit tests for `src/markdown.ts` — the minimal shared renderer used
- * by the AI assistant overlay and the Agent chat window.
- */
 import { describe, expect, test } from 'vitest';
 import { renderMarkdown } from '../../src/markdown';
 
@@ -22,7 +18,7 @@ describe( 'renderMarkdown', () => {
 		expect( renderMarkdown( '[ok](https://example.test)' ) ).toContain(
 			'<a href="https://example.test"',
 		);
-		// eslint-disable-next-line no-script-url -- asserting the guard.
+
 		const unsafe = renderMarkdown( '[bad](javascript:alert(1))' );
 		expect( unsafe ).not.toContain( '<a' );
 		expect( unsafe ).not.toContain( 'javascript' );
@@ -43,8 +39,7 @@ describe( 'renderMarkdown', () => {
 	} );
 
 	test( 'handles a heading packed against bullets with no blank line', () => {
-		// The shape agent answers actually use — previously the leading
-		// `* ` bullets paired up as italics across lines.
+
 		const html = renderMarkdown(
 			'### 1. Detection\n* **Format:** CLASSIC\n* **Reasoning:** tags',
 		);

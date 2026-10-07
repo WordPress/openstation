@@ -1,61 +1,21 @@
 <?php
-/**
- * Tests for `openstation_script_dependency_closure()` and
- * `openstation_resolve_script_dependencies()`.
- *
- * A handle delivered only through `loadVendorScript()` never goes
- * through `wp_print_scripts()`, so the packages it declares have to be
- * resolved and shipped alongside it. Getting that list wrong is a
- * silent failure: the bundle loads, a `wp.*` global it declared is
- * undefined, and it throws at mount.
- *
- * The regression these tests pin is the one that made the list
- * *conditionally* wrong. The closure used to come from
- * `WP_Scripts::all_deps( $deps, true )`, and with `$recursion = true`
- * Core aborts the entire call the moment one handle fails — abandoning
- * every handle after it in the list (see `all_deps()` in
- * `wp-includes/class-wp-dependencies.php`). One stale registration
- * anywhere in the graph therefore truncated the answer, and the caller
- * could not tell a truncated list from a complete one.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-resolve-script-dependencies
- */
+
 class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		// `wp_scripts()` is process-global; prior tests leak handles.
+
 		wp_scripts()->registered = array();
 	}
 
-	/**
-	 * Registers a handle with a real `src`, so the payload filter in
-	 * `openstation_resolve_script_dependencies()` keeps it.
-	 *
-	 * @param string   $handle Handle to register.
-	 * @param string[] $deps   Declared dependencies.
-	 */
 	private function register( $handle, $deps = array() ) {
 		wp_register_script( $handle, 'https://example.test/' . $handle . '.js', $deps, '1.0.0', true );
 	}
 
-	/**
-	 * The handles named in a resolved dependency payload, in order.
-	 *
-	 * @param string $handle Handle to resolve.
-	 * @return string[]
-	 */
 	private function resolved_handles( $handle ) {
 		return wp_list_pluck( openstation_resolve_script_dependencies( $handle ), 'handle' );
 	}
 
-	/**
-	 * @covers ::openstation_script_dependency_closure
-	 */
 	public function test_closure_emits_dependencies_before_dependents() {
 		$this->register( 'os-test-base' );
 		$this->register( 'os-test-mid', array( 'os-test-base' ) );
@@ -67,17 +27,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The regression. A broken sibling must not cost the others.
-	 *
-	 * `os-test-broken` declares a handle nobody registered. Under
-	 * `all_deps( …, true )` that returned false on the first list
-	 * entry, so `os-test-late` — which is perfectly fine and is the
-	 * package the widget actually needed — never made it into the
-	 * payload, and the widget threw on an undefined global at mount.
-	 *
-	 * @covers ::openstation_resolve_script_dependencies
-	 */
 	public function test_unregistered_dependency_does_not_truncate_the_rest() {
 		$this->register( 'os-test-broken', array( 'os-test-never-registered' ) );
 		$this->register( 'os-test-late' );
@@ -90,26 +39,11 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 			$resolved,
 			'A sibling after the broken handle was dropped — the closure truncated.'
 		);
-		// The broken handle is registered and has a file of its own, so
-		// it is still worth delivering: its missing dependency costs it
-		// one tag, not its existence. Losing it silently is the failure
-		// mode this whole mechanism exists to prevent.
+
 		$this->assertContains( 'os-test-broken', $resolved );
 		$this->assertNotContains( 'os-test-never-registered', $resolved );
 	}
 
-	/**
-	 * The walk is read-only analysis and must stay quiet.
-	 *
-	 * `all_deps()` reports missing dependencies through
-	 * `_doing_it_wrong()`. `WP_UnitTestCase` fails a test that triggers
-	 * one without declaring it, so this method passing at all is the
-	 * assertion: the old implementation raised the notice here, and
-	 * turned another plugin's pre-existing registration mistake into
-	 * our warning.
-	 *
-	 * @covers ::openstation_script_dependency_closure
-	 */
 	public function test_walk_does_not_raise_doing_it_wrong_for_missing_deps() {
 		$this->register( 'os-test-broken', array( 'os-test-never-registered' ) );
 
@@ -119,9 +53,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_script_dependency_closure
-	 */
 	public function test_dependency_cycle_terminates() {
 		$this->register( 'os-test-a', array( 'os-test-b' ) );
 		$this->register( 'os-test-b', array( 'os-test-a' ) );
@@ -132,9 +63,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		$this->assertSame( array( 'os-test-a', 'os-test-b' ), $closure );
 	}
 
-	/**
-	 * @covers ::openstation_script_dependency_closure
-	 */
 	public function test_shared_dependency_is_emitted_once() {
 		$this->register( 'os-test-shared' );
 		$this->register( 'os-test-left', array( 'os-test-shared' ) );
@@ -149,9 +77,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_resolve_script_dependencies
-	 */
 	public function test_resolves_transitively_and_excludes_the_handle_itself() {
 		$this->register( 'os-test-base' );
 		$this->register( 'os-test-mid', array( 'os-test-base' ) );
@@ -163,11 +88,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * A payload entry carries what the lazy loader needs to inject.
-	 *
-	 * @covers ::openstation_resolve_script_dependencies
-	 */
 	public function test_payload_entries_carry_url_and_inline_data() {
 		$this->register( 'os-test-base' );
 		$this->register( 'os-test-widget', array( 'os-test-base' ) );
@@ -181,24 +101,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		$this->assertContains( 'window.osTestBefore = 1;', $resolved[0]['before'] );
 	}
 
-	/**
-	 * Every entry names its handle, and the name is load-bearing.
-	 *
-	 * The shell skips a dependency the page already has, and on a
-	 * stock wp-admin it cannot do that from the URL: Core's script
-	 * concatenation (on by default there, off under `SCRIPT_DEBUG` or
-	 * `CONCATENATE_SCRIPTS = false`) serves every package below
-	 * `wp-includes/js/` from one `load-scripts.php` blob, so none of
-	 * them has a `<script src>` carrying its path. The handle is the
-	 * only evidence left — `src/script-presence.ts` matches it against
-	 * the handle list the blob names in its own query string.
-	 *
-	 * Dropping this field would not fail loudly. It would re-inject
-	 * `wp-hooks`, replace `window.wp.hooks` with a fresh registry, and
-	 * silence every subscriber the shell registered at boot.
-	 *
-	 * @covers ::openstation_resolve_script_dependencies
-	 */
 	public function test_every_entry_names_its_handle() {
 		$this->register( 'os-test-base' );
 		$this->register( 'os-test-mid', array( 'os-test-base' ) );
@@ -217,9 +119,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers ::openstation_resolve_script_dependencies
-	 */
 	public function test_returns_empty_for_unregistered_or_dependency_free_handles() {
 		$this->register( 'os-test-standalone' );
 
@@ -228,21 +127,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_resolve_script_dependencies( '' ) );
 	}
 
-	/**
-	 * A src-less ALIAS dependency is kept for its inline data.
-	 *
-	 * `wp_register_script( $h, false )` plus `wp_add_inline_script()`
-	 * is WordPress's supported way to ship inline-only JavaScript,
-	 * and a common home for a plugin's config blob — declared as a
-	 * dependency of every bundle so the config always runs first,
-	 * whatever the enqueue order. AllTerrain Forms ships exactly
-	 * that, and its builder window opened after a live activation
-	 * with no `window.allTerrainForms` because the alias resolved to
-	 * an empty payload and was dropped from the closure.
-	 *
-	 * @covers ::openstation_resolve_script_dependencies
-	 * @covers ::openstation_resolve_script_payload
-	 */
 	public function test_alias_dependency_keeps_its_inline_data() {
 		wp_register_script( 'os-test-config', false, array(), '1.0.0', true );
 		wp_add_inline_script( 'os-test-config', 'window.osTestConfig={a:1};', 'before' );
@@ -254,8 +138,7 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 
 		$this->assertCount( 1, $resolved );
 		$this->assertSame( 'os-test-config', $resolved[0]['handle'] );
-		// Nothing to fetch — the client replays the inline data and
-		// appends no `<script src>`.
+
 		$this->assertSame( '', $resolved[0]['url'] );
 		$this->assertSame( array( 'window.osTestConfig={a:1};' ), $resolved[0]['before'] );
 		$this->assertSame( array( 'window.osTestConfigReady=true;' ), $resolved[0]['after'] );
@@ -263,12 +146,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'osTestL10n', $resolved[0]['l10n'][0] );
 	}
 
-	/**
-	 * An alias carrying nothing is the one thing still dropped: there
-	 * is neither a file to fetch nor a snippet to run.
-	 *
-	 * @covers ::openstation_resolve_script_dependencies
-	 */
 	public function test_empty_alias_dependency_is_dropped() {
 		wp_register_script( 'os-test-empty-alias', false, array(), '1.0.0', true );
 		$this->register( 'os-test-bundle', array( 'os-test-empty-alias' ) );
@@ -276,13 +153,6 @@ class Tests_OpenStation_ResolveScriptDependencies extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_resolve_script_dependencies( 'os-test-bundle' ) );
 	}
 
-	/**
-	 * An alias that aggregates real packages contributes them to the
-	 * closure, in order, whether or not it carries inline data of
-	 * its own.
-	 *
-	 * @covers ::openstation_resolve_script_dependencies
-	 */
 	public function test_alias_dependency_still_walks_through_to_its_own_deps() {
 		$this->register( 'os-test-base' );
 		wp_register_script( 'os-test-group', false, array( 'os-test-base' ), '1.0.0', true );

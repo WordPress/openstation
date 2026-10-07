@@ -1,40 +1,16 @@
 <?php
-/**
- * My WordPress — the section registry.
- *
- * Part of the `my-wordpress` app: required by `my-wordpress.os.php`,
- * same namespace, plain `.php` on purpose — only `*.os.php` files are
- * app entries to the framework loader. This part owns what the
- * explorer OFFERS: the four builtins, every eligible custom post type
- * with its plugin-group folder (discovered through the same
- * `openstation_my_wordpress_*` helpers WP Explorer uses), the Agents
- * tile, and the per-kind sort options.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\Apps\MyWordPress;
 
 use OpenStation\App\Os;
 use OpenStation\App\State;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/** A folder wearing the OpenStation mark — the explorer family icon. */
 const ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M11 13h12.2a3 3 0 0 1 2.4 1.2l2.8 3.7a3 3 0 0 0 2.4 1.2H53a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H11a4 4 0 0 1-4-4V17a4 4 0 0 1 4-4z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="35.6" r="10" fill="none" stroke="currentColor" stroke-width="3"/><path d="M32 30.6v10M27.4 33l4.6 7.6 4.6-7.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-/**
- * Every section the current user may browse: the four builtins plus
- * one per eligible custom post type, carrying the same group fields
- * WP Explorer computes (`group`, `groupLabel`, `groupIcon`,
- * `groupOrder`) so plugin CPTs fold into plugin folders at the root.
- *
- * @param Os $os Host handle.
- * @return array<int,array<string,mixed>>
- */
 function sections( Os $os ) {
 	$sections = array(
 		array(
@@ -45,8 +21,7 @@ function sections( Os $os ) {
 			'post_type'  => 'post',
 			'capability' => 'edit_posts',
 			'thumbnails' => true,
-			// So a row dragged onto the Recycle Bin knows which REST
-			// collection its trash call hits — same for every section.
+
 			'restPath'   => 'wp/v2/posts',
 		),
 		array(
@@ -57,7 +32,7 @@ function sections( Os $os ) {
 			'post_type'    => 'page',
 			'capability'   => 'edit_pages',
 			'thumbnails'   => true,
-			// The list view offers a Parent column to tree-shaped types.
+
 			'hierarchical' => true,
 			'restPath'     => 'wp/v2/pages',
 		),
@@ -78,29 +53,18 @@ function sections( Os $os ) {
 			'post_type'  => '',
 			'capability' => 'list_users',
 			'thumbnails' => true,
-			// Whether the toolbar offers Add user — Core's own menu
-			// gate for user-new.php: create_users, or promote_users on
-			// multisite, where a site administrator keeps the
-			// invite-existing half even when the network withholds
-			// brand-new account creation. The add-user action
-			// re-checks server-side.
+
 			'canAdd'     => current_user_can( 'create_users' )
 				|| ( is_multisite() && current_user_can( 'promote_users' ) ),
 		),
 	);
 
-	// The WooCommerce sections (Orders, Customers) — ahead of the CPT
-	// pass, exactly where WP Explorer's entities filter puts them, so
-	// they lead the Woo folder. Empty unless WooCommerce is active.
 	$sections = array_merge( $sections, woo_sections( $os ) );
 
-	// Every eligible CPT, through the same discovery WP Explorer uses —
-	// one list of what the site contains, two windows rendering it.
 	if ( function_exists( 'openstation_my_wordpress_eligible_post_types' ) ) {
 		$claimed = array_column( $sections, 'post_type' );
 		foreach ( openstation_my_wordpress_eligible_post_types() as $name => $post_type ) {
-			// A type an earlier section already declares (Orders claims
-			// `shop_order`) must not become a second, broken folder.
+
 			if ( in_array( (string) $name, $claimed, true ) ) {
 				continue;
 			}
@@ -132,9 +96,6 @@ function sections( Os $os ) {
 		}
 	}
 
-	// The Agents section, exactly as WP Explorer lists it: always
-	// discoverable while the user may read agents, even when the
-	// framework is off — the section itself explains how to turn it on.
 	if ( function_exists( 'openstation_agents_user_can_read' ) && openstation_agents_user_can_read() ) {
 		$sections[] = array(
 			'id'         => 'agents',
@@ -149,16 +110,6 @@ function sections( Os $os ) {
 		);
 	}
 
-	/**
-	 * Filter the sections the My WordPress app offers. Runs on every
-	 * render — a post type registered at any point of the bootstrap
-	 * can appear, unlike a list frozen at registration time.
-	 *
-	 * @param array[] $sections Each: `id`, `label`, `icon`, `kind`
-	 *                          (`post` | `media` | `user` | `agent`),
-	 *                          `post_type`, `capability`, `thumbnails`,
-	 *                          and the optional `group*` folder fields.
-	 */
 	$sections = (array) $os->filter( 'openstation_my_wordpress_app_sections', $sections );
 
 	return array_values(
@@ -172,13 +123,6 @@ function sections( Os $os ) {
 	);
 }
 
-/**
- * One section by id, or null.
- *
- * @param Os     $os Host handle.
- * @param string $id Section id.
- * @return array<string,mixed>|null
- */
 function section_of( Os $os, $id ) {
 	foreach ( sections( $os ) as $section ) {
 		if ( $section['id'] === $id ) {
@@ -188,14 +132,6 @@ function section_of( Os $os, $id ) {
 	return null;
 }
 
-/**
- * The plugin folders the grouped sections fold into, through the
- * same collector (and `openstation_my_wordpress_post_type_groups`
- * filter) WP Explorer uses.
- *
- * @param array[] $sections Section descriptors.
- * @return array[] Each: `id`, `label`, `icon`, `order`.
- */
 function groups( array $sections ) {
 	if ( function_exists( 'openstation_my_wordpress_collect_groups' ) ) {
 		return openstation_my_wordpress_collect_groups( $sections );
@@ -214,21 +150,10 @@ function groups( array $sections ) {
 	return array_values( $groups );
 }
 
-/**
- * The statuses the explorer lists: everything an editor works on.
- *
- * @return string[]
- */
 function statuses() {
 	return array( 'publish', 'future', 'draft', 'pending', 'private' );
 }
 
-/**
- * Sort options for a section's kind: `value => [ label, orderby, order ]`.
- *
- * @param array<string,mixed> $section Section descriptor.
- * @return array<string,array{0:string,1:string,2:string}>
- */
 function sort_options( array $section ) {
 	if ( 'agent' === $section['kind'] ) {
 		return array();
@@ -237,10 +162,7 @@ function sort_options( array $section ) {
 	if ( null !== $woo ) {
 		return $woo;
 	}
-	// Every column the list view can sort by is a sort option here, so
-	// the icon view's "Sort by" menu and the list view's headers are
-	// two doors onto ONE server order — a column is sortable exactly
-	// when both of its keys exist in this table.
+
 	if ( 'user' === $section['kind'] ) {
 		return array(
 			'default'    => array( __( 'Name A–Z', 'desktop-mode' ), 'display_name', 'ASC' ),
@@ -276,13 +198,6 @@ function sort_options( array $section ) {
 	return $options;
 }
 
-/**
- * The (orderby, order) pair the state's `sort` resolves to.
- *
- * @param array<string,mixed> $section Section descriptor.
- * @param State               $state   State.
- * @return array{0:string,1:string}
- */
 function sort_of( array $section, State $state ) {
 	$options = sort_options( $section );
 	$picked  = (string) $state->get( 'sort' );

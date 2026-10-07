@@ -1,16 +1,5 @@
 <?php
-/**
- * Tests for the core-update descriptor + the in-window nag suppressor.
- *
- * Release art + codename are resolved on the client now, so PHP only
- * reports the update relationship: `{ version, branch, url, crossing }`.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-update-notice
- */
+
 class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -18,10 +7,6 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
 
-		// On multisite a plain administrator lacks the super-admin-only
-		// capabilities these tests exercise (update_core, edit_users,
-		// activate_plugins and friends). The admin fixture means "the
-		// fully-capable admin", which multisite spells super admin.
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -40,18 +25,12 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_get_core_update
-	 */
 	public function test_returns_null_without_update() {
 		wp_set_current_user( self::$admin_id );
-		// No transient (cleared in set_up) → response is 'latest'.
+
 		$this->assertNull( openstation_get_core_update() );
 	}
 
-	/**
-	 * @covers ::openstation_get_core_update
-	 */
 	public function test_returns_null_without_capability() {
 		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber );
@@ -59,9 +38,6 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertNull( openstation_get_core_update() );
 	}
 
-	/**
-	 * @covers ::openstation_get_core_update
-	 */
 	public function test_descriptor_shape() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '99.9' );
@@ -75,9 +51,6 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'update-core.php', $update['url'] );
 	}
 
-	/**
-	 * @covers ::openstation_is_major_update
-	 */
 	public function test_major_update_detection() {
 		$this->assertTrue( openstation_is_major_update( '6.9.2', '7.0' ) );
 		$this->assertTrue( openstation_is_major_update( '6.8', '6.9' ) );
@@ -85,29 +58,17 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertFalse( openstation_is_major_update( '7.0', '7.0' ) );
 	}
 
-	/**
-	 * Crossing into a new major (installed 7.0.x → 8.0.1) reports the
-	 * major branch as the display version and flags `crossing`.
-	 *
-	 * @covers ::openstation_get_core_update
-	 */
 	public function test_crossing_major() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '8.0.1' );
 
 		$update = openstation_get_core_update();
-		$this->assertSame( '8.0', $update['version'] );      // display = branch
-		$this->assertSame( '8.0.1', $update['available'] );  // exact, for dismissal
+		$this->assertSame( '8.0', $update['version'] );
+		$this->assertSame( '8.0.1', $update['available'] );
 		$this->assertSame( '8.0', $update['branch'] );
 		$this->assertTrue( $update['crossing'] );
 	}
 
-	/**
-	 * A same-branch minor (7.0.x → 7.0.2) reports the exact version and
-	 * is not crossing.
-	 *
-	 * @covers ::openstation_get_core_update
-	 */
 	public function test_same_branch_minor() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '7.0.2' );
@@ -119,9 +80,6 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertFalse( $update['crossing'] );
 	}
 
-	/**
-	 * @covers ::openstation_get_core_update
-	 */
 	public function test_notice_filter_can_suppress() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '9.9.9' );
@@ -130,12 +88,6 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertNull( openstation_get_core_update() );
 	}
 
-	/**
-	 * The chromeless suppressor detaches core's per-window update /
-	 * maintenance nags so they don't repeat inside every window.
-	 *
-	 * @covers ::openstation_chromeless_suppress_update_nags
-	 */
 	public function test_suppressor_removes_nags_in_chromeless() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -152,11 +104,6 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertFalse( has_action( 'admin_notices', 'maintenance_nag' ) );
 	}
 
-	/**
-	 * Outside a chromeless request the nags are left in place.
-	 *
-	 * @covers ::openstation_chromeless_suppress_update_nags
-	 */
 	public function test_suppressor_leaves_nags_when_not_chromeless() {
 		wp_set_current_user( self::$admin_id );
 		add_action( 'admin_notices', 'update_nag', 3 );
@@ -168,12 +115,6 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		remove_action( 'admin_notices', 'update_nag', 3 );
 	}
 
-	/**
-	 * Seed the `update_core` site transient so
-	 * `get_preferred_from_update_core()` reports an available upgrade.
-	 *
-	 * @param string $version Version string to advertise.
-	 */
 	private function fake_core_update( $version ) {
 		$item = (object) array(
 			'response' => 'upgrade',

@@ -1,18 +1,3 @@
-/**
- * Games framework — minimal Pixi type surface.
- *
- * PixiJS is loaded as a vendor script (`window.PIXI`) via
- * `wp.os.loadModules(['pixijs'])`, NOT imported. We declare the
- * narrow set of Pixi types the game bundles use, mirroring
- * `src/content-graph/pixi-types.ts`.
- *
- * Destroy contract (repo-wide footgun): always
- * `app.destroy( { removeView: true }, { children: true, texture: true } )`
- * — never `destroy( true )`, which runs `releaseGlobalResources()`
- * and corrupts every other live Pixi Application on the page (the
- * active wallpaper, content graph, OS Settings previews).
- */
-
 export interface PixiContainer {
 	x: number;
 	y: number;
@@ -81,12 +66,7 @@ export interface PixiApp {
 		render( container?: unknown ): void;
 	};
 	init( opts: unknown ): Promise< void >;
-	/**
-	 * Re-measure the `resizeTo` target and resize the renderer NOW.
-	 * Pixi's ResizePlugin only listens to `window` resize events, so
-	 * resizing the openstation window (which never fires them) needs
-	 * an explicit call from our own ResizeObserver.
-	 */
+
 	resize(): void;
 	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }

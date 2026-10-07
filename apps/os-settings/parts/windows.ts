@@ -1,11 +1,3 @@
-/**
- * Windows — how windows look, how they arrive, and how they behave
- * when they are not the one you are using. Corners came from
- * Appearance, the rest from a former Effects page: shape, motion and
- * links are all one object's settings, and "Effects" named the
- * technique rather than the thing.
- */
-
 import { __, html } from '@openstation/app';
 import { OPEN_WINDOWS_AS, WINDOW_RADII } from '../../../src/settings/constants';
 import {
@@ -26,11 +18,6 @@ import { translateWindowRadiusLabel } from './labels';
 import { update } from './store';
 import { pickedChecked, pickedValue, type Section } from './types';
 
-/**
- * Sharp / Default / Round. The pick lands as `--os-window-radius`
- * through the store's apply pass, so every open window's corners
- * reflow live.
- */
 export const windowRadiusSection: Section = ( s ) => html`
 	<os-section heading=${ __( 'Window corners' ) } description=${ __( 'How rounded the corners of windows are.' ) }>
 		<os-segmented
@@ -50,7 +37,6 @@ export const windowRadiusSection: Section = ( s ) => html`
 	</os-section>
 `;
 
-/** The labels, translated where they are painted. */
 function openWindowsAsLabel( id: OpenWindowsAsId ): string {
 	switch ( id ) {
 		case 'maximized':
@@ -62,9 +48,6 @@ function openWindowsAsLabel( id: OpenWindowsAsId ): string {
 	}
 }
 
-/**
- * Default / Maximized / Focused — how a newly opened window lands.
- */
 export const openWindowsAsSection: Section = ( s ) => html`
 	<os-section
 		heading=${ __( 'Open windows as' ) }
@@ -87,17 +70,6 @@ export const openWindowsAsSection: Section = ( s ) => html`
 	</os-section>
 `;
 
-/**
- * Reveal-speed presets, in ms. `0` is the "leave each reveal alone"
- * sentinel and is offered first, because the shipped reveals carry
- * durations tuned per shape — Radar's full turn is deliberately slower
- * than Sweep's straight line — and a user who has no opinion about
- * speed should keep that tuning rather than flatten it.
- *
- * Presets rather than a slider: the useful range spans one order of
- * magnitude and the interesting choices are coarse. A dropdown of
- * named speeds also matches every other control in this tab.
- */
 const REVEAL_SPEEDS = [
 	{ value: REVEAL_DURATION_AUTO, label: () => __( 'Default (per reveal)' ) },
 	{ value: 200, label: () => __( 'Very fast — 200 ms' ) },
@@ -113,12 +85,6 @@ const LINK_VISIBILITIES = [
 	{ id: 'off', label: () => __( 'Off' ) },
 ] as const;
 
-/**
- * A `<os-select>` bound to one settings key over a registry list, with
- * a `None` option that maps to the engine's reserved sentinel. A pick
- * of an id the registry no longer carries (an effect unregistered
- * between paint and pick) is ignored.
- */
 const registrySelect = (
 	label: string,
 	value: string,
@@ -139,13 +105,6 @@ const registrySelect = (
 	${ options.map( ( o ) => html`<os-option value=${ o.id }>${ o.label }</os-option>` ) }
 </os-select>`;
 
-/**
- * Unfocused windows, window reveal, window links — each a `<os-select>`
- * rather than a segmented pill bar because every list is open-ended:
- * plugins append, and a dropdown scales past the shipped choices. The
- * app subscribes to all three registries, so a plugin activated
- * mid-session surfaces its entry without reopening Preferences.
- */
 export const effectsSection: Section = ( s ) => {
 	const effects = listUnfocusEffects();
 	const reveals = listWindowReveals();
@@ -228,14 +187,6 @@ export const effectsSection: Section = ( s ) => {
 	`;
 };
 
-/**
- * The way back from "Don't ask again". The `⌥⌘W` / `Ctrl+Alt+W`
- * shortcut asks before it wipes the desk, and its confirmation carries
- * a "Don't ask again" checkbox — the only thing in the shell that
- * writes `confirmCloseAllWindows: false`. Without this toggle the
- * opt-out would be one-way, which makes it a trap rather than a
- * preference.
- */
 export const closeAllSection: Section = ( s ) => html`
 	<os-section
 		heading=${ __( 'Closing every window' ) }
@@ -251,7 +202,6 @@ export const closeAllSection: Section = ( s ) => html`
 	</os-section>
 `;
 
-/** The Windows page, top to bottom. */
 export const renderWindows: Section = ( s, ctx ) => html`
 	${ openWindowsAsSection( s, ctx ) }
 	${ windowRadiusSection( s, ctx ) }

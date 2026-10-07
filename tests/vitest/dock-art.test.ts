@@ -1,26 +1,3 @@
-/**
- * Tests for `Dock.setArt` — the counterpart to `setBadge` for a tile
- * whose icon means something different depending on state rather than
- * counting something.
- *
- * The properties worth pinning are the ones that broke while it was
- * being written:
- *
- *   - art recorded BEFORE the tile is resolved, because a caller
- *     setting art during boot beats the rail to the DOM (the Recycle
- *     Bin does exactly this), and the tile builders re-apply from the
- *     map. Getting this backwards drops the call on the floor and the
- *     tile silently keeps its registered icon;
- *   - the override survives `replaceItems()`, which rebuilds from the
- *     server payload and would otherwise revert the swap on the next
- *     plugin activation;
- *   - `''` restores the declared icon immediately, the way
- *     `setBadge( id, 0 )` removes the pill immediately;
- *   - a dashicon class is accepted, not just a data URI. `setArt`
- *     routes through the rail's own resolver for this reason.
- *
- * @group dock
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type DockItem } from '../../src/dock';
 import { activity } from '../../src/activity';
@@ -129,8 +106,6 @@ describe( 'Dock.setArt', () => {
 		const { container, dock } = mount( [ makeItem() ] );
 		dock.setArt( 'plugin-x', ART );
 
-		// The refresh rebuilds from the server payload, which still
-		// carries the ORIGINAL icon.
 		dock.replaceItems( [ makeItem( { title: 'Plugin X renamed' } ) ] );
 
 		expect(

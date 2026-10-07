@@ -1,14 +1,4 @@
 <?php
-/**
- * OpenStation — "My WordPress" module bootstrap.
- *
- * Pinned virtual folder on the desktop wallpaper that opens a native
- * file-explorer window for browsing WordPress entities (Posts,
- * Pages, Users, and Media today). Future phases add Comments, Tags,
- * Categories, Themes, and Plugins as additional sub-folders.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
@@ -29,8 +19,6 @@ require_once __DIR__ . '/media-usage.php';
 require_once __DIR__ . '/attached-media.php';
 require_once __DIR__ . '/preview-actions.php';
 
-// Third-party integrations. Each file is inert unless its plugin is
-// active, so requiring them unconditionally costs one include.
 require_once __DIR__ . '/integrations/woocommerce.php';
 require_once __DIR__ . '/integrations/woocommerce-customers.php';
 require_once __DIR__ . '/integrations/woocommerce-customer-window.php';

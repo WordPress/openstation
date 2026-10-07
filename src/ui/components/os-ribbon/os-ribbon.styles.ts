@@ -1,24 +1,3 @@
-/**
- * `<os-ribbon>` — diagonal corner banner.
- *
- * The host is a square `overflow: hidden` window pinned to the chosen
- * corner of its (positioned) parent. Inside, a wider `.banner` strip
- * is rotated 45° so the visible slice reads as a ribbon wrapping the
- * corner. The wrapper geometry — width, banner offset — is sized via
- * CSS custom properties so plugin authors can tune sizes without
- * forking the styles.
- *
- * Why a separate wrapper + banner element rather than a single
- * rotated element: clipping. The `overflow: hidden` on the host is
- * what cuts the strip's overhang into a triangular outline. Rotating
- * the host directly leaves a rectangle floating off the corner.
- *
- * Logical-property positioning (`inset-inline-*`, `inset-block-*`)
- * does the LTR/RTL flip on the wrapper for free. The 45° rotation,
- * however, has no inline-aware variant — we explicitly flip the
- * rotation sign under `[dir='rtl']` so the visual band still leans
- * "downward-into-the-card" rather than backward.
- */
 import { css } from '../../core';
 
 export const styles = css`
@@ -47,16 +26,7 @@ export const styles = css`
 		letter-spacing: var( --os-ui-ribbon-tracking, 0.06em );
 		text-transform: uppercase;
 		color: var( --os-ui-ribbon-fg, var( --os-ui-fg-on-accent, #fff ) );
-		/*
-		 * The default ribbon fill arrives through --os-ui-ribbon-bg,
-		 * which the palette points at Holomesh. A ribbon is a good
-		 * home for it: one per tile, small, angled, and already
-		 * carrying Void text (--os-ui-ribbon-fg) because a bright fill
-		 * needs dark ink whether it is a mesh or not.
-		 *
-		 * The literal stays the pre-brand blue — it is the
-		 * no-stylesheet floor, and it is what Legacy collected.
-		 */
+
 		background: var(
 			--os-ui-ribbon-bg,
 			var( --wp-admin-theme-color, #2271b1 )
@@ -69,10 +39,6 @@ export const styles = css`
 		);
 	}
 
-	/* ─── Placement: top-end (default) ───────────────────────────────
-	   Wrapper pinned to the top-inline-end corner. Banner translates
-	   into the wrapper diagonally so its visible slice reads
-	   left-to-right going upward in LTR. */
 	:host( :not( [ placement ] ) ),
 	:host( [ placement='top-end' ] ) {
 		inset-block-start: 0;
@@ -85,7 +51,6 @@ export const styles = css`
 		transform: rotate( 45deg );
 	}
 
-	/* ─── Placement: top-start ───────────────────────────────────── */
 	:host( [ placement='top-start' ] ) {
 		inset-block-start: 0;
 		inset-inline-start: 0;
@@ -96,7 +61,6 @@ export const styles = css`
 		transform: rotate( -45deg );
 	}
 
-	/* ─── Placement: bottom-end ──────────────────────────────────── */
 	:host( [ placement='bottom-end' ] ) {
 		inset-block-end: 0;
 		inset-inline-end: 0;
@@ -107,7 +71,6 @@ export const styles = css`
 		transform: rotate( -45deg );
 	}
 
-	/* ─── Placement: bottom-start ────────────────────────────────── */
 	:host( [ placement='bottom-start' ] ) {
 		inset-block-end: 0;
 		inset-inline-start: 0;
@@ -118,9 +81,6 @@ export const styles = css`
 		transform: rotate( 45deg );
 	}
 
-	/* RTL: flip the rotation sign so the diagonal still hugs the
-	   physical corner the user sees. \`inset-inline-*\` already takes
-	   care of the wrapper position itself. */
 	:host-context( [ dir='rtl' ] ):host( :not( [ placement ] ) ) .banner,
 	:host-context( [ dir='rtl' ] ):host( [ placement='top-end' ] ) .banner {
 		transform: rotate( -45deg );
@@ -135,10 +95,6 @@ export const styles = css`
 		transform: rotate( -45deg );
 	}
 
-	/* ─── Tones ──────────────────────────────────────────────────────
-	   Match \`<os-badge>\`'s palette so the two surfaces feel like a
-	   set. Default (no tone, or \`primary\`) uses the admin theme
-	   accent so the ribbon picks up per-scheme tints automatically. */
 	:host( [ tone='success' ] ) .banner {
 		background: var( --os-ui-ribbon-success, var( --os-ui-success-fg, #1a7f37 ) );
 	}

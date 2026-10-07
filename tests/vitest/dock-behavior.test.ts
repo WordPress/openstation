@@ -1,14 +1,3 @@
-/**
- * Tests for `src/dock-behavior.ts` — the dynamic dock's JS half.
- *
- * The parked ↔ revealed flip is decided here, not in CSS, so the
- * rules that decide it are pinned: the reveal zone is the whole edge
- * of the viewport (not just the indicator line's width), a revealed
- * rail stays out while the pointer is on it, its flyouts count as
- * "on it", keyboard focus holds it, and a static rail never moves.
- * jsdom has no View Transitions API, which exercises the plain
- * fallback path; the morph itself is a browser matter.
- */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -39,7 +28,6 @@ describe( 'pointerInZone', () => {
 	} );
 } );
 
-/** A DOMRect-shaped object jsdom can't produce from layout. */
 function fakeRect( left: number, top: number, width: number, height: number ): DOMRect {
 	return {
 		left,
@@ -70,7 +58,7 @@ describe( 'installDockBehavior', () => {
 		body.appendChild( dock );
 		document.body.appendChild( body );
 		behaviors = { dock: 'dynamic', sidebar: 'dynamic' };
-		// The revealed pill: 600×64, 12px above the floor.
+
 		dock.getBoundingClientRect = () =>
 			fakeRect( 500, window.innerHeight - 12 - 64, 600, 64 );
 	} );
@@ -103,16 +91,14 @@ describe( 'installDockBehavior', () => {
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
-		// Up onto the pill's top row of tiles: outside the 20px band,
-		// inside the rail's box.
+
 		move( 800, window.innerHeight - 12 - 60 );
 		expect( revealed() ).toBe( true );
-		// Above the pill, still within KEEP_OUT_FACTOR heights of its
-		// top: the strip a window's bottom actions live in.
+
 		const pillTop = window.innerHeight - 12 - 64;
 		move( 800, pillTop - 64 * KEEP_OUT_FACTOR + 1 );
 		expect( revealed() ).toBe( true );
-		// One pixel beyond: parks.
+
 		move( 800, pillTop - 64 * KEEP_OUT_FACTOR - 1 );
 		expect( revealed() ).toBe( false );
 		ctl.destroy();
@@ -135,18 +121,14 @@ describe( 'installDockBehavior', () => {
 			new MouseEvent( 'pointerleave', { clientX: 800, clientY: window.innerHeight + 10 } ),
 		);
 		expect( revealed() ).toBe( true );
-		// Back in the window, away from the dock: parks as usual.
+
 		move( 300, 200 );
 		expect( revealed() ).toBe( false );
 		ctl.destroy();
 	} );
 
 	test( 'a park asked for while a pointer button is down waits for the release', () => {
-		// The morph's layer would sit between the pointer and the
-		// button the down just pressed, and the up — a human beat
-		// later — would land on the layer instead: a first click in a
-		// window opened from the rail that visibly presses and does
-		// nothing. The park waits for the up.
+
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
@@ -164,7 +146,7 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'a reveal never waits for the release', () => {
-		// A tap on the indicator line: the down IS the summons.
+
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		document.dispatchEvent(
 			new MouseEvent( 'pointerdown', { clientX: 800, clientY: window.innerHeight - 5, bubbles: true } ),
@@ -174,16 +156,13 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'the transition layer lets the pointer through', () => {
-		// The other half of the click fix, in the stylesheet: without
-		// it, a hover that lands on a tile while the rail is still
-		// morphing out reaches nothing until the next pointer movement.
+
 		const css = readFileSync( join( __dirname, '../../assets/css/dock.css' ), 'utf8' );
 		expect( css ).toMatch( /html\.os-dock-vt::view-transition\s*\{[^}]*pointer-events:\s*none/ );
 	} );
 
 	test( 'the rail box does not reveal a parked rail on its own', () => {
-		// Parked, the rail is a thin line; only the edge band or the
-		// line itself (which sits inside the band) summons it.
+
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 12 - 60 );
 		expect( revealed() ).toBe( false );
@@ -210,7 +189,7 @@ describe( 'installDockBehavior', () => {
 		document.body.appendChild( flyout );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
-		// Well above the rail, but on the flyout it opened.
+
 		move( 800, 300, flyout );
 		expect( revealed() ).toBe( true );
 		move( 800, 300 );
@@ -219,9 +198,7 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'a flyout does not summon a parked rail', () => {
-		// The flyout rule holds a rail that is already out; it must not
-		// pull a parked one up. Flyouts are body-level and anonymous,
-		// so "a flyout is under the pointer" says nothing about whose.
+
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		const flyout = document.createElement( 'div' );
 		flyout.className = 'os-constellation';
@@ -233,9 +210,7 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( "a static rail's flyout leaves the dynamic rail parked (Split)", () => {
-		// The production bug: hovering the static left rail to fan its
-		// constellation out summoned the dynamic bottom dock, which
-		// painted over the panel and took the pointer that dismissed it.
+
 		behaviors.sidebar = 'static';
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		const side = document.createElement( 'nav' );
@@ -249,8 +224,6 @@ describe( 'installDockBehavior', () => {
 		side.appendChild( tile );
 		document.dispatchEvent( new CustomEvent( 'os-layout-changed' ) );
 
-		// Onto the static rail, then onto the panel it opened. Neither
-		// is the bottom dock's business.
 		move( 10, 300, tile );
 		expect( revealed() ).toBe( false );
 		const panel = document.createElement( 'div' );
@@ -258,8 +231,7 @@ describe( 'installDockBehavior', () => {
 		document.body.appendChild( panel );
 		move( 300, 400, panel );
 		expect( revealed() ).toBe( false );
-		// Even where the panel runs down into the dock's own edge band:
-		// the pointer is reading a menu, not reaching for the dock.
+
 		move( 300, window.innerHeight - 5, panel );
 		expect( revealed() ).toBe( false );
 		expect( side.classList.contains( REVEALED_CLASS ) ).toBe( false );
@@ -325,7 +297,6 @@ describe( 'installDockBehavior', () => {
 			expect( dock.style.getPropertyValue( 'view-transition-name' ) ).toBe( 'os-dock-os-dock' );
 			expect( document.documentElement.classList.contains( VIEW_TRANSITION_CLASS ) ).toBe( true );
 
-			// Mid-morph, the pointer leaves: remembered, not stacked.
 			move( 300, 200 );
 			expect( start ).toHaveBeenCalledTimes( 1 );
 			expect( revealed() ).toBe( true );
@@ -333,12 +304,11 @@ describe( 'installDockBehavior', () => {
 			resolveFinished();
 			await Promise.resolve();
 			await Promise.resolve();
-			// The remembered flip ran as its own transition, so the
-			// rail is named again for that one's duration...
+
 			expect( start ).toHaveBeenCalledTimes( 2 );
 			expect( revealed() ).toBe( false );
 			expect( dock.style.getPropertyValue( 'view-transition-name' ) ).toBe( 'os-dock-os-dock' );
-			// ...and unnamed once it settles with nothing left to do.
+
 			resolveFinished();
 			await Promise.resolve();
 			await Promise.resolve();

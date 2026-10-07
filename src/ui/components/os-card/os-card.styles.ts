@@ -5,16 +5,6 @@ export const styles = css`
 	${ holoTokens }
 	${ holoGlint }
 
-	/*
-	 * The specular pass, on interactive cards only. A card is the
-	 * largest surface in the kit that responds to a pointer, so it is
-	 * where a highlight travelling across has the most room to read —
-	 * and it is the clearest "this is clickable" the card can give
-	 * without changing its own colour.
-	 *
-	 * Suppressed on a read-only card, which would otherwise catch the
-	 * light while advertising a click it does not take.
-	 */
 	:host( :not( [ interactive ] ) ) .os-holo-glint,
 	:host( [ disabled ] ) .os-holo-glint {
 		display: none;
@@ -23,17 +13,14 @@ export const styles = css`
 	:host {
 		display: flex;
 		flex-direction: column;
-		/* Anchors the selected card's iridescent frame, which is an
-		   absolutely-positioned ::after. Without it the frame would
-		   escape to the nearest positioned ancestor and draw itself
-		   around some panel three levels up. */
+
 		position: relative;
 		gap: var( --os-ui-card-gap, 12px );
 		padding: var( --os-ui-card-padding, 16px );
 		border: 1px solid var( --os-ui-card-border, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
 		border-radius: var( --os-ui-card-radius, 12px );
 		background: var( --os-ui-card-bg, var( --os-ui-surface, #fff ) );
-		/* Desktop-theme texture slot: unset resolves to none. */
+
 		background-image: var( --os-ui-panel-bg-image, none );
 		background-repeat: var( --os-ui-panel-bg-image-repeat, repeat );
 		background-size: var( --os-ui-panel-bg-image-size, auto );
@@ -59,9 +46,6 @@ export const styles = css`
 		outline-offset: 2px;
 	}
 
-	/* Hover lift only when the card is interactive — non-clickable
-	 * cards (e.g. read-only tile in a digest list) shouldn't grow on
-	 * mouseover. */
 	:host( [ interactive ]:hover ),
 	:host( [ interactive ]:focus-visible ) {
 		transform: translateY( -2px );
@@ -91,14 +75,6 @@ export const styles = css`
 		);
 	}
 
-	/*
-	 * The iridescent hairline, on the chosen card only.
-	 *
-	 * A card is a big surface and there are usually several on screen,
-	 * so this is the one state that earns the edge — and it is drawn
-	 * OUTSIDE the border (inset: -1px) so it reads as a frame around
-	 * the card rather than as a second border inside the first.
-	 */
 	:host( [ selected ] )::after {
 		content: '';
 		position: absolute;
@@ -130,9 +106,6 @@ export const styles = css`
 		}
 	}
 
-	/* Slotted header / footer rhythm — pure CSS so consumers don't
-	 * need separate os-card-header / os-card-footer tags to get
-	 * the standard layout. */
 	::slotted( header ) {
 		display: flex;
 		align-items: center;

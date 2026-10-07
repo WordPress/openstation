@@ -1,49 +1,3 @@
-/**
- * `<os-flyout>` — window-scoped sliding card.
- *
- * Built against the spec the os-tumblr 0.1.x prototype validated
- * by hand: `position: absolute` inside a window body that is
- * `position: relative; overflow: hidden`, margins from every edge
- * so the title bar stays visible, all-four-corners rounded card
- * with a large drop shadow, slide-in from the inline-end (or
- * other configured) edge, no backdrop by default (additive, not
- * modal), `z-index: 10`, focused-element captured as the trigger
- * for restore-on-dismiss, focus trap while open, click-outside-
- * but-inside-window dismissal via `pointerdown` on the closest
- * window body, Escape, imperative `open`-removal, all firing one
- * unified `os-flyout-dismiss` event with a `reason` discriminator.
- *
- * The component bakes the gotchas:
- *   - `focus( { preventScroll: true } )` on the first focusable
- *     element so the off-screen-during-transition panel doesn't
- *     scroll the window jittering as it slides in.
- *   - `focus( { preventScroll: true } )` again when restoring focus
- *     to the trigger on close.
- *   - `inert` on the host while closed so screen readers + Tab
- *     navigation skip the off-screen content.
- *   - Listener cleanup in `disconnectedCallback` so a window close
- *     doesn't leak document-level Escape handlers.
- *
- * Usage:
- *
- * ```html
- * <os-flyout id="account" placement="end" aria-label="Account">
- *     <header>…</header>
- *     <main>…</main>
- *     <button data-flyout-close>Close</button>
- * </os-flyout>
- * <button id="trigger">Open account</button>
- * <script>
- *   document.getElementById('trigger').addEventListener('click', () => {
- *     document.getElementById('account').setAttribute('open', '');
- *   });
- *   document.getElementById('account').addEventListener('os-flyout-dismiss', (e) => {
- *     console.log( e.detail.reason );
- *   });
- * </script>
- * ```
- */
-
 import { Component, defineComponent, html, type TemplateResult } from '../../core';
 import { flyoutStyles } from './os-flyout.styles';
 
@@ -55,12 +9,6 @@ export type OsFlyoutDismissReason =
 	| 'close-button'
 	| 'api';
 
-/**
- * Selector for elements considered focusable inside the flyout.
- * Matches the canonical W3C-pattern set; `[tabindex="-1"]` is
- * explicitly excluded so panels containing programmatic-focus-only
- * targets don't trap into them.
- */
 const FOCUSABLE_SELECTOR = [
 	'a[href]',
 	'area[href]',
@@ -72,11 +20,6 @@ const FOCUSABLE_SELECTOR = [
 	'[contenteditable="true"]',
 ].join( ',' );
 
-/**
- * `data-flyout-close` on a button inside the flyout marks it as a
- * dismiss trigger — the component intercepts its click and emits
- * `os-flyout-dismiss` with reason `'close-button'`.
- */
 const CLOSE_BUTTON_SELECTOR = '[data-flyout-close]';
 
 export class OsFlyout extends Component {
@@ -206,17 +149,16 @@ export class OsFlyout extends Component {
 		`,
 	} as const;
 
-	/** Element that had focus the moment `open` flipped on; restored on dismiss. */
 	private _trigger: HTMLElement | null = null;
-	/** Document-level Escape listener — bound while open. */
+
 	private _onDocKey: ( ( e: KeyboardEvent ) => void ) | null = null;
-	/** `pointerdown` listener on the scope root — bound while open. */
+
 	private _onScopePointerDown: ( ( e: PointerEvent ) => void ) | null = null;
-	/** Click capture on the host for `data-flyout-close`. */
+
 	private _onHostClick: ( ( e: MouseEvent ) => void ) | null = null;
-	/** Tab-trap listener on the host. */
+
 	private _onHostKeyDown: ( ( e: KeyboardEvent ) => void ) | null = null;
-	/** Suppresses the `'api'`-reason emit when our own dismissal path strips `open`. */
+
 	private _pendingReason: OsFlyoutDismissReason | null = null;
 
 	connectedCallback(): void {
@@ -224,16 +166,13 @@ export class OsFlyout extends Component {
 		if ( ! this.hasAttribute( 'role' ) ) {
 			this.setAttribute( 'role', 'dialog' );
 		}
-		// Closed by default — `inert` keeps Tab + screen-readers
-		// out of the off-screen panel until `open` flips on.
+
 		if ( ! this.hasAttribute( 'open' ) ) {
 			this.setAttribute( 'inert', '' );
 		}
 	}
 
 	disconnectedCallback(): void {
-		// Detach every listener — a window-close that removes the
-		// host element should not leak document-level handlers.
 		this._detachOpenListeners();
 	}
 
@@ -254,12 +193,7 @@ export class OsFlyout extends Component {
 
 	private _handleOpen(): void {
 		this.removeAttribute( 'inert' );
-		// Capture the previously-focused element as the trigger so
-		// dismissal can restore focus (per spec point 11). Skip the
-		// no-focus fallbacks (`<body>` / `<html>`) — treating those
-		// as the trigger would make the click-outside check look
-		// like every pointer event lands "on the trigger" and never
-		// dismiss.
+
 		const doc = this.ownerDocument;
 		const active = doc?.activeElement ?? null;
 		this._trigger =
@@ -270,10 +204,6 @@ export class OsFlyout extends Component {
 				? active
 				: null;
 
-		// Move focus to the first focusable element inside the slot
-		// content with `{ preventScroll: true }`. Without preventScroll,
-		// the off-screen-during-transition target gets scrolled into
-		// view and the whole window jitters.
 		queueMicrotask( () => {
 			if ( ! this.hasAttribute( 'open' ) ) {
 				return;
@@ -294,8 +224,6 @@ export class OsFlyout extends Component {
 
 		this.emit( 'os-flyout-dismiss', { reason } );
 
-		// Restore focus to the captured trigger — also with
-		// `preventScroll` to avoid a layout jump on close.
 		const trigger = this._trigger;
 		this._trigger = null;
 		if ( trigger && trigger.isConnected ) {
@@ -303,7 +231,6 @@ export class OsFlyout extends Component {
 		}
 	}
 
-	/** Internal dismissal — flags the reason then removes `open`. */
 	private _dismiss( reason: OsFlyoutDismissReason ): void {
 		if ( ! this.hasAttribute( 'open' ) ) {
 			return;
@@ -321,10 +248,10 @@ export class OsFlyout extends Component {
 			}
 			const path = e.composedPath();
 			if ( path.includes( this ) ) {
-				return; // click inside the panel — ignore.
+				return;
 			}
 			if ( this._trigger && path.includes( this._trigger ) ) {
-				return; // click on the trigger — let the trigger handler decide.
+				return;
 			}
 			this._dismiss( 'pointer' );
 		};
@@ -398,14 +325,12 @@ export class OsFlyout extends Component {
 		if ( scope === 'parent' ) {
 			return this.parentElement ?? document.body;
 		}
-		// 'window' — the canonical openstation case.
+
 		const windowBody = this.closest< HTMLElement >( '.os-window__body' );
 		return windowBody ?? this.parentElement ?? document.body;
 	}
 
 	private _firstFocusable(): HTMLElement | null {
-		// Look in light DOM (slot content) first — that's what users
-		// will see and tab into.
 		const slotMatch = this.querySelector< HTMLElement >( FOCUSABLE_SELECTOR );
 		return slotMatch ?? null;
 	}

@@ -1,8 +1,3 @@
-/**
- * Mio configuration — the chroma palette maths and the sanitizer
- * that stands between an untrusted PHP/plugin config and the
- * simulation.
- */
 import { describe, expect, test } from 'vitest';
 import {
 	chromaRing,
@@ -13,7 +8,6 @@ import {
 } from '../../src/mio/chroma';
 import { MIO_DEFAULTS, sanitizeMioConfig } from '../../src/mio/config';
 
-/** Hue of a packed colour, in degrees. `-1` for a true grey. */
 function hueOf( r: number, g: number, b: number ): number {
 	const max = Math.max( r, g, b );
 	const min = Math.min( r, g, b );
@@ -75,7 +69,7 @@ describe( 'chromaRing', () => {
 	test( 'phase rotates the ramp rather than recolouring it', () => {
 		const app = { ...MIO_DEFAULTS.appearance, hueSpan: -360, lightness: 0.5 };
 		const base = chromaRing( 8, 0, app );
-		// One full span of phase brings the ramp back to itself.
+
 		const wrapped = chromaRing( 8, -360, app );
 		expect( wrapped ).toEqual( base );
 	} );
@@ -84,41 +78,35 @@ describe( 'chromaRing', () => {
 		const flat = chromaRing( 6, 0, {
 			...MIO_DEFAULTS.appearance,
 			hueSpan: 0,
-			// Kill the lit-side lightness hump so only hue is in play.
+
 			lightness: 0.5,
 		} );
-		// Lightness still varies around the ring by design, so compare
-		// hue rather than exact values — and derive it rather than
-		// naming a colour, so the assertion stays true whatever
-		// `hueStart` the shipped design happens to use.
+
 		const hues = flat.map( ( rgb ) =>
 			hueOf( ( rgb >> 16 ) & 0xff, ( rgb >> 8 ) & 0xff, rgb & 0xff ),
 		);
 		for ( const h of hues ) {
-			// A degree of slack for 8-bit rounding: the ring is quantised
-			// to packed RGB, so two tints of one hue land a fraction of a
-			// degree apart coming back out.
+
 			expect( Math.abs( h - hues[ 0 ] ) ).toBeLessThan( 1 );
 		}
 	} );
 } );
 
 describe( 'the looping gradient', () => {
-	/** Hue of each entry, in degrees. */
+
 	function hues( ring: number[] ): number[] {
 		return ring.map( ( rgb ) =>
 			hueOf( ( rgb >> 16 ) & 0xff, ( rgb >> 8 ) & 0xff, rgb & 0xff ),
 		);
 	}
 
-	/** Largest hue step between neighbours, walking the ring closed. */
 	function worstStep( ring: number[] ): number {
 		const h = hues( ring );
 		let worst = 0;
 		for ( let i = 0; i < h.length; i++ ) {
 			const a = h[ i ];
 			const b = h[ ( i + 1 ) % h.length ];
-			// Shortest way round the colour wheel.
+
 			const d = Math.abs( ( ( a - b + 540 ) % 360 ) - 180 );
 			worst = Math.max( worst, d );
 		}
@@ -126,8 +114,7 @@ describe( 'the looping gradient', () => {
 	}
 
 	test( 'a straight ramp leaves a seam where the ring meets itself', () => {
-		// The bug the loop exists for. With no rotation to keep it
-		// moving, the wrap point is a hard jump of a whole span.
+
 		const straight = chromaRing( 64, 0, {
 			...MIO_DEFAULTS.appearance,
 			hueLoop: false,
@@ -144,7 +131,7 @@ describe( 'the looping gradient', () => {
 			hueSpan: -79,
 			iridescence: 0,
 		} );
-		// 79 degrees walked out and back over 64 samples: ~2.5 per step.
+
 		expect( worstStep( looped ) ).toBeLessThan( 6 );
 	} );
 
@@ -159,14 +146,10 @@ describe( 'the looping gradient', () => {
 			hueAngle: 0,
 			iridescence: 0,
 		} );
-		// t = 0 and t = 1 are the same point, so the first entry and
-		// the one before the wrap must be within a step of each other.
+
 		const h = hues( ring );
 		expect( Math.abs( h[ 0 ] - h[ h.length - 1 ] ) ).toBeLessThan( 6 );
-		// And the extremes sit half a turn apart, a whole span of hue
-		// between them. Derived from the shipped span rather than
-		// written out: a magic number here just re-fails whenever the
-		// palette is retuned, which says nothing about the mirror.
+
 		expect( Math.abs( h[ 0 ] - h[ 32 ] ) ).toBeCloseTo(
 			Math.abs( MIO_DEFAULTS.appearance.hueSpan ),
 			0,
@@ -174,16 +157,7 @@ describe( 'the looping gradient', () => {
 	} );
 
 	test( 'the loop turns smoothly — no crease where the sweep reverses', () => {
-		// Closing the loop in *value* is not enough. A triangle wave
-		// does that, and its slope still flips sign the instant it
-		// turns: the hue runs one way, stops dead, and runs back. That
-		// crease reads as a seam even though no two neighbours are far
-		// apart, which is exactly the "it goes round and then the
-		// colour isn't seamless" report this test exists for.
-		//
-		// Second differences make it visible. A raised cosine bends by
-		// a fraction of its own step size; a triangle bends by twice it
-		// at the turn.
+
 		const n = 180;
 		const h = hues(
 			chromaRing( n, 0, {
@@ -196,7 +170,7 @@ describe( 'the looping gradient', () => {
 		const step = ( i: number ): number => {
 			const a = h[ i % n ];
 			const b = h[ ( i + 1 ) % n ];
-			// Shortest way round the wheel, signed.
+
 			return ( ( b - a + 540 ) % 360 ) - 180;
 		};
 		let worstBend = 0;
@@ -212,14 +186,12 @@ describe( 'the looping gradient', () => {
 		const base = { ...MIO_DEFAULTS.appearance, iridescence: 0 };
 		const at0 = hues( chromaRing( 64, 0, { ...base, hueAngle: 0 } ) );
 		const at90 = hues( chromaRing( 64, 0, { ...base, hueAngle: 90 } ) );
-		// A quarter turn of 64 samples is 16. The ramp should have
-		// moved by exactly that — within 8-bit rounding, since the hue
-		// makes a round trip through packed RGB on the way out.
+
 		expect( Math.abs( at90[ 16 ] - at0[ 0 ] ) ).toBeLessThan( 0.5 );
 	} );
 
 	test( 'a still ring is genuinely still', () => {
-		// `hueDrift: 0` means elapsed time changes nothing.
+
 		const app = MIO_DEFAULTS.appearance;
 		expect( app.hueDrift ).toBe( 0 );
 		expect( chromaRing( 32, app.hueDrift * 12, app ) ).toEqual(
@@ -229,16 +201,9 @@ describe( 'the looping gradient', () => {
 } );
 
 describe( 'the hologram', () => {
-	/**
-	 * An appearance with the hologram switched ON.
-	 *
-	 * The shipped default is `iridescence: 0` — the official Mio has no
-	 * hologram — so these tests, which are about the mechanism rather
-	 * than the default, have to ask for it explicitly.
-	 */
+
 	const HOLO = { ...MIO_DEFAULTS.appearance, iridescence: 0.85 };
 
-	/** Outward normals of `n` evenly spaced samples on a circle. */
 	function view( n: number, tilt: { x: number; y: number } ): HoloView {
 		const normals = [];
 		for ( let i = 0; i < n; i++ ) {
@@ -266,17 +231,16 @@ describe( 'the hologram', () => {
 		const app = HOLO;
 		const east = chromaRing( 24, 0, app, view( 24, { x: 1, y: 0 } ) );
 		const north = chromaRing( 24, 0, app, view( 24, { x: 0, y: -1 } ) );
-		// Same frame, same phase, same geometry — only the viewing angle
-		// moved, and a hologram that doesn't answer that isn't one.
+
 		expect( north ).not.toEqual( east );
 	} );
 
 	test( 'the glint tracks the rake and nothing else', () => {
 		const app = HOLO;
 		const spec = holoSpecular( 24, app, view( 24, { x: 1, y: 0 } ) );
-		// Sample 0 faces due east, straight into the rake.
+
 		expect( spec[ 0 ] ).toBeGreaterThan( 0.5 );
-		// The far side faces away, so it cannot glint at all.
+
 		expect( spec[ 12 ] ).toBe( 0 );
 		for ( const s of spec ) {
 			expect( s ).toBeGreaterThanOrEqual( 0 );
@@ -349,10 +313,7 @@ describe( 'sanitizeMioConfig', () => {
 	} );
 
 	test( 'the stretch limits can never cross', () => {
-		// Unsatisfiable limits would make the relaxation pass
-		// oscillate between the two bounds forever. The ranges are
-		// disjoint around 1 — a floor is at most the rest length, a
-		// ceiling at least it — so no input can invert them.
+
 		for ( const attempt of [
 			{ minStretch: 0.8, maxStretch: 0.4 },
 			{ minStretch: 3, maxStretch: 1.2 },
@@ -378,9 +339,7 @@ describe( 'sanitizeMioConfig', () => {
 		expect(
 			sanitizeMioConfig( { physics: { points: 33.7 } } ).physics.points,
 		).toBe( 34 );
-		// Lobes round for the same reason: `cos( lobes · θ )` with a
-		// fractional count leaves the rest shape discontinuous where the
-		// ring closes, a permanent kink the springs would fight forever.
+
 		expect(
 			sanitizeMioConfig( { physics: { shapeLobes: 3.4 } } ).physics
 				.shapeLobes,

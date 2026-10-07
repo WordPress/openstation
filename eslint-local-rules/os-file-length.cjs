@@ -1,19 +1,3 @@
-/**
- * Custom ESLint rule — `os-file-length`.
- *
- * A gentle ceiling on file size: past `max` total lines (default
- * 1,000) the file gets ONE warning asking for a split. Deliberately a
- * warning, never an error — a long file is a smell, not a defect, and
- * the right moment to split is a judgement call. The message is
- * encouraging on purpose: the point is to nudge the next edit toward
- * modules in the 300–600-line comfort zone, where a file still fits
- * in one head, one review and one test file.
- *
- * The PHP twin lives in
- * `tools/phpcs/OpenStation/Sniffs/Files/FileLengthSniff.php` — keep
- * the thresholds and the tone in step when touching either.
- */
-
 'use strict';
 
 module.exports = {
@@ -53,8 +37,7 @@ module.exports = {
 					return;
 				}
 				context.report( {
-					// Anchor on the first line — one warning per file,
-					// where every editor shows it without scrolling.
+
 					loc: { start: { line: 1, column: 0 }, end: { line: 1, column: 0 } },
 					node,
 					messageId: 'considerSplitting',

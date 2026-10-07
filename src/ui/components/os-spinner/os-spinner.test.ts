@@ -1,15 +1,6 @@
-/**
- * `<os-spinner>` — smoke tests covering preset selection, attribute
- * overrides, the CSS-variable color/accent/size sync, and the
- * accessibility surface (role + aria-label).
- *
- * Pixel-level animation timing is a runtime concern (jsdom doesn't
- * lay out CSS animations); these tests assert the shape of the
- * rendered SVG and that knobs reach the right places.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-spinner';
-// eslint-disable-next-line no-duplicate-imports
+
 import { OS_SPINNER_PRESETS } from './os-spinner';
 
 const tick = (): Promise< void > =>
@@ -48,8 +39,7 @@ describe( '<os-spinner>', () => {
 		const classic = host
 			.querySelector( 'os-spinner' )!
 			.shadowRoot!.querySelector( 'svg' )!;
-		// Classic has zero dots — six base circles (3 tracks + 3 active arcs)
-		// plus the disc, totalling 7 circles inside the SVG.
+
 		expect( classic.querySelectorAll( 'circle' ).length ).toBe( 7 );
 
 		host.innerHTML = `<os-spinner preset="comet"></os-spinner>`;
@@ -57,14 +47,13 @@ describe( '<os-spinner>', () => {
 		const comet = host
 			.querySelector( 'os-spinner' )!
 			.shadowRoot!.querySelector( 'svg' )!;
-		// Comet adds 5 dots → 7 + 5 = 12.
+
 		expect( comet.querySelectorAll( 'circle' ).length ).toBe(
 			7 + OS_SPINNER_PRESETS.comet.dots,
 		);
 	} );
 
 	test( 'individual attributes override the active preset', async () => {
-		// Comet defaults to 5 dots; override to 8.
 		host.innerHTML = `<os-spinner preset="comet" dots="8"></os-spinner>`;
 		await tick();
 		const svg = host
@@ -79,7 +68,7 @@ describe( '<os-spinner>', () => {
 		const svg = host
 			.querySelector( 'os-spinner' )!
 			.shadowRoot!.querySelector( 'svg' )!;
-		// Classic = 0 dots = 7 circles.
+
 		expect( svg.querySelectorAll( 'circle' ).length ).toBe( 7 );
 	} );
 
@@ -97,7 +86,7 @@ describe( '<os-spinner>', () => {
 		expect(
 			spinner.style.getPropertyValue( '--os-ui-spinner-accent' ).trim(),
 		).toBe( '#fff8e7' );
-		// Bare integer → px.
+
 		expect( spinner.style.getPropertyValue( '--os-ui-spinner-size' ).trim() ).toBe(
 			'80px',
 		);
@@ -148,11 +137,11 @@ describe( '<os-spinner>', () => {
 		const svg = host
 			.querySelector( 'os-spinner' )!
 			.shadowRoot!.querySelector( 'svg' )!;
-		// Active ring circles are the ones with stroke-dasharray.
+
 		const activeRings = svg.querySelectorAll(
 			'circle[stroke-dasharray]',
 		);
-		// Ring 2 is the second active ring (index 1).
+
 		const ring2Style = ( activeRings[ 1 ] as SVGCircleElement ).getAttribute(
 			'style',
 		);
@@ -166,13 +155,11 @@ describe( '<os-spinner>', () => {
 			.querySelector( 'os-spinner' )!
 			.shadowRoot!.querySelector( 'svg' )!;
 
-		// Track + arc, and nothing else. No disc, no rings 2/3, no dots.
 		expect( svg.querySelectorAll( 'circle' ).length ).toBe( 2 );
-		// The WordPress mark is what makes the other presets illegible
-		// at text size — it must not be in the tree at all.
+
 		expect( svg.querySelector( '.mark' ) ).toBeNull();
 		expect( svg.querySelectorAll( 'path' ).length ).toBe( 0 );
-		// Square 24-unit viewBox, so a bare `size` maps 1:1 to px.
+
 		expect( svg.getAttribute( 'viewBox' ) ).toBe( '0 0 24 24' );
 	} );
 
@@ -185,15 +172,13 @@ describe( '<os-spinner>', () => {
 
 		expect( svg.getAttribute( 'role' ) ).toBe( 'img' );
 		expect( svg.getAttribute( 'aria-label' ) ).toBe( 'Thinking' );
-		// sp1 is deciseconds: 20 → 2.00s. Overridable like every preset.
+
 		expect(
 			svg.querySelectorAll( 'circle' )[ 1 ].getAttribute( 'style' ),
 		).toMatch( /2\.00s/ );
 	} );
 
 	test( 'inline appears in the exported preset registry', () => {
-		// Preset-picker UIs iterate the record; a preset that renders
-		// through a separate path still has to be listed.
 		expect( Object.keys( OS_SPINNER_PRESETS ) ).toContain( 'inline' );
 	} );
 
@@ -219,10 +204,6 @@ describe( '<os-spinner>', () => {
 	} );
 
 	test( 'live attribute change re-paints the SVG', async () => {
-		// Regression: the architectural fix in component.ts means
-		// attribute changes route through requestUpdate, which we
-		// override to schedule a paint. Toggle preset and verify the
-		// dot count changes accordingly.
 		host.innerHTML = `<os-spinner preset="classic"></os-spinner>`;
 		await tick();
 		const spinner = host.querySelector( 'os-spinner' )!;

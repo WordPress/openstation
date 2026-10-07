@@ -1,36 +1,11 @@
 <?php
-/**
- * Tests for the Drafts widget (`includes/widgets/widget-drafts.php`) —
- * asset registration and the `edit_posts` capability gate that keeps the
- * widget out of the picker for users whose REST query would only ever
- * return a permission error.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- */
+
 class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 
-	/**
-	 * User who can edit posts.
-	 *
-	 * @var int
-	 */
 	protected static $editor_id;
 
-	/**
-	 * User who cannot.
-	 *
-	 * @var int
-	 */
 	protected static $subscriber_id;
 
-	/**
-	 * Author: can edit their own posts but cannot manage categories.
-	 *
-	 * @var int
-	 */
 	protected static $author_id;
 
 	public static function wpSetUpBeforeClass( $factory ) {
@@ -41,13 +16,12 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		// Fresh REST server so rest_do_request() sees our routes.
+
 		global $wp_rest_server;
 		$wp_rest_server = new WP_REST_Server();
 		do_action( 'rest_api_init' );
 	}
 
-	/** Dispatch a draft-apply request for the current user. */
 	private function apply_request( $params ) {
 		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/draft-apply' );
 		foreach ( $params as $k => $v ) {
@@ -56,16 +30,12 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		return rest_do_request( $request );
 	}
 
-	/** Dispatch a draft-suggestions request for the current user. */
 	private function suggestions_request( $post_id ) {
 		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/draft-suggestions' );
 		$request->set_param( 'post_id', $post_id );
 		return rest_do_request( $request );
 	}
 
-	/**
-	 * @covers ::openstation_register_drafts_widget
-	 */
 	public function test_registers_for_a_user_who_can_edit_posts() {
 		wp_set_current_user( self::$editor_id );
 
@@ -78,12 +48,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertTrue( $entry['resizable'] );
 	}
 
-	/**
-	 * A subscriber's `/wp/v2/posts?status=draft&context=edit` request is
-	 * rejected by core, so the widget must not be offered at all.
-	 *
-	 * @covers ::openstation_register_drafts_widget
-	 */
 	public function test_is_denied_for_a_user_who_cannot_edit_posts() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -93,9 +57,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_capability_denied', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_drafts_widget_assets
-	 */
 	public function test_registers_its_script_and_style() {
 		openstation_register_drafts_widget_assets();
 
@@ -107,11 +68,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertTrue( (bool) $script->extra['group'], 'script loads in the footer' );
 	}
 
-	/**
-	 * draft-apply writes the chosen title + excerpt onto the post.
-	 *
-	 * @covers ::openstation_rest_draft_apply
-	 */
 	public function test_apply_writes_title_and_excerpt() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -136,11 +92,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'A crisp summary.', get_post_field( 'post_excerpt', $post_id ) );
 	}
 
-	/**
-	 * draft-apply appends tags without clobbering existing ones.
-	 *
-	 * @covers ::openstation_rest_draft_apply
-	 */
 	public function test_apply_appends_tags() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -155,11 +106,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertContains( 'fresh', $tags );
 	}
 
-	/**
-	 * An editor (manage_categories) can create a new category via apply.
-	 *
-	 * @covers ::openstation_rest_draft_apply
-	 */
 	public function test_apply_creates_category_for_privileged_user() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -172,12 +118,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertContains( 'Brand New Cat', wp_get_post_categories( $post_id, array( 'fields' => 'names' ) ) );
 	}
 
-	/**
-	 * An author (no manage_categories) can assign an EXISTING category but
-	 * cannot create a new one — the unknown category is skipped.
-	 *
-	 * @covers ::openstation_rest_draft_apply
-	 */
 	public function test_apply_does_not_create_category_for_unprivileged_user() {
 		$existing = self::factory()->term->create(
 			array( 'taxonomy' => 'category', 'name' => 'Existing Cat' )
@@ -194,17 +134,11 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 			)
 		);
 
-		// The unknown category was NOT created…
 		$this->assertFalse( get_term_by( 'name', 'Author Cannot Create This', 'category' ) );
-		// …but the existing one WAS assigned.
+
 		$this->assertContains( $existing, wp_get_post_categories( $post_id ) );
 	}
 
-	/**
-	 * A subscriber cannot edit posts, so draft-apply is forbidden.
-	 *
-	 * @covers ::openstation_rest_draft_apply_permission
-	 */
 	public function test_apply_forbidden_for_user_who_cannot_edit() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -220,14 +154,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( $original, get_post_field( 'post_title', $post_id ), 'title unchanged' );
 	}
 
-	/**
-	 * draft-apply strips markup out of an accepted title.
-	 *
-	 * The suggestion text round-trips through the browser, so the write
-	 * path sanitizes rather than trusting what comes back.
-	 *
-	 * @covers ::openstation_rest_draft_apply
-	 */
 	public function test_apply_sanitizes_the_title() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -244,11 +170,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'Clean title', get_post_field( 'post_title', $post_id ) );
 	}
 
-	/**
-	 * An empty title is ignored rather than blanking the post.
-	 *
-	 * @covers ::openstation_rest_draft_apply
-	 */
 	public function test_apply_ignores_an_empty_title() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -264,11 +185,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'Keep me', get_post_field( 'post_title', $post_id ) );
 	}
 
-	/**
-	 * `openstation_drafts_suggestion_applied` reports what actually changed.
-	 *
-	 * @covers ::openstation_rest_draft_apply
-	 */
 	public function test_apply_fires_the_applied_action() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -292,13 +208,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( array( 'title' => 'Hooked' ), $seen[0][1] );
 	}
 
-	/**
-	 * draft-suggestions answers 403 — not 503 — for a user who cannot edit
-	 * the post, so the response can't be used to probe whether the site has
-	 * an AI provider configured.
-	 *
-	 * @covers ::openstation_rest_draft_suggestions_permission
-	 */
 	public function test_suggestions_forbidden_for_user_who_cannot_edit() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -311,12 +220,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 403, $response->get_status() );
 	}
 
-	/**
-	 * With no AI provider configured, a user who CAN edit the post gets a
-	 * clean 503 rather than a fatal or a half-built response.
-	 *
-	 * @covers ::openstation_rest_draft_suggestions_permission
-	 */
 	public function test_suggestions_unavailable_without_a_provider() {
 		if ( openstation_ai_provider_configured() ) {
 			$this->markTestSkipped( 'This environment has an AI provider configured.' );
@@ -333,13 +236,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_ai_unavailable', $response->as_error()->get_error_code() );
 	}
 
-	/**
-	 * The prompt carries the draft's title, content and the site's existing
-	 * categories — the last is what keeps the model classifying into the
-	 * site's taxonomy instead of inventing one.
-	 *
-	 * @covers ::openstation_drafts_ai_prompt_text
-	 */
 	public function test_prompt_text_includes_title_content_and_existing_categories() {
 		self::factory()->term->create(
 			array( 'taxonomy' => 'category', 'name' => 'Field Notes' )
@@ -362,12 +258,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Field Notes', $text );
 	}
 
-	/**
-	 * `openstation_drafts_ai_content_limit` caps how much of the draft is
-	 * sent to the model, without splitting a multibyte character.
-	 *
-	 * @covers ::openstation_drafts_ai_prompt_text
-	 */
 	public function test_content_limit_filter_truncates_the_prompt() {
 		$post = get_post(
 			self::factory()->post->create(
@@ -386,18 +276,10 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( str_repeat( 'é', 11 ), $text );
 	}
 
-	/** Filter callback for {@see test_content_limit_filter_truncates_the_prompt()}. */
 	public function return_ten() {
 		return 10;
 	}
 
-	/**
-	 * The instruction + schema are filterable, so a plugin can retune the
-	 * assistant without forking the route.
-	 *
-	 * @covers ::openstation_drafts_ai_instructions
-	 * @covers ::openstation_drafts_ai_schema
-	 */
 	public function test_instructions_and_schema_are_filterable() {
 		$post = get_post(
 			self::factory()->post->create( array( 'post_status' => 'draft' ) )
@@ -414,20 +296,10 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( array( 'type' => 'marker' ), $schema );
 	}
 
-	/** Filter callback for {@see test_instructions_and_schema_are_filterable()}. */
 	public function return_marker_schema() {
 		return array( 'type' => 'marker' );
 	}
 
-	/**
-	 * A provider failure answers 502 whatever the provider said, with the
-	 * reason and the provider's status in the error data and the provider's
-	 * text kept out of the message, a 429 used to reach the widget only as
-	 * "Too Many Requests (429) - …" inside a generic 502.
-	 *
-	 * @dataProvider data_provider_failures
-	 * @covers ::openstation_drafts_ai_failure
-	 */
 	public function test_provider_failure_is_mapped_to_a_reason( $code, $status, $detail, $reason, $provider_status ) {
 		$raw = new WP_Error( $code, $detail, null === $status ? array() : array( 'status' => $status ) );
 
@@ -452,12 +324,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The list normalizer strips markup, drops blanks and non-scalars, and
-	 * caps the list — the model's output is never trusted verbatim.
-	 *
-	 * @covers ::openstation_drafts_clean_list
-	 */
 	public function test_clean_list_normalizes_model_output() {
 		$out = openstation_drafts_clean_list(
 			array( '  spaced  ', '<b>bold</b>', '', array( 'nested' ), 'third', 'fourth' ),

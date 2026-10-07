@@ -1,4 +1,3 @@
-/** Same-origin, nonce-authenticated transport. No conversation persistence. */
 import { assertMioRequestBudget } from './budget';
 import { trackedFetch } from '../../tracked-fetch';
 import { restErrorFromBody } from '../../core/api-client';

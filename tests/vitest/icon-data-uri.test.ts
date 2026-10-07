@@ -1,11 +1,3 @@
-/**
- * `renderIcon` — non-SVG image data URI handling.
- *
- * The favicon resolver returns favicon bytes as
- * `data:image/png;base64,…` (or jpeg / gif / webp / x-icon). The
- * canonical icon dispatcher needs to render those as `<img>` instead
- * of falling through to the letter-badge.
- */
 import { describe, expect, test } from 'vitest';
 import { renderIcon } from '../../src/icon';
 
@@ -20,8 +12,7 @@ describe( 'renderIcon — non-SVG image data URIs', () => {
 		expect( ( el as HTMLImageElement ).src ).toBe( VALID_PNG_DATA_URI );
 		expect( el.classList.contains( 'x' ) ).toBe( true );
 		expect( el.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-		// Native HTML5 image drag must be disabled or it pre-empts the
-		// pointer-event-driven tile rearrange.
+
 		expect( ( el as HTMLImageElement ).draggable ).toBe( false );
 	} );
 

@@ -1,19 +1,7 @@
-/**
- * `<os-log>` — virtualization smoke tests.
- *
- * Verifies append + clear, the LRU cap, the empty placeholder,
- * and the `os-log-append` event payload. Pixel-perfect
- * windowing assertions are skipped (jsdom doesn't lay out CSS,
- * so `clientHeight` is always 0 — the windowing math reduces
- * to "render every row" which still exercises the renderer).
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-// Side-effect import registers the custom element; the type import
-// keeps `as OsLog<…>` casts honest. ESLint's `no-duplicate-imports`
-// can't tell the two apart — runtime + type split is the canonical
-// shape and is allowed via the explicit override below.
+
 import './os-log';
-// eslint-disable-next-line no-duplicate-imports
+
 import type { OsLog } from './os-log';
 
 const tick = (): Promise< void > =>
@@ -93,8 +81,7 @@ describe( '<os-log>', () => {
 		log.push( 'a' );
 		await tick();
 		const row = log.shadowRoot!.querySelector< HTMLElement >( '.row' )!;
-		// Default fixed-height path stamps `height: 22px`; auto-row-height
-		// must not pin a height — content drives the cell.
+
 		expect( row.style.height ).toBe( 'auto' );
 	} );
 
@@ -104,12 +91,9 @@ describe( '<os-log>', () => {
 		const log = host.querySelector( 'os-log' ) as OsLog< number >;
 		log.push( 1 );
 		log.push( 2 );
-		log.push( 3 ); // evicts the first
+		log.push( 3 );
 		expect( log.entries ).toEqual( [ 2, 3 ] );
-		// Internal sanity: the heights array must not retain a stale
-		// entry past the eviction (would mis-align indices and offset
-		// math). Read via the typed view — internal field access is
-		// fine in tests.
+
 		const internal = log as unknown as { _heights: number[] };
 		expect( internal._heights.length ).toBeLessThanOrEqual( 2 );
 	} );

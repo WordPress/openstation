@@ -1,63 +1,23 @@
 <?php
-/**
- * My WordPress — the WooCommerce surface.
- *
- * Part of the `my-wordpress` app: required by `my-wordpress.os.php`,
- * same namespace, plain `.php` on purpose — only `*.os.php` files are
- * app entries to the framework loader. This part is the app's half of
- * the WooCommerce integration: the Orders and Customers sections, the
- * band-ordered Products / Coupons queries, and the per-row facts the
- * shared `os.my-wordpress.*` JS seams read. Everything here is inert
- * unless WooCommerce is active.
- *
- * It is deliberately thin: every rule — which band a product is in,
- * how customers are ranked, what an order row says — lives in the
- * existing `openstation_my_wordpress_woo_*` helpers WP Explorer
- * already runs (`includes/my-wordpress/integrations/`), called here
- * behind `function_exists` guards. One set of rules, two windows; the
- * client half is the same `os-my-wordpress-woocommerce` bundle both
- * windows load, subscribed to the same hook bus.
- *
- * @package OpenStation
- */
 
 namespace OpenStation\Apps\MyWordPress;
 
 use OpenStation\App\Os;
 use OpenStation\App\State;
 
-// Direct access, unless a standalone host is booting on bare PHP.
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/**
- * Whether the WooCommerce integration helpers are loaded and active.
- *
- * @return bool
- */
 function woo_ready() {
 	return function_exists( 'openstation_my_wordpress_woo_active' )
 		&& openstation_my_wordpress_woo_active();
 }
 
-/**
- * Whether a section descriptor is one of ours.
- *
- * @param array<string,mixed> $section Section descriptor.
- * @param string              $id      Section id to test for.
- * @return bool
- */
 function woo_section_is( array $section, $id ) {
 	return isset( $section['id'] ) && $id === $section['id'];
 }
 
-/**
- * The Woo folder's group fields, through the same
- * `openstation_my_wordpress_woo_group()` relabelling WP Explorer uses.
- *
- * @return array{id:string,label:string,icon:string,order:int}
- */
 function woo_group_fields() {
 	$group = array(
 		'id'    => 'plugin:woocommerce',
@@ -71,21 +31,6 @@ function woo_group_fields() {
 	return $group;
 }
 
-/**
- * The sections this part adds to the root: Orders and Customers —
- * the two shop surfaces a plain post-type folder cannot serve.
- * Orders live outside `wp_posts` under High-Performance Order
- * Storage, and Customers are a ranking over users, not a post type.
- *
- * Same labels, icons, groups and permission gates as WP Explorer's
- * `wc-orders` / `wc-customers` entities. `flat => true` marks a
- * section with no detail folder behind its tiles — the client keeps
- * Navigate into and the quick-edit modal off it, the actions refuse
- * post mutations on it.
- *
- * @param Os $os Host handle.
- * @return array<int,array<string,mixed>>
- */
 function woo_sections( Os $os ) {
 	unset( $os );
 	if ( ! woo_ready() ) {
@@ -102,9 +47,7 @@ function woo_sections( Os $os ) {
 			'label'      => __( 'Orders', 'desktop-mode' ),
 			'icon'       => 'dashicons-cart',
 			'kind'       => 'post',
-			// Claims `shop_order`, so the generic post-type pass skips
-			// it — the WP_Query path returns an empty folder on any
-			// HPOS store.
+
 			'post_type'  => 'shop_order',
 			'capability' => (string) $orders->cap->edit_posts,
 			'thumbnails' => false,
@@ -122,13 +65,10 @@ function woo_sections( Os $os ) {
 			'id'         => 'wc-customers',
 			'label'      => __( 'Customers', 'desktop-mode' ),
 			'icon'       => 'dashicons-groups',
-			// Renders through the built-in user kind: avatar tiles, the
-			// dossier pane, the drag-out seam. A customer is a person
-			// before they are a row of money.
+
 			'kind'       => 'user',
 			'post_type'  => '',
-			// The two-gate permission was checked above; no single
-			// capability string expresses it.
+
 			'capability' => '',
 			'thumbnails' => true,
 			'group'      => $group['id'],
@@ -141,39 +81,16 @@ function woo_sections( Os $os ) {
 	return $sections;
 }
 
-/**
- * Give a discovered CPT section WooCommerce's icons and thumbnail
- * rules, through the same `openstation_my_wordpress_woo_entity_icon()`
- * (and its `openstation_my_wordpress_woo_section_icons` filter) that
- * decorates WP Explorer's entities. Non-Woo types pass through
- * untouched.
- *
- * @param array<string,mixed> $section   Section descriptor.
- * @param \WP_Post_Type       $post_type Post type object.
- * @return array<string,mixed>
- */
 function woo_decorate_section( array $section, \WP_Post_Type $post_type ) {
 	if ( ! function_exists( 'openstation_my_wordpress_woo_entity_icon' ) ) {
 		return $section;
 	}
 	$section = (array) openstation_my_wordpress_woo_entity_icon( $section, $post_type );
-	// Entity-descriptor keys the app has no reader for — `listFields`
-	// is the REST `_fields` allowlist, `listQuery` extra request
-	// params, `tileSize` the old grid's hint. The app's rows carry
-	// their facts directly and its queries are ordered server-side.
+
 	unset( $section['listFields'], $section['listQuery'], $section['tileSize'] );
 	return $section;
 }
 
-/**
- * Sort options for the Woo-managed sections — a single honest entry,
- * because their order is decided server-side: orders and coupons walk
- * their bands, customers rank by band then spend, products shelve
- * empty stock first. Null leaves a section to the generic options.
- *
- * @param array<string,mixed> $section Section descriptor.
- * @return array<string,array{0:string,1:string,2:string}>|null
- */
 function woo_sort_options( array $section ) {
 	if ( ! woo_ready() ) {
 		return null;
@@ -190,12 +107,6 @@ function woo_sort_options( array $section ) {
 	return null;
 }
 
-/**
- * Root-tile counts for the Woo sections, or null for anyone else's.
- *
- * @param array<string,mixed> $section Section descriptor.
- * @return int|null
- */
 function woo_count( array $section ) {
 	if ( ! woo_ready() ) {
 		return null;
@@ -218,16 +129,6 @@ function woo_count( array $section ) {
 	return null;
 }
 
-/**
- * One order as an app list row. The title is what a merchant scans
- * for — number and total — and the REAL status rides `wcStatus` for
- * the band assigner and the list view, never `status`: the tile
- * ribbon only speaks draft/pending/private/future, and `wc-processing`
- * would paint a meaningless ribbon on every order.
- *
- * @param \WC_Abstract_Order $order Order.
- * @return array<string,mixed>
- */
 function woo_order_item( $order ) {
 	$total = openstation_my_wordpress_woo_price( $order->get_total(), $order->get_currency() );
 	$name  = method_exists( $order, 'get_formatted_billing_full_name' )
@@ -240,13 +141,13 @@ function woo_order_item( $order ) {
 	return array(
 		'id'        => (int) $order->get_id(),
 		'title'     => sprintf(
-			/* translators: 1: order number, 2: formatted order total. */
+
 			__( '#%1$s · %2$s', 'desktop-mode' ),
 			$order->get_order_number(),
 			$total
 		),
 		'subtitle'  => sprintf(
-			/* translators: 1: customer name, 2: date. */
+
 			__( '%1$s — %2$s', 'desktop-mode' ),
 			'' !== $name ? $name : __( 'Guest', 'desktop-mode' ),
 			$date
@@ -254,7 +155,7 @@ function woo_order_item( $order ) {
 		'status'    => 'publish',
 		'excerpt'   => '',
 		'thumb'     => '',
-		// Refunds and custom order types don't carry an edit URL.
+
 		'link'      => method_exists( $order, 'get_edit_order_url' )
 			? esc_url_raw( (string) $order->get_edit_order_url() )
 			: '',
@@ -263,23 +164,13 @@ function woo_order_item( $order ) {
 		'canEdit'   => method_exists( $order, 'get_edit_order_url' ),
 		'canDelete' => false,
 		'wcStatus'  => (string) $order->get_status(),
-		// The list view's facts. `format()`, as `WC_DateTime::date()`
-		// labels site time +00:00 and the client reads the offset.
+
 		'customer'  => '' !== $name ? $name : __( 'Guest', 'desktop-mode' ),
 		'date'      => $order->get_date_created() ? $order->get_date_created()->format( 'c' ) : '',
 		'modified'  => $order->get_date_modified() ? $order->get_date_modified()->format( 'c' ) : '',
 	);
 }
 
-/**
- * One page of the Orders section: the same band walker WP Explorer's
- * `/woocommerce/orders` route runs — statuses sliced in display order
- * so a band's rows arrive together and the grouping never reshuffles
- * under the reader — reshaped as app rows.
- *
- * @param State $state State (`query`, `page`).
- * @return array{items:array[],total:int,pages:int,page:int,perPage:int}
- */
 function woo_orders_page( State $state ) {
 	$per_page = PER_PAGE;
 	$page     = max( 1, (int) $state->get( 'page' ) );
@@ -340,10 +231,7 @@ function woo_orders_page( State $state ) {
 
 	$items = array();
 	foreach ( $orders as $maybe_order ) {
-		// A data store may hand back ids rather than objects; and
-		// `WC_Abstract_Order` — not `WC_Order` — is what every order
-		// class actually extends, HPOS overrides and custom order
-		// types included.
+
 		$order = is_scalar( $maybe_order ) ? wc_get_order( (int) $maybe_order ) : $maybe_order;
 		if ( ! $order instanceof \WC_Abstract_Order ) {
 			continue;
@@ -351,7 +239,7 @@ function woo_orders_page( State $state ) {
 		try {
 			$items[] = woo_order_item( $order );
 		} catch ( \Throwable $e ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
 			error_log(
 				sprintf(
 					'[openstation] Skipped order %d in the My WordPress app: %s',
@@ -365,16 +253,6 @@ function woo_orders_page( State $state ) {
 	return Os::page( $items, $total, $page, $per_page );
 }
 
-/**
- * One page of the Customers section: the same plan-ordered roster WP
- * Explorer's `/woocommerce/customers` route serves — band first,
- * spend inside the band — as app user rows carrying the
- * `openstation_woo_customer` facts the shared seams read.
- *
- * @param Os    $os    Host handle.
- * @param State $state State (`query`, `page`).
- * @return array{items:array[],total:int,pages:int,page:int,perPage:int}
- */
 function woo_customers_page( Os $os, State $state ) {
 	$per_page = PER_PAGE;
 	$page     = max( 1, (int) $state->get( 'page' ) );
@@ -390,9 +268,7 @@ function woo_customers_page( Os $os, State $state ) {
 	);
 
 	if ( $capped ) {
-		// Past the cap the plan holds no ids, so hand the ordering
-		// back to the database: newest accounts first, the only
-		// useful order left once bands are off.
+
 		$args['role']    = 'customer';
 		$args['orderby'] = 'registered';
 		$args['order']   = 'DESC';
@@ -402,16 +278,14 @@ function woo_customers_page( Os $os, State $state ) {
 			return Os::page( array(), 0, $page, $per_page );
 		}
 		$args['include'] = $ids;
-		// `include` + `orderby => include` replays the plan's order
-		// verbatim — the user-query spelling of `post__in`.
+
 		$args['orderby'] = 'include';
 	}
 
 	if ( '' !== $query ) {
 		$args['search']         = '*' . $query . '*';
 		$args['search_columns'] = array( 'user_login', 'user_email', 'user_nicename', 'display_name' );
-		// A search is a different question from "show me the roster",
-		// and the plan's order would hide matches below the fold.
+
 		if ( ! $capped ) {
 			$args['orderby'] = 'display_name';
 			$args['order']   = 'ASC';
@@ -439,14 +313,6 @@ function woo_customers_page( Os $os, State $state ) {
 	return Os::page( $items, $total, $page, $per_page );
 }
 
-/**
- * The whole list page for a Woo section, or null for anyone else's.
- *
- * @param Os                  $os      Host handle.
- * @param array<string,mixed> $section Section descriptor.
- * @param State               $state   State.
- * @return array<string,mixed>|null
- */
 function woo_list( Os $os, array $section, State $state ) {
 	if ( ! woo_ready() ) {
 		return null;
@@ -460,20 +326,6 @@ function woo_list( Os $os, array $section, State $state ) {
 	return null;
 }
 
-/**
- * Band-order the Products and Coupons queries, exactly as the REST
- * collections are ordered for WP Explorer: the cached plan replayed
- * as `post__in`, so each band's rows arrive together and the client's
- * grouping can never disagree with the order they arrive in. A capped
- * catalogue falls back to stock status, which at least floats empty
- * shelves to the top; a search is the user asking for relevance and
- * is left alone.
- *
- * @param array<string,mixed> $args    `WP_Query` args.
- * @param array<string,mixed> $section Section descriptor.
- * @param State               $state   State.
- * @return array<string,mixed>
- */
 function woo_query_args( array $args, array $section, State $state ) {
 	if ( ! woo_ready() || '' !== (string) $state->get( 'query' ) ) {
 		return $args;
@@ -487,7 +339,7 @@ function woo_query_args( array $args, array $section, State $state ) {
 			$args['orderby']  = 'post__in';
 			unset( $args['order'] );
 		} else {
-			$args['meta_key'] = '_stock_status'; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			$args['meta_key'] = '_stock_status';
 			$args['orderby']  = array(
 				'meta_value' => 'DESC',
 				'date'       => 'DESC',
@@ -509,15 +361,6 @@ function woo_query_args( array $args, array $section, State $state ) {
 	return $args;
 }
 
-/**
- * The `openstation_woo` facts for a product or coupon row — the same
- * payload the REST fields ship on `wp/v2` rows, which is what the
- * shared band assigner and the stock-ribbon decorator read. Empty for
- * every other row.
- *
- * @param \WP_Post $post Post.
- * @return array<string,mixed>
- */
 function woo_extras( \WP_Post $post ) {
 	if ( ! woo_ready() ) {
 		return array();
@@ -532,9 +375,7 @@ function woo_extras( \WP_Post $post ) {
 		$slugs = wp_get_post_terms( $product->get_id(), 'product_cat', array( 'fields' => 'slugs' ) );
 		return array(
 			'openstation_woo' => array(
-				// The band this row belongs to, decided by the same
-				// rules that ordered the collection, so the two can't
-				// disagree.
+
 				'band'        => openstation_my_wordpress_woo_product_band_id( $product ),
 				'stockStatus' => $product->get_stock_status(),
 				'stockLevel'  => $product->managing_stock() ? (int) $product->get_stock_quantity() : null,
@@ -560,19 +401,6 @@ function woo_extras( \WP_Post $post ) {
 	return array();
 }
 
-/**
- * The `openstation_woo_customer` facts for a user row — carried on
- * the Customers section's rows ONLY. Deliberately narrower than WP
- * Explorer (whose `/wp/v2/users` field puts spend on its Users list
- * too): in this app the built-in Users folder is about people who
- * write, and stays money-free — the shared bundle keys its badges
- * and panel off these facts being present, so leaving them off a row
- * is how a surface opts out. Gated exactly as the REST field is: a
- * viewer who can't see orders sees no money.
- *
- * @param int $user_id User id.
- * @return array<string,mixed>
- */
 function woo_user_extras( $user_id ) {
 	if ( ! woo_ready()
 		|| ! function_exists( 'openstation_my_wordpress_woo_customer_facts' )
@@ -585,25 +413,13 @@ function woo_user_extras( $user_id ) {
 	);
 }
 
-/**
- * Whether the acting user may act on a Woo row — null passes the
- * question back to the generic capability checks. Orders need it
- * because `current_user_can( 'edit_post', $order_id )` means nothing
- * once HPOS moves orders out of `wp_posts`.
- *
- * @param array<string,mixed> $section Section descriptor.
- * @param int                 $id      Item id.
- * @param string              $verb    `edit` | `delete`.
- * @return bool|null
- */
 function woo_allowed( array $section, $id, $verb ) {
 	unset( $id );
 	if ( ! woo_ready() || ! woo_section_is( $section, 'wc-orders' ) ) {
 		return null;
 	}
 	if ( 'edit' !== $verb ) {
-		// Orders are never mutated from here — WP Explorer's Orders
-		// section is read-and-open too.
+
 		return false;
 	}
 	$orders = get_post_type_object( 'shop_order' );
@@ -612,15 +428,6 @@ function woo_allowed( array $section, $id, $verb ) {
 		&& current_user_can( $orders->cap->edit_posts );
 }
 
-/**
- * The admin URL that edits a Woo row, '' for anyone else's. HPOS and
- * legacy storage put the order screen in different places, and only
- * WooCommerce knows which.
- *
- * @param array<string,mixed> $section Section descriptor.
- * @param int                 $id      Item id.
- * @return string
- */
 function woo_edit_url( array $section, $id ) {
 	if ( ! woo_ready() || ! woo_section_is( $section, 'wc-orders' ) ) {
 		return '';
@@ -632,16 +439,6 @@ function woo_edit_url( array $section, $id ) {
 	return '';
 }
 
-/**
- * The dossier payload for one order. Deliberately spare: the pane's
- * substance is the shared bundle's merchant panel, painted into the
- * `header` slot with the full status, totals, line items and
- * customer — repeating them as facts would say everything twice.
- *
- * @param array<string,mixed> $section Section descriptor.
- * @param int                 $id      Order id.
- * @return array<string,mixed>|null Null when the order vanished.
- */
 function woo_detail( array $section, $id ) {
 	$order = wc_get_order( (int) $id );
 	if ( ! $order instanceof \WC_Abstract_Order ) {

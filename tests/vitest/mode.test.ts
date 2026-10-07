@@ -1,15 +1,3 @@
-/**
- * Tests for `src/mode/` — the responsive mode.
- *
- * Pins:
- * - `resolveMode()` is the one rule: a forced preference wins, else
- *   the width is compared with the two breakpoints (inclusive);
- * - breakpoints are sanitized to `0 < mobile < tablet`;
- * - `installMode()` stamps `data-os-mode` on the root at once, fires
- *   `os.mode.changed` + `os-mode-changed` only on a real crossing,
- *   and re-resolves when the preference changes;
- * - the leaf stamp helpers read what the head stamp wrote.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { HOOKS } from '../../src/hooks';
 import {
@@ -22,7 +10,6 @@ import {
 import { isMobileStamped, MODE_ATTRIBUTE, readStampedMode, stampMode } from '../../src/mode/stamp';
 import { clearHooksStub, installHooksStub, recordActions } from './helpers/hooks-stub';
 
-/** A `matchMedia` whose queries can be flipped from the test. */
 function fakeMatchMedia( width: { value: number } ) {
 	const lists: Array< { px: number; mql: MediaQueryList; fire: () => void } > = [];
 	const matchMedia = ( query: string ): MediaQueryList => {
@@ -53,7 +40,7 @@ function fakeMatchMedia( width: { value: number } ) {
 	};
 	return {
 		matchMedia,
-		/** Resize and notify every query, as a browser would on a crossing. */
+
 		resize( next: number ) {
 			width.value = next;
 			for ( const l of lists ) {
@@ -131,8 +118,7 @@ describe( 'installMode', () => {
 		expect( ctl.api.get() ).toBe( 'mobile' );
 		expect( ctl.api.isMobile() ).toBe( true );
 		expect( ctl.api.getPreference() ).toBe( 'auto' );
-		// The width crossings; the display-mode query (no px) is the
-		// display stamp's, pinned in mode-display.test.ts.
+
 		expect( mm.lists.map( ( l ) => l.px ).filter( ( px ) => px > 0 ) ).toEqual( [ 767, 1024 ] );
 		ctl.dispose();
 	} );
@@ -156,7 +142,6 @@ describe( 'installMode', () => {
 		expect( events ).toHaveLength( 1 );
 		expect( cb ).toHaveBeenCalledTimes( 1 );
 
-		// A resize inside the same band notifies nobody.
 		mm.resize( 1400 );
 		expect( log ).toHaveLength( 1 );
 		expect( cb ).toHaveBeenCalledTimes( 1 );
@@ -176,11 +161,9 @@ describe( 'installMode', () => {
 		expect( root.getAttribute( MODE_ATTRIBUTE ) ).toBe( 'mobile' );
 		expect( cb ).toHaveBeenLastCalledWith( { mode: 'mobile', previous: 'desktop', preference: 'mobile' } );
 
-		// Same preference again: no transition.
 		ctl.setPreference( 'mobile' );
 		expect( cb ).toHaveBeenCalledTimes( 2 );
 
-		// Junk is coerced to auto, which on a wide viewport is desktop.
 		ctl.setPreference( 'phone' as never );
 		expect( ctl.api.get() ).toBe( 'desktop' );
 		ctl.dispose();

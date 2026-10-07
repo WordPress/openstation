@@ -1,13 +1,3 @@
-/**
- * Pins the contract for the framework's auto X-WP-Nonce injection.
- *
- * The injection is what makes `wp.os.fetch` "just work" against
- * REST endpoints from authenticated sessions — without it, plugin
- * authors hit silent 401s the moment they touch `/wp-json/...`
- * because WordPress's `rest_cookie_check_errors()` demotes a
- * cookie-only request to anonymous. The behavior is documented as
- * Stable so the cases below are load-bearing.
- */
 import {
 	afterEach,
 	beforeEach,
@@ -61,7 +51,7 @@ describe( 'injectRestNonce', () => {
 			headers: { 'X-WP-Nonce': 'caller-nonce' },
 		};
 		const result = injectRestNonce( '/wp-json/wp/v2/posts', original );
-		// Caller-provided init is returned unchanged.
+
 		expect( result ).toBe( original );
 		expect( getNonceHeader( result ) ).toBe( 'caller-nonce' );
 	} );
@@ -129,8 +119,7 @@ describe( 'injectRestNonce', () => {
 			{ headers: { 'X-WP-Nonce': 'caller-nonce' } },
 		);
 		const result = injectRestNonce( request );
-		// No init supplied and Request already has the header → no
-		// new init needs to be synthesized.
+
 		expect( result ).toBeUndefined();
 	} );
 } );

@@ -1,12 +1,3 @@
-/**
- * `<os-swatch>` — single selectable color/wallpaper tile.
- *
- * The tile renders as a button with `aria-pressed` tracking `selected`
- * and a `background` css-property driven by `preview`. Clicks emit a
- * `os-pick` CustomEvent with `{ value }`. See the colocated test
- * file for usage.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-swatch.styles';
 

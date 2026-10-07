@@ -1,65 +1,9 @@
 <?php
-/**
- * OpenStation — My WordPress: server-side preview-action descriptors.
- *
- * Plugins register action buttons that appear in the right-pane of
- * any My WordPress section (posts, pages, users, media, plugin-
- * defined kinds). Server-side declaration buys:
- *
- *   - Capability gating: an action a viewer can't run is never
- *     shipped to their bundle (no client-side hide-after-render
- *     race).
- *   - Optional script enqueue: the registering plugin can declare a
- *     `script` handle and we'll auto-enqueue it for users who can
- *     see the action.
- *   - One source of truth for both the right-pane action row and
- *     the per-tile context menu — same descriptor.
- *
- * Descriptor shape:
- *
- *   [
- *     'id'         => 'my-plugin/compress-image',  // required, unique
- *     'label'      => 'Compress this image',       // required
- *     'icon'       => 'dashicons-image-rotate',    // optional
- *     'capability' => 'upload_files',              // optional, default 'read'
- *     'mime'       => '^image/',                   // optional, PCRE
- *     'sections'   => array( 'media' ),            // optional, default all
- *     'script'     => 'my-plugin-actions',         // optional handle
- *   ]
- *
- * `sections` entries match a section's **id** (`'media'`,
- * `'cpt-atf-forms'` — auto-registered CPT sections are prefixed
- * `cpt-`), a section's declared **post type slug** (`'atf-forms'`),
- * or `'*'` for every section. Matching happens client-side.
- *
- * Timing: descriptors are re-collected when the window config is
- * serialized for the browser (see
- * the explorer app's per-dispatch payload), the same late
- * pass that enqueues declared `script` handles — registering the
- * filter any time during a normal bootstrap is fine.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Collect plugin-registered descriptors, drop ones the current user
- * can't run, and return the array ready for the window config blob.
- *
- * @return array[]
- */
 function openstation_my_wordpress_collect_preview_actions() {
-	/**
-	 * Filter the list of preview-action descriptors that appear in
-	 * the right-pane of any My WordPress section.
-	 *
-	 * **Status: Experimental** — the descriptor shape may gain
-	 * fields. Existing fields (`id`, `label`, `icon`, `capability`,
-	 * `mime`, `sections`, `script`) will continue to work.
-	 *
-	 * @param array[] $actions Default: empty array.
-	 */
+
 	$actions = (array) apply_filters( 'openstation_my_wordpress_preview_actions', array() );
 
 	$out = array();
@@ -94,11 +38,6 @@ function openstation_my_wordpress_collect_preview_actions() {
 	return $out;
 }
 
-/**
- * Enqueue the JS handles declared by visible preview-action
- * descriptors. Called from the bundle's `admin_enqueue_scripts`
- * hook so the handlers are wired before the bundle paints.
- */
 function openstation_my_wordpress_enqueue_preview_action_scripts() {
 	if ( ! function_exists( 'openstation_my_wordpress_user_can_use' ) || ! openstation_my_wordpress_user_can_use() ) {
 		return;

@@ -1,16 +1,3 @@
-/**
- * Tests for the iframe-side editor-autosave answerer
- * (`installEditorAutosaveHandler` in
- * `src/iframe-bridge-standalone.ts`) — the handler that answers the
- * shell's `os-editor-autosave-request` while the
- * editor-preview companion window opens in parallel.
- *
- * Strategy: install the handler in the jsdom top frame (where
- * `window.parent === window`, so responses post back onto the same
- * window and can be captured with a plain message listener), fake
- * `window.wp` per scenario, and drive it with synthetic
- * `MessageEvent`s.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installEditorAutosaveHandler } from '../../src/iframe-bridge-standalone';
 
@@ -63,12 +50,6 @@ function sendUnwatch( watchId: string ): void {
 	);
 }
 
-/**
- * A fake Gutenberg store rig: subscribers fire on `notify()`, block
- * and title edits are simulated by swapping the tracked references.
- * `dirty` / `autosaveable` / `saving` knobs drive the watcher's
- * feedback-loop guards.
- */
 function fakeGutenberg() {
 	const subscribers: Array< () => void > = [];
 	let blocks: unknown = [];
@@ -123,7 +104,6 @@ function fakeGutenberg() {
 	};
 }
 
-/** Wait until a response for the given request id was captured. */
 async function responseFor( requestId: string ): Promise< AutosaveResponse > {
 	await vi.waitFor( () => {
 		if ( ! responses.some( ( r ) => r.requestId === requestId ) ) {
@@ -155,9 +135,7 @@ beforeEach( () => {
 afterEach( () => {
 	window.removeEventListener( 'message', collector );
 	delete ( window as unknown as { wp?: unknown } ).wp;
-	// The handler's listener stays installed (its dedupe flag persists
-	// across tests by design — same as a real page) — that's fine, the
-	// per-test request ids keep responses distinguishable.
+
 	vi.restoreAllMocks();
 	vi.useRealTimers();
 } );
@@ -287,22 +265,14 @@ describe( 'installEditorAutosaveHandler', () => {
 	} );
 
 	test( 'classic editor: a silent core bail answers not-dirty, not saved', async () => {
-		// Regression, confirmed in a real browser against a real
-		// WooCommerce product: core's `save()` returns early when
-		// `compareString === lastCompareString`, so no request goes out
-		// and `after-autosave` never fires. The 5 s backstop used to
-		// answer 'saved' anyway, and the shell refreshed the preview
-		// companion ~5.4 s after the eye click — late enough to look
-		// like it was caused by whatever the user clicked next, which
-		// is exactly how it was reported.
+
 		vi.useFakeTimers();
 		const triggerSave = vi.fn();
 		( window as unknown as { wp: unknown } ).wp = {
 			autosave: { server: { triggerSave } },
 		};
 		( window as unknown as { jQuery: unknown } ).jQuery = () => ( {
-			// Core never fires it — the handler is registered and
-			// simply never invoked.
+
 			one: () => undefined,
 		} );
 
@@ -318,10 +288,7 @@ describe( 'installEditorAutosaveHandler', () => {
 	} );
 
 	test( 'classic editor: without jQuery the backstop still answers saved', async () => {
-		// Nothing can observe the round-trip there, so assuming a write
-		// happened is the safe default. (Classic wp-admin always ships
-		// jQuery — `autosave.js` depends on it — so this is a
-		// formality, but the two branches must not be conflated.)
+
 		vi.useFakeTimers();
 		const triggerSave = vi.fn();
 		( window as unknown as { wp: unknown } ).wp = {
@@ -372,11 +339,7 @@ describe( 'installEditorAutosaveHandler', () => {
 } );
 
 describe( 'live-preview watch', () => {
-	/**
-	 * Flush the microtask chain after advancing fake timers, then run
-	 * zero-delay timers once more — jsdom delivers `postMessage` via a
-	 * queued zero-delay task, which fake timers would otherwise hold.
-	 */
+
 	async function flush() {
 		for ( let i = 0; i < 4; i++ ) {
 			await Promise.resolve();
@@ -420,8 +383,6 @@ describe( 'live-preview watch', () => {
 		await flush();
 		expect( liveSaves ).toHaveLength( 1 );
 
-		// Store settles after the autosave — subscribers fire, but the
-		// block/title references are unchanged.
 		gutenberg.notify();
 		gutenberg.notify();
 		vi.advanceTimersByTime( 5000 );
@@ -474,14 +435,12 @@ describe( 'live-preview watch', () => {
 		const watchId = `watch-${ counter }-e2`;
 		sendWatch( watchId, 500 );
 
-		// A save round-trip resyncs the entity: refs churn while
-		// `isSavingPost()` is true, and once more on the settle tick.
 		gutenberg.state.saving = true;
 		gutenberg.editBlocks();
 		gutenberg.notify();
 		gutenberg.state.saving = false;
 		gutenberg.editBlocks();
-		gutenberg.notify(); // Settle tick — churn absorbed.
+		gutenberg.notify();
 		vi.advanceTimersByTime( 5000 );
 		await flush();
 
@@ -496,8 +455,6 @@ describe( 'live-preview watch', () => {
 		const watchId = `watch-${ counter }-f2`;
 		sendWatch( watchId, 500 );
 
-		// A draft's completed in-place autosave: post is clean, but
-		// normalization churned the refs.
 		gutenberg.state.dirty = false;
 		gutenberg.editBlocks();
 		gutenberg.notify();
@@ -515,8 +472,6 @@ describe( 'live-preview watch', () => {
 		const watchId = `watch-${ counter }-g2`;
 		sendWatch( watchId, 500 );
 
-		// Published post right after an autosave revision: dirty
-		// relative to published content, but nothing new to autosave.
 		gutenberg.state.autosaveable = false;
 		gutenberg.editBlocks();
 		gutenberg.notify();
@@ -534,15 +489,12 @@ describe( 'live-preview watch', () => {
 		const watchId = `watch-${ counter }-i2`;
 		sendWatch( watchId, 500 );
 
-		// Edit #1 → settle → save #1.
 		gutenberg.editBlocks();
 		gutenberg.notify();
 		vi.advanceTimersByTime( 500 );
 		await flush();
 		expect( liveSaves ).toHaveLength( 1 );
 
-		// Save round-trip churn: refs churn while saving, once more
-		// on the settle tick. (Published post: dirty stays true.)
 		gutenberg.state.saving = true;
 		gutenberg.editBlocks();
 		gutenberg.notify();
@@ -553,9 +505,6 @@ describe( 'live-preview watch', () => {
 		await flush();
 		expect( gutenberg.saveForPreview ).toHaveBeenCalledTimes( 1 );
 
-		// Edit #2 → settle → save #2. This is the user-visible
-		// contract: the preview keeps tracking the typing for the
-		// whole life of the pairing, not just the first pause.
 		gutenberg.editBlocks();
 		gutenberg.notify();
 		vi.advanceTimersByTime( 500 );
@@ -578,8 +527,6 @@ describe( 'live-preview watch', () => {
 		await flush();
 		expect( liveSaves ).toHaveLength( 1 );
 
-		// The completed save churns refs while saving + on settle;
-		// then the store goes quiet. No second save may fire.
 		gutenberg.state.saving = true;
 		gutenberg.editBlocks();
 		gutenberg.notify();
@@ -604,7 +551,7 @@ describe( 'live-preview watch — classic editor', () => {
 		getContent: () => string;
 		isHidden: () => boolean;
 		fireEdit: () => void;
-		/** Change what the editor serializes — a real user edit. */
+
 		setBody: ( body: string ) => void;
 	}
 
@@ -625,12 +572,6 @@ describe( 'live-preview watch — classic editor', () => {
 		};
 	}
 
-	/**
-	 * A fake classic-editor page: `wp.autosave.server.triggerSave`
-	 * spy, a namespace-aware-enough jQuery stub for the
-	 * before/after-autosave events, the #title and #content fields,
-	 * and an optional TinyMCE rig.
-	 */
 	function fakeClassic( { tinymce }: { tinymce?: boolean } = {} ) {
 		const triggerSave = vi.fn();
 		const handlers = new Map< string, Array< () => void > >();
@@ -678,10 +619,7 @@ describe( 'live-preview watch — classic editor', () => {
 			content,
 			editor,
 			tiny,
-			/**
-			 * A real user edit — what the editor serializes changes.
-			 * Without TinyMCE the raw textarea is authoritative.
-			 */
+
 			edit( body: string ) {
 				if ( editor ) {
 					editor.setBody( body );
@@ -689,7 +627,7 @@ describe( 'live-preview watch — classic editor', () => {
 					content.value = body;
 				}
 			},
-			/** Fire a jQuery event by base name across namespaces. */
+
 			fire( evt: string ) {
 				for ( const [ name, cbs ] of handlers ) {
 					if ( name === evt || name.startsWith( `${ evt }.` ) ) {
@@ -732,7 +670,6 @@ describe( 'live-preview watch — classic editor', () => {
 		vi.advanceTimersByTime( 500 );
 		expect( classic.triggerSave ).toHaveBeenCalledTimes( 1 );
 
-		// The autosave round-trip lands — the watch announces it.
 		classic.fire( 'before-autosave' );
 		classic.fire( 'after-autosave' );
 		await flush();
@@ -750,8 +687,6 @@ describe( 'live-preview watch — classic editor', () => {
 		sendWatch( watchId, 500 );
 		await flush();
 
-		// Core starts its own autosave; typing settles mid-flight —
-		// core would silently drop a triggerSave here (_blockSave).
 		classic.fire( 'before-autosave' );
 		classic.content.value = 'typed mid-flight';
 		classic.content.dispatchEvent(
@@ -760,11 +695,9 @@ describe( 'live-preview watch — classic editor', () => {
 		vi.advanceTimersByTime( 500 );
 		expect( classic.triggerSave ).not.toHaveBeenCalled();
 
-		// Still in flight after the retry window — keeps waiting.
 		vi.advanceTimersByTime( 1000 );
 		expect( classic.triggerSave ).not.toHaveBeenCalled();
 
-		// The in-flight save lands, then the retry forces ours.
 		classic.fire( 'after-autosave' );
 		vi.advanceTimersByTime( 1000 );
 		expect( classic.triggerSave ).toHaveBeenCalledTimes( 1 );
@@ -785,8 +718,6 @@ describe( 'live-preview watch — classic editor', () => {
 		vi.advanceTimersByTime( 500 );
 		expect( classic.triggerSave ).toHaveBeenCalledTimes( 1 );
 
-		// A visual↔text switch re-initializes the editor — the
-		// AddEditor hook binds the newcomer.
 		const addEditor = classic.tiny!.on.mock.calls.find(
 			( c ) => c[ 0 ] === 'AddEditor',
 		)![ 1 ] as ( e: { editor?: TinyStubEditor } ) => void;
@@ -802,22 +733,17 @@ describe( 'live-preview watch — classic editor', () => {
 	} );
 
 	test( 'a settle with unchanged content never reaches the server', async () => {
-		// Regression: TinyMCE fires `change` when it adds an undo
-		// level on BLUR, so merely clicking from the product editor
-		// into the preview window scheduled a settle — which forced an
-		// autosave, which announced, which swapped the companion's
-		// frame out from under the user.
+
 		const classic = fakeClassic( { tinymce: true } );
 		vi.useFakeTimers();
 		const watchId = `watch-${ counter }-c5`;
 		sendWatch( watchId, 500 );
 		await flush();
 
-		classic.editor!.fireEdit(); // Blur-driven, content untouched.
+		classic.editor!.fireEdit();
 		vi.advanceTimersByTime( 500 );
 		expect( classic.triggerSave ).not.toHaveBeenCalled();
 
-		// A real edit still gets through.
 		classic.edit( 'v2' );
 		classic.editor!.fireEdit();
 		vi.advanceTimersByTime( 500 );
@@ -828,30 +754,19 @@ describe( 'live-preview watch — classic editor', () => {
 	} );
 
 	test( "core's own autosave of unchanged content is not announced", async () => {
-		// The one that actually bit: clicking back into the editor
-		// wakes core's heartbeat, whose `getPostData()` calls
-		// `editor.save()` and re-serializes TinyMCE into `#content`.
-		// On markup core didn't write that string differs from the
-		// stored one, so core's own compare-string gate passes and the
-		// autosave goes out — for a post the user never touched. The
-		// fingerprint reads `getContent()` instead, which that
-		// re-serialization does not move.
+
 		const classic = fakeClassic( { tinymce: true } );
 		vi.useFakeTimers();
 		const watchId = `watch-${ counter }-c6`;
 		sendWatch( watchId, 500 );
 		await flush();
 
-		// Core writes `#content` on its way out — the fingerprint must
-		// not follow it.
 		classic.content.value = '<p>re-serialized by editor.save()</p>';
 		classic.fire( 'before-autosave' );
 		classic.fire( 'after-autosave' );
 		await flush();
 		expect( liveSaves ).toHaveLength( 0 );
 
-		// The same round-trip carrying NEW content the user actually
-		// typed does announce.
 		classic.edit( 'v2' );
 		classic.editor!.fireEdit();
 		classic.fire( 'before-autosave' );
@@ -865,29 +780,19 @@ describe( 'live-preview watch — classic editor', () => {
 	} );
 
 	test( 'the FIRST refocus autosave of a session is not announced', async () => {
-		// Regression: eye → click into the preview → click back into
-		// the editor reloaded the preview exactly once, then behaved
-		// forever after. The baseline is seeded when the watch starts,
-		// before core has ever called `getPostData()` on the page —
-		// and that call's `editor.save()` fires TinyMCE's SaveContent,
-		// which WordPress's own handlers use to rewrite the DOM. So
-		// the first round-trip serialized differently from the seed
-		// through no user action, announced, and re-baselined.
+
 		const classic = fakeClassic( { tinymce: true } );
 		vi.useFakeTimers();
 		const watchId = `watch-${ counter }-c8`;
 		sendWatch( watchId, 500 );
 		await flush();
 
-		// Core's refocus tick re-serializes the DOM on its way out,
-		// with no edit event behind it.
 		classic.edit( '<p>v1</p>' );
 		classic.fire( 'before-autosave' );
 		classic.fire( 'after-autosave' );
 		await flush();
 		expect( liveSaves ).toHaveLength( 0 );
 
-		// And a genuine edit after that still announces.
 		classic.edit( '<p>v1 plus typing</p>' );
 		classic.editor!.fireEdit();
 		vi.advanceTimersByTime( 500 );
@@ -902,11 +807,7 @@ describe( 'live-preview watch — classic editor', () => {
 	} );
 
 	test( 'an edit typed mid-round-trip still gets its own save', async () => {
-		// `announced` tracks the fingerprint captured at SEND time. If
-		// it adopted the on-arrival content instead, a keystroke that
-		// landed during the round-trip would be folded into the
-		// baseline and its settle would go silent — the preview would
-		// permanently lag the editor by one edit.
+
 		const classic = fakeClassic( { tinymce: true } );
 		vi.useFakeTimers();
 		const watchId = `watch-${ counter }-c7`;
@@ -916,14 +817,12 @@ describe( 'live-preview watch — classic editor', () => {
 		classic.edit( 'v2' );
 		classic.editor!.fireEdit();
 		classic.fire( 'before-autosave' );
-		classic.edit( 'v3' ); // Typed while v2 was on the wire.
+		classic.edit( 'v3' );
 		classic.editor!.fireEdit();
 		classic.fire( 'after-autosave' );
 		await flush();
 		expect( liveSaves ).toHaveLength( 1 );
 
-		// v3 is still unannounced, so its settle must reach the server
-		// rather than finding the baseline already equal to it.
 		vi.advanceTimersByTime( 500 );
 		expect( classic.triggerSave ).toHaveBeenCalledTimes( 1 );
 
@@ -945,7 +844,6 @@ describe( 'live-preview watch — classic editor', () => {
 		vi.advanceTimersByTime( 5000 );
 		expect( classic.triggerSave ).not.toHaveBeenCalled();
 
-		// jQuery handlers gone; typing after unwatch never schedules.
 		expect( classic.handlers.size ).toBe( 0 );
 		classic.title.dispatchEvent(
 			new Event( 'input', { bubbles: true } ),

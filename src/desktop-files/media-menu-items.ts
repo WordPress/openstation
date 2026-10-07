@@ -1,28 +1,3 @@
-/**
- * OpenStation — Media Library entries on upload tiles.
- *
- * A file dragged onto the desktop lives in desktop storage, not the
- * Media Library. These tile-menu entries are the way across:
- *
- *   Add to Media Library      — any stored file the site would
- *                               accept as an upload (`file.isMedia`,
- *                               decided server-side and filterable
- *                               there). Multi-select aware: one call
- *                               per file, one toast for the batch.
- *   Start a post with this…   — images only. The server copies the
- *   Start a page with this…     file into the Media Library, creates
- *                               an auto-draft with the image block
- *                               and featured image in place, and the
- *                               edit screen opens in a window.
- *
- * The copy is idempotent per stored file, so "Add" twice, or "Add"
- * then "Start a post", never duplicates the attachment.
- *
- * Contributed through the public `os.files.tile-menu` filter, like
- * every other built-in entry, so a plugin can reorder or hide them.
- * Activated once on boot from `src/desktop-files/index.ts`.
- */
-
 import { addFilter } from '../hooks';
 import { showToast } from '../toast';
 import { toastRestFailure } from '../core/rest-failure';
@@ -53,7 +28,6 @@ interface UploadFields {
 	kind?: string;
 }
 
-/** The stored-file id of a media-capable upload tile, or `null`. */
 function mediaFileId( placement: RestPlacementShape ): number | null {
 	if ( placement.file.type !== 'upload' ) {
 		return null;
@@ -69,7 +43,6 @@ function isImage( placement: RestPlacementShape ): boolean {
 	return ( placement.file as UploadFields ).kind === 'image';
 }
 
-/** The toast for one file added — with the attachment a click away. */
 function toastAdded( attachment: RestMediaAttachmentShape ): void {
 	showToast( {
 		message: attachment.created
@@ -96,11 +69,6 @@ async function addOne( fileId: number ): Promise< void > {
 	}
 }
 
-/**
- * The batched runner, ONE reference for every entry that declares
- * it — the resolver batches by identity, so a shared reference is
- * what turns a multi-selection into one toast.
- */
 const addMany = async ( placements: RestPlacementShape[] ): Promise< void > => {
 	let added = 0;
 	let existing = 0;
@@ -152,9 +120,6 @@ async function startPost( fileId: number, postType: 'post' | 'page' ): Promise< 
 	}
 }
 
-/**
- * Boot — register the tile-menu entries.
- */
 export function installMediaMenuItems(): void {
 	addFilter(
 		'os.files.tile-menu',

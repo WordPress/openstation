@@ -1,8 +1,3 @@
-/**
- * Pinned-notes "convert to post" flow: optimistic eviction, auto-open
- * of the draft editor, and the Undo toast that restores the note and
- * closes the editor window it opened.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Note } from '../../src/notes/types';
 
@@ -15,7 +10,6 @@ vi.mock( '../../src/notes/rest', async ( importOriginal ) => ( {
 	restoreNote: ( ...args: unknown[] ) => restoreNoteMock( ...args ),
 } ) );
 
-// Imported after the mock is registered.
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { convertNoteToPost } from '../../src/notes/convert';
 import { RestError } from '../../src/core/api-client';
@@ -50,8 +44,7 @@ describe( 'convertNoteToPost', () => {
 		openWindow = vi.fn();
 		closeWindow = vi.fn();
 		getById = vi.fn( () => ( { close: closeWindow } ) );
-		// Merge, never assign: `installHooksStub()` above parked
-		// `wp.hooks` on the same global, and the real bus reads it.
+
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		w.wp = {
 			...( w.wp ?? {} ),
@@ -98,9 +91,9 @@ describe( 'convertNoteToPost', () => {
 		const onRestore = vi.fn();
 
 		await convertNoteToPost( NOTE, { onEvict: vi.fn(), onRestore } );
-		// Fire the Undo action.
+
 		await showToast.mock.calls[ 0 ][ 0 ].action.onClick();
-		// Let the restore promise settle.
+
 		await vi.waitFor( () => expect( onRestore ).toHaveBeenCalled() );
 
 		expect( closeWindow ).toHaveBeenCalledTimes( 1 );
@@ -152,8 +145,6 @@ describe( 'convertNoteToPost', () => {
 
 		await convertNoteToPost( NOTE, { onEvict: vi.fn(), onRestore } );
 
-		// The server converted: the note stays off the wall and the toast
-		// says where the draft went instead of reporting a failure.
 		expect( onRestore ).not.toHaveBeenCalled();
 		expect( showToast ).toHaveBeenCalledTimes( 1 );
 		expect( showToast.mock.calls[ 0 ][ 0 ].message ).toMatch( /Drafts/ );

@@ -1,19 +1,3 @@
-/**
- * Unit tests for the OS-file drop manager
- * (`src/os-file-drop/manager.ts`).
- *
- * Exercises:
- *
- *   - The mime / size policy (`partitionByPolicy`) — accepts allowed
- *     mimes, rejects with the right reason for size / mime / empty
- *     files, falls back to extension when `file.type` is blank.
- *   - The default field generator (`defaultFields`) — title, alt-text,
- *     and filename are pre-filled, alt-text is non-empty only for
- *     images, filename is sanitized.
- *   - The hook pipeline — `os.drop.files-detected` and
- *     `os.drop.dialog-fields` mutate the entries before the
- *     dialog opens.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	clearHooksStub,
@@ -41,7 +25,7 @@ function makeFile(
 	type: string,
 	size = 1024,
 ): File {
-	// Construct via Blob — jsdom's `File` accepts `BlobPart[]`.
+
 	const blob = new Blob( [ new Uint8Array( size ) ], { type } );
 	return new File( [ blob ], name, { type } );
 }
@@ -54,9 +38,7 @@ describe( 'os-file-drop/manager', () => {
 	afterEach( () => {
 		clearHooksStub();
 		document.body.innerHTML = '';
-		// Tear down any manager mounted during a test so the
-		// window-level sentinel + listeners don't leak across
-		// tests.
+
 		const host = window as unknown as {
 			__openStationOsFileDropMounted?: { dispose: () => void };
 		};
@@ -148,9 +130,7 @@ describe( 'os-file-drop/manager', () => {
 		} );
 
 		test( 'replaces path separators and trims leading dots', () => {
-			// `/` and `\` collapse to `-`; leading `.` runs are
-			// stripped (defends against accidental hidden-file
-			// names + path-traversal pre-fill).
+
 			expect( sanitizeFilename( '..\\Windows\\evil.exe' ) ).toBe(
 				'Windows-evil.exe',
 			);
@@ -294,12 +274,7 @@ describe( 'os-file-drop/manager', () => {
 		} );
 
 		test( 'window-level drop bails when a nested handler already preventDefault-ed', async () => {
-			// Inner drop target (e.g. the Plugins .zip upload
-			// dropzone) is a child of the body and calls
-			// preventDefault on the drop. The window-level
-			// manager must NOT also process the file — that's
-			// what was opening the Media Library uploader on top
-			// of the Plugins upload dialog.
+
 			const openDialog = vi.fn().mockResolvedValue( undefined );
 			mountOsFileDropManager( {
 				config: {

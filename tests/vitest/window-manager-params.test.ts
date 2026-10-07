@@ -1,18 +1,3 @@
-/**
- * Native-window open-time params, and their survival through the
- * session.
- *
- * A native window is addressed by id, and its id is its identity:
- * `desktop-mode-user-edit` is "the profile editor", not "the profile
- * editor for user 12". Anything that varies per open has nowhere else
- * to live — and the shared store the profile window used had no
- * answer for a page reload, so the restored window came back showing
- * whoever was logged in rather than the person the user had open.
- *
- * These tests pin the whole round trip: opening with params, staging
- * them onto a live window, writing them into the snapshot, and
- * dropping values that would take the save down with them.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { __resetNativeWindowGeometryForTests } from '../../src/window-manager/native-window-geometry';
@@ -88,10 +73,6 @@ describe( 'native window params', () => {
 			} ),
 		);
 
-		// `open()` focuses an existing window rather than rebuilding
-		// it, so without this the window keeps showing user 12 — the
-		// failure mode that reads as "clicking a second person does
-		// nothing".
 		expect( again.config.params ).toEqual( { userId: 44 } );
 	} );
 
@@ -101,8 +82,7 @@ describe( 'native window params', () => {
 				params: { userId: 12 },
 			} ),
 		);
-		// A dock click on an already-open profile window must not wipe
-		// whose profile it is.
+
 		const again = await manager.open(
 			nativeConfig( 'desktop-mode-user-edit' ),
 		);
@@ -152,8 +132,7 @@ describe( 'native window params', () => {
 			nativeConfig( 'desktop-mode-woo-customer', {
 				params: {
 					customerId: 7,
-					// A plugin's careless value must not cost every
-					// other window its geometry.
+
 					node: document.createElement( 'div' ),
 					cb: () => undefined,
 					cyclic,

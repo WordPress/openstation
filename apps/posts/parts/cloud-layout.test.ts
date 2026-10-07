@@ -1,8 +1,3 @@
-/**
- * Posts app — the Tags cloud's pure layout: the count → size mapping,
- * the per-slug hue and rotation, the spiral packer (plain and
- * cluster-aware) and the persisted positions.
- */
 import { afterEach, describe, expect, it } from 'vitest';
 import {
 	computePositionsKey,
@@ -30,7 +25,7 @@ describe( 'the size, hue and rotation', () => {
 		expect( fontSizeFor( 0, 100 ) ).toBe( 11 );
 		expect( fontSizeFor( 100, 100 ) ).toBe( 28 );
 		expect( fontSizeFor( 25, 100 ) ).toBe( Math.round( 11 + 17 * 0.5 ) );
-		// A population max of 0 is read as 1, so a lone tag is full size.
+
 		expect( fontSizeFor( 1, 0 ) ).toBe( 28 );
 	} );
 

@@ -1,29 +1,3 @@
-/**
- * Tests for `window-notices-server-sync.ts`.
- *
- * Two behaviors under test:
- *
- *   1. `buildMatcher` — the private predicate factory that translates
- *      the declarative `match` shape (`window`, `windows`, `urlContains`)
- *      into a `(win) => boolean`. We test it indirectly: register a
- *      notice with each shape, then assert that the resulting slot
- *      renderer's `match` predicate reports the right boolean for a
- *      handful of fake windows.
- *
- *   2. `applyServerWindowNotices` — the reconciler that adds, updates,
- *      and removes server-owned entries. We verify that:
- *        - new entries land in the registry,
- *        - subsequent calls with a different list remove dropped
- *          server entries,
- *        - JS-registered entries (no `__server__` owner) survive a
- *          server sync that doesn't mention them.
- *
- * The slot-painter pipeline is exercised in
- * `window-chrome/slots/render.ts` — its tests live there; we only
- * need the slot-registry's `slotsForWindow()` lookup here, which
- * returns the entries our calls registered.
- */
-
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
 	listWindowNotices,
@@ -47,9 +21,7 @@ function fakeWindow(
 
 function matcherFor( noticeId: string ) {
 	const slotId = `os-notice/${ noticeId }`;
-	// `slotsForWindow` filters by `match(win)`, so to read the
-	// predicate we ask the slot-registry whether a given fake window
-	// matches the entry. We use that as our predicate-under-test.
+
 	return ( win: DesktopWindow ) =>
 		slotsForWindow( win, 'after-titlebar' ).some( ( def ) => def.id === slotId );
 }
@@ -173,19 +145,19 @@ describe( 'window-notices-server-sync — buildMatcher', () => {
 			},
 		] );
 		const matches = matcherFor( 'plugin/wc-posts' );
-		// Both match → render.
+
 		expect(
 			matches(
 				fakeWindow( 'edit-php', 'http://example.com/wp-admin/edit.php?page=wc-admin' ),
 			),
 		).toBe( true );
-		// id mismatch → skip even if URL matches.
+
 		expect(
 			matches(
 				fakeWindow( 'plugins', 'http://example.com/wp-admin/plugins.php?page=wc-admin' ),
 			),
 		).toBe( false );
-		// URL mismatch → skip even if id matches.
+
 		expect(
 			matches(
 				fakeWindow( 'edit-php', 'http://example.com/wp-admin/edit.php' ),
@@ -254,13 +226,12 @@ describe( 'window-notices-server-sync — applyServerWindowNotices', () => {
 	} );
 
 	test( 'JS-registered (non-server) entries survive a server sync', () => {
-		// One JS-side caller; no owner tag.
 		registerWindowNotice( {
 			id: 'plugin/js',
 			message: 'JS',
 			tone: 'info',
 		} );
-		// Server ships one entry, then in a follow-up ships none.
+
 		applyServerWindowNotices( [
 			{ id: 'plugin/server', message: 'S', tone: 'info', dismissible: true },
 		] );
@@ -273,12 +244,10 @@ describe( 'window-notices-server-sync — applyServerWindowNotices', () => {
 
 	test( 'ignores entries with missing or non-string id', () => {
 		applyServerWindowNotices( [
-			// Empty id — schema-valid string, but the runtime guard
-			// in applyServerWindowNotices skips it.
+
 			{ id: '', message: 'x', tone: 'info', dismissible: true },
-			// Missing id entirely — type-level malformed.
-			// @ts-expect-error — deliberately malformed for the test
-			{ message: 'x', tone: 'info', dismissible: true },
+
+			{ message: 'x', tone: 'info', dismissible: true } as unknown as Parameters< typeof applyServerWindowNotices >[ 0 ][ number ],
 			{ id: 'plugin/ok', message: 'ok', tone: 'info', dismissible: true },
 		] );
 

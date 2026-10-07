@@ -1,14 +1,3 @@
-/**
- * `<os-disclosure>` — the state, and the semantics that make it a
- * disclosure rather than a div that hides things.
- *
- * The bug this component exists to not have: a collapsed panel whose
- * contents are merely invisible. Tab then walks into a region the user
- * cannot see, and a screen reader reads a section that is not there.
- * `hidden` on the body is what prevents both, and it is asserted here
- * because a later "let's animate the collapse" change is exactly the
- * kind of edit that would swap it for `max-height: 0`.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import './os-disclosure';
 
@@ -54,7 +43,6 @@ describe( '<os-disclosure>', () => {
 	} );
 
 	test( 'the summary is a real button that toggles', async () => {
-		// A real <button> is what gets Tab, Enter and Space for free.
 		const el = await mount( 'heading="Advanced"' );
 		expect( summary( el ).tagName ).toBe( 'BUTTON' );
 		expect( el.shadowRoot?.querySelector( '[part=heading]' )?.textContent ).toBeTruthy();
@@ -102,8 +90,6 @@ describe( '<os-disclosure>', () => {
 		summary( el ).click();
 		expect( seen ).toEqual( [ true, false ] );
 
-		// Setting the state from code stays silent, so a listener that
-		// persists the state cannot loop.
 		el.setAttribute( 'open', '' );
 		el.removeAttribute( 'open' );
 		await tick();
@@ -135,9 +121,7 @@ describe( '<os-disclosure>', () => {
 		const { OS_COMPONENT_TAGS } = await vi.importActual< {
 			OS_COMPONENT_TAGS: readonly string[];
 		} >( '../tags' );
-		// The Components tab and `loadComponents()` both read this list;
-		// a component missing from it is invisible to the docs and
-		// cannot be requested by name.
+
 		expect( OS_COMPONENT_TAGS ).toContain( 'os-disclosure' );
 	} );
 } );

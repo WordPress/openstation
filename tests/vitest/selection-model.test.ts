@@ -1,7 +1,3 @@
-/**
- * Tests for the selection model — the set + anchor semantics every
- * tile canvas in the shell now shares.
- */
 import { describe, expect, test, vi } from 'vitest';
 import { createSelectionModel } from '../../src/selection/model';
 
@@ -58,8 +54,7 @@ describe( 'selection model', () => {
 		m.set( [ 'b' ] );
 		m.selectRange( 'd' );
 		m.selectRange( 'c' );
-		// Anchor stayed at 'b', so the second range is b..c — NOT
-		// b..d plus c..d, and not d..c from a moved anchor.
+
 		expect( m.keys() ).toEqual( [ 'b', 'c' ] );
 		expect( m.anchor() ).toBe( 'b' );
 	} );
@@ -95,7 +90,7 @@ describe( 'selection model', () => {
 		order.splice( order.indexOf( 'c' ), 1 );
 		expect( m.prune() ).toBe( true );
 		expect( m.keys() ).toEqual( [ 'b', 'd' ] );
-		// A second prune with nothing to do reports no change.
+
 		expect( m.prune() ).toBe( false );
 	} );
 
@@ -115,8 +110,8 @@ describe( 'selection model', () => {
 			onChange: ( keys ) => seen.push( keys ),
 		} );
 		m.set( [ 'a' ] );
-		m.set( [ 'a' ] ); // same membership — no notification
-		m.add( 'a' ); // already there — no notification
+		m.set( [ 'a' ] );
+		m.add( 'a' );
 		m.add( 'b' );
 		expect( seen ).toEqual( [ [ 'a' ], [ 'a', 'b' ] ] );
 	} );

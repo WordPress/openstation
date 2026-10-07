@@ -1,16 +1,3 @@
-/**
- * My WordPress — the detail and dossier panes.
- *
- * Part of the `my-wordpress` client view: imported by the
- * `my-wordpress.os.ts` entry. This part paints what a selection
- * SHOWS: the preview pane's dossier, the detail folder a post
- * navigates into, the relation sub-lists, and the WP Explorer stats
- * panes (term card, user dossier, comment, revision preview) behind a
- * selected sub-row.
- *
- * @public
- */
-
 import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
 import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
 import {
@@ -25,13 +12,6 @@ import {
 import { openPreview, previewDetail, previewMessage, trashExplorerItems } from './optimistic';
 import { actionContext, opensOnTap, resolveActions, runAction } from './helpers';
 
-/**
- * WP Explorer's dossier blocks, in its order — the default the shared
- * `os.my-wordpress.user-dossier-sections` filter starts from, so a
- * subscriber written against the original sees the list it expects.
- * The app renders `bio` and `stats` facts; the rest are the
- * original's deeper panes, harmless to keep in the vocabulary.
- */
 const USER_DOSSIER_SECTIONS = [
 	'bio',
 	'stats',
@@ -41,13 +21,6 @@ const USER_DOSSIER_SECTIONS = [
 	'terms',
 ];
 
-/**
- * Which dossier blocks a user pane may render, through the shared
- * `os.my-wordpress.user-dossier-sections` filter — a customer's
- * publishing stats are four zeroes above the number the merchant
- * actually came for. Null means "everything" (no subscriber, or a
- * non-user pane).
- */
 function userDossierAllow(
 	detail: DetailFacts,
 	section: SectionDef,
@@ -63,7 +36,6 @@ function userDossierAllow(
 	return Array.isArray( resolved ) ? new Set( resolved as string[] ) : null;
 }
 
-/** Facts with the blocks the filter dropped removed; untagged facts always render. */
 function dossierFilteredFacts(
 	detail: DetailFacts,
 	allow: Set< string > | null,
@@ -74,13 +46,6 @@ function dossierFilteredFacts(
 	return detail.facts.filter( ( fact ) => ! fact[ 2 ] || allow.has( fact[ 2 ] ) );
 }
 
-/**
- * The user dossier's deep blocks — WP Explorer's, 1:1: the four stat
- * tiles, the 12-month activity bars, the member/published milestones,
- * the recent posts and the top categories & tags chips. Painted from
- * the aggregated `stats` blob the dossier's own route serves, and
- * gated block by block through the shared filter.
- */
 function userDossierBlocks(
 	ctx: Ctx,
 	detail: DetailFacts,
@@ -95,7 +60,7 @@ function userDossierBlocks(
 	const pages = stats.counts?.pages ?? {};
 	const published = ( bucket: Record< string, number > ): string =>
 		sprintf(
-			/* translators: %d: published count. */
+
 			__( '%d published' ),
 			bucket.publish ?? 0,
 		);
@@ -133,15 +98,6 @@ function userDossierBlocks(
 	`;
 }
 
-/**
- * The user pane's action row: WP Explorer's built-ins — the activity
- * footprint first, the profile editor demoted to a secondary button —
- * run through the shared `os.my-wordpress.user-preview-actions`
- * filter, so a section serving people who buy can swap the row for
- * one a merchant can use. The item handed to subscribers is the list
- * row under the dossier's fields, the same merge `preview-extras`
- * ships, so the Woo facts (`openstation_woo_customer`) are readable.
- */
 function userPreviewActions(
 	ctx: Ctx,
 	section: SectionDef,
@@ -163,11 +119,7 @@ function userPreviewActions(
 			id: 'open-profile',
 			label: __( 'Edit profile' ),
 			variant: 'secondary',
-			// The shared profile-window contract WP Explorer's own
-			// button rides: the `desktop-mode-user-edit` singleton,
-			// retargeted through the cross-bundle store — not the raw
-			// `user-edit.php` iframe. The dispatch is only the
-			// legacy fallback for sites without the native window.
+
 			onSelect: () =>
 				openUserEditWindow( detail.id, {
 					source: 'my-wordpress-app/user-pane',
@@ -188,19 +140,6 @@ function userPreviewActions(
 	return actions.filter( ( a ) => !! a && typeof a.onSelect === 'function' );
 }
 
-/**
- * A named plugin slot on the preview article — the container the
- * shared `os.my-wordpress.preview-extras` action paints into (fired
- * from `wire.ts` after render, once per item). `os-preserve` keeps
- * the morph's hands off whatever a plugin appended; the class names
- * are WP Explorer's, so plugin CSS written for its slots applies.
- */
-/**
- * The two-pane frame: the list, and beside it the preview of what is
- * open. With nothing open there is no pane at all — an empty aside
- * telling the reader to pick something was a 40% column of nothing,
- * so the list takes the whole window until a click needs the pane.
- */
 export function splitView(
 	list: TemplateResult,
 	detail: TemplateResult | null,
@@ -242,14 +181,10 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 		: [];
 	const dossierAllow = userDossierAllow( detail, section );
 	const facts = dossierFilteredFacts( detail, dossierAllow );
-	// The identity line WP Explorer puts under a person's name: their
-	// role as a badge, and the author archive one click away. Not part
-	// of the filterable dossier — an identity header without identity
-	// is not a dossier.
+
 	const roleLabel = detail.kind === 'user' ? detail.stats?.profile?.roleLabels?.[ 0 ] ?? '' : '';
 	const archiveUrl = detail.kind === 'user' ? detail.stats?.profile?.link ?? '' : '';
-	// The edit half of the action row: a user's runs through the
-	// shared filter; everything else keeps the plain editor button.
+
 	let editRow: TemplateResult | TemplateResult[] | '' = '';
 	if ( detail.kind === 'user' ) {
 		editRow = userPreviewActions(
@@ -303,7 +238,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 			${ extrasSlot( 'header', detail.id ) }
 			${ detail.lockedBy
 				? html`<os-notice tone="warning" not-dismissible>${ sprintf(
-					/* translators: %s: user display name. */
+
 					__( '%s is editing this right now.' ),
 					detail.lockedBy,
 				) }</os-notice>`
@@ -346,12 +281,6 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 	`;
 }
 
-/**
- * The detail FOLDER view a post navigates into: relation folder tiles
- * on the left (Author, Contributors, Comments · N, Categories, Tags,
- * Attached media, Revisions), the rendered article on the right.
- * Double-click a folder to drill into its rows, like the original.
- */
 export function renderFolder( ctx: Ctx ): TemplateResult {
 	const folder = ctx.data.folder;
 	if ( ! folder ) {
@@ -372,8 +301,6 @@ export function renderFolder( ctx: Ctx ): TemplateResult {
 									icon=${ sub.icon }
 									?selected=${ uiOf( ctx ).folderSel === `relation:${ sub.relation }` }
 									@click=${ () => {
-										// A tap opens the folder where a
-										// double tap is not to be had.
 										if ( opensOnTap() ) {
 											if ( ! sub.disabled ) {
 												uiOf( ctx ).folderSel = null;
@@ -407,12 +334,10 @@ export function renderFolder( ctx: Ctx ): TemplateResult {
 	`;
 }
 
-/** One stat tile — the kit's `<os-stat>` carries the typography. */
 function statTile( value: number, label: string, note = '' ): TemplateResult {
 	return html`<os-stat value=${ String( value ) } label=${ label } caption=${ note }></os-stat>`;
 }
 
-/** The 12-month activity bar row, zero months included. */
 function activityBars( activity: Array< { ym: string; count: number } > ): TemplateResult {
 	const byYm = new Map( activity.map( ( a ) => [ a.ym, a.count ] ) );
 	const months: Array< { ym: string; label: string; count: number } > = [];
@@ -442,7 +367,6 @@ function activityBars( activity: Array< { ym: string; count: number } > ): Templ
 	`;
 }
 
-/** The clickable recent-posts list every stats pane ends with. */
 function recentPosts( ctx: Ctx, recent: StatsRecentPost[] ): TemplateResult | '' {
 	if ( recent.length === 0 ) {
 		return '';
@@ -464,11 +388,6 @@ function recentPosts( ctx: Ctx, recent: StatsRecentPost[] ): TemplateResult | ''
 	`;
 }
 
-/**
- * The label/value fact list every detail pane ends with. A row may
- * carry the server's third element (the dossier-section tag); only
- * label and value render.
- */
 function factList( rows: Array< [ string, string ] | [ string, string, string ] > ): TemplateResult {
 	return html`
 		<os-facts>
@@ -479,7 +398,6 @@ function factList( rows: Array< [ string, string ] | [ string, string, string ] 
 	`;
 }
 
-/** The media "Used in" block — list of placements, or the empty line. */
 function usedInList( usedIn: DetailFacts[ 'usedIn' ] ): TemplateResult | '' {
 	if ( ! usedIn ) {
 		return '';
@@ -494,7 +412,6 @@ function usedInList( usedIn: DetailFacts[ 'usedIn' ] ): TemplateResult | '' {
 	`;
 }
 
-/** Facts + hero, shared by the user and media sub-panes. */
 function dossierFacts( detail: DetailFacts ): TemplateResult {
 	return html`
 		${ detail.avatar ? html`<os-avatar src=${ detail.avatar } name=${ detail.title } size="xl"></os-avatar>` : '' }
@@ -505,7 +422,6 @@ function dossierFacts( detail: DetailFacts ): TemplateResult {
 	`;
 }
 
-/** The right pane behind a selected sub-list row, per relation kind. */
 function renderSubDetail( ctx: Ctx ): TemplateResult | null {
 	const picked = ctx.data.subDetail;
 	if ( ! picked ) {
@@ -529,7 +445,7 @@ function renderSubDetail( ctx: Ctx ): TemplateResult | null {
 				</header>
 				<div class="os-mywp__stats">
 					${ statTile( posts.total ?? 0, __( 'Posts' ), sprintf(
-						/* translators: %d: published count. */
+
 						__( '%d published' ),
 						published,
 					) ) }
@@ -554,7 +470,7 @@ function renderSubDetail( ctx: Ctx ): TemplateResult | null {
 									<os-avatar src=${ person.userAvatarUrl } name=${ person.userName } size="sm"></os-avatar>
 									<span class="os-mywp__person-name">${ person.userName }</span>
 									<span class="os-mywp__subtitle">${ sprintf(
-										/* translators: %d: post count. */
+
 										_n( '%d post', '%d posts', person.count ),
 										person.count,
 									) }</span>
@@ -618,7 +534,6 @@ function renderSubDetail( ctx: Ctx ): TemplateResult | null {
 	`;
 }
 
-/** One relation's rows — the sub-list behind a detail folder tile. */
 export function renderSub( ctx: Ctx ): TemplateResult {
 	const sub = ctx.data.sub;
 	if ( ! sub ) {
@@ -646,9 +561,6 @@ export function renderSub( ctx: Ctx ): TemplateResult {
 											thumbnail=${ row.thumb ?? '' }
 											?selected=${ ctx.state.item === row.id }
 											@click=${ () => {
-												// A tap opens the editor where a double
-												// tap is not to be had; a row with no
-												// editor still opens its pane.
 												if ( opensOnTap() && row.editUrl ) {
 													void ctx.dispatch( 'sub-open', { row: row.id } );
 													return;

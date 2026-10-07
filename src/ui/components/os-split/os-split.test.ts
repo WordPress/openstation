@@ -101,7 +101,6 @@ describe( 'split layout and keyboard resizing', () => {
 	} );
 } );
 
-/** Pointer capture is native-browser behavior; these tests exercise the drag state machine. */
 function pointer( type: string, clientX: number, pointerId = 1 ): void {
 	const event = new MouseEvent( type, { clientX, clientY: 20, button: 0, bubbles: true, cancelable: true } );
 	Object.defineProperty( event, 'pointerId', { value: pointerId } );
@@ -172,7 +171,7 @@ test( 'capture loss without pointerup commits the last visible position exactly 
 	capture();
 	const change = vi.fn();
 	split.addEventListener( 'os-split-change', change );
-	// First release is normal; the next one only delivers capture loss.
+
 	pointer( 'pointerdown', 350 );
 	pointer( 'pointermove', 550 );
 	pointer( 'pointerup', 550 );
@@ -181,7 +180,7 @@ test( 'capture loss without pointerup commits the last visible position exactly 
 	pointer( 'pointermove', 440 );
 	await tick();
 	expect( Number( split.getAttribute( 'position' ) ) ).toBe( 44 );
-	// Capture-loss coordinates are not a new movement sample.
+
 	pointer( 'lostpointercapture', 0 );
 	await tick();
 	expect( Number( split.getAttribute( 'position' ) ) ).toBe( 44 );
@@ -189,7 +188,7 @@ test( 'capture loss without pointerup commits the last visible position exactly 
 	pointer( 'pointerup', 440 );
 	pointer( 'lostpointercapture', 440 );
 	expect( change.mock.calls.map( ( [ event ] ) => event.detail.position ) ).toEqual( [ 55, 44 ] );
-	// Cleanup leaves the next gesture usable.
+
 	pointer( 'pointerdown', 440 );
 	pointer( 'pointermove', 480 );
 	pointer( 'pointerup', 480 );

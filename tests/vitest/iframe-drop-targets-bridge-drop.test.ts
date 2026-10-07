@@ -1,21 +1,3 @@
-/**
- * Unit tests for the cross-frame drop intercept in
- * `src/drag/iframe-drop-targets.ts`.
- *
- * While a bridge session is live the module listens for `drop` on
- * `document` in the CAPTURE phase, because a drag lifted inside an
- * iframe has to be re-routed by hand into whichever iframe the cursor
- * ended over. Capture-phase plus `stopImmediatePropagation()` is a
- * very large hammer: it decides the fate of every drop in the shell,
- * including ones aimed at the shell's own surfaces.
- *
- * These tests pin the boundary. A drop over an iframe window is the
- * intercept's business and gets claimed. A drop anywhere else — the
- * wallpaper, a folder window's canvas — is not, and has to reach the
- * handlers underneath: swallowing it is what made an image dragged
- * out of the Media Library disappear instead of filing itself on the
- * desktop.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	installIframeDropTargets,
@@ -52,7 +34,6 @@ const dragManagerStub = {
 	getSession: vi.fn( () => null ),
 } as unknown as DragManagerApi;
 
-/** Fire a native drop at the document, as the browser would. */
 function fireDrop(): Event {
 	const ev = new Event( 'drop', { bubbles: true, cancelable: true } );
 	Object.defineProperty( ev, 'clientX', { value: 120 } );
@@ -64,7 +45,6 @@ function fireDrop(): Event {
 	return ev;
 }
 
-/** Build an iframe window and point `elementFromPoint` at it. */
 function mountIframeWindowUnderCursor(): HTMLIFrameElement {
 	const win = document.createElement( 'div' );
 	win.className = 'os-window';
@@ -83,8 +63,7 @@ describe( 'bridge drop intercept', () => {
 	beforeEach( () => {
 		stubWpHooks();
 		installIframeDropTargets( dragManagerStub );
-		// Stands in for every shell-side drop handler that sits below
-		// the capture-phase intercept — the files canvas, above all.
+
 		downstream = vi.fn();
 		document.body.addEventListener( 'drop', downstream );
 		document.elementFromPoint = () => null;
@@ -112,8 +91,7 @@ describe( 'bridge drop intercept', () => {
 		const ev = fireDrop();
 
 		expect( downstream ).toHaveBeenCalledTimes( 1 );
-		// Still cancelled: a media drag carries `text/uri-list`, whose
-		// default action would navigate the tab away from the shell.
+
 		expect( ev.defaultPrevented ).toBe( true );
 	} );
 
@@ -142,8 +120,6 @@ describe( 'bridge drop intercept', () => {
 		startBridgeSession();
 		fireDrop();
 
-		// Second drop, no session in flight: the intercept must be
-		// fully unwired rather than lingering with a stale payload.
 		const iframe = mountIframeWindowUnderCursor();
 		const post = vi.fn();
 		Object.defineProperty( iframe, 'contentWindow', {
@@ -175,12 +151,6 @@ describe( 'bridge drop intercept', () => {
 	} );
 } );
 
-/**
- * `onDragStart` runs on every DragManager session — repositioning a
- * desktop icon included, which is the most common drag in the shell.
- * Its trace has to stay behind the debug flag, or ordinary use fills
- * the console and dumps the drag payload with it.
- */
 describe( 'drag-start trace', () => {
 	let info: ReturnType< typeof vi.spyOn >;
 

@@ -1,18 +1,4 @@
 <?php
-/**
- * Tests for the Agents section of the My WordPress app — WP Explorer's
- * Agents surface ported onto the App Framework: the section listing,
- * the data payload (config, cast, catalogues, off-state preview), and
- * the `agent-*` actions (draft, create, update, delete) end to end
- * through dispatch, with their capability gates.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group my-wordpress-app
- * @group os-agents
- */
 
 class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 
@@ -25,11 +11,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		self::$editor_id     = $factory->user->create( array( 'role' => 'editor' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
 
-		// On multisite a plain administrator lacks the user-management
-		// capabilities agent CRUD rides on (create_users, edit_users,
-		// delete_users are super-admin-only). The admin fixture means
-		// "the user allowed to manage agents", which multisite spells
-		// super admin.
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -41,30 +22,18 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		// See the codeBlue.php tear_down — app icons are process-scoped.
+
 		foreach ( array_keys( openstation_apps_registry()->all() ) as $id ) {
 			openstation_unregister_icon( $id );
 		}
 		parent::tear_down();
 	}
 
-	/**
-	 * Turn the framework off for one test. The suite bootstrap forces
-	 * it on; hooks are restored after every test.
-	 */
 	private function disable_agents() {
 		remove_all_filters( 'openstation_agents_enabled' );
 		add_filter( 'openstation_agents_enabled', '__return_false' );
 	}
 
-	/**
-	 * Run one dispatch against the registered app.
-	 *
-	 * @param string $action Action.
-	 * @param array  $state  Client state.
-	 * @param array  $args   Trigger args.
-	 * @return array Runtime response.
-	 */
 	protected function dispatch( $action, array $state = array(), array $args = array() ) {
 		return openstation_apps_runtime()->dispatch(
 			'my-wordpress',
@@ -77,12 +46,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * A live agent to act on.
-	 *
-	 * @param string $name Display name.
-	 * @return WP_User
-	 */
 	protected function make_agent( $name = 'Test Agent' ) {
 		$user = openstation_agent_create(
 			array(
@@ -94,12 +57,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		return $user;
 	}
 
-	/**
-	 * A wizard cast, as the client would carry it.
-	 *
-	 * @param array $over Overrides.
-	 * @return array
-	 */
 	protected function cast( array $over = array() ) {
 		return array_merge(
 			array(
@@ -129,11 +86,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		);
 	}
 
-	// ------------------------------------------------------- the section
-
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\sections
-	 */
 	public function test_the_agents_section_is_listed_for_a_reader() {
 		$response = $this->dispatch( 'refresh', array( 'section' => '' ) );
 		$ids      = wp_list_pluck( $response['data']['sections'], 'id' );
@@ -147,13 +99,9 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\sections
-	 */
 	public function test_the_agents_section_is_withheld_from_users_who_cannot_read_agents() {
 		wp_set_current_user( self::$subscriber_id );
-		// The app itself gates on `edit_posts`; open that gate but keep
-		// the agents read gate shut, so only the section is withheld.
+
 		$allow = static function ( $caps, $cap ) {
 			if ( 'edit_posts' === $cap ) {
 				return array( 'exist' );
@@ -167,9 +115,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertNotContains( 'agents', wp_list_pluck( $response['data']['sections'], 'id' ) );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
-	 */
 	public function test_the_agents_payload_only_ships_while_the_section_is_open() {
 		$response = $this->dispatch( 'refresh', array( 'section' => 'posts' ) );
 		$this->assertNull( $response['data']['agents'] );
@@ -181,11 +126,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertNull( $response['data']['detail'] );
 	}
 
-	// -------------------------------------------------------- the payload
-
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
-	 */
 	public function test_the_payload_carries_the_cast_and_the_catalogues() {
 		$agent    = $this->make_agent( 'Indexer' );
 		$response = $this->dispatch( 'refresh' );
@@ -217,9 +157,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'preview', $payload, 'The preview cast only ships while off.' );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
-	 */
 	public function test_a_reader_gets_labels_but_not_the_assignable_roles() {
 		wp_set_current_user( self::$editor_id );
 		$response = $this->dispatch( 'refresh' );
@@ -230,9 +167,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertNotEmpty( $payload['roleLabels'], 'Badges still resolve translated labels.' );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
-	 */
 	public function test_the_off_state_ships_the_preview_cast() {
 		$this->disable_agents();
 		$response = $this->dispatch( 'refresh' );
@@ -249,11 +183,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		}
 	}
 
-	// --------------------------------------------------------- the wizard
-
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_create_builds_the_agent_from_the_cast() {
 		$response = $this->dispatch(
 			'agent-create',
@@ -280,9 +209,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertContains( $created, $rows, 'The fresh data already carries the new agent.' );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_create_requires_a_name() {
 		$response = $this->dispatch(
 			'agent-create',
@@ -298,9 +224,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertNotSame( '', $response['state']['agentNotice'] );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_create_is_refused_without_the_manage_capability() {
 		wp_set_current_user( self::$editor_id );
 		$before   = count( openstation_agent_get_agents() );
@@ -316,13 +239,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertCount( $before, openstation_agent_get_agents(), 'Nothing was created.' );
 	}
 
-	/**
-	 * The draft action folds the (catalogue-filtered) draft into the
-	 * cast and advances to Meet — through the same
-	 * `openstation_agent_draft` seam the REST route uses.
-	 *
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_draft_folds_the_answer_into_the_cast() {
 		add_filter(
 			'openstation_agent_draft',
@@ -365,9 +281,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertSame( '', $response['state']['briefError'] );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_draft_failure_lands_under_the_brief() {
 		add_filter(
 			'openstation_agent_draft',
@@ -389,9 +302,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertFalse( $response['state']['cast']['drafting'] );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_back_cancels_the_wizard_before_leaving_the_section() {
 		$response = $this->dispatch(
 			'back',
@@ -407,11 +317,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertSame( 'agents', $response['state']['section'], 'Cancel stays in the section.' );
 	}
 
-	// -------------------------------------------------- update and delete
-
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_update_patches_abilities_and_confirms() {
 		$agent     = $this->make_agent( 'Toolsmith' );
 		$catalogue = openstation_agents_abilities_catalogue();
@@ -430,9 +335,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertSame( 'Abilities saved.', $response['state']['agentNotice'] );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_update_face_backfill_stays_silent() {
 		$agent = $this->make_agent( 'Faceless' );
 
@@ -453,9 +355,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertSame( 21, openstation_agent_get_face_seed( (int) $agent->ID ) );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_update_is_refused_without_the_manage_capability() {
 		$agent = $this->make_agent( 'Immutable' );
 		wp_set_current_user( self::$editor_id );
@@ -472,9 +371,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertSame( 'Immutable', get_userdata( (int) $agent->ID )->display_name );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_delete_removes_the_user_and_closes_the_pane() {
 		$agent    = $this->make_agent( 'Ephemeral' );
 		$response = $this->dispatch(
@@ -487,9 +383,6 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertSame( 0, $response['state']['item'], 'The pane closes rather than pointing at a ghost.' );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\MyWordPress\App
-	 */
 	public function test_agent_delete_refuses_a_plain_user() {
 		$victim   = self::factory()->user->create( array( 'role' => 'author' ) );
 		$response = $this->dispatch(

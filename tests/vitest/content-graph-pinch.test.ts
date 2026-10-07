@@ -1,10 +1,3 @@
-/**
- * Content Graph — pinch-to-zoom maths.
- *
- * Pins the one property a pinch has to keep: the world point under the
- * fingers' midpoint stays under it, whether the hands spread, close, or
- * drift sideways; plus the clamp and the degenerate pair.
- */
 import { describe, expect, test } from 'vitest';
 import { pinchCamera, type Camera, type PointerPair } from '../../src/content-graph/pinch';
 
@@ -21,7 +14,7 @@ describe( 'pinchCamera', () => {
 		const next: PointerPair = { a: { x: 50, y: 100 }, b: { x: 250, y: 100 } };
 		const out = pinchCamera( camera, prev, next, BOUNDS );
 		expect( out.scale ).toBeCloseTo( 2 );
-		// The midpoint (150,100) did not move, so the world under it is unchanged.
+
 		expect( worldUnder( out, 150, 100 ) ).toEqual( worldUnder( camera, 150, 100 ) );
 	} );
 
@@ -31,7 +24,7 @@ describe( 'pinchCamera', () => {
 		const next: PointerPair = { a: { x: 180, y: 140 }, b: { x: 280, y: 140 } };
 		const out = pinchCamera( camera, prev, next, BOUNDS );
 		expect( out.scale ).toBeCloseTo( 1 );
-		// What was under (200,100) is now under (230,140).
+
 		const before = worldUnder( camera, 200, 100 );
 		const after = worldUnder( out, 230, 140 );
 		expect( after.x ).toBeCloseTo( before.x );

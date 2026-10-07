@@ -1,11 +1,3 @@
-/**
- * Unit tests for `src/games/registry.ts` and
- * `src/games/server-sync.ts`.
- *
- * The registry seed lives on a `createSharedStore`-backed window
- * slot (the Games hub ships in its own bundle), so each test
- * reloads the modules after resetting the shared stores.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub, type FakeWpHooks } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -152,7 +144,7 @@ describe( 'games/server-sync.ts', () => {
 		expect( entry?.config ).toEqual( {
 			wordsUrl: 'https://example.test/words.txt',
 		} );
-		// No script tags injected — stubs are metadata-only.
+
 		expect(
 			document.querySelectorAll( 'script[data-os-vendor]' ),
 		).toHaveLength( 0 );
@@ -175,7 +167,6 @@ describe( 'games/server-sync.ts', () => {
 
 		await sync( [ makeServerEntry() ] );
 
-		// Simulate the lazy script load upgrading the stub.
 		const render = (): void => undefined;
 		registry.register( {
 			...registry.get( 'server-game' )!,

@@ -1,8 +1,3 @@
-/**
- * Pinned-notes layer: owner vs read-only rendering, z-order,
- * heartbeat deltas, the wallpaper-menu create path, and the
- * trash/restore round trip.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { NotesLayer } from '../../src/notes/layer';
 import { __resetNotesHeartbeatForTests } from '../../src/notes/heartbeat';
@@ -31,7 +26,7 @@ function makeNote( overrides: Partial< Note > = {} ): Note {
 
 function makeLayer( canCreatePosts = false ): NotesLayer {
 	const host = document.createElement( 'div' );
-	// jsdom has no layout — pin down the geometry the position math reads.
+
 	Object.defineProperty( host, 'clientWidth', { value: 1000 } );
 	Object.defineProperty( host, 'clientHeight', { value: 500 } );
 	host.getBoundingClientRect = () =>
@@ -81,15 +76,15 @@ describe( 'NotesLayer', () => {
 		expect( el.classList.contains( 'os-pinned-note' ) ).toBe( true );
 		expect( el.dataset.owner ).toBe( 'me' );
 		expect( el.dataset.noteColor ).toBe( 'butter' );
-		// Pin is a real, focusable button.
+
 		const pin = el.querySelector( 'button.os-pinned-note__pin' );
 		expect( pin ).not.toBeNull();
 		expect( pin?.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
-		// Owner paper carries the editor, color dot, visibility toggle.
+
 		expect( el.querySelector( 'os-textarea' ) ).not.toBeNull();
 		expect( el.querySelector( '.os-pinned-note__color-dot' ) ).not.toBeNull();
 		expect( el.querySelector( '.os-pinned-note__visibility' ) ).not.toBeNull();
-		// The pushpin image points at the plugin asset.
+
 		const img = el.querySelector( 'img' );
 		expect( img?.getAttribute( 'src' ) ).toBe(
 			'https://example.test/plugin/assets/images/pushpin.svg',
@@ -106,11 +101,11 @@ describe( 'NotesLayer', () => {
 		expect( el.dataset.owner ).toBe( 'other' );
 		expect( el.getAttribute( 'role' ) ).toBe( 'note' );
 		expect( el.getAttribute( 'aria-label' ) ).toContain( 'Ana García' );
-		// The pin is scenery: a span, hidden from the a11y tree.
+
 		expect( el.querySelector( 'button.os-pinned-note__pin' ) ).toBeNull();
 		const pin = el.querySelector( 'span.os-pinned-note__pin' );
 		expect( pin?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-		// No editor, no owner chrome; a body div + attribution instead.
+
 		expect( el.querySelector( 'os-textarea' ) ).toBeNull();
 		expect( el.querySelector( '.os-pinned-note__color-dot' ) ).toBeNull();
 		expect(
@@ -122,9 +117,7 @@ describe( 'NotesLayer', () => {
 	} );
 
 	test( 'filter-added color slugs survive to the DOM unclamped', () => {
-		// A plugin can extend openstation_notes_colors server-side and
-		// ship its own [data-note-color="seafoam"] CSS — the client
-		// must not rewrite the slug to a built-in.
+
 		const layer = makeLayer();
 		const controller = layer.upsertNote( makeNote( { color: 'seafoam' } ) );
 		expect( controller.element.dataset.noteColor ).toBe( 'seafoam' );
@@ -148,7 +141,7 @@ describe( 'NotesLayer', () => {
 		const layer = makeLayer();
 		layer.applyHeartbeatPayload( { notes: [], serverTimeMs: 9000, truncated: true } );
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
-		// The capped-out note arrived via the list fallback.
+
 		expect( layer.has( 5 ) ).toBe( true );
 	} );
 
@@ -157,10 +150,10 @@ describe( 'NotesLayer', () => {
 		const a = layer.upsertNote( makeNote( { id: 1, seed: 42 } ) );
 		const rotation = a.element.style.getPropertyValue( '--dm-note-rot' );
 		expect( rotation ).not.toBe( '' );
-		// A text update (same seed) must NOT re-tilt the paper.
+
 		a.replace( makeNote( { id: 1, seed: 42, text: 'edited', updatedAtMs: 2000 } ) );
 		expect( a.element.style.getPropertyValue( '--dm-note-rot' ) ).toBe( rotation );
-		// Two notes with different seeds get different tilts.
+
 		const b = layer.upsertNote( makeNote( { id: 2, seed: 43 } ) );
 		expect( b.element.style.getPropertyValue( '--dm-note-rot' ) ).not.toBe( rotation );
 	} );
@@ -198,7 +191,7 @@ describe( 'NotesLayer', () => {
 				?.element.querySelector( '.os-pinned-note__body' )
 				?.textContent,
 		).toBe( 'updated text' );
-		// High-water advanced → next subscription echoes it.
+
 		expect( layer.getHeartbeatSubscription()?.sinceMs ).toBe( 6000 );
 		expect( layer.getHeartbeatSubscription()?.knownIds.sort() ).toEqual( [ 2, 3 ] );
 	} );
@@ -217,14 +210,6 @@ describe( 'NotesLayer', () => {
 		).toBe( 'newer' );
 	} );
 
-
-
-
-
-
-
-
-
 	test( 'createNoteAt pins optimistically and POSTs', async () => {
 		const fetchSpy = vi.fn( async () =>
 			new Response(
@@ -239,7 +224,6 @@ describe( 'NotesLayer', () => {
 		const layer = makeLayer();
 		const controller = layer.createNoteAt( { x: 0.4, y: 0.6, focus: true } );
 
-		// Paper is on the wall before the network answers.
 		expect( controller.element.isConnected ).toBe( true );
 		expect( controller.note.id ).toBeLessThan( 0 );
 
@@ -250,13 +234,12 @@ describe( 'NotesLayer', () => {
 		expect( post ).toBeDefined();
 		const body = JSON.parse( String( ( post?.[ 1 ] as RequestInit ).body ) );
 		expect( body.x ).toBeCloseTo( 0.4 );
-		// The temp id gave way to the server's.
+
 		expect( layer.has( 77 ) ).toBe( true );
 	} );
 
 	test( 'empty notes still get distinct tilts', () => {
-		// `hashNoteSeed('')` is a constant and the wallpaper-menu path
-		// always starts empty, so every note from it would be parallel.
+
 		const layer = makeLayer();
 		const a = layer.createNoteAt( { x: 0.2, y: 0.3 } );
 		const b = layer.createNoteAt( { x: 0.6, y: 0.7 } );
@@ -264,15 +247,13 @@ describe( 'NotesLayer', () => {
 		expect( a.element.style.getPropertyValue( '--dm-note-rot' ) ).not.toBe(
 			b.element.style.getPropertyValue( '--dm-note-rot' ),
 		);
-		// Notes with text still hash from the text; the drop path relies on it.
+
 		const c = layer.createNoteAt( { x: 0.2, y: 0.3, text: 'buy milk' } );
 		expect( c.note.seed ).not.toBe( a.note.seed );
 	} );
 
-
 	test( 'every action sits together in the footer, clear of the pushpin', () => {
-		// The pin is painted over the meta row and covers its middle,
-		// so that row holds the colour dot and nothing else.
+
 		const layer = makeLayer( true );
 		const el = layer.upsertNote( makeNote() ).element;
 
@@ -290,8 +271,6 @@ describe( 'NotesLayer', () => {
 			el.querySelector( '.os-pinned-note__trash' )?.getAttribute( 'aria-label' ),
 		).toBe( 'Move to Trash' );
 
-		// The meta row carries the save chip left, colour dot right —
-		// the two positions the pin doesn't cover.
 		expect(
 			[ ...( el.querySelector( '.os-pinned-note__meta' )?.children ?? [] ) ].map(
 				( c ) => c.className,
@@ -301,7 +280,6 @@ describe( 'NotesLayer', () => {
 			'os-pinned-note__color-dot',
 		] );
 
-		// Viewers get no actions at all; they can't mutate the note.
 		const theirs = layer.upsertNote(
 			makeNote( { id: 2, canEdit: false, public: true } ),
 		);
@@ -356,7 +334,6 @@ describe( 'NotesLayer', () => {
 		type( 'two' );
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
 
-		// Two refused saves, one toast: the server's words, coloured as a failure.
 		expect( onError ).toHaveBeenCalledTimes( 1 );
 		expect( onError ).toHaveBeenCalledWith(
 			expect.objectContaining( {
@@ -365,7 +342,6 @@ describe( 'NotesLayer', () => {
 			} ),
 		);
 
-		// A save that lands re-arms the toast for the next failure.
 		status = 200;
 		type( 'three' );
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
@@ -390,7 +366,7 @@ describe( 'NotesLayer', () => {
 		const showToast = vi.fn( ( opts: { action?: { onClick: () => void } } ) => {
 			undoAction = opts.action?.onClick ?? null;
 		} );
-		// Merge, don't replace — the hooks stub lives on `window.wp` too.
+
 		( window as unknown as { wp: { os: { showToast: unknown } } } ).wp.os = {
 			showToast,
 		};
@@ -400,7 +376,6 @@ describe( 'NotesLayer', () => {
 		layer.upsertNote( note );
 		layer.trashNote( note );
 
-		// Optimistic eviction is synchronous.
 		expect( layer.has( 1 ) ).toBe( false );
 
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
@@ -413,7 +388,6 @@ describe( 'NotesLayer', () => {
 		).toBe( true );
 		expect( showToast ).toHaveBeenCalledTimes( 1 );
 
-		// Undo → POST /restore → the note returns to the wall.
 		undoAction?.();
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
 		expect(

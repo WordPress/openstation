@@ -1,27 +1,3 @@
-/**
- * OpenStation — Chromeless Overrides.
- *
- * CSS adjustments for legacy admin pages rendered inside OpenStation
- * iframes (chromeless mode). All rules are scoped to .os-chromeless
- * so they never affect the classic admin or the desktop shell.
- *
- * Plugin and theme developers: to add your own chromeless overrides,
- * enqueue a stylesheet on the 'openstation_chromeless_styles' action.
- * Your CSS just needs to target .os-chromeless as the body class.
- *
- * Example:
- *   add_action( 'openstation_chromeless_styles', function() {
- *       wp_enqueue_style( 'my-plugin-chromeless', plugin_dir_url( __FILE__ ) . 'chromeless.css' );
- *   } );
- *
- * @since 0.1.0
- */
-
-/* ---------------------------------------------------------------
- * Hide the classic admin chrome elements. These would otherwise
- * reserve space (sidebar gutter, footer, admin bar) around the
- * chromeless page content.
- * --------------------------------------------------------------- */
 .os-chromeless #adminmenuwrap,
 .os-chromeless #adminmenuback,
 .os-chromeless #wpfooter,
@@ -31,132 +7,29 @@
 	display: none !important;
 }
 
-/* ---------------------------------------------------------------
- * The iframe paints its own canvas.
- *
- * An admin page leaves whole regions unpainted — the gutter around
- * `#wpbody-content`, the strip behind `.subsubsub` and `.tablenav`,
- * everything below short content. In a normal admin tab the browser
- * canvas is white underneath, so nobody notices. Inside an iframe the
- * canvas is TRANSPARENT, and what shows through is the window element
- * behind it — `--os-window-bg`.
- *
- * That was invisible while the window body was white and became a
- * black band the moment the station's palette made it Obsidian. It is
- * a real coupling either way: the look of a wp-admin page must not
- * depend on the colour of the frame around it.
- *
- * So the chromeless document paints itself, in the colour the browser
- * canvas would have been. Deliberately a literal and deliberately NOT
- * a token: nothing about the shell's palette — or any desktop theme —
- * should reach a real admin page. **An admin page in a window renders
- * exactly as it does outside one.**
- * --------------------------------------------------------------- */
 body.os-chromeless {
 	background: #fff;
 }
 
-/*
- * _wp_admin_html_begin() adds the `wp-toolbar` class to <html> whenever
- * is_admin_bar_showing() is true — which, in admin, is unconditional.
- * The class carries a `padding-top: var(--wp-admin--admin-bar--height)`
- * that would leave a 32px (or 46px) dead gap at the top of the iframe.
- * Zero it out inside chromeless iframes.
- *
- * We also rebind `--wp-admin--admin-bar--height` (and the derived
- * `--wp-admin--admin-bar--position-offset` from block-library) to 0px
- * inside chromeless so plugins that position UI relative to the admin
- * bar resolve their math against the iframe's actual chrome state.
- *
- * WooCommerce's activity-panel wrapper, the block editor's sticky
- * header, and several others use `top: var(--wp-admin--admin-bar--height)`
- * to clear the bar. Without this override they reserve a 32px (or 46px
- * on small screens) gap that no longer exists, producing visible jumps
- * on first paint and dead space at the top of the content area.
- */
 html.wp-toolbar:has( body.os-chromeless ) {
 	padding-top: 0 !important;
 	--wp-admin--admin-bar--height: 0px;
 	--wp-admin--admin-bar--position-offset: 0px;
 }
 
-/* Remove the sidebar gutter on #wpcontent and let the body fill the frame. */
 .os-chromeless #wpcontent {
 	margin-inline-start: 0 !important;
 	padding-inline-start: 0 !important;
 }
 
-/*
- * WooCommerce sidebar-reservation override.
- *
- * `.woocommerce-layout__header` is a `position: fixed` bar WC
- * mounts on every wc-admin and wc-embedded page. Its width is
- * compiled from the SCSS source (header/style.scss) as a literal:
- *
- *       position: fixed;
- *       top: 32px;                       // $adminbar-height
- *       width: calc(100% - 160px);        // reserves classic sidebar
- *       z-index: 1001;
- *
- * The 160px subtraction is the classic admin menu width — WC bakes
- * it in at build time so the header doesn't overlap the sidebar
- * in standard admin. Inside chromeless we hide the sidebar, but
- * the header keeps the reservation — so the header ends 160px
- * short of the iframe right edge, and `.woocommerce-layout__activity-panel-wrapper`
- * (`position: absolute; right: 0; top: 100%; transform: translateX(100%)`,
- * containing block = the fixed header) translates past the
- * header's right edge, NOT past the iframe's right edge. The
- * resulting visible strip is exactly 160px wide — the size of the
- * sidebar gap WC reserved for nothing.
- *
- * Reclaim the reservation: pin the header to full iframe width
- * inside chromeless. The activity panel then translates past the
- * iframe edge as WC's design intended, the gray strip disappears,
- * and the header's content uses the full window width. No
- * transform / overflow / visibility tricks needed.
- */
 .os-chromeless .woocommerce-layout__header {
 	width: 100% !important;
 }
 
-/*
- * MailPoet top-bar overlap fix.
- *
- * MailPoet mounts a 64px-tall brand bar on its screens as
- * `.wrap .mailpoet-top-bar { position: absolute; top: 0 }` —
- * anchored to `#wpbody` (core's `position: relative`), overlaying
- * whatever the page's first 64px contain. In classic admin nothing
- * is visibly covered only by accident of geometry: the in-flow
- * space above `.wrap` — the `#screen-meta-links` row plus `.wrap`'s
- * own top margin — happens to add up to more than the bar's height,
- * so the content starts below it (measured: `.wrap` at y=114 vs
- * bar bottom at y=96).
- *
- * Chromeless collapses exactly that space on purpose — screen-meta
- * links are hidden (the window title bar owns those buttons) and
- * `.wrap` margins are trimmed — which slides MailPoet's content up
- * underneath the overlaid bar. Symptom: the page's heading sits
- * half-hidden behind the white logo bar inside the window.
- *
- * Reserve the bar's height in flow instead. `:has()` scopes the
- * rule to precisely the pages that render the in-wrap bar —
- * whatever MailPoet screen shape it is, present or future — and to
- * nothing else.
- */
 .os-chromeless .wrap:has( .mailpoet-top-bar ) {
 	padding-top: 64px;
 }
 
-/* ---------------------------------------------------------------
- * Screen Meta (Screen Options / Help panels)
- * The toggle buttons (#screen-meta-links) are hidden because
- * the parent desktop shell adds its own buttons to the window
- * title bar. The panels themselves stay visible and functional —
- * they're toggled via postMessage from the parent.
- *
- * Collapse all margins on the hidden links and the panel container
- * so they don't leave a gap at the top of the iframe content.
- * --------------------------------------------------------------- */
 .os-chromeless #screen-meta-links {
 	display: none;
 	margin: 0;
@@ -167,43 +40,10 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	border: none;
 }
 
-/* ---------------------------------------------------------------
- * Wrap container
- * Remove the default left margin that accounts for the sidebar
- * which doesn't exist in chromeless mode.
- * --------------------------------------------------------------- */
 .os-chromeless .wrap {
 	margin: 0;
 }
 
-/* ---------------------------------------------------------------
- * Page title & header
- * The window title bar already shows the page title, so the
- * in-page <h1> + header separator (.wp-header-end) are redundant
- * inside chromeless iframes. Hide them so the window content
- * starts flush.
- *
- * `.page-title-action` (the "Add New" / "Add Order" button next to
- * the H1) stays VISIBLE by default — it's the only entry point to
- * the add-new flow on many plugin pages (WooCommerce Orders, custom
- * CPTs, plugin settings pages, etc.). A blanket hide would break
- * every third-party plugin page that has no submenu equivalent, so
- * the button is only removed where the window's own tab strip
- * demonstrably leads to the same place — see
- * `includes/render/chromeless-title-actions.php`, which emits one
- * `[href="…"]` rule per submenu tab URL of the current screen.
- *
- * Sites that want to hide it somewhere that rule deliberately
- * doesn't reach can add their own via the
- * `openstation_chromeless_styles` action — e.g. WooCommerce's "Add
- * order", which we keep because it points at `&action=new` and the
- * Orders tab doesn't:
- *
- *     body.woocommerce_page_wc-orders .wrap > .page-title-action {
- *         display: none;
- *     }
- *
- * --------------------------------------------------------------- */
 .os-chromeless .wrap > h1,
 .os-chromeless .wrap > h1.wp-heading-inline,
 .os-chromeless #wpbody-content > .wrap > h1,
@@ -211,27 +51,6 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	display: none;
 }
 
-/*
- * The H1 above it is hidden, so the button would float at the very
- * top of the iframe area without breathing room — give it a small
- * margin so it lands cleanly.
- *
- * `block` + `fit-content` instead of Core's `inline-block`: with the
- * H1 hidden, an inline button ends up on the same line as the
- * floated `.subsubsub` filter row and reads as one more filter link
- * ("All (6) | Published (4) | Trash (2) Add Post"). Its own row is
- * also what the screen already looks like when an admin notice is
- * showing. `clear` keeps it below anything floated before it.
- *
- * Themes.php's native "Add Theme" button lives in the submenu tab
- * strip via `openstation_inject_appearance_tabs`
- * (includes/themes-tabs.php), so its in-page page-title-action is
- * redundant on that one screen. The generic href-matching hide in
- * `includes/render/chromeless-title-actions.php` only matches exact
- * URLs, and the injected tab points at
- * `theme-install.php?browse=popular` while the button points at
- * plain `theme-install.php`. Hence the per-page rule below.
- */
 .os-chromeless .wrap > .page-title-action {
 	display: block;
 	width: fit-content;
@@ -244,23 +63,6 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	display: none;
 }
 
-/*
- * Core offsets every title action by `top: -3px` (common.css) so it
- * sits on the H1's baseline. Chromeless hides the H1, and the first
- * thing in the frame has nothing above it to overlap: the offset
- * pulls the button's top border under the window's content edge and
- * it renders cropped. The offset has no baseline left to meet here,
- * so drop it.
- *
- * The margins are the same 12px the rule above gives a lone button,
- * applied to whatever element a plugin grouped its buttons in. On a
- * Jetpack site that is `div.wpcom-media-library-action-buttons`
- * (external-media moves core's "Add Media File" into it so it can
- * append "Import Media"; Big Sky adds "Generate Image" beside them),
- * and a group is not a `.page-title-action`, so it picks up neither
- * the margin nor the block layout and lands flush against the top.
- * `:has()` reaches the group whatever a plugin decided to call it.
- */
 .os-chromeless .wrap .page-title-action {
 	top: 0;
 }
@@ -270,47 +72,6 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	margin-bottom: 12px;
 }
 
-/* ---------------------------------------------------------------
- * WooCommerce "embed page" header overlay — page-scoped.
- *
- * Background: WC renders TWO layouts simultaneously on "connected"
- * pages like `wc-orders` — the PHP-rendered legacy `.wrap` (with
- * the h1 + the "Add order" `.page-title-action`) AND a React-mounted
- * `EmbedHeader` (`client/admin/client/header/embed.tsx`) that
- * `position: fixed`-overlays the page from the top. References:
- *   - `src/Internal/Admin/Loader.php::embed_page_header`
- *   - `includes/react-admin/connect-existing-pages.php` (registers
- *      wc-orders as a connected page when HPOS is on)
- *   - `client/admin/client/header/shared.tsx::useUpdateBodyMargin`
- *      (the hook that pushes `#wpbody.style.marginTop` to make
- *      room for the fixed header)
- *
- * The conflict, narrowly:
- *   1. The legacy `.wrap > .page-title-action` ("Add order") at
- *      the top of the document body — primary add-new affordance.
- *   2. The React `EmbedHeader` overlays the top of the iframe with
- *      a redundant `<h1>Orders</h1>` and an Activity Panel toggle.
- *
- * The fixed React header OBSCURES the legacy `.page-title-action`
- * button when we reset `#wpbody`'s margin-top.
- *
- * Scope: ONLY the pages where the dual rendering is genuinely a
- * problem — `wc-orders` (Orders list, the user-reported failure
- * mode) and `wc-orders--shop_order` (the trash view variant). Other
- * WC-admin pages (Analytics, Marketing, Customers, Coupons,
- * Products, Reports, …) DON'T render a competing legacy `.wrap`
- * with a `.page-title-action` button; their primary content IS the
- * React app. On those pages the Activity Panel + EmbedHeader are
- * the only header affordance the user has, so we keep them visible.
- *
- * If new HPOS-style connected pages emerge where the same dual
- * layout creates the same conflict, add their per-page body class
- * (`.woocommerce_page_<slug>`) to the selector — don't broaden the
- * rule to `.woocommerce-admin-page` (that would silently strip the
- * Activity Panel from every WC screen).
- *
- * @since 0.8.9
- */
 .os-chromeless.woocommerce_page_wc-orders .woocommerce-layout__header,
 .os-chromeless.woocommerce_page_wc-orders--shop_order .woocommerce-layout__header {
 	display: none !important;
@@ -320,23 +81,6 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	margin-top: 0 !important;
 }
 
-/* ---------------------------------------------------------------
- * Revisions screen — page-scoped.
- *
- * "← Go to editor" is a back button for a screen the user navigated
- * into. Here they didn't: the editor is open in its own window
- * behind this one, and closing this window is the way back.
- *
- * The revision tooltip is positioned upward from the bottom of
- * `.revisions-control-frame` and clears the top of the viewport only
- * thanks to the screen H1, which chromeless hides. An iframe can't
- * overflow its box, so the space has to be given back: 48px covers
- * both slider modes.
- *
- * The padding goes on `.revisions`, not on the frame — the frame is
- * the positioned ancestor for the compare-mode checkbox and the
- * tooltip, so padding it would leave both behind at the old top edge.
- * --------------------------------------------------------------- */
 .os-chromeless.revision-php .wrap > h1.long-header + a {
 	display: none;
 }
@@ -345,22 +89,11 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	padding-top: 48px;
 }
 
-/* ---------------------------------------------------------------
- * Dashboard welcome panel
- * The default 16px top margin pushes the panel down and creates a
- * visible gap at the top of the iframe. Collapse it in chromeless
- * mode so the panel sits flush with the top of the window body.
- * --------------------------------------------------------------- */
 .os-chromeless #welcome-panel,
 .os-chromeless .welcome-panel {
 	margin-top: 0.5em;
 }
 
-/* ---------------------------------------------------------------
- * Footer
- * The classic footer is not rendered in chromeless mode,
- * but some pages have bottom padding assuming it exists.
- * --------------------------------------------------------------- */
 .os-chromeless #wpbody-content {
 	margin: 0;
 	padding: 0 8px 8px;
@@ -368,51 +101,6 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	width: auto;
 }
 
-/* ---------------------------------------------------------------
- * Metabox screens — the one-column breakpoint is 160px too early.
- *
- * Core collapses every `#poststuff` two-column screen (the classic
- * post editor, any CPT editor, a WooCommerce order) to one column
- * at `max-width: 850px`. That number is a VIEWPORT width, and it is
- * sized for a viewport that still has the 160px admin menu in it:
- * at 851px core leaves roughly 650px of usable content — less than
- * the 763px the two columns actually need (`#post-body-content`'s
- * 463px floor plus the 300px sidebar reservation), which is why
- * core's own two-column layout scrolls sideways just above the
- * breakpoint.
- *
- * A chromeless iframe hides the admin menu, so the same 851px gives
- * 835px of content — comfortably two columns — and core stacks it
- * anyway. The sidebar then lands BELOW the editor, and since the
- * classic editor grows to fit its text, a long post pushes Publish,
- * Categories, Tags and Featured image thousands of pixels down the
- * page. The user's word for that is "vanished".
- *
- * Same shape as the WooCommerce header fix at the top of this file:
- * the page reserved space for a sidebar we removed, so reclaim the
- * reservation. Two columns stay until the content really stops
- * fitting: 763px of content, plus the 16px `#wpbody-content` gutter
- * above, plus up to 17px for a classic vertical scrollbar — which a
- * media query does NOT subtract from the width it matches on, the
- * same reason `100vw` overflows a scrolling page. That is 796px.
- * Below it, core's one-column layout is correct and stays.
- *
- * The reservation is written flow-relative rather than as core's
- * `margin-right` / `float: right`, because core ships the mirrored
- * values in a separate `edit-rtl.css` and this file has no RTL
- * build — one logical declaration lands on the correct side in
- * both directions. `float: right` stays ahead of `float:
- * inline-end` as the fallback.
- *
- * Attachments keep core's own, wider, 1200px breakpoint: the media
- * editor's sidebar carries the whole attachment form and needs the
- * room. `.post-type-attachment` is excluded rather than re-stacked
- * so that rule keeps working untouched.
- *
- * Verifying: open a post with a few thousand words in a window
- * ~800px wide. Publish/Categories/Tags sit beside the editor, not
- * under it, and the page has no horizontal scrollbar.
- * --------------------------------------------------------------- */
 @media only screen and ( min-width: 796px ) and ( max-width: 850px ) {
 	.os-chromeless:not( .post-type-attachment ) #wpbody-content #poststuff #post-body.columns-2 {
 		margin-inline-end: 300px;
@@ -430,45 +118,12 @@ html.wp-toolbar:has( body.os-chromeless ) {
 		width: 280px;
 	}
 
-	/*
-	 * Core hides the Layout radios with the two-column layout. They
-	 * are the way back to one column, so they come back with it.
-	 *
-	 * `edit.css` is part of the `wp-admin` bundle and loads on every
-	 * screen, so that hide reaches the Dashboard's own 1-4 column
-	 * radios too. Only un-hide them where this block actually gave a
-	 * layout back.
-	 */
 	.os-chromeless:not( .post-type-attachment ):has( #post-body.columns-2 ) .screen-layout,
 	.os-chromeless:not( .post-type-attachment ):has( #post-body.columns-2 ) .columns-prefs {
 		display: block;
 	}
 }
 
-/* ---------------------------------------------------------------
- * Block Editor — hide Gutenberg chrome that would break the window.
- *
- * The fullscreen-mode close button (the "W" logo top-left of the editor)
- * is an <a href="/wp-admin/edit.php"> that navigates the iframe to a
- * non-chromeless URL — which re-renders the entire classic admin
- * inside our desktop window. The link interceptor in the chromeless
- * bridge catches it too, but hiding the button removes the visual
- * affordance so users never try to click "back to dashboard" inside
- * what looks like a self-contained window.
- *
- * The site editor's equivalent navigation affordances (site hub toggle,
- * "back to dashboard" link) get the same treatment.
- *
- * The welcome guide is intentionally NOT hidden anymore. Earlier
- * iterations both CSS-hid the dialog AND flipped `core/edit-post:
- * welcomeGuide` to `false` at the data layer on every chromeless
- * mount — but Gutenberg already persists the user's "Get started"
- * dismissal to user meta the moment they close it, so the override
- * was permanently stealing the one-time orientation tour from every
- * user who never got to see it. Modal's focus trap is Tab-only and
- * doesn't fight the shell. Let it run. (See git history for the
- * removed `openstation_chromeless_editor_preferences` override.)
- * --------------------------------------------------------------- */
 .os-chromeless .edit-post-fullscreen-mode-close,
 .os-chromeless .edit-post-fullscreen-mode-close__view-mode-toggle,
 .os-chromeless .edit-site-navigation-link,
@@ -477,65 +132,21 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	display: none !important;
 }
 
-/* ---------------------------------------------------------------
- * Block Editor & Site Editor — full-bleed layouts.
- * Gutenberg owns its entire viewport (its own header bar, side
- * panels, etc.). Any padding around #wpbody-content crops the
- * editor and breaks its layout, so reset to zero on those pages
- * and let the editor render edge-to-edge.
- * --------------------------------------------------------------- */
 .os-chromeless.block-editor-page #wpbody-content,
 .os-chromeless.site-editor-php #wpbody-content,
 .os-chromeless.is-fullscreen-mode #wpbody-content {
 	padding: 0;
 }
 
-/* ---------------------------------------------------------------
- * "Boot" SPA pages (Font Library, Options → Connectors).
- *
- * These screens mount a React app into `.boot-layout-container` and
- * paint `#wpwrap` a dark `#1e1e1e` via inline <style>. Our 8px
- * right/bottom padding on `#wpbody-content` lets that dark color
- * bleed through as two black gaps on the right and bottom edges of
- * the window. Zero the padding for any page hosting a boot layout
- * — detection is purely structural (`:has()`), so a plugin that
- * adopts the same container class inherits the fix automatically.
- * --------------------------------------------------------------- */
 .os-chromeless #wpbody-content:has( .boot-layout-container ) {
 	padding: 0;
 }
 
 .os-chromeless:has( .boot-layout-container ) #wpwrap {
-	/* Neutralize the inline dark background so any stray overflow
-	 * matches the window body instead of flashing black. */
+
 	background: transparent;
 }
 
-/*
- * The surfaces wrapper is the white card the React app draws its
- * content onto. In classic admin it sits on the dark layout with
- * rounded corners and a margin that makes it read as a "card." Inside
- * a desktop window the surface IS the content, so that frame is just
- * bleed at the right and bottom edges. Collapse it to a plain
- * edge-to-edge surface.
- *
- * Core builds these class names with CSS modules, so only the
- * `__<local-name>` suffix is stable; the hash in front of it changes
- * with every Core build. Match on the suffix, scoped to the boot
- * container. The bare `boot-layout__*` names are the pre-CSS-modules
- * spelling, kept for Core builds that still ship it.
- *
- * The container is not a tight enough scope on its own. The page a
- * boot screen routes to mounts INSIDE the layout, and a plugin page
- * built with CSS modules gives its own elements the same
- * `<hash>__<name>` shape: Jetpack's Stats v2 dashboard lays its
- * widgets out in a `…__layout` grid, and the `min-height: 100vh` meant
- * for Core's layout element stretched that grid to the window and
- * spread the dashboard's rows across it, with the widgets pushed
- * out of sight. Everything a page renders lives inside admin-ui's
- * navigable region, so exclude that subtree: these rules only ever
- * touch Core's own frame around the page, never the page.
- */
 .os-chromeless .boot-layout-container [class*='__surfaces']:not( .admin-ui-navigable-region * ),
 .os-chromeless .boot-layout-container [class*='__stage']:not( .admin-ui-navigable-region * ),
 .os-chromeless .boot-layout-container [class*='__canvas']:not( .admin-ui-navigable-region * ),
@@ -546,27 +157,11 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	margin: 0 !important;
 }
 
-/*
- * The layout element is absolutely positioned inside a zero-height
- * `#wpbody`, so `top: 0; bottom: 0` resolve to nothing and its
- * `min-height: calc( 100vh - <admin bar> )` is what it actually gets.
- * A chromeless iframe has no admin bar, so that reservation shows up
- * as a dark band along the bottom of the window. Take the full
- * viewport back. Same navigable-region guard as above: the page's
- * own `…__layout` elements keep their height.
- */
 .os-chromeless .boot-layout-container [class*='__layout']:not( .admin-ui-navigable-region * ),
 .os-chromeless .boot-layout {
 	min-height: 100vh !important;
 }
 
-/*
- * The boot screens render their own H1 (`.boot-navigation-screen__title`,
- * e.g., "Fonts") at the top of the surface. The desktop window already
- * shows the page title in its title bar, so the in-page title is
- * redundant. Visually hide it but keep it in the DOM for screen readers
- * and for the boot app's own focus management.
- */
 .os-chromeless .boot-navigation-screen__title,
 .os-chromeless .boot-navigation-screen__title-icon {
 	position: absolute;
@@ -580,44 +175,12 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	border: 0;
 }
 
-/* ---------------------------------------------------------------
- * Snackbars
- *
- * `components-snackbar-list` (Gutenberg `@wordpress/components`) and
- * `boot-notices__snackbar` (Font Library / Connectors) position
- * themselves `fixed` at the viewport bottom. Because a chromeless
- * iframe IS its own viewport, those anchors already land inside the
- * window — but our 8px bottom padding on `#wpbody-content` (applied
- * to non-boot pages) plus some plugin-level `bottom: 40px` offsets
- * meant for the classic admin footer can push them out of sight.
- *
- * Pin them flush to the bottom of the iframe and make sure nothing
- * in the window chrome can occlude them.
- *
- * Triggering a snackbar to verify (OpenStation enabled):
- *   - Open Posts → Add New, save/publish → "Post published" toast.
- *   - Open Media, upload a file → "Uploaded" toast.
- *   - Open Appearance → Fonts, install a Google Font → toast.
- * --------------------------------------------------------------- */
 .os-chromeless .components-snackbar-list,
 .os-chromeless .boot-notices__snackbar {
 	bottom: 16px !important;
 	z-index: 100000;
 }
 
-/*
- * Force the Gutenberg interface skeleton to fill the iframe regardless
- * of fullscreen state. When fullscreenMode is off, Gutenberg hardcodes
- * `top: 32px` (admin bar reservation) and `left: 160px` (sidebar
- * reservation) on `.interface-interface-skeleton` — both chromes we've
- * already hidden, so those offsets become dead gaps at the top and
- * left of the window. Zero them out unconditionally.
- *
- * The default is fullscreen (inset: 0), but users who turned fullscreen
- * off in classic admin carry that preference into chromeless via the
- * shared persistence layer. This rule keeps chromeless rendering
- * edge-to-edge either way.
- */
 .os-chromeless .interface-interface-skeleton {
 	top: 0 !important;
 	left: 0 !important;
@@ -625,71 +188,24 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	bottom: 0 !important;
 }
 
-/* ---------------------------------------------------------------
- * Notices
- * Give notices a bit of top margin since there's no admin bar above.
- * --------------------------------------------------------------- */
 .os-chromeless .notice:first-child {
 	margin-top: 4px;
 }
 
-/* ---------------------------------------------------------------
- * Update nag
- * Core's global update / maintenance nags are detached server-side
- * inside chromeless iframes (see
- * `openstation_chromeless_suppress_update_nags()`) and re-surfaced
- * once by the shell as a single notice.
- * --------------------------------------------------------------- */
 .os-chromeless .update-nag {
 	display: none !important;
 }
 
-/* ---------------------------------------------------------------
- * Suppress WordPress's native command palette inside chromeless
- * iframes. The chromeless bridge intercepts Cmd+K and forwards to
- * the desktop shell, but if an in-page component triggers the
- * palette via another path (programmatic dispatch, a menu item)
- * the dialog would still render. Hide it so the shell's palette
- * stays the only surface users ever see.
- * --------------------------------------------------------------- */
 .os-chromeless .commands-command-menu__container,
 .os-chromeless .commands-command-menu {
 	display: none !important;
 }
 
-/* ---------------------------------------------------------------
- * A file drag over a native upload box.
- *
- * The chromeless bridge hands an OS-file drop to Core's own
- * `<input type="file">` when it lands on one, or anywhere on the
- * `form.wp-upload-form` box around it (Upload Plugin, Upload
- * Theme), and stamps `data-os-file-drop-active` on that box while
- * the drag is over it. Outside the shell the box gives no sign it
- * will take a drop; inside, the shell used to take the file
- * instead, so people learned it would not. Say so while it can.
- *
- * Core's own admin colour, read the way common.css reads it, not
- * the station's: this is a wp-admin control on a wp-admin page.
- * --------------------------------------------------------------- */
 .os-chromeless [data-os-file-drop-active] {
 	outline: 2px dashed var( --wp-admin-theme-color, #3858e9 );
 	outline-offset: -2px;
 }
 
-/* ---------------------------------------------------------------
- * Appearance → Themes workspace
- *
- * Core's one-theme state renders the Theme Details dialog inline and
- * removes its header. Inside a short desktop window that leaves a large,
- * unexplained panel whose actions fall below the fold. Treat it as an
- * active-site identity card instead: screenshot first, useful context at
- * the side, and actions kept in the card's visible edge.
- *
- * With multiple installed themes the native cards become a deliberate
- * library grid and Core's details view remains a dialog. All selectors are
- * scoped to the chromeless Themes screen; the classic wp-admin page keeps
- * Core's own presentation and the shell's palette cannot leak in here.
- * --------------------------------------------------------------- */
 .os-chromeless.themes-php #wpbody-content {
 	padding: 10px 16px;
 	background: #f6f7f7;
@@ -790,19 +306,11 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	border-radius: 7px;
 }
 
-/* Searching a library of one is noise, so the field goes away in Core's
- * single-theme state. The general sibling combinator rather than `+`:
- * themes.php emits `wp_admin_notice()` output between the search form and
- * `.theme-browser` on `?activated`, `?deleted`, `?broken` and
- * `?delete-active-child` — exactly the loads that follow activating or
- * deleting a theme — which breaks strict adjacency. */
 .os-chromeless.themes-php
 	.search-form:has(~ .theme-browser .themes.single-theme) {
 	display: none;
 }
 
-/* Installed-theme library. The Add Theme destination already has its own
- * persistent window tab, so Core's duplicate dashed card is unnecessary. */
 .os-chromeless.themes-php .theme-browser .themes:not(.single-theme) {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
@@ -929,8 +437,6 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	transform: none;
 }
 
-/* Multiple-theme details remain a modal, but fit the iframe rather than
- * reserving the classic admin sidebar's 160px gutter. */
 .os-chromeless.themes-php .theme-overlay.active .theme-backdrop {
 	position: fixed;
 	left: 0;
@@ -962,7 +468,6 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	padding: 10px 16px 5px;
 }
 
-/* Single-theme mode is a workspace card, not a stranded modal. */
 .os-chromeless.themes-php .themes.single-theme {
 	display: block;
 	margin: 0;

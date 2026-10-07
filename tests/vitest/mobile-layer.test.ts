@@ -1,12 +1,3 @@
-/**
- * Tests for `src/mobile/layer.ts` — the phone layer over a fake
- * window manager.
- *
- * Pins the state derivation (home ⇔ nothing un-minimized), the
- * surfaces' visibility per state, the switcher's cards (open windows
- * most-recent-first), Back as minimize, the ⋯ menu,
- * and a clean unmount.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { HOOKS, doAction } from '../../src/hooks';
 import { mountMobileLayer } from '../../src/mobile/layer';
@@ -176,7 +167,7 @@ describe( 'mountMobileLayer', () => {
 		expect( shell.querySelector( '.os-mobile-top' ) ).not.toBeNull();
 		expect( ( shell.querySelector( '.os-mobile-top' ) as HTMLElement ).hidden ).toBe( true );
 		expect( ( shell.querySelector( '.os-mobile-home' ) as HTMLElement ).hidden ).toBe( false );
-		// Home, the one pinned item, the switcher — a pin is never padded.
+
 		expect(
 			Array.from( shell.querySelectorAll< HTMLElement >( '.os-mobile-tabs__item' ) ).map( ( b ) => b.dataset.tab ),
 		).toEqual( [ 'home', 'edit.php', 'switcher' ] );
@@ -201,8 +192,6 @@ describe( 'mountMobileLayer', () => {
 		expect( top.querySelector( '.os-mobile-top__title' )?.textContent ).toBe( 'Posts' );
 		expect( posts.element.classList.contains( 'os-mobile-enter' ) ).toBe( true );
 
-		// No back button on the bar: Home is the tab bar, the edge
-		// swipe and the hardware Back, all of which land on goHome().
 		expect( top.querySelector( '.os-mobile-top__back' ) ).toBeNull();
 		layer.goHome();
 		await flush();
@@ -238,7 +227,6 @@ describe( 'mountMobileLayer', () => {
 		expect( cards.map( ( c ) => c.dataset.cardId ) ).toEqual( [ 'b', 'a' ] );
 		expect( document.activeElement ).toBe( cards[ 0 ].querySelector( '.os-mobile-card__body' ) );
 
-		// The app on screen is marked, and tapping it only dismisses.
 		expect( cards[ 0 ].classList.contains( 'os-mobile-card--active' ) ).toBe( true );
 		expect( cards[ 0 ].querySelector( '.os-mobile-card__status' )?.textContent ).toBe( 'Active' );
 		expect( cards[ 0 ].querySelector( '.os-mobile-card__body' )?.getAttribute( 'aria-current' ) ).toBe( 'true' );
@@ -260,7 +248,6 @@ describe( 'mountMobileLayer', () => {
 		await new Promise( ( r ) => setTimeout( r, 260 ) );
 		expect( b.close ).toHaveBeenCalledTimes( 1 );
 
-		// Escape dismisses and returns to the app state.
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape' } ) );
 		await flush();
 		expect( layer.getState() ).toBe( 'app' );
@@ -271,8 +258,7 @@ describe( 'mountMobileLayer', () => {
 		const only = fakeWin( 'only', 'Only' );
 		const wins = [ only ];
 		const { d, shell } = deps( wins );
-		// The manager's close removes the window and announces it, as
-		// the real one does once the handshake is through.
+
 		only.close = vi.fn( () => {
 			wins.splice( wins.indexOf( only ), 1 );
 			document.dispatchEvent( new CustomEvent( 'os-window-closed' ) );
@@ -289,8 +275,6 @@ describe( 'mountMobileLayer', () => {
 		expect( shell.dataset.osMobileState ).toBe( 'home' );
 		expect( ( shell.querySelector( '.os-mobile-home' ) as HTMLElement ).hidden ).toBe( false );
 
-		// Opening the switcher from an empty home still shows it: nothing
-		// emptied, the user asked for the sheet.
 		layer.openSwitcher();
 		await flush();
 		expect( layer.getState() ).toBe( 'switcher' );
@@ -320,17 +304,14 @@ describe( 'mountMobileLayer', () => {
 		const { d, shell } = deps( [ w ] );
 		const layer = mountMobileLayer( d );
 		const top = shell.querySelector( '.os-mobile-top' ) as HTMLElement;
-		// Leaving the app with its window kept is the system's job
-		// (Home tab, edge swipe, hardware Back, a flick down on the
-		// bar), so the bar offers no minimize.
+
 		expect( top.querySelectorAll( 'button' ).length ).toBe( 1 );
 		expect( top.querySelector( '.os-mobile-top__minimize' ) ).toBeNull();
 
 		const close = top.querySelector( '.os-mobile-top__close' ) as HTMLButtonElement;
 		expect( close.getAttribute( 'aria-label' ) ).toBe( 'Close app' );
 		close.click();
-		// Minimized in the same tick (the screen does not wait for the
-		// close handshake) and the close is asked for right behind it.
+
 		expect( w.minimize ).toHaveBeenCalledTimes( 1 );
 		expect( w.close ).toHaveBeenCalledTimes( 1 );
 		layer.unmount();

@@ -1,39 +1,6 @@
-/**
- * `<os-disclosure>` — a titled section that can be folded away.
- *
- * Usage:
- *
- *   <os-disclosure heading="Missing-import warner — live demo">
- *     <p>…</p>
- *   </os-disclosure>
- *
- * The shape `<os-section>` has, plus a state. Reach for it when a
- * surface carries something worth keeping but not worth the vertical
- * space it costs every visit — a developer demo, a long explanation, an
- * advanced group of settings. Closed by default, because a disclosure
- * that starts open is a section with extra clicks; pass `open` when the
- * content is the point of the page.
- *
- * **Not `<details>`/`<summary>`.** The native pair is the right idea and
- * the wrong element here: its open state cannot be animated or styled
- * consistently across engines, `::-webkit-details-marker` versus
- * `::marker` is still a browser-by-browser negotiation, and slotting a
- * `<summary>` through a shadow root loses the behaviour that made it
- * worth using. What the native element really buys is semantics, and
- * those are reproduced below in full: a real `<button>` with
- * `aria-expanded` and `aria-controls`, and a body that is genuinely
- * `hidden` when closed rather than merely invisible.
- *
- * Emits `os-disclosure-toggle` with `{ open }` on user interaction.
- * Setting the `open` property or attribute from code does not emit —
- * the event reports a user action, not every state change, so a
- * listener that writes the state back cannot loop.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-disclosure.styles';
 
-/** Ids are per-instance so `aria-controls` cannot collide. */
 let uid = 0;
 
 export class OsDisclosure extends Component {
@@ -115,14 +82,6 @@ export class OsDisclosure extends Component {
 		this.emit( 'os-disclosure-toggle', { open: next } );
 	};
 
-	/**
-	 * The attribute is the record.
-	 *
-	 * A boolean prop reaches the element either way — `open` set from
-	 * code, or `open=""` written in markup — and reading the attribute
-	 * covers both, while reading only the property would miss the
-	 * hand-written HTML this component is meant to support.
-	 */
 	private isOpen(): boolean {
 		return this.hasAttribute( 'open' );
 	}

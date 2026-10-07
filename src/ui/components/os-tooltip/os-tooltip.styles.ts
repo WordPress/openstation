@@ -1,18 +1,5 @@
 import { css } from '../../core';
 
-/**
- * `<os-tooltip>` — the hover lozenge.
- *
- * Same surface as the dock's tooltip: `--os-tooltip-bg` and
- * `--os-tooltip-fg`, a fixed dark lozenge on every theme. Both are
- * read into private aliases rather than declared on the host, so a
- * desktop theme or the palette can still reach them.
- *
- * The host is fixed-positioned and lives on document.body, so no
- * window's overflow or transform can clip it. Its layer sits above
- * a fullscreen window: a tooltip is transient and always belongs on
- * top of whatever the pointer is over.
- */
 export const styles = css`
 	:host {
 		--_bg: var( --os-tooltip-bg, var( --os-ui-scrim, rgba( 0, 0, 0, 0.85 ) ) );

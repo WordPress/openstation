@@ -1,12 +1,3 @@
-/**
- * Posts app — the Categories mind map's sidebar: the empty state, the
- * draft form for a not-yet-persisted category (nothing hits REST
- * until Create), and the editor for the focused node (name, slug,
- * description, + Child, Make root, Save, the two-click Delete).
- *
- * @public
- */
-
 import { __, _n, sprintf } from '@openstation/app';
 import { hexOf } from './canvas/pixi';
 import {
@@ -24,7 +15,6 @@ import {
 import type { PostsRestClient } from './rest';
 import type { TermRow } from './types';
 
-/** The node facts the sidebar reads and writes back. */
 export interface MindNodeInfo {
 	id: number;
 	parent: number;
@@ -34,7 +24,6 @@ export interface MindNodeInfo {
 	color: number;
 }
 
-/** What the sidebar needs from the mind map. */
 export interface MindmapSidebarHost {
 	sidebar: HTMLElement;
 	client: PostsRestClient;
@@ -56,29 +45,27 @@ export interface MindmapSidebarHost {
 function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
 	const { sidebar, client } = host;
 	const parentNode = d.parent !== 0 ? host.node( d.parent ) : undefined;
-	// A draft nested under a node wears the branch's colour, so the
-	// header dot matches the family the new term will join.
+
 	const color = parentNode ? parentNode.color : host.clusterColor( host.terms().length );
 	sidebarHeader(
 		sidebar,
 		hexOf( color ),
 		parentNode
 			? sprintf(
-				/* translators: %s: parent category name. */
+
 				__( 'New child of %s' ),
 				parentNode.name,
 			)
 			: __( 'New root category' ),
 	);
 	const nameInput = sidebarInput( sidebar, __( 'Name' ), '', __( 'e.g. Recipes' ) );
-	// Create is gated on a name — drop the cursor straight in.
+
 	requestAnimationFrame( () => nameInput.focus() );
 	const slugInput = sidebarSlugInput( sidebar, '' );
 	const descInput = sidebarTextarea( sidebar, '' );
 
 	const createBtn = sidebarButton( 'primary', __( 'Create' ) );
-	// The danger style keeps the dual-action row symmetric with the
-	// editor's Save / Delete pair.
+
 	const cancelBtn = sidebarButton( 'danger', __( 'Cancel' ) );
 	const cancel = (): void => {
 		host.setDraft( null );
@@ -105,8 +92,7 @@ function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
 				description: created.description || '',
 				isDefault: false,
 			};
-			// `createCategory` returns the existing match on term_exists —
-			// never a duplicate row.
+
 			if ( ! host.terms().some( ( t ) => t.id === next.id ) ) {
 				host.setTerms( host.terms().concat( next ) );
 			}
@@ -137,7 +123,7 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 	sidebarMeta(
 		sidebar,
 		sprintf(
-			/* translators: %d: post count. */
+
 			_n( '%d post in this category.', '%d posts in this category.', node.count ),
 			node.count,
 		),
@@ -149,9 +135,6 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 		paintSidebar( host );
 	} );
 
-	// Make root: drag-and-drop reparents within the tree, but there is
-	// no drop target for "no parent" — this is the only path to promote
-	// a deep child into a top-level cluster.
 	const makeRootBtn = node.parent && node.parent !== 0 ? sidebarButton( 'secondary', __( 'Make root' ) ) : null;
 	if ( makeRootBtn ) {
 		makeRootBtn.title = __( 'Promote this category to a top-level root (no parent).' );
@@ -183,8 +166,7 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 		if ( name === node.name && description === ( node.description || '' ) && slugRaw === currentSlug ) {
 			return;
 		}
-		// An empty slug is sent explicitly so WP regenerates it from
-		// the name instead of holding the old one.
+
 		const patch: { name: string; description: string; slug?: string } = { name, description };
 		if ( slugRaw !== currentSlug ) {
 			patch.slug = slugRaw;
@@ -224,10 +206,6 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 	sidebarActions( sidebar, makeRootBtn ? [ addChildBtn, makeRootBtn, saveBtn, delBtn ] : [ addChildBtn, saveBtn, delBtn ] );
 }
 
-/**
- * The sidebar always shows one of three states: the draft form, the
- * editor for the focused node, or the empty hint.
- */
 export function paintSidebar( host: MindmapSidebarHost ): void {
 	host.sidebar.replaceChildren();
 	const draft = host.draft();

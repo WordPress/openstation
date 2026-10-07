@@ -1,13 +1,3 @@
-/**
- * The app runtime's `open_url` host effect consults the native-URL remap
- * registry before it opens an iframe window.
- *
- * Every other opener in the shell already did (the dock, the portal, the
- * top-window link interceptor, files-on-the-desktop, related entities),
- * so a plugin whose native window claims `admin.php?page=my-entries` got
- * the native window from the dock tile and an iframe of the classic page
- * from its own app's "Open in my Dashboard" door. Same URL, two answers.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { buildHost } from '../../src/app-runtime/index';
 import {

@@ -1,14 +1,4 @@
 <?php
-/**
- * OpenStation — About-tab journal feed.
- *
- * Fetches the public OpenStation RSS feed on demand, normalizes it to
- * plain-text card data, and serves it through an authenticated admin-AJAX
- * request. Keeping the request lazy means opening the shell never waits on
- * the remote blog; the network is touched only when someone visits About.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
@@ -18,39 +8,16 @@ const OPENSTATION_ABOUT_FEED_CACHE_KEY   = 'desktop_mode_about_feed_v1';
 const OPENSTATION_ABOUT_FEED_STALE_KEY   = 'desktop_mode_about_feed_stale_v1';
 const OPENSTATION_ABOUT_FEED_FAILURE_KEY = 'desktop_mode_about_feed_failure_v1';
 
-/**
- * Give this one feed a shorter cache than WordPress' default 12 hours.
- *
- * The callback is installed only around our own `fetch_feed()` call and
- * removed immediately afterwards, so dashboard RSS widgets keep their own
- * cache policy.
- *
- * @param int    $seconds Existing cache lifetime.
- * @param string $url     Feed URL.
- * @return int Cache lifetime in seconds.
- */
 function openstation_about_feed_cache_lifetime( $seconds, $url ) {
 	return OPENSTATION_ABOUT_FEED_URL === $url ? 30 * MINUTE_IN_SECONDS : $seconds;
 }
 
-/**
- * Bound the cold-feed request so an unavailable journal cannot pin the tab.
- *
- * @param SimplePie $feed Feed parser instance.
- * @param string    $url  Feed URL.
- */
 function openstation_about_feed_options( $feed, $url ) {
 	if ( OPENSTATION_ABOUT_FEED_URL === $url && is_callable( array( $feed, 'set_timeout' ) ) ) {
 		$feed->set_timeout( 5 );
 	}
 }
 
-/**
- * Collapse remote feed text to one safe, readable line.
- *
- * @param mixed $value Remote feed value.
- * @return string Plain text.
- */
 function openstation_about_feed_text( $value ) {
 	$text = html_entity_decode(
 		wp_strip_all_tags( (string) $value, true ),
@@ -61,16 +28,6 @@ function openstation_about_feed_text( $value ) {
 	return sanitize_text_field( trim( (string) $text ) );
 }
 
-/**
- * Convert a parsed SimplePie feed into the small JSON shape the About tab uses.
- *
- * No remote HTML crosses the boundary: titles, author names and excerpts are
- * flattened to text, URLs pass through WordPress' URL sanitizer, and the list
- * is capped before it reaches the browser.
- *
- * @param SimplePie $feed Parsed feed instance.
- * @return array Normalized feed payload.
- */
 function openstation_normalize_about_feed( $feed ) {
 	$items      = array();
 	$feed_items = $feed->get_items( 0, 5 );
@@ -111,15 +68,6 @@ function openstation_normalize_about_feed( $feed ) {
 	);
 }
 
-/**
- * Return the cached journal payload, fetching RSS only when the cache is cold.
- *
- * A last-known-good copy survives for a week. If the blog has a temporary
- * outage, the About tab can still show useful posts and quietly mark the data
- * stale instead of replacing the whole page with an error.
- *
- * @return array|WP_Error Feed payload or a private fetch error.
- */
 function openstation_get_about_feed() {
 	$cached = get_transient( OPENSTATION_ABOUT_FEED_CACHE_KEY );
 	if ( is_array( $cached ) ) {
@@ -158,9 +106,6 @@ function openstation_get_about_feed() {
 	return $payload;
 }
 
-/**
- * Serve the latest OpenStation journal posts to the current shell user.
- */
 function openstation_ajax_about_feed() {
 	check_ajax_referer( 'openstation_about_feed', 'nonce' );
 

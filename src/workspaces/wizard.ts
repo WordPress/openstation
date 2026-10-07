@@ -1,46 +1,3 @@
-/**
- * The workspace wizard — the one door to a new desk.
- *
- * Opened by the `+` in the overview top bar, and by **Edit** under a
- * tile. It replaces two things that used to compete for the same job:
- * a dropdown that created desks from templates, and a `+` that
- * created a blank one without asking. One door, and it is the obvious
- * one.
- *
- * ## The escape hatch is the first thing on screen
- *
- * Most of the time a user pressing `+` wants a new desk and nothing
- * else. So the first step, **Start**, has a **Blank workspace** card
- * preselected and the **Create** button focused: `+` then Enter is a
- * plain new desk, the same two gestures it was before the wizard
- * existed. Picking a template and pressing Create is a desk from that
- * template, exactly as the dropdown did. **Customize** is the only
- * route into the remaining steps, and on every one of them Create is
- * still in the footer — the wizard can be left at any point with
- * whatever has been set so far. Nobody is walked through five steps
- * to get an empty desk.
- *
- * ## It takes data, not the shell
- *
- * Everything the wizard shows arrives through
- * {@link WorkspaceWizardOptions} — apps, widgets, wallpapers, accents,
- * templates — and everything it decides leaves through `onCreate` /
- * `onSave`. It imports no store and reads no module state, which is
- * what lets it live in its own lazy bundle without the cross-bundle
- * hazards described in `docs/examples/shared-store.md`. The one
- * computation it cannot do alone — reading a template against the
- * live navigation — is injected as `resolvePreset`.
- *
- * ## Edit is the same wizard without Start
- *
- * A workspace is a thing adjusted twenty times, not set up once, so
- * editing must not feel like a different tool. The same steps, the
- * same panes, Save where Create was, and a Delete in the corner.
- */
-
-// Component classes, imported for their side-effect registration.
-// This module only ever ships inside the lazy wizard bundle, so the
-// weight never reaches `desktop.min.js`.
 import '../ui/components/os-modal/os-modal';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-text-field/os-text-field';
@@ -58,10 +15,7 @@ import '../ui/components/os-color-field/os-color-field';
 import '../ui/components/os-select/os-select';
 
 import { __ } from '../i18n';
-// The live-preview manager the Preferences wallpaper grid uses. Safe
-// to share with this bundle: the wallpaper registry and the per-
-// wallpaper settings it reads both live in a `createSharedStore`, so
-// the copy compiled here sees the shell's own defs.
+
 import {
 	createWallpaperPreviewManager,
 	type WallpaperPreviewManager,
@@ -76,100 +30,76 @@ import type {
 } from './types';
 import { blankWorkspaceProfile, WORKSPACE_LAYOUTS } from './types';
 
-/**
- * One row in the apps checklist — and, when it opens something, one
- * option in the Windows step's "Add a window" picker.
- */
 export interface WorkspaceWizardApp {
 	id: string;
 	title: string;
 	kind: NavKind;
 	locked?: boolean;
-	/** Admin URL the app opens, for an iframe window. */
+
 	url?: string;
-	/** Native window id the app opens, when it opens one. */
+
 	windowId?: string;
 }
 
-/** One row in the widgets checklist. */
 export interface WorkspaceWizardWidget {
 	id: string;
 	label: string;
 	description?: string;
 }
 
-/** One wallpaper swatch. `preview` is a CSS background value. */
 export interface WorkspaceWizardWallpaper {
 	id: string;
 	label: string;
 	preview: string;
 }
 
-/** One accent swatch. `value` is `#rrggbb`. */
 export interface WorkspaceWizardAccent {
 	id: string;
 	label: string;
 	value: string;
 }
 
-/** What the wizard hands back when the user commits. */
 export interface WorkspaceWizardResult {
 	label: string;
-	/**
-	 * `null` for a plain Space — a blank start the user did not
-	 * customize. A desk with no profile behaves exactly as one did
-	 * before workspaces existed, which is what "just a new desktop"
-	 * should mean.
-	 */
+
 	profile: WorkspaceProfile | null;
-	/**
-	 * Set when the user pressed Create on a template WITHOUT
-	 * customizing it. The shell then creates from the preset id, so
-	 * the `os.workspaces.profile` filter runs exactly as it would have
-	 * from the old dropdown.
-	 */
+
 	preset?: string;
 }
 
 export interface WorkspaceWizardOptions {
 	mode: 'create' | 'edit';
-	/** The desk being edited. Ignored in create mode. */
+
 	desktopId?: string;
-	/** Initial name. Empty in create mode means "auto-number it". */
+
 	label?: string;
-	/** Initial profile. Edit mode; create mode starts blank. */
+
 	profile?: WorkspaceProfile;
 	presets: WorkspacePreset[];
 	apps: WorkspaceWizardApp[];
 	widgets: WorkspaceWizardWidget[];
-	/** The user's own widget column — the starting point when a desk takes one over. */
+
 	enabledWidgetIds: string[];
 	wallpapers: WorkspaceWizardWallpaper[];
 	accents: WorkspaceWizardAccent[];
-	/** Read a template against the live navigation. */
+
 	resolvePreset: ( preset: WorkspacePreset ) => WorkspaceProfile;
-	/** The shell's current appearance, as a workspace patch. */
+
 	captureAppearance: () => WorkspaceAppearance;
-	/** The windows open on the desk, as a launch list. Edit mode. */
+
 	captureWindows?: () => WorkspaceLaunch[];
-	/** Commit. Create mode. */
+
 	onCreate?: ( result: WorkspaceWizardResult ) => void;
-	/** Commit. Edit mode. */
+
 	onSave?: ( result: WorkspaceWizardResult ) => void;
-	/** Delete the desk. Edit mode; omitted when it is the last one. */
+
 	onDelete?: () => void;
 }
 
 const ROOT_CLASS = 'os-workspace-wizard';
 
-/** The value of the Start card that means "no template". */
 const BLANK = 'blank';
 
-/**
- * Glyphs a desk can wear. A curated dozen rather than every dashicon:
- * the picker has to fit in a modal and read at a glance, and a desk's
- * glyph is a category, not an illustration.
- */
 const ICONS: ReadonlyArray< { id: string; label: string } > = [
 	{ id: 'dashicons-desktop', label: 'Desktop' },
 	{ id: 'dashicons-cart', label: 'Cart' },
@@ -196,7 +126,6 @@ const STEP_TITLES: Record< StepId, () => string > = {
 	windows: () => __( 'Windows' ),
 };
 
-/** Human labels for the layout picker. */
 function layoutLabel( id: WorkspaceLayoutId ): string {
 	switch ( id ) {
 		case 'cascade':
@@ -229,10 +158,6 @@ function layoutHint( id: WorkspaceLayoutId ): string {
 	}
 }
 
-/**
- * Whether a profile says nothing a plain Space would not — the test
- * for handing back `null` instead of a workspace.
- */
 function isBlankProfile( p: WorkspaceProfile ): boolean {
 	return (
 		'all' === p.apps.mode &&
@@ -245,7 +170,6 @@ function isBlankProfile( p: WorkspaceProfile ): boolean {
 	);
 }
 
-/** Deep-enough copy of a profile for a working draft. */
 function cloneProfile( p: WorkspaceProfile ): WorkspaceProfile {
 	return {
 		...p,
@@ -278,12 +202,6 @@ function hint( text: string ): HTMLElement {
 	return p;
 }
 
-/**
- * A label sitting tight above a control that has none of its own —
- * a swatch row, a segmented bar, a chip list. The pane's own gap is
- * the step between *fields*; inside one, label and control are a
- * pair and read as one.
- */
 function labelled( text: string, control: HTMLElement ): HTMLElement {
 	const field = el( 'div', `${ ROOT_CLASS }__field` );
 	const label = el( 'span', `${ ROOT_CLASS }__label` );
@@ -306,10 +224,8 @@ function heading( text: string, sub?: string ): HTMLElement {
 
 let active: HTMLElement | null = null;
 
-/** Whatever the open wizard has to release before it goes. */
 let activeCleanup: ( () => void ) | null = null;
 
-/** Close the open wizard, if any. */
 export function closeWorkspaceWizard(): void {
 	activeCleanup?.();
 	activeCleanup = null;
@@ -317,12 +233,6 @@ export function closeWorkspaceWizard(): void {
 	active = null;
 }
 
-/**
- * Open the wizard.
- *
- * Edits a working draft and commits it in one call on Create / Save,
- * so Cancel, Escape and a click on the scrim genuinely discard.
- */
 export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 	closeWorkspaceWizard();
 
@@ -331,30 +241,20 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		? [ 'name', 'apps', 'widgets', 'look', 'windows' ]
 		: [ 'start', 'name', 'apps', 'widgets', 'look', 'windows' ];
 
-	// --- State ----------------------------------------------------
 	let label = options.label ?? '';
 	let draft = cloneProfile( options.profile ?? blankWorkspaceProfile() );
-	/** Start-step pick: `BLANK` or a preset id. Create mode only. */
+
 	let start = BLANK;
-	/**
-	 * Whether the user went past Start. Until they do, Create on a
-	 * template means "from the preset, untouched", and the shell runs
-	 * the profile filter exactly as the old dropdown did.
-	 */
+
 	let customized = isEdit;
 	let stepIndex = 0;
-	/**
-	 * Live previews for the Look step's wallpaper tiles. WebGL contexts
-	 * are a scarce per-page resource, so the manager exists only while
-	 * that step is on screen and is disposed the moment it is not.
-	 */
+
 	let previews: WallpaperPreviewManager | null = null;
 	const disposePreviews = (): void => {
 		previews?.dispose();
 		previews = null;
 	};
 
-	// --- Modal ----------------------------------------------------
 	const modal = el( 'os-modal', ROOT_CLASS );
 	modal.setAttribute( 'size', 'lg' );
 	modal.setAttribute(
@@ -377,7 +277,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 	footer.slot = 'footer';
 	modal.appendChild( footer );
 
-	// --- Commit ---------------------------------------------------
 	const commit = (): void => {
 		const name = label.trim();
 		if ( ! isEdit && ! customized && start !== BLANK ) {
@@ -397,7 +296,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		closeWorkspaceWizard();
 	};
 
-	// --- Trail ----------------------------------------------------
 	const renderTrail = (): void => {
 		trail.replaceChildren();
 		steps.forEach( ( id, i ) => {
@@ -409,10 +307,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			if ( i === stepIndex ) {
 				step.setAttribute( 'current', '' );
 			}
-			// Any step, any order. Skipping ahead past Start does not
-			// bypass the pick the later steps read: `go` takes the
-			// template into the draft on the way out of Start, whatever
-			// step it lands on.
+
 			if ( i !== stepIndex ) {
 				step.setAttribute( 'interactive', '' );
 				step.addEventListener( 'os-step-click', () => go( i ) );
@@ -421,14 +316,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		} );
 	};
 
-	// --- Steps ----------------------------------------------------
-
-	/** Start — blank, or one of the templates. */
 	const renderStart = (): void => {
-		// The heading asks the question and the cards answer it. The
-		// subtitle under it explained what a template was and that a
-		// blank desk was one click away, both of which the cards
-		// already say in their own descriptions.
 		pane.appendChild( heading( __( 'What is this workspace for?' ) ) );
 		const grid = el( 'os-grid', `${ ROOT_CLASS }__cards` );
 		grid.setAttribute( 'columns', '2' );
@@ -449,14 +337,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			const card = el( 'os-card', `${ ROOT_CLASS }__card` );
 			card.setAttribute( 'interactive', '' );
 			card.setAttribute( 'compact', '' );
-			// The template's colour is deliberately NOT painted on the
-			// card. A preset carries the product's own hex — Woo
-			// purple, a green, a red — and four cards in four brands
-			// is a grid that belongs to nobody, least of all us. The
-			// colour still does its job where it was meant to: on the
-			// desk's overview tile, telling one desk from another.
-			// Here every glyph is the same muted tone and the selected
-			// ring is the only lit thing in the step.
+
 			const header = el( 'div', `${ ROOT_CLASS }__card-header` );
 			header.slot = 'header';
 			const glyph = el( 'os-icon', `${ ROOT_CLASS }__card-icon` );
@@ -471,10 +352,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			d.textContent = desc;
 			card.appendChild( d );
 			card.addEventListener( 'os-card-click', () => {
-				// Click once to choose, again to go — activating the
-				// card that is already chosen is the user saying "this
-				// one", and Enter on it should not need a second trip
-				// to the footer.
 				if ( start === id ) {
 					commit();
 					return;
@@ -500,7 +377,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		pane.appendChild( grid );
 	};
 
-	/** Name, glyph and colour. */
 	const renderName = (): void => {
 		pane.appendChild(
 			heading(
@@ -521,10 +397,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		field.addEventListener( 'os-submit', () => commit() );
 		pane.appendChild( field );
 
-		// `mode="row"` + `size="small"`: a flex row of fixed chips. The
-		// grid's default mode is `1fr` columns, which is right for
-		// wallpapers and wrong here — a glyph is a 28px choice, and a
-		// column that grows to 180px turns it into a billboard.
 		const icons = el( 'os-swatch-grid', `${ ROOT_CLASS }__icons` );
 		icons.setAttribute( 'label', __( 'Glyph' ) );
 		icons.setAttribute( 'mode', 'row' );
@@ -533,9 +405,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			sw.setAttribute( 'value', icon.id );
 			sw.setAttribute( 'label', icon.label );
 			sw.setAttribute( 'size', 'small' );
-			// The accent variant is the rounded square every other
-			// pickable thing in the kit is; the plain small size is a
-			// disc, which reads as a legend rather than a choice.
+
 			sw.setAttribute( 'variant', 'accent' );
 			sw.setAttribute( 'preview', 'transparent' );
 			if ( draft.icon === icon.id ) {
@@ -606,10 +476,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		pane.appendChild( custom );
 	};
 
-	/**
-	 * A "mode switch + checklist" pane, shared by Apps and Widgets:
-	 * the same decision in two registers — what belongs on this desk.
-	 */
 	const renderChecklist = ( cfg: {
 		title: string;
 		sub: string;
@@ -678,9 +544,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			isOn: () => 'only' === draft.apps.mode,
 			setOn: ( on ) => {
 				draft.apps.mode = on ? 'only' : 'all';
-				// Starting from what is on screen, not from nothing: an
-				// empty list would blank the rails the instant the
-				// switch flipped.
+
 				if ( on && draft.apps.ids.length === 0 ) {
 					draft.apps.ids = options.apps
 						.filter( ( a ) => 'control' !== a.kind && ! a.locked )
@@ -734,7 +598,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		} );
 	};
 
-	/** Wallpaper, accent, dock — a real picker, not a form. */
 	const renderLook = (): void => {
 		pane.appendChild(
 			heading(
@@ -772,9 +635,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 
 			const walls = el( 'os-swatch-grid', `${ ROOT_CLASS }__wallpapers` );
 			walls.setAttribute( 'label', __( 'Wallpaper' ) );
-			// Six across, not four: the modal is narrower than the
-			// Preferences panel, and a wallpaper tile here is a
-			// swatch to recognise, not a preview to study.
+
 			walls.setAttribute( 'columns', '6' );
 			for ( const w of options.wallpapers ) {
 				const sw = el( 'os-swatch' );
@@ -782,14 +643,12 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 				sw.setAttribute( 'label', w.label );
 				sw.setAttribute( 'variant', 'wallpaper' );
 				sw.setAttribute( 'preview', w.preview );
-				// What the preview manager keys on.
+
 				sw.dataset.wallpaperId = w.id;
 				if ( a.wallpaper === w.id ) {
 					sw.setAttribute( 'selected', '' );
 				}
-				// The name, on the tile — a swatch of a gradient says
-				// nothing about which gradient it is. Same caption the
-				// Preferences grid paints.
+
 				const name = el( 'span', `${ ROOT_CLASS }__swatch-label` );
 				name.textContent = w.label;
 				sw.appendChild( name );
@@ -800,10 +659,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 				walls.appendChild( sw );
 			}
 			pickers.appendChild( labelled( __( 'Wallpaper' ), walls ) );
-			// A canvas wallpaper (the living tree, the snow) renders its
-			// own moving preview into the tile, exactly as it does in
-			// Preferences; a CSS one keeps its `preview` background.
-			// Same manager, same cap on live contexts.
+
 			previews ??= createWallpaperPreviewManager( pickers );
 			previews.sync();
 
@@ -854,9 +710,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			if ( ! on ) {
 				draft.appearance = {};
 			} else if ( ! own() ) {
-				// On with nothing stored yet starts from what is on
-				// screen, the only start that does not change the desk
-				// out from under the user at the moment they flip it.
 				draft.appearance = options.captureAppearance();
 			}
 			paint();
@@ -865,7 +718,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		pane.appendChild( pickers );
 	};
 
-	/** Launch list and arrangement. */
 	const renderWindows = (): void => {
 		pane.appendChild(
 			heading(
@@ -897,11 +749,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		const paintChips = (): void => {
 			chips.replaceChildren();
 			if ( draft.windows.length === 0 ) {
-				// Only offer the capture when the capture is there.
-				// `captureWindows` is an edit-mode option (a desk
-				// being created has no windows of its own to keep),
-				// so on the create pass the second half of this
-				// sentence named a button that was not in the dialog.
 				chips.appendChild(
 					hint(
 						options.captureWindows
@@ -925,10 +772,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		paintChips();
 		pane.appendChild( labelled( __( 'Opens with' ), chips ) );
 
-		// Add a window: every app that opens something, as a picker.
-		// Picking one appends it and the picker goes back to its
-		// placeholder, so adding three is three picks, not three picks
-		// and three resets.
 		const openable = options.apps.filter( ( a ) => a.url || a.windowId );
 		if ( openable.length > 0 ) {
 			const add = el( 'os-select' );
@@ -946,17 +789,13 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 				if ( ! app ) {
 					return;
 				}
-				// `match` is the app's own id: a list built here is
-				// about THIS install, so an id is the exact answer. A
-				// native window carries no url and reopens through the
-				// registry.
+
 				const entry: WorkspaceLaunch = { match: app.id, title: app.title };
 				if ( app.url ) {
 					entry.url = app.url;
 				}
 				draft.windows = [ ...draft.windows, entry ];
-				// The user added a window they want opened; the desk has
-				// something new to provision on the next entry.
+
 				draft.provisioned = false;
 				paintChips();
 				add.removeAttribute( 'value' );
@@ -971,20 +810,13 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			capture.textContent = __( 'Use the windows I have open now' );
 			capture.addEventListener( 'click', () => {
 				draft.windows = options.captureWindows?.() ?? [];
-				// Those windows are already on screen; marking the list
-				// run stops the desk opening a second copy of everything
-				// on the next entry.
+
 				draft.provisioned = true;
 				paintChips();
 			} );
 			actions.appendChild( capture );
 			pane.appendChild( actions );
 		}
-		// No "Open them now" or "Arrange now" here: both act on the desk
-		// BEHIND a modal, where the result is invisible until the modal
-		// closes and looks, from inside it, like a button that does
-		// nothing. Restore under the tile is that action, done where it
-		// can be seen.
 	};
 
 	const RENDER: Record< StepId, () => void > = {
@@ -996,7 +828,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		windows: renderWindows,
 	};
 
-	// --- Footer ---------------------------------------------------
 	let primary: HTMLElement | null = null;
 
 	const renderFooter = (): void => {
@@ -1033,13 +864,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			footer.appendChild( back );
 		}
 
-		// Next / Customize goes BEFORE the primary, because the primary
-		// is last. A footer that put a secondary to the right of the
-		// pink button asked the user to read the row twice: the
-		// rightmost seat is where a dialog's answer lives, and it was
-		// holding "Next" on four steps out of six and "Customize" on
-		// another, so the button under the pointer meant something
-		// different on every screen.
 		if ( ! last ) {
 			const next = el( 'os-button' );
 			next.setAttribute( 'variant', 'secondary' );
@@ -1048,12 +872,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			footer.appendChild( next );
 		}
 
-		// Create / Save is on EVERY step, and always in the same seat.
-		// It is the escape hatch: the wizard can be left at any point
-		// with whatever has been set, so it is the one thing that must
-		// never move. Keeping it primary on the Start step is what
-		// makes `+` then Enter a plain new workspace: the focus call at
-		// the bottom of this module lands on it.
 		primary = el( 'os-button' );
 		primary.setAttribute( 'variant', 'primary' );
 		if ( isEdit ) {
@@ -1067,12 +885,9 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		footer.appendChild( primary );
 	};
 
-	// --- Navigation -----------------------------------------------
 	const go = ( index: number ): void => {
 		const leaving = steps[ stepIndex ];
-		// Crossing out of Start reads the chosen template into the
-		// draft — once. From here on the desk is the user's, and going
-		// back to Start and forward again must not wipe their edits.
+
 		if ( 'start' === leaving && index > 0 && ! customized ) {
 			customized = true;
 			if ( start !== BLANK ) {
@@ -1086,8 +901,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			}
 		}
 		stepIndex = Math.max( 0, Math.min( steps.length - 1, index ) );
-		// Whatever the previous step mounted is gone with its DOM; the
-		// preview manager is told, so its WebGL contexts go too.
+
 		disposePreviews();
 		pane.replaceChildren();
 		RENDER[ steps[ stepIndex ] ]();
@@ -1102,11 +916,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 	activeCleanup = disposePreviews;
 	go( 0 );
 
-	// The primary action takes focus on open: `+` then Enter is a
-	// blank desktop, and a user who has not read the dialog gets the
-	// thing they most likely wanted. The modal's own focus trap
-	// would otherwise land on the first card, which is the same
-	// choice one keystroke further away.
 	if ( ! isEdit ) {
 		requestAnimationFrame( () =>
 			( primary?.shadowRoot?.querySelector( 'button' ) ?? primary )?.focus(),

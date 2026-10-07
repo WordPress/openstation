@@ -1,15 +1,3 @@
-/**
- * A new service worker, and what the shell does with it.
- *
- * The worker installs and WAITS; it never takes over on its own. The
- * shell asks it which shell build it was served with and compares that
- * with the page's own boot-time stamp. Same or unknown: the worker is
- * told to take over silently — caches refresh, nothing is shown. A real
- * difference — the shell's files changed on the server — reaches
- * `onShellUpdated`, once, and the worker keeps waiting until
- * `applyPendingUpdate()` (the user's Reload). Nothing in this module
- * reloads; the shell never reloads itself.
- */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -25,7 +13,6 @@ const SW_URL = 'https://example.test/openstation/sw.js';
 const CURRENT = 'aaaaaaaaaaaaaaaa';
 const NEWER = 'bbbbbbbbbbbbbbbb';
 
-/** `null` builds a payload from a server that sends no stamp at all. */
 function makeConfig( shellBuild: string | null = CURRENT ): PwaConfig {
 	return {
 		manifestUrl: 'https://example.test/openstation/manifest.webmanifest',
@@ -39,7 +26,6 @@ function makeConfig( shellBuild: string | null = CURRENT ): PwaConfig {
 
 type Listener = ( ev: unknown ) => void;
 
-/** A `ServiceWorker` stand-in whose state can be moved by hand. */
 function makeWorker( state = 'installed' ) {
 	const listeners = new Set< Listener >();
 	const worker = {
@@ -55,7 +41,7 @@ function makeWorker( state = 'installed' ) {
 				cb( {} );
 			}
 		},
-		/** Messages of one type this worker was sent. */
+
 		sent( type: string ) {
 			return worker.postMessage.mock.calls.filter(
 				( [ msg ] ) => ( msg as { type?: string } )?.type === type,
@@ -66,12 +52,6 @@ function makeWorker( state = 'installed' ) {
 }
 type Worker = ReturnType< typeof makeWorker >;
 
-/**
- * A `navigator.serviceWorker` + registration whose events can be fired
- * by hand. `controlled` decides whether the page starts with a
- * controller; `waiting` plants a worker already installed and waiting
- * when the page registers.
- */
 function installSwStub( opts: { controlled?: boolean; waiting?: Worker | null } = {} ) {
 	const controlled = opts.controlled ?? true;
 	const containerListeners = new Map< string, Set< Listener > >();
@@ -112,17 +92,17 @@ function installSwStub( opts: { controlled?: boolean; waiting?: Worker | null } 
 	return {
 		reg,
 		controller,
-		/** The worker answers the build question. */
+
 		reply: ( shellBuild: string ) =>
 			fire( containerListeners, 'message', { data: { type: 'os-sw-build', shellBuild } } ),
-		/** The swap happened: a worker took control of this page. */
+
 		controllerChange: ( next?: Worker ) => {
 			if ( next ) {
 				( navigator.serviceWorker as unknown as { controller: Worker } ).controller = next;
 			}
 			fire( containerListeners, 'controllerchange' );
 		},
-		/** The browser found a new script and started installing it. */
+
 		updateFound: ( installing: Worker ) => {
 			reg.installing = installing;
 			fire( registrationListeners, 'updatefound' );
@@ -158,11 +138,9 @@ describe( 'registerServiceWorker — a new worker', () => {
 
 		expect( onShellUpdated ).toHaveBeenCalledTimes( 1 );
 		expect( onShellUpdated ).toHaveBeenCalledWith( { current: CURRENT, served: NEWER } );
-		// Not told to take over: that is the user's call.
+
 		expect( waiting.sent( 'os-sw-skip-waiting' ) ).toBe( 0 );
 
-		// Taking the offer: the worker is told, and the promise settles
-		// on the swap — before which the caller must not reload.
 		let swapped = false;
 		const applying = applyPendingUpdate().then( () => {
 			swapped = true;
@@ -173,7 +151,7 @@ describe( 'registerServiceWorker — a new worker', () => {
 		stub.controllerChange( waiting );
 		await applying;
 		expect( swapped ).toBe( true );
-		// The expected swap is not a takeover to investigate.
+
 		expect( waiting.sent( 'os-sw-get-build' ) ).toBe( 1 );
 	} );
 
@@ -189,7 +167,6 @@ describe( 'registerServiceWorker — a new worker', () => {
 		expect( onShellUpdated ).not.toHaveBeenCalled();
 		expect( waiting.sent( 'os-sw-skip-waiting' ) ).toBe( 1 );
 
-		// The swap it asked for is not a takeover to investigate either.
 		stub.controllerChange( waiting );
 		await settle();
 		expect( waiting.sent( 'os-sw-get-build' ) ).toBe( 1 );
@@ -207,7 +184,6 @@ describe( 'registerServiceWorker — a new worker', () => {
 		expect( onShellUpdated ).not.toHaveBeenCalled();
 		expect( waiting.sent( 'os-sw-skip-waiting' ) ).toBe( 1 );
 
-		// A worker that never answers: the ask times out into the same.
 		const silent = makeWorker();
 		stub.updateFound( silent );
 		silent.setState( 'installed' );
@@ -273,8 +249,7 @@ describe( 'registerServiceWorker — a new worker', () => {
 		await settle();
 
 		expect( onShellUpdated ).toHaveBeenCalledTimes( 1 );
-		// Nothing is waiting: taking the offer has nothing to swap and
-		// settles at once, with no message sent.
+
 		await applyPendingUpdate();
 		expect( next.sent( 'os-sw-skip-waiting' ) ).toBe( 0 );
 	} );
@@ -299,12 +274,7 @@ describe( 'registerServiceWorker — a new worker', () => {
 } );
 
 describe( 'the shell never reloads itself', () => {
-	/**
-	 * The rule, pinned at the source: nothing under `src/pwa/` may call
-	 * `location.reload()`. The one reload the shell performs after a
-	 * deploy is the user's, from the toast's action, and it lives with
-	 * the session flush in `src/desktop.ts`.
-	 */
+
 	test( 'nothing under src/pwa/ calls location.reload()', () => {
 		const dir = join( __dirname, '..', '..', 'src', 'pwa' );
 		const offenders: string[] = [];
@@ -322,7 +292,6 @@ describe( 'the shell never reloads itself', () => {
 		expect( offenders ).toEqual( [] );
 	} );
 
-	/** And the worker never takes over uninvited. */
 	test( 'the worker only skipWaiting()s on the shell\'s message', () => {
 		const source = readFileSync( join( __dirname, '..', '..', 'src', 'pwa', 'sw.ts' ), 'utf8' );
 		const calls = source.match( /\bsw\.skipWaiting\(\)/g ) ?? [];

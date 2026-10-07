@@ -1,25 +1,3 @@
-/**
- * `<os-avatar>` — user tile primitive.
- *
- * Renders an image when `src` is set; falls back to a colored circle
- * with the first code point of `name` when no source is available.
- * The fallback hue is deterministic (same name → same color across
- * reloads), so each user gets a stable visual identity even without
- * a profile picture.
- *
- * Optional presence dot in the bottom-end corner — `online` /
- * `inactive` / `offline` — colored from the shell theme variables.
- * Set `user-id` to auto-subscribe the dot to the framework's
- * `os-presence-changed` events on `document`, so the dot
- * stays accurate as long as the avatar is mounted.
- *
- * ```html
- * <os-avatar src="https://…/me.jpg" alt="Daniel" size="40"></os-avatar>
- * <os-avatar name="Eric Andersen" presence="online"></os-avatar>
- * <os-avatar user-id="42" name="Pat" size="lg"></os-avatar>
- * ```
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { hashTitleToHue } from '../../util/hash-hue';
 import { avatarStyles } from './os-avatar.styles';
@@ -91,11 +69,7 @@ export class OsAvatar extends Component {
 	private _onPointerMove: ( ( e: PointerEvent ) => void ) | null = null;
 	private _onPointerEnter: ( ( e: PointerEvent ) => void ) | null = null;
 	private _onPointerLeave: ( ( e: PointerEvent ) => void ) | null = null;
-	/**
-	 * Rolling RAF id for tilt updates. Pointer events fire faster than
-	 * the browser can paint; coalescing through `requestAnimationFrame`
-	 * collapses bursts into one DOM write per frame.
-	 */
+
 	private _tiltRaf = 0;
 	private _pendingTiltX = '0deg';
 	private _pendingTiltY = '0deg';
@@ -126,8 +100,6 @@ export class OsAvatar extends Component {
 	): void {
 		super.attributeChangedCallback( name, oldValue, newValue );
 		if ( name === 'src' ) {
-			// Reset failed state when the src changes — let the new src
-			// have a fresh chance to load.
 			this._imgFailed = false;
 		}
 		if ( name === 'user-id' || name === 'presence' ) {
@@ -143,15 +115,9 @@ export class OsAvatar extends Component {
 		const sizeRaw = this._attr( 'size' );
 		const size = this._resolveSize( sizeRaw );
 		const presence = this._presenceForRender();
-		// Avatars are decorative by default — they render as a non-
-		// interactive `<div>`, so clicks pass straight through to the
-		// surrounding row / link. Set the `clickable` boolean attribute
-		// to opt into a focusable `<button>` (e.g., a profile pill).
+
 		const clickable = this._attr( 'clickable' ) !== null;
 
-		// Set the CSS custom property at host level so size cascades
-		// through the styles. Use `style` attribute so external CSS
-		// can still win via specificity.
 		this.style.setProperty( '--os-ui-avatar-size', `${ size }px` );
 
 		const initialsBg = src && ! this._imgFailed ? '' : this._initialsBg( name );
@@ -184,11 +150,6 @@ export class OsAvatar extends Component {
 			`;
 		}
 
-		// Non-clickable: a plain `<div>` so the surrounding row's
-		// click handler isn't fighting a focusable inner element for
-		// the click target / :active visual feedback. Non-clickable
-		// tiles do NOT emit `os-avatar-click` — only the `clickable`
-		// button branch wires the handler.
 		return html`
 			<div
 				class="os-avatar__tile"
@@ -220,7 +181,7 @@ export class OsAvatar extends Component {
 		if ( ! trimmed ) {
 			return '?';
 		}
-		// First code point — handles emoji, accented chars cleanly.
+
 		return Array.from( trimmed )[ 0 ]?.toUpperCase() ?? '?';
 	}
 
@@ -264,21 +225,7 @@ export class OsAvatar extends Component {
 		this.emit( 'os-avatar-click', detail );
 	}
 
-	/**
-	 * Wire up the pointer-driven tilt + glare. Listens on the host so
-	 * one set of bindings covers both the clickable `<button>` and
-	 * the decorative `<div>` rendering branches. The actual math
-	 * runs in `_handlePointerMove`; this method just owns the
-	 * bind/unbind plumbing.
-	 *
-	 * Bails entirely when `prefers-reduced-motion: reduce` is set —
-	 * the CSS has its own `@media` guard for the visual layer, but
-	 * skipping the JS too saves the per-event work for users who
-	 * won't benefit from it.
-	 */
 	private _attachHoverEffect(): void {
-		// Respect the user's motion preference. SSR / non-DOM contexts
-		// don't have `matchMedia`, so guard.
 		const reduceMotion =
 			typeof window !== 'undefined' &&
 			window.matchMedia?.( '(prefers-reduced-motion: reduce)' ).matches;
@@ -291,9 +238,7 @@ export class OsAvatar extends Component {
 		};
 		this._onPointerLeave = (): void => {
 			this.style.setProperty( '--os-ui-avatar-hover', '0' );
-			// Reset the tilt/glare so the next pointer-enter starts from
-			// a neutral pose instead of snapping from wherever the
-			// pointer last hovered.
+
 			this._pendingTiltX = '0deg';
 			this._pendingTiltY = '0deg';
 			this._pendingGlareX = '50%';
@@ -305,22 +250,14 @@ export class OsAvatar extends Component {
 			if ( rect.width === 0 || rect.height === 0 ) {
 				return;
 			}
-			// Normalize pointer position to [-1, 1] from tile center.
+
 			const nx = ( e.clientX - rect.left ) / rect.width - 0.5;
 			const ny = ( e.clientY - rect.top ) / rect.height - 0.5;
 
-			// Maximum tilt angle (degrees). 14° feels animated without
-			// looking jittery. Sign: pointer on the right (positive
-			// nx) → right edge tips TOWARD the viewer →
-			// rotateY is +nx * MAX. Pointer above center (negative
-			// ny) → top edge tips toward viewer → rotateX = -ny * MAX.
 			const MAX = 14;
 			this._pendingTiltY = `${ ( nx * MAX ).toFixed( 2 ) }deg`;
 			this._pendingTiltX = `${ ( -ny * MAX ).toFixed( 2 ) }deg`;
-			// Glare follows the pointer position as a percentage of
-			// the tile box. Clamp to [0, 100] so a pointer that
-			// briefly leaves the bounds doesn't push the bloom
-			// off-canvas.
+
 			const gx = Math.max( 0, Math.min( 100, ( nx + 0.5 ) * 100 ) );
 			const gy = Math.max( 0, Math.min( 100, ( ny + 0.5 ) * 100 ) );
 			this._pendingGlareX = `${ gx.toFixed( 1 ) }%`;
@@ -364,8 +301,6 @@ export class OsAvatar extends Component {
 	}
 
 	private _maybeAttachPresenceListener(): void {
-		// Only auto-subscribe when caller set user-id AND didn't set
-		// presence explicitly — explicit presence is authoritative.
 		const userId = this._attr( 'user-id' );
 		const explicit = this._attr( 'presence' );
 		const wantsListener = !! userId && ! explicit;

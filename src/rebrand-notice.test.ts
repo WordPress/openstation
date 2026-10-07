@@ -1,14 +1,3 @@
-/**
- * Tests for the one-off rebrand announcement.
- *
- * The interesting surface is the gate, not the markup: this dialog is
- * allowed to interrupt someone exactly once, and every way of getting
- * that wrong is user-visible. Showing it to a fresh install explains a
- * rename that never happened to them; showing it twice makes the shell
- * look like it lost the dismissal; failing to record a dismissal that
- * came from Escape rather than the button does the same thing more
- * subtly.
- */
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 type FetchArgs = (
@@ -38,20 +27,14 @@ function config( over: Partial< DesktopConfig > = {} ): DesktopConfig {
 	} as unknown as DesktopConfig;
 }
 
-/** The mounted dialog, if any. */
 function dialog(): HTMLElement | null {
 	return document.querySelector< HTMLElement >( '.os-announce' );
 }
 
-/**
- * The focused element, read through a node's `ownerDocument` rather
- * than the `document` global (house lint rule).
- */
 function focused(): Element | null {
 	return document.body.ownerDocument.activeElement;
 }
 
-/** The primary "Got it" button. */
 function primary(): HTMLElement | null {
 	return document.querySelector< HTMLElement >( '.os-announce__btn--primary' );
 }
@@ -62,14 +45,12 @@ beforeEach( () => {
 	vi.useFakeTimers();
 } );
 
-/** Run the announcement past its settle delay. */
 async function show( cfg: DesktopConfig ): Promise< void > {
 	const done = maybeShowRebrandNotice( { config: cfg } );
 	await vi.runAllTimersAsync();
 	await done;
 }
 
-/** Press a key on the document, the way the trap listens for it. */
 function press( key: string, shiftKey = false ): void {
 	document.dispatchEvent(
 		new KeyboardEvent( 'keydown', { key, shiftKey, bubbles: true } ),
@@ -86,8 +67,6 @@ describe( 'maybeShowRebrandNotice — the gate', () => {
 	} );
 
 	test( 'stays silent on a fresh install', async () => {
-		// `rebrandNotice: false` is what the server sends when no
-		// migration ever ran here — nobody to explain a rename to.
 		await show( config( { rebrandNotice: false } ) );
 		expect( dialog() ).toBeNull();
 	} );
@@ -120,8 +99,6 @@ describe( 'maybeShowRebrandNotice — dismissal', () => {
 	} );
 
 	test( 'Escape records it too', async () => {
-		// Leaving this unhandled would bring the dialog back on the
-		// next boot for anyone who dismisses with the keyboard.
 		await show( config() );
 		press( 'Escape' );
 
@@ -132,7 +109,6 @@ describe( 'maybeShowRebrandNotice — dismissal', () => {
 	test( 'a backdrop click closes, a click on the card does not', async () => {
 		await show( config() );
 
-		// Selecting text inside the card is not a request to leave.
 		document
 			.querySelector< HTMLElement >( '.os-announce__card' )
 			?.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
@@ -150,9 +126,6 @@ describe( 'maybeShowRebrandNotice — dismissal', () => {
 	} );
 
 	test( 'the Escape listener is removed on close', async () => {
-		// A listener left bound on `document` would keep swallowing
-		// Escape for the rest of the session, breaking every window
-		// shortcut that uses it.
 		await show( config() );
 		primary()?.click();
 		trackedFetch.mockClear();
@@ -162,8 +135,6 @@ describe( 'maybeShowRebrandNotice — dismissal', () => {
 	} );
 
 	test( 'a failed dismissal write is swallowed', async () => {
-		// The user has read it and closed it; an error toast here would
-		// be about our bookkeeping, not about them.
 		trackedFetch.mockRejectedValueOnce( new Error( 'offline' ) );
 		await show( config() );
 		expect( () => primary()?.click() ).not.toThrow();
@@ -177,8 +148,7 @@ describe( 'maybeShowRebrandNotice — the dialog', () => {
 
 		expect( el?.getAttribute( 'role' ) ).toBe( 'dialog' );
 		expect( el?.getAttribute( 'aria-modal' ) ).toBe( 'true' );
-		// The labelling ids have to resolve, or a screen reader
-		// announces an unnamed dialog.
+
 		const labelledBy = el?.getAttribute( 'aria-labelledby' ) ?? '';
 		const describedBy = el?.getAttribute( 'aria-describedby' ) ?? '';
 		expect( el?.querySelector( `#${ labelledBy }` ) ).not.toBeNull();
@@ -194,8 +164,7 @@ describe( 'maybeShowRebrandNotice — the dialog', () => {
 		expect( focused() ).toBe( primary() );
 
 		primary()?.click();
-		// The desk is interactive behind the dialog and the user did
-		// not choose to come here.
+
 		expect( focused() ).toBe( opener );
 	} );
 
@@ -204,9 +173,7 @@ describe( 'maybeShowRebrandNotice — the dialog', () => {
 		const items = Array.from(
 			document.querySelectorAll< HTMLElement >( '.os-announce button' ),
 		);
-		// "Got it" on its own. The trap still has to hold: with one
-		// control it is both ends of the wrap, and Tab must not walk out
-		// into the desk behind the dialog.
+
 		expect( items ).toHaveLength( 1 );
 		items[ 0 ].focus();
 
@@ -218,11 +185,6 @@ describe( 'maybeShowRebrandNotice — the dialog', () => {
 	} );
 
 	test( 'Tab pulls focus back in when it is on neither end', async () => {
-		// Selecting text inside the card leaves `activeElement` on
-		// `<body>`, which the backdrop handler deliberately allows. A
-		// forward Tab from there matches neither end of the trap, so
-		// without the containment check the browser walks focus into the
-		// desk behind the scrim.
 		const behind = document.createElement( 'button' );
 		document.body.appendChild( behind );
 
@@ -244,16 +206,12 @@ describe( 'the announcement copy', () => {
 
 		expect( paras ).toHaveLength( 3 );
 		expect( paras[ 0 ] ).toContain( 'Why OpenStation?' );
-		// Two separate pieces of news. Folded together, a translator
-		// would have to guess where the rename ends and the theme
-		// begins.
+
 		expect( paras[ 0 ] ).not.toContain( 'default theme' );
 		expect( paras[ 1 ] ).toContain( 'new default theme' );
 	} );
 
 	test( 'the reassurance line is the last thing in the body', async () => {
-		// It answers "did my install change?", which only lands once the
-		// rename itself has been explained.
 		await show( config() );
 		const paras = Array.from(
 			document.querySelectorAll< HTMLElement >( '.os-announce__body p' ),
@@ -265,8 +223,6 @@ describe( 'the announcement copy', () => {
 	} );
 
 	test( 'the hero opens on the eyebrow pill, not a logomark', async () => {
-		// The headline is where the new name gets said; a mark above it
-		// says it a beat early and buries the sentence that explains it.
 		await show( config() );
 		const hero = document.querySelector( '.os-announce__hero' );
 
@@ -280,8 +236,6 @@ describe( 'the announcement copy', () => {
 	} );
 
 	test( 'the described-by target is the explanation, not the theme note', async () => {
-		// A screen reader reading the theme note as the dialog's
-		// description would say nothing about the rename.
 		await show( config() );
 		const describedBy =
 			document

@@ -1,24 +1,6 @@
-/**
- * Recycle Bin — the table's cell visuals.
- *
- * The Trash app (`../trash.os.ts`) paints its rows through these:
- * type badge, title stack with optional thumbnail, relative
- * deleted-at, and the restore / delete-forever row buttons. Kept as
- * a part of its own because the hard-won shadow-DOM constraints
- * belong in one place: `<os-table>` renders its body into its own
- * shadow root, so nothing here may rely on a document stylesheet
- * (every visual property is an inline `style.*`, colours are inline
- * `var()` chains that inherit THROUGH the boundary, and icons are
- * inline SVG because the Dashicons stylesheet cannot reach in).
- *
- * @public
- */
-
 import { __ } from '../../../src/i18n';
 import { decodeHTML } from '../../../src/utils';
-// Side-effect import — the deleted-at column constructs
-// `<os-relative-time>`, so every bundle shipping these renderers
-// must register it. `defineComponent` is idempotent.
+
 import '../../../src/ui/components/os-relative-time/os-relative-time';
 import {
 	resolveThemedIcon,
@@ -29,11 +11,6 @@ import { makeRowActionButton } from '../../../src/ui/util/row-action-button';
 import type { RecycleBinItem, RecycleBinItemRef } from './types';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 
-/**
- * Map a recycle-bin row's `type` (post/page/CPT/attachment/comment)
- * to the Files-on-the-Desktop file-type slug. Used by the
- * "Pin to desktop" toolbar action.
- */
 export function mapRecycleTypeToFileType( recycleType: string ): string {
 	if ( recycleType === 'attachment' ) {
 		return 'attachment';
@@ -41,29 +18,16 @@ export function mapRecycleTypeToFileType( recycleType: string ): string {
 	if ( recycleType === 'comment' ) {
 		return 'comment';
 	}
-	// Every public post type collapses into the 'post' file type;
-	// the desktop tile reads `postType` from the serialized shape
-	// for label / icon if it wants to differentiate.
+
 	return 'post';
 }
 
-/**
- * Inline-styled background tints for the type badge. Lives in JS
- * because `<os-table>` renders its body into a shadow DOM that
- * blocks document stylesheets — every visual property has to come
- * from inline `style.*` assignments. The palette is intentionally
- * desaturated so badges read as metadata, not as primary content.
- * Unknown types fall through to `_default`.
- */
 const TYPE_BADGE_COLORS: Record< string, { bg: string; fg: string } > = {
 	post: { bg: '#dbe9fe', fg: '#1d4ed8' },
 	page: { bg: '#e0f2fe', fg: '#075985' },
 	attachment: { bg: '#fef3c7', fg: '#92400e' },
 	comment: { bg: '#dcfce7', fg: '#166534' },
-	// The hued badges above are left alone deliberately — the colour
-	// IS the type signal, and it survives on a dark row. Only the
-	// neutral fallback follows the palette, because a grey-on-grey
-	// chip carries no signal to preserve.
+
 	_default: {
 		bg: 'var( --os-ui-surface-sunken, #e5e7eb )',
 		fg: 'var( --os-ui-fg-muted, #374151 )',
@@ -112,23 +76,10 @@ export interface RowButtonOptions {
 	icon: string;
 	onClick: () => void;
 	variant?: string;
-	/**
-	 * Print the label beside the icon, at a finger's height. A 30px
-	 * icon-only square is right in a row on a desk and wrong on a
-	 * card under a thumb: too small to hit, and a glyph alone has to
-	 * be learned.
-	 */
+
 	labelled?: boolean;
 }
 
-/**
- * Inline SVG paths for the row-action icons.
- *
- * 24×24 viewBox is the Dashicons grid; these paths are simplified
- * versions of the actual `dashicons-image-rotate` and
- * `dashicons-trash` glyphs — close enough that users recognise
- * them, simple enough to ship inline.
- */
 const ICON_SVG: Record< string, string > = {
 	restore:
 		'<path d="M12 5V2L7 6l5 4V7c2.76 0 5 2.24 5 5 0 .83-.21 1.61-.57 2.3l1.46 1.46A6.96 6.96 0 0 0 19 12c0-3.87-3.13-7-7-7zm0 12c-2.76 0-5-2.24-5-5 0-.83.21-1.61.57-2.3L6.11 8.24A6.96 6.96 0 0 0 5 12c0 3.87 3.13 7 7 7v3l5-4-5-4v3z" fill="currentColor"/>',
@@ -136,26 +87,14 @@ const ICON_SVG: Record< string, string > = {
 		'<path d="M9 3v1H4v2h1v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6h1V4h-5V3H9zm0 5h2v9H9V8zm4 0h2v9h-2V8z" fill="currentColor"/>',
 };
 
-/**
- * Build a row-action button: the shared row button
- * (`src/ui/util/row-action-button.ts` — inline colour chains, hover
- * and focus faces, `data-noclick`) around this bin's glyph, which is
- * a theme's mask when it maps the slot, and an inline SVG otherwise.
- */
 export function makeRowButton( opts: RowButtonOptions ): HTMLElement {
-	// Desktop-theme override for the glyph, rendered as an 18x18 CSS
-	// MASK tinted with `currentColor` so hover / danger tinting keeps
-	// working. A theme that maps the slot to a DASHICON is ignored on
-	// purpose — the Dashicons stylesheet cannot reach into the
-	// table's shadow root, so the span would come out blank.
 	const themedSlot =
 		opts.icon === 'restore'
 			? DESKTOP_THEME_SLOTS.RECYCLE_RESTORE
 			: DESKTOP_THEME_SLOTS.RECYCLE_DELETE;
 	const themed = resolveThemedIcon( themedSlot );
 	const themedFill = resolveThemedIconColor( themedSlot ) ?? 'currentColor';
-	// The value lands inside url("…") in an inline style, so it must
-	// not be able to close that string or the attribute.
+
 	const maskSafe =
 		themed !== null &&
 		! themed.startsWith( 'dashicons-' ) &&
@@ -204,21 +143,10 @@ export interface RowActionHandlers {
 }
 
 export interface ColumnOptions {
-	/**
-	 * Built for a phone, where the table is a card per row
-	 * (`<os-table stacked>`): the title may take two lines instead of
-	 * one ellipsized at 320px, and the row buttons print their labels.
-	 */
+
 	phone?: boolean;
 }
 
-/**
- * Build the columns descriptor both bins share. Filterable via the
- * public `openstation.recycleBin.columns` JS hook, mirroring the PHP
- * `openstation_recycle_bin_columns` extension point. Every column
- * declares its role on a card (`stack`), so the phone needs no
- * second descriptor list.
- */
 export function buildColumns(
 	handlers: RowActionHandlers,
 	options: ColumnOptions = {},
@@ -234,10 +162,6 @@ export function buildColumns(
 			sortable: true,
 			stack: 'title',
 			render: ( _v, row ) => {
-				// One-cell layout: optional thumbnail (image
-				// attachments only) inline at the start, then the
-				// two-line title/subtitle stack with a small type
-				// badge before the title.
 				const wrap = document.createElement( 'span' );
 				wrap.style.cssText =
 					'display:flex;align-items:center;gap:10px;min-width:0;';
@@ -283,9 +207,7 @@ export function buildColumns(
 				return wrap;
 			},
 		},
-		// No explicit Type column — the inline type badge in the
-		// title cell and the toolbar's type filter tabs already
-		// convey the entity kind.
+
 		{
 			key: 'deleted_at',
 			label: __( 'Deleted' ),
@@ -294,8 +216,6 @@ export function buildColumns(
 			width: '180px',
 			sortValue: ( row ) => Date.parse( row.deleted_at + 'Z' ) || 0,
 			render: ( _v, row ) => {
-				// `<os-relative-time>` self-ticks every 30s on a
-				// shared interval — no row-level repaint required.
 				const el = document.createElement( 'os-relative-time' );
 				el.setAttribute( 'datetime', row.deleted_at );
 				return el;

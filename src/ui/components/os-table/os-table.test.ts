@@ -1,16 +1,6 @@
-/**
- * `<os-table>` — smoke tests covering the data-rendering happy path,
- * filter wiring, sticky-column class application, sub-table expansion,
- * and the row-click event guard around no-click descendants.
- *
- * Pixel layout (sticky `left` offsets, sticky-header positioning) is
- * not asserted — jsdom doesn't lay things out, so `offsetWidth` is
- * always 0. The class application is what we cover; the offsets are
- * a runtime-only concern verified manually.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-table';
-// eslint-disable-next-line no-duplicate-imports
+
 import type { OsTable, OsTableColumn } from './os-table';
 
 const tick = (): Promise< void > =>
@@ -61,7 +51,7 @@ describe( '<os-table>', () => {
 		expect( slots.map( ( s ) => s.name ) ).toEqual( [ 'run-b', 'run-a' ] );
 		expect( slots[ 0 ].assignedElements()[ 0 ]?.textContent ).toBe( 'Run Bob' );
 		expect( table.shadowRoot!.textContent ).not.toContain( '[object Object]' );
-		// A name reused across rows would leave every row but the first blank.
+
 		expect( new Set( slots.map( ( s ) => s.name ) ).size ).toBe( slots.length );
 		table.filters = { run: 'alice' };
 		await tick();
@@ -157,7 +147,7 @@ describe( '<os-table>', () => {
 		const select = table.shadowRoot!.querySelector(
 			'.filter-select',
 		) as HTMLSelectElement;
-		// "All" + 2 unique roles.
+
 		expect( select.options.length ).toBe( 3 );
 
 		select.value = 'admin';
@@ -189,9 +179,6 @@ describe( '<os-table>', () => {
 		table.data = sampleData;
 		await tick();
 
-		// A filter value that wouldn't match any single role string —
-		// this is what a multi-select serializes when ≥2 options are
-		// picked. Without the skip, every row would be filtered out.
 		table.filters = { role: 'admin,user' };
 		await tick();
 
@@ -217,7 +204,7 @@ describe( '<os-table>', () => {
 		expect( ths[ 0 ].classList.contains( 'is-sticky' ) ).toBe( true );
 		expect( ths[ 1 ].classList.contains( 'is-sticky' ) ).toBe( true );
 		expect( ths[ 2 ].classList.contains( 'is-sticky' ) ).toBe( false );
-		// The second sticky column gets the edge marker (drop-shadow).
+
 		expect( ths[ 1 ].classList.contains( 'is-sticky-edge' ) ).toBe( true );
 
 		const tds = table.shadowRoot!.querySelectorAll( 'tbody tr td' );
@@ -238,13 +225,11 @@ describe( '<os-table>', () => {
 		} );
 		await tick();
 
-		// Expander column is column 0 — first th has class `col-expander`.
 		const firstTh = table.shadowRoot!.querySelector(
 			'thead tr:first-child th',
 		) as HTMLElement;
 		expect( firstTh.classList.contains( 'col-expander' ) ).toBe( true );
 
-		// No sub-table rendered until expanded.
 		expect( table.shadowRoot!.querySelector( 'tr.subtable' ) ).toBeNull();
 
 		const events: Array< { row: User; index: number; expanded: boolean } > = [];
@@ -285,7 +270,6 @@ describe( '<os-table>', () => {
 		expect( events.length ).toBe( 1 );
 		expect( events[ 0 ].index ).toBe( 0 );
 
-		// Filter inputs are marked data-noclick — they must NOT fire row-click.
 		const input = table.shadowRoot!.querySelector(
 			'.filter-input',
 		) as HTMLInputElement;
@@ -317,7 +301,7 @@ describe( '<os-table>', () => {
 			'thead tr:first-child th[data-key="name"]',
 		) as HTMLElement;
 
-		nameTh.click(); // asc
+		nameTh.click();
 		await tick();
 		expect( events[ events.length - 1 ].sort ).toEqual( { key: 'name', direction: 'asc' } );
 		let rows = table.shadowRoot!.querySelectorAll(
@@ -326,7 +310,7 @@ describe( '<os-table>', () => {
 		expect( rows[ 0 ].textContent ).toContain( 'Alice' );
 		expect( rows[ 2 ].textContent ).toContain( 'Carol' );
 
-		nameTh.click(); // desc
+		nameTh.click();
 		await tick();
 		expect( events[ events.length - 1 ].sort ).toEqual( { key: 'name', direction: 'desc' } );
 		rows = table.shadowRoot!.querySelectorAll(
@@ -334,7 +318,7 @@ describe( '<os-table>', () => {
 		);
 		expect( rows[ 0 ].textContent ).toContain( 'Carol' );
 
-		nameTh.click(); // null
+		nameTh.click();
 		await tick();
 		expect( events[ events.length - 1 ].sort ).toBeNull();
 	} );
@@ -364,7 +348,7 @@ describe( '<os-table>', () => {
 		host.innerHTML = `<os-table></os-table>`;
 		await tick();
 		const table = host.querySelector( 'os-table' ) as OsTable< User >;
-		// Sort by string length instead of alphabetical.
+
 		table.columns = [
 			{
 				key: 'name',
@@ -407,7 +391,6 @@ describe( '<os-table>', () => {
 			( e: Event ) => events.push( ( e as CustomEvent ).detail ),
 		);
 
-		// Click first row checkbox.
 		const rowCb = table.shadowRoot!.querySelector(
 			'tbody .select-row-checkbox',
 		) as HTMLInputElement;
@@ -418,7 +401,6 @@ describe( '<os-table>', () => {
 		expect( events[ 0 ].selection ).toEqual( [ 0 ] );
 		expect( table.selectedRows ).toEqual( [ sampleData[ 0 ] ] );
 
-		// Select-all from the header.
 		headerCheckbox.checked = true;
 		headerCheckbox.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 		await tick();
@@ -441,7 +423,7 @@ describe( '<os-table>', () => {
 		const firstCb = trsBefore[ 0 ].querySelector(
 			'input.select-row-checkbox',
 		) as HTMLInputElement;
-		// Focus the checkbox so we can verify focus retention.
+
 		firstCb.focus();
 		expect( table.shadowRoot!.activeElement ).toBe( firstCb );
 
@@ -454,26 +436,23 @@ describe( '<os-table>', () => {
 				'tbody tr:not(.subtable):not(.empty):not(.skeleton)',
 			),
 		);
-		// Same DOM nodes — no rebuild. Identity equality is the
-		// load-bearing assertion: a destroy+recreate would pass a
-		// `toEqual` check but fail this.
+
 		expect( trsAfter.length ).toBe( trsBefore.length );
 		for ( let i = 0; i < trsBefore.length; i++ ) {
 			expect( trsAfter[ i ] ).toBe( trsBefore[ i ] );
 		}
-		// Affected row picked up the class + checkbox state.
+
 		expect( trsAfter[ 0 ].classList.contains( 'is-selected' ) ).toBe( true );
 		expect( firstCb.checked ).toBe( true );
-		// Focus survived the toggle.
+
 		expect( table.shadowRoot!.activeElement ).toBe( firstCb );
-		// Header select-all reflects partial selection.
+
 		const headerCb = table.shadowRoot!.querySelector(
 			'thead .select-all-checkbox',
 		) as HTMLInputElement;
 		expect( headerCb.indeterminate ).toBe( true );
 		expect( headerCb.checked ).toBe( false );
 
-		// Deselect by toggling the same checkbox.
 		firstCb.checked = false;
 		firstCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 		await tick();
@@ -481,7 +460,6 @@ describe( '<os-table>', () => {
 		expect( headerCb.indeterminate ).toBe( false );
 		expect( headerCb.checked ).toBe( false );
 
-		// Select-all from the header still works without rebuilding.
 		headerCb.checked = true;
 		headerCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 		await tick();
@@ -508,23 +486,18 @@ describe( '<os-table>', () => {
 		table.columns = sampleColumns;
 		table.getRowId = ( row ) => row.email;
 		table.data = sampleData;
-		// Only the two admins (Alice, Carol) are visible.
+
 		table.filters = { role: 'admin' };
 		await tick();
 
 		table.selectAll();
 		await tick();
 
-		// Bob is hidden by the filter — a destructive bulk action fed
-		// from this selection must not be able to reach him.
 		expect( Array.from( table.selection ).sort() ).toEqual( [
 			'alice@a.com',
 			'carol@c.com',
 		] );
 
-		// The header select-all reads checked (not indeterminate):
-		// every VISIBLE row is selected, which is what the checkbox
-		// claims to control.
 		const headerCb = table.shadowRoot!.querySelector(
 			'thead .select-all-checkbox',
 		) as HTMLInputElement;
@@ -547,7 +520,7 @@ describe( '<os-table>', () => {
 			'Alice',
 			'Carol',
 		] );
-		// The full buffer is untouched.
+
 		expect( table.data.length ).toBe( 3 );
 	} );
 
@@ -561,10 +534,6 @@ describe( '<os-table>', () => {
 		table.select( 'bob@b.com' );
 		await tick();
 
-		// Bob (editor) is selected, then a filter hides him. The two
-		// visible admins are unselected — the header checkbox must
-		// read fully unchecked, not indeterminate, because nothing
-		// the user can see is selected.
 		table.filters = { role: 'admin' };
 		await tick();
 		const headerCb = table.shadowRoot!.querySelector(
@@ -582,7 +551,6 @@ describe( '<os-table>', () => {
 		table.data = sampleData;
 		await tick();
 
-		// No header select-all in single mode.
 		expect(
 			table.shadowRoot!.querySelector( 'thead .select-all-checkbox' ),
 		).toBeNull();
@@ -602,7 +570,6 @@ describe( '<os-table>', () => {
 		table.select( 'alice@a.com' );
 		await tick();
 
-		// Reload data with the same email — selection must persist.
 		table.data = [ ...sampleData ].reverse();
 		await tick();
 		expect( table.selectedRows.map( ( r ) => r.email ) ).toEqual( [
@@ -672,7 +639,7 @@ describe( '<os-table>', () => {
 			'tbody tr.skeleton',
 		);
 		expect( skeletonRows.length ).toBe( 3 );
-		// Real data rows must NOT appear while loading.
+
 		expect(
 			table.shadowRoot!.querySelectorAll(
 				'tbody tr:not(.skeleton):not(.empty)',
@@ -686,8 +653,7 @@ describe( '<os-table>', () => {
 		</os-table>`;
 		await tick();
 		const table = host.querySelector( 'os-table' )!;
-		// The slot itself is in shadow DOM; its assignedNodes() returns
-		// the projected light-DOM children.
+
 		const slot = table.shadowRoot!.querySelector(
 			'tr.empty slot',
 		) as HTMLSlotElement;
@@ -702,12 +668,6 @@ describe( '<os-table>', () => {
 	} );
 
 	test( 'observes the inner scroll element + host with ResizeObserver and disconnects on teardown', async () => {
-		// Stub a counting ResizeObserver so we can assert the lifecycle
-		// without depending on jsdom's (absent) layout engine. We
-		// observe two boxes: the inner `.scroll` (catches scrollbar-
-		// driven width changes that the host doesn't see) and the host
-		// itself (catches panel-driven reflows that the inner box
-		// doesn't see).
 		const observed: Element[] = [];
 		const disconnects: number[] = [];
 		const original = ( globalThis as unknown as { ResizeObserver?: unknown } ).ResizeObserver;
@@ -718,16 +678,14 @@ describe( '<os-table>', () => {
 			disconnect() {
 				disconnects.push( 1 );
 			}
-			unobserve() { /* noop */ }
+			unobserve() { }
 		}
 		( globalThis as unknown as { ResizeObserver: unknown } ).ResizeObserver = FakeRO;
 		try {
 			host.innerHTML = `<os-table sticky-columns="1"></os-table>`;
 			await tick();
 			const table = host.querySelector( 'os-table' )!;
-			// The inner .scroll element is what catches the most-common
-			// stale-offset cause (vertical scrollbar appearing). The
-			// host catches panel-driven reflow.
+
 			const scroll = table.shadowRoot!.querySelector( '.scroll' );
 			expect( observed ).toContain( scroll );
 			expect( observed ).toContain( table );
@@ -739,12 +697,6 @@ describe( '<os-table>', () => {
 	} );
 
 	test( 'toggling the `loading` attribute live re-paints the body without a data reassignment', async () => {
-		// Regression: attribute changes on a os-table used to bypass
-		// the imperative paint pipeline because the base
-		// Component.attributeChangedCallback called _scheduleRender
-		// directly instead of routing through requestUpdate. Result:
-		// flipping `loading` re-rendered the templated skeleton but
-		// never rebuilt the body, so the skeleton rows never appeared.
 		host.innerHTML = `<os-table></os-table>`;
 		await tick();
 		const table = host.querySelector( 'os-table' ) as OsTable< User >;
@@ -780,9 +732,7 @@ describe( '<os-table>', () => {
 		table.columns = [ { key: 'a' }, { key: 'b' } ];
 		table.data = [ { a: 1, b: 2 } as unknown as User ];
 		await tick();
-		// Should not throw, and should not change anything observable
-		// in jsdom (no layout). It's the existence + idempotency that
-		// matter — pixel correctness is verified manually.
+
 		expect( () => table.recomputeLayout() ).not.toThrow();
 		expect( () => table.recomputeLayout() ).not.toThrow();
 	} );

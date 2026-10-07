@@ -1,13 +1,3 @@
-/**
- * Content Graph — sparse-board layout contract.
- *
- * Pins the three decisions that keep a small board centred on
- * screen: deterministic seeding with the centroid on the origin, a
- * warm-up that runs small boards to rest before the first paint, and
- * framing maths that centres the bounds and refuses a 0×0 viewport.
- * All renderer-free — `layout.ts` is pure and the sim is plain maths.
- */
-
 import { describe, expect, test } from 'vitest';
 import {
 	frameBounds,
@@ -56,7 +46,6 @@ function centroid( points: Point[] ): Point {
 	};
 }
 
-/** Deterministic stand-in for Math.random. */
 function lcg( seed: number ): () => number {
 	let s = seed >>> 0;
 	return () => {
@@ -76,7 +65,7 @@ describe( 'seedPositions', () => {
 
 	test( 'a pair opens side by side, not stacked', () => {
 		const [ a, b ] = seedPositions( 2 );
-		// Same row, mirrored across the origin.
+
 		expect( a.y ).toBeCloseTo( 0, 6 );
 		expect( b.y ).toBeCloseTo( 0, 6 );
 		expect( a.x ).toBeCloseTo( -b.x, 6 );
@@ -93,8 +82,7 @@ describe( 'seedPositions', () => {
 			const c = centroid( first );
 			expect( c.x ).toBeCloseTo( 0, 6 );
 			expect( c.y ).toBeCloseTo( 0, 6 );
-			// Evenly spaced: every neighbour pair is the same distance
-			// apart, so no two cards open on top of each other.
+
 			const d = ( p: Point, q: Point ) => Math.hypot( p.x - q.x, p.y - q.y );
 			const step = d( first[ 0 ], first[ 1 ] );
 			for ( let i = 0; i < n; i++ ) {
@@ -111,7 +99,7 @@ describe( 'seedPositions', () => {
 		const c = centroid( seeds );
 		expect( c.x ).toBeCloseTo( 0, 6 );
 		expect( c.y ).toBeCloseTo( 0, 6 );
-		// Still a spread, not a ring: distances from the origin vary.
+
 		const radii = seeds.map( ( p ) => Math.hypot( p.x, p.y ) );
 		expect( Math.max( ...radii ) - Math.min( ...radii ) ).toBeGreaterThan( 50 );
 	} );
@@ -143,8 +131,7 @@ describe( 'warmupStepLimit', () => {
 	} );
 
 	test( 'the settle budget actually settles a small board', () => {
-		// The point of the budget: two posts open on their final layout,
-		// symmetric about the origin, and nothing moves after first paint.
+
 		const nodes = seedPositions( 2 ).map( ( p, i ) => makeNode( i + 1, p ) );
 		const sim = new ForceSim( nodes, [] );
 		sim.reheat( 0.12, false );
@@ -158,8 +145,7 @@ describe( 'warmupStepLimit', () => {
 		expect( a.x + b.x ).toBeCloseTo( 0, 3 );
 		expect( a.y + b.y ).toBeCloseTo( 0, 3 );
 		expect( Math.abs( a.y ) ).toBeLessThan( 1e-3 );
-		// Repulsion 26000/d² against gravity 0.0035·r rests a pair
-		// ~246 units apart; the seed ring starts them near there.
+
 		const d = Math.hypot( a.x - b.x, a.y - b.y );
 		expect( d ).toBeGreaterThan( 200 );
 		expect( d ).toBeLessThan( 320 );
@@ -193,9 +179,9 @@ describe( 'frameBounds', () => {
 			opts,
 		);
 		expect( target ).not.toBeNull();
-		// 446 world units wide fits at 2.4× — clamped to the fit cap.
+
 		expect( target!.scale ).toBe( 1.5 );
-		// The bounds' centre is the origin, so the origin lands mid-view.
+
 		expect( target!.x ).toBeCloseTo( 540, 6 );
 		expect( target!.y ).toBeCloseTo( 360, 6 );
 	} );
@@ -210,7 +196,7 @@ describe( 'frameBounds', () => {
 			opts,
 		);
 		expect( target ).not.toBeNull();
-		// world (400, 200) → screen (500, 300).
+
 		expect( 400 * target!.scale + target!.x ).toBeCloseTo( 500, 6 );
 		expect( 200 * target!.scale + target!.y ).toBeCloseTo( 300, 6 );
 	} );

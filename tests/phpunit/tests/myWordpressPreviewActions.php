@@ -1,16 +1,5 @@
 <?php
-/**
- * Tests for `openstation_my_wordpress_collect_preview_actions()`.
- *
- * Asserts the server-side aggregator strips entries the current
- * user can't run before shipping them to the bundle.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group desktop-mode-my-wordpress
- */
+
 class Tests_OpenStation_MyWordpressPreviewActions extends WP_UnitTestCase {
 
 	private $admin_id;
@@ -27,9 +16,6 @@ class Tests_OpenStation_MyWordpressPreviewActions extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_my_wordpress_collect_preview_actions
-	 */
 	public function test_capability_gating_drops_actions_for_subscriber() {
 		add_filter(
 			'openstation_my_wordpress_preview_actions',
@@ -59,13 +45,6 @@ class Tests_OpenStation_MyWordpressPreviewActions extends WP_UnitTestCase {
 		$this->assertContains( 'b', $ids );
 	}
 
-	/**
-	 * `sections` is the plugin's scoping contract — it must reach the
-	 * bundle verbatim, post-type slugs and the `*` wildcard included
-	 * (matching is client-side).
-	 *
-	 * @covers ::openstation_my_wordpress_collect_preview_actions
-	 */
 	public function test_sections_pass_through_verbatim() {
 		add_filter(
 			'openstation_my_wordpress_preview_actions',
@@ -86,13 +65,6 @@ class Tests_OpenStation_MyWordpressPreviewActions extends WP_UnitTestCase {
 		);
 	}
 
-	// (The emit-time window-config refresh tests went with the legacy
-	// window: the explorer app recomputes `previewActions` inside every
-	// dispatch payload, so there is no snapshot to go stale.)
-
-	/**
-	 * @covers ::openstation_my_wordpress_collect_preview_actions
-	 */
 	public function test_invalid_entries_are_dropped() {
 		add_filter(
 			'openstation_my_wordpress_preview_actions',

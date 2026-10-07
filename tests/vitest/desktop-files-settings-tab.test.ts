@@ -1,8 +1,3 @@
-/**
- * Phase-5 OS Settings tab tests. The tab renders into a host
- * element from `registerSettingsTab`'s `render` callback; we
- * exercise that callback directly.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -110,14 +105,13 @@ describe( 'File Associations OS Settings tab', () => {
 				bubbles: true,
 			} ),
 		);
-		// Drain the microtask the optimistic save kicks off.
+
 		await Promise.resolve();
 		expect( fetchSpy ).toHaveBeenCalledTimes( 1 );
 		const init = fetchSpy.mock.calls[ 0 ][ 1 ] as RequestInit;
 		expect( init.method ).toBe( 'PUT' );
 		expect( ( init.body as string ) ).toContain( '"post":"classic"' );
 
-		// Optimistic update should have flipped the resolver immediately.
 		expect( openers.resolveOpener( 'post' )?.id ).toBe( 'classic' );
 	} );
 

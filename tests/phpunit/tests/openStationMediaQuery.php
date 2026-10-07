@@ -1,17 +1,5 @@
 <?php
-/**
- * Tests for the media-query dimension-filter module.
- *
- * Covers the numeric dimension meta-stamping hook, the REST
- * `/wp/v2/media` query-arg injection, and the opportunistic
- * backfill sweep.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-media-query
- */
+
 class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -25,11 +13,6 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Helper: create an attachment with a known width/height stamped
-	 * in `_wp_attachment_metadata`. Mirrors what real uploads look
-	 * like without needing an actual file.
-	 */
 	private function make_attachment( int $width, int $height, string $mime = 'image/jpeg' ): int {
 		$attachment_id = self::factory()->attachment->create(
 			array( 'post_mime_type' => $mime )
@@ -44,9 +27,6 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		return $attachment_id;
 	}
 
-	/**
-	 * @covers ::openstation_stamp_media_dimensions
-	 */
 	public function test_stamp_writes_flat_numeric_meta_on_upload() {
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 
@@ -60,24 +40,16 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_stamp_media_dimensions
-	 */
 	public function test_stamp_handles_missing_dimensions_with_zero() {
 		$attachment_id = self::factory()->attachment->create(
 			array( 'post_mime_type' => 'image/svg+xml' )
 		);
 		wp_update_attachment_metadata( $attachment_id, array() );
 
-		// Explicit zeros — lets the backfill sweep distinguish
-		// "never inspected" (no meta) from "inspected, has no size".
 		$this->assertSame( '0', get_post_meta( $attachment_id, OPENSTATION_META_WIDTH, true ) );
 		$this->assertSame( '0', get_post_meta( $attachment_id, OPENSTATION_META_HEIGHT, true ) );
 	}
 
-	/**
-	 * @covers ::openstation_register_media_query_params
-	 */
 	public function test_collection_params_register_the_dimension_filters() {
 		$route_options = rest_get_server()->get_routes( 'wp/v2' );
 
@@ -95,12 +67,6 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'openstation_min_height', $get_route['args'] );
 	}
 
-	/**
-	 * End-to-end: a REST GET on `/wp/v2/media` with
-	 * `openstation_min_width` only returns images meeting the threshold.
-	 *
-	 * @covers ::openstation_filter_media_by_dimensions
-	 */
 	public function test_rest_media_query_filters_by_min_width() {
 		$small = $this->make_attachment( 800, 600 );
 		$big   = $this->make_attachment( 1920, 1080 );
@@ -120,13 +86,10 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertNotContains( $small, $ids );
 	}
 
-	/**
-	 * @covers ::openstation_filter_media_by_dimensions
-	 */
 	public function test_rest_media_query_filters_by_min_width_and_height() {
-		$wide   = $this->make_attachment( 2000, 500 );   // wide enough, too short
-		$tall   = $this->make_attachment( 500, 2000 );   // tall enough, too narrow
-		$hd     = $this->make_attachment( 1920, 1080 );  // both pass
+		$wide   = $this->make_attachment( 2000, 500 );
+		$tall   = $this->make_attachment( 500, 2000 );
+		$hd     = $this->make_attachment( 1920, 1080 );
 
 		wp_set_current_user( self::$admin_id );
 
@@ -144,12 +107,6 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertNotContains( $tall, $ids );
 	}
 
-	/**
-	 * Without the dimension params, the filter is a no-op — every
-	 * image comes back regardless of size.
-	 *
-	 * @covers ::openstation_filter_media_by_dimensions
-	 */
 	public function test_rest_media_query_without_params_returns_all() {
 		$small = $this->make_attachment( 100, 100 );
 		$big   = $this->make_attachment( 1920, 1080 );
@@ -167,13 +124,6 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertContains( $big, $ids );
 	}
 
-	/**
-	 * Anonymous filtered requests must never trigger the backfill —
-	 * `/wp/v2/media` is publicly readable, and an unauthenticated GET
-	 * carrying the dimension params must not cause database writes.
-	 *
-	 * @covers ::openstation_filter_media_by_dimensions
-	 */
 	public function test_rest_media_query_skips_backfill_for_anonymous_requests() {
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 		delete_post_meta( $attachment_id, OPENSTATION_META_WIDTH );
@@ -188,8 +138,6 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$response = rest_do_request( $request );
 		$this->assertSame( 200, $response->get_status() );
 
-		// No write happened: the attachment is still unstamped and the
-		// completion flag was not touched.
 		$this->assertSame(
 			'',
 			get_post_meta( $attachment_id, OPENSTATION_META_WIDTH, true )
@@ -197,11 +145,6 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertFalse( get_option( OPENSTATION_BACKFILL_DONE_OPTION ) );
 	}
 
-	/**
-	 * Logged-in filtered requests still run the opportunistic backfill.
-	 *
-	 * @covers ::openstation_filter_media_by_dimensions
-	 */
 	public function test_rest_media_query_runs_backfill_for_logged_in_users() {
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 		delete_post_meta( $attachment_id, OPENSTATION_META_WIDTH );
@@ -222,12 +165,8 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_backfill_media_dimensions
-	 */
 	public function test_backfill_stamps_attachments_without_dimension_meta() {
-		// Create attachment but strip the dim meta to simulate an
-		// upload that predates the stamping hook.
+
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 		delete_post_meta( $attachment_id, OPENSTATION_META_WIDTH );
 		delete_post_meta( $attachment_id, OPENSTATION_META_HEIGHT );
@@ -241,13 +180,8 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_backfill_media_dimensions
-	 */
 	public function test_backfill_flips_completion_flag_when_nothing_left() {
-		// Every attachment is already stamped; backfill should
-		// process zero and flip the done flag so future filtered
-		// requests skip the sweep query entirely.
+
 		$this->make_attachment( 1920, 1080 );
 		$this->make_attachment( 1024, 768 );
 
@@ -257,13 +191,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertSame( '1', (string) get_option( OPENSTATION_BACKFILL_DONE_OPTION ) );
 	}
 
-	/**
-	 * @covers ::openstation_backfill_media_dimensions
-	 */
 	public function test_backfill_noop_after_flag_is_set() {
 		update_option( OPENSTATION_BACKFILL_DONE_OPTION, 1 );
 
-		// Even with unstamped attachments, done flag short-circuits.
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 		delete_post_meta( $attachment_id, OPENSTATION_META_WIDTH );
 

@@ -1,85 +1,27 @@
-/**
- * Wallpaper collision surfaces.
- *
- * A "surface" is one edge of a visible shell element that a
- * collision-aware wallpaper should treat as solid: snow piles on
- * `top` faces, rain splashes off `bottom` faces, leaves settle on
- * horizontal rims. Seeded by the shell for every piece of chrome it
- * knows about — windows, the desktop floor, the dock, widget cards —
- * and filtered through `os.wallpaper.surfaces`
- * so plugins that own floating DOM can contribute their own.
- *
- * Coordinates are in **viewport space** (clientX / clientY) to
- * match what a canvas mounted inside `#os-wallpaper` reads
- * when it calls `element.getBoundingClientRect()` itself. Wallpapers
- * translate into their own drawing space using the wallpaper
- * element's own rect as the origin.
- *
- * Minimized windows are excluded — they have no visible surface.
- * Non-active virtual desktops' windows are also excluded; their
- * elements are `display: none` under the shell's desktop-switch
- * logic and would report zeroed rects anyway.
- */
-
 import { applyFilters, HOOKS } from '../hooks';
 import type { WindowManager } from '../window-manager';
 
-/**
- * A solid edge wallpapers should respect for collision logic.
- *
- * @public
- */
 export interface WallpaperSurface {
-	/**
-	 * Stable-ish identifier. Built-in surfaces use namespaced ids
-	 * (`window:foo`, `shell:floor`, `dock:edge`, `widget:clock`);
-	 * custom surfaces returned by plugin filters
-	 * should namespace with the plugin's slug (`myplugin:picker`).
-	 */
+
 	id: string;
-	/** Origin of the surface. Plugins use `'custom'`. */
+
 	kind: 'window' | 'shell' | 'dock' | 'widget' | 'custom';
-	/** Rect in viewport coordinates (clientX / clientY). */
+
 	rect: { x: number; y: number; width: number; height: number };
-	/**
-	 * Which face of the rect is solid. `'top'` for horizontal
-	 * surfaces that catch falling particles; `'bottom'` for
-	 * ceilings; `'left'` / `'right'` for vertical surfaces like
-	 * the dock's inline edge.
-	 */
+
 	face: 'top' | 'bottom' | 'left' | 'right';
-	/**
-	 * Live element when the surface originated from a specific
-	 * shell DOM node. `null` for synthetic / filter-added surfaces
-	 * that don't correspond to a visible node.
-	 */
+
 	element: HTMLElement | null;
 }
 
-/**
- * Collect the live set of wallpaper surfaces the shell currently
- * knows about, then apply the `os.wallpaper.surfaces`
- * filter so plugins can add / remove entries.
- *
- * Exposed on `wp.os.getWallpaperSurfaces()` — wallpapers call
- * it each frame (or throttled) and rebuild their collision cache
- * from the result. Pure read: no DOM mutation, no subscription
- * setup, safe from inside a `requestAnimationFrame` callback.
- */
 export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSurface[] {
 	const seed: WallpaperSurface[] = [];
 
-	// Windows — every non-minimized window on the active desktop
-	// contributes a top edge. We read the LIVE bounding rect, not
-	// the manager's desktop-area-space snapshot, so surfaces stay
-	// in viewport coordinates consistently with the other entries.
 	for ( const w of manager.getVisibleRects() ) {
 		if ( w.state === 'minimized' ) {
 			continue;
 		}
-		// `offsetParent === null` → element is hidden (either
-		// minimized — caught above — or on a suppressed virtual
-		// desktop). Skip: there's nothing for snow to land on.
+
 		if ( w.element.offsetParent === null ) {
 			continue;
 		}
@@ -93,11 +35,6 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 		} );
 	}
 
-	// Shell floor — bottom edge of the shell container. Canvas
-	// particles that miss every window should settle here. Modelled
-	// as a 1-px-tall rect along the shell's bottom so snow-pile
-	// accumulation logic treats it like any other horizontal
-	// surface rather than a special "viewport floor" branch.
 	const shellEl = document.getElementById( 'os-shell' );
 	if ( shellEl ) {
 		const r = shellEl.getBoundingClientRect();
@@ -115,13 +52,6 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 		} );
 	}
 
-	// Dock edge — a thin collision strip along whichever side of each
-	// live dock faces the desktop area. The dock element itself
-	// carries the placement attribute, so two simultaneous instances
-	// (Classic layout: a left side bar + a bottom dock) each emit
-	// their own surface. Horizontally-moving effects (leaves, rain
-	// slanted by gusts) bounce off vertical dock edges; vertically-
-	// falling effects (snow) pile on the top edge of a bottom dock.
 	const dockEls = document.querySelectorAll< HTMLElement >(
 		'.os-dock',
 	);
@@ -133,8 +63,7 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 		}
 		const placement =
 			dockEl.getAttribute( 'data-os-dock-placement' ) ?? 'bottom';
-		// First dock keeps the canonical `dock:edge` id for backwards
-		// compat with single-rail layouts; subsequent docks suffix.
+
 		const id = dockIndex === 0 ? 'dock:edge' : `dock:edge:${ dockIndex }`;
 		dockIndex++;
 		if ( placement === 'bottom' ) {
@@ -169,10 +98,6 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 		}
 	}
 
-	// Widget card tops — each mounted widget surface collects a
-	// top edge. We query by class because the widget layer builds
-	// and tears down cards independently of surface collection and
-	// we don't want to couple the two.
 	const widgetCards = document.querySelectorAll< HTMLElement >(
 		'.os-widgets__card',
 	);
@@ -192,9 +117,6 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 		} );
 	} );
 
-	// Filter — plugins that own floating DOM add their surfaces
-	// here. Any non-array return coerces back to the seed so a
-	// misbehaving filter can't corrupt the whole list.
 	const filtered = applyFilters( HOOKS.WALLPAPER_SURFACES, seed );
 	return Array.isArray( filtered ) ? filtered : seed;
 }

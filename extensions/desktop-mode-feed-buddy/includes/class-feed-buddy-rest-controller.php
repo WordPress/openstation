@@ -1,43 +1,19 @@
 <?php
-/**
- * FeedBuddy REST controller.
- *
- * @package OpenStationFeedBuddy
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Authenticated per-user REST API.
- */
 class Feed_Buddy_REST_Controller {
 
-	/**
-	 * Feed service.
-	 *
-	 * @var Feed_Buddy_Service
-	 */
 	private $service;
 
-	/**
-	 * Store the feed service.
-	 *
-	 * @param Feed_Buddy_Service $service Feed service.
-	 */
 	public function __construct( Feed_Buddy_Service $service ) {
 		$this->service = $service;
 	}
 
-	/**
-	 * Register the WordPress hook.
-	 */
 	public function boot() {
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 	}
 
-	/**
-	 * Register the public plugin routes.
-	 */
 	public function register_routes() {
 		$permission = array( $this, 'check_permission' );
 
@@ -128,11 +104,6 @@ class Feed_Buddy_REST_Controller {
 		);
 	}
 
-	/**
-	 * Require an authenticated user with the baseline read capability.
-	 *
-	 * @return true|WP_Error
-	 */
 	public function check_permission() {
 		if ( ! is_user_logged_in() ) {
 			return new WP_Error(
@@ -151,21 +122,10 @@ class Feed_Buddy_REST_Controller {
 		return true;
 	}
 
-	/**
-	 * Return the current user's subscriptions and summaries.
-	 *
-	 * @return WP_REST_Response
-	 */
 	public function get_state() {
 		return rest_ensure_response( $this->service->get_state( get_current_user_id() ) );
 	}
 
-	/**
-	 * Update supported user preferences.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response
-	 */
 	public function update_state( WP_REST_Request $request ) {
 		$input = $request->get_json_params();
 		$input = is_array( $input ) ? $input : array();
@@ -174,12 +134,6 @@ class Feed_Buddy_REST_Controller {
 		);
 	}
 
-	/**
-	 * Create a subscription for the current user.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response|WP_Error
-	 */
 	public function create_subscription( WP_REST_Request $request ) {
 		$input = $request->get_json_params();
 		$input = is_array( $input ) ? $input : array();
@@ -188,12 +142,6 @@ class Feed_Buddy_REST_Controller {
 		);
 	}
 
-	/**
-	 * Update a subscription owned by the current user.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response|WP_Error
-	 */
 	public function update_subscription( WP_REST_Request $request ) {
 		$input = $request->get_json_params();
 		$input = is_array( $input ) ? $input : array();
@@ -206,24 +154,12 @@ class Feed_Buddy_REST_Controller {
 		);
 	}
 
-	/**
-	 * Delete a subscription owned by the current user.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response|WP_Error
-	 */
 	public function delete_subscription( WP_REST_Request $request ) {
 		return rest_ensure_response(
 			$this->service->delete_subscription( get_current_user_id(), (string) $request['id'] )
 		);
 	}
 
-	/**
-	 * Return a cursor page of normalized feed items.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response|WP_Error
-	 */
 	public function get_items( WP_REST_Request $request ) {
 		$feed_id = $request->get_param( 'feed_id' );
 		return rest_ensure_response(
@@ -236,12 +172,6 @@ class Feed_Buddy_REST_Controller {
 		);
 	}
 
-	/**
-	 * Update item, feed, or global read state.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response|WP_Error
-	 */
 	public function update_read_state( WP_REST_Request $request ) {
 		$input = $request->get_json_params();
 		$input = is_array( $input ) ? $input : array();
@@ -250,12 +180,6 @@ class Feed_Buddy_REST_Controller {
 		);
 	}
 
-	/**
-	 * Refresh one or all subscriptions.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response|WP_Error
-	 */
 	public function refresh( WP_REST_Request $request ) {
 		$input   = $request->get_json_params();
 		$input   = is_array( $input ) ? $input : array();

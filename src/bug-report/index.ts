@@ -1,33 +1,10 @@
-/**
- * OpenStation — Bug Report native window.
- *
- * A built-in native app that lets users file issues against the
- * plugin's GitHub repo without leaving the admin. The form gathers
- * a small structured payload (type, title, description, repro
- * steps, environment) and opens GitHub's `/issues/new` URL with
- * `?title=…&body=…&labels=…` pre-filled — the user reviews on
- * GitHub before submitting, so we never POST on their behalf and
- * never need an OAuth token.
- *
- * The System dock tile's "Report a bug" row is its front door,
- * registered in `src/desktop.ts`.
- */
-
 import { __ } from '../i18n';
 
-/** Public window id — shared with `src/desktop.ts` for tile + opener wiring. */
 export const BUG_REPORT_WINDOW_ID = 'desktop-mode-bug-report';
 
-/** GitHub repo the issue is filed against. */
 const REPO_OWNER = 'WordPress';
 const REPO_NAME = 'openstation';
 
-/**
- * Conservative cap on the body length passed via `?body=…`. GitHub
- * accepts up to ~8KB of URL, but the rest of the URL (origin + path
- * + title param + labels) eats some of that — 6KB for `body` keeps
- * us under the limit with a comfortable margin.
- */
 const MAX_BODY_LENGTH = 6000;
 
 interface FormState {
@@ -37,12 +14,6 @@ interface FormState {
 	steps: string;
 }
 
-/**
- * Render the Bug Report form into a native window body.
- *
- * Called by the manager via `config.render(body)` when the window
- * opens. Returns nothing — mutates `body` in place.
- */
 export function renderBugReport( body: HTMLElement ): void {
 	body.classList.add( 'desktop-mode-bug-report' );
 	body.replaceChildren();
@@ -96,10 +67,6 @@ export function renderBugReport( body: HTMLElement ): void {
 		e.preventDefault();
 		const state = readFormState( form );
 		if ( ! state.title.trim() || ! state.description.trim() ) {
-			// Lightweight inline validation — title + description are
-			// both load-bearing; the rest is optional. Native HTML
-			// validation would clobber our submit handler with a
-			// browser-rendered tooltip, so keep it form-driven.
 			showInlineError( form, __( 'Title and description are both required.' ) );
 			return;
 		}
@@ -109,10 +76,6 @@ export function renderBugReport( body: HTMLElement ): void {
 
 	body.appendChild( form );
 }
-
-/* ──────────────────────────────────────────────────────────────────
-   Field builders.
-   ────────────────────────────────────────────────────────────────── */
 
 function buildTypeField(): HTMLElement {
 	const wrap = document.createElement( 'div' );
@@ -208,11 +171,6 @@ function buildTextareaField(
 	return wrap;
 }
 
-/**
- * Read-only summary of what we'll append to the issue body. Showing
- * it inline keeps the user honest about what gets sent — no surprise
- * data leak when the GitHub URL opens.
- */
 function buildMetadataPreview(): HTMLElement {
 	const details = document.createElement( 'details' );
 	details.className = 'os-bug-report__metadata';
@@ -240,10 +198,6 @@ function showInlineError( form: HTMLFormElement, msg: string ): void {
 	banner.textContent = msg;
 }
 
-/* ──────────────────────────────────────────────────────────────────
-   State + URL building.
-   ────────────────────────────────────────────────────────────────── */
-
 function readFormState( form: HTMLFormElement ): FormState {
 	const data = new FormData( form );
 	return {
@@ -254,11 +208,6 @@ function readFormState( form: HTMLFormElement ): FormState {
 	};
 }
 
-/**
- * Compose the GitHub issue URL with `?title=…&body=…&labels=…`.
- * Exported so tests can pin the contract independently of the form
- * scaffolding.
- */
 export function buildGithubIssueUrl( state: FormState ): string {
 	const labels = labelsForType( state.type );
 	const body = composeIssueBody( state );
@@ -309,10 +258,6 @@ function composeIssueBody( state: FormState ): string {
 	}
 	return out;
 }
-
-/* ──────────────────────────────────────────────────────────────────
-   Metadata collection.
-   ────────────────────────────────────────────────────────────────── */
 
 interface Metadata {
 	pluginVersion: string;

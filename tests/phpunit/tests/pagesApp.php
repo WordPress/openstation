@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the Pages app — the Posts app's twin over `/wp/v2/pages`:
- * the manifest, the gate, the hierarchical defaults, the pages-only
- * config facts and REST field, and the dispatch cycle.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-pages-window
- */
+
 class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 
 	private $admin_id;
@@ -52,9 +42,6 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers \OpenStation\App::manifest
-	 */
 	public function test_manifest_mirrors_the_legacy_registration() {
 		$manifest = $this->app()->manifest();
 		$this->assertSame( 'Pages', $manifest['title'] );
@@ -63,17 +50,13 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertSame( 720, $manifest['height'] );
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertSame( array( 'page' ), $manifest['watch'] );
-		// `reopen` is the framework's, declared for every window that
-		// declares a menu so the client dispatches it.
+
 		$this->assertSame( array( 'filter', 'page', 'sort', 'trash', 'reopen' ), $manifest['actions'] );
-		// Pages are usually shallow + ordered by menu_order.
+
 		$this->assertSame( 'menu_order', $manifest['state']['orderby'] );
 		$this->assertSame( 'asc', $manifest['state']['order'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App::manifest
-	 */
 	public function test_config_carries_the_pages_facts() {
 		$front = self::factory()->post->create( array( 'post_type' => 'page' ) );
 		update_option( 'page_on_front', $front );
@@ -91,11 +74,10 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'post_type=page', $config['newPostUrl'] );
 		$this->assertSame( 'Default template', $config['pageTemplates'][''] );
 		$this->assertSame( 'Wide', $config['pageTemplates']['page-wide.php'] );
-		// The declared sort travels with the config.
+
 		$this->assertSame( 'menu_order', $config['defaultOrderby'] );
 		$this->assertSame( 'asc', $config['defaultOrder'] );
-		// Minus `menuTabs`, which the framework adds from the window's
-		// own `App::menu()` declaration rather than from the facts.
+
 		unset( $config['menuTabs'] );
 		$this->assertSame( $config, openstation_pages_app_config(), 'The manifest reads the Pages layer, which wraps the shared facts.' );
 		$this->assertSame(
@@ -105,9 +87,6 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_posts_app_sort
-	 */
 	public function test_sort_falls_back_to_menu_order() {
 		$response = $this->dispatch( 'sort', array( 'orderby' => 'title' ), array( 'orderby' => 'wordCount' ) );
 		$this->assertSame( 'menu_order', $response['state']['orderby'] );
@@ -117,10 +96,6 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertSame( 'desc', $response['state']['order'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App::allows
-	 * @covers ::openstation_pages_window_user_can_register
-	 */
 	public function test_gate_is_edit_pages_and_filterable() {
 		$app = $this->app();
 		$this->assertTrue( $app->allows( openstation_apps_os() ) );
@@ -131,18 +106,12 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertFalse( $app->allows( openstation_apps_os() ) );
 	}
 
-	/**
-	 * @covers ::openstation_pages_window_user_can_use
-	 */
 	public function test_use_gate_is_cap_and_opt_in() {
 		$this->assertFalse( openstation_pages_window_user_can_use() );
 		openstation_save_os_settings( $this->admin_id, array( 'nativePagesEnabled' => true ) );
 		$this->assertTrue( openstation_pages_window_user_can_use() );
 	}
 
-	/**
-	 * @covers ::openstation_pages_window_default_query_args
-	 */
 	public function test_default_query_args_carry_the_page_columns() {
 		$args = openstation_pages_window_default_query_args();
 		$this->assertSame( 'menu_order', $args['orderby'] );
@@ -151,9 +120,6 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_mount_serves_pages_with_parent_template_and_comment_count() {
 		$parent = self::factory()->post->create(
 			array(
@@ -185,9 +151,6 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'slug', $row );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_trash_announces_the_page_type() {
 		$page     = self::factory()->post->create( array( 'post_type' => 'page' ) );
 		$response = $this->dispatch( 'trash', array(), array( 'ids' => array( $page ) ) );

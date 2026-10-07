@@ -1,44 +1,12 @@
 <?php
-/**
- * Comments app — the `wp/v2/comments` projection.
- *
- * The default query args the app's `data()` sends to the comments
- * collection (filterable through `openstation_comments_window_query_args`,
- * so a plugin can widen `_fields` or scope the default view), and the
- * computed `openstation_*` REST fields on the `comment` resource the
- * conversation view reads. Fields are computed lazily — none of them
- * runs unless a request asks for it via `_fields`.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Default REST query args for the Comments app.
- *
- * @return array
- */
 function openstation_comments_window_default_query_args() {
-	// `context=edit` on `wp/v2/comments` requires `moderate_comments`
-	// — sending it as an author-without-moderate-cap 401s the entire
-	// list. Stick to `view` (every authenticated user can read it) and
-	// fall back to the REST `edit` context per-row only when the user
-	// opens the inline-edit affordance on a row they're allowed to
-	// edit.
+
 	$context = current_user_can( 'moderate_comments' ) ? 'edit' : 'view';
 	$args    = array(
-		// Exactly the fields the conversation view renders — no more.
-		// Every `openstation_*` field is computed per row, so an
-		// over-broad `_fields` is a per-row query multiplier. The
-		// viewer-wide facts (`openstation_can_moderate`) and the reply
-		// counts (`openstation_replies_count`, one COUNT per row) are
-		// not requested: the app ships the first with its config and
-		// computes the second in one grouped query. The scoring fields
-		// (`spam_score`, `link_count`, `akismet`, `ai_verdict`) cost a
-		// meta read or worse per row and nothing in the view reads them.
-		// Widen the projection through the filter below when a plugin
-		// surfaces one of them.
+
 		'_fields'  =>
 			'id,post,parent,author,author_name,author_avatar_urls,'
 			. 'date_gmt,content,status,'
@@ -46,22 +14,13 @@ function openstation_comments_window_default_query_args() {
 			. 'openstation_can_edit',
 		'context'  => $context,
 		'per_page' => 20,
-		// 'hold' = pending. Use the wp/v2 status names where they differ
-		// from core's: 'hold' / 'approve' / 'spam' / 'trash'.
+
 		'status'   => 'hold',
 	);
 
-	/**
-	 * Filter the default outbound REST query args for the Comments window.
-	 *
-	 * @param array $args Default args.
-	 */
 	return (array) apply_filters( 'openstation_comments_window_query_args', $args );
 }
 
-/**
- * Register the app's REST fields on the `comment` resource.
- */
 function openstation_comments_window_register_rest_fields() {
 	$readonly = static function ( $description, $type, array $extra = array() ) {
 		return array_merge(
@@ -214,7 +173,7 @@ function openstation_comments_window_register_rest_fields() {
 				if ( $id <= 0 ) {
 					return null;
 				}
-				// Akismet stores one of `true`, `false` or `pending`.
+
 				$result = (string) get_comment_meta( $id, 'akismet_result', true );
 				return '' === $result ? null : $result;
 			},

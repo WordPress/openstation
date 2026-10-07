@@ -1,22 +1,3 @@
-/**
- * Phantom theming tokens are unreachable by every desktop theme.
- *
- * WordPress ships exactly one custom-property family for the admin
- * accent: `--wp-admin-theme-color` (plus its `-darker-10` /
- * `-darker-20` shades). Names like `--wp-admin-theme-bg`,
- * `--wp-admin-theme-border` or `--wp-admin-theme-fg-muted` LOOK like
- * the same family but are defined by nothing — not by Core, not by
- * the palette, not by any desktop theme. A `var()` on one of them
- * silently resolves its fallback literal forever, which is how the
- * Profile window's identity card and the colour-scheme tiles stayed
- * light — with theme-following text on top of them — on every dark
- * desktop theme.
- *
- * The rule (see AGENTS.md, "The palette lives in variables.css"):
- * surfaces read `--os-ui-*` tokens with the pre-brand literal as the
- * fallback. This test holds the whole source tree and every
- * hand-written stylesheet to it for the wp-admin-theme family.
- */
 import { describe, expect, test } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, join } from 'node:path';
@@ -33,7 +14,6 @@ function walk( dir: string ): string[] {
 	} );
 }
 
-/** The only members of the family WordPress actually defines. */
 const REAL_TOKENS = new Set( [
 	'--wp-admin-theme-color',
 	'--wp-admin-theme-color-darker-10',

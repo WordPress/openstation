@@ -1,21 +1,5 @@
 import { css } from '../../core';
 
-/**
- * Styles for `<os-multiselect>`.
- *
- * Two surfaces share this stylesheet:
- *   - The trigger button (lives inside the component's shadow DOM).
- *   - The popover (rendered into `document.body` so it escapes any
- *     overflow-clipping ancestor).
- *
- * The popover rules are scoped via `:host` from the multi-select's
- * shadow stylesheet and ALSO via `:where(...)` from the global rule
- * below — the popover lives outside the shadow tree so it can't
- * inherit through `:host`. We append a global rule via the same
- * `css` template tag so plugin authors don't need to import another
- * stylesheet to make the popover paint.
- */
-
 export const multiselectStyles = css`
 	:host {
 		display: flex;
@@ -103,13 +87,6 @@ export const multiselectStyles = css`
 	}
 `;
 
-/**
- * Global popover styles. Appended once at module-evaluation time so
- * a popover element appended to `document.body` paints correctly
- * even though it lives outside the multi-select's shadow tree. The
- * style element is idempotent — re-importing the module doesn't
- * stack duplicates.
- */
 function _installGlobalPopoverStyles(): void {
 	const STYLE_ID = 'os-multiselect-popover-styles';
 	if ( document.getElementById( STYLE_ID ) ) {

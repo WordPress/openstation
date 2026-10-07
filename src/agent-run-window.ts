@@ -1,21 +1,3 @@
-/**
- * OpenStation — Agents: "Agent chat" window bundle.
- *
- * Lazy-loaded by the native-window sync the first time the
- * `desktop-mode-agent-run` window opens. Registers the render
- * callback on `window.openStationNativeWindows` and paints the
- * conversation for the agent seeded into the cross-bundle
- * `desktop-mode/agents-chat` shared store by the opener (the My
- * WordPress Agents section today; send-to and drag intakes in later
- * phases).
- *
- * Each send queues an async job through `/agents/:id/invoke`; short status
- * polls deliver the answer without keeping a generation request open. Transcripts live in the shared
- * store for the session only.
- *
- * @public
- */
-
 import { __, sprintf } from './i18n';
 import { toastRestFailure } from './core/rest-failure';
 import { shellToast } from './core/shell-toast';
@@ -65,12 +47,6 @@ type RenderCallback = (
 	ctx?: { signal?: AbortSignal },
 ) => void | ( () => void );
 
-/**
- * Global bags shared with the shell. Typed via cast rather than
- * `declare global` — every window bundle declares its own
- * RenderCallback alias and TS rejects same-name global redeclarations
- * across bundles.
- */
 interface MinimalDropTarget {
 	id: string;
 	element: HTMLElement;
@@ -95,7 +71,6 @@ interface RunWindowGlobals {
 
 const globals = window as unknown as RunWindowGlobals;
 
-/** Per-render sequence so multi-instance windows get unique target ids. */
 let chatDropSeq = 0;
 
 function getRunConfig(): RunWindowConfig | null {
@@ -105,12 +80,6 @@ function getRunConfig(): RunWindowConfig | null {
 	return cfg && typeof cfg.restRoot === 'string' ? cfg : null;
 }
 
-/**
- * Sidebar timestamp: time of day for today, "Yesterday", the weekday
- * inside the last week, a short date beyond that. Same ladder every
- * messaging app uses — the point is recency at a glance, not
- * precision, so the full stamp goes in the row's `title` instead.
- */
 function formatConversationTime( iso: string ): string {
 	const when = new Date( iso );
 	if ( Number.isNaN( when.getTime() ) ) {
@@ -140,16 +109,6 @@ function formatConversationTime( iso: string ): string {
 	} );
 }
 
-/**
- * Build a `<os-avatar>`. Gravatar URLs go through the probe so users
- * with no registered Gravatar get their initials tile instead of the
- * mystery-person silhouette (a raw Gravatar URL answers 200 with the
- * silhouette, so the component's own error fallback never fires).
- */
-/**
- * The send glyph: an arrow, inline so it renders with no icon font
- * and takes the button's own colour.
- */
 const SEND_ICON =
 	'<svg class="dm-agent-chat__send-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
 	'<path d="M8 13.5V2.5M8 2.5 3.5 7M8 2.5 12.5 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
@@ -172,11 +131,6 @@ function buildAvatar(
 	return avatar;
 }
 
-/**
- * Turn an avatar into the agent's editor shortcut: clickable tile,
- * and both the click and the Enter/Space keydown stop at the avatar so
- * a row that is itself a button doesn't fire twice.
- */
 function linkAvatarToAgentEditor( avatar: HTMLElement, agentId: number ): void {
 	avatar.setAttribute( 'clickable', '' );
 	avatar.setAttribute(
@@ -194,17 +148,12 @@ function linkAvatarToAgentEditor( avatar: HTMLElement, agentId: number ): void {
 	} );
 }
 
-/**
- * The object a drop / "Send to" handed the agent, as a card the user
- * can open. Clicking it opens the entity's admin screen in its own
- * window — the conversation stays put.
- */
 function attachmentCard( attachment: AgentChatAttachment ): HTMLElement {
 	const card = document.createElement( 'button' );
 	card.type = 'button';
 	card.className = 'dm-agent-chat__attachment';
 	card.title = sprintf(
-		/* translators: 1: entity kind (Post, Media, …), 2: entity title. */
+
 		__( 'Open the %1$s "%2$s"', 'desktop-mode' ),
 		attachmentKindLabel( attachment.kind ),
 		attachment.title,
@@ -258,11 +207,10 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		const agent = agentsChatStore.state.activeAgent;
 		return !! agent && transcriptFor( agent ).some( ( row ) => row.pending );
 	};
-	// Sidebar list state. Refetched when the store's conversationsRev
-	// moves (a save/delete happened) — never polled.
+
 	let conversations: AgentConversationSummary[] = [];
 	let conversationsLoaded = false;
-	/** The last list load failed: the sidebar says so instead of "no conversations". */
+
 	let conversationsFailed = false;
 	let seenRev = -1;
 
@@ -283,7 +231,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			.catch( ( err: unknown ) => {
 				conversations = [];
 				conversationsFailed = true;
-				// eslint-disable-next-line no-console
+
 				console.error( '[openstation] agents: conversations failed to load:', err );
 			} )
 			.finally( () => {
@@ -293,9 +241,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	};
 
 	const startNewChat = ( agent: AgentChatAgent ): void => {
-		// Resets the live transcript AND detaches it from its persisted
-		// conversation — the next exchange creates a fresh row (the old
-		// one stays in the sidebar).
 		agentsChatStore.state.transcripts[ agent.id ] = [];
 		if ( ! agentsChatStore.state.conversationIds ) {
 			agentsChatStore.state.conversationIds = {};
@@ -326,7 +271,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				row.id,
 			);
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( '[openstation] agents: conversation delete failed:', err );
 			toastRestFailure( shellToast, err, {
 				fallback: __( 'Could not delete the conversation.', 'desktop-mode' ),
@@ -335,8 +279,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		}
 		const state = agentsChatStore.state;
 		if ( state.conversationIds?.[ row.agentId ] === row.id ) {
-			// Deleting the OPEN conversation also clears the transcript
-			// — keeping it would silently recreate the row on next send.
 			state.transcripts[ row.agentId ] = [];
 			state.conversationIds[ row.agentId ] = null;
 		}
@@ -368,11 +310,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			? agentsChatStore.state.conversationIds?.[ agent.id ] ?? null
 			: null;
 
-		// Per-agent scope: with an agent active, the sidebar is THAT
-		// agent's history only — conversations never mix across agents.
-		// With no agent seeded yet (a cold-open or session-restored
-		// window) the full list acts as the picker, since a row click
-		// re-targets the chat to its agent anyway.
 		const visible = agent
 			? conversations.filter( ( row ) => row.agentId === agent.id )
 			: conversations;
@@ -380,7 +317,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		if ( conversationsLoaded && visible.length === 0 ) {
 			const none = document.createElement( 'div' );
 			none.className = 'dm-agent-chat__convs-empty';
-			// A failed load is not an empty history; say which it was.
+
 			none.textContent = conversationsFailed
 				? __( 'Could not load conversations.', 'desktop-mode' )
 				: __( 'No conversations yet.', 'desktop-mode' );
@@ -394,9 +331,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			}
 			item.setAttribute( 'role', 'button' );
 			item.tabIndex = 0;
-			// The title (first user message) is the one line the rows
-			// have in common when a workflow always opens the same way —
-			// it belongs in the tooltip, not as the row's identity.
+
 			item.title = `${ row.agentName } — ${ row.title }`;
 
 			const face = buildAvatar(
@@ -409,8 +344,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				linkAvatarToAgentEditor( face, row.agentId );
 			}
 
-			// Two lines: who the conversation is with, and where it got
-			// to. The timestamp rides the first line, right-aligned.
 			const label = document.createElement( 'span' );
 			label.className = 'dm-agent-chat__conv-text';
 			const top = document.createElement( 'span' );
@@ -437,7 +370,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 					{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
 					row.id,
 				).catch( ( err ) => {
-					// eslint-disable-next-line no-console
 					console.warn(
 						'[desktop-mode/agents] conversation load failed:',
 						err,
@@ -452,8 +384,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				}
 			} );
 
-			// Feature-specific micro-control — a full os-button would
-			// out-weigh the row it lives in.
 			const del = document.createElement( 'button' );
 			del.type = 'button';
 			del.className = 'dm-agent-chat__conv-delete';
@@ -474,18 +404,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		return sidebar;
 	};
 
-	// Where the transcript's scroll box sits across repaints. The box
-	// is rebuilt on EVERY store change — each status poll of a run in
-	// flight, every two or three seconds — and the kit components in
-	// it (avatars, the spinner, the composer's textarea) render on a
-	// microtask, so its height at paint time is not its height once
-	// they have drawn: pinning scrollTop synchronously landed short by
-	// the composer's height on every tick and the latest row slid out
-	// of view again and again. The reader's position decides instead.
-	// At the bottom (within `SCROLL_SLACK`) the view follows the newest
-	// row and keeps following it as late renders resize the box;
-	// scrolled up to read, the offset is kept. The reader's own send,
-	// and opening a conversation, ask for the bottom explicitly.
 	const SCROLL_SLACK = 8;
 	let followLatest = true;
 	let followOnNextPaint = false;
@@ -566,10 +484,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		}
 		main.appendChild( scroll );
 
-		// The composer is one field: the textarea and the send button
-		// share a border, the way a chat input reads everywhere else.
-		// The textarea is still the kit's, styled through its exported
-		// part so the wrapper owns the chrome and it owns the text.
 		const composer = document.createElement( 'div' );
 		composer.className = 'dm-agent-chat__composer';
 		const input = document.createElement( 'os-textarea' ) as HTMLElement & {
@@ -594,15 +508,12 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		send.className = 'dm-agent-chat__send';
 		send.setAttribute( 'variant', 'primary' );
 		send.setAttribute( 'title', __( 'Send', 'desktop-mode' ) );
-		// The glyph is decoration; the visually hidden label is the
-		// name, for readers and for anyone finding the button by text.
+
 		send.innerHTML = `${ SEND_ICON }<span class="dm-agent-chat__send-label">${ __(
 			'Send',
 			'desktop-mode',
 		) }</span>`;
 
-		// Nothing to send, nothing to press: the button follows the
-		// text, and the run in flight, without a repaint.
 		const syncSend = (): void => {
 			const empty = ( input.value ?? '' ).trim() === '';
 			if ( isBusy() || empty ) {
@@ -640,19 +551,12 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		}
 		settleScroll();
 		scroll.addEventListener( 'scroll', () => {
-			// A pin fires this too, and it dispatches only after the
-			// late renders have settled around it — so an offset that
-			// still reads as the pin is not the reader moving, even
-			// when the bottom has since moved away from it.
 			if ( followLatest && scroll.scrollTop === pinnedScrollTop ) {
 				return;
 			}
 			followLatest = isAtBottom( scroll );
 		} );
-		// The box and its rows change size after this paint returns —
-		// the composer draws, avatars and the spinner take their
-		// height, a markdown answer's images arrive. While following,
-		// every one of those re-pins the bottom.
+
 		if ( typeof ResizeObserver === 'function' ) {
 			scrollObserver = new ResizeObserver( settleScroll );
 			scrollObserver.observe( scroll );
@@ -673,11 +577,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			line.classList.add( 'dm-agent-chat__line--pending' );
 		}
 
-		// WhatsApp-style avatars: the agent on the left, the viewer on
-		// the right. Error rows sit on the agent side, avatar-less.
-		// `<os-avatar>` rather than a bare `<img>` so a viewer with no
-		// registered Gravatar gets their initials instead of the
-		// mystery-person silhouette.
 		if ( message.role === 'agent' ) {
 			line.appendChild(
 				buildAvatar(
@@ -689,8 +588,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			);
 		} else if ( message.role === 'user' ) {
 			const viewer = getRunConfig()?.currentUser;
-			// Nothing to draw when the config carries no viewer — an
-			// empty initials disc would read as a broken avatar.
+
 			if ( viewer?.avatarUrl || viewer?.name ) {
 				line.appendChild(
 					buildAvatar(
@@ -711,22 +609,12 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		line.appendChild( row );
 
 		if ( message.attachment ) {
-			// The row's `text` is the sentence the RUNNER was handed
-			// ("The user dropped the post … onto you. Handle it …") —
-			// machine-facing boilerplate that reads as noise in a chat.
-			// The card says the same thing better, and unlike the
-			// sentence it opens the object.
 			row.appendChild( attachmentCard( message.attachment ) );
 			const caption = document.createElement( 'div' );
 			caption.className = 'dm-agent-chat__msg-caption';
 			caption.textContent = __( 'Shared with the agent', 'desktop-mode' );
 			row.appendChild( caption );
 		} else {
-			// The in-flight row is an instrument line, spinner first:
-			// the inline preset is the one arc that stays legible at
-			// text size (the WordPress mark's rings collapse into a
-			// static disc below 40px, which is what the bubble used to
-			// show), and it tints from the text it sits beside.
 			if ( message.pending ) {
 				const spinner = document.createElement( 'os-spinner' );
 				spinner.setAttribute( 'preset', 'inline' );
@@ -735,9 +623,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			const text = document.createElement( 'div' );
 			text.className = 'dm-agent-chat__msg-text';
 			if ( message.role === 'agent' && ! message.pending ) {
-				// Agent answers arrive as markdown; renderMarkdown escapes
-				// the input before re-interpreting tokens, so the result is
-				// safe for innerHTML.
 				text.innerHTML = renderMarkdown( message.text );
 			} else {
 				text.textContent = message.text;
@@ -762,11 +647,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			}
 			row.appendChild( tools );
 		}
-		// Confirmation buttons the answer carries. Only the LATEST
-		// message's buttons are live — once the conversation moves on
-		// (or a button was pressed) they render disabled, so the stored
-		// transcript keeps showing what was offered without re-arming
-		// stale choices.
+
 		if (
 			message.callToActions &&
 			message.callToActions.length > 0 &&
@@ -787,9 +668,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 						return;
 					}
 					message.ctaUsed = true;
-					// The reply lands as a visible user message and runs
-					// like a typed turn — the stored history shows
-					// exactly what was approved.
+
 					void sendMessage( agent, cta.reply );
 				} );
 				ctas.appendChild( btn );
@@ -799,10 +678,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		return line;
 	};
 
-	// Delegates to the shared dispatcher so the typed path and the drop
-	// path replay the conversation identically — a follow-up message
-	// must never reach the runner without the turns that give it
-	// meaning.
 	const sendMessage = async (
 		agent: AgentChatAgent,
 		text: string,
@@ -827,10 +702,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		);
 	};
 
-	// The open conversation accepts entity drops for the active agent.
-	// Deliberately NOT gated on the agent's drag trigger — dropping
-	// into an open chat is explicit user intent, exactly like typing
-	// (the chat trigger), so only the entity shape is checked.
 	let deregisterDrop: ( () => void ) | undefined;
 	const dropConfig = getRunConfig();
 	const dragManager = globals.wp?.os?.dragManager;

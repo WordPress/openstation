@@ -1,8 +1,3 @@
-/**
- * `<os-section>` — smoke test. Verifies that heading +
- * description drive the shadow-DOM text nodes and that slotted
- * children survive into light DOM.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-section';
 
@@ -30,7 +25,7 @@ describe( '<os-section>', () => {
 		expect( section.shadowRoot!.querySelector( 'p' )?.textContent ).toBe(
 			'Backdrop',
 		);
-		// Slotted children live in light DOM on the host.
+
 		expect( section.querySelector( '.child' ) ).not.toBeNull();
 	} );
 } );

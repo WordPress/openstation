@@ -1,20 +1,3 @@
-/**
- * My WordPress — the Agents section: the create wizard.
- *
- * Part of the `my-wordpress` client view: imported by the
- * `my-wordpress.os.ts` entry. Five steps, and a door before them:
- * Describe (the starters and the AI draft), Meet (the face picker,
- * the name, the voice), Powers (role + abilities), Summon (the
- * trigger doors), Launch (the summary card and the create). Every
- * step is reachable by clicking it in the trail, in either direction;
- * only Launch's create insists on a name, and bounces to Meet without
- * one.
- * `renderAgents()` at the bottom is the section's view switch — the
- * one entry the app's `renderBody()` calls.
- *
- * @public
- */
-
 import { __, html, sprintf, type TemplateResult } from '@openstation/app';
 import {
 	FACE_CANDIDATES,
@@ -51,7 +34,6 @@ const AGENT_STEP_LABELS = (): string[] => [
 	__( 'Launch' ),
 ];
 
-/** Whether Meet has the one thing it insists on: a name. */
 function meetReady( cast: CastDraft ): boolean {
 	return cast.name.trim() !== '';
 }
@@ -105,11 +87,7 @@ function agentsCancelButton( ctx: Ctx, cast: CastDraft ): TemplateResult {
 	`;
 }
 
-/** Step 0 — the door, then the brief. */
 function agentsDescribeStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): TemplateResult {
-	// The brief becomes the instructions on the way out: the
-	// `agent-step` local does it, so the trail's jumps carry the words
-	// along exactly as Continue does.
 	const draftWithAi = (): void => {
 		if ( cast.brief.trim() === '' ) {
 			ctx.local( 'agent-brief-error', {
@@ -176,8 +154,6 @@ function agentsDescribeStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft )
 				@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
 					cast.brief = e.detail?.value ?? '';
 					if ( ctx.state.briefError !== '' ) {
-						// Typing is the fix; the error goes as soon as it
-						// starts rather than after the next click.
 						ctx.local( 'agent-brief-error', { msg: '' } );
 					}
 				} }
@@ -208,7 +184,6 @@ function agentsDescribeStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft )
 	`;
 }
 
-/** Step 1 — meet them: the face, the name, the voice. */
 function agentsMeetStep( ctx: Ctx, cast: CastDraft ): TemplateResult {
 	const ui = uiOf( ctx );
 	const strip = faceCandidates( cast.stripSeed, FACE_CANDIDATES );
@@ -261,7 +236,7 @@ function agentsMeetStep( ctx: Ctx, cast: CastDraft ): TemplateResult {
 				${ cast.copiedFrom
 					? html`<os-notice tone="info">
 							${ sprintf(
-								/* translators: %s: name of the agent this one was copied from. */
+
 								__( 'Copied from %s, with a face of its own.' ),
 								cast.copiedFrom,
 							) }
@@ -274,9 +249,6 @@ function agentsMeetStep( ctx: Ctx, cast: CastDraft ): TemplateResult {
 						value=${ cast.name }
 						?invalid=${ ui.nameError !== '' }
 						@os-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-							// Repaint only when the Continue gate flips —
-							// per-keystroke repaints are what the original
-							// deliberately avoided here.
 							const before = meetReady( cast ) && ui.nameError === '';
 							cast.name = e.detail?.value ?? '';
 							ui.nameError = '';
@@ -326,11 +298,6 @@ function agentsMeetStep( ctx: Ctx, cast: CastDraft ): TemplateResult {
 	`;
 }
 
-/**
- * Step 2, powers — named for what is actually being decided: what the
- * agent is allowed to touch, the one thing in the flow worth slowing
- * down for.
- */
 function agentsPowersStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): TemplateResult {
 	return html`
 		<os-select
@@ -373,12 +340,6 @@ function agentsPowersStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 	`;
 }
 
-/**
- * The Powers step's checklist — the same widget the Tools pane uses,
- * on purpose: a guided flow that showed a flat, undescribed list would
- * be giving less help than the expert surface it is meant to be
- * gentler than.
- */
 function agentsPowersChecklist( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): TemplateResult {
 	return agentsAbilityChecklist( ctx, payload, cast.abilities, ( slug, on ) => {
 		const next = new Set( cast.abilities );
@@ -391,10 +352,6 @@ function agentsPowersChecklist( ctx: Ctx, payload: AgentsPayload, cast: CastDraf
 	} );
 }
 
-/**
- * Step 3, summon: how the site calls the agent — named for the act
- * rather than the mechanism.
- */
 function agentsSummonStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): TemplateResult {
 	return html`
 		${ agentsTriggersList( ctx, payload, cast.triggers, ( next ) =>
@@ -416,7 +373,6 @@ function agentsSummonStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 	`;
 }
 
-/** Step 4, launch. */
 function agentsLaunchStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): TemplateResult {
 	const ui = uiOf( ctx );
 	const canChat = payload.canInvoke && payload.aiReady;
@@ -432,7 +388,7 @@ function agentsLaunchStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 		cast.triggers.length === 0
 			? __( 'No triggers configured: reachable in chat.' )
 			: sprintf(
-				/* translators: %s: comma-separated list of trigger kind labels. */
+
 				__( 'Starts from: %s.' ),
 				cast.triggers.map( ( t ) => triggerLabel( t.kind ) ).join( ', ' ),
 			);
@@ -509,19 +465,12 @@ function agentsLaunchStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 	`;
 }
 
-/**
- * The Agents section's view switch — grid, one open agent, or the
- * wizard — wrapped with the AI notice and the message rail, exactly
- * as the original's paint() composed them.
- */
 export function renderAgents( ctx: Ctx ): TemplateResult {
 	const payload = ctx.data.agents;
 	if ( ! payload ) {
 		return html`<os-empty-state>${ __( 'This section is not available.' ) }</os-empty-state>`;
 	}
-	// The framework is opt-in, but the section is always listed. With
-	// the option off the whole surface paints disabled: nothing to
-	// load, and every control inert.
+
 	const off = ! payload.enabled;
 	const state = ctx.state;
 	const selected = payload.list.find( ( a ) => a.id === state.item ) ?? null;

@@ -1,11 +1,3 @@
-/**
- * `SessionSaver.flush()` — write now, resolve when the server answers.
- *
- * The one caller is the reload the shell offers after a deploy changed
- * its files: the navigation must wait for the session to land, or the
- * request that reads it back can beat the write and the desktop comes
- * back as the older snapshot.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createSessionSaver } from '../../src/boot/session-saver';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
@@ -87,8 +79,6 @@ describe( 'session saver — flush()', () => {
 		} );
 		await vi.advanceTimersByTimeAsync( 0 );
 
-		// The debounced write was folded into the flush: one request,
-		// sent at once, carrying the current desktop.
 		expect( trackedFetchMock ).toHaveBeenCalledTimes( 1 );
 		expect( windowIdsOfCall( 0 ) ).toEqual( [ 'a', 'b' ] );
 		expect( settled ).toBe( false );
@@ -97,7 +87,6 @@ describe( 'session saver — flush()', () => {
 		await flushing;
 		expect( settled ).toBe( true );
 
-		// The debounce timer was cleared, not left to fire a duplicate.
 		await vi.advanceTimersByTimeAsync( 5_000 );
 		expect( trackedFetchMock ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -112,8 +101,6 @@ describe( 'session saver — flush()', () => {
 		await vi.advanceTimersByTimeAsync( 500 );
 		expect( trackedFetchMock ).toHaveBeenCalledTimes( 1 );
 
-		// A window closes while the first save is in flight; the flush
-		// must carry that, not the state the first save took.
 		openIds.pop();
 		const flushing = save.flush();
 		await vi.advanceTimersByTimeAsync( 0 );
@@ -154,14 +141,12 @@ describe( 'session saver — flush()', () => {
 		const retry = save.flush().then( () => {
 			settled = true;
 		} );
-		// Use a bounded microtask checkpoint: a stale activeSave spins in
-		// the await loop and would prevent a timer-based timeout firing.
+
 		for ( let i = 0; i < 20; i++ ) {
 			await Promise.resolve();
 		}
 		const settledWithoutAnotherSave = settled;
-		// Rescue a regressed implementation before asserting, so this test
-		// fails normally instead of starving the entire test worker.
+
 		if ( ! settled ) {
 			save();
 			vi.advanceTimersByTime( 1500 );

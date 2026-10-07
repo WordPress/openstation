@@ -1,13 +1,3 @@
-/**
- * The Living Tree — minimal Pixi type surface.
- *
- * PixiJS is loaded as a vendor script (`window.PIXI`) via the wallpaper
- * def's `needs: ['pixijs']`, NOT imported. We declare the narrow set of
- * Pixi types this bundle uses, mirroring `src/content-graph/pixi-types.ts`
- * so the two stay type-compatible without a hard dependency on the
- * `pixi.js` package.
- */
-
 export interface PixiContainer {
 	x: number;
 	y: number;
@@ -20,14 +10,9 @@ export interface PixiContainer {
 	destroy( opts?: unknown ): void;
 	visible: boolean;
 	zIndex: number;
-	/**
-	 * Pixi v8 render-group caching: bake this subtree into a texture so
-	 * static, geometry-heavy content (the turf, the settled skeleton)
-	 * costs one quad per frame instead of thousands of vertices.
-	 * Optional in the type so a stale vendor bundle degrades gracefully.
-	 */
+
 	cacheAsTexture?: ( enabled: boolean ) => void;
-	/** Transform origin — rotation/scale pivot in local space. */
+
 	pivot?: { set( x: number, y: number ): void };
 }
 
@@ -89,13 +74,7 @@ export interface PixiApp {
 	};
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-	/**
-	 * First arg is Pixi's `RendererDestroyOptions`. Pass an options
-	 * object (e.g. `{ removeView: true }`), never a literal `true` —
-	 * `true` triggers `releaseGlobalResources()`, which wipes Pixi's
-	 * page-global texture/object pools out from under every OTHER live
-	 * Application (active wallpaper vs. OS Settings preview).
-	 */
+
 	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 
@@ -107,11 +86,6 @@ export interface PixiNamespace {
 	Texture: { from( source: unknown ): PixiTexture };
 }
 
-/**
- * Read the vendor-loaded Pixi namespace off `window`. Returns `null` if
- * the module hasn't loaded — callers throw a descriptive error rather
- * than dereferencing null.
- */
 export function getPixi(): PixiNamespace | null {
 	const pixi = ( window as unknown as { PIXI?: PixiNamespace } ).PIXI;
 	return pixi ?? null;

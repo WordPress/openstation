@@ -1,4 +1,3 @@
-/** Restore focus after native busy/disabled state, unless the user moved it. */
 export function mioActionFocus( button: HTMLElement ): { update: ( pending: boolean ) => void; dispose: () => void } {
 	let watching: AbortController | null = null;
 	let restore = false;

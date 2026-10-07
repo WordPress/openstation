@@ -1,49 +1,3 @@
-/**
- * OpenStation — Iframe-window drop targets.
- *
- * Cross-iframe pointer routing for shell-side shortcut drags. The
- * problem: when a DragManager session runs in the parent shell and
- * the cursor moves over an iframe-window's iframe, the iframe's
- * `pointer-events: auto` (default) captures the move and the
- * parent's `pointermove` handler stops firing — the ghost "freezes"
- * at the iframe boundary.
- *
- * The fix has to be bulletproof across browsers and stacking
- * variations, so it's driven entirely from JavaScript via the
- * DragManager lifecycle events (no CSS rules to cache, no overlay
- * stacking-context puzzles):
- *
- *   - On `DRAG_EVENTS.START` with a `'shortcut'` payload that
- *     carries a `bridgePayload`:
- *       1. Walk every `iframe.os-window__iframe` in the
- *          document, save its current inline `pointer-events`, and
- *          set it to `'none'`. The iframe stops capturing pointer
- *          events. The browser routes the move to whatever is
- *          behind it — typically the iframe's parent
- *          (`.os-window__body`).
- *       2. Register that parent as a drop target via the
- *          DragManager. `elementFromPoint` returns the parent, the
- *          registry's deepest-ancestor walk finds the registered
- *          target, and `onEnter` / `onDrop` post the cross-window
- *          message into the iframe.
- *
- *   - On `DRAG_EVENTS.END`:
- *       1. Restore every iframe's `pointer-events` to its prior
- *          value.
- *       2. Deregister the drop targets.
- *
- * Why this design beats the previous overlay-based attempt:
- *
- *   - The overlay required body attributes to flip in time AND its
- *     CSS rule to be applied AND the overlay to be appended to the
- *     right element AND the overlay's stacking context to win
- *     against the iframe — any one breaking left the ghost stuck.
- *   - Driving the iframe's `pointer-events` from JS at the START
- *     event is a single observable side effect (visible in
- *     DevTools' inline styles) with no caching or specificity
- *     surface.
- */
-
 import { addAction, HOOKS } from '../hooks';
 import { __ } from '../i18n';
 import {
@@ -73,12 +27,10 @@ let _dragManager: DragManagerApi | null = null;
 
 type DeregisterFn = () => void;
 
-/** Snapshot of iframe inline `pointerEvents` values during a drag. */
 const _suppressedIframes = new Map< HTMLIFrameElement, string >();
-/** Registered drop-target deregister fns during a drag, keyed by iframe. */
+
 const _activeRegistrations = new Map< HTMLIFrameElement, DeregisterFn >();
 
-/** Active bridge payload while iframe-to-iframe drag intercept is live. */
 let _bridgeInterceptPayload: DragBridgePayload | null = null;
 let _lastHoveredBridgeIframe: HTMLIFrameElement | null = null;
 
@@ -102,13 +54,6 @@ function restoreIframePointerEvents(): void {
 	_suppressedIframes.clear();
 }
 
-/**
- * Find the iframe-window that contains the cursor at the given
- * client coords. With iframe pointer-events suppressed during a
- * bridge session, `elementFromPoint` returns the body div *inside*
- * an iframe-window; walking up to `.os-window` and back
- * down to the iframe child is the reliable resolution path.
- */
 function findIframeAtCursor(
 	clientX: number,
 	clientY: number,
@@ -158,30 +103,6 @@ const onBridgeDrop = ( e: DragEvent ): void => {
 	}
 	const iframe = findIframeAtCursor( e.clientX, e.clientY );
 	if ( ! iframe ) {
-		/*
-		 * Nothing to deliver into: the cursor is over the shell's own
-		 * chrome — the wallpaper, a folder window's canvas, the dock.
-		 *
-		 * Leave the event completely alone. This handler runs in the
-		 * CAPTURE phase on `document`, so the `stopImmediatePropagation`
-		 * below reaches every shell handler before any of them see the
-		 * drop; claiming a gesture we then have nowhere to send made
-		 * every cross-frame drop outside a window vanish silently. That
-		 * is precisely what stopped an image dragged out of the Media
-		 * Library from landing on the desktop as a shortcut — the files
-		 * canvas's own drop handler was never reached.
-		 *
-		 * Tearing the intercept down here (rather than waiting for the
-		 * source frame's `os-drag-end`) also restores iframe
-		 * pointer-events before the next gesture starts.
-		 *
-		 * `preventDefault()` still fires, and only that: a media drag
-		 * also carries `text/uri-list`, whose default action on a
-		 * plain document is to navigate. Cancelling the default keeps
-		 * a drop the shell declines from replacing the whole shell
-		 * with the dragged image; propagation is untouched, so
-		 * handlers further along still get their turn.
-		 */
 		e.preventDefault();
 		stopBridgeIntercept();
 		return;
@@ -238,14 +159,6 @@ function stopBridgeIntercept(): void {
 	restoreIframePointerEvents();
 }
 
-/**
- * Extract the cross-frame `bridgePayload` from a DragManager payload
- * regardless of payload type. Both `'shortcut'` (fresh tile from My
- * WordPress) and `'desktop-file'` (existing wallpaper placement) data
- * shapes optionally carry the same `bridgePayload` field. Returns
- * `undefined` when the payload either isn't a known shape or doesn't
- * carry a bridge payload.
- */
 function extractBridgePayload(
 	payload: unknown,
 ): DragBridgePayload | undefined {
@@ -263,19 +176,8 @@ function extractBridgePayload(
 	return data?.bridgePayload;
 }
 
-/**
- * The iframe a pointer-driven (DragManager) session is currently
- * over, so `DRAG_EVENTS.MOVE` can stream `os-drag-move` into it.
- * The native bridge intercept keeps its own `_lastHoveredBridgeIframe`.
- */
 let _pointerHoveredIframe: HTMLIFrameElement | null = null;
 
-/**
- * One pending `os-drag-move` per animation frame, whichever path
- * produced it. A receiver turns each into an insertion-point lookup
- * against the editor DOM, so the stream is paced to the display
- * rather than to pointer-event frequency.
- */
 let _pendingMove: { iframe: HTMLIFrameElement; clientX: number; clientY: number } | null = null;
 let _moveFrame = 0;
 
@@ -318,17 +220,10 @@ function postIntoIframe(
 	try {
 		w.postMessage( msg, window.location.origin );
 	} catch {
-		// Cross-origin or detached frame — no receiver to talk to.
+
 	}
 }
 
-/**
- * The hint over an editor window. Without it the chip keeps the
- * payload's desktop wording ("Drop here to create shortcut"), which
- * is not what a drop into a post does. Read from the window's URL and
- * content identity, not the iframe's DOM: the block editor document
- * is isolated from the shell, so `contentDocument` is null.
- */
 function editorAcceptLabel( iframe: HTMLIFrameElement, windowId: string ): string | undefined {
 	let url: URL;
 	try {
@@ -396,13 +291,6 @@ function registerDropTargetFor(
 	} );
 }
 
-/**
- * A payload that cannot be delivered as-is (an `upload` tile: no
- * attachment yet) goes through its resolver first — the DragManager
- * has already committed the drop, so this is the one place a
- * cross-frame drop can wait on the server. The receiver keeps its
- * highlight until `os-drop` or `os-drag-leave` arrives.
- */
 async function deliverResolvedDrop(
 	iframe: HTMLIFrameElement,
 	bridge: DragBridgePayload,
@@ -417,9 +305,6 @@ async function deliverResolvedDrop(
 }
 
 function deriveWindowIdFromIframe( iframe: HTMLIFrameElement ): string {
-	// Each iframe-window stamps its outer root with `id="wp-window-<id>"`.
-	// Walk up to find that root so the drop target's id is stable +
-	// debuggable.
 	let cur: HTMLElement | null = iframe.parentElement;
 	while ( cur ) {
 		if ( cur.id.startsWith( 'wp-window-' ) ) {
@@ -427,30 +312,10 @@ function deriveWindowIdFromIframe( iframe: HTMLIFrameElement ): string {
 		}
 		cur = cur.parentElement;
 	}
-	// Fallback — unique-enough id so the registry doesn't collide.
+
 	return `unknown-${ Math.random().toString( 36 ).slice( 2, 10 ) }`;
 }
 
-/**
- * Verbose drag-start trace — silent unless
- * `localStorage.openStationDragDebug` is set.
- *
- * `onDragStart` runs on EVERY DragManager session, and repositioning
- * a desktop icon is by far the most common drag in the shell — so an
- * unconditional line here means the console fills up during ordinary
- * use, with the whole drag payload dumped alongside it. Same shape as
- * the recycle-bin badge's trace: type
- * `localStorage.openStationDragDebug = '1'` in DevTools, reload, and
- * the wiring narrates itself again.
- *
- * For a one-off look at the current state rather than a running
- * commentary, `window.__openStationIframeDropDebug()` reports the same
- * facts on demand and needs no flag.
- *
- * @param iframeCount  Iframe windows about to have pointer-events suppressed.
- * @param isBridgeable Whether the payload carries a cross-frame `bridgePayload`.
- * @param payload      The DragManager payload, logged verbatim.
- */
 function debugLog(
 	iframeCount: number,
 	isBridgeable: boolean,
@@ -461,12 +326,9 @@ function debugLog(
 			return;
 		}
 	} catch {
-		// localStorage blocked (private mode, strict cookie policy) —
-		// treat as "not debugging" rather than throwing mid-drag.
 		return;
 	}
-	// `console.info` is in the lint allowlist; `console.log` would
-	// need an inline disable.
+
 	console.info(
 		'[openstation] drag-start: suppressing %d iframe(s); bridgeable=%s',
 		iframeCount,
@@ -480,39 +342,16 @@ function onDragStart( payload: unknown ): void {
 	if ( ! dragManager ) {
 		return;
 	}
-	// Always suppress iframe pointer-events for the duration of ANY
-	// drag — including desktop-file repositions and plugin payloads
-	// that don't carry a `bridgePayload`. This is the only way the
-	// ghost can track the cursor across iframe boundaries; without it
-	// the iframe captures the move and the ghost freezes the moment
-	// the cursor crosses the edge. The drop side still gates on
-	// payload kind via the registered DropTarget's `accept()`.
+
 	const iframes = document.querySelectorAll< HTMLIFrameElement >( IFRAME_SELECTOR );
 	const isBridgeable = !! extractBridgePayload( payload );
 	debugLog( iframes.length, isBridgeable, payload );
 	iframes.forEach( ( iframe ) => {
-		// Suppress pointer-events idempotently. If the bridge
-		// intercept already suppressed this iframe (shell-side
-		// drags fan a bridge-payload through desktop.ts and that
-		// fires DRAG_BRIDGE_EVENTS.START synchronously BEFORE the
-		// DragManager's DRAG_EVENTS.START listener runs here), we
-		// don't want to overwrite the prior-value snapshot — but
-		// we also must NOT early-return: this loop is also the
-		// only place that registers the per-iframe DragManager
-		// drop targets the hit-test needs to land an `onDrop`.
 		if ( ! _suppressedIframes.has( iframe ) ) {
 			_suppressedIframes.set( iframe, iframe.style.pointerEvents );
 			iframe.style.pointerEvents = 'none';
 		}
 
-		// Only register a drop target when the payload is one we know
-		// how to deliver into the iframe (`bridgePayload` present).
-		// For other drag types the suppression alone is enough to
-		// keep the ghost tracking — `elementFromPoint` returns the
-		// iframe's parent body div, which the registry's deepest-
-		// ancestor walk fails to match and the ghost stays in reject
-		// mode (correct UX — the iframe window doesn't want this
-		// payload type).
 		if ( ! isBridgeable ) {
 			return;
 		}
@@ -545,23 +384,12 @@ function onDragEnd(): void {
 		try {
 			deregister();
 		} catch {
-			// Registry already cleaned up; ignore.
+
 		}
 	} );
 	_activeRegistrations.clear();
 }
 
-/**
- * Install the cross-window iframe drop-target machinery. Idempotent.
- * Bind ONCE at shell boot; the rest is driven by drag events.
- *
- * Also exposes `window.__openStationIframeDropDebug` returning the
- * live state of the registration map, so users hitting a regression
- * can paste that into DevTools and report exactly which side of the
- * wiring is broken.
- *
- * @public
- */
 export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 	if ( _installed ) {
 		return;
@@ -578,8 +406,7 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 	document.addEventListener( DRAG_EVENTS.END, () => {
 		onDragEnd();
 	} );
-	// Stream the pointer into the hovered iframe, so a receiver can
-	// show where the drop will land (Gutenberg's insertion line).
+
 	document.addEventListener( DRAG_EVENTS.MOVE, ( e ) => {
 		const iframe = _pointerHoveredIframe;
 		if ( ! iframe ) {
@@ -594,23 +421,6 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 		postDragMove( iframe, detail.clientX, detail.clientY );
 	} );
 
-	// Iframe-to-iframe HTML5 drag intercept. The legacy Media Library
-	// patch (`assets/js/media-library-enhanced.js`) starts a native
-	// HTML5 drag inside `upload.php`, and the user drops on
-	// Gutenberg's nested editor-canvas iframe. Without intervention,
-	// every drag event (dragover / drop) fires INSIDE whichever
-	// iframe the cursor is over and never reaches the parent shell —
-	// the bridge payload is stranded, Gutenberg's own handler
-	// doesn't recognise the drop (Chromium strips the custom MIME
-	// across iframe boundaries), and nothing inserts.
-	//
-	// The fix mirrors the DragManager pattern: while a bridge
-	// session is in flight, suppress `pointer-events` on every
-	// iframe-window. Drag events then fall through to the parent
-	// document, where we can identify which iframe-window the
-	// cursor is over and postMessage `os-drop` to its
-	// content window — the same protocol the Gutenberg receiver
-	// already implements for shell-side DragManager drops.
 	document.addEventListener( DRAG_BRIDGE_EVENTS.START, ( e ) => {
 		const detail = ( e as CustomEvent ).detail as
 			| { payload?: DragBridgePayload }
@@ -624,19 +434,10 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 		stopBridgeIntercept();
 	} );
 
-	// On WINDOW_CLOSED we don't need to do anything special — if the
-	// drag is in flight when a window closes, the closing window's
-	// iframe is gone from the DOM and the registry's element-keyed
-	// store silently drops the orphan reference. The deregister fn we
-	// stored becomes a harmless no-op.
 	addAction(
 		HOOKS.WINDOW_CLOSED,
 		'desktop-mode/drag/iframe-drop-targets-window-close',
 		() => {
-			// Re-walk to drop any iframes that disappeared from the
-			// DOM mid-drag. Iterate over a snapshot — mutating the
-			// Map inside `forEach` is spec-safe but reads as a
-			// hazard at the call site.
 			for ( const [ iframe ] of Array.from( _suppressedIframes ) ) {
 				if ( ! iframe.isConnected ) {
 					_suppressedIframes.delete( iframe );
@@ -647,7 +448,7 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 					try {
 						deregister();
 					} catch {
-						// already cleaned up
+
 					}
 					_activeRegistrations.delete( iframe );
 				}
@@ -675,7 +476,6 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 	} );
 }
 
-/** Test-only. Drops the install latch + clears any in-flight state. */
 export function __resetIframeDropTargetsForTests(): void {
 	onDragEnd();
 	_installed = false;

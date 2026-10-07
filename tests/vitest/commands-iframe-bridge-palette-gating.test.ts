@@ -1,16 +1,3 @@
-/**
- * Palette-gated command harvesting — parent side.
- *
- * The IframeCommandBridge must only tell an iframe to stream its
- * command registry while a Cmd+K palette is open: harvesting keeps a
- * React tree re-rendering on every `wp.data` store tick inside the
- * focused window (every keystroke in the block editor), so an
- * always-on subscription is a typing-latency tax. These tests drive
- * the bridge with synthetic focus/palette events and assert the
- * `os-commands-subscribe` / `os-commands-unsubscribe` postMessage
- * traffic — including the grace delay that keeps a close-then-run
- * command pick working.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock( '../../src/commands', () => ( {
@@ -113,8 +100,6 @@ describe( 'IframeCommandBridge — palette gating', () => {
 		openPalette();
 		closePalette();
 
-		// Inside the grace window a picked command's os-commands-invoke
-		// must still find a live harvester — no unsubscribe yet.
 		vi.advanceTimersByTime( 100 );
 		expect( sentTypes( win ) ).toEqual( [ 'os-commands-subscribe' ] );
 
@@ -139,8 +124,6 @@ describe( 'IframeCommandBridge — palette gating', () => {
 		openPalette();
 		vi.advanceTimersByTime( 1000 );
 
-		// One subscribe, never an unsubscribe, and no duplicate
-		// subscribe for the already-streaming window.
 		expect( sentTypes( win ) ).toEqual( [ 'os-commands-subscribe' ] );
 	} );
 
@@ -161,8 +144,7 @@ describe( 'IframeCommandBridge — palette gating', () => {
 			'os-commands-unsubscribe',
 		] );
 		expect( sentTypes( b ) ).toEqual( [ 'os-commands-subscribe' ] );
-		// The defocused window's palette entries are evicted, exactly
-		// as before streaming was palette-gated.
+
 		expect( unregisterByOwner ).toHaveBeenCalledWith( 'iframe:edit-post' );
 	} );
 

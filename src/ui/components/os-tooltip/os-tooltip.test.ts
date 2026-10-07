@@ -1,6 +1,3 @@
-/**
- * `<os-tooltip>` — placement and the attach/show/hide rules.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { attachTooltip, hideTooltip, placeTooltip } from './os-tooltip';
 

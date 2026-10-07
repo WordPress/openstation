@@ -1,22 +1,3 @@
-/**
- * OpenStation — File-tile preview renderer.
- *
- * Given a placement, produces an HTML node describing the underlying
- * entity for the right pane of any folder window. Routes by file
- * type and reuses the same REST endpoints the My WordPress folder
- * uses (`/wp/v2/posts/<id>`, `/desktop-mode/v1/user-stats/<id>`,
- * `/desktop-mode/v1/term-stats/<tax>/<id>`,
- * `/desktop-mode/v1/comment-stats/<id>`) so the visual + the data
- * are consistent across surfaces.
- *
- * Plugins extend this map via the `os.files.preview`
- * filter — return any HTMLElement (or `null` to defer to the
- * built-in for that type). Reusable by any window that needs an
- * entity preview pane.
- *
- * @public
- */
-
 import { applyFilters } from '../hooks';
 import { restErrorFromResponse } from '../core/api-client';
 import { __, sprintf } from '../i18n';
@@ -26,7 +7,6 @@ import { trackedFetch } from '../tracked-fetch';
 import { formatBytes } from '../os-file-drop/format-bytes';
 import { navigateToDownload } from './download-nav';
 import { getUploadDownloadUrl, type RestPlacementShape } from './rest';
-// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 interface FetchInit extends RequestInit {
 	silent?: boolean;
@@ -66,11 +46,7 @@ function readRestRoot(): string {
 	if ( cfg?.restUrl ) {
 		return cfg.restUrl.endsWith( '/' ) ? cfg.restUrl : cfg.restUrl + '/';
 	}
-	// Last-ditch fallback used only when the shell config never lands
-	// (e.g., the file-tile renders before `wp.os` boots). Assumes
-	// pretty permalinks; plain-permalink sites that hit this path would
-	// 404, but in practice the shell config is always present by the
-	// time a preview is requested.
+
 	return `${ window.location.origin }/wp-json/`;
 }
 
@@ -78,17 +54,6 @@ function restUrl( path: string ): string {
 	return joinRestUrl( readRestRoot(), path );
 }
 
-/* ------------------------------------------------------------------ *
- *  Public entry point.
- * ------------------------------------------------------------------ */
-
-/**
- * Render the preview node for a placement. Returns immediately with
- * a loading placeholder; the host is replaced when data arrives.
- *
- * @param placement Selected placement.
- * @param host      Element whose children should be replaced.
- */
 export function renderPlacementPreview(
 	placement: RestPlacementShape,
 	host: HTMLElement,
@@ -102,11 +67,7 @@ export function renderPlacementPreview(
 		host.replaceChildren( filtered );
 		return;
 	}
-	// Access-gated short-circuit. Whenever the recipient sees an
-	// icon they can't open (shared-folder visibility), the preview
-	// pane shows a friendly "you don't have permission" empty state
-	// instead of triggering a REST fetch that will 403/404. Cheaper
-	// AND clearer to the user.
+
 	if ( placement.accessGated ) {
 		host.replaceChildren( renderAccessGated( placement ) );
 		return;
@@ -180,10 +141,6 @@ async function renderByType(
 	}
 }
 
-/* ------------------------------------------------------------------ *
- *  Built-in renderers.
- * ------------------------------------------------------------------ */
-
 interface PostPreviewData {
 	id: number;
 	title: { rendered: string };
@@ -201,9 +158,7 @@ async function renderPostPreview(
 	if ( ! id ) {
 		return renderGenericPreview( file );
 	}
-	// Try `/wp/v2/posts/<id>` first; if 404 (not a post type) fall
-	// through to pages, then a generic /pages/<id>. Cheaper than
-	// hitting both up front.
+
 	let data: PostPreviewData | null = null;
 	for ( const path of [ 'wp/v2/posts', 'wp/v2/pages' ] ) {
 		try {
@@ -214,7 +169,7 @@ async function renderPostPreview(
 			);
 			break;
 		} catch {
-			// 404 / 403 — try the next path.
+
 		}
 	}
 	if ( ! data ) {
@@ -247,11 +202,6 @@ async function renderPostPreview(
 	const footer = document.createElement( 'footer' );
 	footer.className = 'os-my-wordpress__article-footer';
 
-	// "Explore details" — routes the explorer app straight to this
-	// post's detail dossier (Author / Comments / Tags / Categories /
-	// Attached media / Revisions) through the shared open target.
-	// Single source of truth for the dossier renderer; no
-	// duplication here.
 	const exploreBtn = document.createElement( 'os-button' );
 	exploreBtn.setAttribute( 'variant', 'secondary' );
 	exploreBtn.textContent = __( 'Explore details', 'desktop-mode' );
@@ -611,20 +561,6 @@ async function renderAttachmentPreview(
 	return wrap;
 }
 
-/**
- * Stored uploads (real desktop storage). Media kinds the browser
- * can render inline (image / video / audio) preview via the
- * authenticated download URL — subresource loads ignore the
- * `attachment` disposition, so the bytes display without ever
- * exposing a direct file URL. Everything else gets a friendly
- * no-preview note plus a Download action.
- *
- * Plugins add previews for further types (PDF, 3D models, …)
- * through the `os.files.preview` filter — return a
- * custom element for `file.type === 'upload'` placements whose
- * `mime`/`kind` you recognize, and it fully replaces this
- * built-in.
- */
 function renderUploadPreview(
 	file: RestPlacementShape[ 'file' ],
 ): HTMLElement {
@@ -662,8 +598,7 @@ function renderUploadPreview(
 		img.className = 'os-my-wordpress__article-hero';
 		img.src = getUploadDownloadUrl( fileId );
 		img.alt = file.title || '';
-		// Formats the browser can't decode (HEIC on Chromium, …)
-		// degrade to the no-preview note instead of a broken glyph.
+
 		img.addEventListener( 'error', () => {
 			img.replaceWith( noPreviewNote() );
 		} );
@@ -699,7 +634,6 @@ function renderUploadPreview(
 		downloadBtn.setAttribute( 'variant', 'primary' );
 		downloadBtn.textContent = __( 'Download', 'desktop-mode' );
 		downloadBtn.addEventListener( 'click', () => {
-			// Minted at click time — nonces expire.
 			navigateToDownload( getUploadDownloadUrl( fileId ) );
 		} );
 		footer.appendChild( downloadBtn );
@@ -769,7 +703,7 @@ function renderGenericPreview(
 	const meta = document.createElement( 'p' );
 	meta.className = 'os-my-wordpress__article-meta';
 	meta.textContent = sprintf(
-		// translators: %s is a file-type slug.
+
 		__( 'Type: %s', 'desktop-mode' ),
 		file.type,
 	);
@@ -785,10 +719,6 @@ function renderGenericPreview(
 	}
 	return wrap;
 }
-
-/* ------------------------------------------------------------------ *
- *  Shared chrome.
- * ------------------------------------------------------------------ */
 
 function articleShell( extraClass = '' ): HTMLElement {
 	const article = document.createElement( 'article' );
@@ -816,10 +746,7 @@ function renderLoading(): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'os-my-wordpress__preview-loading';
 	const spinner = document.createElement( 'os-spinner' );
-	// Size driven by the shared
-	// `.os-my-wordpress__preview-loading os-spinner` rule
-	// in `assets/css/my-wordpress.css` so the wallpaper-preview loader
-	// stays in lockstep with the My WordPress one.
+
 	wrap.appendChild( spinner );
 	return wrap;
 }
@@ -849,11 +776,6 @@ function formatDate( iso: string ): string {
 	}
 }
 
-/**
- * Empty-state node — shown in the right pane when no tile is
- * selected. Same shell as the My WordPress empty preview so the
- * two surfaces feel like one product.
- */
 export function renderPreviewEmpty(): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'os-my-wordpress__preview-empty';
@@ -864,17 +786,6 @@ export function renderPreviewEmpty(): HTMLElement {
 	return wrap;
 }
 
-/**
- * Summary node for a multi-selection — what the right pane shows
- * instead of a preview when the user holds several items. Previewing
- * one arbitrary member of the set would be worse than saying nothing:
- * it reads as "this is the thing you selected" when it isn't.
- *
- * Lists the type breakdown because that is exactly what determines
- * which actions the context menu will offer.
- *
- * @public
- */
 export function renderSelectionSummary(
 	items: ReadonlyArray< { file: { type: string } } >,
 ): HTMLElement {
@@ -883,7 +794,7 @@ export function renderSelectionSummary(
 
 	const heading = document.createElement( 'strong' );
 	heading.textContent = sprintf(
-		/* translators: %d: number of selected items. */
+
 		__( '%d items selected', 'desktop-mode' ),
 		items.length,
 	);

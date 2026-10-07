@@ -1,119 +1,33 @@
-/**
- * Window-control registry — Layer 2 of the window-chrome framework.
- *
- * A **control** is a button rendered in the title bar — close,
- * minimize, maximize, custom plugin actions. Built-in controls
- * (`core/minimize`, `core/maximize`, `core/focus-tab`, `core/close`)
- * register here at shell boot in {@link
- * registerBuiltInControls} (Phase C); plugin authors register
- * additional controls via `wp.os.registerWindowControl()`. The
- * shell renders the control cluster from this registry, so plugins
- * can reorder, hide, or replace built-ins through
- * {@link WindowControlsConfig} on a window's `appearance`.
- *
- * Generalises the title-bar-button registry pattern (`subscribe`
- * fan-out, `match` predicate, `owner`-based teardown). The
- * `registerTitleBarButton()` API is preserved as a
- * thin alias that delegates to this registry — existing plugins keep
- * working unchanged.
- */
-
 import { throwOnRegistrationErrors } from '../../registration-errors';
 import { createSharedStore } from '../../shared-store';
 
 import type { Window as DesktopWindow } from '../../window';
 
-/**
- * Where the control renders relative to the window title.
- *
- *   - `'left'`     — between the title and the screen-meta cluster.
- *   - `'right'`    — between the screen-meta cluster and the controls.
- *   - `'controls'` — inside the controls cluster itself, alongside
- *                    close / minimize / maximize.
- *
- * Built-in controls always use `'controls'`. Plugin custom buttons
- * default to `'left'` to preserve title-bar-button-style placement.
- *
- * @public
- */
 export type WindowControlPlacement = 'left' | 'right' | 'controls';
 
-/**
- * A registered window control.
- *
- * @public
- */
 export interface WindowControlDef {
-	/**
-	 * Unique id matching `/^[a-z0-9_/-]+$/`. Built-ins use the
-	 * `core/*` prefix. Plugins use `vendor/sub-id`.
-	 */
+
 	id: string;
-	/** Tooltip + aria-label. */
+
 	label: string;
-	/**
-	 * Icon. Same three accepted shapes as title-bar buttons:
-	 *
-	 *   - **Dashicons class** — e.g. `'dashicons-visibility'`.
-	 *   - **Inline SVG string** — `'<svg viewBox="0 0 24 24">…</svg>'`.
-	 *   - **Built-in key** — `'minimize'` / `'maximize'` /
-	 *     `'fullscreen'` / `'fullscreen-exit'` / `'detach'` /
-	 *     `'close'` / `'menu'`.
-	 *
-	 * Required when `render` is omitted; ignored when `render` is
-	 * provided.
-	 */
+
 	icon?: string;
-	/**
-	 * Where the control renders. Default `'left'` for plugin
-	 * registrations; built-ins set `'controls'` explicitly.
-	 */
+
 	placement?: WindowControlPlacement;
-	/** Sort order within the placement. Default 100. */
+
 	order?: number;
-	/**
-	 * Predicate — return `true` to render this control on a given
-	 * window. Throwing predicates are treated as `false` (logged via
-	 * `console.warn`).
-	 */
+
 	match: ( window: DesktopWindow ) => boolean;
-	/**
-	 * Click handler. Mutually exclusive with `render`. Wired to the
-	 * `<os-window-button>`'s `os-button-activate` CustomEvent —
-	 * fires exactly once per user activation, no double-firing,
-	 * no swallowed clicks during title-bar drag.
-	 */
+
 	onClick?: ( window: DesktopWindow, ev: MouseEvent ) => void;
-	/**
-	 * Custom render. Receives the host element and the window. The
-	 * host already carries the icon, label, and `os-window__btn`
-	 * class; you typically only need to attach event listeners.
-	 */
+
 	render?: ( host: HTMLElement, window: DesktopWindow ) => void;
-	/**
-	 * Owner tag — typically the WordPress script handle that registered
-	 * the control. Set to live-unregister on plugin deactivation.
-	 */
+
 	owner?: string;
-	/**
-	 * Internal flag set by built-in registrations. Lets devtools /
-	 * inspectors distinguish framework controls from plugin controls
-	 * without parsing ids. Plugin code should leave this unset.
-	 *
-	 * @internal
-	 */
+
 	core?: boolean;
 }
 
-/**
- * Cross-bundle shared backing store. The lazy
- * `window-system[.min].js` bundle constructs/reads from this
- * registry while main writes to it via `registerBuiltIn*` and
- * `wp.os.register*` — each bundle would otherwise see its
- * own empty copy. See `AGENTS.md` ("Cross-bundle state") and
- * the Stage-8 callout in `BUNDLE-SIZE-REPORT.md` for the
- * pattern.
- */
 interface RegistryStore {
 	registry: Map< string, WindowControlDef >;
 	listeners: Set< () => void >;
@@ -127,11 +41,6 @@ const listeners = store.state.listeners;
 
 const WINDOW_CONTROL_ID = /^[a-z0-9_/-]+$/;
 
-/**
- * Register (or replace) a window control. Re-registering with the
- * same id replaces the previous entry. Throws a {@link
- * RegistrationError} on validation failure.
- */
 export function registerWindowControl( def: WindowControlDef ): void {
 	const errors: string[] = [];
 
@@ -179,25 +88,12 @@ export function registerWindowControl( def: WindowControlDef ): void {
 	notify();
 }
 
-/**
- * Remove a control by id. No-op when the id wasn't registered.
- *
- * Built-in controls (`core/*`) can be unregistered too — that's the
- * supported way to hide a built-in globally. Per-window hiding goes
- * through `WindowControlsConfig.hide` instead, so the rest of the
- * site keeps the built-in.
- */
 export function unregisterWindowControl( id: string ): void {
 	if ( registry.delete( id.toLowerCase() ) ) {
 		notify();
 	}
 }
 
-/**
- * Bulk teardown — drop every control whose `owner` matches. Used by
- * chrome server-sync on plugin deactivation. Built-ins (no `owner`)
- * are never affected.
- */
 export function unregisterWindowControlsByOwner( owner: string ): number {
 	if ( ! owner ) {
 		return 0;
@@ -215,10 +111,6 @@ export function unregisterWindowControlsByOwner( owner: string ): number {
 	return removed;
 }
 
-/**
- * Snapshot of every registered control, sorted ascending by `order`
- * within id-stable secondary order.
- */
 export function listWindowControls(): WindowControlDef[] {
 	return Array.from( registry.values() ).sort( ( a, b ) => {
 		const oa = a.order ?? 100;
@@ -230,10 +122,6 @@ export function listWindowControls(): WindowControlDef[] {
 	} );
 }
 
-/**
- * Controls that match `win`, partitioned by placement. Each bucket is
- * pre-sorted by `order` (then id). Throwing predicates → skipped.
- */
 export function controlsForWindow(
 	win: DesktopWindow,
 ): {
@@ -251,7 +139,6 @@ export function controlsForWindow(
 			}
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
-				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] window-control "${ def.id }" match() threw — skipping`,
 					err,
@@ -271,9 +158,6 @@ export function controlsForWindow(
 	return { left, right, controls };
 }
 
-/**
- * Subscribe to registry changes. Returns an unsubscribe function.
- */
 export function subscribeWindowControls( cb: () => void ): () => void {
 	listeners.add( cb );
 	return () => {
@@ -288,7 +172,6 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
-				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] window-control registry listener threw:',
 					err,
@@ -298,11 +181,6 @@ function notify(): void {
 	}
 }
 
-/**
- * Test-only: drop every control + clear subscribers.
- *
- * @internal
- */
 export function _resetWindowControlRegistryForTests(): void {
 	registry.clear();
 	listeners.clear();

@@ -212,7 +212,6 @@
 			);
 			const cueSpace = snapshot.dense && position >= 6;
 
-			// Reserve the last quarter of a dense bar for gameplay cues.
 			if ( cueSpace ) {
 				return;
 			}
@@ -822,7 +821,6 @@
 				return;
 			}
 
-			// The ancestor capture point runs before the historical root handler.
 			event.preventDefault();
 			event.stopImmediatePropagation();
 			audio.unlock();

@@ -1,12 +1,10 @@
 import { css } from '../../../src/ui/core';
 
-/** Layout styles travel with the versioned app bundle. */
 export const libraryStyles = css`
-/* Installed plugins: collections, shelves and a focused inspector. */
+
 .desktop-mode-plugins [hidden] {
 	display: none !important;
 }
-
 
 .os-plugins__workspace {
 	display: flex;
@@ -450,7 +448,6 @@ export const libraryStyles = css`
 	padding: 36px 12px;
 	color: var( --os-ui-fg-muted, #646970 );
 }
-
 
 @container plugin-library ( max-width: 660px ) {
 	.os-plugins__library-tools { flex-wrap: wrap; }

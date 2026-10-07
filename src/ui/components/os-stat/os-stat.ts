@@ -1,22 +1,3 @@
-/**
- * `<os-stat>` — big number, small uppercase label, optional footnote.
- *
- * The stat tile every dashboard-ish surface ends up drawing — before
- * this component, three apps' surfaces drew it three times with three
- * stylesheets. Compose a strip with `<os-grid>`.
- *
- * Usage:
- *
- *   <os-stat value="1,204" label="Events"></os-stat>
- *   <os-stat value="9 days" label="Longest streak" caption="Mar 3 → Mar 12"></os-stat>
- *   <os-stat value="12" label="Warnings" swatch data-tone="warning"></os-stat>
- *
- * `swatch` renders a small colour chip beside the label, filled from
- * the app runtime's tone contract: put `data-tone="danger|warning|
- * neutral|info"` on the element (inside an app root) and the chip
- * picks up the matching status colour via `--os-app-tone`.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-stat.styles';
 

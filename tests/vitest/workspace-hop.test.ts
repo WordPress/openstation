@@ -1,14 +1,3 @@
-/**
- * The workspace hop: the gesture split in `hopToAdmin()`, and the
- * cross-document view-transition block in the SHELL stylesheet.
- *
- * The CSS pins matter because the whole feature degrades silently: a
- * deleted opt-in, or one that migrated into a sheet chromeless iframes
- * load, would not fail anything — hops would just hard-cut (or, worse,
- * iframe navigations would start transitioning). Reduced motion must
- * keep the hop and drop only the animation.
- */
-
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -72,9 +61,7 @@ describe( 'the view-transition opt-in', () => {
 
 	test( 'the shell opts into cross-document transitions', () => {
 		expect( shell ).toMatch( /@view-transition\s*\{\s*navigation:\s*auto;/ );
-		// Both halves of the crossfade are declared — a missing side
-		// leaves the UA default on one and the custom curve on the
-		// other, a mismatched blink.
+
 		expect( shell ).toContain( '::view-transition-old(root)' );
 		expect( shell ).toContain( '::view-transition-new(root)' );
 	} );
@@ -87,9 +74,7 @@ describe( 'the view-transition opt-in', () => {
 	} );
 
 	test( 'chromeless iframes never opt in', () => {
-		// The opt-in in a sheet iframes load would make ordinary
-		// in-window navigations transition. `variables.css` is the
-		// chromeless dependency; `chromeless.css` is the iframe skin.
+
 		for ( const sheet of [ 'assets/css/variables.css', 'assets/css/chromeless.css' ] ) {
 			expect( readFileSync( resolve( ROOT, sheet ), 'utf8' ) ).not.toContain(
 				'@view-transition',

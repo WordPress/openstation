@@ -1,14 +1,3 @@
-/**
- * Runtime behavior of the shell-bundle-diet sentinels.
- *
- * The static boundary walk (`shell-bundle-boundary.test.ts`) proves
- * the heavy modules stay OUT of the shell; these tests prove the
- * small pieces left behind do their jobs — above all the file-drop
- * race: a drop landing while the bundle is still fetching must be
- * captured synchronously and replayed once the bundle boots, because
- * `DataTransfer` is unreadable after the event and a swallowed drop
- * reads as the desktop eating files.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import * as vendorLoader from '../../src/wallpapers/vendor-loader';
 import * as toast from '../../src/toast';
@@ -25,10 +14,6 @@ import {
 	_resetHeartbeatBusForTests,
 } from '../../src/heartbeat';
 
-/**
- * Stand-in for WordPress's Heartbeat, so a tick can be delivered by
- * hand. The bus binds through jQuery, so that is what has to exist.
- */
 let heartbeatTick:
 	| ( ( e: unknown, response: Record< string, unknown > ) => void )
 	| undefined;
@@ -52,7 +37,6 @@ function emitHeartbeat( field: string, value: unknown ): void {
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import type { FakeWpHooks } from './helpers/hooks-stub';
 
-/** A synthetic drag event carrying (or not carrying) OS files. */
 function dragEvent(
 	type: string,
 	opts: { files?: File[]; types?: string[]; x?: number; y?: number } = {},
@@ -91,8 +75,7 @@ describe( 'file-drop sentinel', () => {
 				new Promise< void >( ( resolve, reject ) => {
 					loadCalls += 1;
 					resolveLoad = () => {
-						// The real bundle publishes its API as a load
-						// side effect — mirror that here.
+
 						window.openStationFileDrop = api as unknown as FileDropApi;
 						resolve();
 					};
@@ -122,7 +105,6 @@ describe( 'file-drop sentinel', () => {
 		window.dispatchEvent( dragEvent( 'dragenter', { files: [ file ] } ) );
 		expect( loadCalls ).toBe( 1 );
 
-		// The drop beats the fetch.
 		const drop = dragEvent( 'drop', { files: [ file ], x: 33, y: 44 } );
 		window.dispatchEvent( drop );
 		expect( drop.defaultPrevented ).toBe( true );
@@ -176,9 +158,8 @@ describe( 'file-drop sentinel', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		// User data in limbo must not vanish silently.
 		expect( toast.showToast ).toHaveBeenCalled();
-		// …and the next gesture retries the fetch.
+
 		window.dispatchEvent( dragEvent( 'dragenter', { files: [ file ] } ) );
 		expect( loadCalls ).toBe( 2 );
 	} );
@@ -247,8 +228,7 @@ describe( 'notes sentinel', () => {
 		await Promise.resolve();
 
 		expect( boot ).toHaveBeenCalledTimes( 1 );
-		// Original dispatch + the sentinel's re-announcement, so the
-		// layer's own listener (attached during boot) can pin it.
+
 		expect( seen ).toHaveLength( 2 );
 		expect( ( seen[ 1 ] as { note: { id: number } } ).note.id ).toBe( 7 );
 	} );
@@ -288,10 +268,7 @@ describe( 'notes sentinel', () => {
 	} );
 
 	test( 'a note-less desktop still notices the site’s first public note', () => {
-		// `hasNotes: false` skips the bundle, and the Heartbeat
-		// subscription lives inside it — so a public note pinned by
-		// someone else during the session only showed up after a
-		// reload. The sentinel watches the field itself until then.
+
 		teardowns.push( installNotesSentinel( { ...ARGS, hasNotes: false } ) );
 		expect( loadCalls ).toBe( 0 );
 
@@ -310,12 +287,7 @@ describe( 'notes sentinel', () => {
 	} );
 
 	test( 'an in-shell drag loads it too — those never fire dragstart', () => {
-		// The Note Pad tear-off and every desktop tile are
-		// pointer-driven through `DragManager`, which creates no native
-		// drag and dispatches `os.drag.start` instead. A user with no
-		// notes yet could tear a draft off the pad and have nothing
-		// happen at all, because the drop handlers live in the bundle
-		// this listener exists to fetch.
+
 		teardowns.push( installNotesSentinel( { ...ARGS, hasNotes: false } ) );
 
 		document.dispatchEvent( new CustomEvent( DRAG_EVENTS.START ) );
@@ -374,7 +346,7 @@ describe( 'dock-constellation sentinel', () => {
 
 		tile.dispatchEvent( new Event( 'pointerover', { bubbles: true } ) );
 		expect( loadCalls ).toBe( 1 );
-		// Hovering again mid-fetch must not double-load.
+
 		tile.dispatchEvent( new Event( 'pointerover', { bubbles: true } ) );
 		expect( loadCalls ).toBe( 1 );
 
@@ -386,11 +358,7 @@ describe( 'dock-constellation sentinel', () => {
 	} );
 
 	test( 'a keyboard user reaching a rail loads it too', () => {
-		// The flyout's documented keyboard entry point — the open arrow
-		// on a tile — is registered inside `mountDockConstellation()`.
-		// Waiting on `pointerover` alone meant a keyboard-only user
-		// pressed it and got nothing, because the bundle carrying the
-		// handler had never been requested.
+
 		let loadCalls = 0;
 		vi.spyOn( vendorLoader, 'loadVendorScript' ).mockImplementation(
 			() =>
@@ -411,8 +379,6 @@ describe( 'dock-constellation sentinel', () => {
 			deps: {} as Parameters< ConstellationApi[ 'mount' ] >[ 0 ],
 		} );
 
-		// `focusin` bubbles, so tabbing into the tile reaches the
-		// document-level listener; focus landing elsewhere must not.
 		elsewhere.dispatchEvent( new Event( 'focusin', { bubbles: true } ) );
 		expect( loadCalls ).toBe( 0 );
 

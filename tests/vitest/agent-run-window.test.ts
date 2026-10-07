@@ -1,8 +1,3 @@
-/**
- * Unit tests for `src/agent-run-window.ts` — render-callback
- * registration, the empty state, the seeded conversation paint, and
- * one full send round-trip against a stubbed `/invoke`.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import '../../src/agent-run-window';
 import {
@@ -147,7 +142,7 @@ describe( 'agent chat window', () => {
 			async: true,
 			requestId: expect.any( String ),
 			source: 'chat',
-			// First message of the conversation — nothing to replay yet.
+
 			history: [],
 		} );
 
@@ -161,10 +156,7 @@ describe( 'agent chat window', () => {
 	} );
 
 	test( 'the in-flight row is an instrument line: inline arc, then the word', async () => {
-		// The bubble used to append the classic WordPress-mark spinner
-		// at 24px, below the size where its rings survive, so it read
-		// as a static disc under "Working…". The inline preset is the
-		// arc that stays legible beside text.
+
 		const body = makeBody();
 		const cleanup = getRender()( body );
 		openAgentChat( {
@@ -189,7 +181,7 @@ describe( 'agent chat window', () => {
 		expect( first.getAttribute( 'preset' ) ).toBe( 'inline' );
 		expect( second.className ).toBe( 'dm-agent-chat__msg-text' );
 		expect( second.textContent ).toBe( 'Working…' );
-		// The face that bobs is the agent's, on the pending line.
+
 		expect(
 			line!.querySelector( '.dm-agent-chat__msg-avatar' )?.tagName.toLowerCase(),
 		).toBe( 'os-avatar' );
@@ -197,12 +189,7 @@ describe( 'agent chat window', () => {
 	} );
 
 	test( 'a mid-run repaint keeps the reader where they are and follows the newest row from the bottom', async () => {
-		// The transcript is rebuilt on every status poll, and the kit
-		// components inside it draw after the paint returns, so a
-		// synchronous pin to the bottom landed short by the composer's
-		// height on every tick. jsdom has no layout: stand in a 300px
-		// box over 1000px of rows, and a ResizeObserver that reports
-		// when asked.
+
 		const scrollHeightDesc = Object.getOwnPropertyDescriptor(
 			Element.prototype,
 			'scrollHeight',
@@ -249,18 +236,14 @@ describe( 'agent chat window', () => {
 			];
 			agentsChatStore.notify();
 			await flush();
-			// First paint: pinned to the bottom.
+
 			expect( scrollBox().scrollTop ).toBeGreaterThanOrEqual( 700 );
 
-			// The composer draws and the box shrinks: still following.
 			box.clientHeight = 250;
 			box.scrollHeight = 1050;
 			resizeCallbacks.forEach( ( cb ) => cb() );
 			expect( scrollBox().scrollTop ).toBeGreaterThanOrEqual( 800 );
 
-			// The reader scrolls up to re-read an earlier answer, then a
-			// status poll repaints: the offset survives, and a later
-			// resize does not drag them down.
 			scrollBox().scrollTop = 120;
 			scrollBox().dispatchEvent( new Event( 'scroll' ) );
 			pending.text = 'Queued — waiting for a WordPress worker…';
@@ -270,7 +253,6 @@ describe( 'agent chat window', () => {
 			resizeCallbacks.forEach( ( cb ) => cb() );
 			expect( scrollBox().scrollTop ).toBe( 120 );
 
-			// Back at the bottom, the next poll keeps them there.
 			scrollBox().scrollTop = 800;
 			scrollBox().dispatchEvent( new Event( 'scroll' ) );
 			pending.text = 'Working in the background…';
@@ -300,11 +282,6 @@ describe( 'agent chat window', () => {
 		];
 		agentsChatStore.notify();
 
-		// WhatsApp-style: agent avatar left row, viewer avatar from the
-		// window config on the user row. `<os-avatar>` rather than a
-		// bare `<img>` so a Gravatar-less viewer gets initials instead
-		// of the mystery-person silhouette — the URL lands on the
-		// element once the resolver's probe settles.
 		await flush();
 		const agentAvatar = body.querySelector(
 			'.dm-agent-chat__line--agent .dm-agent-chat__msg-avatar',
@@ -317,17 +294,14 @@ describe( 'agent chat window', () => {
 			body.querySelector(
 				'.dm-agent-chat__line--user .dm-agent-chat__msg-avatar',
 			),
-		).toBeNull(); // config in this suite has no currentUser
+		).toBeNull();
 
-		// Agent markdown is rendered, not shown literally.
 		const agentText = body.querySelector(
 			'.dm-agent-chat__line--agent .dm-agent-chat__msg-text',
 		) as HTMLElement;
 		expect( agentText.innerHTML ).toContain( '<strong>Done</strong>' );
 		expect( agentText.innerHTML ).toContain( '<code>code</code>' );
 
-		// New chat (sidebar) clears the transcript and detaches it from
-		// its persisted conversation.
 		agentsChatStore.state.conversationIds[ 5 ] = 42;
 		(
 			body.querySelector( '.dm-agent-chat__new' ) as HTMLElement
@@ -441,7 +415,7 @@ describe( 'agent chat window', () => {
 				type: 'shortcut',
 				data: { kind: 'attachment', ref: '44', title: 'Hornet' },
 			};
-			// No active agent yet — reject.
+
 			expect( targets[ 0 ].accept( payload ) ).toBe( false );
 
 			openAgentChat( {
@@ -451,7 +425,7 @@ describe( 'agent chat window', () => {
 				avatarUrl: 'data:image/svg+xml;base64,x',
 			} );
 			expect( targets[ 0 ].accept( payload ) ).toBe( true );
-			// Its own user tile is never accepted.
+
 			expect(
 				targets[ 0 ].accept( {
 					type: 'shortcut',
@@ -554,7 +528,6 @@ describe( 'agent chat window', () => {
 		 ).click();
 		await flush();
 
-		// Buttons render under the agent's answer with their variants.
 		const buttons = body.querySelectorAll< HTMLElement >(
 			'.dm-agent-chat__ctas os-button',
 		);
@@ -563,7 +536,6 @@ describe( 'agent chat window', () => {
 		expect( buttons[ 0 ].getAttribute( 'variant' ) ).toBe( 'primary' );
 		expect( buttons[ 0 ].hasAttribute( 'disabled' ) ).toBe( false );
 
-		// Pressing Accept sends the reply as a visible user turn.
 		buttons[ 0 ].click();
 		await flush();
 
@@ -582,7 +554,6 @@ describe( 'agent chat window', () => {
 		);
 		expect( body.textContent ).toContain( 'Applied.' );
 
-		// The spent buttons persist but are disabled.
 		const spent = body.querySelectorAll< HTMLElement >(
 			'.dm-agent-chat__ctas os-button',
 		);
@@ -646,10 +617,6 @@ describe( 'agent chat window', () => {
 		const cleanup = getRender()( body );
 		await flush();
 
-		// The list paints even with no active agent. Two lines: who the
-		// conversation is with, and where it got to — NOT the title,
-		// which repeats across every conversation that opens the same
-		// way. The title stays as the row tooltip.
 		const row = body.querySelector< HTMLElement >( '.dm-agent-chat__conv' );
 		expect( row ).not.toBeNull();
 		expect(
@@ -668,7 +635,6 @@ describe( 'agent chat window', () => {
 		row!.click();
 		await flush();
 
-		// The conversation's agent became active with its transcript.
 		expect( agentsChatStore.state.activeAgent?.id ).toBe( 9 );
 		expect( agentsChatStore.state.conversationIds[ 9 ] ).toBe( 77 );
 		expect( body.textContent ).toContain( 'Historian' );
@@ -749,7 +715,6 @@ describe( 'agent chat window', () => {
 		const cleanup = getRender()( body );
 		await flush();
 
-		// No active agent: the full list is the picker.
 		expect(
 			body.querySelectorAll( '.dm-agent-chat__conv' ),
 		).toHaveLength( 2 );
@@ -762,7 +727,6 @@ describe( 'agent chat window', () => {
 		} );
 		await flush();
 
-		// Active agent: only its own history — never another agent's.
 		const rows = body.querySelectorAll< HTMLElement >(
 			'.dm-agent-chat__conv',
 		);
@@ -823,8 +787,7 @@ describe( 'agent chat window', () => {
 				{ source: 'agents/editor' },
 			);
 			expect( agentEditorTarget.state.agentId ).toBe( 9 );
-			// The row's own click handler must NOT have run — the
-			// conversation stays closed.
+
 			expect( agentsChatStore.state.activeAgent ).toBeNull();
 
 			if ( typeof cleanup === 'function' ) {
@@ -870,7 +833,7 @@ describe( 'agent chat window', () => {
 			)!;
 			expect( card ).not.toBeNull();
 			expect( card.textContent ).toContain( 'Hello world' );
-			// The runner-facing sentence is replaced by the card.
+
 			expect( body.textContent ).not.toContain( 'The user dropped' );
 
 			card.click();

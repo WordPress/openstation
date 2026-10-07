@@ -1,23 +1,3 @@
-/**
- * Workspace-wizard lazy bundle — loader (main-bundle side).
- *
- * Mirrors `src/item-visibility-menu-loader.ts`: on the first open it
- * `<script>`-injects `assets/js/workspace-wizard[.min].js` (URL from
- * `openStationConfig.workspaceWizardBundleUrl`), then forwards the
- * call to the API the bundle published on
- * `window.openStationWorkspaceWizard`.
- *
- * The generation guard covers the user pressing `+` twice while the
- * first fetch is still in flight: only the most recent call opens, so
- * they do not get two modals stacked on each other.
- *
- * While that first fetch runs, the modal's frame stands in for it
- * (`src/ui/surface-placeholder.ts`). The `+` has already made the new
- * desk and landed on it by then, so without one the user is looking
- * at an empty desk that ignored their click for as long as the bundle
- * takes, seconds on a slow connection.
- */
-
 import { __ } from '../i18n';
 import {
 	hideSurfacePlaceholder,
@@ -53,22 +33,11 @@ function bundleUrl(): string {
 	);
 }
 
-/**
- * Paint the wizard's frame while its bundle loads.
- *
- * The declarations mirror `<os-modal size="lg">`
- * (`src/ui/components/os-modal/os-modal.styles.ts`): centred, the same
- * scrim and blur, the same width, surface, edge and radius, so the
- * modal opens in the place the placeholder already held. The edge
- * reads the modal's own border token: `<os-modal>` re-points
- * `--os-ui-border` to it on its host, and this card is not inside one.
- */
 function showPlaceholder(): void {
 	showSurfacePlaceholder( {
 		id: PLACEHOLDER_ID,
 		label: __( 'Opening the workspace wizard…' ),
-		// Escape before the bundle lands is a cancel, exactly as it is
-		// once the modal is up.
+
 		onCancel: closeWorkspaceWizard,
 		layerStyle: [
 			'align-items:center',
@@ -96,7 +65,6 @@ function showPlaceholder(): void {
 	} );
 }
 
-/** Open the wizard, loading its bundle on first use. */
 export function openWorkspaceWizard( opts: WorkspaceWizardOptions ): void {
 	const api = loadedApi();
 	if ( api ) {
@@ -105,9 +73,6 @@ export function openWorkspaceWizard( opts: WorkspaceWizardOptions ): void {
 	}
 	const url = bundleUrl();
 	if ( ! url ) {
-		// No URL configured — vitest / jsdom, or a misconfigured
-		// deploy. Nothing sane to inject, so stay silent rather than
-		// throwing out of a click handler.
 		return;
 	}
 	const myGen = ++generation;
@@ -133,10 +98,7 @@ export function openWorkspaceWizard( opts: WorkspaceWizardOptions ): void {
 		} );
 }
 
-/** Close it, if the bundle is loaded and something is open. */
 export function closeWorkspaceWizard(): void {
-	// Bumped so an open still in flight resolves into a no-op rather
-	// than opening a modal the caller has already dismissed.
 	generation++;
 	hideSurfacePlaceholder( PLACEHOLDER_ID );
 	loadedApi()?.closeWorkspaceWizard();

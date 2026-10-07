@@ -1,12 +1,3 @@
-/**
- * OpenStation — Content Graph window styles.
- *
- * Scoped to `.desktop-mode-content-graph`. Reads `os-variables`
- * tokens so the chrome adapts to the active theme.
- *
- * @since 0.8.2
- */
-
 .desktop-mode-content-graph {
 	display: flex;
 	flex-direction: column;
@@ -20,8 +11,6 @@
 		'Helvetica Neue', Arial, sans-serif
 	);
 }
-
-/* ---------- Toolbar ------------------------------------------------- */
 
 .os-content-graph__toolbar {
 	display: flex;
@@ -40,18 +29,6 @@
 	flex-wrap: wrap;
 }
 
-/*
- * Filter chips: toggle buttons, one per post type, all on by default.
- *
- * Same box as the `<os-select>` trigger beside them (8px block
- * padding, 13px type at 1.5, a 1px border), so the row holds one
- * height instead of three.
- *
- * The edge has its own token because an OFF chip is only an edge and a
- * label, and it is the chip the user has to find again to undo a
- * filter. The palette's plain border is the toolbar's own colour, so
- * an off chip drawn with it has no outline at all.
- */
 .os-content-graph__chip {
 	display: inline-flex;
 	align-items: center;
@@ -83,20 +60,6 @@
 	);
 }
 
-/*
- * On. Colour still derives from the accent (edge, wash and text), so a
- * picked accent and a desktop theme both reach the chip. How MUCH of it
- * shows is `--os-ui-cg-chip-accent`, a literal a palette answers on its
- * own: each of the three layers is mixed from the accent by that
- * amount, towards a neutral the palette also names. This palette
- * answers 0%, so an on chip is the selected theme card in miniature: a
- * Starlight outline around a dark fill. Legacy answers 100%, which is
- * the accent chip exactly as it was.
- *
- * On and off differ in more than a shade: the outline is the brightest
- * edge on the row and the fill is the darkest, against an off chip's
- * grey edge on the toolbar itself.
- */
 .os-content-graph__chip[aria-pressed='true'] {
 	border-color: color-mix(
 		in srgb,
@@ -140,15 +103,6 @@
 	border-radius: 999px;
 }
 
-/*
- * The count pill on an ON chip. Pre-brand it is a bright 70%-white fill
- * over the accent wash, and it names its own text colour, exactly the
- * way `--os-ui-ribbon-fg` and `--os-ui-step-chip-fg` do for the other
- * bright fills in the kit: the chip's own colour on that pill would
- * cancel out. Both halves are tokens, so a palette that has no bright
- * fill here can say so. Unset, the text inherits the chip's colour,
- * which is what a light theme wants.
- */
 .os-content-graph__chip[aria-pressed='true'] .os-content-graph__chip-count {
 	background: var(
 		--os-ui-cg-chip-count-bg-active,
@@ -157,7 +111,6 @@
 	color: var( --os-ui-cg-chip-count-fg-active, inherit );
 }
 
-/* The kit field fills the column; the results list hangs off it. */
 .os-content-graph__search {
 	position: relative;
 	flex: 1;
@@ -229,8 +182,7 @@
 }
 
 .os-content-graph__group-by {
-	/* The os-select grows to its own intrinsic size; cap it so the
-	   action row stays compact on narrow windows. */
+
 	max-width: 180px;
 }
 
@@ -266,13 +218,11 @@
 	font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Cluster labels (DOM overlay) -------------------------- */
-
 .os-content-graph__group-labels {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	/* Sit above the canvas but below any toolbar / side panel. */
+
 	z-index: 2;
 	overflow: hidden;
 }
@@ -295,16 +245,12 @@
 	white-space: nowrap;
 	box-shadow: 0 0 0 1.5px rgba( 255, 255, 255, 0.85 ),
 		0 1px 3px rgba( 0, 0, 0, 0.18 );
-	/* Translucent so nodes/edges behind the label remain visible. */
+
 	opacity: 0.85;
-	/* Smooth the per-frame `style.opacity` and transform updates so
-	   the cluster labels glide instead of stutter during the
-	   grouping tween. */
+
 	transition: opacity 120ms ease-out;
 	will-change: transform, opacity;
 }
-
-/* ---------- Body layout (stage + side panel) ----------------------- */
 
 .os-content-graph__body {
 	display: flex;
@@ -312,23 +258,13 @@
 	min-height: 0;
 }
 
-/* ---------- Stage --------------------------------------------------- */
-
 .os-content-graph__stage {
 	position: relative;
 	flex: 1;
 	min-width: 0;
 	min-height: 0;
 	overflow: hidden;
-	/*
-	 * Three layers, painted bottom-up:
-	 *   1. The theme surface fills the canvas (so PixiJS, which uses
-	 *      `backgroundAlpha: 0`, lets it bleed through).
-	 *   2. Two soft theme-tinted radial vignettes give the canvas a
-	 *      sense of depth without competing with the graph itself.
-	 *   3. A 24x24 dot grid at low alpha gives a subtle "graph paper"
-	 *      texture, mirroring the categories-mindmap reference.
-	 */
+
 	background:
 		radial-gradient(
 			circle,
@@ -354,24 +290,13 @@
 	height: 100%;
 }
 
-/*
- * Full-canvas loading wash. Resting state is invisible: the bundle
- * arms it on every graph fetch and adds `--visible` only once the
- * fetch has run long enough to be worth interrupting the board for
- * (see `src/content-graph/loading-overlay.ts`). A class rather than
- * `[hidden]` so the wash fades instead of popping.
- */
 .os-content-graph__loading {
 	position: absolute;
 	inset: 0;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	/*
-	 * A translucent sheet of the stage's own surface, so it dims a
-	 * dark board as well as a light one. The literal is the pre-brand
-	 * light surface, kept as the floor if the token is missing.
-	 */
+
 	background: color-mix(
 		in srgb,
 		var( --os-ui-surface, #f7f8fb ) 72%,
@@ -400,13 +325,6 @@
 	}
 }
 
-/* ---------- Board notices (empty board, no threads yet) ----------- */
-
-/*
- * <os-empty-state> owns the icon + copy; this is placement only. It
- * covers the (empty) canvas and lets pointer events through so the
- * stage still pans and the dot grid still reads as a board.
- */
 .os-content-graph__empty {
 	position: absolute;
 	inset: 0;
@@ -414,14 +332,6 @@
 	pointer-events: none;
 }
 
-/*
- * "No threads yet" note. Top-left, out of the way of a small board
- * centred in the stage and of the side panel on the right. Real DOM
- * text over the canvas, so it is translatable and follows the theme
- * tokens like the rest of the chrome; pointer-events are off so a
- * pan that starts on it still pans the board. The bundle hides it
- * while a grouping is active, when the cluster labels need the space.
- */
 .os-content-graph__hint {
 	position: absolute;
 	top: 12px;
@@ -450,8 +360,6 @@
 .os-content-graph__hint-body {
 	margin: 0;
 }
-
-/* ---------- Right side panel: breadcrumb --------------------------- */
 
 .os-content-graph__panel-breadcrumb {
 	display: flex;
@@ -501,8 +409,6 @@
 	min-width: 0;
 }
 
-/* ---------- Right side panel --------------------------------------- */
-
 .os-content-graph__panel {
 	width: 320px;
 	flex-shrink: 0;
@@ -511,12 +417,7 @@
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-	/*
-	 * Subtle slide-in / slide-out when the panel opens or closes —
-	 * the outer container collapses its width while the inner frame
-	 * eases off to the right + fades, so the canvas reclaims the
-	 * space smoothly instead of the panel popping out of layout.
-	 */
+
 	transition:
 		width 220ms cubic-bezier( 0.32, 0.72, 0, 1 ),
 		border-left-width 220ms cubic-bezier( 0.32, 0.72, 0, 1 ),
@@ -533,28 +434,19 @@
 }
 
 .os-content-graph__panel[ hidden ] {
-	/* Initial PHP-rendered state — no transition on the very first
-	 * paint, otherwise the panel briefly slides in on page load. */
+
 	transition: none;
 }
 
 .os-content-graph__panel-frame {
-	/*
-	 * Without these rules the body's `flex: 1; overflow-y: auto`
-	 * has nothing to constrain it — the body just grows to fit its
-	 * dossier content and the action buttons get clipped at the
-	 * bottom of the panel. Make the frame a flex column itself so
-	 * the body is forced to share the panel's height with the
-	 * breadcrumb and head, then scrolls the overflow.
-	 */
+
 	display: flex;
 	flex-direction: column;
 	flex: 1 1 0;
 	min-height: 0;
 	width: 320px;
 	overflow: hidden;
-	/* Slides + fades alongside the parent's width collapse so the
-	 * panel content visibly leaves to the right when closing. */
+
 	transition:
 		transform 220ms cubic-bezier( 0.32, 0.72, 0, 1 ),
 		opacity 180ms ease-out;
@@ -620,12 +512,7 @@
 .os-content-graph__panel-body {
 	flex: 1;
 	min-height: 0;
-	/*
-	 * The body is now a clipped stage that holds one or two
-	 * absolutely-positioned `__panel-page` children. During an iOS-
-	 * style navigation, the new page slides in over the old; both
-	 * are clipped here so the off-stage portion isn't visible.
-	 */
+
 	position: relative;
 	overflow: hidden;
 	padding: 0;
@@ -640,23 +527,13 @@
 	flex-direction: column;
 	gap: 14px;
 	background: var( --os-ui-surface-elevated, #fff );
-	/*
-	 * iOS navigation curve — quick out, slow in. 240ms matches
-	 * UIKit's default push/pop duration closely enough for the
-	 * reviewer-flagged "abrupt" feeling to ease.
-	 */
+
 	transition:
 		transform 240ms cubic-bezier( 0.32, 0.72, 0, 1 ),
 		opacity 200ms ease-out;
 	will-change: transform, opacity;
 }
 
-/*
- * Forward push: new page enters from the right at full distance, the
- * outgoing page parallax-slides a fraction of the way to the left.
- * Back pop: mirrored — new page enters from the left at parallax
- * distance, current page slides off the right at full distance.
- */
 .os-content-graph__page-from-right {
 	transform: translateX( 100% );
 }
@@ -666,8 +543,7 @@
 }
 .os-content-graph__page-to-right {
 	transform: translateX( 100% );
-	/* Keep the outgoing page above the incoming parallax shadow on
-	 * back so the slide reads as the user "removing" it. */
+
 	z-index: 2;
 }
 .os-content-graph__page-to-left {
@@ -825,8 +701,6 @@
 .os-content-graph__panel-empty[ hidden ] {
 	display: none;
 }
-
-/* ---------- Contextual detail views (user / term / comment) -------- */
 
 .os-content-graph__panel-detail-section {
 	display: flex;
@@ -1143,8 +1017,6 @@
 		z-index: 4;
 	}
 }
-
-/* ---------- Satellite tooltip -------------------------------------- */
 
 .os-content-graph__tooltip {
 	position: absolute;

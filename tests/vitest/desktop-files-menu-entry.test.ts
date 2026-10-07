@@ -1,14 +1,5 @@
-/**
- * Unit tests for `findMenuEntryForUrl()` — the admin-menu lookup
- * that URL-based openers (wallpaper shortcut tiles, desktop icons)
- * use to enrich their window configs with `submenu` / `parentUrl` /
- * `multi`, so tile-opened windows get the same in-window tab strip
- * a dock open produces.
- */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-// Same-origin as the jsdom environment — the shortcut opener
-// window.open()s cross-origin URLs instead of opening a window.
 const ADMIN_URL = `${ window.location.origin }/wp-admin/`;
 
 const TOOLS_ITEM = {
@@ -128,7 +119,7 @@ describe( 'shortcut opener enrichment', () => {
 		const { installHooksStub, clearHooksStub } = await import(
 			'./helpers/hooks-stub'
 		);
-		// installHooksStub REPLACES window.wp — attach `desktop` after.
+
 		installHooksStub();
 		( window.wp as unknown as Record< string, unknown > ).os = {
 			getMenuItems: () => [ POSTS_ITEM, TOOLS_ITEM ],

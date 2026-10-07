@@ -1,26 +1,7 @@
 <?php
-/**
- * OpenStation asset registration.
- *
- * Registers all openstation CSS and JS handles with WordPress so they can
- * be enqueued from anywhere in the plugin (or by third parties).
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Cache-buster for a stylesheet that `@import`s sub-sheets: the max
- * `filemtime` across the file AND everything it (transitively) imports.
- * Sub-sheet URLs carry no `?ver=` of their own, so the parent's stamp is
- * the only cache key the browser ever sees for the subtree — it must
- * move when any member changes.
- *
- * @param string $relative Stylesheet path relative to the plugin dir.
- * @param string $fallback Version to use when the file is missing.
- * @return string Version string.
- */
 function openstation_css_subtree_version( $relative, $fallback ) {
 	$root = OPENSTATION_DIR . $relative;
 	if ( ! file_exists( $root ) ) {
@@ -48,48 +29,22 @@ function openstation_css_subtree_version( $relative, $fallback ) {
 	return (string) $max;
 }
 
-/**
- * Registers the OpenStation CSS and JS handles.
- */
 function openstation_register_assets() {
 	$version = OPENSTATION_VERSION;
 	$suffix  = openstation_asset_suffix();
 
-	// `filemtime`-stamped version for built bundles. The plugin-wide
-	// `OPENSTATION_VERSION` is bumped per release, but the bundles
-	// iterate faster — without a per-file mtime stamp, two clients
-	// loading the same `?ver=…` URL can be served different bytes
-	// (whichever build was on disk at upload time). Stamping with the
-	// file's modification time guarantees the URL changes whenever the
-	// file does, so "is my fix deployed?" is answerable from the
-	// network tab. Falls back to `$version` when the file is missing
-	// (test envs that import this file before the build runs).
 	$built_version = static function ( $relative ) use ( $version ) {
 		$path = OPENSTATION_DIR . $relative;
 		return file_exists( $path ) ? (string) filemtime( $path ) : $version;
 	};
 
-	// Styles.
-	// `filemtime`-stamped, NOT the plugin-wide `$version`. This file
-	// is the token catalogue every other sheet resolves `var()`s
-	// against, and it changes whenever the palette does — which is a
-	// lot more often than the plugin version is bumped. With a static
-	// stamp the browser holds the old palette until a hard reload,
-	// and the symptom is maddening: a themed shell where some
-	// surfaces update and others don't.
 	wp_register_style(
 		'os-variables',
 		OPENSTATION_URL . 'assets/css/variables.css',
 		array(),
 		$built_version( 'assets/css/variables.css' )
 	);
-	// `filemtime`-stamped so the `<link rel="stylesheet">` URL matches the
-	// `<link rel="preload" as="style">` hint emitted by
-	// `openstation_print_preload_hints()` (which stamps with filemtime).
-	// Registering this with the plain `$version` instead produced two
-	// different `?ver=` query strings for the same file, so the browser
-	// never matched the preload to the stylesheet and logged "preloaded
-	// but not used within a few seconds from the window's load event".
+
 	wp_register_style(
 		'openstation',
 		OPENSTATION_URL . 'assets/css/desktop.css',
@@ -97,39 +52,6 @@ function openstation_register_assets() {
 		$built_version( 'assets/css/desktop.css' )
 	);
 
-	/*
-	 * Window styles — one handle per sheet, chained by dependency.
-	 *
-	 * These used to be `@import url( … )`ed from `windows.css` under
-	 * the single `os-windows` handle. That was a standing
-	 * cache bug: an `@import` URL carries no `?ver=`, so a changed
-	 * sub-sheet had no URL for the browser to invalidate. Stamping the
-	 * PARENT with the subtree's max mtime (which is what
-	 * `openstation_css_subtree_version()` was for) made the browser
-	 * re-fetch `windows.css` and then request each sub-sheet at an
-	 * unchanged URL — free to be served from its heuristic cache. The
-	 * result was edits not landing until a hard refresh, and rules
-	 * being relocated into `windows.css` purely to dodge it.
-	 *
-	 * Now every sheet is separately registered with its own
-	 * `filemtime` stamp, so each has a real cache key.
-	 *
-	 * THE DEPENDENCY CHAIN IS LOAD-BEARING. WordPress prints
-	 * dependencies before dependents, so chaining each sheet to the
-	 * previous one reproduces the order the `@import` block had, and
-	 * `os-windows` (which depends on the last link) still
-	 * prints after them and still wins ties:
-	 *
-	 *   window-chrome → window-states → effects → window-links
-	 *   → windows
-	 *
-	 * `window-overview` is deliberately NOT in this chain — it is
-	 * registered below, after `os-windows`, so it can load deferred.
-	 * Adding a sheet here means splicing it into the chain, not
-	 * appending an unrelated dependency: order is the contract.
-	 * (The Preferences window's sheet is not here at all: it rides
-	 * the `apps/os-settings/` app as a first-open companion style.)
-	 */
 	$window_sheets = array(
 		'os-window-chrome' => 'assets/css/window-chrome.css',
 		'os-window-states' => 'assets/css/window-states.css',
@@ -147,30 +69,20 @@ function openstation_register_assets() {
 		$previous = array( $handle );
 	}
 
-	// Entry point. Depends on the tail of the chain above, so
-	// enqueuing this one handle still pulls in every critical window
-	// sheet — the behaviour callers had when they were `@import`s.
 	wp_register_style(
 		'os-windows',
 		OPENSTATION_URL . 'assets/css/windows.css',
 		$previous,
 		$built_version( 'assets/css/windows.css' )
 	);
-	// Loads DEFERRED (see `openstation_defer_non_critical_styles()`):
-	// the UI it styles — the window overview — is lazy-loaded JS that
-	// can never be on screen at first paint, so its CSS has no
-	// business blocking render. It depends on `os-windows` so it
-	// prints after it, preserving the cascade position it had as an
-	// `@import`.
+
 	wp_register_style(
 		'os-window-overview',
 		OPENSTATION_URL . 'assets/css/window-overview.css',
 		array( 'os-windows' ),
 		$built_version( 'assets/css/window-overview.css' )
 	);
-	// Solo mode — one window, no desk around it. Loads last so it can
-	// hide surfaces the sheets above declared, and only enqueues on a
-	// solo request, so a normal shell never pays for it.
+
 	wp_register_style(
 		'os-solo',
 		OPENSTATION_URL . 'assets/css/solo.css',
@@ -189,56 +101,35 @@ function openstation_register_assets() {
 		array( 'os-dock' ),
 		$built_version( 'assets/css/dock-peek.css' )
 	);
-	// The phone layer. Every rule is scoped to
-	// `html[data-os-mode="mobile"]`, so the sheet is inert on a
-	// desktop and the first paint on a phone is already right (the
-	// head stamp writes the attribute before any stylesheet applies).
-	// Depends on the dock and window sheets because it overrides them.
+
 	wp_register_style(
 		'os-mobile',
 		OPENSTATION_URL . 'assets/css/mobile.css',
 		array( 'os-variables', 'dashicons', 'os-dock', 'os-windows' ),
 		$built_version( 'assets/css/mobile.css' )
 	);
-	// The workspace wizard. Scoped to `.os-workspace-wizard`, so it is
-	// inert until the user opens it from the overview bar's `+` or a
-	// tile's Edit. Those controls are styled with the rest of the bar
-	// in `window-overview.css`.
+
 	wp_register_style(
 		'os-workspaces',
 		OPENSTATION_URL . 'assets/css/workspaces.css',
 		array( 'os-variables', 'dashicons' ),
 		$built_version( 'assets/css/workspaces.css' )
 	);
-	// Keyboard-shortcuts window. Scoped to `.os-shortcuts`, so it is
-	// inert until the System menu opens the window, and unconditional
-	// for the same reason the layout sheet is: the window can be
-	// opened at any moment and a deferred sheet would paint it raw.
+
 	wp_register_style(
 		'os-shortcuts',
 		OPENSTATION_URL . 'assets/css/shortcuts.css',
 		array( 'os-variables' ),
 		$built_version( 'assets/css/shortcuts.css' )
 	);
-	// The OpenStation desktop layout — the core/plugin seam on the rail
-	// plus the constellation hover-submenu flyout. Both surfaces are
-	// scoped (`[data-os-layout="openstation"]` / `.os-constellation`),
-	// so the sheet is inert in every other layout and is loaded
-	// unconditionally rather than gated on the user's current pick:
-	// the layout is switchable live from OpenStation Preferences, and a
-	// conditional enqueue would leave the first switch unstyled.
+
 	wp_register_style(
 		'os-openstation-layout',
 		OPENSTATION_URL . 'assets/css/openstation-layout.css',
 		array( 'os-dock' ),
 		$built_version( 'assets/css/openstation-layout.css' )
 	);
-	// `filemtime`-stamped — the chromeless overrides iterate faster
-	// than the plugin-wide version bumps (per-page compat shims and
-	// page-title-action exceptions land in patches), and a stale
-	// cached copy means the user sees yesterday's rules. Without the
-	// stamp, the browser keeps `?ver=0.8.1` valid for the whole
-	// release cycle.
+
 	wp_register_style(
 		'os-chromeless',
 		OPENSTATION_URL . 'assets/css/chromeless.css',
@@ -246,11 +137,6 @@ function openstation_register_assets() {
 		$built_version( 'assets/css/chromeless.css' )
 	);
 
-	// `filemtime`-stamped — the AI assistant surface (error states,
-	// inline affordances) iterates faster than plugin version bumps.
-	// Without an mtime stamp the browser keeps `?ver=<plugin-version>`
-	// valid for the whole release cycle and the user keeps seeing
-	// yesterday's CSS even after a hard reload.
 	wp_register_style(
 		'desktop-mode-ai-assistant',
 		OPENSTATION_URL . 'assets/css/ai-assistant.css',
@@ -265,9 +151,6 @@ function openstation_register_assets() {
 		$built_version( 'assets/css/bug-report.css' )
 	);
 
-	// `filemtime` instead of the plugin-wide `$version` for the
-	// recycle-bin CSS — this file iterates faster than the bundle
-	// and we never want a stale CSS cache to mask a real fix.
 	$recycle_bin_css = OPENSTATION_DIR . 'assets/css/recycle-bin.css';
 	wp_register_style(
 		'desktop-mode-recycle-bin',
@@ -276,10 +159,6 @@ function openstation_register_assets() {
 		file_exists( $recycle_bin_css ) ? (string) filemtime( $recycle_bin_css ) : $version
 	);
 
-	// Files-on-the-Desktop tile + layer styles. `filemtime` for the
-	// same reason as the recycle-bin CSS: this file
-	// iterates faster than the plugin version, and a stale cache
-	// would mask a real fix.
 	$desktop_files_css = OPENSTATION_DIR . 'assets/css/desktop-files.css';
 	wp_register_style(
 		'os-files',
@@ -288,9 +167,6 @@ function openstation_register_assets() {
 		file_exists( $desktop_files_css ) ? (string) filemtime( $desktop_files_css ) : $version
 	);
 
-	// Games hub window (launcher grid, scoreboard, challenges) +
-	// per-game styles. Same `filemtime` cache-bust posture as the
-	// other fast-iterating feature stylesheets.
 	$games_css = OPENSTATION_DIR . 'assets/css/games.css';
 	wp_register_style(
 		'desktop-mode-games',
@@ -313,12 +189,6 @@ function openstation_register_assets() {
 		file_exists( $game_alphabet_soup_css ) ? (string) filemtime( $game_alphabet_soup_css ) : $version
 	);
 
-	// Pinned-notes layer styles (paper, pushpin, pastel tokens, pin
-	// animations). Same `filemtime` cache-bust posture as the other
-	// fast-iterating feature stylesheets above. Depends on `os-files`
-	// because a pinned note dresses the canonical `.os-file-tile`
-	// chrome — anything that restyles a tile has to print after the
-	// file that declares one.
 	$notes_css = OPENSTATION_DIR . 'assets/css/notes.css';
 	wp_register_style(
 		'os-notes',
@@ -327,12 +197,6 @@ function openstation_register_assets() {
 		file_exists( $notes_css ) ? (string) filemtime( $notes_css ) : $version
 	);
 
-	// Announcement-dialog styles (scrim, hero card, buttons). Registered
-	// always, enqueued only for a user who is actually owed the
-	// announcement — see the gate in `openstation_enqueue_assets()`. It
-	// is not lazy-loaded on top of that: on the one boot where it does
-	// go out, the dialog opens from the main bundle a second later, and
-	// a fetch racing that would show an unstyled card.
 	$announce_css = OPENSTATION_DIR . 'assets/css/announce.css';
 	wp_register_style(
 		'os-announce',
@@ -341,46 +205,19 @@ function openstation_register_assets() {
 		file_exists( $announce_css ) ? (string) filemtime( $announce_css ) : $version
 	);
 
-	// Scripts.
-	//
-	// `wp-hooks` — the shell exposes a WordPress-style filter/action
-	// API (`window.wp.hooks`) to third-party plugins.
-	// `wp-i18n` — the TS `__()` / `_x()` / `sprintf()` wrappers in
-	// `src/i18n.ts` delegate to `window.wp.i18n` for translation
-	// lookups. Both handles are core-shipped but only pre-enqueued
-	// when Gutenberg-adjacent deps pull them in, so we list them
-	// explicitly to guarantee load order.
 	wp_register_script(
 		'openstation',
 		OPENSTATION_URL . 'assets/js/desktop' . $suffix . '.js',
-		// `heartbeat` + `jquery` — the recycle-bin badge module
-		// (loaded as part of this bundle) opts into the WordPress
-		// Heartbeat API so the count tile / desktop-icon badge
-		// stays in sync even when the bin window is closed.
+
 		array( 'wp-hooks', 'wp-i18n', 'heartbeat', 'jquery' ),
 		$built_version( 'assets/js/desktop' . $suffix . '.js' ),
-		// Footer + defer: the shell boots on DOMContentLoaded anyway,
-		// so deferring frees the parser instead of blocking at the
-		// footer print point. Both inline payloads attached to this
-		// handle (`__openStationMenuCommands`, the jazz-quote version
-		// stamp) are `'before'`-position, which WP keeps as blocking
-		// inline ahead of a deferred tag — order is preserved. On WP
-		// < 6.3 the array collapses to a truthy `$in_footer`, same as
-		// before.
+
 		array(
 			'in_footer' => true,
 			'strategy'  => 'defer',
 		)
 	);
 
-	// `os-iframe-bridge` — opt-in iframe-side bridge that
-	// provides `wp.os.iframe.publish/subscribe/onConnection/
-	// requestConnection` to any same-origin iframe that enqueues it.
-	// Same code is also injected inline by the chromeless bridge
-	// (so chromeless wp-admin pages don't need a separate enqueue)
-	// and auto-injected when a native window opts in via
-	// `iframeContent: { bridge: true }`. Plugins targeting their
-	// own iframe pages just enqueue this handle.
 	wp_register_script(
 		'os-iframe-bridge',
 		OPENSTATION_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
@@ -389,12 +226,6 @@ function openstation_register_assets() {
 		true
 	);
 
-	// `os-deactivation-feedback` — the dialog that asks one optional
-	// question when an admin deactivates OpenStation. Enqueued on
-	// `plugins.php` (classic, chromeless and network admin) by
-	// `includes/feedback/deactivation.php`, and lazy-loaded by the
-	// native Plugins app from its config block. Plain DOM on purpose:
-	// the classic screen has no `<os-*>` kit.
 	wp_register_script(
 		'os-deactivation-feedback',
 		OPENSTATION_URL . 'assets/js/deactivation-feedback' . $suffix . '.js',
@@ -415,13 +246,6 @@ function openstation_register_assets() {
 		file_exists( $feedback_css ) ? (string) filemtime( $feedback_css ) : $version
 	);
 
-	// `os-chromeless-bridge` — the iframe side of every window,
-	// enqueued on `admin_footer` by
-	// `openstation_chromeless_bridge_script()` with its per-request
-	// data attached as a `before` inline block. Registered here (not
-	// there) so the handle exists before the enqueue and so the asset
-	// guard's OPENSTATION_URL snapshot protects it like every other
-	// bundle of ours.
 	wp_register_script(
 		'os-chromeless-bridge',
 		OPENSTATION_URL . 'assets/js/chromeless-bridge' . $suffix . '.js',
@@ -430,15 +254,6 @@ function openstation_register_assets() {
 		true
 	);
 
-	// `os-gutenberg-drop-receiver` — iframe-side bundle
-	// enqueued only on the Block Editor screens (`post.php` /
-	// `post-new.php`) for openstation users. Listens for
-	// `os-drop` postMessages from the parent shell (see
-	// `src/drag/iframe-drop-targets.ts`) and inserts the matching
-	// Gutenberg block via `wp.data.dispatch('core/block-editor')`.
-	// Depends on `wp-blocks` + `wp-data` so the editor stores are
-	// guaranteed enqueued before the receiver runs its first message
-	// handler.
 	wp_register_script(
 		'os-gutenberg-drop-receiver',
 		OPENSTATION_URL . 'assets/js/gutenberg-drop-receiver' . $suffix . '.js',
@@ -447,19 +262,6 @@ function openstation_register_assets() {
 		true
 	);
 
-	// The Recycle Bin window is an App Framework app (`apps/trash/`);
-	// its client view rides the app-bundle pipeline, so no dedicated
-	// script handle. The `desktop-mode-recycle-bin` STYLE handle above
-	// stays — the drag-to-trash drop-target highlight must be present
-	// at boot (dropping on the closed bin's dock tile), not window-open.
-
-	// `desktop-mode-games` — bundle for the Games hub native window
-	// (launcher grid, scoreboard, challenges client). Lazy-loaded by
-	// the native-window sync the first time the hub opens; registers a
-	// render callback on
-	// `window.openStationNativeWindows['desktop-mode-games']`.
-	// `heartbeat` + `jquery` — the challenges client rides the
-	// WordPress Heartbeat bus for live delivery.
 	$games_js = OPENSTATION_DIR . 'assets/js/games' . $suffix . '.js';
 	wp_register_script(
 		'desktop-mode-games',
@@ -474,9 +276,6 @@ function openstation_register_assets() {
 		OPENSTATION_DIR . 'languages'
 	);
 
-	// `os-game-inkfall` — the Inkfall game bundle. Loaded
-	// lazily by the games framework on first launch; publishes the
-	// game def on `window.openStationGames.inkfall`.
 	$game_inkfall_js = OPENSTATION_DIR . 'assets/js/game-inkfall' . $suffix . '.js';
 	wp_register_script(
 		'os-game-inkfall',
@@ -491,10 +290,6 @@ function openstation_register_assets() {
 		OPENSTATION_DIR . 'languages'
 	);
 
-	// `os-game-alphabet-soup` — the Alphabet Soup game
-	// bundle. Loaded lazily by the games framework on first launch;
-	// publishes the game def on
-	// `window.openStationGames['alphabet-soup']`.
 	$game_alphabet_soup_js = OPENSTATION_DIR . 'assets/js/game-alphabet-soup' . $suffix . '.js';
 	wp_register_script(
 		'os-game-alphabet-soup',
@@ -509,13 +304,6 @@ function openstation_register_assets() {
 		OPENSTATION_DIR . 'languages'
 	);
 
-	// `os-animated-logo-wallpaper` — built-in PixiJS canvas
-	// wallpaper, moved out of `desktop.min.js`. The wallpaper
-	// `server-sync` loads this handle when the user selects the
-	// `wp-animated-logo` wallpaper (or opens OS Settings → Wallpaper
-	// and the picker pulls every registered canvas def in). The
-	// bundle's only side effect is publishing the `WallpaperDef` on
-	// `window.openStationWallpapers['wp-animated-logo']`.
 	$animated_logo_js = OPENSTATION_DIR . 'assets/js/animated-logo-wallpaper' . $suffix . '.js';
 	wp_register_script(
 		'os-animated-logo-wallpaper',
@@ -525,14 +313,6 @@ function openstation_register_assets() {
 		true
 	);
 
-	// `os-snow-wallpaper` — built-in PixiJS canvas
-	// wallpaper: snowfall that accumulates on window tops and melts
-	// away. Same lazy-load path as the animated logo: the wallpaper
-	// `server-sync` injects this handle when the user selects the
-	// `wp-snow` wallpaper (or opens OS Settings → Wallpaper and the
-	// picker pulls the def in). The bundle's only side effect is
-	// publishing the `WallpaperDef` on
-	// `window.openStationWallpapers['wp-snow']`.
 	$snow_js = OPENSTATION_DIR . 'assets/js/snow-wallpaper' . $suffix . '.js';
 	wp_register_script(
 		'os-snow-wallpaper',
@@ -547,11 +327,6 @@ function openstation_register_assets() {
 		OPENSTATION_DIR . 'languages'
 	);
 
-	// `desktop-mode-ai-assistant` — AI Copilot spotlight overlay,
-	// moved out of `desktop.min.js`. The main bundle ships a
-	// stub matching the public `wp.os.ai` contract; the stub
-	// `<script>`-injects this handle the first time the user opens
-	// the assistant (Cmd+K or admin-bar button).
 	$ai_assistant_js = OPENSTATION_DIR . 'assets/js/ai-assistant' . $suffix . '.js';
 	wp_register_script(
 		'desktop-mode-ai-assistant',
@@ -566,11 +341,6 @@ function openstation_register_assets() {
 		OPENSTATION_DIR . 'languages'
 	);
 
-	// Wire the translation bundle to this script handle. WP looks
-	// for `languages/os-{locale}-os.json` and
-	// injects its `locale_data` into `wp.i18n` just before the
-	// script runs — so every `__()` call resolves to the right
-	// language without any runtime fetch.
 	wp_set_script_translations(
 		'openstation',
 		'desktop-mode',

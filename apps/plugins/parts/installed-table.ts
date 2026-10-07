@@ -1,4 +1,3 @@
-/** The dense Plugins view. The real component is imported before any property assignment. */
 import { __, formatBytes, html, sprintf, type TemplateResult } from '@openstation/app';
 import '../../../src/ui/components/os-table/os-table';
 import '../../../src/ui/components/os-action-menu/os-action-menu';
@@ -58,7 +57,7 @@ function columns( opts: InstalledTableOptions ): OsTableColumn< InstalledPlugin 
 			key: 'version', label: __( 'Version', 'desktop-mode' ), width: '142px',
 			render: ( _value, row ) => html`<div class="os-plugins__table-version">${ line( row.version || '—' ) }
 				${ row.openstation_update_available?.available ? line(
-					sprintf( /* translators: %s: available version */ __( 'Update to %s', 'desktop-mode' ), row.openstation_update_available.new_version || '—' ),
+					sprintf( __( 'Update to %s', 'desktop-mode' ), row.openstation_update_available.new_version || '—' ),
 					'os-plugins__table-update',
 				) : '' }</div>`,
 		},
@@ -72,7 +71,7 @@ function columns( opts: InstalledTableOptions ): OsTableColumn< InstalledPlugin 
 				const actions = opts.actions( row ).filter( ( el ) => el.tagName === 'OS-BUTTON' );
 				const name = stripHtml( row.name ) || row.plugin;
 				return html`<div class="os-plugins__table-actions" data-noclick>${ actions[ 0 ] ?? '' }
-					<os-action-menu data-plugin-actions=${ row.plugin } text="⋯" label=${ sprintf( /* translators: %s: plugin name */ __( 'Actions for %s', 'desktop-mode' ), name ) }
+					<os-action-menu data-plugin-actions=${ row.plugin } text="⋯" label=${ sprintf( __( 'Actions for %s', 'desktop-mode' ), name ) }
 						@os-context-menu-pick=${ ( ev: Event ) => {
 							const value = ( ev as CustomEvent< { value: string } > ).detail.value;
 							if ( value === 'details' ) {
@@ -93,7 +92,6 @@ function columns( opts: InstalledTableOptions ): OsTableColumn< InstalledPlugin 
 	];
 }
 
-/** Sync only when the rows or busy state change, keeping row nodes and scroll stable on selection. */
 export function syncInstalledTable( state: InstalledTableState, opts: InstalledTableOptions ): void {
 	const table = opts.root.querySelector< OsTable< InstalledPlugin > >( '[data-os-plugins-table]' );
 	if ( ! table ) {

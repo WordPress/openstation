@@ -1,15 +1,3 @@
-/**
- * The wallpaper editor island — the one region of the Preferences
- * app its renderer never paints. `syncEditor()` mounts the selected
- * wallpaper's `renderEditor` into a fresh inner element after every
- * paint, and tears the previous one down first.
- *
- * A fresh element every time is the point: the framework's own
- * `render()` caches its mounted parts per container, so a
- * cleared-then-reused element takes the update fast path against
- * detached nodes and paints nothing — the "custom gradient can't be
- * edited after switching away and back" bug.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import * as registry from '../../src/wallpapers/registry';
@@ -25,11 +13,6 @@ let stub: OsSettingsStub;
 let root: HTMLElement;
 let ctx: Ctx;
 
-/**
- * Mirrors the custom-gradient editor: renders through the framework
- * templater with a stable call-site template, so repeated mounts into
- * a recycled container would hit the renderer's per-container cache.
- */
 const paintEditor = ( container: HTMLElement, label: string ): void =>
 	render( html`<span class="test-editor">${ label }</span>`, container );
 
@@ -57,7 +40,6 @@ const plainDef: WallpaperDef = {
 
 const slot = (): HTMLElement => root.querySelector< HTMLElement >( '[data-os-editor-slot]' )!;
 
-/** The user picks a wallpaper: the store changes, the app repaints. */
 function select( id: string ): void {
 	stub.state.wallpaper = id;
 	syncEditor( ctx );
@@ -102,9 +84,7 @@ describe( 'wallpaper editor slot', () => {
 		registry.register( editableDef() );
 		syncEditor( ctx );
 		select( 'test-plain' );
-		// The regression: this third sync recycled the inner element,
-		// which still carried the renderer's stale per-container cache,
-		// and painted nothing.
+
 		select( 'test-editable' );
 		expect( slot().querySelector( '.test-editor' )?.textContent ).toBe( 'controls' );
 	} );
@@ -128,8 +108,7 @@ describe( 'wallpaper editor slot', () => {
 		expect( teardown ).not.toHaveBeenCalled();
 		select( 'test-plain' );
 		expect( teardown ).toHaveBeenCalledTimes( 1 );
-		// And the switch cleared the stored teardown — the window's own
-		// teardown must not double-invoke it.
+
 		teardownEditor( ctx );
 		expect( teardown ).toHaveBeenCalledTimes( 1 );
 	} );

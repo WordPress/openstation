@@ -1,15 +1,3 @@
-/**
- * Per-user dismissal storage for `<os-notice>`.
- *
- * Notices that carry a `notice-id` record their dismissal in
- * `localStorage` under a per-user key so the same user never sees the
- * same dismissed banner twice across reloads. The key includes the
- * current user id (read from `wp.os.config.currentUserId` on
- * first read) so a shared browser doesn't carry one user's
- * dismissals into another's session. When the id is unavailable
- * (logged-out, pre-hydration) we fall back to `anon`.
- */
-
 const KEY_PREFIX = 'desktop-mode-notice-dismissed';
 
 interface MaybeWpDesktop {
@@ -40,9 +28,7 @@ function readMap(): Record< string, true > {
 			return parsed as Record< string, true >;
 		}
 	} catch {
-		// localStorage may be disabled (Safari private mode, quota
-		// exceeded, etc.) — fall through to the empty map. A notice
-		// that can't persist still shows once per page load.
+
 	}
 	return {};
 }
@@ -51,8 +37,7 @@ function writeMap( map: Record< string, true > ): void {
 	try {
 		window.localStorage.setItem( storageKey(), JSON.stringify( map ) );
 	} catch {
-		// Same rationale as readMap — silently no-op when storage
-		// isn't writable.
+
 	}
 }
 
@@ -83,16 +68,10 @@ export function clearNoticeDismissed( id: string ): void {
 	}
 }
 
-/**
- * Test-only escape hatch — drops every dismissal record for the
- * current user.
- *
- * @internal
- */
 export function _resetNoticeDismissalsForTests(): void {
 	try {
 		window.localStorage.removeItem( storageKey() );
 	} catch {
-		// no-op
+
 	}
 }

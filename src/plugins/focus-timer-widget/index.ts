@@ -1,14 +1,3 @@
-/**
- * OpenStation — Focus Timer widget.
- *
- * A focus countdown you add from the widget picker. Pick a duration,
- * optionally link it to one of your open windows, and start. When time
- * is up the linked window shakes (via the public `Window.shake()`) and
- * an alarm rings until you press Stop. The timer itself lives in a
- * page-wide runtime (`./timer`) so it keeps counting across re-renders
- * and page reloads; this file is only the view.
- */
-
 import './styles.css';
 import '../../ui/components/os-select/os-select';
 import '../../ui/components/os-checkbox-label/os-checkbox-label';
@@ -26,7 +15,6 @@ const WIDGET_ID = 'desktop-mode/focus-timer';
 const PRESETS_MIN = [ 5, 15, 25, 45 ];
 const NONE = '__none__';
 
-/** A `os-select` element with the small typed surface we drive. */
 interface OsSelect extends HTMLElement {
 	items: ReadonlyArray< { value: string; label: string } >;
 	value: string;
@@ -47,9 +35,6 @@ function el< K extends keyof HTMLElementTagNameMap >(
 	return node;
 }
 
-// Native <button> for transport/presets — matches the Notes + Starter
-// widgets. (os-select / os-checkbox-label web components are used for
-// the picker + toggle, as the Notes widget does.)
 function button( className: string, label: string ): HTMLButtonElement {
 	const b = document.createElement( 'button' );
 	b.type = 'button';
@@ -58,7 +43,6 @@ function button( className: string, label: string ): HTMLButtonElement {
 	return b;
 }
 
-/** ms → "MM:SS" (or "H:MM:SS" past an hour). */
 function fmt( ms: number ): string {
 	const total = Math.ceil( ms / 1000 );
 	const h = Math.floor( total / 3600 );
@@ -82,8 +66,6 @@ const mount = (
 	let subEl: HTMLElement | null = null;
 	let windowSelect: OsSelect | null = null;
 
-	// --- Window link picker -------------------------------------------
-
 	function windowItems(): Array< { value: string; label: string } > {
 		const items: Array< { value: string; label: string } > = [
 			{
@@ -91,8 +73,7 @@ const mount = (
 				label: __( 'No window — just alarm', 'desktop-mode' ),
 			},
 		];
-		// Only currently-open windows are offered — a closed window is
-		// nothing to shake, so it never appears as a choice (issue #410).
+
 		for ( const w of listWindows() ) {
 			if ( w.id === WIDGET_ID ) {
 				continue;
@@ -111,19 +92,15 @@ const mount = (
 		}
 		const items = windowItems();
 		windowSelect.items = items;
-		// Show the linked window only if it is still open; otherwise fall
-		// back to "No window".
+
 		const linked = timer.snapshot().linkedWindowId;
 		windowSelect.value =
 			linked && items.some( ( i ) => i.value === linked ) ? linked : NONE;
 	}
 
-	// --- Phase skeletons -----------------------------------------------
-
 	function buildSetup( s: TimerSnapshot ): void {
 		container.replaceChildren();
 
-		// Big editable time with − / + steppers.
 		const time = el( 'div', 'dm-focus__time-row' );
 		const minus = button( 'dm-focus__step', '−' );
 		minus.setAttribute(
@@ -146,13 +123,12 @@ const mount = (
 		time.append( minus, timeEl, plus );
 		container.appendChild( time );
 
-		// Quick presets.
 		const presets = el( 'div', 'dm-focus__presets' );
 		for ( const min of PRESETS_MIN ) {
 			const chip = button(
 				'dm-focus__chip',
 				sprintf(
-					/* translators: %d: minutes. */
+
 					__( '%d min', 'desktop-mode' ),
 					min,
 				),
@@ -164,7 +140,6 @@ const mount = (
 		}
 		container.appendChild( presets );
 
-		// Link-to-window picker (os-select).
 		const linkRow = el( 'div', 'dm-focus__field' );
 		linkRow.append(
 			el(
@@ -184,7 +159,6 @@ const mount = (
 		linkRow.appendChild( windowSelect );
 		container.appendChild( linkRow );
 
-		// Show-remaining toggle (os-checkbox-label).
 		const toggle = document.createElement( 'os-checkbox-label' );
 		toggle.className = 'dm-focus__toggle';
 		toggle.setAttribute(
@@ -201,7 +175,6 @@ const mount = (
 		} );
 		container.appendChild( toggle );
 
-		// Actions.
 		const actions = el( 'div', 'dm-focus__actions' );
 		if ( s.phase === 'paused' ) {
 			const resume = button(
@@ -268,8 +241,6 @@ const mount = (
 		container.appendChild( actions );
 	}
 
-	// --- Dynamic paint (runs every tick, no DOM rebuild) ---------------
-
 	function linkedTitle( s: TimerSnapshot ): string {
 		if ( ! s.linkedWindowId ) {
 			return '';
@@ -295,13 +266,11 @@ const mount = (
 		if ( subEl ) {
 			const title = linkedTitle( s );
 			if ( s.phase === 'running' ) {
-				/* translators: %s: window title. */
 				const linked = __( 'Linked to “%s”', 'desktop-mode' );
 				subEl.textContent = title
 					? sprintf( linked, title )
 					: __( 'No window linked', 'desktop-mode' );
 			} else if ( s.phase === 'finished' ) {
-				/* translators: %s: window title. */
 				const shaking = __( 'Shaking “%s”', 'desktop-mode' );
 				subEl.textContent = title
 					? sprintf( shaking, title )
@@ -332,7 +301,6 @@ const mount = (
 
 	const unsubscribe = timer.subscribe( render );
 
-	// Refresh the window picker as windows come and go (setup view only).
 	const onWindowsChanged = (): void => {
 		if ( renderedPhase === 'idle' ) {
 			refreshWindowOptions();

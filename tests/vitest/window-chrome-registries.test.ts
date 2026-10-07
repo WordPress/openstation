@@ -1,21 +1,3 @@
-/**
- * Phase A foundation tests for the four window-chrome registries:
- * themes, controls, slots, and (Experimental) custom chrome.
- *
- * The registries are pure storage at this phase — no rendering yet.
- * These tests cover the contract every registry shares:
- *
- *   - register / re-register / unregister round-trips
- *   - id validation (non-empty, lowercase alphanum + `-_/`)
- *   - field validation (required fields present, callbacks are
- *     functions, slot names known)
- *   - owner-based bulk teardown
- *   - subscribe / notify fan-out on every mutation
- *   - match-predicate filtering (themes via `resolveWindowTheme`,
- *     controls/slots via `controlsForWindow` / `slotsForWindow`)
- *   - throwing match predicates are isolated (skipped, not crashed)
- */
-
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -61,11 +43,6 @@ import {
 
 import { RegistrationError } from '../../src/registration-errors';
 
-/**
- * Fake window — the registries only call `match( window )`, so any
- * shape with the fields the predicate inspects works. We never touch
- * the actual `Window` class in these unit tests.
- */
 function fakeWin( id: string, opts: { native?: boolean } = {} ): unknown {
 	return {
 		id,
@@ -87,10 +64,6 @@ afterEach( () => {
 	_resetWindowSlotRegistryForTests();
 	_resetWindowChromeRegistryForTests();
 } );
-
-// ---------------------------------------------------------------------------
-// Themes (Layer 1)
-// ---------------------------------------------------------------------------
 
 describe( 'WindowTheme registry', () => {
 	test( 'register stores entry and round-trips through list', () => {
@@ -146,7 +119,7 @@ describe( 'WindowTheme registry', () => {
 			registerWindowTheme( {
 				id: 'plug/z',
 				tokens: { '--x': 'y' },
-				// @ts-expect-error — runtime validation
+
 				match: 'not-a-function',
 			} ),
 		).toThrow( RegistrationError );
@@ -262,10 +235,6 @@ describe( 'WindowTheme registry', () => {
 	} );
 } );
 
-// ---------------------------------------------------------------------------
-// Controls (Layer 2)
-// ---------------------------------------------------------------------------
-
 describe( 'WindowControl registry', () => {
 	test( 'register stores entry and partitions by placement', () => {
 		registerWindowControl( {
@@ -334,7 +303,7 @@ describe( 'WindowControl registry', () => {
 				id: 'plug/x',
 				label: 'X',
 				icon: 'close',
-				// @ts-expect-error — runtime validation
+
 				placement: 'top',
 				match: () => true,
 				onClick: () => {},
@@ -407,10 +376,6 @@ describe( 'WindowControl registry', () => {
 	} );
 } );
 
-// ---------------------------------------------------------------------------
-// Slots (Layer 3)
-// ---------------------------------------------------------------------------
-
 describe( 'WindowSlot registry', () => {
 	test( 'register stores entry; slotsForWindow filters by slot + match', () => {
 		registerWindowSlot( {
@@ -436,7 +401,7 @@ describe( 'WindowSlot registry', () => {
 		expect( () =>
 			registerWindowSlot( {
 				id: 'plug/x',
-				// @ts-expect-error — runtime validation
+
 				slot: 'not-a-slot',
 				match: () => true,
 				render: () => {},
@@ -447,7 +412,7 @@ describe( 'WindowSlot registry', () => {
 	test( 'register throws when render is missing', () => {
 		expect( () =>
 			registerWindowSlot( {
-				// @ts-expect-error — runtime validation
+
 				id: 'plug/x',
 				slot: 'title',
 				match: () => true,
@@ -504,10 +469,6 @@ describe( 'WindowSlot registry', () => {
 	} );
 } );
 
-// ---------------------------------------------------------------------------
-// Custom chrome (Layer 4 — Experimental)
-// ---------------------------------------------------------------------------
-
 describe( 'WindowChrome registry (Experimental)', () => {
 	test( 'register stores entry; getWindowChrome returns it', () => {
 		registerWindowChrome( {
@@ -524,7 +485,7 @@ describe( 'WindowChrome registry (Experimental)', () => {
 			registerWindowChrome( {
 				id: 'plug/x',
 				match: () => true,
-				// @ts-expect-error — runtime validation
+
 				render: undefined,
 			} ),
 		).toThrow( RegistrationError );

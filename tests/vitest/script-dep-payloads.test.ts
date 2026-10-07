@@ -1,8 +1,3 @@
-/**
- * `scriptDeps` travel as handles; each payload rides once in
- * `scriptDepPayloads` (GH#892). The shell must resolve them back
- * before any loader sees them, in order, on the refresh path too.
- */
 import { describe, expect, test, vi } from 'vitest';
 import { createApplyPayload } from '../../src/menu-refresh-apply';
 import type { MenuRefreshDeps } from '../../src/menu-refresh-apply';
@@ -43,10 +38,7 @@ describe( 'hydrateScriptDeps', () => {
 	} );
 
 	test( 'passes full payloads through; an unknown handle is dropped and logged', () => {
-		// The server resolves every handle it emits into the map
-		// (`openstation_compact_script_dep_list()`), so a handle without
-		// an entry came from somewhere else. There is nothing to load,
-		// but losing a dependency must not be silent.
+
 		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 		const config = {
 			scriptDepPayloads: { 'wp-hooks': hooks },
@@ -61,9 +53,7 @@ describe( 'hydrateScriptDeps', () => {
 	} );
 
 	test( 'touches scriptDeps at entry depth only, never a plugin\'s own metadata', () => {
-		// A plugin's settings can carry a key that happens to be called
-		// `scriptDeps`. Walking into it would resolve its strings away
-		// (they are not in the map) and rewrite data that is not ours.
+
 		const foreign = [ 'a', 'b' ];
 		const config = {
 			scriptDepPayloads: { 'wp-hooks': hooks },
@@ -120,9 +110,7 @@ describe( 'menu refresh', () => {
 	} );
 
 	test( 'the refresh map is merged into config.scriptDepPayloads', () => {
-		// After a plugin activates, config.server* holds its handles.
-		// Anything that re-hydrates config, or reads the map, must find
-		// them there, and handles known at boot must not be lost.
+
 		const noop = vi.fn().mockResolvedValue( undefined );
 		const config = {
 			dockItems: [],

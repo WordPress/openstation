@@ -1,14 +1,3 @@
-/**
- * `desktopTheme` in the OS-settings state parser.
- *
- * `_parseRaw` is private, so these go through `loadState()` and the
- * localStorage cache — which is also the path that actually runs on
- * boot, so it is the more honest thing to test.
- *
- * The pattern here MUST mirror the PHP sanitizer
- * (`openstation_sanitize_os_settings`). A value one side accepts and
- * the other rewrites makes the setting flip on every reload.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { loadState } from '../../src/settings/state';
 import { DEFAULTS, STORAGE_KEY } from '../../src/settings/constants';
@@ -48,8 +37,7 @@ describe( 'OsSettingsState.desktopTheme', () => {
 	} );
 
 	test( 'the empty string is a REAL value, not a missing one', () => {
-		// The parser uses `*`, not `+`, for exactly this reason: a `+`
-		// would silently rewrite "System default" on every load.
+
 		seedCache( '' );
 		expect( loadState().desktopTheme ).toBe( '' );
 	} );
@@ -96,9 +84,7 @@ describe( 'OsSettingsState.appliedThemeRecommendations', () => {
 	} );
 
 	test( 'entries outside the slug charset are dropped, the rest survive', () => {
-		// The PHP sanitizer runs `sanitize_key()` over the same list;
-		// a value one side keeps and the other rewrites would make the
-		// ledger drift and re-arm a seed on some future load.
+
 		seedLedger( [ 'Acme-Neon', 'acme/neon', '', 42, null, 'kept-theme' ] );
 		expect( loadState().appliedThemeRecommendations ).toEqual( [
 			'kept-theme',
@@ -111,9 +97,7 @@ describe( 'OsSettingsState.appliedThemeRecommendations', () => {
 	} );
 
 	test( 'the cap keeps the most recent 64 entries', () => {
-		// Same end PHP trims from. The writer appends, so keeping the
-		// head would drop the slug just written and let that theme
-		// re-seed on the next activation.
+
 		seedLedger( Array.from( { length: 90 }, ( _v, i ) => `theme-${ i }` ) );
 		const ledger = loadState().appliedThemeRecommendations;
 		expect( ledger ).toHaveLength( 64 );

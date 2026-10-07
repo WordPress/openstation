@@ -1,23 +1,3 @@
-/**
- * Plugins app — the admin-ajax client.
- *
- * Part of the `desktop-mode-plugins` client view. What the framework
- * does NOT cover for this window: the wp.org marketplace (browse /
- * info / reviews / featured, `parts/ajax.php` + `parts/reviews.php` +
- * `parts/featured.php`), the .zip upload (`parts/upload.php`), and the
- * install / update / auto-update toggles that go through Core's own
- * `wp.updates` handlers with the `updates` nonce. Every call goes
- * through `ctx.fetch`, so it is attributed to the window (the
- * title-bar activity indicator) and aborted with it. Activate /
- * deactivate / delete are app actions (`plugins.os.php`), not here.
- *
- * The nonces are read from the window config at call time, never
- * cached in a closure: the shell's nonce refresh rewrites `ajaxNonce`
- * / `updatesNonce` in place when a session's nonces roll.
- *
- * @public
- */
-
 import type {
 	BrowseFilter,
 	FeaturedPlugin,
@@ -53,20 +33,13 @@ export interface PluginsRest {
 	updateInstalledPlugin: ( plugin: InstalledPlugin ) => Promise< UpdatePluginResult >;
 	toggleAutoUpdate: ( plugin: InstalledPlugin, state: 'enable' | 'disable' ) => Promise< void >;
 	uploadPluginZip: ( file: File, options?: { overwrite?: boolean } ) => Promise< UploadPluginResult >;
-	/** True when `pluginFile` is OpenStation itself. */
+
 	isOpenStationSelf: ( pluginFile: string ) => boolean;
 }
 
-/** The fetch the client rides — `ctx.fetch`, or a test's stand-in. */
 export type RestFetch = ( url: string, init?: RequestInit ) => Promise< Response >;
 
-/** Build the client over a live reader of the window config and the view's fetch. */
 export function createPluginsRest( extra: () => PluginsExtra, fetcher: RestFetch ): PluginsRest {
-	/**
-	 * Encode the args as `application/x-www-form-urlencoded` (the format
-	 * Core's wp.updates expects) and unwrap the `{ success, data }`
-	 * envelope.
-	 */
 	const ajaxRequest = async < T >(
 		action: string,
 		args: Record< string, string | number | boolean | undefined > = {},
@@ -89,14 +62,13 @@ export function createPluginsRest( extra: () => PluginsExtra, fetcher: RestFetch
 		return unwrapAjaxEnvelope< T >( await readJsonOrThrow( response ), response.status );
 	};
 
-	/** Multipart variant for the .zip upload route. */
 	const ajaxUpload = async < T >( action: string, formData: FormData ): Promise< T > => {
 		const cfg = extra();
 		formData.set( 'action', action );
 		if ( ! formData.has( '_ajax_nonce' ) ) {
 			formData.set( '_ajax_nonce', cfg.ajaxNonce );
 		}
-		// No Content-Type — the browser appends the boundary.
+
 		const response = await fetcher( cfg.ajaxUrl, { method: 'POST', body: formData } );
 		return unwrapAjaxEnvelope< T >( await readJsonOrThrow( response ), response.status );
 	};
@@ -113,14 +85,9 @@ export function createPluginsRest( extra: () => PluginsExtra, fetcher: RestFetch
 		fetchPluginReviews: ( slug ) =>
 			ajaxRequest< PluginReviewsResponse >( 'openstation_plugins_reviews', { slug } ),
 		fetchFeaturedPlugins: () => ajaxRequest( 'openstation_plugins_featured' ),
-		// Core's `wp_ajax_install_plugin` — verified against the `updates`
-		// nonce, not our window-scoped one.
+
 		installPluginBySlug: ( slug ) => ajaxRequest( 'install-plugin', { slug }, 'updates' ),
-		// Core's `wp_ajax_update_plugin` — the exact handler the classic
-		// screen's "Update now" hits. Callers MUST serialise through
-		// `enqueueUpdateJob`: concurrent upgrader runs corrupt the
-		// `update_plugins` transient. Core keys on the FULL filename
-		// where its REST controller strips the extension.
+
 		updateInstalledPlugin: ( plugin ) =>
 			ajaxRequest< UpdatePluginResult >(
 				'update-plugin',
@@ -133,8 +100,7 @@ export function createPluginsRest( extra: () => PluginsExtra, fetcher: RestFetch
 				},
 				'updates',
 			),
-		// Core's `wp_ajax_toggle_auto_updates` — an empty success
-		// envelope; the caller updates the row from the requested state.
+
 		toggleAutoUpdate: async ( plugin, state ) => {
 			await ajaxRequest< unknown >(
 				'toggle-auto-updates',
@@ -166,8 +132,6 @@ export async function readJsonOrThrow( response: Response ): Promise< unknown > 
 		throw new Error( `Server returned ${ response.status } with non-JSON body. (${ String( err ) })` );
 	}
 	if ( ! response.ok ) {
-		// `wp_send_json_error( $err )` → `{ success: false, data: { code,
-		// message } }`; the inner `data` is what carries them.
 		const errPayload =
 			typeof json === 'object' &&
 			json !== null &&
@@ -188,7 +152,7 @@ export function unwrapAjaxEnvelope< T >( json: unknown, status: number ): T {
 		}
 		throw extractAjaxError( env.data, status );
 	}
-	// Some Core handlers (install-plugin) ship a non-enveloped shape.
+
 	return json as T;
 }
 
@@ -198,9 +162,7 @@ function extractAjaxError( data: unknown, status: number ): Error {
 		const msg = obj.message ?? obj.errorMessage ?? obj.code ?? obj.errorCode;
 		if ( typeof msg === 'string' && msg !== '' ) {
 			const err = new Error( msg );
-			// `WP_Error`-wrapped failures come through as `code`; Core's
-			// hand-rolled envelopes (`wp_ajax_update_plugin`) ship
-			// `errorCode`. Either lets callers detect `up_to_date`.
+
 			( err as Error & { code?: string; status?: number } ).code = obj.code ?? obj.errorCode;
 			( err as Error & { code?: string; status?: number } ).status = status;
 			return err;

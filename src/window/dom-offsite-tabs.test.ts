@@ -1,8 +1,3 @@
-/**
- * A window's tab strip loads each tab's URL into its own iframe, so a
- * row pointing at another host has no tab to be — the remote origin
- * refuses the frame. `createWindowElement` drops those rows.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { createWindowElement } from './dom';
 import type { WindowConfig } from '../types';
@@ -29,7 +24,6 @@ function build( submenu: WindowConfig[ 'submenu' ] ): HTMLElement {
 	} as WindowConfig );
 }
 
-/** Labels of the strip's submenu tabs, in order. */
 function tabLabels( el: HTMLElement ): string[] {
 	return Array.from(
 		el.querySelectorAll< HTMLElement >( '.os-window__tab[data-kind="submenu"]' ),

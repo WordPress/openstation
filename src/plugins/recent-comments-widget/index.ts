@@ -1,13 +1,3 @@
-/**
- * OpenStation — Recent Comments Widget (lazy bundle).
- *
- * Shows a live feed of the latest comments with status badges,
- * commenter name, parent post title, and time-ago stamps.
- * A pending-count badge keeps moderators aware of their queue.
- *
- * Data: WP REST /wp/v2/comments (logged-in, no extra caps needed).
- * Refresh: every 60 seconds.
- */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import { restErrorFromResponse } from '../../core/api-client';
@@ -24,9 +14,7 @@ interface CommentRow {
 	id: number;
 	status: 'approved' | 'hold' | 'spam' | 'trash';
 	author_name: string;
-	// date is site-local; date_gmt is UTC. Always use date_gmt for
-	// time-ago calculations so the result is accurate regardless of
-	// the site's timezone setting.
+
 	date_gmt: string;
 	post: number;
 	_embedded?: {
@@ -42,8 +30,6 @@ const STATUS_META: Record< string, { label: string; color: string } > = {
 };
 
 function timeAgo( isoUtc: string ): string {
-	// isoUtc is a UTC timestamp from date_gmt — append Z if missing so
-	// the Date constructor treats it as UTC rather than local time.
 	const ts = isoUtc.endsWith( 'Z' ) ? isoUtc : isoUtc + 'Z';
 	const secs = Math.floor( ( Date.now() - new Date( ts ).getTime() ) / 1000 );
 	if ( secs < 60 ) {
@@ -61,8 +47,7 @@ function timeAgo( isoUtc: string ): string {
 async function fetchComments(): Promise< CommentRow[] > {
 	const root = ( window as unknown as { wpApiSettings?: { root?: string } } )
 		.wpApiSettings?.root ?? '/wp-json/';
-	// trackedFetch routes through the framework so requests feed the
-	// loading spinner + activity bus and the nonce is injected automatically.
+
 	const res = await trackedFetch(
 		root.replace( /\/$/, '' ) +
 			`/wp/v2/comments?per_page=${ LIMIT }&orderby=date&order=desc&_embed=up`,

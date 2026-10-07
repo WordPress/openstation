@@ -1,13 +1,3 @@
-/**
- * Painting plugin-registered rows into a window's ⋯ menu.
- *
- * The registry decides *what* exists; this is the pass that turns that
- * into DOM. Two things matter here that the registry tests cannot see:
- * the rows are direct children of the `role="menu"` panel (an
- * intermediate element would break the ARIA relationship), and the pass
- * is a full rebuild — which is what lets a row's label change with the
- * state it describes.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	closeActionsMenu,
@@ -24,10 +14,6 @@ import {
 import { Window as DesktopWindowClass } from '../../src/window';
 import type { Window as DesktopWindow } from '../../src/window';
 
-/**
- * Build the minimum DOM the paint pass and its click handler touch: a
- * window element holding the ⋯ button and its panel.
- */
 function harness() {
 	const element = document.createElement( 'div' );
 	const btn = document.createElement( 'button' );
@@ -36,8 +22,6 @@ function harness() {
 	panel.className = 'os-window__menu-panel';
 	panel.setAttribute( 'role', 'menu' );
 
-	// A built-in row, so the test can prove plugin rows land after it
-	// and that a repaint does not disturb it.
 	const builtIn = document.createElement( 'os-menu-item' );
 	builtIn.className = 'os-window__menu-item os-window__menu-item--reload';
 	builtIn.textContent = 'Reload';
@@ -55,7 +39,6 @@ function harness() {
 	return { win, panel, builtIn };
 }
 
-/** @return The plugin-registered rows currently in the panel. */
 function rows( panel: HTMLElement ): HTMLElement[] {
 	return Array.from(
 		panel.querySelectorAll< HTMLElement >( '.os-window__menu-item--action' ),
@@ -93,13 +76,12 @@ describe( 'paintWindowActions', () => {
 		expect( painted[ 0 ].getAttribute( 'icon' ) ).toBe( 'dashicons-desktop' );
 		expect( painted[ 0 ].getAttribute( 'value' ) ).toBe( 'my/act' );
 		expect( painted[ 0 ].getAttribute( 'data-action-id' ) ).toBe( 'my/act' );
-		// Built-ins keep their place.
+
 		expect( panel.firstElementChild ).toBe( builtIn );
 	} );
 
 	test( 'rows are direct children of the role="menu" panel', () => {
-		// An intermediate element between role="menu" and role="menuitem"
-		// breaks the relationship for assistive technology.
+
 		const { win, panel } = harness();
 		registerWindowAction( { id: 'my/act', label: 'Do it', onSelect: () => {} } );
 
@@ -137,8 +119,7 @@ describe( 'paintWindowActions', () => {
 	} );
 
 	test( 'repaints from scratch so a label can follow its state', () => {
-		// This is why the pass is a rebuild rather than a sync: one row
-		// expressing a toggle has to re-read its label every open.
+
 		const { win, panel } = harness();
 		let freed = false;
 		registerWindowAction( {
@@ -194,8 +175,7 @@ describe( 'paintWindowActions', () => {
 	} );
 
 	test( 'a throwing handler does not escape into the menu', () => {
-		// The ⋯ menu is shared surface — one plugin's bug must not cost
-		// the user their "Reload".
+
 		const { win, panel } = harness();
 		registerWindowAction( {
 			id: 'my/bad',
@@ -233,14 +213,12 @@ describe( 'paintWindowActions', () => {
 		const row = rows( panel )[ 0 ];
 		expect( row.getAttribute( 'role' ) ).toBe( 'menuitemcheckbox' );
 		expect( row.hasAttribute( 'checked' ) ).toBe( true );
-		// The tick owns the leading edge of the row; a glyph there
-		// would compete with it.
+
 		expect( row.hasAttribute( 'icon' ) ).toBe( false );
 	} );
 
 	test( 'a repaint follows a preference the plugin changed elsewhere', () => {
-		// The whole point of `checked` being a reader: the plugin
-		// persists and repaints nothing.
+
 		const { win, panel } = harness();
 		let on = false;
 		registerWindowAction( {
@@ -281,8 +259,7 @@ describe( 'paintWindowActions', () => {
 
 		expect( rows( panel )[ 0 ].hasAttribute( 'checked' ) ).toBe( true );
 		expect( on ).toBe( true );
-		// Staying open is what lets the user watch the tick land — and
-		// flip it back without reopening.
+
 		expect( panel.hidden ).toBe( false );
 	} );
 
@@ -317,9 +294,7 @@ describe( 'paintWindowActions', () => {
 	} );
 
 	test( 'a checkbox whose handler throws keeps the optimistic flip', () => {
-		// Same bargain "Open on startup" makes against a failed REST
-		// call: the tick stays where the user put it until the next
-		// open re-reads `checked()`.
+
 		const { win, panel } = harness();
 		registerWindowAction( {
 			id: 'my/bad-check',
@@ -373,9 +348,7 @@ describe( 'an open menu', () => {
 	} );
 
 	test( 'picks up a row registered while it is open', () => {
-		// This is what lets an async probe — "has the desktop app
-		// started since this page loaded?" — put its row under the
-		// user's pointer instead of on the next open.
+
 		const { win, panel } = harness();
 
 		openActionsMenu( win );
@@ -412,8 +385,7 @@ describe( 'an open menu', () => {
 	} );
 
 	test( 'stops repainting once closed', () => {
-		// A menu nobody is looking at must not keep doing work on every
-		// registry change for the rest of the session.
+
 		const { win, panel } = harness();
 		openActionsMenu( win );
 		closeActionsMenu( win );
@@ -428,13 +400,7 @@ describe( 'an open menu', () => {
 	} );
 
 	test( 'a window destroyed with its menu open drops the subscription', () => {
-		// A real Window, because the thing under test is `destroy()`.
-		//
-		// `closeActionsMenu()` is the normal exit, and a click-driven
-		// close always reaches it because the document pointerdown
-		// handler closes the menu first. A programmatic `close()` does
-		// not — which left a live registry listener holding the window
-		// and a detached panel it would go on repainting forever.
+
 		const parent = document.createElement( 'div' );
 		document.body.appendChild( parent );
 		const win = new DesktopWindowClass( {

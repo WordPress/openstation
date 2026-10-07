@@ -1,13 +1,3 @@
-/**
- * Tests for the cross-window connection bridge (`src/connection`).
- *
- * Strategy: mock the `WindowManager` with a fake `getById` that
- * returns a stub window whose iframe captures `postMessage` calls.
- * For each test we drive the bridge by simulating the iframe's
- * handshake-ack / publish messages directly into
- * `routeIncomingFromIframe` — that's the only entry the bridge
- * needs from the outside; we don't need a real iframe.
- */
 import {
 	afterEach,
 	beforeEach,
@@ -49,9 +39,7 @@ describe( 'connection bridge', () => {
 
 	beforeEach( () => {
 		postedMessages = [];
-		// `connect()` calls `doAction(HOOKS.CONNECTION_*)` which
-		// reaches `window.wp.hooks`; install a fresh stub per test
-		// so didAction counters don't leak.
+
 		installHooksStub();
 	} );
 
@@ -68,7 +56,6 @@ describe( 'connection bridge', () => {
 		const onOpen = vi.fn();
 		const conn = bridge.connect( 'win-1', { topics: [ 'foo' ], onOpen } );
 
-		// Handshake fired immediately.
 		const calls = iframe.contentWindow.postMessage.mock.calls;
 		expect( calls ).toHaveLength( 1 );
 		expect( calls[ 0 ][ 0 ] ).toMatchObject( {
@@ -77,18 +64,16 @@ describe( 'connection bridge', () => {
 			topics: [ 'foo' ],
 		} );
 
-		// Pre-handshake send goes into the queue (no second postMessage).
 		conn.send( 'foo', { hello: 1 } );
 		expect( iframe.contentWindow.postMessage.mock.calls ).toHaveLength( 1 );
 
-		// Iframe acks → onOpen fires + queue flushes.
 		bridge.routeIncomingFromIframe( {
 			type: 'os-bridge-handshake-ack',
 			connectionId: conn.id,
 		} );
 		expect( onOpen ).toHaveBeenCalledTimes( 1 );
 		expect( conn.isOpen() ).toBe( true );
-		// Original handshake + flushed publish.
+
 		expect( iframe.contentWindow.postMessage.mock.calls ).toHaveLength( 2 );
 		expect( iframe.contentWindow.postMessage.mock.calls[ 1 ][ 0 ] ).toMatchObject( {
 			type: 'os-bridge-publish',
@@ -168,7 +153,7 @@ describe( 'connection bridge', () => {
 		conn.disconnect();
 
 		expect( onClose ).toHaveBeenCalledWith( 'disconnect' );
-		// Last postMessage was the disconnect signal.
+
 		const last = iframe.contentWindow.postMessage.mock.calls.pop()?.[ 0 ];
 		expect( last ).toMatchObject( {
 			type: 'os-bridge-disconnect',
@@ -235,7 +220,7 @@ describe( 'connection bridge', () => {
 		const bridge = createConnectionBridge(
 			makeManager( { 'w': { id: 'w', iframe } } ),
 		);
-		// Should not throw.
+
 		bridge.routeIncomingFromIframe( {
 			type: 'os-bridge-publish',
 			connectionId: 'never-existed',
@@ -257,14 +242,10 @@ describe( 'connection bridge', () => {
 		const onOpen = vi.fn();
 		const conn = bridge.connect( 'native-1', { topics: [], onOpen } );
 
-		// `connect()` to a native target opens on the next microtask
-		// without any handshake.
 		await Promise.resolve();
 		expect( onOpen ).toHaveBeenCalledTimes( 1 );
 		expect( conn.isOpen() ).toBe( true );
 
-		// `conn.send(topic)` reaches the native render's listeners
-		// (modeled by `addNativeSubscriber` here).
 		const nativeListener = vi.fn();
 		addNativeSubscriber( 'native-1', 'reload', nativeListener );
 		conn.send( 'reload', { force: true } );
@@ -273,8 +254,6 @@ describe( 'connection bridge', () => {
 			{ channel: 'reload', windowId: 'native-1' },
 		);
 
-		// `conn.subscribe(topic)` fires when the native render side
-		// publishes via `dispatchFromWindow`.
 		const peer = vi.fn();
 		conn.subscribe( 'saved', peer );
 		dispatchFromWindow( 'native-1', 'saved', { id: 7 } );

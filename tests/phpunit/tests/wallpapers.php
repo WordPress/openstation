@@ -1,14 +1,5 @@
 <?php
-/**
- * Tests for the PHP-registered built-in wallpaper presets and the
- * `openstation_wallpapers` filter.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-wallpapers
- */
+
 class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 
 	public function tear_down() {
@@ -16,12 +7,8 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_register_builtin_wallpapers
-	 */
 	public function test_builtins_are_registered_after_init() {
-		// `init` has already fired by the time the first test runs,
-		// so the registry should carry all five presets.
+
 		$registry = openstation_desktop_wallpaper_registry();
 
 		$this->assertIsArray( $registry );
@@ -32,9 +19,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'mono', $registry );
 	}
 
-	/**
-	 * @covers ::openstation_register_builtin_wallpapers
-	 */
 	public function test_builtins_are_css_type_with_value() {
 		$dark = openstation_desktop_wallpaper_registry( 'dark' );
 
@@ -45,13 +29,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '', $dark['script'] );
 	}
 
-	/**
-	 * The shell payload builder is what the client actually sees. It
-	 * applies the `openstation_wallpapers` filter + shapes entries to
-	 * match the TS `DesktopWallpaperServerEntry` contract.
-	 *
-	 * @covers ::openstation_build_desktop_wallpapers_payload
-	 */
 	public function test_payload_carries_value_for_css_builtins() {
 		$payload = openstation_build_desktop_wallpapers_payload();
 
@@ -72,9 +49,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '', $dark['scriptHandle'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_wallpapers_payload
-	 */
 	public function test_filter_can_add_entry_to_payload() {
 		add_filter( 'openstation_wallpapers', static function ( $registry ) {
 			$registry['brand'] = array(
@@ -94,9 +68,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertContains( 'brand', $ids );
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_wallpapers_payload
-	 */
 	public function test_filter_can_remove_entry_from_payload() {
 		add_filter( 'openstation_wallpapers', static function ( $registry ) {
 			unset( $registry['sunset'] );
@@ -110,9 +81,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertContains( 'dark', $ids );
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_wallpapers_payload
-	 */
 	public function test_filter_non_array_return_yields_empty_payload() {
 		add_filter( 'openstation_wallpapers', static function () {
 			return 'broken';
@@ -121,13 +89,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_build_desktop_wallpapers_payload() );
 	}
 
-	/**
-	 * `openstation_register_wallpaper()` defaults `value` to `preview`
-	 * when callers omit it — keeps the common "same string for swatch
-	 * and surface" case a one-field call.
-	 *
-	 * @covers ::openstation_register_wallpaper
-	 */
 	public function test_value_defaults_to_preview_when_omitted() {
 		$result = openstation_register_wallpaper( 'test-default', array(
 			'label'   => 'Test',
@@ -141,9 +102,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '#abcdef', $entry['value'] );
 	}
 
-	/**
-	 * @covers ::openstation_register_wallpaper
-	 */
 	public function test_description_is_stored_sanitized_and_defaults_empty() {
 		openstation_register_wallpaper( 'test-described', array(
 			'label'       => 'Described',
@@ -152,7 +110,7 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 			'description' => "A calm <script>alert(1)</script>backdrop\nfor focused work.",
 		) );
 		$entry = openstation_desktop_wallpaper_registry( 'test-described' );
-		// Plain text by contract: tags stripped, no scripts survive.
+
 		$this->assertStringNotContainsString( '<script>', $entry['description'] );
 		$this->assertStringContainsString( 'A calm', $entry['description'] );
 		$this->assertStringContainsString( 'backdrop', $entry['description'] );
@@ -166,13 +124,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '', $silent['description'] );
 	}
 
-	/**
-	 * A tone is two words or it is nothing. A typo has to land on
-	 * empty, which reads as 'dark': a desk wrongly told it is pale
-	 * paints Void icons onto a Void sky.
-	 *
-	 * @covers ::openstation_register_wallpaper
-	 */
 	public function test_tone_accepts_only_light_or_dark_and_defaults_empty() {
 		openstation_register_wallpaper( 'test-pale', array(
 			'label'   => 'Pale',
@@ -198,11 +149,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_desktop_wallpaper_registry( 'test-toneless' )['tone'] );
 	}
 
-	/**
-	 * The meshes are the only built-ins that declare themselves light.
-	 *
-	 * @covers ::openstation_build_desktop_wallpapers_payload
-	 */
 	public function test_payload_carries_tone_and_only_the_meshes_are_light() {
 		$tones = array();
 		foreach ( openstation_build_desktop_wallpapers_payload() as $entry ) {
@@ -210,21 +156,14 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 			$tones[ $entry['id'] ] = $entry['tone'];
 		}
 
-		// Named rather than diffed against the whole payload: the
-		// registry is process-wide across this class.
 		$this->assertSame( 'light', $tones['holomesh'] );
 		$this->assertSame( 'light', $tones['pulsemesh'] );
 
-		// Aurora, Sunset and Forest brighten toward their far corner but
-		// are dark where the icon grid starts. Empty is the decision.
 		foreach ( array( 'galaxy', 'space', 'dark', 'aurora', 'sunset', 'forest', 'mono', 'wp-snow' ) as $id ) {
 			$this->assertSame( '', $tones[ $id ], $id . ' declares no tone.' );
 		}
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_wallpapers_payload
-	 */
 	public function test_payload_carries_descriptions_for_builtins() {
 		$payload = openstation_build_desktop_wallpapers_payload();
 		$by_id   = array();
@@ -232,27 +171,15 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 			$by_id[ $entry['id'] ] = $entry;
 		}
 
-		// Every built-in ships a non-empty description…
 		foreach ( array( 'dark', 'aurora', 'sunset', 'forest', 'mono', 'wp-animated-logo', 'wp-living-tree', 'wp-snow' ) as $id ) {
 			$this->assertArrayHasKey( $id, $by_id );
 			$this->assertNotSame( '', $by_id[ $id ]['description'], "{$id} should carry a description" );
 		}
-		// …and the Living Tree's is the open-source tribute.
+
 		$this->assertStringContainsString( 'Matt Mullenweg', $by_id['wp-living-tree']['description'] );
 		$this->assertStringContainsString( 'open source', $by_id['wp-living-tree']['description'] );
 	}
 
-	/**
-	 * The Snow wallpaper is a canvas built-in: it must declare its
-	 * script handle (the def with `mount` / `renderConfig` is published
-	 * on the JS global by that script), and its picker swatch must
-	 * match the default backdrop the JS side paints — the swatch
-	 * renders before the wallpaper script has ever loaded, so a
-	 * mismatch would show one sky in the picker and a different one
-	 * once selected.
-	 *
-	 * @covers ::openstation_register_builtin_wallpapers
-	 */
 	public function test_snow_builtin_is_canvas_with_script_and_backdrop_preview() {
 		$snow = openstation_desktop_wallpaper_registry( 'wp-snow' );
 

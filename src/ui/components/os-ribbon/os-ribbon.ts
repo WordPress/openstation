@@ -1,30 +1,3 @@
-/**
- * `<os-ribbon>` — diagonal corner ribbon.
- *
- * A small, decorative "wrap-around-the-corner" banner — the kind that
- * stamps a card with FEATURED, NEW, BETA, SALE, etc. The component
- * auto-positions itself at one of the four corners of its (positioned)
- * parent, so consumers only need to drop it inside a `position:
- * relative` container.
- *
- * Usage:
- *
- *   <article style="position: relative;">
- *     <os-ribbon>Featured</os-ribbon>
- *     …card content…
- *   </article>
- *
- *   <os-ribbon placement="bottom-start" tone="success">NEW</os-ribbon>
- *
- * The parent MUST be a positioned ancestor (relative / absolute /
- * fixed / sticky). Without that, the ribbon anchors to the next
- * positioned element up the tree — usually the viewport — which is
- * never what you want.
- *
- * Slot contents flow through to the rotated banner. Keep the label
- * short — the visible slice is ~80px wide and tightly cropped.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-ribbon.styles';
 

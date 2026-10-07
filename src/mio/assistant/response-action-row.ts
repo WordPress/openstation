@@ -1,4 +1,3 @@
-/** Stable action nodes: pending/error updates never replace a focused button. */
 import '../../ui/components/os-icon/os-icon';
 import { mioActionFocus } from './action-focus';
 import { __ } from '../../i18n';
@@ -36,8 +35,7 @@ export function mioResponseActionRow( message: MioChatMessage, actions: MioRespo
 					icon.setAttribute( 'name', view.icon ); icon.setAttribute( 'aria-hidden', 'true' );
 					button.append( icon, ' ' );
 				}
-				// Put the accessible name in the slot: kit controls own a native
-				// button in shadow DOM, so a label on the host alone is insufficient.
+
 				const label = document.createElement( 'span' ); label.textContent = view.label;
 				if ( view.ariaLabel ) {
 					label.setAttribute( 'aria-hidden', 'true' );

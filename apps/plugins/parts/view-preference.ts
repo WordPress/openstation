@@ -1,4 +1,3 @@
-/** A view change paints immediately, then persists through the existing app dispatch. */
 import type { Ctx } from './types';
 
 export interface ViewPreferenceState { savingView: boolean }

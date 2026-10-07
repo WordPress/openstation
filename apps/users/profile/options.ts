@@ -1,9 +1,3 @@
-/**
- * `<os-user-profile>` — the Personal Options widgets of the form:
- * string-valued checkboxes, the admin colour scheme picker with its
- * live preview, the sessions row and the application passwords panel.
- */
-
 import { __, sprintf } from '@openstation/app';
 import '../../../src/ui/components/os-button/os-button';
 import '../../../src/ui/components/os-checkbox-label/os-checkbox-label';
@@ -25,11 +19,6 @@ interface CheckboxFieldOpts {
 	fullWidth?: boolean;
 }
 
-/**
- * A `<os-checkbox-label>` that carries a string value (`'true'` /
- * `'false'`) on its `value` attribute, so it round-trips through WP's
- * user-meta storage where the personal-options keys are strings.
- */
 export function checkboxField( name: string, label: string, checked: boolean, opts: CheckboxFieldOpts = {} ): HTMLElement {
 	const trueValue = opts.trueValue ?? 'true';
 	const falseValue = opts.falseValue ?? 'false';
@@ -54,12 +43,6 @@ export function checkboxField( name: string, label: string, checked: boolean, op
 	return wrap;
 }
 
-/**
- * Swap the shell's admin-colors stylesheet + body class to live-
- * preview the picked scheme (`wp-admin/js/user-profile.js`'s
- * `#color-picker .color-option` handler) — only on self-edit, since
- * previewing another user's scheme would change the viewer's chrome.
- */
 export function applyColorSchemePreview( slug: string, info: ColorSchemeInfo | undefined ): void {
 	if ( info?.url ) {
 		let link = document.getElementById( 'colors-css' ) as HTMLLinkElement | null;
@@ -71,7 +54,7 @@ export function applyColorSchemePreview( slug: string, info: ColorSchemeInfo | u
 		}
 		link.href = info.url;
 	}
-	// The desktop shell's per-scheme variables key on this attribute.
+
 	document.querySelector< HTMLElement >( '.os-shell' )?.setAttribute( 'data-os-scheme', slug );
 	const next = `admin-color-${ slug }`;
 	for ( const cls of Array.from( document.body.classList ) ) {
@@ -82,20 +65,13 @@ export function applyColorSchemePreview( slug: string, info: ColorSchemeInfo | u
 	document.body.classList.add( next );
 }
 
-/** The colour picker element, with the hooks the form needs around a save. */
 export interface ColorPickerElement extends HTMLElement {
-	/** Back to the saved scheme — the selection AND the previewed chrome. */
+
 	revert(): void;
-	/** The scheme is saved now: the next revert lands here. */
+
 	commit( slug: string ): void;
 }
 
-/**
- * Radio-grid picker for the WP admin colour schemes: scheme name +
- * a strip of mini swatches per tile. Emits the chosen slug through a
- * hidden `<os-text-field name="meta.admin_color">` so the form's
- * value collection picks it up unchanged.
- */
 export function buildAdminColorPicker(
 	schemes: Record< string, ColorSchemeInfo >,
 	current: string,
@@ -198,10 +174,6 @@ export function buildAdminColorPicker(
 	return wrap;
 }
 
-/**
- * "Log out everywhere else" — on admin-edits-other this is "log them
- * out everywhere"; on self-edit it spares the current device.
- */
 export function buildSessionsRow( host: ProfileHost, userId: number, isSelfEdit: boolean ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.setAttribute( 'full-width', '' );
@@ -222,7 +194,6 @@ export function buildSessionsRow( host: ProfileHost, userId: number, isSelfEdit:
 			await destroySessions( host, userId, isSelfEdit ? 'others' : 'all' );
 			host.toast( __( 'Sessions destroyed.' ), 'success' );
 		} catch ( err ) {
-			// translators: %s is an error message.
 			host.toast( sprintf( __( 'Could not destroy sessions (%s).' ), String( ( err as Error ).message ?? err ) ), 'error' );
 		}
 	} );
@@ -230,7 +201,6 @@ export function buildSessionsRow( host: ProfileHost, userId: number, isSelfEdit:
 	return wrap;
 }
 
-/** Application Passwords: the list, revoke per row, and a creator. */
 export function buildAppPasswordsRow( host: ProfileHost, userId: number ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.setAttribute( 'full-width', '' );
@@ -307,7 +277,7 @@ export function buildAppPasswordsRow( host: ProfileHost, userId: number ): HTMLE
 		try {
 			renderItems( await listAppPasswords( host, userId ) );
 		} catch {
-			// non-fatal; leave list empty
+
 		}
 	};
 	void refresh();
@@ -321,7 +291,7 @@ export function buildAppPasswordsRow( host: ProfileHost, userId: number ): HTMLE
 		}
 		try {
 			const password = await createAppPassword( host, userId, name );
-			// translators: %s is an application password.
+
 			host.toast( sprintf( __( 'Created. Copy the password now: %s' ), password ), 'success' );
 			copyQuietly( password );
 			nameInput.value = '';

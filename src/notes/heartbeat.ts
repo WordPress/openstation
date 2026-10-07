@@ -1,11 +1,3 @@
-/**
- * OpenStation — Pinned notes Heartbeat glue.
- *
- * Contributes `openstation_notes_subscribe` on every tick and feeds
- * `openstation_notes` deltas back to the layer. Server side in
- * `includes/notes/heartbeat.php`.
- */
-
 import { heartbeat } from '../heartbeat';
 import { NOTES_HEARTBEAT_RESPONSE_FIELD } from './types';
 import type { NotesHeartbeatPayload, NotesHeartbeatSubscribe } from './types';

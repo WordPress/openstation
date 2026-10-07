@@ -24,8 +24,7 @@
 	flex: 1;
 	margin: 0;
 	padding: 0;
-	/* clamp with px only — cqw requires container-type on the parent
-	   which the shell card body does not set. */
+
 	font-size: clamp( 11px, 1.8vw, 13px );
 	line-height: 1.55;
 	font-style: italic;

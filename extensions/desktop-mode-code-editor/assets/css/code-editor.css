@@ -1,19 +1,9 @@
-/**
- * Code Editor app — minimal CSS for the Monaco mount + loading state.
- *
- * Monaco brings its own theming once it boots; this file only handles
- * the period before Monaco is ready, plus the layout primitives
- * Monaco needs (full-bleed mount node).
- *
- * @since 0.18.0
- */
-
 .wpdc-editor {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
 	height: 100%;
-	background: #1e1e1e; /* Matches Monaco's vs-dark to avoid flash. */
+	background: #1e1e1e;
 	color: #d4d4d4;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
@@ -39,11 +29,6 @@
 	margin: 0;
 }
 
-/*
- * Monaco mounts into this element once loaded. It needs an explicit
- * size — Monaco won't measure a zero-height parent gracefully, hence
- * `automaticLayout: true` in the editor options + flex: 1 here.
- */
 .osc-editor__monaco {
 	flex: 1;
 	min-height: 0;
@@ -66,10 +51,6 @@
 	white-space: pre-wrap;
 }
 
-/* ---------------------------------------------------------------
- * Phase 2 — two-pane layout: tree | (editor + status bar).
- * --------------------------------------------------------------- */
-
 .osc-editor__split {
 	display: grid;
 	grid-template-columns: 240px 1fr;
@@ -80,7 +61,7 @@
 
 .osc-editor__tree {
 	overflow: auto;
-	background: #252526; /* Matches Monaco's vs-dark side bar. */
+	background: #252526;
 	border-right: 1px solid #1e1e1e;
 	padding: 8px 0;
 	font-size: 12px;
@@ -103,17 +84,6 @@
 	min-height: 0;
 }
 
-/* ---------------------------------------------------------------
- * Tab strip.
- *
- * Layout per tab: [icon] [label] [dirty dot] [close ×]
- *
- * Both trailing affordances live in fixed slots so widths don't
- * shift on hover/state changes — no "ghost gap" while close fades
- * in. Dirty dot is opacity-0 when clean (slot still reserved),
- * opacity-1 when dirty. Close × is always visible.
- * --------------------------------------------------------------- */
-
 .osc-tabs {
 	background: #252526;
 	border-bottom: 1px solid #1e1e1e;
@@ -122,14 +92,6 @@
 	scrollbar-width: thin;
 }
 
-/*
- * Higher-specificity reset — wp-admin's default `<ul>` and `<li>`
- * styles set a margin-block-end, which (because flex containers
- * shrink to fit the children's margin box) leaks out as a gap
- * below the tab strip. Plain `.osc-tabs__list { margin: 0 }`
- * loses to `.wp-admin ul` etc; `.osc-tabs ul` ties their
- * specificity and the later rule wins.
- */
 .osc-tabs ul.osc-tabs__list,
 .osc-tabs ul.osc-tabs__list li.osc-tabs__tab {
 	margin: 0;
@@ -300,10 +262,6 @@
 	background: #2d8b2d;
 }
 
-/* ---------------------------------------------------------------
- * Conflict dialog (save flow).
- * --------------------------------------------------------------- */
-
 .osc-conflict-overlay {
 	position: fixed;
 	inset: 0;
@@ -385,10 +343,6 @@
 	background: #4a4a4a;
 }
 
-/* ---------------------------------------------------------------
- * File tree.
- * --------------------------------------------------------------- */
-
 .osc-tree {
 	user-select: none;
 }
@@ -396,24 +350,13 @@
 .osc-tree ul {
 	list-style: none;
 	margin: 0;
-	/*
-	 * Padding is intentionally NOT reset here — `.osc-tree__root`
-	 * and `.osc-tree__children` each set their own. Resetting at
-	 * this level out-specificities the per-class rules and the
-	 * tree paints flat.
-	 */
+
 }
 
 .osc-tree__root {
 	padding: 0 4px;
 }
 
-/*
- * Each nested <ul> indents 16px AND paints a faint vertical guide
- * line down its left gutter. Guides stack naturally because every
- * level brings its own background — no depth math, no per-row
- * inline styles. Same idea VS Code uses for its tree.
- */
 .osc-tree__children {
 	padding-left: 16px;
 	background-image: linear-gradient(
@@ -483,7 +426,7 @@
 }
 
 .osc-tree__row--dir > .osc-tree__btn .osc-tree__icon {
-	color: #dcb67a; /* VS Code folder yellow. */
+	color: #dcb67a;
 }
 
 .osc-tree__label {

@@ -1,18 +1,3 @@
-/**
- * Deactivation feedback — bundle entry.
- *
- * Builds to `assets/js/deactivation-feedback[.min].js`. Two ways in:
- *
- * - `plugins.php` (classic, chromeless, network admin): PHP enqueues
- *   the bundle with `window.openStationDeactivationFeedbackConfig`
- *   inlined before it, and the interceptor wires OpenStation's own
- *   Deactivate link.
- * - The native Plugins app: lazy-loads the bundle and calls
- *   `window.openStationDeactivationFeedback.ask()` before it
- *   dispatches a self-deactivate. When the shell is present the same
- *   API is also published as `wp.os.deactivationFeedback`.
- */
-
 import {
 	askDeactivationFeedback,
 	interceptPluginsScreen,

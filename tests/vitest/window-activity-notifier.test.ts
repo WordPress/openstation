@@ -1,11 +1,3 @@
-/**
- * Window activity notifier — the parent-side half of the background
- * heartbeat throttle. On window focus/blur it must post
- * `os-window-active` to that window's iframe, and an
- * `os-bridge-ready` ping (fired by the bridge after every in-window
- * navigation) must re-seed the fresh document with its current
- * active state.
- */
 import { describe, expect, test, vi } from 'vitest';
 
 import { installWindowActivityNotifier } from '../../src/window-activity-notifier';

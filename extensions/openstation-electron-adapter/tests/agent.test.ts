@@ -1,16 +1,3 @@
-/**
- * The local agent.
- *
- * This is a real HTTP server on the user's machine, which is a phrase
- * that should make anyone nervous — so most of what follows is about
- * the ways it must refuse. The happy path is four assertions; the gates
- * are the rest.
- *
- * The server is started for real on loopback rather than mocked: the
- * interesting behaviour is CORS preflight, header handling and status
- * codes, none of which a fake `http` module would reproduce faithfully.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { LocalAgent } from '../app/src/lib/agent';
@@ -63,10 +50,6 @@ beforeEach( async () => {
 
 afterEach( () => agent.stop() );
 
-/**
- * @param path Route.
- * @param init Fetch options.
- */
 function call( path: string, init: RequestInit = {} ) {
 	return fetch( `${ base }${ path }`, {
 		...init,
@@ -81,9 +64,7 @@ function call( path: string, init: RequestInit = {} ) {
 
 describe( 'binding', () => {
 	test( 'listens on loopback only', () => {
-		// Nothing off the machine can reach it — the first of the four
-		// gates, and the one that makes the rest a defence in depth
-		// rather than the only defence.
+
 		expect( agent.url ).toMatch( /^http:\/\/127\.0\.0\.1:\d+$/ );
 	} );
 
@@ -163,11 +144,7 @@ describe( 'the gates', () => {
 	} );
 
 	test( 'refuses a token that is only a prefix of the real one', async () => {
-		// The origin gate in front of this is a header, and a header is
-		// something any program on the machine can simply write — so the
-		// token is the real gate here, and it is compared in constant
-		// time. A near-miss must be as uninformative as a wild guess: no
-		// "warmer", nothing to walk a byte at a time.
+
 		for ( const guess of [
 			'Bearer ',
 			`Bearer ${ TOKEN.slice( 0, 1 ) }`,
@@ -183,9 +160,7 @@ describe( 'the gates', () => {
 	} );
 
 	test( 'refuses everything when the app has no token to check against', async () => {
-		// An empty configured token must not collapse into "an empty
-		// header matches" — a constant-time compare that accepts two
-		// zero-length buffers would do exactly that.
+
 		const open = new LocalAgent( {
 			token: '',
 			allowedOrigin: () => ORIGIN,
@@ -204,8 +179,7 @@ describe( 'the gates', () => {
 	} );
 
 	test( 'refuses another origin even with the right token', async () => {
-		// The token could leak; the origin check is what keeps a leak
-		// from being usable from a hostile page.
+
 		const res = await fetch( `${ base }/ping`, {
 			headers: { Origin: 'https://evil.test', Authorization: `Bearer ${ TOKEN }` },
 		} );
@@ -213,8 +187,7 @@ describe( 'the gates', () => {
 	} );
 
 	test( 'refuses a request with no origin at all', async () => {
-		// curl, or another program on the machine. Not what this
-		// interface is for.
+
 		const res = await fetch( `${ base }/ping`, {
 			headers: { Authorization: `Bearer ${ TOKEN }` },
 		} );
@@ -251,8 +224,7 @@ describe( 'CORS preflight', () => {
 		expect( res.status ).toBe( 204 );
 		expect( res.headers.get( 'access-control-allow-origin' ) ).toBe( ORIGIN );
 		expect( res.headers.get( 'access-control-allow-headers' ) ).toContain( 'authorization' );
-		// Chromium refuses a public page → loopback request without
-		// this, before the real request is ever sent.
+
 		expect( res.headers.get( 'access-control-allow-private-network' ) ).toBe( 'true' );
 	} );
 
@@ -278,12 +250,8 @@ describe( 'bad input', () => {
 	} );
 
 	test( 'measures the body limit in bytes, not UTF-16 code units', async () => {
-		// A 4-byte emoji is 2 code units, so counting `String.length`
-		// let a body up to three times the documented 64 KB through.
-		// Astral characters are the honest test of which is being
-		// counted. Deliberately just over the limit in bytes and
-		// comfortably under it in code units.
-		const emoji = '\u{1F600}'; // 4 bytes, 2 code units.
+
+		const emoji = '\u{1F600}';
 		const payload = JSON.stringify( { windowId: emoji.repeat( 17_000 ) } );
 
 		const res = await call( '/free', {
@@ -296,10 +264,7 @@ describe( 'bad input', () => {
 	} );
 
 	test( 'an over-large body refuses once and stays up', async () => {
-		// The refusal destroys the request, which used to be followed by
-		// a write onto the torn-down socket. If that regresses the
-		// server takes an unhandled stream error; the next call is the
-		// assertion that it did not.
+
 		await call( '/free', {
 			method: 'POST',
 			body: JSON.stringify( { windowId: 'x'.repeat( 200_000 ) } ),

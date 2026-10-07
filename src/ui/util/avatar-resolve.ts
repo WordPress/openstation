@@ -1,47 +1,8 @@
-/**
- * Console-quiet Gravatar resolver.
- *
- * `<os-avatar>` falls back to initials when its `src` errors out,
- * but a raw Gravatar URL serves the "mystery person" silhouette by
- * default (HTTP 200, no error) — so the initials fallback never
- * triggers and users with no registered Gravatar see the silhouette
- * forever. Forcing `d=404` would fix the visual, but every miss
- * logs a 404 to DevTools (both `<img>` and `fetch` paths).
- *
- * The trick: load the URL with `d=blank` (always 200, returns a
- * transparent PNG sized to `s=`), then sample the alpha channel of
- * the center pixel via canvas. Gravatar serves
- * `Access-Control-Allow-Origin: *`, so the canvas readback works as
- * long as the image is loaded with `crossOrigin = 'anonymous'`.
- *
- * Two exports:
- *
- *   - {@link resolveAvatarUrl} — async; resolves to the URL to use
- *     (or `null` to fall back to initials). Results cached per
- *     canonical URL.
- *   - {@link applyAvatarSrc} — fire-and-forget convenience wrapper
- *     that sets / removes the `src` attribute on a `<os-avatar>`
- *     element once the probe resolves. Safe to call from cell
- *     renderers — the helper guards against detached hosts when the
- *     row is removed mid-probe.
- *
- * Non-Gravatar URLs (BuddyPress, custom plugin avatars, …) skip the
- * probe and pass through unchanged.
- */
-
 const gravatarCache = new Map<
 	string,
 	string | null | Promise< string | null >
 >();
 
-/**
- * Resolve the URL a `<os-avatar>` should use for `src`, or `null`
- * when the commenter / user has no registered Gravatar and the
- * avatar should fall back to its initials tile.
- *
- * @param raw The raw Gravatar URL (or any avatar URL).
- * @return The URL to set as `src`, or `null` to leave unset.
- */
 export async function resolveAvatarUrl(
 	raw: string,
 ): Promise< string | null > {
@@ -55,14 +16,9 @@ export async function resolveAvatarUrl(
 		return raw;
 	}
 	if ( ! /gravatar\.com$/i.test( parsed.hostname ) ) {
-		// Non-Gravatar URL — assume the producer knows what it's
-		// doing and hand it straight through.
 		return raw;
 	}
 
-	// Canonical cache key: drop the per-call `d=` / `s=` params so
-	// the same email collapses to one entry across 24px / 48px / 96px
-	// renderings.
 	parsed.searchParams.delete( 'd' );
 	parsed.searchParams.delete( 's' );
 	const cacheKey = parsed.toString();
@@ -82,17 +38,9 @@ export async function resolveAvatarUrl(
 				const canvas = document.createElement( 'canvas' );
 				canvas.width = 1;
 				canvas.height = 1;
-				// `willReadFrequently: true` keeps the canvas CPU-backed so
-				// the `getImageData` call below doesn't pay a GPU sync. The
-				// probe runs once per distinct avatar URL; per-canvas the
-				// readback is one-shot, but Chrome's heuristic still flags
-				// the pattern across the page-wide chorus of avatar resolves.
+
 				const ctx = canvas.getContext( '2d', { willReadFrequently: true } );
 				if ( ! ctx ) {
-					// No 2D context — fall back to the original URL so
-					// real avatars still render. Worst case: the
-					// occasional mystery-person silhouette slips
-					// through on exotic browsers.
 					resolve( raw );
 					return;
 				}
@@ -100,10 +48,6 @@ export async function resolveAvatarUrl(
 				const pixel = ctx.getImageData( 0, 0, 1, 1 ).data;
 				resolve( pixel[ 3 ] === 0 ? null : raw );
 			} catch {
-				// Tainted canvas (CORS slip), security exception —
-				// the image already loaded successfully, so it's safe
-				// to use as-is. Better a known-real avatar than an
-				// empty tile.
 				resolve( raw );
 			}
 		};
@@ -117,22 +61,10 @@ export async function resolveAvatarUrl(
 	return probe;
 }
 
-/**
- * The avatar URL to show from a REST `avatar_urls` map (a post's
- * embedded author, a user, a comment author): the 48px rendition,
- * else the 96, else the 24, else nothing — the one pick every list
- * makes.
- */
 export function pickAvatarUrl( urls: Record< string, string > | undefined | null ): string {
 	return urls?.[ '48' ] ?? urls?.[ '96' ] ?? urls?.[ '24' ] ?? '';
 }
 
-/**
- * Fire-and-forget convenience: probe the URL and set / remove the
- * `src` attribute on the given `<os-avatar>` element when the
- * probe resolves. Safe to call from cell renderers — guards against
- * detached hosts when the row was removed mid-probe.
- */
 export function applyAvatarSrc( avatar: HTMLElement, raw: string ): void {
 	if ( ! raw ) {
 		return;
@@ -149,11 +81,6 @@ export function applyAvatarSrc( avatar: HTMLElement, raw: string ): void {
 	} );
 }
 
-/**
- * Test-only: clear the cache so a fresh probe runs next time.
- *
- * @internal
- */
 export function _resetAvatarResolveCache(): void {
 	gravatarCache.clear();
 }

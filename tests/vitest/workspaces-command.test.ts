@@ -1,13 +1,3 @@
-/**
- * `/workspace` — the switcher from the keyboard.
- *
- * The pill sits under the window layer by design, so this command is
- * the route that still works with something maximized over it. What
- * matters here is that one command answers the whole question — switch,
- * create, edit — and that "commerce" lands on the Commerce *desk*
- * rather than on "New: Commerce" when both are in the list.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { listCommands, unregisterCommand } from '../../src/commands';
@@ -27,7 +17,6 @@ function ctx(): CommandContext {
 	} as unknown as CommandContext;
 }
 
-/** Labels from a `suggest()` result, which may be a promise. */
 async function labels(
 	result: CommandSuggestion[] | Promise< CommandSuggestion[] > | undefined,
 ): Promise< string[] > {
@@ -105,8 +94,6 @@ describe( '/workspace', () => {
 
 		command.run( 'commerce', ctx() );
 
-		// Switched, not created: "/workspace commerce" when a Commerce
-		// desk already exists means "take me there".
 		expect( manager.getDesktops() ).toHaveLength( before );
 		expect( manager.getActiveDesktopId() ).toBe( shop.id );
 	} );

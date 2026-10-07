@@ -1,17 +1,3 @@
-/**
- * Users — the client view of the Users app.
- *
- * People cards, role groups and recorded activity share a continuously
- * loaded collection. A preserved details table keeps the existing cell
- * renderers and selection controller; bulk actions sit below the feed.
- *
- * The Profile tab hosts `<os-user-profile>` from the companion bundle
- * (`apps/users/profile/`), fed this app's facts, REST access and toast
- * as properties, and pinned to the viewer only while the tab is open.
- *
- * @public
- */
-
 import {
 	__,
 	createListTableSync,
@@ -52,12 +38,10 @@ import type { ProfileConfig, RowActions, UserListItem, UsersData, UsersState } f
 
 const APP_ID = 'desktop-mode-users';
 
-/** How long a toast dwells: errors longer, so the reason can be read. */
 const TOAST_MS: Record< string, number | undefined > = { success: 5000, error: 8000, info: undefined };
 
 type Ctx = ViewContext< UsersState, UsersData >;
 
-/** Client-only per-window state — none of it may reach the server. */
 interface UiState {
 	feed: PeopleFeed;
 	roles: RolesSummary;
@@ -67,15 +51,15 @@ interface UiState {
 	options: boolean;
 	cache: UserCellCache;
 	sync: ListTableSync< UserListItem >;
-	/** The selected row ids. */
+
 	selected: number[];
-	/** What each row last painted as, so only a changed row's cells rebuild. */
+
 	rows: Map< number, string >;
-	/** The bulk bar's role pick. */
+
 	bulkRole: string;
-	/** Who inherits the content of deleted users (single site). */
+
 	reassign: { id: number; name: string } | null;
-	/** The Add User form's last painted answer. */
+
 	addForm: AddUserFormSync;
 	profileWired: boolean;
 }
@@ -99,11 +83,6 @@ const table = ( ctx: Ctx ): OsTable< UserListItem > | null =>
 
 const cfgOf = ( ctx: Ctx ): ProfileConfig => ctx.extra as ProfileConfig;
 
-/**
- * The window's tabs, as `App::menu()` declared them — the same list
- * the dock builds this menu's submenu from, which is why the two
- * cannot drift. The caps that hide a tab are applied there.
- */
 const menuTabs = ( ctx: Ctx ): MenuTab[] =>
 	( ctx.extra as { menuTabs?: MenuTab[] } ).menuTabs ?? [];
 
@@ -111,7 +90,6 @@ const say = ( ctx: Ctx, message: string, duration?: number ): void => {
 	ctx.host.toast?.( duration ? { message, duration } : { message } );
 };
 
-/** The selection at CLICK time, so the confirm count and the payload describe one set. */
 function selectedIds( ctx: Ctx ): number[] {
 	return Array.from( table( ctx )?.selection ?? [] ).map( ( id ) => Number( id ) ).filter( ( id ) => id > 0 );
 }
@@ -132,7 +110,7 @@ async function applyBulkRole( ctx: Ctx ): Promise< void > {
 		confirm: {
 			title: __( 'Change role for selected users?' ),
 			message: sprintf(
-				// translators: %1$d is a user count, %2$s is a role label.
+
 				__( "Set %1$d user(s)' role to %2$s?" ),
 				ids.length,
 				cfgOf( ctx ).assignableRoles?.[ role ] ?? role,
@@ -141,8 +119,6 @@ async function applyBulkRole( ctx: Ctx ): Promise< void > {
 		},
 	} );
 	if ( ok ) {
-		// Drop the selection so a second Apply can't silently re-target
-		// the same (possibly now off-page) set.
 		clearSelection( ctx );
 	}
 }
@@ -158,13 +134,10 @@ async function deleteSelected( ctx: Ctx ): Promise< void > {
 	const reassign = multisite ? null : ui.reassign ?? viewerAsReassign( cfg );
 	let message: string;
 	if ( multisite ) {
-		// translators: %d is a user count.
 		message = sprintf( __( 'Remove %d user(s) from this site? Their network account stays.' ), ids.length );
 	} else if ( reassign ) {
-		// translators: %1$d is a user count, %2$s is a user name.
 		message = sprintf( __( 'Permanently delete %1$d user(s)? Their content is attributed to %2$s. This cannot be undone.' ), ids.length, reassign.name );
 	} else {
-		// translators: %d is a user count.
 		message = sprintf( __( 'Permanently delete %d user(s)? Their content is deleted too. This cannot be undone.' ), ids.length );
 	}
 	const ok = await ctx.dispatch( 'bulk-delete', { ids, reassign: reassign?.id ?? 0 }, {
@@ -180,7 +153,6 @@ async function deleteSelected( ctx: Ctx ): Promise< void > {
 	}
 }
 
-/** The viewer, the default heir of deleted users' content — as wp-admin proposes. */
 function viewerAsReassign( cfg: ProfileConfig ): { id: number; name: string } | null {
 	return cfg.currentUserId ? { id: cfg.currentUserId, name: __( 'you' ) } : null;
 }
@@ -189,7 +161,7 @@ function sendReset( ctx: Ctx, row: UserListItem ): void {
 	void ctx.dispatch( 'send-reset', { id: row.id }, {
 		confirm: {
 			title: __( 'Send password reset email?' ),
-			// translators: %s is a user name.
+
 			message: sprintf( __( 'WordPress will email %s a password-reset link.' ), row.name ),
 			label: __( 'Send reset email' ),
 		},
@@ -200,14 +172,13 @@ function resendWelcome( ctx: Ctx, row: UserListItem ): void {
 	void ctx.dispatch( 'resend-welcome', { id: row.id }, {
 		confirm: {
 			title: __( 'Resend welcome email?' ),
-			// translators: %s is a user name.
+
 			message: sprintf( __( 'WordPress will resend the original welcome email to %s.' ), row.name ),
 			label: __( 'Resend' ),
 		},
 	} );
 }
 
-/** Who deleted users' content goes to: a picker over the site's users, defaulting to the viewer. */
 function reassignPicker( ctx: Ctx, ui: UiState, ids: number[] ): TemplateResult {
 	const chosen = ui.reassign ?? viewerAsReassign( cfgOf( ctx ) );
 	return html`<span class="os-users__reassign">
@@ -228,12 +199,6 @@ function reassignPicker( ctx: Ctx, ui: UiState, ids: number[] ): TemplateResult 
 	</span>`;
 }
 
-/**
- * The selection's actions: the count, the role change (for a viewer
- * who can promote, with roles to assign), the reassign picker and
- * Delete (for one who can delete). In the toolbar on a desk; a bar
- * along the bottom on a phone.
- */
 function bulkActions( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 	const cfg = cfgOf( ctx );
 	const assignable = cfg.assignableRoles ?? {};
@@ -244,7 +209,7 @@ function bulkActions( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 		?hidden=${ ! selecting }
 	>
 		<span class="os-app-list__count" data-os-users-count>${ sprintf(
-			// translators: %d is a count of selected users.
+
 			__( '%d selected' ),
 			ui.selected.length,
 		) }</span>
@@ -286,12 +251,10 @@ function actionsOf( ctx: Ctx ): RowActions {
 	return { onSendReset: ( row ) => sendReset( ctx, row ), onResendWelcome: ( row ) => resendWelcome( ctx, row ), toast: ( message ) => say( ctx, message ) };
 }
 
-/** The presence slice over the loaded collection; the role is the server's, so the collection already answers it. */
 function visiblePeople( ctx: Ctx, ui: UiState ): UserListItem[] {
 	return applyStatusFilter( ui.feed.items, ctx.state.status );
 }
 
-/** Scope the directory to one role — `''` (the Roles tab's No role group) is `none`, as users.php spells it. */
 function filterByRole( ctx: Ctx, role: string ): void {
 	ctx.state.role = role === '' ? 'none' : role;
 	void ctx.dispatch( 'filter', {} );
@@ -322,7 +285,7 @@ function listPanel( ctx: Ctx, ui: UiState, phone: boolean, rows: UserListItem[] 
 			<os-button class="os-people__extra" variant="ghost" os-action="refresh" data-os-users-refresh>${ __( 'Refresh' ) }</os-button>
 		</div>
 		${ data.list.error ? html`<os-notice tone="danger">${ __( 'Could not load users. Try Refresh.' ) } ${ data.list.error }</os-notice>` : '' }
-		<div class="os-people__scope"><span>${ sprintf( /* translators: 1: loaded users, 2: total search results. */ __( '%1$d of %2$d people loaded' ), ui.feed.items.length, data.list.total ) }${ state.status || state.role ? ` · ${ rows.length } ${ __( 'match filters' ) }` : '' }</span>${ state.role ? html`<os-button variant="ghost" data-os-users-clear-role @click=${ () => {
+		<div class="os-people__scope"><span>${ sprintf( __( '%1$d of %2$d people loaded' ), ui.feed.items.length, data.list.total ) }${ state.status || state.role ? ` · ${ rows.length } ${ __( 'match filters' ) }` : '' }</span>${ state.role ? html`<os-button variant="ghost" data-os-users-clear-role @click=${ () => {
  ctx.state.role = ''; void ctx.dispatch( 'filter', {} );
 } }>${ __( 'Clear role' ) }</os-button>` : '' }</div>
 		<div class="os-people__card-host" ?hidden=${ ui.view !== 'people' } style="display:flex;flex:1;min-height:0;">${ peopleCards( state.tab === 'all' ? rows : [], { cfg, actions: actionsOf( ctx ), selected: ui.selected, select: ( id, checked ) => {
@@ -344,13 +307,13 @@ function insightsPanel( ctx: Ctx, ui: UiState, tab: 'roles' | 'activity' ): Temp
 	let scope: string;
 	let content: TemplateResult;
 	if ( isRoles ) {
-		scope = summary.data ? sprintf( /* translators: %d: total unique site members. */ __( '%d people across this site. Up to 8 faces per role; people can belong to more than one group.' ), summary.data.total ) : __( 'Gathering your role groups…' );
+		scope = summary.data ? sprintf( __( '%d people across this site. Up to 8 faces per role; people can belong to more than one group.' ), summary.data.total ) : __( 'Gathering your role groups…' );
 		content = summary.data ? rolesView( summary.data.groups, ( role ) => {
 			ctx.local( 'tab', { value: 'all' } ); filterByRole( ctx, role );
 		} ) : html`<p class="os-people__empty" role="status">${ summary.error ? __( 'Role groups are unavailable.' ) : __( 'Loading all roles…' ) }</p>`;
 	} else {
 		const snapshot = ui.activity.data;
-		scope = snapshot ? sprintf( /* translators: %d: all site users. */ __( '%d people across this site.' ), snapshot.total ) : __( 'Gathering the complete community overview' );
+		scope = snapshot ? sprintf( __( '%d people across this site.' ), snapshot.total ) : __( 'Gathering the complete community overview' );
 		content = snapshot ? activityView( snapshot, actionsOf( ctx ), cfgOf( ctx ), ui.contribution, ( kind ) => {
 			ui.contribution = kind; ctx.repaint();
 		} ) : html`<section class="os-community__loading" role="status"><h3>${ ui.activity.error ? __( 'The overview could not load. Use Refresh to retry.' ) : __( 'Bringing everyone together…' ) }</h3></section>`;
@@ -366,14 +329,12 @@ function insightsPanel( ctx: Ctx, ui: UiState, tab: 'roles' | 'activity' ): Temp
 
 export default defineApp< UsersState, UsersData >( APP_ID, {
 	local: {
-		// The tab strip and the toolbar's Add new: never a request.
+
 		tab: ( state, args ) => {
 			state.tab = String( args.value ?? 'all' );
 		},
 	},
 
-	// The frame paints the moment the window opens — tabs, toolbar, the
-	// table's skeleton — and the rows land with `mount`.
 	placeholder: ( state ) => ( {
 		list: { items: [], total: 0, pages: 0, page: state.page, perPage: state.perPage },
 	} ),
@@ -413,9 +374,6 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 	},
 
 	mounted: ( ctx ) => {
-		// The view reads the shell's mode stamp (the bulk bar's place,
-		// the picker, the cards); a crossing between the desk and the
-		// phone band is the one change that repaints nothing on its own.
 		const onModeChange = (): void => ctx.repaint();
 		document.addEventListener( 'os-mode-changed', onModeChange );
 		return () => {
@@ -432,8 +390,6 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 		const cfg = cfgOf( ctx );
 		ui.addForm = syncAddUserForm( ctx.root, state, ui.addForm );
 
-		// The Profile tab's element takes this app's facts, REST access
-		// and toast as properties — once; the attribute drives the rest.
 		const profile = ctx.root.querySelector< OsUserProfile >( 'os-user-profile' );
 		if ( profile && ! ui.profileWired ) {
 			ui.profileWired = true;
@@ -450,7 +406,7 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 			return;
 		}
 		const rows = visiblePeople( ctx, ui );
-		// Only a changed row's cells rebuild; the fingerprint is the sum.
+
 		const next = new Map( rows.map( ( row ) => [ row.id, rowKey( row ) ] ) );
 		for ( const [ id, key ] of next ) {
 			if ( ui.rows.get( id ) !== key ) {
@@ -469,7 +425,7 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 			onResendWelcome: ( row ) => resendWelcome( ctx, row ),
 			toast: ( message ) => say( ctx, message ),
 		};
-		// The frame before the first answer paints the table's skeleton.
+
 		table( ctx )?.toggleAttribute( 'loading', ctx.loading );
 		ui.sync.sync( {
 			table: table( ctx ) as unknown as ListTableLike< UserListItem > | null,
@@ -485,7 +441,7 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 					ui.selected = selectedIds( ctx );
 					ctx.repaint();
 				} );
-				// A sortable header: the collection sorts server-side.
+
 				t.addEventListener( 'os-table-sort-change', ( e: Event ) => {
 					const sort = ( e as CustomEvent< { sort: { key: string; direction: 'asc' | 'desc' } | null } > ).detail?.sort;
 					void ctx.dispatch( 'sort', {
@@ -493,8 +449,7 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 						order: sort?.direction ?? 'asc',
 					} );
 				} );
-				// Whole-row click → the User Edit window on THAT user (cells
-				// marked `data-noclick` keep their own behaviour).
+
 				t.addEventListener( 'os-table-row-click', ( e: Event ) => {
 					const id = ( e as CustomEvent< { row?: UserListItem } > ).detail?.row?.id;
 					if ( typeof id === 'number' && id > 0 ) {

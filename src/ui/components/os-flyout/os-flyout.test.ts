@@ -1,11 +1,3 @@
-/**
- * `<os-flyout>` tests — pin the 14-point window-scoped spec:
- * containment, focus capture-and-restore (with preventScroll),
- * focus trap on Tab / Shift+Tab, click-outside-via-pointerdown,
- * Escape, `[data-flyout-close]` button, imperative `open`-removal,
- * each firing one unified `os-flyout-dismiss` event with a
- * `reason` discriminator. Cleanup on disconnect.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 interface DismissDetail {
@@ -16,12 +8,6 @@ async function load() {
 	return await import( './os-flyout' );
 }
 
-/**
- * Build a fake "window body" container the flyout can scope into.
- * Mimics a real window's `position: relative; overflow: hidden`
- * shell so the flyout has a valid containing block. Returns the
- * scope root so tests can dispatch pointerdown events on it.
- */
 function mountWindow(): HTMLElement {
 	const win = document.createElement( 'div' );
 	win.className = 'os-window__body';
@@ -99,7 +85,6 @@ describe( 'os-flyout', () => {
 			events.push( ( e as CustomEvent< DismissDetail > ).detail );
 		} );
 
-		// Click on a sibling inside the same window scope — must dismiss.
 		stranger.dispatchEvent(
 			new Event( 'pointerdown', { bubbles: true, composed: true } ),
 		);
@@ -141,8 +126,6 @@ describe( 'os-flyout', () => {
 		flyout.innerHTML = '<button>focusable</button>';
 		win.appendChild( flyout );
 
-		// Simulate the trigger having been the focused element when
-		// `open` was added — this is what the component captures.
 		trigger.focus();
 		flyout.setAttribute( 'open', '' );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
@@ -152,7 +135,6 @@ describe( 'os-flyout', () => {
 			events.push( ( e as CustomEvent< DismissDetail > ).detail );
 		} );
 
-		// pointerdown on the trigger — must NOT auto-dismiss.
 		trigger.dispatchEvent(
 			new Event( 'pointerdown', { bubbles: true, composed: true } ),
 		);
@@ -234,11 +216,11 @@ describe( 'os-flyout', () => {
 
 		flyout.setAttribute( 'open', '' );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
-		// While open, focus is in the panel.
+
 		expect( flyout.ownerDocument?.activeElement ).not.toBe( trigger );
 
 		flyout.removeAttribute( 'open' );
-		// After dismiss, focus returns to the trigger.
+
 		expect( flyout.ownerDocument?.activeElement ).toBe( trigger );
 	} );
 
@@ -282,11 +264,8 @@ describe( 'os-flyout', () => {
 			events.push( ( e as CustomEvent< DismissDetail > ).detail );
 		} );
 
-		// Remove the flyout from the DOM — listeners must detach.
 		flyout.remove();
 
-		// Subsequent Escape on document — must NOT fire on the
-		// detached flyout (its listener should have been removed).
 		document.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ),
 		);
@@ -309,7 +288,6 @@ describe( 'os-flyout', () => {
 		last.focus();
 		expect( flyout.ownerDocument?.activeElement ).toBe( last );
 
-		// Tab from the last focusable — wraps to first.
 		flyout.dispatchEvent(
 			new KeyboardEvent( 'keydown', {
 				key: 'Tab',

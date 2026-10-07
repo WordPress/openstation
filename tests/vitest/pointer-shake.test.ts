@@ -1,13 +1,3 @@
-/**
- * The shake detector, as a table of pointer traces.
- *
- * Every threshold in the detector exists to reject one specific thing,
- * and every rejection is a test here: jitter (amplitude), a single
- * overshoot correction (count), two wiggles a second apart (gap), and
- * a fast flick (duration). The one positive case is what a hand does
- * when it means "start again".
- */
-
 import { describe, expect, test } from 'vitest';
 import {
 	createShakeDetector,
@@ -18,11 +8,6 @@ import {
 	type ShakeDetector,
 } from '../../src/window/shake';
 
-/**
- * Feed a triangle wave on x: the pointer swings `amplitude` px each
- * side of `cx`, one full swing per `periodMs`, sampled every 16ms.
- * Returns the first detection, or null.
- */
 function zigzag(
 	det: ShakeDetector,
 	opts: {
@@ -41,7 +26,7 @@ function zigzag(
 	const cy = opts.cy ?? 300;
 	const half = periodMs / 2;
 	for ( let t = 0; t <= durationMs; t += 16 ) {
-		// Triangle wave in [-1, 1].
+
 		const phase = ( t % periodMs ) / half;
 		const tri = phase <= 1 ? -1 + 2 * phase : 3 - 2 * phase;
 		const offset = tri * amplitude;
@@ -58,7 +43,7 @@ function zigzag(
 describe( 'shake detector', () => {
 	test( 'a sustained side-to-side shake is detected', () => {
 		const det = createShakeDetector();
-		// 40px each side, a swing every 240ms, for 1.6s: ~13 reversals.
+
 		const hit = zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 1600 } );
 		expect( hit ).not.toBeNull();
 		expect( hit!.axis ).toBe( 'x' );
@@ -82,8 +67,7 @@ describe( 'shake detector', () => {
 	} );
 
 	test( 'jitter is not a shake', () => {
-		// A hand at rest wobbles a few pixels at 120Hz. Below the
-		// amplitude floor, forever, and still nothing.
+
 		const det = createShakeDetector();
 		expect(
 			zigzag( det, { amplitude: 4, periodMs: 60, durationMs: 4000 } ),
@@ -91,7 +75,7 @@ describe( 'shake detector', () => {
 	} );
 
 	test( 'a single overshoot correction is not a shake', () => {
-		// Out, back, out: two reversals. That is a hand fixing a miss.
+
 		const det = createShakeDetector();
 		expect(
 			zigzag( det, { amplitude: 60, periodMs: 600, durationMs: 900 } ),
@@ -99,8 +83,7 @@ describe( 'shake detector', () => {
 	} );
 
 	test( 'a fast flick that meets the count is not a shake', () => {
-		// Six reversals inside 400ms — count satisfied, duration not.
-		// A shake is sustained; a flick is over before it began.
+
 		const det = createShakeDetector();
 		expect(
 			zigzag( det, { amplitude: 40, periodMs: 120, durationMs: 420 } ),
@@ -109,9 +92,7 @@ describe( 'shake detector', () => {
 
 	test( 'two wiggles a pause apart are not summed into one shake', () => {
 		const det = createShakeDetector();
-		// Three reversals, then a 600ms pause, then three more. Each
-		// half is short of the count on its own; the gap must keep
-		// them apart.
+
 		expect(
 			zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 420, startT: 0 } ),
 		).toBeNull();
@@ -124,8 +105,7 @@ describe( 'shake detector', () => {
 		const det = createShakeDetector();
 		const first = zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 1600, startT: 0 } );
 		expect( first ).not.toBeNull();
-		// Keep shaking straight through: nothing for the cooldown, then
-		// a fresh shake needs its own full duration.
+
 		const within = zigzag( det, {
 			amplitude: 40,
 			periodMs: 240,
@@ -139,7 +119,7 @@ describe( 'shake detector', () => {
 		const det = createShakeDetector();
 		zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 800, startT: 0 } );
 		det.reset();
-		// Another 800ms would have completed the run had it survived.
+
 		expect(
 			zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 800, startT: 816 } ),
 		).toBeNull();

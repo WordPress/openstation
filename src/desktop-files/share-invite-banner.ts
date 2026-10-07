@@ -1,21 +1,8 @@
-/**
- * OpenStation — Pending-invite prompt.
- *
- * Watches `sharesStore` for fresh pending invites. When one lands
- * we open the accept/deny modal once per invite per session. The
- * user can defer ("Decide later") to keep the invite in the
- * pending list without re-prompting until next heartbeat tick.
- */
-
 import { openPendingFileInviteModal, openPendingInviteModal } from './overlays-loader';
 import { dropPending, sharesStore, type PendingInvite, type SharesState } from './shares-store';
 
 const prompted = new Set< number >();
 
-/**
- * Reads the per-user folder-sharing kill switch. Defaults to `true`
- * before the OS Settings snapshot is wired (early-boot window).
- */
 function sharingEnabled(): boolean {
 	const settings = ( window as unknown as {
 		wp?: { os?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
@@ -29,12 +16,6 @@ function sharingEnabled(): boolean {
 export function installShareInviteBanner(): void {
 	const store = sharesStore();
 	const handle = ( state: Readonly< SharesState > ): void => {
-		// Bail entirely when the user has flipped sharing off. The
-		// server-side heartbeat already skips `shares.pending` for
-		// these users, so `state.pending` is normally empty — but a
-		// stale subscription (settings toggled mid-session, last
-		// heartbeat still in transit) can still carry one. Guard
-		// here so we never open the modal in either case.
 		if ( ! sharingEnabled() ) {
 			return;
 		}
@@ -43,8 +24,7 @@ export function installShareInviteBanner(): void {
 				continue;
 			}
 			prompted.add( invite.id );
-			// Single-file share invites branch to the file variant
-			// (no capability line — always read + download).
+
 			if ( invite.targetType === 'file' && typeof invite.fileId === 'number' ) {
 				const fileId = invite.fileId;
 				void openPendingFileInviteModal( {
@@ -73,18 +53,10 @@ export function installShareInviteBanner(): void {
 				} else if ( decision === 'denied' ) {
 					dropPending( invite.id, { denied: true, folderId: invite.folderId } );
 				}
-				// 'dismissed' → leave it pending; next heartbeat
-				// tick will re-deliver but we keep the prompted-set
-				// gate so we don't re-open the modal in the same
-				// session. The user can find the invite again from
-				// (future) "Invitations" tray.
 			} );
 		}
 	};
 	store.subscribe( handle );
-	// Fire once against the current snapshot — covers invites
-	// hydrated from the shell config on initial paint (refresh path),
-	// not just the ones that arrive later via heartbeat. `subscribe`
-	// itself doesn't replay the current state.
+
 	handle( store.state );
 }

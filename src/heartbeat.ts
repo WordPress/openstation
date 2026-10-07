@@ -1,58 +1,7 @@
-/**
- * Cross-feature WordPress Heartbeat bus.
- *
- * **What it is.** A thin subscription helper around the
- * `heartbeat-send` / `heartbeat-tick` jQuery events that core
- * WordPress dispatches on every Heartbeat tick (default 15 s in
- * admin). Plugins contribute payload fields to outgoing ticks and
- * subscribe to response fields from incoming ticks WITHOUT each
- * one rewiring the same five lines of jQuery boilerplate.
- *
- * **Why a framework helper.** Multiple features (presence, the
- * recycle-bin badge, third-party plugins) all want to ride the
- * same `heartbeat-send` + `heartbeat-tick` events. Without a shared
- * bus each one re-binds the same five lines of jQuery boilerplate
- * and they can't see each other's contributions. With one bus:
- *
- *   - jQuery boilerplate lives once.
- *   - Devtools can list contributors / subscribers as one group.
- *   - Plugins compose: many subscribers can listen to one
- *     response field, many contributors can write to a single
- *     request field (the LAST writer wins for the contribution
- *     case — by design, sub-plugin overrides shouldn't silently
- *     coexist).
- *
- * **The contract.**
- *
- *   `contribute( field, supplier )` — every outgoing
- *   `heartbeat-send` calls `supplier()` and writes the result
- *   into `data[field]`. Returns an unsubscribe.
- *
- *   `subscribe( field, cb )` — every incoming `heartbeat-tick`
- *   reads `response[field]` and (when not `undefined`) hands it
- *   to `cb`. Returns an unsubscribe.
- *
- *   `bootHeartbeatBus()` — wires the underlying jQuery
- *   listeners. Idempotent; the framework boots it during init,
- *   plugin authors typically don't call it.
- */
-
-/**
- * Function that returns a value to attach to the next outgoing
- * heartbeat. Called every send, so cheap reads (cached state
- * lookups) are fine; avoid synchronous network or heavy
- * computation.
- */
 import { createSharedStore } from './shared-store';
 
 type HeartbeatSupplier< T = unknown > = () => T;
 
-/**
- * Callback invoked with the value of the subscribed field on
- * every incoming tick. If the field is missing on the response
- * (`undefined`), the callback is NOT invoked — feature owners
- * don't need to defend against undefined.
- */
 type HeartbeatSubscriber< T = unknown > = ( value: T ) => void;
 
 interface JQueryLike {
@@ -63,21 +12,6 @@ interface JQueryLike {
 	};
 }
 
-/**
- * The bus registries, shared across bundles.
- *
- * This module is compiled into the shell bundle AND into `notes.js`.
- * With plain module-level state each bundle got its own bus:
- * `bootHeartbeatBus()` runs in the shell and only ever bound the
- * SHELL's copy, so a `subscribe()` made from the notes bundle landed in
- * a registry nothing was pumping. `openstation_notes_subscribe` was
- * therefore never sent, and another user's note edits and moves never
- * arrived until a reload.
- *
- * `booted` belongs in here for the same reason: two copies meant the
- * second bundle believed the bus was unbooted and could bind Heartbeat
- * a second time. See AGENTS.md, "Cross-bundle state".
- */
 const store = createSharedStore< {
 	suppliers: Map< string, HeartbeatSupplier >;
 	subscribers: Map< string, Set< HeartbeatSubscriber > >;
@@ -89,23 +23,12 @@ const store = createSharedStore< {
 } ) );
 
 export interface HeartbeatBus {
-	/**
-	 * Contribute a field to the outgoing tick. Returns an
-	 * unsubscribe. Re-contributing the same `field` from a second
-	 * call replaces the supplier — last writer wins. Plugins that
-	 * want to coexist on a single field should namespace it
-	 * (`my-plugin/something`).
-	 */
+
 	contribute< T = unknown >(
 		field: string,
 		supplier: HeartbeatSupplier< T >,
 	): () => void;
 
-	/**
-	 * Subscribe to a field on the incoming tick. Returns an
-	 * unsubscribe. Multiple subscribers per field compose; each
-	 * is called in registration order with the same value.
-	 */
 	subscribe< T = unknown >(
 		field: string,
 		cb: HeartbeatSubscriber< T >,
@@ -116,9 +39,6 @@ export const heartbeat: HeartbeatBus = {
 	contribute( field, supplier ) {
 		store.state.suppliers.set( field, supplier as HeartbeatSupplier );
 		return () => {
-			// Only delete if THIS supplier is still the registered
-			// one — protects against a later contributor's
-			// unsubscribe accidentally pulling out the wrong one.
 			if ( store.state.suppliers.get( field ) === ( supplier as HeartbeatSupplier ) ) {
 				store.state.suppliers.delete( field );
 			}
@@ -137,16 +57,6 @@ export const heartbeat: HeartbeatBus = {
 	},
 };
 
-/**
- * Wire the underlying `heartbeat-send` / `heartbeat-tick`
- * listeners. Idempotent — running twice is a no-op. Must be
- * called once per page; the framework does this at init.
- *
- * Quietly disables itself when jQuery is missing (no Heartbeat
- * to bind to anyway). Plugins contributing fields BEFORE this
- * boot finishes are safely picked up — `contribute` mutates the
- * shared `suppliers` map directly.
- */
 export function bootHeartbeatBus(): void {
 	if ( store.state.booted ) {
 		return;
@@ -154,10 +64,6 @@ export function bootHeartbeatBus(): void {
 	store.state.booted = true;
 	const $ = ( window as unknown as { jQuery?: JQueryLike } ).jQuery;
 	if ( ! $ ) {
-		// Heartbeat ships with WordPress core admin — its absence
-		// is unusual but not fatal. Log a hint for plugin authors
-		// who hit this on a stripped-down page.
-		// eslint-disable-next-line no-console
 		console.warn(
 			'[desktop-mode/heartbeat] jQuery missing — Heartbeat bus disabled.',
 		);
@@ -173,9 +79,6 @@ export function bootHeartbeatBus(): void {
 			try {
 				data[ field ] = supplier();
 			} catch ( err ) {
-				// One bad supplier shouldn't strand the rest. Keep
-				// the loop going; log loudly so plugin authors notice.
-				// eslint-disable-next-line no-console
 				console.error(
 					`[desktop-mode/heartbeat] supplier for "${ field }" threw:`,
 					err,
@@ -198,9 +101,6 @@ export function bootHeartbeatBus(): void {
 				try {
 					cb( value );
 				} catch ( err ) {
-					// Same isolation rule as suppliers — one broken
-					// subscriber must not interfere with peers.
-					// eslint-disable-next-line no-console
 					console.error(
 						`[desktop-mode/heartbeat] subscriber for "${ field }" threw:`,
 						err,
@@ -211,13 +111,6 @@ export function bootHeartbeatBus(): void {
 	} );
 }
 
-/**
- * Test-only reset. Drops every supplier + subscriber + the
- * `booted` flag so an isolated test can install its own jQuery
- * stub and start fresh.
- *
- * @internal
- */
 export function _resetHeartbeatBusForTests(): void {
 	store.state.suppliers.clear();
 	store.state.subscribers.clear();

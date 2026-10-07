@@ -1,40 +1,3 @@
-/**
- * OpenStation — phone layer: window constraints and the session diet.
- *
- * Ships in the main bundle (it has to be in place before the first
- * `open()`, which session restore fires long before the lazy phone
- * layer could arrive). Three jobs:
- *
- * 1. **Every window is full-screen on a phone.** One
- *    `os.window.geometry` filter forces `state: 'maximized'` on
- *    open, restore, prewarm and child open alike, and keeps the
- *    geometry it displaced so the desktop gets it back. Belt and
- *    braces on the actions: a window restored from minimize or
- *    un-maximized by a plugin is re-maximized while the mode is
- *    `mobile`; a mode change re-maximizes or releases in bulk.
- *
- * 2. **A phone has one desk.** A window on any other desktop is
- *    folded onto the active one as it opens (a session restore
- *    carries the desk a window was on; so does a parked recent), and
- *    everything already open is folded on the crossing into
- *    `mobile`. The desk each window came from is remembered, written
- *    back into every session save, and handed back on the crossing
- *    out — so the desktop finds its desks exactly as it left them.
- *    Without this the phone restored a window `display: none` on a
- *    desk it never shows, and a tap on its tile focused it invisibly.
- *
- * 3. **A phone boot restores one window.** `trimSessionForMobile()`
- *    keeps only the focused session window; the rest are parked (the
- *    phone does not list them) and the `os.session.snapshot` filter
- *    folds them back into every save with their desktop geometry
- *    intact, so a desktop reload after a phone visit finds exactly
- *    what it left. A window the phone opened itself has no desktop
- *    geometry to keep: it is saved as `unplaced`, and the desktop
- *    places it as a fresh open.
- *
- * Nothing here lays anything out; `assets/css/mobile.css` hides the
- * chrome and the phone layer paints its own.
- */
 import { findMenuEntryForUrl } from '../desktop-files/menu-entry';
 import { HOOKS, addAction, addFilter } from '../hooks';
 import type { OsModeApi, OsModeChange } from '../mode';
@@ -52,43 +15,34 @@ const NS = 'openstation/mobile';
 
 type RecentsListener = () => void;
 
-/** The geometry a window had before the phone forced it full-screen. */
 interface DisplacedGeometry {
 	x: number;
 	y: number;
 	width: number;
 	height: number;
 	state: WindowState;
-	/** No desktop ever placed this window: the numbers are a phone's defaults. */
+
 	unplaced: boolean;
 }
 
 export interface MobileConstraintsDeps {
 	manager: WindowManager;
 	mode: OsModeApi;
-	/** Opens or restores a native window; `false` when nothing answers. */
+
 	openNative: OpenNativeWindow;
 }
 
 export interface MobileConstraints {
 	recents: MobileRecents;
-	/**
-	 * Keep only the focused session window for a phone boot; the
-	 * rest are parked as recents. Returns the config to restore from.
-	 */
+
 	trimSessionForMobile( config: DesktopConfig ): DesktopConfig;
-	/** Ids the filter has forced full-screen (test seam). */
+
 	forcedIds(): string[];
-	/** Ids folded onto the active desk from another one (test seam). */
+
 	foldedIds(): string[];
 	dispose(): void;
 }
 
-/**
- * Pure: split a session into the one window to restore and the rest.
- * The focused window wins; with no focused id nothing is restored
- * and the phone boots to its home screen.
- */
 export function splitSessionForMobile( session: Session | undefined ): {
 	restore: SessionWindow[];
 	recents: SessionWindow[];
@@ -105,7 +59,7 @@ export function splitSessionForMobile( session: Session | undefined ): {
 export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileConstraints {
 	const { manager, mode } = deps;
 	const displaced = new Map< string, DisplacedGeometry >();
-	/** The desktop a folded window belongs to, by window id. */
+
 	const folded = new Map< string, string >();
 	let recents: SessionWindow[] = [];
 	const recentListeners = new Set< RecentsListener >();
@@ -137,12 +91,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		win.maximize();
 	};
 
-	/**
-	 * Bring a window on another desktop onto the active one, keeping
-	 * the desk it came from. The first fold wins: a window folded, then
-	 * moved by a plugin, then folded again still goes back to the desk
-	 * the desktop knew.
-	 */
 	const foldIfNeeded = ( windowId: string ): void => {
 		if ( ! mode.isMobile() ) {
 			return;
@@ -162,13 +110,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		manager.moveWindowToDesktop( windowId, active );
 	};
 
-	/**
-	 * Hand every folded window back to its desk. A desk closed in the
-	 * meantime (a plugin, another tab's session) keeps the window on
-	 * the active one, as `closeDesktop` would have. Focus is repaired
-	 * the way `switchDesktop` repairs it: if the window in front just
-	 * left the desk, the topmost one still on it takes over.
-	 */
 	const unfoldAll = (): void => {
 		if ( folded.size === 0 ) {
 			return;
@@ -195,13 +136,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		}
 	};
 
-	/**
-	 * The desktop's default for a window nobody placed: the rule
-	 * `WindowManager` applies to a fresh open (80% of the work area,
-	 * capped at 1200×800, cascaded), repeated here for a window the
-	 * phone opened and a widened viewport is now seeing for the first
-	 * time. `null` before the work area exists.
-	 */
 	const desktopDefaultGeometry = (
 		index: number,
 	): { x: number; y: number; width: number; height: number } | null => {
@@ -221,7 +155,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		};
 	};
 
-	// 1. The filter — the whole placement policy in one place.
 	addFilter< ResolvedWindowGeometry, [ WindowGeometryContext ] >(
 		HOOKS.WINDOW_GEOMETRY,
 		NS,
@@ -229,9 +162,7 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 			if ( ! mode.isMobile() ) {
 				return geometry;
 			}
-			// A window restored minimized stays minimized — that is
-			// the phone's "home". Its first restore re-maximizes it
-			// through the action below.
+
 			if ( geometry.state === 'minimized' ) {
 				return geometry;
 			}
@@ -241,21 +172,14 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 				width: geometry.width,
 				height: geometry.height,
 				state: geometry.state ?? 'normal',
-				// A fresh open on a phone (a home tile, a tab) arrives
-				// with defaults sized for 390px. Nothing about them is
-				// the desktop's, so they are marked and never handed
-				// back as if they were.
+
 				unplaced: ! ctx.hasSavedGeometry && ! ctx.callerPinned,
 			} );
-			// Keep the desktop's x/y/width/height: `maximize()` reads
-			// them into the window's saved geometry, which is what an
-			// un-maximize on the desktop restores.
+
 			return { ...geometry, state: 'maximized' };
 		},
 	);
 
-	// Belt and braces: anything that lands un-maximized while the
-	// phone layer is up goes full-screen again.
 	const onWindowState = ( payload: unknown ): void => {
 		const id = ( payload as { windowId?: string } | null )?.windowId;
 		if ( id ) {
@@ -264,8 +188,7 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 	};
 	addAction( HOOKS.WINDOW_RESTORED, NS, onWindowState );
 	addAction( HOOKS.WINDOW_UNMAXIMIZED, NS, onWindowState );
-	// An open lands on the active desk first, then goes full-screen:
-	// a restore or a parked recent arrives carrying the desk it was on.
+
 	addAction( HOOKS.WINDOW_OPENED, NS, ( payload: unknown ) => {
 		const id = ( payload as { windowId?: string } | null )?.windowId;
 		if ( id ) {
@@ -281,10 +204,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		}
 	} );
 
-	// A mode change is a bulk re-state: into `mobile`, every open
-	// window comes onto the one desk and goes full-screen; out of it,
-	// every window the phone forced (and only those) floats again
-	// where it was, on the desk it was on.
 	const unsubscribeMode = mode.subscribe( ( change: OsModeChange ) => {
 		if ( change.mode === 'mobile' ) {
 			for ( const win of manager.getAll() ) {
@@ -303,8 +222,7 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 			if ( ! before || ! win.isMaximized() ) {
 				continue;
 			}
-			// A window born on the phone would un-maximize to a
-			// phone's numbers: give it the desktop's own default first.
+
 			if ( before.unplaced ) {
 				const placed = desktopDefaultGeometry( cascade++ );
 				if ( placed ) {
@@ -316,8 +234,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		displaced.clear();
 	} );
 
-	// 2. The session: hand the desktop its own numbers and its own
-	// desks back, and keep carrying what this phone chose not to open.
 	addFilter< Session >( HOOKS.SESSION_SNAPSHOT, NS, ( session ) => {
 		const openIds = new Set( session.windows.map( ( w ) => w.id ) );
 		const windows = session.windows.map( ( w ) => {
@@ -334,19 +250,13 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 						y: before.y,
 						width: before.width,
 						height: before.height,
-						// "Home" on a phone is every window minimized;
-						// the desktop should not wake up to that, so the
-						// state written is the one the window had before
-						// the phone.
+
 						state: before.state,
-						// The desktop's restore path places an
-						// `unplaced` window itself instead of trusting
-						// the pixels above.
+
 						...( before.unplaced ? { unplaced: true } : {} ),
 					}
 					: {} ),
-				// The desk the window was on, not the one the phone
-				// folded it onto.
+
 				...( desk ? { desktopId: desk } : {} ),
 			};
 		} );
@@ -376,8 +286,7 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 				}
 				return;
 			}
-			// Same enrichment as session restore: the parent menu's
-			// landing page and submenu give the window its tab strip.
+
 			const menuEntry = findMenuEntryForUrl( win.url );
 			void manager
 				.openNew( {
@@ -388,8 +297,7 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 					title: win.title,
 					icon: win.icon || 'dashicons-admin-generic',
 					desktopId: win.desktopId,
-					// Its desktop pixels ride along, so the filter above
-					// sees a pinned open and keeps them for the desktop.
+
 					x: win.x,
 					y: win.y,
 					width: win.width,
@@ -415,8 +323,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 		},
 	};
 
-	// A recent that gets opened by any other route (a home tile, a
-	// deep link) stops being a recent.
 	addAction( HOOKS.WINDOW_OPENED, NS, ( payload: unknown ) => {
 		const id = ( payload as { windowId?: string } | null )?.windowId;
 		if ( id ) {

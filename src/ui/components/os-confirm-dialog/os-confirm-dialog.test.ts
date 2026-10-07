@@ -1,13 +1,9 @@
-/**
- * `<os-confirm-dialog>` + `osConfirm()` tests.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 async function load() {
 	return await import( './os-confirm-dialog' );
 }
 
-/** Flush the microtask hops the component's render + focus take. */
 function tick() {
 	return new Promise( ( r ) => setTimeout( r, 0 ) );
 }
@@ -99,11 +95,11 @@ describe( 'os-confirm-dialog', () => {
 		const promise = osConfirm( { message: 'X' } );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
-		// Click on the dialog inner (target inside the shadow): should not close.
+
 		const inner = dialog.shadowRoot!.querySelector< HTMLElement >( '.dialog' )!;
 		inner.click();
 		expect( document.querySelector( 'os-confirm-dialog' ) ).not.toBeNull();
-		// Click on the host (backdrop): closes.
+
 		dialog.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		await expect( promise ).resolves.toBe( false );
 	} );
@@ -115,7 +111,7 @@ describe( 'os-confirm-dialog', () => {
 		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
 		const cancelBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' );
 		expect( cancelBtn ).toBeNull();
-		// Confirm still works.
+
 		const confirmBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--primary' );
 		expect( confirmBtn ).not.toBeNull();
 		confirmBtn!.click();
@@ -161,9 +157,6 @@ describe( 'os-confirm-dialog', () => {
 	} );
 
 	test( 'the host is programmatically focusable but not tab-reachable', async () => {
-		// The last-resort focus target if the first render is ever slow
-		// enough to outrun the retry — the host carries the keydown
-		// listener, so Escape and the trap survive.
 		const { osConfirm } = await load();
 		const promise = osConfirm( { message: 'X' } );
 		await tick();
@@ -205,17 +198,16 @@ describe( 'os-confirm-dialog', () => {
 		const dangerBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >(
 			'.btn--danger',
 		)!;
-		// Nothing safe to open on, so the container holds focus — the
-		// destructive button must not.
+
 		expect( dialog.shadowRoot!.activeElement ).not.toBe( dangerBtn );
-		// …and the container has no default action on a danger dialog.
+
 		dialog.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Enter', bubbles: true } ),
 		);
 		await tick();
 		expect( settled ).toBeNull();
 		expect( document.querySelector( 'os-confirm-dialog' ) ).not.toBeNull();
-		// Reaching it has to be deliberate.
+
 		dangerBtn.click();
 		await expect( promise ).resolves.toBe( true );
 	} );
@@ -240,8 +232,7 @@ describe( 'os-confirm-dialog', () => {
 			} ),
 		);
 		await tick();
-		// The dialog stays up and nothing was confirmed — the button
-		// owns Enter, and in a real browser activates itself.
+
 		expect( settled ).toBeNull();
 		expect( document.querySelector( 'os-confirm-dialog' ) ).not.toBeNull();
 		cancelBtn.click();
@@ -281,7 +272,7 @@ describe( 'os-confirm-dialog', () => {
 			new KeyboardEvent( 'keydown', { key: 'Tab', bubbles: true, composed: true } ),
 		);
 		expect( dialog.shadowRoot!.activeElement ).toBe( first );
-		// …and backwards off the first lands on the last.
+
 		first.dispatchEvent(
 			new KeyboardEvent( 'keydown', {
 				key: 'Tab',
@@ -401,7 +392,7 @@ describe( 'os-confirm-dialog', () => {
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
 		expect( dialog.shadowRoot!.querySelector( '.close' ) ).toBeNull();
-		// Tear down to avoid a dangling Promise.
+
 		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' )!.click();
 		await promise;
 	} );

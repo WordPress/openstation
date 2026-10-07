@@ -1,16 +1,3 @@
-/**
- * Posts app — the column descriptors, the toolbar registries and the
- * hook-bus surface plugin authors extend.
- *
- * Filters (`wp.hooks`):
- *   - `openstation.postsWindow.columns` — the column descriptors.
- *   - `openstation.postsWindow.statusSegments` — the status pills.
- *   - `openstation.postsWindow.bulkActions` — the bulk-bar buttons.
- *   - `openstation.postsWindow.toolbarTrailing` — extra toolbar nodes.
- *
- * @public
- */
-
 import { __, _n, sprintf } from '@openstation/app';
 import '../../../src/ui/components/os-table/os-table';
 import '../../../src/ui/components/os-multiselect/os-multiselect';
@@ -36,25 +23,14 @@ export const HOOK_ACTION_DATA_LOADED = 'openstation.postsWindow.dataLoaded';
 
 const LOG = '[openstation:desktop-mode-posts]';
 
-/**
- * Title is the always-visible sticky column — toggling it would leave
- * users with no row identity. Every other key is togglable.
- */
 export const REQUIRED_COLUMN_KEYS = new Set< string >( [ 'title' ] );
 
-/**
- * The columns a phone shows: a card per row (`<os-table stacked>`)
- * has room for the title, the author, a page's parent and the date.
- */
 const MOBILE_COLUMN_KEYS = new Set< string >( [ 'title', 'author', 'parent', 'date' ] );
 
-/** The REST `orderby` values a column click may send; anything else is the default. */
 export const ALLOWED_ORDERBY = [ 'date', 'title', 'author', 'modified', 'comment_count', 'menu_order' ] as const;
 
-/** The valid OS Settings keys for hidden columns in list apps. */
 export type HiddenColumnsSettingKey = 'nativePostsHiddenColumns' | 'nativePagesHiddenColumns';
 
-/** The user's hidden-column preference, from the OS Settings API. */
 export function getHiddenColumns( settingKey: HiddenColumnsSettingKey ): Set< string > {
 	try {
 		const api = window.wp?.os;
@@ -66,22 +42,17 @@ export function getHiddenColumns( settingKey: HiddenColumnsSettingKey ): Set< st
 			}
 		}
 	} catch {
-		// fall through
+
 	}
 	return new Set();
 }
 
-/**
- * Pre-fetched filter-dropdown options, threaded into the Author and
- * Tags columns' filter row so the dropdown lists the server's
- * authoritative options rather than what landed on the current page.
- */
 export interface ColumnFilterData {
 	authors: AuthorOption[];
 	tags: TagOption[];
-	/** True while the tag list has unfetched pages remaining. */
+
 	tagsHasMore?: boolean;
-	/** Trigger the next tag page fetch — wired by the app. */
+
 	loadMoreTags?: () => void;
 }
 
@@ -92,11 +63,6 @@ interface FilterTagOption {
 	name: string;
 }
 
-/**
- * Mount or refresh a `<os-multiselect>` inside a column's filter
- * cell. Idempotent — the first call mounts and binds, later calls
- * reconcile options + value.
- */
 export function renderMultiSelectFilter(
 	host: HTMLTableCellElement,
 	ctx: { value: string; setValue: ( next: string ) => void },
@@ -218,8 +184,6 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 		];
 	}
 
-	// The taxonomy cells arrive with the Posts entry; a build without
-	// them (the Pages bundle) never asks for this branch.
 	const cols: OsTableColumn< PostListItem >[] = [ titleCol, authorCol ];
 	const { categories, tags } = env.cells;
 	if ( categories ) {
@@ -234,7 +198,7 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 		cols.push( {
 			key: 'tags',
 			label: __( 'Tags' ),
-			// Flexes with the space; the minimum holds ~4 chips on a line.
+
 			minWidth: '360px',
 			filterRender: ( host, ctx ) =>
 				renderMultiSelectFilter(
@@ -256,10 +220,6 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 	return cols;
 }
 
-/**
- * Every column (visible AND hidden), through the columns filter —
- * what the "Show columns" menu lists.
- */
 export function buildAllColumns(
 	env: CellEnv,
 	cache: CellCache,
@@ -272,13 +232,6 @@ export function buildAllColumns(
 		: cols;
 }
 
-/**
- * The columns a plugin appended — everything `buildColumns()` returns that
- * is not one of the shell's own. The writing-desk card paints these beside
- * its Words / Comments / Tags stats (#812), the same set the inspector
- * already paints, so the Show columns preference governs all three views.
- * Derived from the base list, never from a hard-coded set of keys.
- */
 export function pluginColumns(
 	env: CellEnv,
 	filterData: ColumnFilterData = EMPTY_FILTER_DATA,
@@ -288,18 +241,12 @@ export function pluginColumns(
 	return buildColumns( env, new Map(), filterData, false, hidden ).filter( ( col ) => ! base.has( col.key ) );
 }
 
-/** The togglable columns' keys and labels — what the ⋯ menu needs, nothing more. */
 export function columnLabels( env: CellEnv ): Array< { key: string; label: string } > {
 	return buildAllColumns( env, new Map() )
 		.filter( ( c ) => ! REQUIRED_COLUMN_KEYS.has( c.key ) )
 		.map( ( c ) => ( { key: c.key, label: c.label || c.key } ) );
 }
 
-/**
- * The columns the table paints: the filtered list minus the user's
- * hidden set (title stays), narrowed to the phone set on a phone —
- * applied last, so nothing is hidden on a desk by a phone's rule.
- */
 export function buildColumns(
 	env: CellEnv,
 	cache: CellCache,
@@ -334,18 +281,11 @@ export function resolveStatusSegments(): StatusSegment[] {
 		const out = hooks.applyFilters( HOOK_FILTER_STATUS_SEGMENTS, defaults );
 		return Array.isArray( out ) && out.length > 0 ? ( out as StatusSegment[] ) : defaults;
 	} catch ( err ) {
-		// eslint-disable-next-line no-console
 		console.error( `${ LOG } status-segments filter threw; falling back to defaults:`, err );
 		return defaults;
 	}
 }
 
-/**
- * The shipped bulk action: "Move to trash". `trash` runs the app's
- * server action over the ids not already in the trash (a second
- * delete would remove them for good) and returns `false` — the
- * action's own dispatch already refreshed the list.
- */
 export function defaultBulkActions(
 	mode: 'posts' | 'pages',
 	trash: ( ids: number[] ) => Promise< boolean >,
@@ -359,12 +299,12 @@ export function defaultBulkActions(
 			confirm: ( count: number ) =>
 				mode === 'pages'
 					? sprintf(
-						/* translators: %d: row count. */
+
 						_n( 'Move %d page to the trash?', 'Move %d pages to the trash?', count ),
 						count,
 					)
 					: sprintf(
-						/* translators: %d: row count. */
+
 						_n( 'Move %d post to the trash?', 'Move %d posts to the trash?', count ),
 						count,
 					),
@@ -393,7 +333,6 @@ export function resolveBulkActions( defaults: BulkAction[] ): BulkAction[] {
 		const out = hooks.applyFilters( HOOK_FILTER_BULK_ACTIONS, defaults );
 		return Array.isArray( out ) ? ( out as BulkAction[] ) : defaults;
 	} catch ( err ) {
-		// eslint-disable-next-line no-console
 		console.error( `${ LOG } bulk-actions filter threw; falling back to defaults:`, err );
 		return defaults;
 	}
@@ -408,17 +347,11 @@ export function resolveToolbarTrailing( ctx: PostsWindowContext ): HTMLElement[]
 		const out = hooks.applyFilters( HOOK_FILTER_TOOLBAR_TRAILING, [], ctx );
 		return Array.isArray( out ) ? out.filter( ( el ): el is HTMLElement => el instanceof HTMLElement ) : [];
 	} catch ( err ) {
-		// eslint-disable-next-line no-console
 		console.error( `${ LOG } toolbar-trailing filter threw; ignoring:`, err );
 		return [];
 	}
 }
 
-/**
- * Map a column key to the REST `orderby` value. Unknown keys (plugin
- * columns) fall back to the declared default — core's collections
- * cannot sort by them anyway.
- */
 export function mapColumnToOrderby( key: string, fallback = 'date' ): string {
 	switch ( key ) {
 		case 'title':
@@ -433,7 +366,6 @@ export function mapColumnToOrderby( key: string, fallback = 'date' ): string {
 	}
 }
 
-/** The column whose header shows the sort arrow for a REST `orderby`. */
 export function mapOrderbyToColumn( orderby: string ): string {
 	return orderby === 'comment_count' ? 'comments' : orderby;
 }

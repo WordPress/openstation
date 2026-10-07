@@ -1,31 +1,3 @@
-/**
- * Server-driven OS Settings tab sync.
- *
- * Mirrors `src/commands/server-sync.ts` for the settings-tab registry.
- * Plugins opt in server-side with
- * `openstation_register_settings_tab_script()` (and optionally
- * `openstation_register_settings_tab()`); this module receives the
- * current list of registered script URLs on every live refresh and:
- *
- *   - Injects each new `scriptUrl` into the shell page via
- *     `loadVendorScript`. The plugin's JS runs and calls
- *     `wp.os.registerSettingsTab()` as normal; the tab registry's
- *     subscriber repaints any open OS Settings window.
- *
- *   - On deactivation (a previously-seen `handle` is missing from the
- *     incoming payload), unregisters every tab attributable to that
- *     handle. Attribution from two sources, unioned:
- *       1. The `owner` field set by the plugin's JS when calling
- *          `registerSettingsTab({ …, owner: 'my-script-handle' })`.
- *       2. The id↔handle mapping captured from the *previous*
- *          `serverSettingsTabs` payload. Plugins that declare
- *          metadata via `openstation_register_settings_tab()` with a
- *          `script` arg get this for free — no JS change required.
- *
- *     Plugins using neither mechanism keep their tabs until the next
- *     page reload (graceful backwards-compat).
- */
-
 import { doAction, HOOKS } from './../hooks';
 import { loadVendorScript } from './../wallpapers/vendor-loader';
 import {
@@ -56,8 +28,7 @@ export function createSettingsTabRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-				// The packages the bundle declares, brought in first; the
-				// document skips what it already ran.
+
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
@@ -98,15 +69,10 @@ export function createSettingsTabRegistrySync(): (
 	};
 
 	const removeByHandle = ( handle: string ): void => {
-		// (B) owner-tagged JS registrations.
 		unregisterSettingsTabsByOwner( handle );
-		// (A) PHP-declared metadata from the last known payload.
+
 		const declared = prevIdsByHandle.get( handle );
 		if ( declared ) {
-			// If a tab declared in PHP wasn't owner-tagged in JS, the
-			// owner-sweep above missed it — catch it by id here. Tabs
-			// still present in `listSettingsTabs()` after the sweep are
-			// candidates; delete by id directly.
 			const present = new Set(
 				listSettingsTabs().map( ( t ) => t.id ),
 			);

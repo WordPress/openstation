@@ -1,17 +1,3 @@
-/**
- * Unit tests for the window-links relations engine
- * (`src/window-links/engine.ts`):
- *
- *   - identity validation (audible throws for `'api'` callers, logged
- *     skips for `'bridge'` data) and normalization
- *   - mechanical grouping: root + children, root-after-children,
- *     multi-root focus-recency ordering, orphan (root-less) groups
- *   - lifecycle wiring: seed from `WindowConfig.content` on open,
- *     clear on close
- *   - the `os.window-links.content` / `.groups` filters
- *   - change events: content-changed on every mutation, groups-changed
- *     only on MEMBERSHIP change
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { HOOKS } from '../../src/hooks';
@@ -30,7 +16,6 @@ async function load(): Promise< EngineModule > {
 	return import( '../../src/window-links/engine' );
 }
 
-/** Minimal fake of the manager surface the engine consumes. */
 function fakeManager(
 	configs: Record<
 		string,
@@ -320,17 +305,16 @@ describe( 'grouping', () => {
 		} );
 		setWindowContent( 'term-win', { type: 'term/category', id: 7 } );
 
-		// The root sees every child plus its reference peer.
 		expect( getDirectlyRelatedWindowIds( 'post-win' ).sort() ).toEqual( [
 			'c1',
 			'c2',
 			'term-win',
 		] );
-		// A child sees its parent — NOT its sibling.
+
 		expect( getDirectlyRelatedWindowIds( 'c1' ) ).toEqual( [
 			'post-win',
 		] );
-		// …while the group-wide query still includes the sibling.
+
 		expect( getRelatedWindowIds( 'c1' ).sort() ).toEqual( [
 			'c2',
 			'post-win',
@@ -368,7 +352,7 @@ describe( 'edges', () => {
 			id: 1,
 			links: [
 				{ type: 'post', id: 2 },
-				{ type: 'post', id: 99 }, // not open — no edge
+				{ type: 'post', id: 99 },
 			],
 		} );
 		setWindowContent( 'b', { type: 'post', id: 2 } );
@@ -404,13 +388,7 @@ describe( 'edges', () => {
 	} );
 
 	test( 'ARROW SEMANTICS: every edge points at what its source belongs to / refers to', async () => {
-		// The single, deliberate reading (relational structure, never
-		// navigation history). This test IS the semantics contract:
-		//   comment  → post   (belongs to)
-		//   media    → post   (belongs to — declared via rel:'child',
-		//                      the post announces its embedded media)
-		//   post     → term   (belongs to the category)
-		//   post A   → post B (A's content references B)
+
 		const { setWindowContent, listWindowLinkEdges } = await load();
 
 		setWindowContent( 'post-win', {
@@ -443,9 +421,7 @@ describe( 'edges', () => {
 	} );
 
 	test( 'a child-root edge absorbs the REVERSE reference on the same pair', async () => {
-		// Media attached to the post (child-root media→post) AND
-		// embedded in its content (reference post→media): one spline,
-		// not two opposite ones.
+
 		const { setWindowContent, listWindowLinkEdges } = await load();
 
 		setWindowContent( 'post-win', {
@@ -602,7 +578,6 @@ describe( 'engine lifecycle wiring', () => {
 			source: 'bridge',
 		} );
 
-		// A later null identity (navigation away) clears it.
 		window.dispatchEvent(
 			new MessageEvent( 'message', {
 				origin: window.location.origin,
@@ -642,9 +617,6 @@ describe( 'engine lifecycle wiring', () => {
 		mod.setWindowContent( 'w1', { type: 'post', id: 1 } );
 		hooks.doAction( HOOKS.WINDOW_CLOSED, { windowId: 'w1' } );
 
-		// One set + one clear — a double subscription would produce a
-		// second (no-op-guarded) clear attempt but ALSO a doubled seed
-		// path; the content log staying at exactly 2 proves single wiring.
 		expect( log ).toHaveLength( 2 );
 	} );
 } );
@@ -769,8 +741,7 @@ describe( 'change events', () => {
 		] );
 
 		setWindowContent( 'w1', { type: 'post', id: 1 } );
-		// Same window, same group — a label tweak changes content but
-		// not membership.
+
 		setWindowContent( 'w1', { type: 'post', id: 1, label: 'Hello' } );
 
 		expect( log ).toHaveLength( 1 );
@@ -898,9 +869,6 @@ describe( 'related-entity items on the identity', () => {
 		expect( contentLog ).toHaveLength( 1 );
 		expect( groupsLog ).toHaveLength( 1 );
 
-		// New comment count — content-changed must fire (the Related
-		// button repaints), groups-changed must not (membership and
-		// edges are untouched).
 		setWindowContent( 'w1', {
 			type: 'post',
 			id: 1,
@@ -909,7 +877,6 @@ describe( 'related-entity items on the identity', () => {
 		expect( contentLog ).toHaveLength( 2 );
 		expect( groupsLog ).toHaveLength( 1 );
 
-		// Identical repeat — full no-op.
 		setWindowContent( 'w1', {
 			type: 'post',
 			id: 1,

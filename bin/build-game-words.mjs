@@ -1,28 +1,4 @@
 #!/usr/bin/env node
-/**
- * Build the shared games dictionary (`assets/games/words.txt`).
- *
- * Dev-time tool — run manually when regenerating the word list; the
- * generated file is committed. NOT part of `npm run build`.
- *
- * Pipeline:
- *   1. hermitdave/FrequencyWords `en_50k.txt` (CC-BY-SA 4.0) gives
- *      frequency-ranked English words from OpenSubtitles.
- *   2. dwyl/english-words `words_alpha.txt` (Unlicense) acts as a
- *      validity filter — drops subtitle noise, names, misspellings.
- *   3. The LDNOOBW English blocklist (CC-BY 4.0) plus a small
- *      curated extra list removes words we don't want falling down
- *      the screen.
- *   4. Keep /^[a-z]{3,12}$/, take the top 20,000 by frequency, sort
- *      by length ascending then frequency descending, and write one
- *      word per line under a `#`-comment attribution header (the
- *      game's dictionary loader skips `#` lines).
- *
- * Usage:
- *   node bin/build-game-words.mjs                  # fetch sources
- *   node bin/build-game-words.mjs <freq> <valid> <blocklist>
- *                                                     # use local files
- */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -41,16 +17,12 @@ const SOURCES = {
 		'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/en',
 };
 
-// Words the LDNOOBW list misses but that read poorly raining down a
-// WordPress admin screen. Curated, deliberately short. The weapons /
-// violence block honors Inkfall's content rule: no war vocabulary
-// anywhere in the game, including the words themselves.
 const EXTRA_BLOCKED = [
-	// Crude / adjacent.
+
 	'anal', 'anus', 'arse', 'damn', 'erotic', 'genital', 'genitals',
 	'hell', 'nazi', 'nazis', 'nude', 'nudes', 'pee', 'poo', 'poop',
 	'rectum', 'urine',
-	// Weapons / violence.
+
 	'ammo', 'ammunition', 'bayonet', 'bomb', 'bombed', 'bomber',
 	'bombing', 'bombs', 'bullet', 'bullets', 'cannon', 'cannons',
 	'grenade', 'grenades', 'gun', 'gunfire', 'gunman', 'gunmen',
@@ -111,7 +83,7 @@ for ( const line of freqRaw.split( /\r?\n/ ) ) {
 	) {
 		continue;
 	}
-	// `picked` preserves frequency rank (the source is rank-ordered).
+
 	picked.push( word );
 }
 
@@ -121,9 +93,6 @@ if ( picked.length < TARGET_COUNT ) {
 	);
 }
 
-// Length ascending; frequency (original index) descending inside a
-// length bucket — the game's picker biases toward earlier indices in
-// a bucket, so more frequent words fall more often.
 const rank = new Map( picked.map( ( word, index ) => [ word, index ] ) );
 picked.sort( ( a, b ) => a.length - b.length || rank.get( a ) - rank.get( b ) );
 

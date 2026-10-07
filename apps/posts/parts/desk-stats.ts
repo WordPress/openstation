@@ -1,10 +1,8 @@
-/** Real content metrics, loaded only for cards entering the viewport. */
 import { __ } from '@openstation/app';
 import type { RestFetch } from './rest';
 
 export interface ContentMetrics { words: number | null; comments: number | null; errors?: Partial< Record< 'words' | 'comments', 'retry' | 'unavailable' > > }
 
-/** Count the complete rendered body; excerpts and markup are not word counts. */
 export function countWords( markup: string ): number {
 	const doc = new DOMParser().parseFromString( markup, 'text/html' );
 	doc.querySelectorAll( 'script, style' ).forEach( ( node ) => node.remove() );
@@ -44,7 +42,6 @@ export async function fetchMetrics( fetcher: RestFetch, collection: string, id: 
 	return Object.keys( errors ).length ? { words, comments, errors } : { words, comments };
 }
 
-/** Two cards in flight at most. Closing a window cancels its requests. */
 export function createDeskStats( root: HTMLElement, fetcher: RestFetch, collection: 'posts' | 'pages' ): { sync(): void; dispose(): void } {
 	const controller = new AbortController();
 	const cache = new Map< string, ContentMetrics >();

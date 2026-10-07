@@ -1,16 +1,3 @@
-/**
- * Tests for the phone layer's navigation rules —
- * `src/mobile/home.ts` and `src/mobile/tab-bar.ts`.
- *
- * Pins:
- * - the home grid folds every desktop surface in, deduplicated,
- *   without the ephemeral entries and without anything a tap cannot
- *   open;
- * - the search filter is a case-insensitive title match;
- * - the tab bar honours the pins in order, skips the locked exit and
- *   the missing, and fills from the navigation's own order;
- * - the rendered surfaces carry the roles and the `aria-current`.
- */
 import { describe, expect, test, vi } from 'vitest';
 import type { NavItem, NavResult } from '../../src/nav/types';
 import { createHome, filterByQuery, homeGridItems, isOpenable } from '../../src/mobile/home';

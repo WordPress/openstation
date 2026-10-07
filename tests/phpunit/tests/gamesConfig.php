@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the games framework config: the shared dictionary URL
- * and its injection into every game's payload `config`, plus the
- * built-in Alphabet Soup registration.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group desktop-mode-games
- */
+
 class Tests_OpenStation_GamesConfig extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -44,19 +34,13 @@ class Tests_OpenStation_GamesConfig extends WP_UnitTestCase {
 		return null;
 	}
 
-	/**
-	 * @covers ::openstation_games_words_url
-	 */
 	public function test_words_url_points_at_the_shared_asset() {
 		$url = openstation_games_words_url();
 		$this->assertStringContainsString( 'assets/games/words.txt', $url );
-		// The committed asset exists, so the URL must be cache-busted.
+
 		$this->assertStringContainsString( 'ver=', $url );
 	}
 
-	/**
-	 * @covers ::openstation_games_words_url
-	 */
 	public function test_words_url_is_filterable() {
 		add_filter(
 			'openstation_games_words_url',
@@ -67,9 +51,6 @@ class Tests_OpenStation_GamesConfig extends WP_UnitTestCase {
 		$this->assertSame( 'https://example.test/custom-words.txt', openstation_games_words_url() );
 	}
 
-	/**
-	 * @covers ::openstation_games_framework_config
-	 */
 	public function test_framework_config_is_injected_into_every_game() {
 		openstation_register_game( 'cfg-game', array(
 			'title'  => 'Config Game',
@@ -80,9 +61,6 @@ class Tests_OpenStation_GamesConfig extends WP_UnitTestCase {
 		$this->assertSame( openstation_games_words_url(), $entry['config']['wordsUrl'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_games_payload
-	 */
 	public function test_game_config_wins_over_framework_config() {
 		openstation_register_game( 'cfg-game', array(
 			'title'  => 'Config Game',
@@ -94,14 +72,6 @@ class Tests_OpenStation_GamesConfig extends WP_UnitTestCase {
 		$this->assertSame( 'https://example.test/own-words.txt', $entry['config']['wordsUrl'] );
 	}
 
-	/**
-	 * Regression: the boot-time shell config must carry the
-	 * `serverGames` payload key — without it the games registry only
-	 * fills after the first chromeless live-refresh and the Games
-	 * hub boots empty.
-	 *
-	 * @covers ::openstation_enqueue_assets
-	 */
 	public function test_shell_config_ships_server_games_at_boot() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		openstation_register_game( 'cfg-game', array(
@@ -125,9 +95,6 @@ class Tests_OpenStation_GamesConfig extends WP_UnitTestCase {
 		$this->assertContains( 'cfg-game', wp_list_pluck( $received['serverGames'], 'id' ) );
 	}
 
-	/**
-	 * @covers ::openstation_alphabet_soup_register
-	 */
 	public function test_alphabet_soup_registers_with_score_columns() {
 		openstation_alphabet_soup_register();
 		$this->assertTrue( openstation_games_is_registered( 'alphabet-soup' ) );
@@ -138,7 +105,7 @@ class Tests_OpenStation_GamesConfig extends WP_UnitTestCase {
 			wp_list_pluck( $entry['score_columns'], 'key' )
 		);
 		$this->assertStringStartsWith( 'data:image/svg+xml;base64,', $entry['icon'] );
-		// The payload hands it the framework dictionary.
+
 		$payload = $this->payload_entry( 'alphabet-soup' );
 		$this->assertNotNull( $payload );
 		$this->assertSame( openstation_games_words_url(), $payload['config']['wordsUrl'] );

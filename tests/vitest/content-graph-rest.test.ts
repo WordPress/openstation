@@ -1,12 +1,3 @@
-/**
- * Content Graph REST filter contract.
- *
- * The server deliberately distinguishes an omitted `types` query
- * (all registered types) from an explicitly empty one (no types).
- * The client must therefore serialize the parameter even after the
- * final toolbar chip is switched off.
- */
-
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { fetchGraph } from '../../src/content-graph/rest';
 import type {

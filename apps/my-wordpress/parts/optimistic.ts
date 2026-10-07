@@ -1,4 +1,3 @@
-/** WP Explorer's immediate preview selection and trash projection. */
 import { __, sprintf } from '@openstation/app';
 import { beginTrashChange, trashChanges, trashItem, watchTrashChanges } from '../../../src/desktop-files/trash-optimistic';
 import { listKey, sectionOf } from './helpers';
@@ -8,7 +7,6 @@ const previewScope = ( ctx: Ctx ): string => JSON.stringify( [
 	ctx.state.group, ctx.state.section, ctx.state.query, ctx.state.into, ctx.state.relation, ctx.state.footprint,
 ] );
 
-/** Keep the latest local pick on screen even if an older queued action resets item. */
 export function previewContext( ctx: Ctx ): Ctx {
 	const projected = Object.create( ctx ) as Ctx;
 	Object.defineProperty( projected, 'state', { get: () => {
@@ -20,7 +18,6 @@ export function previewContext( ctx: Ctx ): Ctx {
 	return projected;
 }
 
-/** Only the detail belonging to the current selection may reach the pane. */
 export function previewDetail( ctx: Ctx ) {
 	ctx = previewContext( ctx );
 	const detail = ctx.data.detail;
@@ -28,7 +25,6 @@ export function previewDetail( ctx: Ctx ) {
 	return detail?.id === ctx.state.item && detail.kind === section?.kind ? detail : null;
 }
 
-/** Loading, failure and an unavailable detail are distinct states. */
 export function previewMessage( ctx: Ctx ): string {
 	const ui = uiOf( ctx );
 	if ( ui.previewError ) {
@@ -37,7 +33,6 @@ export function previewMessage( ctx: Ctx ): string {
 	return ui.previewLoading ? __( 'Loading details…' ) : __( 'Details are not available for this item.' );
 }
 
-/** Select locally, then enrich from the server. Rapid picks coalesce. */
 export function openPreview( ctx: Ctx, item: number ): void {
 	const ui = uiOf( ctx );
 	const loading = ui.previewLoading;
@@ -65,8 +60,7 @@ export function openPreview( ctx: Ctx, item: number ): void {
 					}
 					break;
 				}
-				// The old response may have reset item after a newer local
-				// pick or Close. Keep the latest pick in the server state too.
+
 				ctx.local( 'preview', { item: ui.previewTarget } );
 				if ( revision === ui.previewRevision ) {
 					ui.previewError = ! ok;
@@ -85,8 +79,7 @@ export function visibleExplorerItems( ctx: Ctx, section: SectionDef, items: List
 	const ui = uiOf( ctx );
 	const key = listKey( ctx.state );
 	const hidden = ui.trashHidden.get( key ) ?? new Set< number >();
-	// A new authoritative page can bring back a restored row. Cached
-	// older pages cannot: they still contain pre-trash snapshots.
+
 	if ( ui.trashPage !== ctx.data.list ) {
 		ui.trashPage = ctx.data.list;
 		for ( const row of ctx.data.list?.items ?? [] ) {
@@ -105,7 +98,6 @@ export function explorerItemTrashing( section: SectionDef, id: number ): boolean
 		change.item.type === section.post_type && change.item.id === id );
 }
 
-/** Keep overlays until fresh pages arrive, including previously accumulated pages. */
 export function watchExplorerTrash( ctx: Ctx ): () => void {
 	let refreshing: Promise< unknown > | null = null;
 	return watchTrashChanges( () => ctx.repaint(), () => {
@@ -135,14 +127,13 @@ export function watchExplorerTrash( ctx: Ctx ): () => void {
 	} );
 }
 
-/** Menu and preview button share the same confirmation and optimistic removal. */
 export async function trashExplorerItems( ctx: Ctx, section: SectionDef, rows: ListItem[] ): Promise< void > {
 	if ( rows.length === 0 ) {
 		return;
 	}
 	const confirmed = await ctx.host.confirm?.( {
 		message: rows.length > 1
-			? sprintf( /* translators: %d: selected item count. */ __( 'Move %d items to the Trash?' ), rows.length )
+			? sprintf( __( 'Move %d items to the Trash?' ), rows.length )
 			: __( 'Move this to the Trash?' ),
 		confirmLabel: __( 'Trash' ), danger: true,
 	} );
@@ -159,8 +150,7 @@ export async function trashExplorerItems( ctx: Ctx, section: SectionDef, rows: L
 	if ( operations.length === 0 ) {
 		return;
 	}
-	// Plugin sections may support the PHP action without exposing a
-	// REST collection. Preserve that path and its server-side feedback.
+
 	if ( ! section.restPath ) {
 		let ok = false;
 		try {
@@ -195,7 +185,7 @@ export async function trashExplorerItems( ctx: Ctx, section: SectionDef, rows: L
 	const failed = results.length - ids.length;
 	ctx.host.toast?.( {
 		message: failed > 0
-			? sprintf( /* translators: %d: failed item count. */ __( '%d item(s) could not be moved to Trash.' ), failed )
-			: sprintf( /* translators: %d: trashed item count. */ __( 'Moved %d item(s) to the Trash.' ), ids.length ),
+			? sprintf( __( '%d item(s) could not be moved to Trash.' ), failed )
+			: sprintf( __( 'Moved %d item(s) to the Trash.' ), ids.length ),
 	} );
 }

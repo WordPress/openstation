@@ -1,13 +1,3 @@
-/**
- * os-ui core — tests for the templater + base component.
- *
- * Covers:
- *   - text, attribute, event, property, boolean-attribute bindings
- *   - diffing on re-render (no-op updates don't touch the DOM)
- *   - prop ↔ attribute sync on Component subclasses
- *   - static styles applied to shadow and light DOM
- *   - microtask-batched re-render
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Component, css, defineComponent, html, render } from '../../src/ui/core';
 
@@ -65,8 +55,7 @@ describe( 'os-ui html renderer', () => {
 		render( html`<input .value=${ 'hello' } />`, host );
 		const input = host.querySelector( 'input' )!;
 		expect( input.value ).toBe( 'hello' );
-		// Verified NOT as attribute — reading via property is the
-		// whole point of this binding.
+
 		expect( input.hasAttribute( 'value' ) ).toBe( false );
 	} );
 
@@ -84,9 +73,7 @@ describe( 'os-ui html renderer', () => {
 	} );
 
 	test( 'second render with same template updates text without re-parsing', () => {
-		// Call-site identity matters — TemplateStringsArray is
-		// cached per tagged-template call site, so wrapping in a
-		// helper keeps the identity stable across calls.
+
 		const update = ( value: string ) =>
 			render( html`<p>${ value }</p>`, host );
 		update( 'one' );
@@ -98,11 +85,7 @@ describe( 'os-ui html renderer', () => {
 	} );
 
 	test( 'remounts when the container was cleared behind the renderer\'s back', () => {
-		// Hosts that mix imperative DOM management with the templater
-		// (the OS Settings editor slot did) can wipe the container
-		// between renders. The cached mount must not take the
-		// update-in-place fast path against those detached nodes —
-		// that renders nothing, silently.
+
 		const update = ( value: string ) =>
 			render( html`<p>${ value }</p>`, host );
 		update( 'one' );
@@ -116,9 +99,7 @@ describe( 'os-ui html renderer', () => {
 			render( html`<p>${ value }</p>`, host );
 		update( 'same' );
 		const p = host.querySelector( 'p' )!;
-		// The dynamic slot is the <p>'s first (and only) child text
-		// node. Spy on its textContent setter — a no-op render
-		// should leave it untouched.
+
 		const slot = p.firstChild as Text;
 		const setSpy = vi.spyOn( slot, 'textContent', 'set' );
 		update( 'same' );
@@ -137,12 +118,7 @@ describe( 'os-ui html renderer', () => {
 	} );
 
 	test( 'switching a slot between templates disposes top-level slot content', () => {
-		// The inner templates keep their own slots at TOP level (not
-		// wrapped in an element), so their content is inserted as
-		// siblings of the instance's cloned nodes. Switching the outer
-		// slot to a different template must remove that content too —
-		// regression: the Agents detail pane leaked its tabs + form
-		// after deleting the last agent swapped in the empty state.
+
 		const detail = ( label: string ) => html`
 			<span class="head">${ label }</span>
 			${ html`<nav class="tabs">${ label }</nav>` }
@@ -161,7 +137,6 @@ describe( 'os-ui html renderer', () => {
 		expect( host.querySelector( '.tabs' ) ).toBeNull();
 		expect( host.querySelector( '.pane' ) ).toBeNull();
 
-		// And back — the empty state must not leak either.
 		render( html`<div class="wrap">${ detail( 'B' ) }</div>`, host );
 		expect( host.querySelector( '.empty' ) ).toBeNull();
 		expect( host.querySelector( '.pane' )?.textContent ).toContain( 'B' );
@@ -172,14 +147,9 @@ describe( 'os-ui html renderer', () => {
 		const firstP = host.querySelector( 'p' );
 		render( html`<p>second</p>`, host );
 		const secondP = host.querySelector( 'p' );
-		// Because strings identity changed, the container is
-		// re-emptied and re-parsed — different node instances.
+
 		expect( firstP ).not.toBe( secondP );
 	} );
-
-	// -------------------------------------------------------------
-	// Nested templates + arrays
-	// -------------------------------------------------------------
 
 	test( 'nested TemplateResult renders inside a text slot', () => {
 		const inner = ( name: string ) => html`<span>hi ${ name }</span>`;
@@ -240,9 +210,7 @@ describe( 'os-ui html renderer', () => {
 		const before = Array.from( host.querySelectorAll( 'li' ) );
 		list( [ 'a', 'b', 'c', 'd' ] );
 		const after = Array.from( host.querySelectorAll( 'li' ) );
-		// The prefix survives BY IDENTITY — appending a page to an
-		// infinite-scrolled list must not recreate (and visibly
-		// repaint) every tile already on screen.
+
 		expect( after[ 0 ] ).toBe( before[ 0 ] );
 		expect( after[ 1 ] ).toBe( before[ 1 ] );
 		expect( after.map( ( n ) => n.textContent ) ).toEqual( [ 'a', 'b', 'c', 'd' ] );
@@ -280,8 +248,7 @@ describe( 'os-ui html renderer', () => {
 		const firstLis = Array.from( host.querySelectorAll( 'li' ) );
 		list( [ 'x', 'y' ] );
 		const secondLis = Array.from( host.querySelectorAll( 'li' ) );
-		// Same DOM nodes, text updated in place — proves the array
-		// diffed positionally instead of remounting.
+
 		expect( firstLis[ 0 ] ).toBe( secondLis[ 0 ] );
 		expect( firstLis[ 1 ] ).toBe( secondLis[ 1 ] );
 		expect( secondLis[ 0 ].textContent ).toBe( 'x' );
@@ -305,7 +272,7 @@ describe( 'os-ui html renderer', () => {
 		const noop = (): void => {};
 		outer( noop );
 		host.querySelector( 'button' )!.click();
-		// Second listener was swapped in; old handler no longer fires.
+
 		expect( counter ).toBe( 1 );
 	} );
 
@@ -331,8 +298,7 @@ describe( 'os-ui html renderer', () => {
 		expect( host.querySelector( 'span' ) ).toBeNull();
 		variant( html`<span>rich</span>` );
 		expect( host.querySelector( 'span' )!.textContent ).toBe( 'rich' );
-		// textContent of the div now reflects only the span's content
-		// — the stale 'plain' text was cleaned up.
+
 		expect( host.querySelector( 'div' )!.textContent ).toBe( 'rich' );
 	} );
 
@@ -344,7 +310,7 @@ describe( 'os-ui html renderer', () => {
 		const live = host.querySelector( 'input' );
 		expect( live ).toBe( pre );
 		expect( live!.value ).toBe( 'hello' );
-		// No accidental stringification.
+
 		expect( host.innerHTML ).not.toContain( '[object' );
 	} );
 
@@ -360,7 +326,7 @@ describe( 'os-ui html renderer', () => {
 		expect( host.querySelector( '#a' ) ).toBe( a );
 
 		go( a );
-		// Same node — stayed in place, no remount.
+
 		expect( host.querySelector( '#a' ) ).toBe( a );
 
 		go( b );
@@ -369,11 +335,7 @@ describe( 'os-ui html renderer', () => {
 	} );
 
 	test( 'siblings after a text-node with multiple markers are still processed', () => {
-		// Regression: the walker iterated a snapshot of childNodes but
-		// incorrectly advanced `i` past siblings after splitting a text
-		// node that contained multiple markers — so any element following
-		// such a text node was never walked, leaving its own markers (and
-		// attribute bindings) unresolved.
+
 		const onClick = vi.fn();
 		render(
 			html`
@@ -385,12 +347,11 @@ describe( 'os-ui html renderer', () => {
 			`,
 			host,
 		);
-		// All three text markers rendered.
+
 		expect( host.textContent ).toContain( 'a' );
 		expect( host.textContent ).toContain( 'b' );
 		expect( host.textContent ).toContain( 'c' );
-		// Footer's button was walked — event bound, text slot filled,
-		// no marker literals leaked into the output.
+
 		const btn = host.querySelector( 'button' )!;
 		expect( btn.textContent ).toBe( 'go' );
 		expect( host.innerHTML ).not.toContain( '$$wpd$$' );
@@ -412,7 +373,7 @@ describe( 'os-ui css', () => {
 
 	test( 'rejects unknown interpolations', () => {
 		expect( () =>
-			// @ts-expect-error — intentional misuse
+
 			css`:host { color: ${ {} } }`,
 		).toThrow( TypeError );
 	} );
@@ -431,10 +392,7 @@ describe( 'os-ui css', () => {
 } );
 
 describe( 'os-ui Component', () => {
-	// Light-DOM component — exercises the `shadow = false` escape
-	// hatch. Most app components use the default (shadow = true),
-	// but a few low-level shells want the outer CSS cascade to
-	// continue; this test keeps that path covered.
+
 	class OsGreeter extends Component {
 		static props = [ 'name' ] as const;
 		static shadow = false;
@@ -507,8 +465,7 @@ describe( 'os-ui Component', () => {
 	} );
 
 	test( 'multiple property writes in one tick collapse into a single render', async () => {
-		// Subclass-local counter — more robust than spying on DOM
-		// ops that an optimiser might skip.
+
 		let renderCount = 0;
 		class OsCounter extends Component {
 			static props = [ 'n' ] as const;
@@ -556,12 +513,6 @@ describe( 'os-ui Component', () => {
 	} );
 } );
 
-/**
- * Vitest + jsdom don't queue microtasks when we simply call
- * `await Promise.resolve()` from outside an async boundary. One
- * `await` of a resolved promise drains the queued `queueMicrotask`
- * callback reliably across engines.
- */
 function microtask(): Promise<void> {
 	return Promise.resolve();
 }

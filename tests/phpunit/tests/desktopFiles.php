@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the desktop files registry — `openstation_register_file_type()`,
- * `openstation_resolve_file()`, and the seven built-in `OpenStation_File`
- * subclasses.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-files
- */
+
 class Tests_OpenStation_Files extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -30,9 +20,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * @covers ::openstation_register_file_type
-	 */
 	public function test_built_in_types_are_registered() {
 		$types = wp_list_pluck( openstation_get_file_types(), 'type' );
 		foreach ( array( 'post', 'attachment', 'user', 'term', 'comment', 'folder', 'bookmark', 'link', 'embed' ) as $expected ) {
@@ -40,9 +27,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers ::openstation_register_file_type
-	 */
 	public function test_register_with_missing_id_returns_wp_error() {
 		$result = openstation_register_file_type( '', array(
 			'label' => 'X',
@@ -52,9 +36,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_id', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_file_type
-	 */
 	public function test_register_with_missing_label_returns_wp_error() {
 		$result = openstation_register_file_type( 'no-label', array(
 			'class' => 'OpenStation_Post_File',
@@ -63,9 +44,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_label', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_file_type
-	 */
 	public function test_register_with_unknown_class_returns_wp_error() {
 		$result = openstation_register_file_type( 'broken', array(
 			'label' => 'Broken',
@@ -75,21 +53,15 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_class', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_register_file_type
-	 */
 	public function test_register_with_class_not_extending_base_returns_wp_error() {
 		$result = openstation_register_file_type( 'wrong-base', array(
 			'label' => 'Wrong base',
-			'class' => 'WP_Post', // Real class, not a OpenStation_File.
+			'class' => 'WP_Post',
 		) );
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_invalid_class', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_resolve_file
-	 */
 	public function test_resolve_returns_instance_of_correct_class() {
 		$post_id = self::factory()->post->create();
 		$file    = openstation_resolve_file( 'post', $post_id );
@@ -97,16 +69,10 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( (string) $post_id, $file->ref() );
 	}
 
-	/**
-	 * @covers ::openstation_resolve_file
-	 */
 	public function test_resolve_unknown_type_returns_null() {
 		$this->assertNull( openstation_resolve_file( 'never-registered', 1 ) );
 	}
 
-	/**
-	 * @covers OpenStation_Post_File
-	 */
 	public function test_post_file_serializes_known_post() {
 		$post_id = self::factory()->post->create( array( 'post_title' => 'Hello' ) );
 		$file    = openstation_resolve_file( 'post', $post_id );
@@ -117,22 +83,12 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertTrue( $shape['exists'] );
 	}
 
-	/**
-	 * @covers OpenStation_Post_File
-	 */
 	public function test_post_file_handles_missing_post() {
 		$file  = openstation_resolve_file( 'post', 999999 );
 		$shape = $file->serialize();
 		$this->assertFalse( $shape['exists'] );
 	}
 
-	/**
-	 * The tile writes this string with `textContent`, so an entity
-	 * left encoded is read by the user as itself.
-	 *
-	 * @covers OpenStation_File::serialize
-	 * @covers ::openstation_plain_text_title
-	 */
 	public function test_serialized_title_is_plain_text_not_entities() {
 		$post_id = self::factory()->post->create(
 			array( 'post_title' => "Alder & Oak's \"Best\" Insulation" )
@@ -143,13 +99,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Alder & Oak', $shape['title'] );
 	}
 
-	/**
-	 * Decoding runs before the tag strip, so an encoded tag cannot be
-	 * decoded back into live markup on the way out. A `<` that opens no
-	 * tag is text and stays.
-	 *
-	 * @covers ::openstation_plain_text_title
-	 */
 	public function test_plain_text_title_cannot_resurrect_markup() {
 		$this->assertStringNotContainsString(
 			'<',
@@ -159,15 +108,15 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( 'Ben & Jerry', openstation_plain_text_title( 'Ben &#038; Jerry' ) );
 
 		$cases = array(
-			// No tag opens here, typed or stored as an entity.
+
 			'I <3 WordPress'         => 'I <3 WordPress',
 			'I &lt;3 WordPress'      => 'I <3 WordPress',
 			'<3 Bot'                 => '<3 Bot',
 			'a < b'                  => 'a < b',
-			// A letter after `<` opens one, closed or not.
+
 			'a<b'                    => 'a',
 			'x<y and y>z'            => 'xz',
-			// Decoded once: an entity that was itself encoded stays one.
+
 			'&amp;amp;'              => '&amp;',
 			'&amp;lt;script&amp;gt;' => '&lt;script&gt;',
 		);
@@ -175,16 +124,12 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 			$this->assertSame( $expected, openstation_plain_text_title( $rendered ), $rendered );
 		}
 
-		// Stripping `<b>` must not leave the kept `<` opening a tag with `script>`.
 		$this->assertDoesNotMatchRegularExpression(
 			'/<[a-zA-Z\/!?]/',
 			openstation_plain_text_title( '<<b>script>alert(1)</script>' )
 		);
 	}
 
-	/**
-	 * @covers OpenStation_User_File
-	 */
 	public function test_user_file_serializes_known_user() {
 		$user_id = self::factory()->user->create( array( 'display_name' => 'Tony' ) );
 		$file    = openstation_resolve_file( 'user', $user_id );
@@ -193,9 +138,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( 'Tony', $shape['title'] );
 	}
 
-	/**
-	 * @covers OpenStation_Term_File
-	 */
 	public function test_term_file_uses_taxonomy_id_ref() {
 		$term_id = self::factory()->term->create( array( 'taxonomy' => 'category', 'name' => 'Avengers' ) );
 		$file    = openstation_resolve_file( 'term', "category:{$term_id}" );
@@ -204,9 +146,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( 'category', $shape['taxonomy'] );
 	}
 
-	/**
-	 * @covers OpenStation_Bookmark_File
-	 */
 	public function test_bookmark_file_uses_url_as_ref() {
 		$file  = openstation_resolve_file( 'bookmark', 'https://example.com/page' );
 		$shape = $file->serialize();
@@ -215,17 +154,11 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( 'https://example.com/page', $shape['url'] );
 	}
 
-	/**
-	 * @covers OpenStation_Bookmark_File
-	 */
 	public function test_bookmark_file_rejects_javascript_url() {
 		$file = openstation_resolve_file( 'bookmark', 'javascript:alert(1)' );
 		$this->assertFalse( $file->exists() );
 	}
 
-	/**
-	 * @covers OpenStation_Link_File
-	 */
 	public function test_link_file_serializes_url_and_host_title() {
 		$file  = openstation_resolve_file( 'link', 'https://example.com/path' );
 		$shape = $file->serialize();
@@ -236,17 +169,11 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertTrue( $shape['exists'] );
 	}
 
-	/**
-	 * @covers OpenStation_Link_File
-	 */
 	public function test_link_file_rejects_javascript_url() {
 		$file = openstation_resolve_file( 'link', 'javascript:alert(1)' );
 		$this->assertFalse( $file->exists() );
 	}
 
-	/**
-	 * @covers OpenStation_Embed_File
-	 */
 	public function test_embed_file_serializes_url_and_host_title() {
 		$file  = openstation_resolve_file( 'embed', 'https://example.com/dashboard' );
 		$shape = $file->serialize();
@@ -257,24 +184,17 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertTrue( $shape['exists'] );
 	}
 
-	/**
-	 * @covers OpenStation_Embed_File
-	 */
 	public function test_embed_file_rejects_empty_ref() {
 		$file = openstation_resolve_file( 'embed', '' );
 		$this->assertFalse( $file->exists() );
 	}
 
-	/**
-	 * @covers ::openstation_register_file_type
-	 */
 	public function test_registered_action_fires_on_success() {
 		$calls = array();
 		add_action( 'openstation_file_type_registered', static function ( $type, $entry ) use ( &$calls ) {
 			$calls[] = array( 'type' => $type, 'entry' => $entry );
 		}, 10, 2 );
 
-		// Use a one-off subclass so we don't pollute the built-in registry with a fake.
 		eval( 'class Tests_Custom_File extends OpenStation_File { public static function type(): string { return "custom"; } public function title(): string { return "x"; } }' );
 
 		$result = openstation_register_file_type( 'custom', array(
@@ -287,9 +207,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( 'custom', $calls[0]['type'] );
 	}
 
-	/**
-	 * @covers ::openstation_get_file_types
-	 */
 	public function test_filter_can_remove_file_type() {
 		add_filter( 'openstation_file_types', static function ( $registry ) {
 			unset( $registry['comment'] );
@@ -300,9 +217,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertNotContains( 'comment', $ids );
 	}
 
-	/**
-	 * @covers OpenStation_File::serialize
-	 */
 	public function test_serialize_filter_can_attach_extra_fields() {
 		add_filter( 'openstation_file_serialize', static function ( $shape, $file ) {
 			$shape['badge'] = 'NEW';
@@ -314,9 +228,6 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		$this->assertSame( 'NEW', $shape['badge'] );
 	}
 
-	/**
-	 * @covers ::openstation_build_file_types_payload
-	 */
 	public function test_payload_shape() {
 		$payload = openstation_build_file_types_payload();
 		$this->assertNotEmpty( $payload );

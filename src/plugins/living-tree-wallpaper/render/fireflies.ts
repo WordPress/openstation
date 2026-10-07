@@ -1,15 +1,5 @@
-/**
- * The Living Tree — fireflies (online users).
- *
- * `spark` particles with an additive glow drifting through the canopy;
- * the count follows live presence. Each firefly wanders toward a slowly
- * re-rolled target inside the crown box and twinkles on its own phase.
- * See `docs/living-tree-algorithm.md` §A.8.
- */
-
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';
 
-/** Glow texture raster size. */
 const GLOW_TEX_SIZE = 32;
 
 interface Firefly {
@@ -29,7 +19,6 @@ interface CrownBounds {
 	maxY: number;
 }
 
-/** Rasterize the warm glow dot once; every firefly shares it. */
 function buildGlowTexture( pixi: PixiNamespace ): PixiTexture {
 	const size = GLOW_TEX_SIZE;
 	const canvas = document.createElement( 'canvas' );
@@ -57,29 +46,15 @@ export class FireflyLayer {
 	private readonly layer: PixiContainer;
 	private readonly pixi: PixiNamespace;
 
-	/**
-	 * @param layer The firefly layer (front-most, additive).
-	 * @param pixi  The vendor Pixi namespace.
-	 */
 	constructor( layer: PixiContainer, pixi: PixiNamespace ) {
 		this.layer = layer;
 		this.pixi = pixi;
 	}
 
-	/**
-	 * Constrain wandering to the crown region.
-	 *
-	 * @param bounds The crown bounding box in reference space.
-	 */
 	public setBounds( bounds: CrownBounds ): void {
 		this.bounds = bounds;
 	}
 
-	/**
-	 * Set the number of fireflies; spawns / retires sprites to match.
-	 *
-	 * @param n Firefly count (from the `spark` hormone).
-	 */
 	public setCount( n: number ): void {
 		const target = Math.max( 0, Math.round( n ) );
 		while ( this.flies.length > target ) {
@@ -114,12 +89,6 @@ export class FireflyLayer {
 		}
 	}
 
-	/**
-	 * Per-frame drift + twinkle.
-	 *
-	 * @param dt Delta time (seconds).
-	 * @param t  Elapsed scene time (seconds).
-	 */
 	public update( dt: number, t: number ): void {
 		for ( const fly of this.flies ) {
 			fly.retarget -= dt;
@@ -128,7 +97,7 @@ export class FireflyLayer {
 				fly.ty = this.randomY();
 				fly.retarget = 2 + Math.random() * 4;
 			}
-			// Lazy homing: ease toward the target with a wobble on top.
+
 			fly.x += ( fly.tx - fly.x ) * dt * 0.4 + Math.sin( t * 2.2 + fly.phase ) * 0.35;
 			fly.y += ( fly.ty - fly.y ) * dt * 0.4 + Math.cos( t * 1.7 + fly.phase ) * 0.3;
 			fly.sprite.x = fly.x;
@@ -145,7 +114,6 @@ export class FireflyLayer {
 		return this.bounds.minY + Math.random() * ( this.bounds.maxY - this.bounds.minY );
 	}
 
-	/** Release sprites + the shared texture. */
 	public destroy(): void {
 		this.setCount( 0 );
 		if ( this.texture ) {

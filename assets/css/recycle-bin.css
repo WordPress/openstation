@@ -1,13 +1,3 @@
-/**
- * OpenStation — Recycle Bin window styles.
- *
- * Scoped to `.desktop-mode-recycle-bin` so the rules can't leak into other
- * windows. Layout: a sticky toolbar across the top, then a flex-1
- * body that hosts a `<os-table>`. The table is told to size to the
- * body via `--os-ui-table-max-height: 100%` so its sticky header
- * engages.
- */
-
 .desktop-mode-recycle-bin {
 	display: flex;
 	flex-direction: column;
@@ -35,14 +25,6 @@
 	gap: 8px;
 }
 
-/*
- * Honour the `hidden` attribute. The browser's UA stylesheet
- * sets `[hidden] { display: none }`, but our explicit
- * `display: flex` above wins on specificity. These rules restore
- * the expected behaviour for the two groups the JS hides: the bulk
- * actions (nothing selected) and the whole toolbar (nothing in the
- * bin). `<os-empty-state>` handles its own.
- */
 .os-recycle-bin__toolbar[hidden],
 .os-recycle-bin__toolbar-right[hidden] {
 	display: none;
@@ -69,26 +51,11 @@
 
 .os-recycle-bin__body os-table {
 	flex: 1 1 auto;
-	/*
-	 * A flex item's minimum size is its content's, and this content
-	 * is a table whose columns refuse to wrap: without the 0 the
-	 * table grows past the body, the body (which does not scroll)
-	 * clips it, and the table's own scroller — the one thing that can
-	 * scroll sideways — never overflows. This is what made a long
-	 * title unreachable in a narrow window.
-	 */
+
 	min-inline-size: 0;
 	--os-ui-table-max-height: 100%;
 }
 
-/*
- * A narrow window — a phone, or a desktop window pulled in. The
- * toolbar's three groups each take a whole row instead of sharing
- * one: the type filter scrolls sideways under the search, the
- * selection actions share their row, and Empty Trash keeps the last
- * row's end. Nothing overflows the window's edge. The container is
- * the app root (`.os-app`, `app-runtime.css`).
- */
 @container ( max-width: 560px ) {
 	.os-recycle-bin__toolbar {
 		gap: 8px;
@@ -139,15 +106,6 @@
 	}
 }
 
-/*
- * The phone (the shell's mode stamp, at any width). The list is a
- * card per row (`<os-table stacked>`, set by the app) running edge to
- * edge; the search leads the toolbar, with the type chips scrolling
- * under it; and the selection's actions are a bar along the bottom
- * of the window, under the thumb, instead of a row in the toolbar
- * the list has scrolled away from. The bar is a flex sibling of the
- * body, so the cards end where it begins.
- */
 html[data-os-mode="mobile"] .os-recycle-bin__toolbar {
 	gap: 8px;
 	padding: 8px 10px;
@@ -208,40 +166,16 @@ html[data-os-mode="mobile"] .os-recycle-bin__body {
 	flex: 1 1 auto;
 }
 
-/*
- * NOTE — cell-content styles are now inlined in `src/recycle-bin/
- * index.ts`. `<os-table>` renders into its own shadow DOM, which
- * blocks document-level stylesheets (and Dashicons) from reaching
- * any node we return from a `column.render` callback. The empty-
- * state, toolbar, and body styles below remain CSS because they
- * live in the bin window's light-DOM template.
- */
-
-/* `<os-empty-state>` centres its own contents; this makes it fill
- * the body once the table beside it is hidden. */
 .os-recycle-bin__body os-empty-state {
 	flex: 1 1 auto;
 }
 
-/*
- * Drop-target highlight for cross-window drag-to-trash. Set when
- * the desktop drag handler hit-tests the cursor over the bin's
- * root via `data-os-trash-drop-active`. Returns to
- * normal on pointer-up or when the cursor leaves the window.
- */
 .desktop-mode-recycle-bin[ data-os-trash-drop-active ] {
 	position: relative;
 	box-shadow: inset 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
 	transition: box-shadow 80ms ease;
 }
 
-/* Dock-icon variant: when the recycle-bin window is closed, the
- * desktop drag handler highlights the dock tile instead. Same
- * affordance — outline + faint tint — so the user reads the icon
- * as a valid drop target without needing to open the window
- * first. The selector matches the dock tile's `data-system-id`
- * so this CSS applies wherever the recycle-bin dock entry
- * renders (left rail, bottom rail, future placements). */
 .os-dock__item[ data-system-id="desktop-mode-recycle-bin" ][ data-os-trash-drop-active ] {
 	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: 2px;

@@ -1,12 +1,3 @@
-/**
- * The WooCommerce integration bundle.
- *
- * Exercises the module itself rather than the generic hook contracts
- * it rides on: band resolution from the server-shipped config, the
- * stock ribbon and its survival across a tile repaint, and the panel's
- * behaviour when the summary payload is missing or malformed — which a
- * plugin filtering `openstation_my_wordpress_woo_summary` can cause.
- */
 import {
 	afterAll,
 	afterEach,
@@ -66,18 +57,12 @@ function setConfig( extra: Record< string, unknown > = {} ): void {
 	};
 }
 
-/**
- * Put a spy on `wp.os.openWindow` without disturbing `wp.hooks` —
- * replacing the whole `wp` global takes the filter bus with it, and
- * every subscriber in this file rides that bus.
- */
 function stubOpenWindow( fn: () => boolean ): void {
 	const w = window as unknown as { wp?: Record< string, unknown > };
 	w.wp = w.wp ?? {};
 	( w.wp as { os?: unknown } ).os = { openWindow: fn };
 }
 
-/** A product list row carrying the server-decided band + stock facts. */
 function productRow( facts: Record< string, unknown > ) {
 	return { id: 7, openstation_woo: facts };
 }
@@ -96,7 +81,6 @@ function stubSummary( body: unknown, status = 200 ): void {
 	);
 }
 
-/** Fire the tile-decoration action the bundle subscribes to. */
 function decorate( item: Record< string, unknown > ): HTMLElement {
 	const tile = document.createElement( 'div' );
 	document.body.appendChild( tile );
@@ -110,10 +94,7 @@ function decorate( item: Record< string, unknown > ): HTMLElement {
 }
 
 describe( 'my-wordpress — WooCommerce integration', () => {
-	// Installed once, not per test: Vitest caches the side-effect
-	// import, so the bundle's `addAction`/`addFilter` calls run exactly
-	// once for the whole file. Clearing the bus between tests would
-	// strand every test after the first without any subscribers.
+
 	beforeAll( async () => {
 		installHooksStub();
 		setConfig();
@@ -144,8 +125,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 
 			expect( banding ).not.toBeNull();
 			expect( banding.bands ).toHaveLength( 2 );
-			// The band comes off the row, decided server-side by the
-			// same rules that ordered the collection.
+
 			expect(
 				banding.assign( productRow( { band: 'cat:apparel' } ) ),
 			).toBe( 'cat:apparel' );
@@ -182,7 +162,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			) as Array< { id: string; render: ( item: Record< string, unknown > ) => unknown } >;
 			const cell = ( id: string ) =>
 				columns.find( ( c ) => c.id === id )?.render( {
-					// `status` is always `publish` on an order row.
+
 					status: 'publish',
 					wcStatus: 'processing',
 					customer: 'Ada',
@@ -225,8 +205,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 
 			expect( ribbon ).not.toBeNull();
 			expect( ribbon?.getAttribute( 'tone' ) ).toBe( tone );
-			// `top-start`, so it can't collide with the tile's own
-			// post-status ribbon on `top-end`.
+
 			expect( ribbon?.getAttribute( 'placement' ) ).toBe( 'top-start' );
 		} );
 
@@ -244,9 +223,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'the ribbon is restored after the tile repaints', () => {
-			// `<os-tile>._paint()` drops every direct `<os-ribbon>`
-			// child before rebuilding, and it repaints on selection —
-			// so a decoration that isn't re-stamped simply vanishes.
+
 			const tile = decorate(
 				productRow( {
 					band: '',
@@ -276,7 +253,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 	} );
 
 	describe( 'preview panel', () => {
-		/** Fire the preview slot and wait for the panel to settle. */
+
 		async function paint( entityId = PRODUCTS ): Promise< HTMLElement > {
 			const container = document.createElement( 'div' );
 			document.body.appendChild( container );
@@ -306,8 +283,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				item: { id: 7 },
 			} );
 
-			// Present and reserving its height before the request has
-			// had any chance to resolve.
 			const panel = container.querySelector( '.os-woo-panel' );
 			expect( panel ).not.toBeNull();
 			expect( panel?.getAttribute( 'aria-busy' ) ).toBe( 'true' );
@@ -344,7 +319,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( text ).toContain( 'SHOE-42' );
 			expect( text ).toContain( '231 units' );
 			expect( text ).toContain( '4.2' );
-			// Stock reads through `<os-badge>`, not a bespoke pill.
+
 			expect(
 				container.querySelector( 'os-badge' )?.getAttribute( 'tone' ),
 			).toBe( 'success' );
@@ -366,11 +341,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'a malformed payload shows the error row, not a stuck skeleton', async () => {
-			// `openstation_my_wordpress_woo_summary` is a documented
-			// filter over this payload, so a plugin can drop the very
-			// fields the row builders read. That used to throw inside
-			// the render callback and leave the panel on placeholders
-			// forever.
+
 			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 			stubSummary( { type: 'product' } );
 
@@ -413,20 +384,12 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 	} );
 
-	// ────────────────────────────────────────────────────────────
-	// Customers. The facts ride `/wp/v2/users` as well as the
-	// Customers collection, so the decoration is keyed off the tile
-	// KIND rather than off a section id — a person who has spent
-	// money is a customer wherever you are looking at them.
-	// ────────────────────────────────────────────────────────────
-
 	describe( 'customers', () => {
-		/** A user row carrying the server's customer facts. */
+
 		function customerRow( facts: Record< string, unknown > ) {
 			return { id: 11, name: 'Ada', openstation_woo_customer: facts };
 		}
 
-		/** A user tile with the built-in avatar box and sub-line. */
 		function decorateUser(
 			item: Record< string, unknown >,
 			entityId = CUSTOMERS,
@@ -452,7 +415,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			return tile;
 		}
 
-		/** Stand in for `<os-tile>._paint()`: the visual is replaced. */
 		function repaint( tile: HTMLElement ): void {
 			tile.querySelector( '.os-file-tile__visual' )?.remove();
 			const visual = document.createElement( 'span' );
@@ -471,10 +433,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				} ),
 			);
 
-			// An icon is a face, a name, and at most one mark. In a
-			// folder where every row is a customer, "Customer" says
-			// nothing — and spend belongs in the pane, which has room
-			// to say it properly.
 			expect(
 				tile.querySelector( '.os-my-wordpress__user-tile-sub' ),
 			).toBeNull();
@@ -486,8 +444,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				'users',
 			);
 
-			// "Editor · 12 posts" is still the truest thing about
-			// someone in the Users folder.
 			expect(
 				tile.querySelector( '.os-my-wordpress__user-tile-sub' )
 					?.textContent,
@@ -508,13 +464,11 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( badge?.classList.contains(
 				`os-woo-customer-band--${ band }`,
 			) ).toBe( true );
-			// Inside the avatar box, so it costs the tile no vertical
-			// space and the icon stays an icon.
+
 			expect( badge?.parentElement?.className ).toContain(
 				'os-file-tile__visual',
 			);
-			// A 45° banner works on a product photo and is vandalism
-			// on a face — at 88px it covers a third of the avatar.
+
 			expect( tile.querySelector( 'os-ribbon' ) ).toBeNull();
 		} );
 
@@ -522,8 +476,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			const tile = decorateUser(
 				customerRow( { band: 'vip', orders: 3, spend: '£90.00' } ),
 			);
-			// `<os-tile>._paint()` destroys and recreates the avatar
-			// box, and selection triggers a paint.
+
 			repaint( tile );
 
 			expect(
@@ -532,12 +485,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'a tile decorated before it paints gets exactly one badge', () => {
-			// The real sequence, and the one that produced two badges.
-			// The decoration action fires from the tile builder while
-			// the element is still detached and `<os-tile>` has not
-			// painted, so there is no avatar box to reach yet. Falling
-			// back to the tile itself put a badge under the name that
-			// the later, correct stamp never noticed.
+
 			const tile = decorateUser(
 				customerRow( { band: 'vip', orders: 3, spend: '£90.00' } ),
 				CUSTOMERS,
@@ -605,8 +553,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'double-click on a customer opens the customer window', () => {
-			// Assign onto the existing `wp`, don't replace it —
-			// `window.wp.hooks` is the bus every filter here rides.
+
 			const openWindow = vi.fn( () => true );
 			stubOpenWindow( openWindow );
 
@@ -624,22 +571,17 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( openWindow ).toHaveBeenCalledWith(
 				'desktop-mode-woo-customer',
 				expect.objectContaining( {
-					// Params, not a module variable: they ride the
-					// session, so a reload brings the window back on
-					// the same person.
+
 					params: { customerId: 11, customerName: 'Ada' },
 				} ),
 			);
 		} );
 
 		test( 'double-click in the Users folder is left alone', () => {
-			// Assign onto the existing `wp`, don't replace it —
-			// `window.wp.hooks` is the bus every filter here rides.
+
 			const openWindow = vi.fn( () => true );
 			stubOpenWindow( openWindow );
 
-			// A person in the Users folder is someone who writes, and
-			// the activity footprint is the right answer there.
 			expect(
 				applyFilters( 'os.my-wordpress.user-activate', false, {
 					entityId: 'users',
@@ -671,7 +613,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			) as Array< { id: string } >;
 
 			const ids = options.map( ( o ) => o.id );
-			// A blog archive for someone who has never written a post.
+
 			expect( ids ).not.toContain( 'author-archive' );
 			expect( ids ).not.toContain( 'footprint' );
 			expect( ids ).toContain( 'wc-customer-window' );
@@ -699,10 +641,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				adminUrl: 'http://example.test/wp-admin/',
 			} );
 
-			// From an order, "customer" means *this is who bought it*,
-			// not *change their role* — but the only URL WordPress has
-			// for a person is their profile editor, so the marker is
-			// what lets the Customer window claim it.
 			const claimed = tryNativeUrlRemap(
 				'http://example.test/wp-admin/user-edit.php?user_id=11&os_person_view=wc-customer',
 			);
@@ -715,13 +653,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'both halves of the hand-off registered: the claim wins, the profile stands down', () => {
-			// The two entries are tested apart everywhere else, which
-			// can't catch the failure that matters: both registered,
-			// and the built-in profile remap claiming the marked URL
-			// because it comes first in the walk. So the profile entry
-			// is put in FRONT of the Customer claim here — the least
-			// favourable order, and the only one that proves the
-			// stand-down is doing the work rather than luck.
+
 			const openById = vi.fn().mockReturnValue( true );
 			const profileMatches = vi.fn( ( _url: string, parsed: URL ) => {
 				if ( isPersonViewClaimed( parsed ) ) {
@@ -738,8 +670,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				( r ) => r.id === 'desktop-mode/woo-customer',
 			);
 			expect( claim ).toBeDefined();
-			// Re-registering appends, so dropping and re-adding the
-			// claim is how it ends up behind the profile entry.
+
 			unregisterNativeUrlRemap( 'desktop-mode/woo-customer' );
 			registerNativeUrlRemap( {
 				id: 'desktop-mode-user-edit',
@@ -755,8 +686,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 					adminUrl: 'http://example.test/wp-admin/',
 				} );
 
-				// Marked: the profile remap is consulted first and
-				// must decline, leaving the Customer window to claim.
 				expect(
 					tryNativeUrlRemap(
 						'http://example.test/wp-admin/user-edit.php?user_id=11&os_person_view=wc-customer',
@@ -768,17 +697,13 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 					{ params: { customerId: 11 } },
 				);
 
-				// Unmarked: the same URL without the marker is still
-				// the profile editor's. A stand-down that swallowed
-				// every person-URL would be the opposite bug.
 				openById.mockClear();
 				expect(
 					tryNativeUrlRemap(
 						'http://example.test/wp-admin/user-edit.php?user_id=11',
 					),
 				).toBe( true );
-				// One argument: the opener is called without a trailing
-				// `undefined` when a remap declares no params.
+
 				expect( openById ).toHaveBeenCalledWith(
 					'desktop-mode-user-edit',
 				);
@@ -804,18 +729,12 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'the customer window announces a `user` identity', () => {
-			// A native window has no admin screen, so nothing
-			// announces on its behalf the way the chromeless bridge
-			// does for an iframe. Without this call the window is
-			// invisible to the relations engine — it opens beside the
-			// order it came from and draws no line.
+
 			const set = vi.fn();
 			const w = window as unknown as { wp?: Record< string, unknown > };
 			w.wp = w.wp ?? {};
 			( w.wp as { os?: unknown } ).os = { relations: { set } };
 
-			// The window root the shell stamps; the id-of-record walk
-			// looks for exactly this.
 			const root = document.createElement( 'div' );
 			root.id = 'wp-window-desktop-mode-woo-customer';
 			const body = document.createElement( 'div' );
@@ -845,10 +764,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				params: { customerId: 11, customerName: 'Ada' },
 			} );
 
-			// `user`, matching what `user-edit.php` announces — so the
-			// Customer window and a profile window on the same person
-			// join one group, and an order (whose identity links
-			// `user:<id>`) ties to either.
 			expect( set ).toHaveBeenCalledWith(
 				'desktop-mode-woo-customer',
 				expect.objectContaining( { type: 'user', id: 11 } ),
@@ -856,12 +771,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'a retarget beats a slow response for the customer it replaced', async () => {
-			// The window is a retargetable singleton: clicking a
-			// second customer repaints the same root while the first
-			// summary may still be in flight. `root.isConnected` can't
-			// see that — same node, still connected — so a slow first
-			// response would land last and quietly put the window back
-			// on the person the user just navigated away from.
+
 			const bodies: Record< string, () => void > = {};
 			vi.stubGlobal(
 				'fetch',
@@ -938,7 +848,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			render( body, {
 				params: { customerId: 11, customerName: 'Ada' },
 			} );
-			// Retarget before the first request answers.
+
 			document.dispatchEvent(
 				new CustomEvent( 'os-window-reopened', {
 					detail: {
@@ -954,16 +864,13 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				}
 			} );
 
-			// Second customer answers first, then the abandoned one.
 			bodies[ '22' ]();
 			await vi.waitFor( () => {
 				if ( mount.dataset.customerId !== '22' ) {
 					throw new Error( 'second paint not applied' );
 				}
 			} );
-			// Let the abandoned response run all the way through
-			// `fetch` → `json()` → paint. If it is going to overwrite
-			// the window, it has had every chance to.
+
 			bodies[ '11' ]();
 			for ( let i = 0; i < 5; i++ ) {
 				await new Promise( ( r ) => setTimeout( r, 0 ) );
@@ -998,8 +905,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				}
 			} );
 
-			// Past the cap the server never computed the bands. "0 · 0"
-			// would be a wrong answer stated confidently.
 			expect( container.textContent ).toContain( 'Not counted' );
 			expect( container.textContent ).not.toContain( '0 · 0' );
 		} );
@@ -1029,8 +934,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				}
 			} );
 
-			// Genuinely none is a different statement from unknown,
-			// and neither is worth a row.
 			expect( container.textContent ).not.toContain( 'VIP · lapsed' );
 			expect( container.textContent ).not.toContain( 'Not counted' );
 		} );
@@ -1042,8 +945,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				{ entityId: CUSTOMERS, kind: 'user', userId: 11 },
 			);
 
-			// Four zeroes above the lifetime-spend figure read as the
-			// answer to a question nobody asked.
 			expect( sections ).toEqual( [ 'bio' ] );
 		} );
 
@@ -1113,15 +1014,12 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			) as Array< { id: string; variant?: string } >;
 
 			expect( actions.map( ( a ) => a.id ) ).toEqual( [ 'open-profile' ] );
-			// Something has to be the primary action.
+
 			expect( actions[ 0 ].variant ).toBe( 'primary' );
 		} );
 
 		test( 'a people surface whose rows carry no customer facts gets no money panel', () => {
-			// The My WordPress app's Users folder ships its rows
-			// without `openstation_woo_customer` on purpose — a person
-			// there is someone who writes. Outside the Customers
-			// section, the facts' presence is the opt-in.
+
 			const container = document.createElement( 'div' );
 			document.body.appendChild( container );
 			doAction( 'os.my-wordpress.preview-extras', {
@@ -1158,16 +1056,9 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			} );
 
 			const container = document.createElement( 'div' );
-			// Attached on purpose: `paintPanel` drops the swap when the
-			// shell has left the document, so an orphaned container
-			// would sit on its placeholders forever and the assertion
-			// below would fail for a reason that has nothing to do
-			// with customers.
+
 			document.body.appendChild( container );
-			// `meta`, not `header`: a person's panel goes below their
-			// name and face. Money above an avatar reads as a price
-			// tag on them, and you can't tell whose figure it is until
-			// you've scrolled past it to the name.
+
 			doAction( 'os.my-wordpress.preview-extras', {
 				slot: 'meta',
 				container,

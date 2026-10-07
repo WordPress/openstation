@@ -1,60 +1,18 @@
-/**
- * Recycle Bin — icon state.
- *
- * Swaps the bin's artwork between empty and holding-something, on
- * its dock/taskbar tile and its desktop icon. The Trash app
- * (`apps/trash/`) owns the window; this is the one piece of the bin
- * that stays in the always-on shell bundle, beside the drop targets
- * that share its frozen id, because the closed tile has to be right
- * before the app's script ever loads. Stays accurate without a page
- * refresh:
- *
- *   - Initial value comes from the shell config
- *     (`config.recycleBinCount`), so the icon is right on the
- *     first paint, even before the user opens the bin.
- *   - Cross-window broadcasts (`os.<type>.changed`) drive
- *     delta updates: a `'trashed'` action with N ids increments
- *     by N, an `'untrashed'` / `'deleted'` action decrements.
- *   - Authoritative resets come from the bin window itself
- *     (every `refresh()` reports the server's exact `total`), and
- *     from the lightweight REST `/count` endpoint.
- *
- * The state is binary: anything above zero is holding something.
- * The count is still tracked exactly, because the deltas have to
- * add up to know when it crosses back to zero, but only the sign
- * of it reaches the screen.
- *
- * Quantity used to ride here as a numeric badge. It was dropped
- * because the pill is positioned onto the artwork rather than
- * beside it, and on a 20px dock tile it covered about 30% of the
- * icon. A bin that changes shape carries the same signal without
- * spending the corner.
- */
-
 import { addAction, HOOKS } from '../hooks';
 import { subscribe } from '../broadcast';
 import { trashChanges, watchTrashChanges } from './trash-optimistic';
 import { createSharedStore } from '../shared-store';
 import { trackedFetch } from '../tracked-fetch';
 
-/* eslint-disable no-console */
 const LOG_PREFIX = '[os-bin badge]';
-/**
- * Verbose debug trace — silent unless `localStorage.openStationBinDebug`
- * is set. Useful when this thing breaks again: type
- * `localStorage.openStationBinDebug = '1'` in DevTools, reload, and the
- * full `setRecycleBinCount` / `paintIconState` / `watchForTargets`
- * trace prints. Cheap when off (one localStorage read per call).
- */
+
 function log( ...args: unknown[] ): void {
-	// Re-enable verbose tracing by typing
-	// `localStorage.openStationBinDebug = '1'` in DevTools, then reload.
 	try {
 		if ( window.localStorage?.getItem( 'openStationBinDebug' ) ) {
 			console.info( LOG_PREFIX, ...args );
 		}
 	} catch {
-		// localStorage blocked — ignore.
+
 	}
 }
 function warn( ...args: unknown[] ): void {
@@ -62,18 +20,9 @@ function warn( ...args: unknown[] ): void {
 }
 
 const TARGET_ID = 'desktop-mode-recycle-bin';
-// Heartbeat field. `wp.heartbeat`'s `data` object is delivered as
-// `_POST['data'][ <key> ]` server-side; the key IS the field name
-// our `heartbeat_received` filter reads.
+
 const HEARTBEAT_FIELD = 'openstation_recycle_bin_seen_ts';
 
-/**
- * Narrow shape of `wp.os` we depend on here. Pulled in via
- * the loose `window.wp.os` lookup rather than a direct
- * import: this module loads inside the always-on shell bundle, so
- * the public API is a guaranteed sibling — but typing the lookup
- * keeps us honest about which methods we actually call.
- */
 interface ArtRail {
 	setArt?: ( id: string, svg: string ) => void;
 }
@@ -87,27 +36,12 @@ function getDesktopApi(): OpenStationArtRails | undefined {
 		.wp?.os;
 }
 
-/**
- * State shared across every bundle that imports this module.
- *
- * Routed through `createSharedStore` so any bundle that imports
- * this file shares one count with the always-on shell bundle
- * (`desktop.js`). Plain module-level `let`s would compile into each
- * bundle separately, so a second importer setting `current = 0`
- * would never reach the shell bundle's lifecycle handlers — they'd
- * repaint the dock tile from their own stale copy. See
- * `AGENTS.md` ➜ "Cross-bundle state".
- */
 interface BadgeState {
 	current: number;
-	/** Art for each state, handed over by the PHP shell config. */
+
 	emptyArt: string;
 	fullArt: string;
-	// High-water mark for "did anything change since I last asked".
-	// Bumped from heartbeat responses + chromeless-iframe
-	// postMessages. Initialised to `Date.now()` on `start()` so a
-	// delete that happened before the page loaded doesn't replay
-	// through the fast-path subscriber on first paint.
+
 	seenTs: number;
 	started: boolean;
 	countUrl: string;
@@ -124,14 +58,6 @@ const store = createSharedStore< BadgeState >(
 	} ),
 );
 
-/**
- * Set the bin's badge to an absolute count. Idempotent: the same
- * value re-applied is a no-op (no DOM mutation).
- *
- * @public
- *
- * @param next Non-negative integer count.
- */
 export function setRecycleBinCount( next: number ): void {
 	const safe = Math.max( 0, Math.floor( next ) );
 	const prev = store.state.current;
@@ -140,57 +66,20 @@ export function setRecycleBinCount( next: number ): void {
 	paintIconState( safe );
 }
 
-/**
- * Apply a delta to the current badge value. Used by broadcast
- * subscribers — `'trashed'` events bump up, `'untrashed'` /
- * `'deleted'` events bump down. Drift correction happens via the
- * authoritative `setRecycleBinCount()` calls from `/list` (bin
- * window refresh) and `/count` (manual reconcile).
- *
- * @public
- *
- * @param delta Signed integer; clamped at zero.
- */
 export function adjustRecycleBinCount( delta: number ): void {
 	setRecycleBinCount( store.state.current + delta );
 }
 
-/**
- * Read the current value. The bin window reads it at render time to
- * pick its initial chrome state, before the first `/list` lands.
- *
- * @internal
- */
 export function _currentRecycleBinCount(): number {
 	return store.state.current;
 }
 
-/**
- * Fan the icon state to every rail that might be hosting our tile.
- * The framework rails (`dock`, `taskbar`, `icons`) all expose the
- * same `setArt( id, svg )` shape and silently no-op for ids they
- * don't own, so calling all three is the canonical pattern rather
- * than a hack.
- *
- * Deliberately NOT suppressed while the bin window is focused. A
- * badge is a notification, so hiding it while the user is looking
- * at the thing it points to is right. This is a description of the
- * object, and a bin drawn empty while it is holding something would
- * simply be wrong.
- *
- * No DOM scraping — the rails own paint state, including survival
- * across grid rebuilds. Plugin authors looking for the canonical
- * "how do I change a tile's icon" example should land here.
- */
 function paintIconState( count: number ): void {
 	const pending = trashChanges().filter( ( change ) => change.pending );
 	const effective = count + pending.reduce( ( delta, change ) => delta + ( change.direction === 'in' ? 1 : -1 ), 0 );
 	const art = effective > 0 ? store.state.fullArt : store.state.emptyArt;
 	log( 'paintIconState', { count, full: count > 0, hasArt: !! art } );
 	if ( ! art ) {
-		// The PHP filter didn't deliver. Leaving the server-declared
-		// icon alone is the right failure: a bin that never changes
-		// is worse than one that does, but it is still a bin.
 		return;
 	}
 	const desktop = getDesktopApi();
@@ -199,49 +88,17 @@ function paintIconState( count: number ): void {
 	desktop?.icons?.setArt?.( TARGET_ID, art );
 }
 
-/**
- * Wire the badge to every signal source we have. Called once from
- * the main desktop bundle's init.
- *
- *   - Initial value: the shell config (`config.recycleBinCount`),
- *     so the badge is correct on the first paint, even before the
- *     user opens the bin.
- *   - Same-tab broadcast deltas (`os.<type>.changed`).
- *   - Cross-iframe `postMessage` fast path (`type:
- *     'os-recycle-bin-changed'`) — fires within ~ms of any
- *     chromeless admin request that mutated state.
- *   - Heartbeat catch-all — every tick the server reports the
- *     current count + the latest change-ts. This is the channel
- *     that catches AJAX list-table trash, REST DELETE, other tabs,
- *     WP-CLI, cron — anything that doesn't render an admin footer.
- *
- * While the Trash app's window is open its client view pushes the
- * exact art itself (`ctx.host.setIcon`), so the two never disagree
- * for long. The heartbeat probe runs regardless — that's the fix
- * for "the tile doesn't update unless I open the bin".
- *
- * @public
- *
- * @param initialRaw Initial count from `config.recycleBinCount`. Accepts a
- *                   number or a numeric string (`wp_localize_script` strings
- *                   every scalar).
- * @param countUrl   REST endpoint for `/recycle-bin/count`.
- */
 export function startRecycleBinIconState(
 	initialRaw: number | string,
 	countUrl = '',
 ): void {
-	// Defensive coerce — `wp_localize_script` strings every
-	// scalar, and we'd rather a future caller pass either shape
-	// than re-introduce the "badge stuck at 0" bug we just fixed.
 	const initial = Number( initialRaw ) || 0;
 	const cfg = ( window as unknown as {
 		openStationConfig?: Record< string, unknown >;
 	} ).openStationConfig;
 	const cfgCount = cfg?.recycleBinCount;
 	const cfgUrl = cfg?.recycleBinCountUrl;
-	// Both drawings arrive on the first paint, so crossing zero is a
-	// local swap rather than a round trip.
+
 	store.state.emptyArt = String( cfg?.recycleBinIconEmpty ?? '' );
 	store.state.fullArt = String( cfg?.recycleBinIconFull ?? '' );
 	const cfgDebug = cfg?.openStationBinDebug;
@@ -254,14 +111,7 @@ export function startRecycleBinIconState(
 		cfgDebug,
 		readyState: document.readyState,
 	} );
-	// Loud warning when the PHP filter didn't deliver. Important:
-	// `wp_localize_script` stringifies every top-level scalar, so a
-	// PHP `(int) 0` arrives here as the string `"0"` — using
-	// `typeof !== 'number'` would yell on every healthy load and
-	// drown out the real signal. The genuine "filter missing"
-	// shapes are `undefined` (key absent) and `null`; numeric
-	// strings (the WP-localize default) and actual numbers both
-	// indicate a delivered value.
+
 	const cfgCountNum = Number( cfgCount );
 	const cfgCountIsHealthy =
 		( typeof cfgCount === 'number' || typeof cfgCount === 'string' ) &&
@@ -281,12 +131,6 @@ export function startRecycleBinIconState(
 	store.state.seenTs = Date.now();
 	setRecycleBinCount( initial );
 
-	// Both targets render asynchronously after init: the dock
-	// tile is registered by `native-window-sync` (`await`s the
-	// lazy script load), and the desktop icon grid renders on
-	// the main bundle's init path. Both fire a deterministic
-	// signal when they finish — we subscribe to those instead
-	// of polling the DOM.
 	wireDockTileSignal();
 	wireDesktopIconsSignal();
 
@@ -296,11 +140,6 @@ export function startRecycleBinIconState(
 	wireHeartbeatProbe();
 }
 
-/**
- * Re-paint when the dock fires `dock.item-appended` for our id.
- * Native-window sync is the canonical signal — fires once per
- * tile registration, never spuriously. No polling.
- */
 function wireDockTileSignal(): void {
 	addAction(
 		HOOKS.DOCK_ITEM_APPENDED,
@@ -313,14 +152,6 @@ function wireDockTileSignal(): void {
 	);
 }
 
-/**
- * Re-paint when the wallpaper icon grid is rendered.
- *
- * `renderDesktopIcons` short-circuits when the icons array is
- * unchanged, so this only fires on legitimate rebuilds (initial
- * render, plugin activation/deactivation) — the cases where our
- * decoration genuinely needs to be reattached.
- */
 function wireDesktopIconsSignal(): void {
 	addAction(
 		HOOKS.DESKTOP_ICONS_RENDERED,
@@ -333,19 +164,7 @@ function wireDesktopIconsSignal(): void {
 	);
 }
 
-/**
- * Same-tab broadcast deltas. Fires when a mutation happens in
- * the same browsing context — the bin's own restore/purge, or
- * a chromeless admin request whose changelog included this
- * post type.
- */
 function wireBroadcastDeltas(): void {
-	// Direct module import instead of `window.wp.os.subscribe`
-	// — the latter is assigned to `wp.os` AFTER our `start()`
-	// runs in the init sequence, so calling it via the public API
-	// silently no-ops at boot. The bus itself is already initialised
-	// before `start()` (see `attachBroadcastBus` + `installBroadcastReceiver`
-	// in `desktop.ts`), so the import-side call is safe.
 	const onDomain = ( payload: unknown ): void => {
 		const detail = payload as
 			| { action?: string; ids?: unknown }
@@ -365,9 +184,7 @@ function wireBroadcastDeltas(): void {
 				break;
 		}
 	};
-	// Dynamic post-type slugs from the PHP shell config + fixed non-post-type
-	// extras the Recycle Bin always captures. The extras never vary so there
-	// is no PHP filter for them; they live here where their meaning is clear.
+
 	const cfg = ( window as unknown as {
 		openStationConfig?: { recycleBinPostTypes?: string[] };
 	} ).openStationConfig;
@@ -378,15 +195,6 @@ function wireBroadcastDeltas(): void {
 	}
 }
 
-/**
- * Chromeless-iframe `postMessage` fast path. Every chromeless
- * admin render emits `{ type: 'os-recycle-bin-changed',
- * ts }` to the parent shell. We bump our high-water mark and
- * (when we have the URL) refetch the authoritative count.
- *
- * Lives here in the badge module so it's always-on — the bin
- * window doesn't have to be open for the badge to learn.
- */
 function wirePostMessageFastPath(): void {
 	const expectedOrigin = window.location.origin;
 	window.addEventListener( 'message', ( e: MessageEvent ) => {
@@ -411,18 +219,6 @@ function wirePostMessageFastPath(): void {
 	} );
 }
 
-/**
- * Heartbeat probe. Sends `openstation_recycle_bin_seen_ts` on every
- * outgoing tick; reads `openstation_recycle_bin: { ts, count? }` off the
- * response. The server only attaches `count` when something changed
- * since our high-water mark (an unchanged tick would recompute the
- * same number); when the key is absent the badge keeps its current
- * value. This is the catch-all channel — within 15 s (active
- * tab) or 60 s (background tab) of a mutation anywhere on the
- * site, the badge resyncs to the authoritative count.
- *
- * Always-on: doesn't matter whether the bin window is open.
- */
 function wireHeartbeatProbe(): void {
 	const $ = (
 		window as unknown as {
@@ -465,20 +261,6 @@ function wireHeartbeatProbe(): void {
 	} );
 }
 
-/**
- * REST `/count` fetch — the authoritative reset used by the
- * postMessage fast path when it learns there's been a change.
- *
- * Goes through the framework fetch so the request carries the
- * REST nonce: a cookie request without one is logged out as far
- * as WordPress is concerned, and the route's permission check
- * answers 401 every time. `silent` keeps it out of the activity
- * bus and the window spinner, because the user didn't initiate
- * it.
- *
- * Silent-fail by design: if we can't fetch (network blip, missing
- * URL), the heartbeat path will resync within the next tick.
- */
 async function refetchCount(): Promise< void > {
 	if ( ! store.state.countUrl ) {
 		log( 'refetchCount: no countUrl, skip' );

@@ -1,14 +1,3 @@
-/**
- * Plugins app — the client half: the view frame (tabs gated by the
- * caps, the status filter and its update count, the bulk bar, the
- * phone layout), the installed-list filter, the admin-ajax client
- * (nonces, envelopes, error mapping, multipart upload), the wp.org
- * HTML sanitiser, the changelog / FAQ parsers, the self-mutation
- * exit, the up-to-date detection, the bulk gating, the upload's
- * replace flow, the Browse gallery's paging, the card drag teardown,
- * the Heartbeat echo skip, the wp.org icon candidate chain and the
- * directory-slug gate.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeHost } from '@openstation/app';
 import { mockViewContext, renderedText } from '../../src/app-runtime/testing';
@@ -42,8 +31,7 @@ const AJAX_URL = 'http://example.test/wp-admin/admin-ajax.php';
 function extra( over: Partial< PluginsExtra > = {} ): PluginsExtra {
 	const caps = { activate: true, install: true, delete: true, upload: true, update: true, ...( over.caps ?? {} ) };
 	return {
-		// What `App::menu()` ships in the config extra and the strip
-		// renders from, caps already applied — see `plugins.os.php`.
+
 		menuTabs: caps.install
 			? [
 				{ id: 'installed', label: 'Installed' },
@@ -84,7 +72,6 @@ const ajaxOk = ( data: unknown ): Response => jsonResponse( { success: true, dat
 const fetchMock = (): ReturnType< typeof vi.fn > => globalThis.fetch as unknown as ReturnType< typeof vi.fn >;
 const restOver = ( cfg = extra() ) => createPluginsRest( () => cfg, ( url, init ) => globalThis.fetch( url, init ) );
 
-/** A host for the parts that never touch the view. */
 function fakeHost( over: Partial< PluginsHost > = {} ): PluginsHost & { toasts: string[]; dispatched: string[] } {
 	const cfg = extra();
 	const toasts: string[] = [];
@@ -139,7 +126,6 @@ function mount(
 }
 
 beforeEach( () => {
-	// jsdom has no IntersectionObserver; the Browse gallery wires one.
 	( globalThis as { IntersectionObserver?: unknown } ).IntersectionObserver ??= class {
 		observe() {}
 		disconnect() {}
@@ -159,8 +145,6 @@ afterEach( () => {
 
 describe( 'the plugins app view', () => {
 	it( 'renders installed plugin cards with production component imports', async () => {
-		// A type-only import used to leave the preserved table inert,
-		// exposing its empty slot even when installed rows existed.
 		expect( customElements.get( 'os-table' ) ).toBeDefined();
 		const { root } = mount();
 		await Promise.resolve();
@@ -256,13 +240,11 @@ describe( 'the plugins app view', () => {
 		editor.dispatchEvent( new CustomEvent( 'os-tab-pick', { bubbles: true, composed: true, detail: { value: editor.getAttribute( 'value' ) } } ) );
 		expect( openUrl ).toHaveBeenCalledWith( 'http://example.test/wp-admin/plugin-editor.php', 'Plugin File Editor', 'dashicons-admin-plugins' );
 
-		// Arrow keys select the tab they land on; the editor tab hands it back.
 		tabs.value = editor.getAttribute( 'value' )!;
 		tabs.dispatchEvent( new CustomEvent( 'os-tab-change', { bubbles: true, detail: { value: tabs.value } } ) );
 		expect( tabs.value ).toBe( 'installed' );
 		expect( ctx.state.tab ).toBe( 'installed' );
 
-		// No editor URL (a block theme, multisite, no `edit_plugins`): no tab.
 		const none = mount();
 		expect( none.root.querySelector( '[data-os-plugins-editor]' ) ).toBeNull();
 	} );
@@ -295,7 +277,6 @@ describe( 'the plugins app view', () => {
 		fire( { source: 'plugins-window', plugin: 'akismet/akismet', action: 'activate' } );
 		expect( dispatch ).toHaveBeenCalledTimes( 1 );
 
-		// The relay of our own activation: broadcast records the id.
 		( window as unknown as { wp: { os: { broadcast: unknown } } } ).wp.os.broadcast = vi.fn();
 		const ui = ctx.ui< { host: PluginsHost } >( () => {
 			throw new Error( 'ui bag missing' );
@@ -304,7 +285,6 @@ describe( 'the plugins app view', () => {
 		fire( { source: 'heartbeat', action: 'activate', ids: [ pluginChangeId( 'akismet/akismet.php' ) ] } );
 		expect( dispatch ).toHaveBeenCalledTimes( 1 );
 
-		// Somebody else's plugin through Heartbeat still refreshes.
 		fire( { source: 'heartbeat', action: 'activate', ids: [ pluginChangeId( 'jetpack/jetpack.php' ) ] } );
 		expect( dispatch ).toHaveBeenCalledTimes( 2 );
 	} );
@@ -388,7 +368,7 @@ describe( 'the admin-ajax client', () => {
 			readJsonOrThrow( jsonResponse( { success: false, data: { errorCode: 'up_to_date', errorMessage: 'Latest.' } }, 400 ) ),
 		).rejects.toMatchObject( { code: 'up_to_date', message: 'Latest.', status: 400 } );
 		await expect( readJsonOrThrow( jsonResponse( { nothing: true }, 502 ) ) ).rejects.toThrow( 'Request failed (502).' );
-		// Core's `install-plugin` ships without the envelope.
+
 		expect( unwrapAjaxEnvelope< { slug: string } >( { slug: 'akismet' }, 200 ) ).toEqual( { slug: 'akismet' } );
 		expect( () => unwrapAjaxEnvelope( { success: false, data: { code: 'nope', message: 'No.' } }, 200 ) ).toThrow( 'No.' );
 	} );
@@ -468,7 +448,7 @@ describe( 'the wp.org HTML sanitiser', () => {
 		);
 		expect( out ).not.toMatch( /script|onclick|onerror|iframe|style=/ );
 		expect( out ).toContain( 'Hi <b>there</b>' );
-		expect( out ).toContain( 'alert(1)' ); // the script's TEXT survives, inert
+		expect( out ).toContain( 'alert(1)' );
 		expect( out ).toContain( '<a>bad</a>' );
 		expect( out ).toContain( '<a>tab</a>' );
 		expect( out ).toContain( '<a href="https://example.test" target="_top">good</a>' );
@@ -516,7 +496,6 @@ describe( 'the changelog and FAQ parsers', () => {
 		expect( headings[ 1 ].answer ).toContain( 'A2b' );
 		expect( headings[ 2 ].answer ).toBe( '' );
 
-		// The malformed `<dt>Q</h4><p>A` nesting the directory emits.
 		const malformed = parseFaqPairs( '<dt>Q3</h4><p></p><p>A3</p><dt>  Q4 <em>x</em></h4><p>A4</p>' );
 		expect( malformed.map( ( p ) => p.question ) ).toEqual( [ 'Q3', 'Q4' ] );
 		expect( malformed[ 0 ].answer ).toBe( '<p>A3</p>' );
@@ -665,7 +644,7 @@ describe( 'the Browse gallery', () => {
 		await Promise.resolve();
 		expect( fetchMock() ).toHaveBeenCalledTimes( 3 );
 		expect( Array.from( galleryEl.querySelectorAll( '[data-slug]' ) ).map( ( c ) => ( c as HTMLElement ).dataset.slug ) ).toEqual( [ 'a', 'b', 'c', 'd' ] );
-		// The sentinel stays last so the observer keeps seeing it.
+
 		expect( galleryEl.lastElementChild?.classList.contains( 'os-plugins__gallery-sentinel' ) ).toBe( true );
 	} );
 } );
@@ -885,7 +864,7 @@ describe( 'the installed plugin library', () => {
 		click( root, '.os-plugins__library-empty os-button' );
 		expect( ctx.state.search ).toBe( '' );
 		expect( root.querySelectorAll( '[data-plugin-card]' ) ).toHaveLength( 1 );
-		// The field follows the state it is bound to, or the next keystroke re-filters on stale text.
+
 		expect( field?.getAttribute( 'value' ) ?? '' ).toBe( '' );
 		const failed = mount( {}, { installed: [], error: 'Connection lost' } );
 		expect( failed.root.querySelector( 'os-notice' )?.textContent ).toContain( 'Connection lost' );

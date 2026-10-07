@@ -1,4 +1,3 @@
-/** Browser regression against a running local OpenStation development site. */
 const assert = require( 'node:assert/strict' );
 const { chromium } = require( 'playwright' );
 
@@ -22,8 +21,6 @@ const id = 'openstation-dock-safe-area-regression';
 
 		console.log( 'Shell ready' );
 
-		// Exercise real settings application without persisting this test's
-		// layout or window session. Local storage belongs to this fresh context.
 		const urls = await page.evaluate( () => [
 			window.openStationConfig.osSettingsUrl,
 			window.openStationConfig.sessionUrl,
@@ -72,9 +69,7 @@ const id = 'openstation-dock-safe-area-regression';
 		console.log( 'PASS maximize clears the visible bottom dock' );
 		await page.evaluate( () => window.wp.os.updateOsSettings( { dockSize: 'large' } ) );
 		await checkBounds( 'maximized' );
-		// A theme may keep the bottom tiles at a fixed height for every
-		// size preference. Grow the outer dock padding to exercise a real
-		// geometry change, including changes made by a custom rail renderer.
+
 		const originalInset = await page.evaluate( () => window.wp.os.workArea.get().insets.bottom );
 		await page.evaluate( () => { document.querySelector( '#os-dock' ).style.paddingBlock = '24px'; } );
 		await page.waitForFunction( previous => window.wp.os.workArea.get().insets.bottom > previous, originalInset );

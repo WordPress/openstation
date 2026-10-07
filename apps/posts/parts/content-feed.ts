@@ -1,4 +1,3 @@
-/** Continuous content browsing over the app's existing paginated server action. */
 import { __, html, type TemplateResult } from '@openstation/app';
 import type { ListData, PostListItem } from './types';
 import type { Ctx } from './window-context';
@@ -21,7 +20,6 @@ export class ContentFeed {
 		return JSON.stringify( [ state.search, state.status, state.orderby, state.order, state.author, state.tag, state.perPage ] );
 	}
 
-	/** New queries replace the collection; continuation batches append with ID deduplication. */
 	reconcile( ctx: Ctx ): Ctx {
 		this.ctx = ctx;
 		const { state, data } = ctx;
@@ -35,7 +33,6 @@ export class ContentFeed {
 			if ( data.list.error ) {
 				this.error = true;
 			} else {
-				// A late continuation cannot become the first batch of a new query.
 				if ( data.list.page > 1 && this.page === 0 && data.list.page !== this.expected && ! data.list.replace ) {
 					return { ...ctx, data: { ...data, list: { ...data.list, items: this.items } } };
 				}
@@ -51,7 +48,6 @@ export class ContentFeed {
 		return this.page > 0 && this.page < this.pages;
 	}
 
-	/** Single-flight, retryable continuation; never bypasses the PHP query filters. */
 	async more(): Promise< void > {
 		const ctx = this.ctx;
 		if ( ! ctx || this.disposed || this.pending || ctx.loading || ! this.hasMore ) {
@@ -87,7 +83,6 @@ export class ContentFeed {
 		return html`<div class="os-posts-desk__continuation" data-content-feed-end role="status">${ content }</div>`;
 	}
 
-	/** The card tail auto-loads; the optional table keeps an explicit accessible continuation. */
 	observe( root: HTMLElement ): void {
 		const sentinel = root.querySelector( '.os-posts-desk__feed [data-content-feed-end]' );
 		if ( sentinel === this.sentinel ) {

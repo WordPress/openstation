@@ -1,15 +1,3 @@
-/**
- * Unit tests for `src/ai/ask.ts` — the `wp.os.ai.ask()` wrapper.
- *
- * We stub `fetch` (setup test file doesn't, so each test installs its
- * own stub + teardown) and exercise the three branches that matter:
- *   - Normal `answer_type` response — passes through.
- *   - `tool_call` + command found in registry — run() fires locally.
- *   - `tool_call` + command NOT registered — graceful error payload.
- *
- * Network failures are verified separately so the reject path is
- * explicit.
- */
 import {
 	afterEach,
 	beforeEach,
@@ -26,22 +14,12 @@ const CONFIG = {
 	restNonce: 'test-nonce',
 };
 
-/**
- * Minimal `CommandContext` used as the `fallbackContext` dep. Tests
- * that care about the context (verifying `close` was called etc.)
- * build their own; everything else pulls this.
- */
 const stubCtx = () => ( {
 	close: () => void 0,
 	openInWindow: () => void 0,
 	confirm: () => Promise.resolve( true ),
 } );
 
-/**
- * Build an AbortError-shaped error without leaning on jsdom's
- * `DOMException`, which is flaky around the second constructor arg
- * (doesn't reliably set `name`). All `ask()` checks is `err.name`.
- */
 function makeAbortError(): Error {
 	return Object.assign( new Error( 'aborted' ), { name: 'AbortError' } );
 }
@@ -61,11 +39,6 @@ function mockFetchOnce( response: unknown, init: Partial< Response > = {} ): Fet
 	return fn;
 }
 
-/**
- * Mock a sequence of fetch responses. Each call to `fetch` drains
- * the next entry; exceeding the sequence throws (catches buggy test
- * expectations rather than silently recycling).
- */
 function mockFetchSequence( responses: Array< unknown | Error > ): FetchMock {
 	let i = 0;
 	const fn = vi.fn( async () => {
@@ -199,7 +172,7 @@ describe( 'wp.os.ai.ask()', () => {
 		expect( res.toolCall?.slug ).toBe( 'turn_lights' );
 		expect( res.toolCall?.args ).toBe( 'ON' );
 		expect( res.toolCall?.result ).toBe( 'did it: ON' );
-		// String return lifted into message so callers have a uniform spot.
+
 		expect( res.message ).toBe( 'did it: ON' );
 
 		unregisterCommand( 'turn_lights' );
@@ -295,10 +268,6 @@ describe( 'wp.os.ai.ask()', () => {
 		);
 	} );
 
-	// -------------------------------------------------------------------
-	// followUp: true — opt-in second-leg agentic flow
-	// -------------------------------------------------------------------
-
 	test( 'followUp: true fires a second fetch with the tool outcome', async () => {
 		registerCommand( {
 			slug: 'turn_lights',
@@ -308,14 +277,14 @@ describe( 'wp.os.ai.ask()', () => {
 		} );
 
 		const fetchFn = mockFetchSequence( [
-			// Leg 1 — model picks the command.
+
 			{
 				answer_type: 'tool_call',
 				message: '',
 				tool: { slug: 'turn_lights', args: 'ON' },
 				request_id: 'req-1',
 			},
-			// Leg 2 — server composes a friendly reply.
+
 			{
 				answer_type: 'chat',
 				message: 'Done — your office light is on now.',
@@ -331,7 +300,6 @@ describe( 'wp.os.ai.ask()', () => {
 
 		expect( fetchFn ).toHaveBeenCalledTimes( 2 );
 
-		// Leg 2's body carries the follow_up object with tool + result.
 		const leg2Body = JSON.parse(
 			fetchFn.mock.calls[ 1 ][ 1 ].body as string,
 		);
@@ -339,12 +307,11 @@ describe( 'wp.os.ai.ask()', () => {
 			slug: 'turn_lights',
 			args: 'ON',
 		} );
-		// String returns get wrapped as { value: … } for serialisation.
+
 		expect( leg2Body.follow_up.result ).toEqual( {
 			value: 'Light is ON.',
 		} );
 
-		// The composed reply wins over the raw run() string.
 		expect( res.message ).toBe( 'Done — your office light is on now.' );
 		expect( res.toolCall?.result ).toBe( 'Light is ON.' );
 
@@ -377,7 +344,7 @@ describe( 'wp.os.ai.ask()', () => {
 		const leg2Body = JSON.parse(
 			fetchFn.mock.calls[ 1 ][ 1 ].body as string,
 		);
-		// Object returns pass through unwrapped.
+
 		expect( leg2Body.follow_up.result ).toEqual( {
 			total: 42,
 			breakdown: [ 1, 2, 39 ],
@@ -487,8 +454,6 @@ describe( 'wp.os.ai.ask()', () => {
 			followUp: true,
 		} );
 
-		// The command *did* run, so we keep the primary result + the
-		// one-shot fallback message. No exception surfaces.
 		expect( res.toolCall?.result ).toBe( 'primary result' );
 		expect( res.message ).toBe( 'primary result' );
 
@@ -503,7 +468,6 @@ describe( 'wp.os.ai.ask()', () => {
 		const ask = createAsk( { config: () => CONFIG, fallbackContext: stubCtx } );
 		const res = await ask( 'hello', { followUp: true } );
 
-		// Only one fetch — follow-up is only relevant for tool_call.
 		expect( fetchFn ).toHaveBeenCalledTimes( 1 );
 		expect( res.message ).toBe( 'just chatting' );
 	} );

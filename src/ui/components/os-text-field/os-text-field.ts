@@ -1,48 +1,3 @@
-/**
- * `<os-text-field>` — labelled text input primitive.
- *
- * Sits alongside `<os-color-field>` / `<os-range-field>` /
- * `<os-number-field>` in the kit of labelled inputs; use it
- * anywhere a native window needs free-form text entry — search
- * boxes, notes, renameable labels, form fields.
- *
- * ```html
- * <os-text-field
- *     label="Note title"
- *     value="Untitled"
- *     placeholder="Name this note"
- *     autocomplete="off"
- * ></os-text-field>
- * ```
- *
- * A compact field with no room for a label — a toolbar search, say —
- * takes `hide-label`. The label still renders, still pairs with the
- * input by `for=`, and is still the accessible name; it is only taken
- * out of the visual flow. `placeholder` is NOT a substitute: it is not
- * an accessible name, and it disappears on the first keystroke.
- *
- * ```html
- * <os-text-field
- *     label="Search notes"
- *     hide-label
- *     placeholder="Search notes…"
- * ></os-text-field>
- * ```
- *
- * Add the `reveal` attribute on `type="password"` fields to show an
- * eye-icon toggle that switches between hidden and visible text:
- *
- * ```html
- * <os-text-field type="password" reveal label="API key"></os-text-field>
- * ```
- *
- * Emits `os-input-change` with `{ value: string }` on every user
- * keystroke (debounced once per `input` event firing — same cadence
- * as `<os-range-field>`). Callers that need Enter-to-submit can
- * listen for the `os-submit` event the component fires when the
- * user presses Enter without Shift.
- */
-
 import {
 	Component,
 	defineComponent,
@@ -159,25 +114,17 @@ export class OsTextField extends Component {
 		`,
 	} as const;
 
-	/** Whether the password text is currently visible. Internal state, not reflected to an attribute. */
 	private _revealed = false;
 
 	connectedCallback(): void {
 		super.connectedCallback();
-		// Deterministic id derived from native-window + tab
-		// ancestry + the `label` attribute. See `src/ui/core/auto-id.ts`.
-		// Only applied when the caller hasn't set one explicitly —
-		// plugin authors keep full control by passing `id="…"`.
+
 		ensureAutoId( this );
 	}
 
 	protected render() {
 		const label = ( this as unknown as { label: string | null } ).label || '';
-		// `hide-label` hides the label, never the NAME: the <label> below is
-		// still rendered and still paired by `for=`, and `aria-label` on the
-		// input is unchanged. A compact field that drops the label entirely
-		// has no accessible name at all — `placeholder` is not one, and it
-		// disappears on the first keystroke.
+
 		const hideLabel =
 			( this as unknown as { hideLabel: string | null } ).hideLabel !== null;
 		const value = ( this as unknown as { value: string | null } ).value ?? '';
@@ -193,20 +140,7 @@ export class OsTextField extends Component {
 		} ).autocomplete;
 		const declaredType =
 			( this as unknown as { type: string | null } ).type || 'text';
-		// Chrome (and Edge / Brave / other Chromium) ignore
-		// `autocomplete="off"` on `<input type="password">` — their
-		// password-manager heuristic always offers to save anything
-		// the user types into a masked field, even outside a form.
-		// `autocomplete="new-password"` IS honoured: it's the spec
-		// signal for "this isn't a sign-in field" and skips both the
-		// autofill prompt and the "save password?" toast.
-		//
-		// We surface this for password fields where the caller didn't
-		// declare an autocomplete value, OR explicitly passed `off`
-		// (signal of "no autocomplete"). Callers that genuinely want
-		// stored credential autofill — e.g. a future login form —
-		// pass `autocomplete="current-password"` and we forward it
-		// untouched.
+
 		const isPassword = declaredType === 'password';
 		let autocomplete = declaredAutocomplete || 'off';
 		if ( isPassword && ( ! declaredAutocomplete || autocomplete === 'off' ) ) {
@@ -229,24 +163,9 @@ export class OsTextField extends Component {
 		const clearable =
 			( this as unknown as { clearable: string | null } ).clearable !== null;
 
-		// "Password" is a UI MODE (visually mask the value), not a
-		// credential field. We always render the underlying control as
-		// `type="text"` and apply CSS-based masking — Chrome / Edge /
-		// Firefox password managers only inspect `<input type="password">`
-		// to decide whether to offer save / update / autofill, so by
-		// presenting a plain text input we sidestep the entire heuristic
-		// even when the user has saved a password for the site already.
-		// (The autocomplete="new-password" upgrade above is kept as a
-		// belt-and-braces guard in case a future caller forces type=password
-		// directly — which today no consumer does.)
 		const isPasswordIntent = declaredType === 'password';
 		const isMasked = isPasswordIntent && ! ( reveal && this._revealed );
-		// Effective input type: password fields always render as
-		// type="text" (mask is CSS-only — see styles); other types
-		// flip to "text" only when the reveal toggle is engaged for a
-		// non-password reveal (currently no consumer, kept for parity
-		// with the prior reveal contract); otherwise the declared
-		// type passes through.
+
 		let effectiveType: string;
 		if ( isPasswordIntent ) {
 			effectiveType = 'text';
@@ -267,10 +186,6 @@ export class OsTextField extends Component {
 			? 'os-text-field__input os-text-field__input--masked'
 			: 'os-text-field__input';
 
-		// Shadow-DOM <label for=…> pairing. `this.id` is populated
-		// by ensureAutoId on connect (or by the caller's own id).
-		// The inner control's id is deterministic too, derived from
-		// the host id + the conventional `__input` suffix.
 		const hostId = this.id || 'os-unnamed';
 		const inputId = `${ hostId }__input`;
 
@@ -331,10 +246,7 @@ export class OsTextField extends Component {
 
 	private _onClear(): void {
 		( this as unknown as { value: string } ).value = '';
-		// Both events, deliberately: clearing is a keystroke-shaped
-		// edit AND a commit point — the old search toolbars emitted
-		// the empty query immediately rather than making an explicit
-		// clear wait out a debounce.
+
 		this.emit( 'os-input-change', { value: '' } );
 		this.emit( 'os-input-commit', { value: '' } );
 		this.shadowRoot?.querySelector< HTMLInputElement >( 'input' )?.focus();
@@ -369,10 +281,6 @@ export class OsTextField extends Component {
 	}
 
 	private _onChange( e: Event ): void {
-		// `change` fires after focus-loss — a looser debounce for
-		// callers who only care about the final value (form submit,
-		// save-on-blur). `os-input-change` already fires on every
-		// keystroke; this event is the commit-point signal.
 		const input = e.target as HTMLInputElement;
 		this.emit( 'os-input-commit', { value: input.value } );
 	}
@@ -385,11 +293,6 @@ export class OsTextField extends Component {
 	}
 }
 defineComponent( 'os-text-field', OsTextField );
-
-// ---------------------------------------------------------------------------
-// Icon helpers — inline SVG so they work inside shadow DOM without any
-// external font dependency (Dashicons can't cross the shadow boundary).
-// ---------------------------------------------------------------------------
 
 function _iconClear() {
 	return html`

@@ -1,12 +1,5 @@
 import { css } from '../../core';
 
-/**
- * Styles for `<os-avatar>` — image-or-initials user tile with an
- * optional presence dot in the bottom-end corner. Sizes drive both
- * box dimensions and font-size of the initials so the tile scales
- * cleanly between conversation-list rows (32px) and a profile
- * card (64px).
- */
 export const avatarStyles = css`
 	:host {
 		display: inline-flex;
@@ -16,19 +9,9 @@ export const avatarStyles = css`
 		flex: 0 0 auto;
 		vertical-align: middle;
 		line-height: 0;
-		/*
-		 * 3D perspective lets the tile rotate towards / away from the
-		 * pointer. The value is generous (size × 8) so even small
-		 * avatars feel responsive without distortion at the edges.
-		 */
+
 		perspective: calc( var( --os-ui-avatar-size, 32px ) * 8 );
-		/*
-		 * Pointer-driven CSS custom properties. The TS side updates
-		 * these on pointermove; the styles below consume them. With
-		 * smooth transitions the result is a parallax-style hover
-		 * that "leans" toward the cursor and shines a soft glare
-		 * across the surface.
-		 */
+
 		--os-ui-avatar-tilt-x: 0deg;
 		--os-ui-avatar-tilt-y: 0deg;
 		--os-ui-avatar-hover: 0;
@@ -51,19 +34,10 @@ export const avatarStyles = css`
 		align-items: center;
 		justify-content: center;
 		font-weight: 700;
-		/*
-		 * Slightly larger glyph — 0.42 left initials looking under-
-		 * filled inside the tile. 0.48 balances the negative space
-		 * without crowding the edge.
-		 */
+
 		font-size: calc( var( --os-ui-avatar-size, 32px ) * 0.48 );
 		line-height: 1;
-		/*
-		 * Single-character initials have no following glyph to "space
-		 * after", so any positive letter-spacing inflates the
-		 * bounding box without shifting the visible character — that
-		 * made the X look off-centered to the right. Zero out.
-		 */
+
 		letter-spacing: 0;
 		font-feature-settings: 'tnum' 1;
 		user-select: none;
@@ -82,15 +56,9 @@ export const avatarStyles = css`
 			0 calc( 1px + var( --os-ui-avatar-hover ) * 8px )
 				calc( 6px + var( --os-ui-avatar-hover ) * 18px )
 				rgba( 0, 0, 0, calc( 0.08 + 0.18 * var( --os-ui-avatar-hover ) ) );
-		/* Glyph "floats" above the surface — a tiny Z translate
-		 * separates it from the glare layer in the 3D scene. */
+
 	}
 
-	/* Cursor-tracking glare — a soft white radial bloom that follows
-	 * the pointer. mix-blend-mode overlay lets it warm the underlying
-	 * color instead of stamping a flat white on top, so the hue still
-	 * reads through. Opacity is driven by hover so it fades in/out
-	 * with the tilt. */
 	.os-avatar__tile::after {
 		content: '';
 		position: absolute;
@@ -107,19 +75,12 @@ export const avatarStyles = css`
 		transition: opacity 220ms cubic-bezier( 0.2, 0.8, 0.2, 1 );
 	}
 
-	/* Subtle outer halo — a hue-aware ring that swells with hover.
-	 * Sits BEHIND the tile (negative z-index) so the perspective tilt
-	 * doesn't clip it. */
 	.os-avatar__tile::before {
 		content: '';
 		position: absolute;
 		inset: calc( var( --os-ui-avatar-hover ) * -3px );
 		border-radius: 50%;
-		/* The halo hue was a fixed indigo, which is a colour no palette
-		   in the station names — an avatar lit itself in a hue nothing
-		   around it used. It follows --os-ui-avatar-halo now, and
-		   color-mix carries the hover-driven alpha so the token can
-		   stay a plain colour. */
+
 		background: radial-gradient(
 			circle at var( --os-ui-avatar-glare-x ) var( --os-ui-avatar-glare-y ),
 			color-mix(
@@ -139,21 +100,13 @@ export const avatarStyles = css`
 	}
 
 	.os-avatar__tile img {
-		/*
-		 * Bleed 1px past the tile on every side. At exactly 100% the
-		 * circular clip and the image edge land on the same subpixel
-		 * boundary, and the tile's transform (tilt + scale) makes the
-		 * rounding disagree — leaving a hairline crescent of the tile
-		 * background showing through the rim. Overshooting puts the
-		 * seam outside the clip, where overflow:hidden eats it.
-		 */
+
 		width: calc( 100% + 2px );
 		height: calc( 100% + 2px );
 		margin: -1px;
 		object-fit: cover;
 		display: block;
-		/* Lift the image one notch in 3D space so it sits above the
-		 * glare layer's radial bloom. */
+
 		transform: translateZ( 1px );
 	}
 
@@ -169,26 +122,10 @@ export const avatarStyles = css`
 		box-sizing: border-box;
 		border: 2px solid var( --os-ui-avatar-dot-ring, var( --os-window-bg, #fff ) );
 		background: var( --os-ui-avatar-dot-color, transparent );
-		/* Keep the dot out of the perspective scene so it stays
-		 * crisply pinned to the bottom-end corner regardless of tilt. */
+
 		z-index: 2;
 	}
 
-	/*
-	 * Online breathes; the other two do not, and that asymmetry is the
-	 * point.
-	 *
-	 * Three flat dots differing only in hue put the whole burden of
-	 * "who is here right now" on colour discrimination — which is
-	 * exactly the channel a red/green-blind user does not have. A slow
-	 * ring expanding out of the live one carries the same fact through
-	 * motion instead, and it is the only state that gets it, so
-	 * "moving" reads unambiguously as "online".
-	 *
-	 * Six seconds, so it is a pulse rather than a blink: at this rate
-	 * a sidebar of twenty avatars reads as a room with people in it,
-	 * not as twenty notifications.
-	 */
 	.os-avatar__dot--online {
 		background: var( --os-ui-success-fg, #00a32a );
 	}
@@ -210,9 +147,6 @@ export const avatarStyles = css`
 			transform: scale( 1 );
 		}
 
-		/* The whole expansion happens in the first fifth of the cycle;
-		   the rest is the rest. A pulse that eased continuously would
-		   read as a loading spinner. */
 		20% {
 			opacity: 0;
 			transform: scale( 2.2 );
@@ -230,17 +164,8 @@ export const avatarStyles = css`
 		background: var( --os-ui-fg-muted, #8c8f94 );
 	}
 
-	/* Respect user preference — disable the tilt + glare entirely
-	 * for users who opt into reduced motion. The hover lift in
-	 * box-shadow is gentle enough to keep; only the heavy motion
-	 * channels get muted. */
 	@media ( prefers-reduced-motion: reduce ) {
-		/*
-		 * The presence ring stops but stays: at rest it is a static
-		 * halo around the live dot, so the second, non-colour channel
-		 * for "online" survives the preference. Removing it would trade
-		 * a motion complaint for a contrast one.
-		 */
+
 		.os-avatar__dot--online::after {
 			animation: none;
 			opacity: 0.6;

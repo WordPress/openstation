@@ -1,50 +1,15 @@
-/**
- * A row-action button for a table cell: a glyph (and optionally its
- * label) in a bordered square that swaps to the hover wash under the
- * pointer or keyboard focus.
- *
- * Shared by every app that paints actions into an `<os-table>` row
- * (the Recycle Bin's restore / delete, the Users list's password
- * reset / welcome email). It exists because `<os-table>` renders its
- * body into a shadow root that document stylesheets never reach:
- * every visual property has to be an inline `style.*`, and every
- * colour an inline `var()` chain that inherits THROUGH the boundary.
- * Two apps carrying the same forty lines of inline styles drifted
- * once — one set `color: inherit` on a `#fff` fallback and lost its
- * glyphs on the dark palette — so the chains live here, once.
- *
- * The button owns the shell; the caller owns the glyph. An
- * `<os-icon>`, an inline SVG or a themed mask span all work, as long
- * as they draw in `currentColor` so the hover and danger tints reach
- * them.
- */
-
 export interface RowActionButtonOptions {
-	/** The accessible name; also the tooltip, and the text when `labelled`. */
+
 	label: string;
-	/** The glyph node. Drawn in `currentColor` so state tints reach it. */
+
 	glyph: Node;
 	onClick: () => void;
-	/** `'danger'` paints the destructive face; anything else is the default. */
+
 	variant?: string;
-	/**
-	 * Print the label beside the glyph, at a finger's height. A 30px
-	 * icon-only square is right in a row on a desk and wrong on a
-	 * card under a thumb: too small to hit, and a glyph alone has to
-	 * be learned.
-	 */
+
 	labelled?: boolean;
 }
 
-/**
- * Build the button. Every visual property is inline, the click is
- * bound in place with propagation stopped, and `data-noclick` opts
- * the button out of `os-table-row-click`.
- *
- * Fallback literals are the pre-brand WordPress-admin values — the
- * floor if the stylesheet fails to load, and what the Legacy theme
- * declares.
- */
 export function makeRowActionButton( opts: RowActionButtonOptions ): HTMLElement {
 	const btn = document.createElement( 'button' );
 	btn.type = 'button';

@@ -1,13 +1,3 @@
-/**
- * Content Graph — shared types.
- *
- * The shapes here mirror what `includes/content-graph/` ships from
- * the REST endpoints — REST is the single source of truth, the JS
- * side just types the wire payloads.
- *
- * @public
- */
-
 export interface PostTypeDescriptor {
 	slug: string;
 	label: string;
@@ -26,28 +16,12 @@ export interface GraphNodePayload {
 	status: string;
 	slug: string;
 	edit_url: string;
-	/**
-	 * Grouping facets. Always present on every node so the client never
-	 * has to null-check. `author_id` is `0` for posts authored by a
-	 * deleted user; `year` is `0` when `post_date` is unavailable
-	 * (effectively never, but defensively typed).
-	 */
+
 	author_id: number;
-	/**
-	 * Distinct revision authors for the post, excluding the primary
-	 * `author_id`. When grouping by author, the cluster-attractor
-	 * force uses these to pull collaborator posts toward each
-	 * contributor's centroid (the primary author is weighted more
-	 * heavily so the post still lands closer to them).
-	 */
+
 	contributor_ids: number[];
 	year: number;
-	/**
-	 * `'YYYY-MM'` derived server-side from `post_date`. Empty string
-	 * when the post has no usable date (defensive — every WP post has
-	 * one, but the field is typed as required so callers don't have
-	 * to optional-chain).
-	 */
+
 	year_month: string;
 	category_ids: number[];
 	tag_ids: number[];
@@ -58,12 +32,6 @@ export interface GraphEdgePayload {
 	to: number;
 }
 
-/**
- * Compact catalog of group labels referenced by at least one node in
- * the payload. Keyed by id (string-coerced from int by JSON). Only
- * entries actually referenced by a visible node are emitted — keeps
- * the payload tight on sites with many unused authors / terms.
- */
 export interface GraphGroupCatalogs {
 	authors: Record< number, { name: string } >;
 	categories: Record< number, { name: string } >;
@@ -81,10 +49,6 @@ export interface GraphPayload {
 	};
 }
 
-/**
- * Which facet the group-by selector is currently clustering on. `null`
- * means no clustering — the layout is the existing constellation.
- */
 export type GroupFacet =
 	| 'category'
 	| 'tag'
@@ -288,22 +252,11 @@ export interface ContentGraphConfig {
 	editUserUrl: string;
 	editCommentUrl: string;
 	mediaUrl: string;
-	/**
-	 * The site's own name, used to label the detail panel's
-	 * "Open in <site>" action. Sourced from
-	 * `openstation_site_title()` server-side.
-	 */
+
 	siteName?: string;
 	postTypes: PostTypeDescriptor[];
 }
 
-/**
- * Live in-memory node — the REST payload plus simulation state.
- * The grouping facets (`author_id`, `year`, `category_ids`,
- * `tag_ids`) come along for free via the `GraphNodePayload` extension
- * and are read directly by `GraphScene.setGrouping()` to derive each
- * node's group keys.
- */
 export interface GraphNode extends GraphNodePayload {
 	x: number;
 	y: number;

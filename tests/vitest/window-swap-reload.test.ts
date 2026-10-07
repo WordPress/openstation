@@ -1,19 +1,3 @@
-/**
- * Tests for `Window.swapReload()` — the silent, double-buffered
- * refresh used by the editor-preview companion:
- *
- *   - buffer creation: hidden twin stacked in the body, visible frame
- *     untouched, loading overlay never armed
- *   - swap on buffer load: old frame removed, `win.iframe` re-pointed,
- *     buffer promoted (class/name/aria cleanup)
- *   - no swap on the about:blank load a browser fires when an iframe
- *     is inserted without a URL
- *   - re-entrancy: a newer swap supersedes an in-flight buffer; a
- *     superseded buffer's late load is ignored
- *   - post-swap overlay contract: a later classic `reload()` still
- *     clears the loading overlay via the re-wired `load` handler
- *   - `WINDOW_RELOADED` fires with `silent: true` on completion
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { HOOKS } from '../../src/hooks';
@@ -71,8 +55,7 @@ describe( 'Window.swapReload', () => {
 		} );
 		document.body.appendChild( desktopArea );
 		manager = new WindowManager( desktopArea );
-		// The body--loading class toggling is hook-driven; the shell
-		// boot installs it once, tests re-install per hooks stub.
+
 		_resetWindowLoadingTransitionsForTests();
 		installWindowLoadingTransitions();
 	} );
@@ -100,8 +83,7 @@ describe( 'Window.swapReload', () => {
 		);
 		expect( buffer ).not.toBeNull();
 		expect( buffer!.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-		// The visible frame is still the primary one, still attached,
-		// elevated above the loading twin for the swap's duration.
+
 		expect( win.iframe ).toBe( original );
 		expect( original.isConnected ).toBe( true );
 		expect(
@@ -109,7 +91,7 @@ describe( 'Window.swapReload', () => {
 				'os-window__iframe--swap-front',
 			),
 		).toBe( true );
-		// swapReload never arms (or clears) the loading overlay.
+
 		expect(
 			body.classList.contains( 'os-window__body--loading' ),
 		).toBe( overlayStateBefore );
@@ -124,13 +106,12 @@ describe( 'Window.swapReload', () => {
 		const buffer = body.querySelector< HTMLIFrameElement >(
 			BUFFER_SELECTOR,
 		)!;
-		// Until the load lands, the visible frame is untouched.
+
 		expect( win.iframe ).toBe( original );
 		expect( original.isConnected ).toBe( true );
 
 		buffer.dispatchEvent( new Event( 'load' ) );
 
-		// Instant cut — same tick, no animation.
 		expect( original.isConnected ).toBe( false );
 		expect( win.iframe ).toBe( buffer );
 		expect(
@@ -143,14 +124,12 @@ describe( 'Window.swapReload', () => {
 			'os-frame-sw2',
 		);
 		expect( buffer.src ).toContain( 'fresh=1' );
-		// Same-origin gate rode along, like navigateTo.
+
 		expect( buffer.src ).toContain( 'openstation_chromeless=1' );
 	} );
 
 	test( 'keeps the old page up until the twin has loaded its URL', async () => {
-		// Browsers fire `load` synchronously for an iframe inserted
-		// without a URL (its initial about:blank). jsdom doesn't, so
-		// emulate it on the insertion the swap makes.
+
 		const insert = Element.prototype.insertAdjacentElement;
 		vi.spyOn( Element.prototype, 'insertAdjacentElement' ).mockImplementation(
 			function ( this: Element, where: InsertPosition, el: Element ) {
@@ -173,17 +152,11 @@ describe( 'Window.swapReload', () => {
 	test( 'a swap completing before the FIRST load clears the boot overlay', async () => {
 		const win = await manager.open( openConfig( 'sw-early' ) );
 		const body = win.element.querySelector( '.os-window__body' )!;
-		// The initial load never fired — the boot overlay is armed.
+
 		expect(
 			body.classList.contains( 'os-window__body--loading' ),
 		).toBe( true );
 
-		// Refresh before the initial load lands (an editor-preview
-		// companion whose background autosave settles fast does
-		// exactly this). The original frame is removed with its
-		// pending load event — without the completion-side
-		// markWindowContentReady, nothing would ever clear the
-		// overlay.
 		win.swapReload();
 		const buffer = body.querySelector< HTMLIFrameElement >(
 			BUFFER_SELECTOR,
@@ -206,16 +179,13 @@ describe( 'Window.swapReload', () => {
 		)!;
 		win.swapReload( '/wp-admin/a.php?v=2' );
 
-		// Only the newest buffer remains in the DOM.
 		const buffers = body.querySelectorAll( BUFFER_SELECTOR );
 		expect( buffers ).toHaveLength( 1 );
 		expect( first.isConnected ).toBe( false );
 
-		// A late load on the superseded (detached) buffer changes nothing.
 		first.dispatchEvent( new Event( 'load' ) );
 		expect( win.iframe ).toBe( original );
 
-		// The live buffer still completes normally.
 		const second = body.querySelector< HTMLIFrameElement >(
 			BUFFER_SELECTOR,
 		)!;
@@ -227,7 +197,7 @@ describe( 'Window.swapReload', () => {
 	test( 'a later classic reload() still clears the overlay after a swap', async () => {
 		const win = await manager.open( openConfig( 'sw4' ) );
 		const body = win.element.querySelector( '.os-window__body' )!;
-		// Settle the initial load state first.
+
 		win.iframe!.dispatchEvent( new Event( 'load' ) );
 
 		win.swapReload();
@@ -237,15 +207,6 @@ describe( 'Window.swapReload', () => {
 		buffer.dispatchEvent( new Event( 'load' ) );
 		expect( win.iframe ).toBe( buffer );
 
-		// Classic reload arms the overlay; the swapped-in frame's
-		// re-wired load handler must clear it.
-		//
-		// jsdom has no navigation, so the real `location.reload()`
-		// logs "Not implemented" to the virtual console instead of
-		// throwing (so `reload()`'s own catch never runs, and the
-		// noise lands in CI logs). jsdom's `Location` rejects
-		// spies, so stub `contentWindow` on the element — the swap
-		// has already completed here, so nothing else reads it.
 		Object.defineProperty( buffer, 'contentWindow', {
 			configurable: true,
 			value: { location: { reload: vi.fn() }, scrollX: 0, scrollY: 0 },
@@ -266,7 +227,7 @@ describe( 'Window.swapReload', () => {
 		const log = recordActions( hooks, [ HOOKS.WINDOW_RELOADED ] );
 
 		win.swapReload( '/wp-admin/a.php?v=3' );
-		expect( log ).toHaveLength( 0 ); // Not before the load lands.
+		expect( log ).toHaveLength( 0 );
 
 		body.querySelector< HTMLIFrameElement >( BUFFER_SELECTOR )!
 			.dispatchEvent( new Event( 'load' ) );
@@ -288,16 +249,14 @@ describe( 'Window.swapReload', () => {
 	} );
 
 	test( 'a pointerdown inside a bridge-less iframe document focuses the window', async () => {
-		// A FRONT-END url — the forwarder deliberately skips admin
-		// documents (the chromeless bridge escalates focus there).
+
 		const winA = await manager.open( {
 			id: 'sw7',
 			url: '/hello-world/?preview=true',
 			title: 'Preview',
 			icon: 'dashicons-visibility',
 		} );
-		// jsdom never fires iframe load on its own; in real browsers
-		// this is where the forwarder attaches to the loaded document.
+
 		winA.iframe!.dispatchEvent( new Event( 'load' ) );
 
 		const winB = await manager.open( openConfig( 'sw8' ) );
@@ -333,9 +292,6 @@ describe( 'Window.swapReload', () => {
 		body.querySelector< HTMLIFrameElement >( BUFFER_SELECTOR )!
 			.dispatchEvent( new Event( 'load' ) );
 
-		// The promoted twin shows post-new.php — the tab highlight
-		// must follow (the sync wiring is re-attached, not lost with
-		// the old frame).
 		expect(
 			tabs[ 1 ].classList.contains( 'os-window__tab--active' ),
 		).toBe( true );

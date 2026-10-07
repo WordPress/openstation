@@ -1,9 +1,3 @@
-/**
- * OpenStation - Cron Manager window styles.
- *
- * Scoped to `.wpdm-cron-manager`.
- */
-
 .wpdm-cron-manager {
 	display: flex;
 	flex-direction: column;

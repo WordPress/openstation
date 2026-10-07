@@ -1,7 +1,3 @@
-/**
- * Unit tests for Inkfall's scoring model
- * (`src/games/inkfall/scoring.ts`).
- */
 import { describe, expect, test } from 'vitest';
 import {
 	accuracyPercent,
@@ -18,11 +14,11 @@ import {
 
 describe( 'inkfall/scoring.ts', () => {
 	test( 'word points formula bounds', () => {
-		// Base: 10 × length at the bottom of the page, no streak.
+
 		expect( wordPoints( 4, 0, 0 ) ).toBe( 40 );
-		// Finished at the very top: 1.5×.
+
 		expect( wordPoints( 4, 1, 0 ) ).toBe( 60 );
-		// Height fraction clamps.
+
 		expect( wordPoints( 4, 5, 0 ) ).toBe( 60 );
 		expect( wordPoints( 4, -1, 0 ) ).toBe( 40 );
 	} );
@@ -37,10 +33,10 @@ describe( 'inkfall/scoring.ts', () => {
 	test( 'clean completions grow the streak; the multiplier lags by one word', () => {
 		const state = createScoreState();
 		const first = recordCompletion( state, 4, 0 );
-		expect( first ).toBe( 40 ); // streak was 0 → 1.0×
+		expect( first ).toBe( 40 );
 		expect( state.streak ).toBe( 1 );
 		const second = recordCompletion( state, 4, 0 );
-		expect( second ).toBe( 44 ); // streak was 1 → 1.1×
+		expect( second ).toBe( 44 );
 	} );
 
 	test( 'a typo resets the streak and gates the current word', () => {
@@ -52,11 +48,9 @@ describe( 'inkfall/scoring.ts', () => {
 		recordTypo( state );
 		expect( state.streak ).toBe( 0 );
 
-		// The word the typo happened in doesn't restart the streak.
 		recordCompletion( state, 4, 0 );
 		expect( state.streak ).toBe( 0 );
 
-		// The next clean word does.
 		recordCompletion( state, 4, 0 );
 		expect( state.streak ).toBe( 1 );
 	} );
@@ -78,7 +72,6 @@ describe( 'inkfall/scoring.ts', () => {
 		recordTypo( state );
 		expect( accuracyPercent( state ) ).toBe( 90 );
 
-		// 25 correct chars over 60 s → 5 words/min.
 		const wpmState = createScoreState();
 		for ( let i = 0; i < 25; i++ ) {
 			recordCorrectKey( wpmState );

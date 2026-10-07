@@ -1,20 +1,3 @@
-/**
- * Server-driven title-bar-button sync.
- *
- * Mirrors `src/commands/server-sync.ts` and
- * `src/settings/server-sync.ts` for the title-bar registry. Plugins
- * opt in server-side with
- * `openstation_register_titlebar_button_script()`; this module
- * loads each opted-in script on activation, and on deactivation
- * unregisters every button whose `owner` matches the departing
- * handle.
- *
- * Buttons that don't set `owner` survive past deactivation until
- * the next page reload — graceful backwards-compat. Open windows
- * repaint live via the registry's subscribe fan-out (see
- * `Window.renderCustomTitleBarButtons`).
- */
-
 import { doAction, HOOKS } from './../hooks';
 import { loadVendorScript } from './../wallpapers/vendor-loader';
 import { unregisterTitleBarButtonsByOwner } from './registry';
@@ -36,8 +19,7 @@ export function createTitleBarButtonRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-				// The packages the bundle declares, brought in first; the
-				// document skips what it already ran.
+
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
@@ -64,7 +46,6 @@ export function createTitleBarButtonRegistrySync(): (
 			}
 		}
 
-		// Deactivation — drop buttons owned by departing handles.
 		for ( const handle of Array.from( loadedHandles ) ) {
 			if ( incomingHandles.has( handle ) ) {
 				continue;
@@ -73,7 +54,6 @@ export function createTitleBarButtonRegistrySync(): (
 			loadedHandles.delete( handle );
 		}
 
-		// Activation — inject any newly-arrived scripts.
 		for ( const entry of scripts ) {
 			if ( ! entry.handle || loadedHandles.has( entry.handle ) ) {
 				continue;

@@ -1,20 +1,3 @@
-/**
- * OpenStation — stored-upload entry points (DESKMOD-45).
- *
- * Wires the real-file-storage feature into the existing menu
- * surfaces, all through the public hook bus:
- *
- *   1. Tile context menu — "Download" on upload tiles;
- *      "Download as .zip" on folder tiles (when the server has
- *      ZipArchive); "Share file…" for owners; "Leave shared file"
- *      for recipients.
- *   2. Wallpaper context menu — "Upload files…" and
- *      "Upload folder…" pickers (the drag-drop path lives in
- *      `src/os-file-drop/`).
- *
- * Activated once on boot from `src/desktop-files/index.ts`.
- */
-
 import { addFilter } from '../hooks';
 import { showToast } from '../toast';
 import { toastRestFailure } from '../core/rest-failure';
@@ -29,8 +12,7 @@ import {
 	type RestPlacementShape,
 } from './rest';
 import { removePlacement, setFolderPlacements } from './store';
-// `../os-confirm`, not the component module — see the note in
-// `share-menu-items.ts`.
+
 import { osConfirm } from '../os-confirm';
 import type { TileMenuItem } from './tile-menu';
 
@@ -50,7 +32,6 @@ function storageConfig(): StorageConfigShape {
 	);
 }
 
-/** Mirrors the folder-share kill-switch read in share-menu-items. */
 function sharingEnabled(): boolean {
 	const settings = ( window as unknown as {
 		wp?: { os?: { getOsSettings?: () => { foldersSharingEnabled?: boolean } } };
@@ -69,9 +50,6 @@ function uploadFileId( placement: RestPlacementShape ): number | null {
 	return Number.isFinite( id ) && id > 0 ? id : null;
 }
 
-/**
- * Boot — register the tile-menu + wallpaper-menu entries.
- */
 export function installUploadMenuItems(): void {
 	addFilter(
 		'os.files.tile-menu',
@@ -80,7 +58,6 @@ export function installUploadMenuItems(): void {
 			items: TileMenuItem[],
 			placement: RestPlacementShape,
 		): TileMenuItem[] => {
-			// Folder tiles: on-demand zip download.
 			if ( placement.file.type === 'folder' && storageConfig().zipAvailable ) {
 				const folderId = Number( placement.file.ref );
 				if ( Number.isFinite( folderId ) && folderId > 0 ) {
@@ -102,7 +79,6 @@ export function installUploadMenuItems(): void {
 				return items;
 			}
 
-			// Every viewer of the tile can read the file — download.
 			items.push( {
 				id: 'desktop-mode/upload-download',
 				label: 'Download',
@@ -124,9 +100,6 @@ export function installUploadMenuItems(): void {
 					icon: 'dashicons-share',
 					sort: 30,
 					onClick: () => {
-						// Via the lazy loader — the old dynamic
-						// import was flattened into the shell bundle
-						// by the IIFE build.
 						void openFileShareModal( {
 							fileId,
 							fileName:
@@ -135,7 +108,6 @@ export function installUploadMenuItems(): void {
 					},
 				} );
 			} else if ( ownerId > 0 && ownerId !== viewer && placement.parentId === 0 ) {
-				// The recipient's own desktop tile of a shared file.
 				items.push( {
 					id: 'desktop-mode/upload-leave',
 					label: 'Leave shared file',
@@ -160,7 +132,7 @@ export function installUploadMenuItems(): void {
 								const res = await listPlacements( 0 );
 								setFolderPlacements( 0, res.placements );
 							} catch ( _e ) {
-								// Heartbeat will catch up.
+
 							}
 							showToast( { message: 'You left the shared file.' } );
 						} catch ( err ) {
@@ -173,8 +145,6 @@ export function installUploadMenuItems(): void {
 		},
 	);
 
-	// Wallpaper context menu — explicit pickers next to the
-	// drag-and-drop path.
 	addFilter(
 		'os.wallpaper-context-menu',
 		'desktop-mode/uploads',
@@ -201,12 +171,6 @@ export function installUploadMenuItems(): void {
 	);
 }
 
-/**
- * Open a native picker and route the selection through the same
- * upload dialog the drop path uses. `directory` switches to the
- * `webkitdirectory` picker — note empty directories are invisible
- * on this path (only drag-drop's Entries API can see them).
- */
 function openFilePicker( directory: boolean ): void {
 	const input = document.createElement( 'input' );
 	input.type = 'file';
@@ -229,11 +193,6 @@ function openFilePicker( directory: boolean ): void {
 }
 
 async function routePickedFiles( files: File[], directory: boolean ): Promise< void > {
-	// The policy check + upload dialog live in the lazy `file-drop`
-	// bundle now (the old `await import( '../os-file-drop/… )` calls
-	// were flattened straight into the shell bundle by the IIFE
-	// build). A picker flow is a click-then-choose gesture — the
-	// bundle fetch hides entirely inside the file-picker dialog time.
 	const url = (
 		window as unknown as {
 			openStationConfig?: { fileDropBundleUrl?: string };

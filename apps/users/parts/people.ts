@@ -1,4 +1,3 @@
-/** People-first surfaces over the existing permission-checked user rows. */
 import { __, html, sprintf, type TemplateResult } from '@openstation/app';
 import '../../../src/ui/components/os-avatar/os-avatar';
 import '../../../src/ui/components/os-stat/os-stat';
@@ -35,9 +34,8 @@ function lastLogin( row: UserListItem ): TemplateResult | string {
 	return row.openstation_last_login ? html`<span>${ __( 'Last sign-in' ) } <os-relative-time datetime=${ new Date( row.openstation_last_login * 1000 ).toISOString() }></os-relative-time></span>` : __( 'No sign-in recorded' );
 }
 
-/** The account menu reuses the existing confirmed, permission-checked actions. */
 function accountMenu( row: UserListItem, cfg: ProfileConfig, actions: RowActions ): TemplateResult {
-	return html`<os-action-menu text=${ __( 'Actions' ) } label=${ sprintf( /* translators: %s: person name. */ __( 'Actions for %s' ), row.name ) } @os-context-menu-pick=${ ( e: Event ) => {
+	return html`<os-action-menu text=${ __( 'Actions' ) } label=${ sprintf( __( 'Actions for %s' ), row.name ) } @os-context-menu-pick=${ ( e: Event ) => {
 		const id = ( e as CustomEvent ).detail.id;
 		if ( id === 'profile' ) {
 			openProfile( row.id, actions );
@@ -70,7 +68,7 @@ export function peopleCards( rows: UserListItem[], opts: PeopleOptions, tail: Te
 		${ rows.length ? rows.map( ( row ) => html`<article class="os-people__card ${ opts.selected.includes( row.id ) ? 'is-selected' : '' }" data-person-id=${ row.id }>
 			<header class="os-people__id-header"><span class="os-people__issuer"><span class="dashicons dashicons-id-alt" aria-hidden="true"></span> OPENSTATION <span>/ ${ __( 'MEMBER' ) }</span></span>
 				${ row.id === cfg.currentUserId ? html`<span class="os-people__you">${ __( 'You' ) }</span>` : '' }
-				${ selectable ? html`<os-checkbox class="os-people__select" aria-label=${ sprintf( /* translators: %s: person name. */ __( 'Select %s' ), row.name ) } ?checked=${ opts.selected.includes( row.id ) } @os-checkbox-change=${ ( e: Event ) => opts.select( row.id, ( e as CustomEvent ).detail.checked ) }></os-checkbox>` : '' }
+				${ selectable ? html`<os-checkbox class="os-people__select" aria-label=${ sprintf( __( 'Select %s' ), row.name ) } ?checked=${ opts.selected.includes( row.id ) } @os-checkbox-change=${ ( e: Event ) => opts.select( row.id, ( e as CustomEvent ).detail.checked ) }></os-checkbox>` : '' }
 			</header>
 			<div class="os-people__identity">
 				<div class="os-people__portrait">${ avatar( row, 64 ) }<span class="os-people__member-number" title=${ __( 'WordPress user ID' ) }>#${ String( row.id ).padStart( 5, '0' ) }</span></div>
@@ -107,7 +105,6 @@ export function rolesView( groups: RoleGroup[], choose: ( role: string ) => void
 	</div>`;
 }
 
-/** Avatar loading and compact controls retain their component accessibility. */
 export function syncPeopleControls( root: HTMLElement ): void {
 	queueMicrotask( () => {
 		root.querySelectorAll< HTMLElement >( '[data-people-avatar]' ).forEach( ( node ) => {

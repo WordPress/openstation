@@ -1,14 +1,3 @@
-/**
- * `<os-histogram>` — shadow-DOM styles.
- *
- * Series colours resolve through the STATUS tokens (danger, warning,
- * info, success, accent, neutral) rather than a categorical palette,
- * so a desktop theme re-skins every chart for free and a series
- * named "error" is the same red as every other error surface.
- * Identity never rides colour alone: each legend chip pairs its
- * swatch with a label and a count, stacked segments carry a 2px gap
- * of surface, and the tooltip repeats every count as text.
- */
 import { css } from '../../core';
 
 export const styles = css`

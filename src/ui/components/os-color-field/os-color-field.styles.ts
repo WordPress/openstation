@@ -30,21 +30,12 @@ export const styles = css`
 	input[ type='color' ]:hover {
 		border-color: var( --os-ui-border-strong, #8c8f94 );
 	}
-	/*
-	 * The target ring, not the field one. A colour swatch is a small
-	 * filled tile that could be any colour at all — including Pulse
-	 * itself — so it needs the ring that carries a Void spacer and a
-	 * bloom rather than the one that merely tints its own border.
-	 */
+
 	input[ type='color' ]:focus-visible {
 		outline: none;
 		box-shadow: var( --_holo-focus );
 	}
-	/*
-	 * Block variant: the host fills its parent, the input stretches
-	 * to take the remaining row after the label. Used by the
-	 * gradient editor where each field lives in a 1fr flex column.
-	 */
+
 	:host( [ variant='block' ] ) {
 		display: flex;
 		width: 100%;
@@ -59,12 +50,7 @@ export const styles = css`
 		width: auto;
 		height: 32px;
 	}
-	/*
-	 * WebKit paints the color swatch inside an extra wrapper with
-	 * a default border — strip it in EVERY variant so the input
-	 * reads as a single flat colored panel with our border, not a
-	 * double frame.
-	 */
+
 	input[ type='color' ]::-webkit-color-swatch-wrapper {
 		padding: 2px;
 	}

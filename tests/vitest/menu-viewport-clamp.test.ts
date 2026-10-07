@@ -1,31 +1,12 @@
-/**
- * Regression tests for floating-menu viewport clamping.
- *
- * The bug these pin: `<os-context-menu>` renders its shadow DOM in a
- * `queueMicrotask()`, so a `getBoundingClientRect()` taken on the
- * line after `appendChild()` measures an empty box. The clamp read
- * that empty box, decided the menu fit, and left it to paint at full
- * height off the bottom of the viewport, leaving a dead zone along
- * the bottom of the desktop that got proportionally worse on short
- * screens.
- *
- * jsdom has no layout engine, so the stub below reproduces the one
- * property that matters: an `<os-context-menu>` measures as an empty
- * box until its render microtask has populated the shadow root, and
- * at full size afterwards. Against a synchronous clamp every test
- * here fails, because the menu never moves.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { menuStyles } from '../../src/ui/components/os-context-menu/os-context-menu.styles';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
-/** Tall enough that it cannot fit below a click near the bottom. */
 const MENU_HEIGHT = 276;
 const MENU_WIDTH = 200;
 
 const originalRect = Element.prototype.getBoundingClientRect;
 
-/** Animation-frame callbacks parked by the stub, flushed by `frame()`. */
 let frames: FrameRequestCallback[] = [];
 
 function makeRect( left: number, top: number, w: number, h: number ): DOMRect {
@@ -42,7 +23,6 @@ function makeRect( left: number, top: number, w: number, h: number ): DOMRect {
 	} as DOMRect;
 }
 
-/** Run every parked animation-frame callback. */
 function frame(): void {
 	const queued = frames;
 	frames = [];
@@ -51,10 +31,6 @@ function frame(): void {
 	}
 }
 
-/**
- * Let the component's render microtask run, then deliver the frame
- * the placement is waiting on.
- */
 async function renderAndFrame(): Promise< void > {
 	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 	frame();
@@ -75,11 +51,7 @@ describe( 'floating menus clamp to the viewport', () => {
 			if ( el.tagName.toLowerCase() !== 'os-context-menu' ) {
 				return originalRect.call( this );
 			}
-			// The timing hole: no size until the render microtask has
-			// run. `<os-context-menu>` renders a single `<slot>`, and
-			// the shadow root holds nothing else that carries content
-			// (style adoption stamps a `<style>` tag synchronously, so
-			// child count alone would report "rendered" far too early).
+
 			const rendered = el.shadowRoot?.querySelector( 'slot' ) !== null;
 			const left = parseFloat( el.style.left ) || 0;
 			const top = parseFloat( el.style.top ) || 0;
@@ -101,7 +73,7 @@ describe( 'floating menus clamp to the viewport', () => {
 		const { openWallpaperMenu } = await import(
 			'../../src/desktop-files/wallpaper-menu'
 		);
-		// Well inside the viewport, but not by MENU_HEIGHT.
+
 		const clickY = window.innerHeight - 60;
 		openWallpaperMenu( document.body, { x: 20, y: clickY }, [
 			{ id: 'a', label: 'A', onClick: () => {} },
@@ -225,13 +197,7 @@ describe( 'floating menus clamp to the viewport', () => {
 } );
 
 describe( 'a menu taller than the screen', () => {
-	/*
-	 * The clamp can only slide a box that fits. A menu with more rows
-	 * than a phone has height — WP Explorer's item menu — has to cap
-	 * itself to the viewport and scroll inside, or the clamp parks it
-	 * at the top edge with its tail cut off and no way to reach it.
-	 * jsdom lays nothing out, so the contract is pinned on the sheet.
-	 */
+
 	test( 'caps itself to the viewport and scrolls inside', () => {
 		const open = menuStyles.cssText.split( ':host( [ open ] ) {' )[ 1 ]?.split( '}' )[ 0 ] ?? '';
 		expect( open ).toContain( 'max-block-size: calc( 100vh - 16px )' );

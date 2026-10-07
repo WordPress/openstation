@@ -96,7 +96,7 @@ var openStationCronManager = function(exports) {
   const DELETE = "[data-osm-cron-manager-delete]";
   const CUSTOM_VALUE = "__custom";
   const SINGLE_FILTER = "__single";
-  const feedbackTimers = /* @__PURE__ */ new WeakMap();
+  const feedbackTimers =                 new WeakMap();
   function buildColumns(onEdit, onDelete, onRunNow) {
     return [
       {
@@ -165,7 +165,7 @@ var openStationCronManager = function(exports) {
     meta.style.cssText = "font-size:12px;color:#646970;";
     if (row.callbackCount > 0) {
       meta.textContent = sprintf(
-        /* translators: %d: callback count. */
+
         __("%d callback(s)"),
         row.callbackCount
       );
@@ -470,7 +470,7 @@ var openStationCronManager = function(exports) {
   async function handleDelete(table, state, event) {
     const ok = window.confirm(
       sprintf(
-        /* translators: %s: cron hook. */
+
         __('Delete cron job "%s"?'),
         event.hook
       )
@@ -494,7 +494,7 @@ var openStationCronManager = function(exports) {
     showFeedback(
       root,
       sprintf(
-        /* translators: %s: cron hook. */
+
         __('Running "%s"…'),
         event.hook
       )
@@ -506,7 +506,7 @@ var openStationCronManager = function(exports) {
       showFeedback(
         root,
         sprintf(
-          /* translators: %s: cron hook. */
+
           __('Ran "%s". Cron list refreshed.'),
           event.hook
         )

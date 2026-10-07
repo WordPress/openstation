@@ -1,32 +1,5 @@
-/**
- * OpenStation — Built-in JS file-type registrations.
- *
- * Registers the built-in file types that ship with the plugin
- * against the JS-side registry. None of them ship a custom {@link DesktopFile}
- * subclass; they all use {@link DefaultDesktopFile} because the
- * PHP `serialize()` filter already produces the shape the renderer
- * needs. Plugins that want richer rendering can re-register the
- * same type slug with their own class — late registrations win.
- *
- * The labels here are duplicated from the PHP side on purpose:
- * the JS bundle runs even when a settings UI hasn't loaded the
- * server-payload yet, so a hard-coded fallback keeps pickers
- * usable in the brief gap before the payload arrives.
- */
-
 import { registerType } from './registry';
 
-/**
- * The folder tile's icon, mirroring
- * `OpenStation_Folder_File::icon()` on the PHP side.
- *
- * Same rationale as the labels above: the server sends this on every
- * serialized placement, so anything rendering a folder the server
- * described uses **that** value and never this one. This is the
- * fallback for the one case where a folder has to be addressed
- * without a placement to describe it — see `folderFileById()` in
- * `folder-ref.ts`.
- */
 export const FOLDER_FILE_ICON = 'dashicons-portfolio';
 
 export function registerBuiltInFileTypes(): void {

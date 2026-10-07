@@ -1,16 +1,5 @@
 <?php
-/**
- * Tests for the stored-files store (real per-user file storage):
- * disk layout + protection files, CRUD, access resolver, deletion
- * contract (purge cascade), reconciliation sweep, the `upload`
- * file type, and the owner-lock gates.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-files
- */
+
 class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -54,9 +43,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		rmdir( $dir );
 	}
 
-	/**
-	 * Creates a stored file with real bytes on disk. Returns the row id.
-	 */
 	private function make_stored_file( $owner_id, $name = 'report.pdf', $contents = 'PDFBYTES', $mime = 'application/pdf' ) {
 		$dir = openstation_stored_files_ensure_dir( $owner_id );
 		$this->assertIsString( $dir );
@@ -129,7 +115,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		$this->assertIsInt( $placement_id );
 		$before = openstation_files_get_placement( $placement_id )['updated_at_ms'];
 
-		// Force a measurable clock delta.
 		usleep( 2000 );
 		$this->assertTrue( openstation_stored_files_rename( $id, 'renamed.pdf' ) );
 		$this->assertSame( 'renamed.pdf', openstation_stored_files_get( $id )['display_name'] );
@@ -185,13 +170,10 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		$share_id = openstation_folder_share_invite( (int) $folder_id, self::$owner_id, 'user', (string) self::$other_id, 'write' );
 		openstation_folder_share_accept( $share_id, self::$other_id );
 
-		// Writer CAN move a normal placement in the folder, but not
-		// the upload.
 		$result = openstation_files_move( $placement_id, self::$other_id, array( 'x' => 5 ) );
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_files_upload_owner_locked', $result->get_error_code() );
 
-		// The owner still can.
 		$this->assertTrue( openstation_files_move( $placement_id, self::$owner_id, array( 'x' => 5 ) ) );
 	}
 
@@ -219,7 +201,7 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		$path = openstation_stored_file_path( $row );
 
 		$owner_placement = openstation_files_place( self::$owner_id, 0, 'upload', (string) $id );
-		// Simulate a recipient placement (file share accepted).
+
 		global $wpdb;
 		$tables = openstation_files_table_names();
 		$wpdb->insert(
@@ -234,14 +216,12 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		);
 		$recipient_placement = (int) $wpdb->insert_id;
 
-		// Hard-remove the owner's placement → full purge fires.
 		$this->assertTrue( openstation_files_remove( $owner_placement, self::$owner_id ) );
 
 		$this->assertNull( openstation_stored_files_get( $id ) );
 		$this->assertFileDoesNotExist( $path );
 		$this->assertNull( openstation_files_get_placement( $recipient_placement ) );
 
-		// The recipient's tile got a tombstone so heartbeat scrubs it.
 		$tomb = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$tables['tombstones']} WHERE kind = 'placement' AND ref_id = %d",
@@ -271,8 +251,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		);
 		$recipient_placement = (int) $wpdb->insert_id;
 
-		// The REAL user path: recycle bin (soft-trash), then
-		// "Delete forever" (purge) — NOT openstation_files_remove().
 		$this->assertTrue( openstation_files_trash_placement( self::$owner_id, $owner_placement ) );
 		$this->assertFileExists( $path, 'soft-trash must keep the bytes' );
 
@@ -292,8 +270,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		openstation_files_place( self::$owner_id, 0, 'folder', (string) $folder_id );
 		openstation_files_place( self::$owner_id, (int) $folder_id, 'upload', (string) $id );
 
-		// Recycle-bin path: trash the folder (cascades children),
-		// then empty the bin (purge).
 		$this->assertTrue( openstation_files_trash_folder( self::$owner_id, (int) $folder_id ) );
 		$this->assertFileExists( $path, 'soft-trash must keep the bytes' );
 		$this->assertTrue( openstation_files_purge_folder( self::$owner_id, (int) $folder_id ) );
@@ -336,9 +312,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		);
 		$recipient_placement = (int) $wpdb->insert_id;
 
-		// Recipient's own row goes away — the file survives. (Direct
-		// row removal here; the REST path would owner-lock, but a
-		// leave/revoke scrub ends in the same unplaced signal.)
 		$wpdb->delete( $tables['placements'], array( 'id' => $recipient_placement ) );
 		do_action(
 			'openstation_file_unplaced',
@@ -358,7 +331,7 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		global $wpdb;
 		$id  = $this->make_stored_file( self::$owner_id );
 		$row = openstation_stored_files_get( $id );
-		// Backdate creation beyond the grace period; no placement exists.
+
 		$tables = openstation_files_table_names();
 		$wpdb->update(
 			$tables['stored_files'],
@@ -382,7 +355,7 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		openstation_stored_files_reconcile();
 
 		$this->assertFileDoesNotExist( $path );
-		// index.php and non-UUID files are never touched.
+
 		$this->assertFileExists( $dir . '/index.php' );
 	}
 
@@ -392,10 +365,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		$this->assertNotNull( openstation_stored_files_get( $id ) );
 	}
 
-	/**
-	 * @dataProvider reconcile_failure_stages
-	 * @covers ::openstation_stored_files_reconcile
-	 */
 	public function test_reconcile_database_failure_never_deletes_valid_bytes( $pattern, $placed ) {
 		global $wpdb;
 		$id = $this->make_stored_file( self::$owner_id );
@@ -447,7 +416,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		);
 	}
 
-	/** @covers ::openstation_stored_files_reconcile */
 	public function test_reconcile_rechecks_placement_created_after_candidate_scan() {
 		global $wpdb;
 		$id = $this->make_stored_file( self::$owner_id );
@@ -466,7 +434,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		$this->assertNotNull( openstation_stored_files_get( $id ) );
 	}
 
-	/** @covers ::openstation_stored_files_reconcile */
 	public function test_reconcile_rechecks_registration_after_known_file_scan() {
 		$dir = openstation_stored_files_ensure_dir( self::$owner_id );
 		$name = wp_generate_uuid4();
@@ -486,7 +453,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		$this->assertFileExists( $path );
 	}
 
-	/** @covers ::openstation_stored_files_reconcile */
 	public function test_reconcile_preserves_files_with_trashed_placements() {
 		global $wpdb;
 		$id = $this->make_stored_file( self::$owner_id );
@@ -510,7 +476,7 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		$this->assertNull( openstation_stored_files_get( $id ) );
 		$this->assertFileDoesNotExist( $path );
 	}
-	/** @covers ::openstation_stored_files_reconcile */
+
 	public function test_unlink_failure_does_not_starve_later_bytes() {
 		$dir = openstation_stored_files_ensure_dir( self::$owner_id );
 		$blocked = $dir . '/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
@@ -526,7 +492,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		$this->assertSame( array( 'unlink_bytes' ), $stages );
 	}
 
-	/** @covers ::openstation_stored_files_reconcile_row */
 	public function test_deleted_row_announces_deletion_even_when_bytes_cannot_be_unlinked() {
 		global $wpdb;
 		$id = $this->make_stored_file( self::$owner_id );
@@ -542,7 +507,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		$this->assertFileExists( $path );
 	}
 
-	/** @covers ::openstation_stored_files_locked */
 	public function test_sqlite_noop_lock_allows_intake_but_never_destructive_cleanup() {
 		global $wpdb;
 		$filter = static function ( $sql ) { return false !== strpos( $sql, 'SELECT GET_LOCK' ) ? "SELECT '1=1'" : $sql; };
@@ -557,7 +521,6 @@ class Tests_OpenStation_StoredFiles extends WP_UnitTestCase {
 		} finally { remove_filter( 'query', $filter ); }
 	}
 
-	/** @covers ::openstation_stored_files_create @covers ::openstation_files_place */
 	public function test_upload_extension_callbacks_run_outside_the_storage_lock() {
 		global $wpdb;
 		$name = 'os-files-' . md5( $wpdb->dbname . ':' . $wpdb->prefix );

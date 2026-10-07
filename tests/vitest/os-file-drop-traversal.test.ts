@@ -1,8 +1,3 @@
-/**
- * Tests for the folder-tree traversal: synchronous entry snapshot,
- * the 100-entry readEntries batching loop, relative-path building,
- * and empty-directory capture.
- */
 import { describe, expect, test } from 'vitest';
 import {
 	collectDroppedTree,

@@ -1,15 +1,3 @@
-/**
- * OpenStation — `embed` file-type opener glue.
- *
- * Opens a stored URL in an iframe-backed desktop window. Window
- * geometry persists per-placement: every drag-end / resize-end on
- * the spawned window writes `{ x, y, width, height }` back into the
- * placement's `meta.window` via REST so the next open restores the
- * same shape. On open, the saved geometry is clamped to the
- * current desktop area — a window saved on a 4K monitor still
- * fits when the user comes back on a laptop.
- */
-
 import { addAction, removeAction, HOOKS } from '../hooks';
 import { workAreaRectOf } from '../work-area';
 import * as filesRest from './rest';
@@ -43,13 +31,8 @@ const MIN_W = 360;
 const MIN_H = 240;
 const PADDING = 16;
 
-/** Tracks placement id -> last persisted geometry, to skip noop PATCHes. */
 const lastPersisted = new Map< string, SavedGeometry >();
 
-/**
- * Open the embed window for `file` with placement context `ctx`.
- * No-op when the URL is empty or the window manager isn't ready.
- */
 export function openEmbedWindow(
 	file: DesktopFile,
 	ctx?: OpenerContext,
@@ -58,9 +41,7 @@ export function openEmbedWindow(
 	if ( ! url ) {
 		return;
 	}
-	// External URLs only — same-origin URLs would be served as
-	// chromeless admin pages anyway, but we don't second-guess the
-	// user; whatever they pasted lands in the iframe src as-is.
+
 	const wm = ( window.wp as
 		| { os?: { windowManager?: WindowManagerLike } }
 		| undefined )?.os?.windowManager;
@@ -88,8 +69,7 @@ export function openEmbedWindow(
 	};
 
 	const saved = meta?.window;
-	// The WORK area, not the whole desktop area: a window restored to
-	// the area's full height would put its bottom edge under the dock.
+
 	const area = document.getElementById( 'os-area' );
 	const canvas = area
 		? workAreaRectOf( area )
@@ -107,11 +87,6 @@ export function openEmbedWindow(
 	}
 
 	if ( placement ) {
-		// Subscribe to drag/resize-end for this window so we
-		// persist geometry as the user moves it. We don't
-		// subscribe more than once per placement — `installEmbedPersistence`
-		// installs the global router, this just ensures the
-		// `lastPersisted` cache reflects the on-open state.
 		if ( saved ) {
 			lastPersisted.set( windowId, { ...saved } );
 		}
@@ -120,11 +95,6 @@ export function openEmbedWindow(
 	wm.open( cfg );
 }
 
-/**
- * Wire global drag-end / resize-end listeners that persist the
- * geometry of any embed window back to its placement. Called once
- * from the bundle entry. Idempotent.
- */
 let installed = false;
 export function installEmbedPersistence(): void {
 	if ( installed ) {
@@ -141,7 +111,7 @@ export function installEmbedPersistence(): void {
 		const placementIdStr = id.slice( ID_PREFIX.length );
 		const placementId = parseInt( placementIdStr, 10 );
 		if ( ! placementId ) {
-			return; // anon embed — nowhere to persist
+			return;
 		}
 		const wm = ( window.wp as
 			| { os?: { windowManager?: WindowManagerLike } }
@@ -175,7 +145,6 @@ export function installEmbedPersistence(): void {
 	addAction( HOOKS.WINDOW_RESIZE_END, 'os-embed-persist', onChange );
 }
 
-/** For tests only — tear down the persistence wiring. */
 export function __uninstallEmbedPersistenceForTests(): void {
 	if ( ! installed ) {
 		return;
@@ -188,13 +157,6 @@ export function __uninstallEmbedPersistenceForTests(): void {
 
 async function persist( placementId: number, geo: SavedGeometry ): Promise< void > {
 	try {
-		// Read current placement to preserve other meta keys
-		// (notably `meta.name`). We can't fetch a single placement
-		// directly — list the root and find it. Cheap enough for
-		// the resize-end cadence; if it ever shows up in a profile
-		// we add a single-placement REST GET.
-		// NOTE: REST `updatePlacement` replaces `meta` wholesale,
-		// so we MUST send the merged shape.
 		const list = await filesRest.listPlacements( 0 );
 		const row = list.placements.find( ( p ) => p.id === placementId );
 		const prevMeta = ( row?.meta ?? {} ) as Record< string, unknown >;
@@ -204,9 +166,6 @@ async function persist( placementId: number, geo: SavedGeometry ): Promise< void
 		};
 		await filesRest.updatePlacement( placementId, { meta: nextMeta } );
 	} catch ( err ) {
-		// Persistence is best-effort; user can still drag/resize
-		// the window in the active session even if the write fails.
-		// eslint-disable-next-line no-console
 		console.warn( '[openstation] embed window persist failed:', err );
 	}
 }
@@ -225,11 +184,6 @@ function clampGeometry(
 }
 
 function hash( s: string ): string {
-	// Cheap deterministic hash for anonymous embed window ids.
-	// 32-bit math via Math.imul keeps the loop branch-free without
-	// reaching for bitwise ops (bitwise ops are linted off in the
-	// shell). Collision risk is irrelevant — these ids only need to
-	// be stable per URL within a single session.
 	let h = 0;
 	for ( let i = 0; i < s.length; i++ ) {
 		h = ( Math.imul( h, 31 ) + s.charCodeAt( i ) ) % 0x7fffffff;

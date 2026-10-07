@@ -1,12 +1,3 @@
-/**
- * App Framework runtime — the instant first paint, the focus gate,
- * and the component-request memo.
- *
- * A client view used to paint only once `mount` answered — a whole
- * WordPress request behind a spinner, and a click on that spinner is
- * a click lost. With `App::prefetch()` the config carries `data`, and
- * the session paints from the declared state at once.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSession } from '../../src/app-runtime/session';
 import { createFocusGate } from '../../src/app-runtime/index';
@@ -75,7 +66,7 @@ describe( 'paintEagerly', () => {
 		expect( session.paintEagerly() ).toBe( true );
 		expect( root.querySelector( 'p' )?.textContent ).toBe( 'prefetched' );
 		expect( root.querySelector( 'p' )?.getAttribute( 'data-tab' ) ).toBe( 'home' );
-		// The eager paint IS the first render: mounted() runs now.
+
 		expect( mountedSpy ).toHaveBeenCalledTimes( 1 );
 	} );
 
@@ -94,8 +85,7 @@ describe( 'paintEagerly', () => {
 		const session = createSession( { root, config: config( { label: 'prefetched' } ), windowId: APP, host, client: app } );
 		const mount = session.dispatch( 'mount' );
 		session.paintEagerly();
-		// The request goes out on the dispatch chain's next microtask;
-		// let it, so the resolver below is this test's.
+
 		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 		resolveMount( {
 			ok: true,
@@ -112,8 +102,7 @@ describe( 'paintEagerly', () => {
 describe( 'createFocusGate', () => {
 	it( 'reports transitions, not requests', () => {
 		const gate = createFocusGate();
-		// A window opens focused: the first request is not a transition,
-		// and neither is any click inside the already-focused window.
+
 		expect( gate.focus() ).toBe( false );
 		expect( gate.focus() ).toBe( false );
 		expect( gate.blur() ).toBe( true );

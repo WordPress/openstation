@@ -1,28 +1,3 @@
-/**
- * Tests for `src/dock-constellation` — the hover-submenu flyout.
- *
- * What is pinned here is the CONTRACT, not the choreography:
- *
- * - It fans out on every layout. It used to be the one thing the
- *   OpenStation layout had that the others did not, and a menu tile
- *   is a menu tile wherever the rail is parked.
- * - It fans AWAY from the edge the rail is on, which it reads off the
- *   rail's own `data-os-dock-placement` rather than off the layout —
- *   Side bar runs two rails on two edges at once, so a per-layout
- *   answer would be wrong for one of them.
- * - It surfaces the submenu — the whole point. A menu with children
- *   gets one row per child, wired to the same window ids a dock click
- *   would address.
- * - It is delegated, so a tile rebuilt by a live menu refresh still
- *   works without re-mounting anything.
- * - Keyboard reaches it: the arrow pointing at where the panel will
- *   appear fans it open and lands focus on the first row; Escape
- *   collapses it and hands focus back.
- *
- * Timers are faked because the flyout deliberately dwells before it
- * opens — a hover that fired instantly would fan a panel out every
- * time the pointer crossed the rail on its way somewhere else.
- */
 import {
 	afterEach,
 	beforeEach,
@@ -68,15 +43,13 @@ const settings: DockItem = {
 };
 
 const opened: Array< Record< string, unknown > > = [];
-/** Which manager door each open took, in the same order. */
+
 const doors: string[] = [];
 
 function makeManagerStub(): WindowManager {
 	return {
 		getAllByBaseIdOnActiveDesktop: () => [],
-		// Consulted by the parent-url sweep: a window opened from a
-		// menu's submenu is keyed on the CHILD page, so the base-id
-		// lookup alone can never find it.
+
 		getAll: () => [],
 		getActiveDesktopId: () => 'default-1',
 		getFocused: () => null,
@@ -94,7 +67,6 @@ function makeManagerStub(): WindowManager {
 	} as unknown as WindowManager;
 }
 
-/** Build a shell with one menu tile on a rail at `placement`. */
 function setupShell( layout: string, placement = 'bottom' ): HTMLElement {
 	document.body.innerHTML = '';
 	const shell = document.createElement( 'div' );
@@ -118,62 +90,36 @@ function setupShell( layout: string, placement = 'bottom' ): HTMLElement {
 	return tile;
 }
 
-/**
- * jsdom ships no `PointerEvent`, so synthesize one: a bubbling
- * `Event` with `pointerType` bolted on, which is the only
- * pointer-specific field the constellation reads.
- */
 function pointerOver(): Event {
 	const ev = new Event( 'pointerover', { bubbles: true } );
 	Object.defineProperty( ev, 'pointerType', { value: 'mouse' } );
 	return ev;
 }
 
-/**
- * Hover a tile and let the flyout come up — but NOT long enough for
- * any exit or hand-off already in flight to finish. Time is advanced
- * rather than flushed precisely so a test can observe both panels
- * during a hand-off; `flushExit()` is how you get to "and then it's
- * gone".
- */
 function hover( tile: HTMLElement ): void {
 	tile.dispatchEvent( pointerOver() );
-	// Past the show dwell (130ms), short of the exit (160) and the
-	// hand-off (200).
+
 	vi.advanceTimersByTime( 140 );
-	// The open class + the slide land on the next frame; jsdom's rAF
-	// is a timer here, so step once more to paint them.
+
 	vi.advanceTimersByTime( 5 );
 }
 
-/**
- * The LIVE panel. A dismissed panel stays in the document for the
- * length of its exit, so "is a flyout open?" has to exclude anything
- * already on its way out.
- */
 function panel(): HTMLElement | null {
 	return document.querySelector< HTMLElement >(
 		'.os-constellation:not( .os-constellation--closing )',
 	);
 }
 
-/** A panel mid-exit — present, marked, and no longer interactive. */
 function ghost(): HTMLElement | null {
 	return document.querySelector< HTMLElement >(
 		'.os-constellation--closing',
 	);
 }
 
-/** Let any in-flight exit or hand-off finish and its node leave. */
 function flushExit(): void {
 	vi.advanceTimersByTime( 400 );
 }
 
-/**
- * Query inside the LIVE panel. Every row query has to be scoped: a
- * retiring panel is still in the document with a full set of rows,
- * and an unscoped `querySelectorAll` would collect both.
- */
 function rows( selector: string ): HTMLElement[] {
 	const live = panel();
 	if ( ! live ) {
@@ -196,9 +142,7 @@ describe( 'dock constellation', () => {
 		doors.length = 0;
 		installHooksStub();
 		vi.useFakeTimers();
-		// jsdom has no rAF by default under fake timers; route it
-		// through a timer so `runOnlyPendingTimers` flushes the frame
-		// the open transition waits for.
+
 		vi.stubGlobal( 'requestAnimationFrame', ( cb: FrameRequestCallback ) =>
 			setTimeout( () => cb( 0 ), 0 ) as unknown as number,
 		);
@@ -214,9 +158,6 @@ describe( 'dock constellation', () => {
 		document.body.className = '';
 	} );
 
-	// Tears down a previous mount first, so a test that walks several
-	// layouts or placements in one body doesn't leave a second
-	// delegated listener behind opening a second panel on every hover.
 	function mountWith(
 		items: DockItem[],
 		systemItems: SystemDockItem[] = [],
@@ -235,7 +176,6 @@ describe( 'dock constellation', () => {
 		mountWith( [ appearance ] );
 	}
 
-	/** Append a second menu tile to the rail. */
 	function addTile( slug: string ): HTMLElement {
 		const tile = document.createElement( 'div' );
 		tile.className = 'os-dock__item';
@@ -245,11 +185,6 @@ describe( 'dock constellation', () => {
 		return tile;
 	}
 
-	/**
-	 * jsdom reports a zero rect for every element, which would put two
-	 * adjacent tiles at the same x and make "did the panel travel?"
-	 * unanswerable. Give a tile a real box.
-	 */
 	function placeTile(
 		tile: HTMLElement,
 		left: number,
@@ -280,9 +215,7 @@ describe( 'dock constellation', () => {
 	} );
 
 	test( 'fans away from the edge its rail is parked on', () => {
-		// The side is named for where the PANEL lands, so a left-hand
-		// rail fans right. Read off the rail rather than the layout:
-		// Side bar has one of each on screen at the same time.
+
 		for ( const [ placement, side ] of [
 			[ 'bottom', 'top' ],
 			[ 'left', 'right' ],
@@ -296,8 +229,7 @@ describe( 'dock constellation', () => {
 	} );
 
 	test( 'the open key is the arrow pointing at the panel', () => {
-		// ArrowUp beside a vertical rail would fight the rail's own
-		// roving, which is what Up and Down already do there.
+
 		const tile = setupShell( 'unified', 'left' );
 		mount();
 		const primary = tile.querySelector( '.os-dock__item-primary' )!;
@@ -324,8 +256,7 @@ describe( 'dock constellation', () => {
 		expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
 			'Appearance',
 		);
-		// The tile is marked so CSS can keep it lifted, and the body
-		// flag mutes the dock tooltip underneath.
+
 		expect( tile.hasAttribute( 'data-constellation-open' ) ).toBe( true );
 		expect(
 			document.body.classList.contains( 'os-constellation-open' ),
@@ -356,14 +287,13 @@ describe( 'dock constellation', () => {
 		expect(
 			docs.querySelector( '.os-constellation__row-offsite' ),
 		).not.toBeNull();
-		// Composed, not replaced: the row's own label survives.
+
 		expect( docs.getAttribute( 'aria-label' ) ).toBeNull();
 		expect( docs.textContent ).toContain( 'Docs' );
 		expect( docs.textContent ).toContain( '(opens in a new tab)' );
 
 		docs.click();
-		// A window would have loaded it into an iframe the remote
-		// origin refuses; the browser gets it instead.
+
 		expect( opened ).toHaveLength( 0 );
 		expect( openSpy ).toHaveBeenCalledWith(
 			'https://example.org/docs',
@@ -379,30 +309,20 @@ describe( 'dock constellation', () => {
 
 		rows( '.os-constellation__head' )[ 0 ].click();
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/themes.php' );
-		// The menu's own page goes through `open()`, so a second click
-		// on it comes back to the window the first one gave you.
+
 		expect( doors.at( -1 ) ).toBe( 'open' );
 		expect( panel() ).toBeNull();
 
 		flushExit();
 		hover( tile );
 		rows( '.os-constellation__row--sub' )[ 1 ].click();
-		// `parentUrl` pins to the MENU's landing page, not the child —
-		// otherwise the window's tab strip has no way back to Themes.
+
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/site-editor.php' );
 		expect( opened.at( -1 )?.parentUrl ).toBe( '/wp-admin/themes.php' );
-		// A child page always gets a window of its own — Add New Post
-		// twice has to be two editors.
+
 		expect( doors.at( -1 ) ).toBe( 'openNew' );
 	} );
 
-	/*
-	 * There is no trailing "New <menu> window" row. It offered a
-	 * second copy of the landing page, which every row in the Open
-	 * group already does — and it was the one section a system tile's
-	 * action menu could never have, so keeping it would have meant two
-	 * different panel shapes depending on which tile you hovered.
-	 */
 	test( 'offers no new-window row', () => {
 		const tile = setupShell( 'openstation' );
 		mount();
@@ -410,13 +330,6 @@ describe( 'dock constellation', () => {
 		expect( rows( '.os-constellation__row--new' ) ).toHaveLength( 0 );
 	} );
 
-	/*
-	 * "All Posts" is a real row in wp-admin's menu, and the payload
-	 * strips it out of `submenu` because two other consumers need that
-	 * list to be child links only. The flyout LISTS a menu's pages, so
-	 * it puts the menu's own page back at the top: a list that omits
-	 * the main page reads as a bug.
-	 */
 	test( 'the menu’s own page leads the Open list', () => {
 		const tile = setupShell( 'openstation' );
 		mountWith( [ { ...appearance, selfLabel: 'All Themes' } ] );
@@ -425,11 +338,6 @@ describe( 'dock constellation', () => {
 		expect( rowLabels() ).toEqual( [ 'All Themes', 'Themes', 'Editor' ] );
 	} );
 
-	/*
-	 * Every route out of the flyout has to carry `selfLabel`, or the
-	 * window's first tab is named "Posts" from one door and "All Posts"
-	 * from another.
-	 */
 	test( 'a submenu row carries selfLabel to the window it opens', () => {
 		const tile = setupShell( 'openstation' );
 		mountWith( [ { ...appearance, selfLabel: 'All Themes' } ] );
@@ -465,11 +373,6 @@ describe( 'dock constellation', () => {
 		expect( rowLabels() ).toEqual( [ 'Themes', 'Editor' ] );
 	} );
 
-	/*
-	 * The head is the tile: icon and title, nothing else. No page
-	 * count — a number the reader has no use for, with the rows
-	 * themselves right below it.
-	 */
 	test( 'the head shows the icon and title, with no page count', () => {
 		const tile = setupShell( 'openstation' );
 		mount();
@@ -529,16 +432,12 @@ describe( 'dock constellation', () => {
 			hover( tile );
 			rows( '.os-constellation__head' )[ 0 ].click();
 
-			// No longer the live panel, but still painted — marked
-			// `--closing` so CSS can run the exit, and no longer the
-			// anchor's business.
 			expect( panel() ).toBeNull();
 			expect( ghost() ).not.toBeNull();
 			expect( tile.hasAttribute( 'data-constellation-open' ) ).toBe(
 				false,
 			);
-			// The tooltip stays muted while a panel is still visible,
-			// or it pops back underneath one that is fading over it.
+
 			expect(
 				document.body.classList.contains( 'os-constellation-open' ),
 			).toBe( true );
@@ -555,10 +454,7 @@ describe( 'dock constellation', () => {
 			mount();
 			hover( tile );
 			rows( '.os-constellation__head' )[ 0 ].click();
-			// The `--open` class is what drives the per-row staggered
-			// entrance; dropping it without `--closing` taking over
-			// would send every row back through its own exit inside a
-			// panel that is itself shrinking.
+
 			const dying = ghost()!;
 			expect( dying.classList.contains( 'os-constellation--open' ) ).toBe(
 				false,
@@ -568,13 +464,6 @@ describe( 'dock constellation', () => {
 			).toBe( true );
 		} );
 
-		/**
-		 * Moving along the rail is TWO panels, each animating at its
-		 * own tile — not one panel sliding across and swapping its
-		 * contents. The outgoing one has to get a real dismissal, and
-		 * it has to keep its own anchor while it plays, or its beam
-		 * ends up pointing at a tile it has nothing to do with.
-		 */
 		test( 'moving to another tile dismisses the old menu where it stands', () => {
 			const tile = setupShell( 'openstation' );
 			const other = addTile( 'options-general.php' );
@@ -589,8 +478,6 @@ describe( 'dock constellation', () => {
 
 			hover( other );
 
-			// The old menu is still on screen, playing its exit, and
-			// still anchored over the tile it belongs to.
 			const dying = ghost();
 			expect( dying ).not.toBeNull();
 			expect( dying?.getAttribute( 'aria-label' ) ).toContain(
@@ -598,7 +485,6 @@ describe( 'dock constellation', () => {
 			);
 			expect( dying!.style.left ).toBe( '120px' );
 
-			// The new one is live over ITS tile, playing its entrance.
 			expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
 				'Settings',
 			);
@@ -625,8 +511,7 @@ describe( 'dock constellation', () => {
 			);
 
 			hover( other );
-			// Only one tile is ever marked as hosting the menu, even
-			// while two panels are painted.
+
 			expect( tile.hasAttribute( 'data-constellation-open' ) ).toBe(
 				false,
 			);
@@ -640,17 +525,13 @@ describe( 'dock constellation', () => {
 			mount();
 			hover( tile );
 			document.dispatchEvent( new Event( 'scroll', { bubbles: true } ) );
-			// Animating away from a tile that has already moved points
-			// at nothing, so this path removes the node outright.
+
 			expect( ghost() ).toBeNull();
 			expect( panel() ).toBeNull();
 		} );
 
 		test( 'a tile menu opening cuts it, so the two never stack', () => {
-			// Right-click — or any other route into the tile menu — is a
-			// request for a DIFFERENT surface on the same tile. Both
-			// anchor to that tile, so leaving the flyout up paints one
-			// panel over the other.
+
 			const tile = setupShell( 'openstation' );
 			mount();
 			hover( tile );
@@ -662,9 +543,6 @@ describe( 'dock constellation', () => {
 				} ),
 			);
 
-			// Cut rather than animated: an exit gliding back into the
-			// rail underneath the menu that replaced it is the same
-			// collision one frame later.
 			expect( panel() ).toBeNull();
 			expect( ghost() ).toBeNull();
 		} );
@@ -675,8 +553,6 @@ describe( 'dock constellation', () => {
 			hover( tile );
 			teardown();
 
-			// The listener lives on `document`, so a leak keeps firing
-			// into a module nobody is driving any more.
 			document.dispatchEvent(
 				new CustomEvent( ITEM_MENU_OPENING_EVENT, {
 					detail: { id: 'themes.php', surface: 'dock' },
@@ -705,9 +581,7 @@ describe( 'dock constellation', () => {
 		const tile = setupShell( 'openstation' );
 		mount();
 		hover( tile );
-		// Roving tabindex. Arrow keys move between rows; Tab leaves the
-		// menu. Without this a fifteen-child submenu would put fifteen
-		// stops between the dock and whatever follows it.
+
 		const all = rows( '.os-constellation__row' );
 		expect( all.length ).toBeGreaterThan( 1 );
 		expect( all.every( ( r ) => r.tabIndex === -1 ) ).toBe( true );
@@ -727,10 +601,7 @@ describe( 'dock constellation', () => {
 		row.dispatchEvent( ev );
 
 		expect( panel() ).toBeNull();
-		// Focus lands on the tile, not `<body>` — the browser then
-		// continues tabbing from the rail's own place in the document
-		// rather than restarting at the top of the page. And the
-		// default is NOT prevented, or that onward move never happens.
+
 		expect( document.activeElement ).toBe(
 			tile.querySelector( '.os-dock__item-primary' ),
 		);
@@ -739,14 +610,11 @@ describe( 'dock constellation', () => {
 
 	test( 'caps its height to the room above the tile', () => {
 		const tile = setupShell( 'openstation' );
-		// A dock 700px down a viewport: 700 − 14 beam gap − 12 margin.
+
 		placeTile( tile, 100, 700 );
 		mount();
 		hover( tile );
-		// The panel hangs off the top of the dock and cannot be nudged
-		// downwards to fit — that would push it over the rail — so a
-		// menu too tall for the space is capped and its submenu group
-		// takes the scroll instead.
+
 		expect(
 			panel()!.style.getPropertyValue( '--os-cn-max-h' ),
 		).toBe( '674px' );
@@ -754,9 +622,7 @@ describe( 'dock constellation', () => {
 
 	test( 'never caps below a usable height on a short viewport', () => {
 		const tile = setupShell( 'openstation' );
-		// A tile 60px from the top leaves 34px — at which point a panel
-		// has stopped being a menu and become a scrollbar with a title
-		// on it, so the floor wins and it overflows slightly instead.
+
 		placeTile( tile, 100, 60 );
 		mount();
 		hover( tile );
@@ -768,8 +634,7 @@ describe( 'dock constellation', () => {
 	test( 'survives a tile rebuilt under it — the listener is delegated', () => {
 		setupShell( 'openstation' );
 		mount();
-		// Simulate a live menu refresh: throw the rail's tiles away and
-		// build a fresh one. A per-tile listener would be gone by now.
+
 		const dock = document.querySelector( '.os-dock' )!;
 		dock.innerHTML = '';
 		const rebuilt = document.createElement( 'div' );
@@ -782,12 +647,6 @@ describe( 'dock constellation', () => {
 		expect( rowLabels() ).toEqual( [ 'Themes', 'Editor' ] );
 	} );
 
-	/*
-	 * The panel is built on hover and never repaints, so anything the
-	 * click changes leaves it describing a state that has passed:
-	 * clicking the System tile while its window is minimized restores
-	 * that window, and the panel goes on reporting it as minimized.
-	 */
 	test( 'clicking the anchor tile dismisses the flyout', () => {
 		const tile = setupShell( 'openstation' );
 		mount();
@@ -803,9 +662,6 @@ describe( 'dock constellation', () => {
 		mount();
 		hover( tile );
 
-		// The rows dismiss themselves before acting; a click on the
-		// panel's own chrome must not, or a plugin's custom row loses
-		// the panel out from under it mid-handler.
 		panel()!.click();
 		expect( panel() ).not.toBeNull();
 	} );
@@ -815,8 +671,6 @@ describe( 'dock constellation', () => {
 		mount();
 		hover( tile );
 
-		// Reaching for the rows past the fold must not be the gesture
-		// that closes the panel they are in.
 		const group = panel()!.querySelector( '.os-constellation__group' )!;
 		group.dispatchEvent( new Event( 'scroll' ) );
 
@@ -834,15 +688,6 @@ describe( 'dock constellation', () => {
 		expect( panel() ).toBeNull();
 	} );
 
-	/*
-	 * Action menus — a system tile that declared a `submenu`.
-	 *
-	 * These are the Create and System tiles: a menu with no admin page
-	 * behind it, whose rows DO things rather than navigate. The panel
-	 * has to drop everything that assumes a landing page, and the rows
-	 * have to run their own callback rather than routing to a window.
-	 */
-	/** Put a system tile carrying `data-constellation-id` on the rail. */
 	function addSystemTile( id: string ): HTMLElement {
 		const dock = document.querySelector( '.os-dock' ) as HTMLElement;
 		const tile = document.createElement( 'div' );
@@ -887,12 +732,6 @@ describe( 'dock constellation', () => {
 		] );
 	} );
 
-	/*
-	 * One panel shape, whichever family of tile you hovered. The two
-	 * kinds of menu differ in what fills the sections, never in which
-	 * sections exist — so an action menu gets the same head and the
-	 * same "Open" heading an admin menu gets.
-	 */
 	test( 'an action menu wears the same head as an admin menu', () => {
 		setupShell( 'unified' );
 		const tile = addSystemTile( 'os-system' );
@@ -944,9 +783,6 @@ describe( 'dock constellation', () => {
 		hover( tile );
 		rows( '.os-constellation__head' )[ 0 ].click();
 
-		// There is no landing page behind the tile, so the head stands
-		// in for the first row — the same thing the tile's own click
-		// does, which is what keeps keyboard and touch users whole.
 		expect( first ).toHaveBeenCalledTimes( 1 );
 		expect( second ).not.toHaveBeenCalled();
 	} );
@@ -968,16 +804,10 @@ describe( 'dock constellation', () => {
 		rows( '.os-constellation__row--sub' )[ 0 ].click();
 
 		expect( onSelect ).toHaveBeenCalledTimes( 1 );
-		// And emphatically did NOT open a window on the way.
+
 		expect( opened ).toHaveLength( 0 );
 	} );
 
-	/*
-	 * An action menu has no window key of its own — it is not a page —
-	 * so it asks its rows, each of which declares the window it opens
-	 * via `windowId`. That is what lets System list an open
-	 * Preferences window where Appearance lists an open Themes one.
-	 */
 	test( 'an action menu lists the windows its rows have open', () => {
 		setupShell( 'unified' );
 		const tile = addSystemTile( 'os-system' );
@@ -1003,7 +833,7 @@ describe( 'dock constellation', () => {
 						windowId: 'os-settings',
 						onSelect: () => {},
 					},
-					// No window behind it, so it contributes nothing.
+
 					{ title: 'Log out', url: '', onSelect: () => {} },
 				] ),
 		} );
@@ -1015,13 +845,6 @@ describe( 'dock constellation', () => {
 		expect( live ).toEqual( [ 'OpenStation Preferences' ] );
 	} );
 
-	/*
-	 * A menu whose page a native window has claimed keeps its own URL
-	 * on the tile, but its window is open under the WINDOW's id. Walk
-	 * the same chain the tile's indicator does, or the group meant to
-	 * say "here is what you have open" says nothing while the window
-	 * is on screen.
-	 */
 	test( 'a menu whose window is native lists it as open', () => {
 		const tile = setupShell( 'unified' );
 		const live = {
@@ -1032,7 +855,7 @@ describe( 'dock constellation', () => {
 		bindNativeUrlRemap( {
 			getSnapshot: () => ( {} ) as never,
 			openById: () => true,
-			// Absolute: the registry resolves every URL against this.
+
 			adminUrl: `${ window.location.origin }/wp-admin/`,
 		} );
 		registerNativeUrlRemap( {
@@ -1049,8 +872,7 @@ describe( 'dock constellation', () => {
 					id === 'desktop-mode-posts' ? [ live ] : [],
 			} as unknown as WindowManager,
 			adminUrl: '/wp-admin/',
-			// The stub's tile is `themes.php`; what matters is that its
-			// URL is one a native window has claimed.
+
 			getMenuItems: () => [ { ...appearance, url: '/wp-admin/edit.php' } ],
 			getSystemItem: () => undefined,
 		} );
@@ -1094,7 +916,7 @@ describe( 'dock constellation', () => {
 		mountWith( [ appearance ], [] );
 
 		hover( tile );
-		// No `data-constellation-id`, so the hover belongs to the peek.
+
 		expect( panel() ).toBeNull();
 	} );
 } );

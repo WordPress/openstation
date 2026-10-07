@@ -1,14 +1,3 @@
-/**
- * OpenStation — File Associations OS Settings tab.
- *
- * Phase 5 of the Files-on-the-Desktop system. Renders one row
- * per registered file type with a `<select>` listing every
- * opener that handles that type. Saving writes through the
- * `PUT /associations` REST endpoint and updates the JS-side
- * association map so subsequent `wp.os.files.open()` calls
- * pick up the new choice without a reload.
- */
-
 import { registerSettingsTab } from '../settings/registry';
 import { saveAssociations } from './rest';
 import {
@@ -19,16 +8,11 @@ import {
 	subscribeOpeners,
 } from './openers';
 import { getTypes } from './registry';
-// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 const TAB_ID = 'os-file-associations';
 
 let unsubscribe: ( () => void ) | null = null;
 
-/**
- * Register the tab. Called once at bundle boot from
- * `src/desktop-files/index.ts`.
- */
 export function registerFileAssociationsTab(): void {
 	registerSettingsTab( {
 		id: TAB_ID,
@@ -109,10 +93,6 @@ function buildRow(
 	const resolved = resolveOpener( typeSlug );
 	const currentId = associations[ typeSlug ] ?? resolved?.id ?? '';
 
-	// Use the framework's `<os-select>` so the picker matches the
-	// rest of OS Settings. The component wraps a native `<select>`
-	// internally — keyboard nav and OS pickers stay correct — and
-	// emits `os-pick` with the chosen value.
 	const select = document.createElement( 'os-select' ) as HTMLElement & {
 		value?: string;
 	};
@@ -135,11 +115,9 @@ function buildRow(
 			return;
 		}
 		const merged = { ...getUserAssociations(), [ typeSlug ]: next };
-		// Optimistic update — the open() resolver picks up the change
-		// immediately; REST persistence runs in the background.
+
 		setUserAssociations( merged );
 		void saveAssociations( merged ).catch( ( err: unknown ) => {
-			// eslint-disable-next-line no-console
 			console.error( '[openstation] saveAssociations failed:', err );
 		} );
 	} );

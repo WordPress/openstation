@@ -1,13 +1,3 @@
-/**
- * New windows opened inside a freed window.
- *
- * The bug this prevents is silent, which is what makes it worth
- * testing: a freed Games window launches a game, the game opens as a
- * second `.os-window` inside a shell that paints one, solo CSS stretches
- * it over the first, and with no dock and no window controls there is no
- * way back to either. Two windows in the DOM, one visible, no error.
- */
-
 import { describe, expect, test, vi } from 'vitest';
 
 import { installSoloForwarder, sameDocument } from '../src/solo-forwarder';
@@ -17,12 +7,6 @@ const CONFIG = {
 	soloParam: 'openstation_solo',
 } as unknown as AdapterConfig;
 
-/**
- * Build a shell double whose `WINDOW_OPENED` hook can be fired by hand.
- *
- * @param windows Windows the manager knows about, by id.
- * @param soloId  The window this surface was booted to paint.
- */
 function harness(
 	windows: Record< string, unknown >,
 	soloId = 'desktop-mode-games',
@@ -65,10 +49,6 @@ function harness(
 	};
 }
 
-/**
- * @param id   Window id.
- * @param over Overrides.
- */
 function fakeWindow( id: string, over: Record< string, unknown > = {} ) {
 	return {
 		id,
@@ -91,13 +71,12 @@ describe( 'forwarding', () => {
 		const req = h.openWindow.mock.calls[ 0 ][ 0 ] as Record< string, unknown >;
 		expect( req.windowId ).toBe( 'os-game-inkfall' );
 		expect( req.native ).toBe( true );
-		// A native window has no URL of its own, so it travels as solo.
+
 		expect( String( req.url ) ).toContain( 'openstation_solo=os-game-inkfall' );
 	} );
 
 	test( 'closes the local copy once the host has it', async () => {
-		// Otherwise the surface is painting two windows again, which is
-		// the whole problem.
+
 		const game = fakeWindow( 'os-game-inkfall' );
 		const h = harness( { 'os-game-inkfall': game } );
 
@@ -106,8 +85,7 @@ describe( 'forwarding', () => {
 	} );
 
 	test( 'leaves the solo window itself alone', () => {
-		// It is the window the user set free. Forwarding it would open a
-		// second copy of the thing they are looking at.
+
 		const h = harness( { 'desktop-mode-games': fakeWindow( 'desktop-mode-games' ) } );
 
 		h.fire( 'desktop-mode-games' );
@@ -133,7 +111,7 @@ describe( 'forwarding', () => {
 	} );
 
 	test( 'falls back to the configured URL before the window has navigated', async () => {
-		// `WINDOW_OPENED` fires before an iframe has a current URL.
+
 		const post = fakeWindow( 'post-php', {
 			config: {
 				native: false,
@@ -166,11 +144,7 @@ describe( 'sameDocument', () => {
 	} );
 
 	test( 'treats two different solo windows as different', () => {
-		// `openstation_solo` names WHICH window the shell paints, so it
-		// is identity, not chrome. Stripping it collapses every solo URL
-		// onto every other and the forwarder refuses everything — which
-		// is exactly how a freed Games window stopped handing over its
-		// game.
+
 		expect(
 			sameDocument(
 				`${ BASE }?openstation_solo=os-game-inkfall`,
@@ -203,8 +177,7 @@ describe( 'sameDocument', () => {
 
 describe( 'when it cannot forward', () => {
 	test( 'keeps the local window if the host refuses', async () => {
-		// A stacked window the user can at least see beats a closed one
-		// that went nowhere.
+
 		const game = fakeWindow( 'os-game-inkfall' );
 		const os = harness( { 'os-game-inkfall': game } );
 		os.openWindow.mockResolvedValue( { ok: false, error: 'nope' } );
@@ -231,8 +204,7 @@ describe( 'when it cannot forward', () => {
 	} );
 
 	test( 'does nothing at all against a host too old to offer openWindow', () => {
-		// Leaving the window where it is beats closing it and having
-		// nowhere to send it.
+
 		let handler: unknown = null;
 		const os = {
 			config: { adminUrl: 'https://example.test/wp-admin/', soloWindow: 'x' },

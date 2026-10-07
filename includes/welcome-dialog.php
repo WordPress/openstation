@@ -1,63 +1,9 @@
 <?php
-/**
- * OpenStation — First-run welcome dialog.
- *
- * Renders a one-time, self-contained modal inside the *classic*
- * WordPress admin (never inside the desktop shell or a chromeless
- * iframe) that introduces OpenStation to the user who activated it and
- * offers to switch it on. Dismissal is persisted via the existing
- * seen-intros registry
- * (`desktop_mode_seen_intros` user meta, slug `activation-welcome`),
- * which means the "Reset what's-new dialogs" button in OpenStation
- * Preferences → Features brings it back exactly like every other intro
- * dialog.
- *
- * The dialog is intentionally self-contained — all HTML, CSS and JS are
- * inlined into `admin_footer`. We deliberately do NOT use any of the
- * `<os-*>` shell components here because they only ship inside the
- * desktop bundle, which is precisely *not* loaded on the classic admin
- * screens where this dialog is allowed to appear.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Slug stored in `desktop_mode_seen_intros` for this dialog. */
 const OPENSTATION_WELCOME_INTRO_SLUG = 'activation-welcome';
 
-/**
- * Decides whether the welcome dialog should render on the current request.
- *
- * Seven gates:
- *
- * 1. We're inside `/wp-admin` (`is_admin()`).
- * 2. The user is logged in and can `read` (sanity gate — the dialog has
- *    no destructive surface, but anonymous output makes no sense).
- * 3. The request is NOT chromeless — chromeless pages are iframes
- *    rendering inside the desktop shell; the parent shell already shows
- *    its own UX.
- * 4. OpenStation is NOT already enabled for the user. This is a
- *    "switch to OpenStation" promo, so it has nothing to say once the
- *    user is in the shell. The desktop shell's *parent* page is admin
- *    context and is not chromeless, so without this gate the dialog
- *    re-renders there the moment the user clicks "Switch to
- *    OpenStation", which reads as a duplicate dialog because the
- *    fire-and-forget seen-intro POST races the redirect into the shell
- *    and often loses.
- * 5. The user is the one who activated the plugin
- *    ({@see openstation_record_activator()}). Dismissal is per user, so
- *    without this every other account on the site would get the dialog
- *    on its first wp-admin visit. Nobody gets it after an activation
- *    without a user, or on an install activated before the activator
- *    was recorded.
- * 6. The user has not already dismissed this intro.
- * 7. The `openstation_show_welcome_dialog` filter returns truthy, so
- *    sites can suppress the dialog entirely (e.g. managed-host onboarding
- *    flows that ship their own).
- *
- * @return bool
- */
 function openstation_should_show_welcome_dialog() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return false;
@@ -79,35 +25,15 @@ function openstation_should_show_welcome_dialog() {
 		return false;
 	}
 
-	/**
-	 * Filters whether the first-run welcome dialog should render for
-	 * the current user on the current request. All earlier gates
-	 * (admin context, capability, chromeless, activator, seen-state)
-	 * have already passed by the time this filter fires.
-	 *
-	 * @param bool $show    Whether to render the dialog. Default true.
-	 * @param int  $user_id Current user ID.
-	 */
 	return (bool) apply_filters( 'openstation_show_welcome_dialog', true, $user_id );
 }
 
-/**
- * Returns one of OpenStation's own icons as inline SVG markup.
- *
- * Reads the outlined copies in `assets/icons/` (the ones registered with
- * Core's icon registry), which paint with `currentColor`, so the dialog's
- * CSS decides their colour. Returns an empty string for a missing file,
- * which leaves an empty icon slot rather than breaking the dialog.
- *
- * @param string $slug Icon slug, e.g. `windows`.
- * @return string Sanitised SVG markup.
- */
 function openstation_welcome_dialog_icon( $slug ) {
 	$path = OPENSTATION_DIR . 'assets/icons/' . sanitize_key( $slug ) . '.svg';
 	if ( ! is_readable( $path ) ) {
 		return '';
 	}
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local plugin file, not a remote URL.
+
 	$svg = (string) file_get_contents( $path );
 
 	return wp_kses(
@@ -129,21 +55,6 @@ function openstation_welcome_dialog_icon( $slug ) {
 	);
 }
 
-/**
- * Prints the welcome dialog markup, styles and dismiss script into
- * `admin_footer`.
- *
- * Self-contained on purpose: everything is scoped under the
- * `.os-welcome` namespace so it cannot collide with the host
- * admin theme. The dismiss button POSTs to the seen-intros REST route,
- * which is exactly the same endpoint the in-shell intros use.
- *
- * The look is deliberately quiet: a light card with a dark panel that
- * shows two OpenStation windows, the holo mark, and Pulse kept to the
- * feature icons. Every colour is a literal from the brand palette rather
- * than a `--os-*` token, because `variables.css` is not loaded in classic
- * admin. Spacing sits on an 8px grid.
- */
 function openstation_render_welcome_dialog() {
 	if ( ! openstation_should_show_welcome_dialog() ) {
 		return;
@@ -158,9 +69,6 @@ function openstation_render_welcome_dialog() {
 	$mono_url   = OPENSTATION_URL . 'assets/fonts/GeistMono-Variable.woff2';
 	$mark_url   = OPENSTATION_URL . 'assets/images/openstation-mark-holo.svg';
 
-	// All user-facing strings are passed through translation; the dialog
-	// is keyboard-dismissible (Escape) and moves initial focus to the
-	// primary CTA.
 	$title    = __( 'Welcome to OpenStation', 'desktop-mode' );
 	$body     = __( 'Your admin, as a desktop. Keep several screens open at once and move between tasks without losing your place.', 'desktop-mode' );
 	$later    = __( 'Not now', 'desktop-mode' );
@@ -185,7 +93,7 @@ function openstation_render_welcome_dialog() {
 		),
 		array(
 			'icon'  => 'command',
-			/* translators: %s: the keyboard shortcut that opens search, e.g. ⌘K. */
+
 			'title' => __( 'Search with %s', 'desktop-mode' ),
 			'desc'  => __( 'Jump to any screen or run a command.', 'desktop-mode' ),
 			'kbd'   => true,
@@ -212,7 +120,7 @@ function openstation_render_welcome_dialog() {
 		box-sizing: border-box;
 	}
 	.os-welcome {
-		/* Brand palette, as literals: see the render function's docblock. */
+
 		--_void: #0c0b0f;
 		--_obsidian: #1a1721;
 		--_astro: #33303a;
@@ -252,7 +160,7 @@ function openstation_render_welcome_dialog() {
 		to   { opacity: 1; transform: translateY( 0 ); }
 	}
 	.os-welcome__card {
-		/* margin:auto centres the card and still lets a short viewport scroll to its top. */
+
 		margin: auto;
 		width: 100%;
 		max-width: 820px;
@@ -267,8 +175,6 @@ function openstation_render_welcome_dialog() {
 			0 32px 64px -24px rgba( 12, 11, 15, 0.48 );
 		animation: os-welcome-pop 320ms cubic-bezier( 0.22, 1, 0.36, 1 ) both;
 	}
-
-	/* ---- Dark panel: two windows on the station ------------------- */
 
 	.os-welcome__art {
 		position: relative;
@@ -320,7 +226,7 @@ function openstation_render_welcome_dialog() {
 		position: absolute;
 		overflow: hidden;
 		border-radius: 9px;
-		/* The window greys sit a step above the palette's dark ramp so the art reads against Void. */
+
 		background: #201d28;
 		border: 1px solid rgba( 255, 251, 255, 0.12 );
 		box-shadow: 0 18px 36px -12px rgba( 0, 0, 0, 0.7 );
@@ -373,8 +279,6 @@ function openstation_render_welcome_dialog() {
 			radial-gradient( circle at 70% 30%, rgba( 236, 155, 255, 0.22 ), transparent 60% ),
 			linear-gradient( 150deg, #36313f, #25222c );
 	}
-
-	/* ---- Content column ------------------------------------------- */
 
 	.os-welcome__main {
 		display: flex;
@@ -460,7 +364,6 @@ function openstation_render_welcome_dialog() {
 		white-space: nowrap;
 	}
 
-	/* Anchored to the bottom of the card, however long the copy runs. */
 	.os-welcome__actions {
 		margin-top: auto;
 		display: flex;
@@ -512,8 +415,6 @@ function openstation_render_welcome_dialog() {
 	body.os-welcome-open {
 		overflow: hidden;
 	}
-
-	/* ---- Narrow screens ------------------------------------------- */
 
 	@media ( max-width: 760px ) {
 		.os-welcome__card {
@@ -607,7 +508,7 @@ function openstation_render_welcome_dialog() {
 					<?php foreach ( $features as $feature ) : ?>
 						<li class="os-welcome__feature">
 							<span class="os-welcome__icon" aria-hidden="true">
-								<?php echo openstation_welcome_dialog_icon( $feature['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sanitised with wp_kses() in the helper. ?>
+								<?php echo openstation_welcome_dialog_icon( $feature['icon'] );                                                                                                             ?>
 							</span>
 							<div>
 								<strong class="os-welcome__feature-title">
@@ -675,13 +576,11 @@ function openstation_render_welcome_dialog() {
 
 	document.body.classList.add( 'os-welcome-open' );
 
-	// The shell answers Cmd+K and Ctrl+K alike; show the one this keyboard has.
 	var shortcut = root.querySelector( '[data-os-welcome-shortcut]' );
 	if ( shortcut && ! /Mac|iPhone|iPad|iPod/.test( navigator.platform || navigator.userAgent ) ) {
 		shortcut.textContent = 'Ctrl K';
 	}
 
-	// Focus the primary CTA so keyboard users land somewhere meaningful.
 	var primary = root.querySelector( '[data-os-welcome-enable]' )
 		|| root.querySelector( '[data-os-welcome-cta]' );
 	if ( primary ) {
@@ -697,18 +596,6 @@ function openstation_render_welcome_dialog() {
 		document.removeEventListener( 'keydown', onKey );
 	}
 
-	// Rebuilds an absolute URL onto the origin the admin page was actually
-	// loaded from. `rest_url()` / `admin_url()` are pinned to `site_url()`,
-	// but the admin may be viewed through a different origin — a reverse
-	// proxy, a Flexible-SSL edge, a mapped multisite domain, or simply an
-	// HTTPS dev proxy in front of an HTTP site. POSTing the *absolute*
-	// site_url URL from such a page is cross-origin (and mixed-content when
-	// the page is HTTPS and site_url is HTTP); the browser blocks it, the
-	// dismissal never reaches the server, and the dialog re-renders on every
-	// page load. Reissuing the request to `window.location.origin` keeps it
-	// same-origin — where the logged-in cookie (domain-scoped, not
-	// port-scoped) and the `wp_rest` nonce (session-bound, origin-agnostic)
-	// are both valid.
 	function sameOrigin( url ) {
 		try {
 			var parsed = new URL( url, window.location.href );
@@ -719,22 +606,10 @@ function openstation_render_welcome_dialog() {
 	}
 
 	function persist() {
-		// Fire-and-forget. The seen-intros endpoint always returns the
-		// post-mutation list, but we don't need it here; if the request
-		// fails (offline, REST disabled) the dialog will simply show
-		// again next page load — exactly the behavior a user would
-		// expect from a "save my dismissal" call that didn't reach the
-		// server.
+
 		var url     = sameOrigin( cfg.url );
 		var payload = JSON.stringify( { slug: cfg.slug } );
 
-		// Prefer `navigator.sendBeacon`: it is queued by the browser and
-		// survives the navigation that "Switch to OpenStation" triggers
-		// without the keepalive caveats, and it is inherently
-		// same-origin-credentialed. The `wp_rest` nonce rides along as
-		// `_wpnonce` (REST cookie auth reads it from `$_REQUEST`), and the
-		// Blob's `application/json` type lets the REST server parse the
-		// `slug` body param.
 		try {
 			if ( navigator.sendBeacon ) {
 				var beaconUrl = url +
@@ -747,8 +622,6 @@ function openstation_render_welcome_dialog() {
 			}
 		} catch ( e ) {}
 
-		// Fallback: `keepalive: true` keeps the POST alive across the
-		// "Switch to OpenStation" redirect on browsers without sendBeacon.
 		try {
 			var headers = { 'Content-Type': 'application/json' };
 			if ( cfg.nonce ) {
@@ -781,9 +654,6 @@ function openstation_render_welcome_dialog() {
 		btn.disabled = true;
 		btn.textContent = busy;
 
-		// Persist the dismissal in parallel — even if the AJAX save fails
-		// the user explicitly asked to turn the mode on, so they don't
-		// need to see the welcome again.
 		persist();
 
 		var form = new FormData();
@@ -805,9 +675,7 @@ function openstation_render_welcome_dialog() {
 				window.location.href = redirect;
 				return;
 			}
-			// Fallback — reload so the shell takes over (the AJAX endpoint
-			// already wrote the user meta, so this request will boot
-			// straight into OpenStation via the portal flow).
+
 			window.location.reload();
 		} ).catch( function () {
 			enabling = false;
@@ -832,7 +700,7 @@ function openstation_render_welcome_dialog() {
 			dismiss();
 			return;
 		}
-		// Backdrop click — outside the card.
+
 		if ( target === root ) {
 			event.preventDefault();
 			dismiss();

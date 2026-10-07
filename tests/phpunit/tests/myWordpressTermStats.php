@@ -1,24 +1,5 @@
 <?php
-/**
- * Tests for the `/desktop-mode/v1/term-stats/<taxonomy>/<id>` REST
- * endpoint's post-level permission model.
- *
- * The route wears the My WordPress module's gate (`edit_posts` by
- * default), and terms are public data, but the posts inside a term
- * are not. A contributor must
- * never receive another author's `private`, `draft`, `pending` or
- * `future` post in the `recent` list, and the per-status `counts`
- * breakdown must not betray how many hidden posts a term holds.
- * Authors and editors keep their own (and, for editors, others')
- * unpublished work, custom statuses follow their registered visibility
- * flags, and terms of a hidden taxonomy are not served at all.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group desktop-mode-my-wordpress
- */
+
 class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -84,12 +65,6 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		return $response->get_data()['counts']['posts'];
 	}
 
-	/**
-	 * A contributor only sees the published post in `recent` — the
-	 * admin's draft, private, pending and scheduled posts are dropped.
-	 *
-	 * @covers ::openstation_my_wordpress_term_stats_callback
-	 */
 	public function test_contributor_recent_excludes_unpublished() {
 		wp_set_current_user( self::$contributor_id );
 
@@ -104,13 +79,6 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		$this->assertNotContains( $this->future_id, $ids );
 	}
 
-	/**
-	 * The per-status counts a contributor receives cover only the
-	 * published set — the unpublished statuses are zero, so the count
-	 * cannot act as an oracle for hidden content.
-	 *
-	 * @covers ::openstation_my_wordpress_term_stats_callback
-	 */
 	public function test_contributor_counts_hide_unpublished() {
 		wp_set_current_user( self::$contributor_id );
 
@@ -123,12 +91,6 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		$this->assertSame( 1, $counts['total'] );
 	}
 
-	/**
-	 * An administrator can read everything in the term, so both the
-	 * recent list and the counts include the unpublished posts.
-	 *
-	 * @covers ::openstation_my_wordpress_term_stats_callback
-	 */
 	public function test_admin_sees_unpublished_in_recent_and_counts() {
 		wp_set_current_user( self::$admin_id );
 
@@ -148,13 +110,6 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		$this->assertSame( 5, $counts['total'] );
 	}
 
-	/**
-	 * An author sees their OWN draft in the term (they can read it),
-	 * but not another author's — the own-post scope widens no one
-	 * else's view.
-	 *
-	 * @covers ::openstation_my_wordpress_term_stats_callback
-	 */
 	public function test_author_sees_own_draft_only() {
 		$own_draft = $this->make_post( 'draft', 'My own draft', self::$author_id );
 
@@ -163,25 +118,16 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		$response = $this->dispatch();
 		$ids      = $this->recent_ids( $response );
 		$this->assertContains( $own_draft, $ids );
-		$this->assertNotContains( $this->draft_id, $ids ); // The admin's draft.
+		$this->assertNotContains( $this->draft_id, $ids );
 		$this->assertNotContains( $this->private_id, $ids );
 		$this->assertNotContains( $this->future_id, $ids );
 
-		// The count reflects the one draft the author may read.
 		$counts = $this->post_counts( $response );
 		$this->assertSame( 1, $counts['draft'] );
 		$this->assertSame( 0, $counts['private'] );
 		$this->assertSame( 0, $counts['future'] );
 	}
 
-	/**
-	 * A status registered with `public => true` is front-end-visible
-	 * data, so it counts and lists for everyone — the readable set is
-	 * driven by the registered visibility flags, not a hardcoded
-	 * status list.
-	 *
-	 * @covers ::openstation_my_wordpress_term_stats_callback
-	 */
 	public function test_custom_public_status_is_visible_to_contributors() {
 		register_post_status( 'showcase', array( 'public' => true ) );
 		$showcase_id = $this->make_post( 'showcase', 'Showcased piece' );
@@ -191,20 +137,13 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 			$response = $this->dispatch();
 
 			$this->assertContains( $showcase_id, $this->recent_ids( $response ) );
-			// The breakdown has no key for the custom status, but the
-			// total covers every readable post.
+
 			$this->assertSame( 2, $this->post_counts( $response )['total'] );
 		} finally {
 			unset( $GLOBALS['wp_post_statuses']['showcase'] );
 		}
 	}
 
-	/**
-	 * The recent list is capped at five and keeps the five most
-	 * recent readable posts, newest first.
-	 *
-	 * @covers ::openstation_my_wordpress_term_stats_callback
-	 */
 	public function test_recent_is_capped_at_five_newest_first() {
 		$extras = array();
 		for ( $i = 1; $i <= 6; $i++ ) {
@@ -218,14 +157,6 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Terms of a non-viewable taxonomy answer exactly like an
-	 * unregistered one unless the caller can manage its terms — a
-	 * contributor must not enumerate nav menus or a plugin's internal
-	 * taxonomy through this endpoint.
-	 *
-	 * @covers ::openstation_my_wordpress_term_stats_callback
-	 */
 	public function test_hidden_taxonomy_is_not_served_to_contributors() {
 		$menu = wp_insert_term( 'Primary menu', 'nav_menu' );
 		$this->assertNotWPError( $menu );
@@ -235,27 +166,15 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		$this->assertSame( 400, $response->get_status() );
 		$this->assertSame( 'openstation_invalid_taxonomy', $response->get_data()['code'] );
 
-		// An admin holds nav_menu's manage cap (edit_theme_options).
 		wp_set_current_user( self::$admin_id );
 		$this->assertSame( 200, $this->dispatch( 'nav_menu', $menu['term_id'] )->get_status() );
 	}
-	/**
-	 * The route wears the My WordPress module's gate: a Subscriber, who
-	 * cannot open WP Explorer, cannot read this dossier either.
-	 *
-	 * @covers ::openstation_my_wordpress_register_term_stats_route
-	 */
+
 	public function test_subscriber_is_rejected_by_route() {
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertSame( 403, $this->dispatch()->get_status() );
 	}
 
-	/**
-	 * A site that narrows the module through its filter locks this route
-	 * down with it, administrators included.
-	 *
-	 * @covers ::openstation_my_wordpress_register_term_stats_route
-	 */
 	public function test_filter_narrowed_route_refuses_admins() {
 		add_filter( 'openstation_my_wordpress_user_can_use', '__return_false' );
 

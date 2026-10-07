@@ -1,15 +1,7 @@
 <?php
-/**
- * Feed fetching, normalization, persistence, and unread-state service.
- *
- * @package OpenStationFeedBuddy
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Owns FeedBuddy's server-side state.
- */
 class Feed_Buddy_Service {
 
 	const META_SUBSCRIPTIONS = '_feed_buddy_subscriptions';
@@ -24,12 +16,6 @@ class Feed_Buddy_Service {
 	const MAX_READ_IDS      = 250;
 	const MAX_RESPONSE_SIZE = 1048576;
 
-	/**
-	 * Return the complete user-facing state projection.
-	 *
-	 * @param int $user_id WordPress user ID.
-	 * @return array
-	 */
 	public function get_state( $user_id ) {
 		$subscriptions = $this->get_subscriptions( $user_id );
 		$read_state    = $this->get_read_state( $user_id );
@@ -75,13 +61,6 @@ class Feed_Buddy_Service {
 		);
 	}
 
-	/**
-	 * Add and baseline a subscription.
-	 *
-	 * @param int   $user_id WordPress user ID.
-	 * @param array $input    REST input.
-	 * @return array|WP_Error
-	 */
 	public function add_subscription( $user_id, array $input ) {
 		$url = isset( $input['url'] ) ? esc_url_raw( trim( (string) $input['url'] ) ) : '';
 		if ( ! $this->is_safe_url( $url ) ) {
@@ -143,14 +122,6 @@ class Feed_Buddy_Service {
 		return $this->get_state( $user_id );
 	}
 
-	/**
-	 * Update title, group, or order.
-	 *
-	 * @param int    $user_id        WordPress user ID.
-	 * @param string $subscription_id Subscription UUID.
-	 * @param array  $input          REST input.
-	 * @return array|WP_Error
-	 */
 	public function update_subscription( $user_id, $subscription_id, array $input ) {
 		$subscriptions = $this->get_subscriptions( $user_id );
 		$index         = $this->find_subscription_index( $subscriptions, $subscription_id );
@@ -191,13 +162,6 @@ class Feed_Buddy_Service {
 		return $this->get_state( $user_id );
 	}
 
-	/**
-	 * Remove a subscription and its read/refresh state.
-	 *
-	 * @param int    $user_id        WordPress user ID.
-	 * @param string $subscription_id Subscription UUID.
-	 * @return array|WP_Error
-	 */
 	public function delete_subscription( $user_id, $subscription_id ) {
 		$subscriptions = $this->get_subscriptions( $user_id );
 		$index         = $this->find_subscription_index( $subscriptions, $subscription_id );
@@ -220,15 +184,6 @@ class Feed_Buddy_Service {
 		return $this->get_state( $user_id );
 	}
 
-	/**
-	 * Return a cursor-paginated item projection.
-	 *
-	 * @param int         $user_id WordPress user ID.
-	 * @param string|null $feed_id Optional subscription ID.
-	 * @param int         $cursor  Numeric offset.
-	 * @param bool        $unread_only Whether to filter read entries.
-	 * @return array|WP_Error
-	 */
 	public function get_items( $user_id, $feed_id = null, $cursor = 0, $unread_only = false ) {
 		$subscriptions = $this->get_subscriptions( $user_id );
 		$read_state    = $this->get_read_state( $user_id );
@@ -279,13 +234,6 @@ class Feed_Buddy_Service {
 		);
 	}
 
-	/**
-	 * Mark item, feed, or all-feed records read/unread.
-	 *
-	 * @param int   $user_id WordPress user ID.
-	 * @param array $input   REST input.
-	 * @return array|WP_Error
-	 */
 	public function update_read_state( $user_id, array $input ) {
 		$scope   = isset( $input['scope'] ) ? sanitize_key( (string) $input['scope'] ) : 'item';
 		$read    = ! isset( $input['read'] ) || rest_sanitize_boolean( $input['read'] );
@@ -352,13 +300,6 @@ class Feed_Buddy_Service {
 		return $this->get_state( $user_id );
 	}
 
-	/**
-	 * Force-refresh one or all subscriptions, respecting per-user cooldowns.
-	 *
-	 * @param int         $user_id WordPress user ID.
-	 * @param string|null $feed_id Optional subscription ID.
-	 * @return array|WP_Error
-	 */
 	public function refresh( $user_id, $feed_id = null ) {
 		$subscriptions = $this->get_subscriptions( $user_id );
 		if ( $feed_id ) {
@@ -399,13 +340,6 @@ class Feed_Buddy_Service {
 		return $this->get_state( $user_id );
 	}
 
-	/**
-	 * Persist supported preferences.
-	 *
-	 * @param int   $user_id WordPress user ID.
-	 * @param array $input   REST input.
-	 * @return array
-	 */
 	public function update_preferences( $user_id, array $input ) {
 		$preferences = $this->get_preferences( $user_id );
 		if ( isset( $input['preferences'] ) && is_array( $input['preferences'] )
@@ -416,12 +350,6 @@ class Feed_Buddy_Service {
 		return $this->get_state( $user_id );
 	}
 
-	/**
-	 * Read ordered subscriptions.
-	 *
-	 * @param int $user_id WordPress user ID.
-	 * @return array
-	 */
 	public function get_subscriptions( $user_id ) {
 		$value = get_user_meta( $user_id, self::META_SUBSCRIPTIONS, true );
 		$value = is_array( $value ) ? $value : array();
@@ -434,13 +362,6 @@ class Feed_Buddy_Service {
 		return array_values( $value );
 	}
 
-	/**
-	 * Resolve and normalize a public RSS/Atom feed or discover one from HTML.
-	 *
-	 * @param string $url   Feed or homepage URL.
-	 * @param bool   $force Whether to bypass transients.
-	 * @return array|WP_Error
-	 */
 	public function resolve_feed( $url, $force = false ) {
 		$cache_key = $this->cache_key( $url );
 		if ( ! $force ) {
@@ -482,13 +403,6 @@ class Feed_Buddy_Service {
 		);
 	}
 
-	/**
-	 * Parse already-fetched bytes with SimplePie network fetching disabled.
-	 *
-	 * @param string $body Feed bytes.
-	 * @param string $url  Canonical feed URL.
-	 * @return array|WP_Error
-	 */
 	private function parse_feed( $body, $url ) {
 		require_once ABSPATH . WPINC . '/feed.php';
 		require_once ABSPATH . WPINC . '/class-simplepie.php';
@@ -500,12 +414,12 @@ class Feed_Buddy_Service {
 		$feed->enable_cache( false );
 		$feed->set_raw_data( $body );
 		$feed->set_stupidly_fast( true );
-		$previous_error_reporting = error_reporting(); // phpcs:ignore -- Preserve the exact site setting during bounded third-party parsing.
-		error_reporting( $previous_error_reporting & ~E_USER_NOTICE ); // phpcs:ignore -- Invalid remote feeds must not write parser notices to the site log.
+		$previous_error_reporting = error_reporting();
+		error_reporting( $previous_error_reporting & ~E_USER_NOTICE );
 		try {
 			$initialized = $feed->init();
 		} finally {
-			error_reporting( $previous_error_reporting ); // phpcs:ignore -- Restore the exact site setting after bounded parsing.
+			error_reporting( $previous_error_reporting );
 		}
 		if ( ! $initialized ) {
 			return new WP_Error( 'feed_buddy_parse_failed', 'Invalid feed.' );
@@ -581,12 +495,6 @@ class Feed_Buddy_Service {
 		);
 	}
 
-	/**
-	 * Fetch a public URL with SSRF and response-size protections.
-	 *
-	 * @param string $url URL.
-	 * @return array|WP_Error
-	 */
 	private function safe_request( $url ) {
 		if ( ! $this->is_safe_url( $url ) ) {
 			return new WP_Error(
@@ -636,13 +544,6 @@ class Feed_Buddy_Service {
 		return array( 'body' => $body );
 	}
 
-	/**
-	 * Discover RSS/Atom alternate links without executing document content.
-	 *
-	 * @param string $html     HTML response.
-	 * @param string $base_url Source page URL.
-	 * @return array
-	 */
 	private function discover_feed_urls( $html, $base_url ) {
 		if ( ! class_exists( 'DOMDocument' ) ) {
 			return array();
@@ -678,13 +579,6 @@ class Feed_Buddy_Service {
 		return array_values( array_unique( $urls ) );
 	}
 
-	/**
-	 * Resolve common absolute, protocol-relative, root-relative, and path-relative URLs.
-	 *
-	 * @param string $href     Candidate URL.
-	 * @param string $base_url Page URL.
-	 * @return string
-	 */
 	private function resolve_relative_url( $href, $base_url ) {
 		$href = trim( html_entity_decode( $href, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 		if ( preg_match( '#^https?://#i', $href ) ) {
@@ -711,34 +605,16 @@ class Feed_Buddy_Service {
 		return esc_url_raw( $origin . $path . $href );
 	}
 
-	/**
-	 * Validate scheme and WordPress' public-URL rules.
-	 *
-	 * @param string $url URL.
-	 * @return bool
-	 */
 	private function is_safe_url( $url ) {
 		$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
 		return in_array( strtolower( (string) $scheme ), array( 'http', 'https' ), true )
 			&& false !== wp_http_validate_url( $url );
 	}
 
-	/**
-	 * Read a subscription feed through the normalized cache.
-	 *
-	 * @param array $subscription Subscription record.
-	 * @return array|WP_Error
-	 */
 	private function get_feed_for_subscription( array $subscription ) {
 		return $this->resolve_feed( $subscription['url'], false );
 	}
 
-	/**
-	 * Save ordered and normalized subscription records.
-	 *
-	 * @param int   $user_id WordPress user ID.
-	 * @param array $subscriptions Records.
-	 */
 	private function save_subscriptions( $user_id, array $subscriptions ) {
 		foreach ( $subscriptions as $index => &$subscription ) {
 			$subscription['order'] = $index;
@@ -747,33 +623,15 @@ class Feed_Buddy_Service {
 		update_user_meta( $user_id, self::META_SUBSCRIPTIONS, array_values( $subscriptions ) );
 	}
 
-	/**
-	 * Read the persisted item-read map.
-	 *
-	 * @param int $user_id WordPress user ID.
-	 * @return array
-	 */
 	private function get_read_state( $user_id ) {
 		$value = get_user_meta( $user_id, self::META_READ_ITEMS, true );
 		return is_array( $value ) ? $value : array();
 	}
 
-	/**
-	 * Persist the item-read map.
-	 *
-	 * @param int   $user_id WordPress user ID.
-	 * @param array $state   Read state.
-	 */
 	private function save_read_state( $user_id, array $state ) {
 		update_user_meta( $user_id, self::META_READ_ITEMS, $state );
 	}
 
-	/**
-	 * Return supported user preferences with defaults.
-	 *
-	 * @param int $user_id WordPress user ID.
-	 * @return array
-	 */
 	private function get_preferences( $user_id ) {
 		$value = get_user_meta( $user_id, self::META_PREFERENCES, true );
 		$value = is_array( $value ) ? $value : array();
@@ -782,12 +640,6 @@ class Feed_Buddy_Service {
 		);
 	}
 
-	/**
-	 * Derive unique group labels in subscription order.
-	 *
-	 * @param array $subscriptions Subscription records.
-	 * @return array
-	 */
 	private function groups_from_subscriptions( array $subscriptions ) {
 		$groups = array();
 		foreach ( $subscriptions as $subscription ) {
@@ -796,13 +648,6 @@ class Feed_Buddy_Service {
 		return array_values( array_unique( $groups ) );
 	}
 
-	/**
-	 * Find a subscription's numeric position.
-	 *
-	 * @param array  $subscriptions Records.
-	 * @param string $subscription_id UUID.
-	 * @return int|null
-	 */
 	private function find_subscription_index( array $subscriptions, $subscription_id ) {
 		foreach ( $subscriptions as $index => $subscription ) {
 			if ( hash_equals( (string) $subscription['id'], (string) $subscription_id ) ) {
@@ -812,21 +657,10 @@ class Feed_Buddy_Service {
 		return null;
 	}
 
-	/**
-	 * Build the bounded transient key for a feed URL.
-	 *
-	 * @param string $url URL.
-	 * @return string
-	 */
 	private function cache_key( $url ) {
 		return 'feed_buddy_' . md5( untrailingslashit( strtolower( $url ) ) );
 	}
 
-	/**
-	 * Return the standard missing-subscription response.
-	 *
-	 * @return WP_Error
-	 */
 	private function not_found_error() {
 		return new WP_Error(
 			'feed_buddy_subscription_not_found',
@@ -835,12 +669,6 @@ class Feed_Buddy_Service {
 		);
 	}
 
-	/**
-	 * Convert internal errors into bounded user-facing copy.
-	 *
-	 * @param WP_Error $error Error.
-	 * @return string
-	 */
 	private function public_error_message( WP_Error $error ) {
 		$known = array(
 			'feed_buddy_http_failed',

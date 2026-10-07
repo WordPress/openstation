@@ -1,9 +1,3 @@
-/**
- * Unit tests for the challenges shared store
- * (`src/games/challenges-store.ts`) and the main-bundle client
- * (`src/games/challenges-client.ts`): heartbeat wiring, version
- * advancement, and the once-per-session notification policy.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -98,7 +92,7 @@ describe( 'games/challenges-store.ts', () => {
 		store.subscribeChallenges( listener );
 
 		store.ingestChallenges( [ makeRow( { id: 1, updatedAtMs: 1000 } ) ] );
-		// Same updatedAtMs → no change, no notify.
+
 		store.ingestChallenges( [ makeRow( { id: 1, updatedAtMs: 1000 } ) ] );
 		expect( listener ).toHaveBeenCalledTimes( 1 );
 
@@ -127,14 +121,12 @@ describe( 'games/challenges-client.ts', () => {
 		heartbeat.bootHeartbeatBus();
 		client.bootGamesChallenges( { currentUserId: 20 } );
 
-		// Outgoing tick carries the store's version.
 		const data: Record< string, unknown > = {};
 		handlers[ 'heartbeat-send' ]( null, data );
 		expect( data.openstation_games_subscribe ).toEqual( {
 			challengesVersion: 0,
 		} );
 
-		// Incoming tick feeds the store.
 		handlers[ 'heartbeat-tick' ]( null, {
 			openstation_games: {
 				challenges: [ makeRow( { updatedAtMs: 5000 } ) ],
@@ -162,7 +154,6 @@ describe( 'games/challenges-client.ts', () => {
 			dismissible: true,
 		} );
 
-		// A re-delivery of the same row must not re-prompt.
 		store.ingestChallenges( [ makeRow( { id: 7, updatedAtMs: 2000 } ) ] );
 		expect( notifySpy ).toHaveBeenCalledTimes( 1 );
 	} );

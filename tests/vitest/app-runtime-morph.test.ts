@@ -1,10 +1,3 @@
-/**
- * App Framework runtime — DOM morph.
- *
- * The morph is what lets a server-rendered window feel live: nodes
- * survive a re-render, so custom elements keep their shadow roots,
- * focus stays put, and scroll positions don't jump.
- */
 import { describe, expect, it } from 'vitest';
 import { morphChildren } from '../../src/app-runtime/morph';
 
@@ -77,8 +70,7 @@ describe( 'morphChildren', () => {
 	it( 'morphs a select\'s options before assigning its value', () => {
 		const root = mount( '<select><option value="a">A</option></select>' );
 		const select = root.firstElementChild as HTMLSelectElement;
-		// The browser refuses a value no option carries, so assigning it
-		// before the new <option> lands would silently leave 'a' selected.
+
 		morphChildren(
 			root,
 			'<select value="b"><option value="a">A</option><option value="b" selected>B</option></select>',

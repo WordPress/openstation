@@ -1,43 +1,12 @@
 <?php
-/**
- * Agents — drafting an agent from a brief.
- *
- * "Draft it for me" in the create flow used to ride the Copilot's
- * search route. That route forces its own answer schema (answer type,
- * message, entity, admin links) and its own search-shaped system
- * prompt, so a request for a bare JSON draft was fighting the loop it
- * ran in: the draft came back wrapped inside `message` when it came
- * back at all. Drafting is one generate call with no tools and a
- * strict answer schema of its own, which is what this file is.
- *
- * The site's catalogues are the authority twice: they are written
- * into the schema as enums so the model can only pick from them, and
- * the answer is filtered against them again on the way out, because a
- * pre-filter or a provider that ignores enums must not be able to
- * hand the wizard a role or an ability the site does not have.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Longest brief the route accepts, in characters. */
 const OPENSTATION_AGENT_DRAFT_BRIEF_MAX = 2000;
 
-/** Caps on what a draft may fill in, matching the store's own. */
 const OPENSTATION_AGENT_DRAFT_NAME_MAX  = 80;
 const OPENSTATION_AGENT_DRAFT_VIBES_MAX = 120;
 
-/**
- * Draft an agent definition from a plain-language brief.
- *
- * @param string $brief   What the agent should do, in the user's words.
- * @param int    $user_id Requesting user, for the AI client's context.
- * @return array|WP_Error `{ name, description, vibes, instructions, role, abilities }`
- *                        with every value already filtered against the
- *                        site's catalogues; `role` is '' when the model's
- *                        pick was not one the site allows.
- */
 function openstation_agent_draft( $brief, $user_id ) {
 	$brief = trim( (string) $brief );
 	if ( '' === $brief ) {
@@ -51,18 +20,6 @@ function openstation_agent_draft( $brief, $user_id ) {
 	$roles     = array_values( openstation_agent_allowed_roles() );
 	$catalogue = openstation_agents_abilities_catalogue();
 
-	/**
-	 * Pre-filter the draft. Return a non-null array shaped like the
-	 * route's response (or a WP_Error) to short-circuit the AI Client;
-	 * the seam PHPUnit and alternative runtimes plug into. Whatever
-	 * comes back is still filtered against the catalogues.
-	 *
-	 * @param array|WP_Error|null $draft     Null to proceed with the AI Client.
-	 * @param string              $brief     The brief.
-	 * @param string[]            $roles     Role slugs the site allows for agents.
-	 * @param array               $catalogue The abilities catalogue rows.
-	 * @param int                 $user_id   Requesting user id.
-	 */
 	$draft = apply_filters( 'openstation_agent_draft', null, $brief, $roles, $catalogue, $user_id );
 
 	if ( null === $draft ) {
@@ -83,16 +40,6 @@ function openstation_agent_draft( $brief, $user_id ) {
 	return openstation_agent_draft_sanitize( is_array( $draft ) ? $draft : array(), $roles, $catalogue );
 }
 
-/**
- * One generate call: the brief as the user message, the drafting
- * instructions as the system instruction, the catalogues as enums.
- *
- * @param string $brief     The brief.
- * @param array  $roles     Allowed role slugs.
- * @param array  $catalogue Abilities catalogue rows.
- * @param int    $user_id   Requesting user id.
- * @return array|WP_Error Decoded draft, or an error carrying a REST status.
- */
 function openstation_agent_draft_generate( $brief, array $roles, array $catalogue, $user_id ) {
 	$messages     = array( openstation_ai_user_text_message( $brief ) );
 	$schema       = openstation_agent_draft_answer_schema( $roles, wp_list_pluck( $catalogue, 'slug' ) );
@@ -115,7 +62,7 @@ function openstation_agent_draft_generate( $brief, array $roles, array $catalogu
 		$error = openstation_agent_humanize_generate_error( $generated );
 		$data  = $error->get_error_data();
 		if ( ! is_array( $data ) || ! isset( $data['status'] ) ) {
-			// A provider failure is the upstream's, not the caller's.
+
 			$error->add_data( array_merge( is_array( $data ) ? $data : array(), array( 'status' => 502 ) ) );
 		}
 		return $error;
@@ -136,16 +83,6 @@ function openstation_agent_draft_generate( $brief, array $roles, array $catalogu
 	return $parsed;
 }
 
-/**
- * The strict answer schema for a draft.
- *
- * Enums are only declared when there is something to enumerate: an
- * empty `enum` is a schema no provider accepts.
- *
- * @param string[] $roles         Allowed role slugs.
- * @param string[] $ability_slugs Ability slugs the site registers.
- * @return array JSON Schema.
- */
 function openstation_agent_draft_answer_schema( array $roles, array $ability_slugs ) {
 	$role = array(
 		'type'        => 'string',
@@ -189,16 +126,6 @@ function openstation_agent_draft_answer_schema( array $roles, array $ability_slu
 	);
 }
 
-/**
- * The system instruction for a draft.
- *
- * Not translated: it is a model instruction, and the catalogue it
- * quotes is what the schema's enums already constrain the answer to.
- *
- * @param string[] $roles     Allowed role slugs.
- * @param array    $catalogue Abilities catalogue rows.
- * @return string
- */
 function openstation_agent_draft_instructions( array $roles, array $catalogue ) {
 	$lines = array(
 		'The user is a WordPress administrator defining a new site agent: a durable AI worker that lives on the site as a user, acts through registered abilities under its own role, and answers in a chat window.',
@@ -229,14 +156,6 @@ function openstation_agent_draft_instructions( array $roles, array $catalogue ) 
 	return implode( "\n", $lines );
 }
 
-/**
- * Filter a draft against the site's catalogues and the store's caps.
- *
- * @param array $draft     Whatever came back, pre-filter or provider.
- * @param array $roles     Allowed role slugs.
- * @param array $catalogue Abilities catalogue rows.
- * @return array The route's response shape.
- */
 function openstation_agent_draft_sanitize( array $draft, array $roles, array $catalogue ) {
 	$str = static function ( $value, $max ) {
 		return is_string( $value ) ? mb_substr( trim( sanitize_text_field( $value ) ), 0, $max ) : '';

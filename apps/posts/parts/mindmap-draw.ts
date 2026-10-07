@@ -1,12 +1,3 @@
-/**
- * Posts app — the Categories mind map's drawing routines: the node
- * shape, the lit-from-above disc, the breathing drop target, and the
- * parent→child bezier (solid, or dashed by walking the curve, since
- * Pixi 8's stroke has no dash option).
- *
- * @public
- */
-
 import type { CanvasPalette } from './canvas/palette';
 import { shadeColor, type PixiGraphics, type PixiNamespace, type PixiPoint } from './canvas/pixi';
 
@@ -45,12 +36,6 @@ export function bezierAt(
 	};
 }
 
-/**
- * A parent→child bezier. `dashed` walks the curve in 32 samples and
- * strokes every other group; `dashPhase` marches the pattern along
- * the curve, `dashStride` groups samples per dash (2 = chunky
- * marching ants).
- */
 export function drawCurvedEdge(
 	g: PixiGraphics,
 	x1: number,
@@ -88,7 +73,6 @@ export function drawCurvedEdge(
 	}
 }
 
-/** A lit-from-above sphere: shadow, halo (focused), rim, cap, gloss, stroke. */
 export function drawNodeDisc( pixi: PixiNamespace, node: MindNode, highlighted: boolean, palette: CanvasPalette ): void {
 	const g = node.gfx;
 	g.clear();
@@ -112,12 +96,10 @@ export function drawNodeDisc( pixi: PixiNamespace, node: MindNode, highlighted: 
 	g.x = node.x;
 	g.y = node.y;
 	g.zIndex = 10;
-	// An exact circular hit area — the drawn primitives' bounding box
-	// is bigger than the disc and not circular.
+
 	g.hitArea = new pixi.Circle( 0, 0, r + 4 );
 }
 
-/** The drop target while reparenting: a breathing ring + accent dot in the dragged node's colour. */
 export function drawDropTarget( pixi: PixiNamespace, hover: MindNode, sourceColor: number, palette: CanvasPalette ): void {
 	drawNodeDisc( pixi, hover, false, palette );
 	const g = hover.gfx;

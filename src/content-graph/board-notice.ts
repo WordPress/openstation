@@ -1,54 +1,25 @@
-/**
- * Content Graph — what the board says when there is little on it.
- *
- * A site with two posts used to open onto two dots and the status
- * line "2 nodes · 0 links", which reads as broken rather than as
- * empty. The board now explains itself: an empty state when there is
- * nothing to pin (and whether that is because the site has no content,
- * because the toolbar has filtered it all out, or because every type
- * is switched off), and a short note when there are nodes but no
- * threads yet, saying what a thread is and where the other
- * relationships live.
- *
- * `deriveBoardNotice` is the pure decision; `renderBoardNotice` owns
- * the DOM. Both live outside the Pixi canvas — a plain overlay on the
- * stage, the same shape the categories mind-map uses for its hint —
- * so the copy is real text: translatable and themable.
- *
- * @public
- */
-
-// Side-effect import — registers `<os-empty-state>` for this bundle.
-// `defineComponent` is idempotent across bundles, and every window
-// bundle that constructs the element imports it the same way so it
-// works whatever order the bundles landed in.
 import '../ui/components/os-empty-state/os-empty-state';
 import { __ } from '../i18n';
 
 export type BoardNotice =
 	| { kind: 'none' }
-	/** No readable content of any graphable type on the site. */
+
 	| { kind: 'no-content' }
-	/** Content exists, but every type that has any is switched off. */
+
 	| { kind: 'filtered-out' }
-	/** Every toolbar chip is off. */
+
 	| { kind: 'all-off' }
-	/** Nodes on the board, no thread between any two of them. */
+
 	| { kind: 'no-threads' };
 
 export interface BoardNoticeInput {
-	/** `stats.nodes` from the graph payload. */
+
 	nodes: number;
-	/** `stats.edges` from the graph payload. */
+
 	edges: number;
-	/**
-	 * Post-type descriptors with their live counts. `count` is absent
-	 * on the descriptors the window config ships (only `/post-types`
-	 * adds it); while no descriptor carries one, the counts are
-	 * treated as unknown rather than as zero.
-	 */
+
 	types: ReadonlyArray< { slug: string; count?: number } >;
-	/** Slugs currently switched on in the toolbar. */
+
 	activeTypes: ReadonlyArray< string >;
 }
 
@@ -68,9 +39,7 @@ export function deriveBoardNotice( input: BoardNoticeInput ): BoardNotice {
 		if ( active.has( t.slug ) ) {
 			continue;
 		}
-		// With counts unknown (`/post-types` failed) a switched-off
-		// type is assumed to have content: blaming the chips when the
-		// user is filtering is the safer of the two mistakes.
+
 		hidden += countsKnown ? t.count ?? 0 : 1;
 	}
 	return hidden > 0 ? { kind: 'filtered-out' } : { kind: 'no-content' };
@@ -78,11 +47,7 @@ export function deriveBoardNotice( input: BoardNoticeInput ): BoardNotice {
 
 export interface BoardNoticeHandle {
 	set: ( notice: BoardNotice ) => void;
-	/**
-	 * Hide the "No threads yet" note without forgetting it — used
-	 * while a grouping is active, when the cluster labels need the
-	 * top-left corner. Empty-board states are never suppressed.
-	 */
+
 	setSuppressed: ( suppressed: boolean ) => void;
 	destroy: () => void;
 }

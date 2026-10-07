@@ -1,7 +1,3 @@
-/**
- * Tests for `trashManyWithUndo` — trashing a selection as ONE action:
- * one toast, one Undo, one broadcast per kind.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -60,10 +56,7 @@ async function load(): Promise< {
 	wp.os = {
 		showToast: ( t: Toast ) => toasts.push( t ),
 	};
-	// The trash module announces through the module-level bus (via
-	// `announceContentChange`), so observe the real `os-broadcast`
-	// CustomEvent rather than a `wp.os.broadcast` mock. One listener,
-	// re-armed per load.
+
 	if ( broadcastListener ) {
 		document.removeEventListener( 'os-broadcast', broadcastListener );
 	}
@@ -78,8 +71,7 @@ async function load(): Promise< {
 	document.addEventListener( 'os-broadcast', broadcastListener );
 	const store = await import( '../../src/desktop-files/store' );
 	store.__resetFilesStoreForTests();
-	// `trash.ts` reads REST + the store through `layer-deps`; swapping
-	// that one module is the whole seam.
+
 	vi.doMock( '../../src/desktop-files/layer-deps', () => ( {
 		rest,
 		store: {
@@ -124,7 +116,7 @@ describe( 'trashManyWithUndo', () => {
 		expect( rest.deletePlacement ).toHaveBeenCalledTimes( 3 );
 		expect( toasts ).toHaveLength( 1 );
 		expect( toasts[ 0 ].message ).toBe( '3 items moved to Trash' );
-		// All three are gone from the store, optimistically.
+
 		expect( store.getFilesState().placementsByFolder.get( 0 ) ).toEqual( [] );
 
 		await toasts[ 0 ].action?.onClick();
@@ -139,8 +131,7 @@ describe( 'trashManyWithUndo', () => {
 
 		expect( rest.deletePlacement ).toHaveBeenCalledWith( 1 );
 		expect( rest.deleteFolder ).toHaveBeenCalledWith( 7 );
-		// Subscribers delta by `ids.length`, so a mixed set has to be
-		// split by kind rather than flattened into one event.
+
 		const trashed = broadcasts.filter(
 			( b ) => b.payload.action === 'trashed',
 		);
@@ -169,15 +160,13 @@ describe( 'trashManyWithUndo', () => {
 		expect( toasts[ 0 ].message ).toBe(
 			'1 item moved to Trash · 1 could not be moved',
 		);
-		// The optimistic eviction is reconciled against the server.
+
 		expect( rest.listPlacements ).toHaveBeenCalledWith( 0 );
 		spy.mockRestore();
 	} );
 
 	test( 'Undo announces only what actually came back', async () => {
-		// Broadcasting the whole batch would tell the Recycle Bin's
-		// badge an item was restored while it is still in the trash —
-		// a lie that survives until the next full refresh.
+
 		const { trash, store } = await load();
 		const items = [ placement( 1 ), placement( 2 ), placement( 3 ) ];
 		store.setFolderPlacements( 0, items as never );
@@ -187,7 +176,7 @@ describe( 'trashManyWithUndo', () => {
 		const spy = vi
 			.spyOn( console, 'error' )
 			.mockImplementation( () => undefined );
-		// One of the three restores fails.
+
 		rest.restoreTrashedItem.mockImplementationOnce( async () => {
 			throw new Error( 'network' );
 		} );
@@ -199,10 +188,10 @@ describe( 'trashManyWithUndo', () => {
 		const untrashed = broadcasts.filter(
 			( b ) => b.payload.action === 'untrashed',
 		);
-		// Two ids announced, not three.
+
 		expect( untrashed ).toHaveLength( 1 );
 		expect( untrashed[ 0 ].payload.ids ).toEqual( [ 2, 3 ] );
-		// …and the user is told the Undo didn't fully take.
+
 		expect( toasts[ 0 ]?.message ).toContain( 'could not be restored' );
 	} );
 

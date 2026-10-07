@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the cascade cleanup of placements when a source
- * entity (post, attachment, user) is trashed or deleted via any
- * WordPress route.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-files
- */
+
 class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -35,16 +25,6 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Read the raw trash columns for a placement. The public
-	 * `openstation_files_get_placement()` normalizer strips
-	 * `trashed_at_ms` + `trashed_meta` from its output (live tiles
-	 * never need them), so the assertions go straight to the
-	 * underlying row.
-	 *
-	 * @param int $placement_id Placement id.
-	 * @return array{ trashed_at_ms: ?int, trashed_meta: ?string }
-	 */
 	private function read_trash_columns( $placement_id ) {
 		global $wpdb;
 		$tables = openstation_files_table_names();
@@ -61,15 +41,9 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_trash_placements_for_entity
-	 */
 	public function test_cascade_soft_trashes_matching_placements() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 
-		// Two users with a shortcut to the same post; verifies the
-		// cascade reaches placements across owners, not just the
-		// trashing user's own desk.
 		$p1 = openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );
 		$p2 = openstation_files_place( self::$other_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 1 ) );
 
@@ -80,9 +54,6 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p2 )['trashed_at_ms'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_trash_placements_for_entity
-	 */
 	public function test_cascade_is_idempotent() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );
@@ -94,15 +65,10 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertSame( 0, $second, 'Second pass must not re-stamp already-trashed rows.' );
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_trash_placements_for_entity
-	 */
 	public function test_cascade_ignores_unrelated_file_types() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$other_user = self::factory()->user->create();
-		// Two placements with the same ref but different file_type.
-		// Trashing 'post' must not touch the 'user' row even if the
-		// ref id happens to collide.
+
 		$post_placement = openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );
 		$user_placement = openstation_files_place( self::$admin_id, 0, 'user', (string) $other_user, array( 'x' => 1, 'y' => 0 ) );
 
@@ -112,9 +78,6 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNull( $this->read_trash_columns( $user_placement )['trashed_at_ms'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_on_post_trash
-	 */
 	public function test_wp_trash_post_triggers_cascade() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$p_id    = openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );
@@ -127,12 +90,8 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_on_post_trash
-	 */
 	public function test_pages_cascade_via_post_trash_hook() {
-		// Pages share `wp_trash_post` and the `'post'` file_type with
-		// regular posts — the cascade must reach pages too.
+
 		$page_id = self::factory()->post->create( array(
 			'post_type'   => 'page',
 			'post_status' => 'publish',
@@ -144,13 +103,8 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p_id )['trashed_at_ms'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_on_post_trash
-	 */
 	public function test_attachment_wp_trash_routes_to_attachment_filetype() {
-		// Attachments are post-type='attachment' but desktop-files
-		// stores them as `file_type='attachment'`. The post-keyed
-		// cascade redirects attachment trashes to the right slug.
+
 		$att_id = self::factory()->attachment->create_object( 'image.jpg', 0, array(
 			'post_mime_type' => 'image/jpeg',
 			'post_status'    => 'inherit',
@@ -162,9 +116,6 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p_id )['trashed_at_ms'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_on_attachment_delete
-	 */
 	public function test_delete_attachment_triggers_cascade() {
 		$att_id = self::factory()->attachment->create_object( 'image2.jpg', 0, array(
 			'post_mime_type' => 'image/jpeg',
@@ -177,9 +128,6 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p_id )['trashed_at_ms'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_on_user_delete
-	 */
 	public function test_deleted_user_triggers_cascade() {
 		require_once ABSPATH . 'wp-admin/includes/user.php';
 		$victim_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
@@ -190,9 +138,6 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p_id )['trashed_at_ms'] );
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_trash_placements_for_entity
-	 */
 	public function test_cascade_fires_after_action_per_placement() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );
@@ -208,9 +153,6 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertSame( 2, $fired );
 	}
 
-	/**
-	 * @covers ::openstation_files_cascade_trash_placements_for_entity
-	 */
 	public function test_cascade_writes_cascade_marker_to_trashed_meta() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$p_id    = openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );

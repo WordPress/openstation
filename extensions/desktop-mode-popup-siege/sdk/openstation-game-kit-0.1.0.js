@@ -92,7 +92,7 @@
 				try {
 					disposer();
 				} catch ( error ) {
-					// Teardown must continue even if one optional surface failed.
+
 				}
 			}
 		}

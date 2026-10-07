@@ -1,35 +1,11 @@
 <?php
-/**
- * Tests for the CPT / taxonomy registration tracker that attributes a
- * type to whoever registered it.
- *
- * The tracker records an absolute file path rather than a plugin file:
- * `registered_post_type` fires during `init`, and Core does not load
- * `wp-admin/includes/plugin.php` — where `get_plugins()` lives — until
- * `wp-admin/admin.php` runs it afterwards. Resolving eagerly meant the
- * tracker recorded nothing at all.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- */
+
 class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 
-	/**
-	 * Absolute path to a throwaway plugin file used to register types
-	 * from outside OpenStation's own directory.
-	 *
-	 * @var string
-	 */
 	protected static $fixture_file;
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
-		// The tracker deliberately skips frames inside OpenStation —
-		// otherwise every type on the site would be attributed to us,
-		// since the backtrace starts in our own `payload.php`. Every
-		// test file lives inside the plugin, so simulating a
-		// third-party registrant needs a file that doesn't.
+
 		$dir                = trailingslashit( WP_PLUGIN_DIR ) . 'dm-registrant-fixture';
 		self::$fixture_file = $dir . '/dm-registrant-fixture.php';
 
@@ -60,9 +36,7 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		// Registrant tracking only runs where something reads the map.
-		// `is_admin()` consults `$current_screen` first, and the test
-		// suite starts on the front end.
+
 		set_current_screen( 'dashboard' );
 	}
 
@@ -80,15 +54,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * A plugin that registers a type is recorded by file path, with no
-	 * `get_plugins()` involved — the regression this rewrite fixes.
-	 * Before it, the tracker bailed on every request because
-	 * `get_plugins()` does not exist yet at `init`.
-	 *
-	 * @covers ::openstation_record_type_registrant
-	 * @covers ::openstation_type_registrant_file
-	 */
 	public function test_records_the_registering_plugin_file() {
 		dm_registrant_fixture_register( 'dm_tracked', 'post_type' );
 
@@ -98,11 +63,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		$this->assertSame( wp_normalize_path( self::$fixture_file ), $file );
 	}
 
-	/**
-	 * Taxonomies go through the same tracker.
-	 *
-	 * @covers ::openstation_record_type_registrant
-	 */
 	public function test_records_taxonomies_too() {
 		dm_registrant_fixture_register( 'dm_tracked_tax', 'taxonomy' );
 
@@ -112,12 +72,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The recorded path resolves to a group the site window can render
-	 * a folder for.
-	 *
-	 * @covers ::openstation_my_wordpress_post_type_group
-	 */
 	public function test_recorded_path_resolves_to_a_plugin_group() {
 		dm_registrant_fixture_register( 'dm_tracked', 'post_type' );
 
@@ -128,17 +82,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-plugins', $group['icon'] );
 	}
 
-	/**
-	 * WordPress.com links its managed plugins into `plugins/` from
-	 * `/wordpress/plugins/<slug>/latest`, which points at a version
-	 * folder, and PHP reports their files by the resolved path. The type,
-	 * and a callback the plugin declares, still belong to the plugin
-	 * folder it was loaded through.
-	 *
-	 * @covers ::openstation_registrant_file_from_backtrace
-	 * @covers ::openstation_plugin_file_for_path
-	 * @covers ::openstation_plugin_link_path
-	 */
 	public function test_attributes_a_plugin_linked_in_from_outside_the_plugins_dir() {
 		global $wp_plugin_paths;
 
@@ -155,7 +98,7 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		$saved_paths = $wp_plugin_paths;
 
 		try {
-			// What wp-settings.php does before loading each active plugin.
+
 			wp_register_plugin_realpath( $link . '/dm-managed-fixture.php' );
 			require_once $link . '/dm-managed-fixture.php';
 			dm_managed_fixture_register();
@@ -168,7 +111,7 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 				'plugin:dm-managed-fixture',
 				openstation_my_wordpress_post_type_group( 'dm_managed' )['id']
 			);
-			// The dock's menu attribution reflects on callbacks instead.
+
 			wp_cache_delete( 'plugins', 'plugins' );
 			$this->assertSame(
 				'dm-managed-fixture/dm-managed-fixture.php',
@@ -185,14 +128,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * The backtrace walk starts inside `payload.php`, which lives under
-	 * `WP_PLUGIN_DIR` — without skipping our own frames every type on
-	 * the site would be attributed to OpenStation. Registering from
-	 * this test file (which is inside the plugin) must record nothing.
-	 *
-	 * @covers ::openstation_registrant_file_from_backtrace
-	 */
 	public function test_does_not_attribute_types_to_openstation_itself() {
 		register_post_type( 'dm_selfattr', array( 'public' => true ) );
 
@@ -201,36 +136,18 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Core's own types are skipped before the backtrace even runs.
-	 *
-	 * @covers ::openstation_record_type_registrant
-	 */
 	public function test_builtin_types_are_not_recorded() {
 		$this->assertNull( openstation_type_registrant_file( 'post', 'post_type' ) );
 		$this->assertNull( openstation_type_registrant_file( 'page', 'post_type' ) );
 		$this->assertNull( openstation_type_registrant_file( 'category', 'taxonomy' ) );
 	}
 
-	/**
-	 * Unrecorded types read back as null rather than raising.
-	 *
-	 * @covers ::openstation_type_registrant_file
-	 */
 	public function test_unknown_type_reads_back_null() {
 		$this->assertNull(
 			openstation_type_registrant_file( 'dm_never_registered', 'post_type' )
 		);
 	}
 
-	/**
-	 * The dock's CPT attribution strategy — `edit.php?post_type=X` is
-	 * rendered by Core, so the page hook never points at the
-	 * registering plugin and this tracker is the only way to know.
-	 * It silently never fired before the lazy rewrite.
-	 *
-	 * @covers ::openstation_lookup_taxonomy_or_post_type_plugin_file
-	 */
 	public function test_slug_lookup_resolves_the_registering_plugin() {
 		dm_registrant_fixture_register( 'dm_tracked', 'post_type' );
 
@@ -242,12 +159,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * A type registered from outside `WP_PLUGIN_DIR` has no plugin to
-	 * attribute it to — the dock must not invent one.
-	 *
-	 * @covers ::openstation_lookup_taxonomy_or_post_type_plugin_file
-	 */
 	public function test_slug_lookup_returns_null_for_non_plugin_registrants() {
 		$this->assertNull(
 			openstation_lookup_taxonomy_or_post_type_plugin_file(
@@ -256,9 +167,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_lookup_taxonomy_or_post_type_plugin_file
-	 */
 	public function test_slug_lookup_ignores_non_type_slugs() {
 		$this->assertNull(
 			openstation_lookup_taxonomy_or_post_type_plugin_file( 'plugins.php' )
@@ -268,16 +176,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The map is only read by admin-side surfaces (the dock payload,
-	 * the site window's section list). A front-end page view registers
-	 * the same types and would pay a `debug_backtrace()` per
-	 * registration for a map nothing reads — the predecessor of this
-	 * code avoided that by accident, bailing whenever `get_plugins()`
-	 * was undefined.
-	 *
-	 * @covers ::openstation_should_track_type_registrants
-	 */
 	public function test_tracking_is_skipped_off_the_admin() {
 		$this->assertTrue(
 			openstation_should_track_type_registrants(),
@@ -290,8 +188,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 			'front-end skips'
 		);
 
-		// Its own slug: the map is a per-request static, so a slug an
-		// earlier test in this class recorded would read back stale.
 		dm_registrant_fixture_register( 'dm_frontonly', 'post_type' );
 		$this->assertNull(
 			openstation_type_registrant_file( 'dm_frontonly', 'post_type' ),
@@ -299,9 +195,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_should_track_type_registrants
-	 */
 	public function test_tracking_is_filterable() {
 		set_current_screen( 'front' );
 		add_filter( 'openstation_track_type_registrants', '__return_true' );
@@ -309,9 +202,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		$this->assertTrue( openstation_should_track_type_registrants() );
 	}
 
-	/**
-	 * @covers ::openstation_extension_dirs
-	 */
 	public function test_extension_dirs_cover_plugins_mu_plugins_and_themes() {
 		$dirs = openstation_extension_dirs();
 

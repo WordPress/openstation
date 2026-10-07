@@ -1,4 +1,3 @@
-/** Stable preview residency: distance fills vacancies instead of evicting visible documents. */
 export function selectPreviews( visible: number[], mounted: number[], selected: number | null, zoom: number ): number[] {
 	if ( zoom < .4 ) {
 		return [];

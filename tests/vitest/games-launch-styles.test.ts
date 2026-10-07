@@ -1,16 +1,3 @@
-/**
- * A game must arrive styled however it was launched.
- *
- * The Games hub carries the three sheets as companion styles, which is
- * right when the hub is what opened. It is not the only way in: the
- * challenge toast's "Accept & Play" is built to work with the hub
- * closed, solo mode boots straight to `?openstation_solo=os-game-<id>`,
- * and `wp.os.games.launch()` is documented for plugins. Each of those
- * runs `launchGame()` — which is compiled into the SHELL bundle as well
- * as the games one — with no hub window in the tab, and the HUD
- * rendered as raw text until the user happened to open the hub.
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as deferredStyles from '../../src/deferred-styles';
 import { ensureGameStyles } from '../../src/games/launch';
@@ -55,9 +42,7 @@ describe( 'ensureGameStyles', () => {
 	} );
 
 	it( 'is a no-op when the games module is disabled', () => {
-		// `openstation_games_load()` bails when the framework is off, so
-		// the handle list is legitimately empty and there is nothing to
-		// inject.
+
 		w.openStationConfig = { gameStyleHandles: [] };
 
 		ensureGameStyles();

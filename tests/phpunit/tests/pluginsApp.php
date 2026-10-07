@@ -1,31 +1,16 @@
 <?php
-/**
- * Tests for the Plugins app — the App Framework port of the native
- * Plugins window: the manifest, the gate, the `data()` payload (an
- * in-process read of `/wp/v2/plugins` with the app's REST fields),
- * the landing tab a window param asks for (on `mount` and `reopen`),
- * and the activate / deactivate dispatch cycle end to end.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-plugins-window
- */
 
 class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 
 	protected static $admin_id;
 	protected static $editor_id;
 
-	/** A throwaway plugin on disk the activate / deactivate cycle runs on. */
 	const FIXTURE = 'dm-plugins-app-fixture/dm-plugins-app-fixture.php';
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id  = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$editor_id = $factory->user->create( array( 'role' => 'editor' ) );
-		// On multisite a plain administrator holds no plugin caps; the
-		// "user allowed to manage plugins here" persona is a super admin.
+
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -51,7 +36,7 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
-		// A fresh-looking transient so no field callback reaches wp.org.
+
 		set_site_transient(
 			'update_plugins',
 			(object) array(
@@ -70,15 +55,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Run one dispatch against the registered app.
-	 *
-	 * @param string $action Action name.
-	 * @param array  $state  Client state.
-	 * @param array  $args   Action args.
-	 * @param array  $params The window's open-time params.
-	 * @return array Runtime response.
-	 */
 	protected function dispatch( $action, array $state = array(), array $args = array(), array $params = array() ) {
 		return openstation_apps_runtime()->dispatch(
 			'desktop-mode-plugins',
@@ -92,9 +68,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers \OpenStation\App::manifest
-	 */
 	public function test_manifest_mirrors_the_legacy_windows_registration() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-plugins' );
 		$this->assertNotNull( $app );
@@ -105,7 +78,7 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertSame( 760, $manifest['height'] );
 		$this->assertSame( 760, $manifest['min_width'] );
 		$this->assertSame( 480, $manifest['min_height'] );
-		// The Plugins dock tile comes from `$menu` + the URL remap.
+
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertSame(
 			array( 'save_view', 'reopen', 'reload', 'activate', 'deactivate', 'delete', 'bulk' ),
@@ -115,18 +88,13 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertSame( 'installed', $manifest['state']['tab'] );
 		$this->assertSame( 'featured', $manifest['state']['browse'] );
 
-		// The config blob the client reads: the static half plus the
-		// per-viewer half (caps, nonces, the auto-updates gate).
 		$config = $manifest['config'];
 		$this->assertSame(
-			// `menuTabs` is the framework's: the tabs this window
-			// declared with `App::menu()`, which its strip and the
-			// dock's Plugins submenu both read.
+
 			array( 'ajaxUrl', 'selfPluginFile', 'adminUrl', 'ajaxNonce', 'updatesNonce', 'caps', 'autoUpdatesEnabled', 'deactivationFeedback', 'editorUrl', 'menuTabs' ),
 			array_keys( $config )
 		);
-		// The deactivation dialog's lazy bundle and route, so a
-		// self-deactivate can ask first.
+
 		$this->assertStringContainsString( 'deactivation-feedback', $config['deactivationFeedback']['script']['url'] );
 		$this->assertStringEndsWith( '/feedback/deactivation', $config['deactivationFeedback']['restUrl'] );
 		$this->assertSame( openstation_plugins_window_caps( self::$admin_id ), $config['caps'] );
@@ -137,10 +105,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertSame( 1, wp_verify_nonce( $config['updatesNonce'], 'updates' ) );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\Plugins\mount_plugins
-	 * @covers \OpenStation\Apps\Plugins\save_installed_view
-	 */
 	public function test_installed_view_is_saved_per_user_and_restored_on_mount() {
 		$this->assertSame( 'cards', $this->dispatch( 'mount' )['state']['installedView'] );
 		$saved = $this->dispatch( 'save_view', array(), array( 'view' => 'table' ) );
@@ -161,10 +125,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertSame( 'cards', $this->dispatch( 'mount' )['state']['installedView'] );
 	}
 
-	/**
-	 * @covers \OpenStation\Apps\Plugins\save_installed_view
-	 * @covers \OpenStation\Apps\Plugins\mount_plugins
-	 */
 	public function test_view_preference_rejects_invalid_values_and_unauthorized_writes() {
 		$this->dispatch( 'save_view', array(), array( 'view' => 'table' ) );
 		foreach ( array( '', 'grid', array( 'table' ), null ) as $invalid ) {
@@ -182,9 +142,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertSame( 'cards', $this->dispatch( 'mount' )['state']['installedView'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App::allows
-	 */
 	public function test_gate_follows_the_legacy_capability_filter() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-plugins' );
 		$this->assertTrue( $app->allows( openstation_apps_os() ) );
@@ -197,9 +154,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertFalse( $app->allows( openstation_apps_os() ) );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_mount_serves_the_installed_plugins_with_the_apps_rest_fields() {
 		$response = $this->dispatch( 'mount' );
 		$this->assertTrue( $response['ok'] );
@@ -222,15 +176,11 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertTrue( $fixture['openstation_can_manage']['activate'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_the_tab_param_lands_the_window_on_browse_and_reopen_switches_it() {
 		$response = $this->dispatch( 'mount', array(), array(), array( 'tab' => 'browse' ) );
 		$this->assertTrue( $response['ok'] );
 		$caps = openstation_plugins_window_caps( self::$admin_id );
-		// On multisite the marketplace is network-managed: the tab
-		// exists for no one there, and the param is refused.
+
 		$this->assertSame( $caps['install'] ? 'browse' : 'installed', $response['state']['tab'] );
 
 		$response = $this->dispatch( 'reopen', array( 'tab' => 'browse' ), array(), array( 'tab' => 'installed' ) );
@@ -239,16 +189,12 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$response = $this->dispatch( 'reopen', array( 'tab' => 'installed' ), array(), array( 'tab' => 'featured' ) );
 		$this->assertSame( $caps['install'] ? 'featured' : 'installed', $response['state']['tab'] );
 
-		// An unknown tab and no param leave the state alone.
 		$response = $this->dispatch( 'mount', array( 'tab' => 'installed' ), array(), array( 'tab' => 'nope' ) );
 		$this->assertSame( 'installed', $response['state']['tab'] );
 		$response = $this->dispatch( 'reopen', array( 'tab' => 'installed' ) );
 		$this->assertSame( 'installed', $response['state']['tab'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_activate_and_deactivate_run_cores_controller_and_refresh_the_dock() {
 		$plugin = substr( self::FIXTURE, 0, -4 );
 
@@ -259,7 +205,7 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertContains( 'toast', $types );
 		$this->assertContains( 'refresh_menu', $types );
 		$this->assertStringContainsString( 'activated', $response['effects'][0]['message'] );
-		// The fresh list rode the same response.
+
 		$this->assertContains( 'active', wp_list_pluck( $response['data']['installed'], 'status', 'plugin' ) );
 
 		$response = $this->dispatch( 'deactivate', array(), array( 'plugin' => $plugin . '.php' ) );
@@ -268,9 +214,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'deactivated', $response['effects'][0]['message'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_bulk_activates_the_selection_and_reports_the_count() {
 		$plugin   = substr( self::FIXTURE, 0, -4 );
 		$response = $this->dispatch(
@@ -291,9 +234,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertSame( '1 plugin(s) deactivated.', $response['effects'][0]['message'] );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_delete_removes_an_inactive_plugin_from_disk() {
 		$folder = 'dm-plugins-app-delete-fixture';
 		$file   = $folder . '/' . $folder . '.php';
@@ -310,7 +250,7 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 				$this->assertContains( 'refresh_menu', wp_list_pluck( $response['effects'], 'type' ) );
 				$this->assertNotContains( substr( $file, 0, -4 ), wp_list_pluck( $response['data']['installed'], 'plugin' ) );
 			} else {
-				// A network: plugin files are managed from the network admin.
+
 				$this->assertFileExists( WP_PLUGIN_DIR . '/' . $file );
 				$this->assertStringContainsString( 'Delete failed', $response['effects'][0]['message'] );
 			}
@@ -323,9 +263,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_an_unknown_bulk_verb_is_a_toast_and_touches_nothing() {
 		$plugin   = substr( self::FIXTURE, 0, -4 );
 		$response = $this->dispatch( 'bulk', array(), array( 'plugins' => array( $plugin ), 'do' => 'explode' ) );
@@ -334,19 +271,11 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertNotContains( 'refresh_menu', wp_list_pluck( $response['effects'], 'type' ) );
 		$this->assertFalse( is_plugin_active( self::FIXTURE ) );
 
-		// An empty selection is no toast at all.
 		$response = $this->dispatch( 'bulk', array(), array( 'plugins' => array( '../evil' ), 'do' => 'activate' ) );
 		$this->assertTrue( $response['ok'] );
 		$this->assertSame( array(), $response['effects'] );
 	}
 
-	/**
-	 * Deactivating or deleting OpenStation itself skips the menu
-	 * refresh (a hidden admin-page load that would probe a dead
-	 * plugin) — the client leaves for the classic admin instead.
-	 *
-	 * @covers \OpenStation\Apps\Plugins\is_self
-	 */
 	public function test_is_self_recognises_openstations_own_path() {
 		$self = substr( plugin_basename( OPENSTATION_FILE ), 0, -4 );
 		$this->assertTrue( \OpenStation\Apps\Plugins\is_self( $self ) );
@@ -355,12 +284,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertFalse( \OpenStation\Apps\Plugins\is_self( '' ) );
 	}
 
-	/**
-	 * A failed collection read is an error string in `data()`, never a
-	 * fatal or an empty list masquerading as a healthy one.
-	 *
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_data_reports_a_failed_collection_read() {
 		$broken = static function ( $response, $handler, $request ) {
 			if ( '/wp/v2/plugins' === $request->get_route() ) {
@@ -379,12 +302,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'unreadable', $response['data']['error'] );
 	}
 
-	/**
-	 * A network-activated plugin (a status only a network has) offers
-	 * no activate or delete, and deactivate only to a network admin.
-	 *
-	 * @covers ::openstation_plugins_window_field_can_manage
-	 */
 	public function test_can_manage_treats_network_active_as_active_but_network_managed() {
 		$can = openstation_plugins_window_field_can_manage(
 			array(
@@ -400,9 +317,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_a_bad_plugin_argument_is_a_toast_not_a_mutation() {
 		$response = $this->dispatch( 'activate', array(), array( 'plugin' => '../../wp-config' ) );
 		$this->assertTrue( $response['ok'] );
@@ -411,9 +325,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertNotContains( 'refresh_menu', wp_list_pluck( $response['effects'], 'type' ) );
 	}
 
-	/**
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_an_editor_is_refused_at_the_gate() {
 		wp_set_current_user( self::$editor_id );
 		$response = $this->dispatch( 'activate', array(), array( 'plugin' => substr( self::FIXTURE, 0, -4 ) ) );
@@ -422,13 +333,6 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		$this->assertFalse( is_plugin_active( self::FIXTURE ) );
 	}
 
-	/**
-	 * The Refresh button's action forces a fresh wp.org check (the
-	 * filter that opts a host out of wp.org sees `$force = true`) and
-	 * repaints the dock from the same snapshot.
-	 *
-	 * @covers \OpenStation\App\Runtime::dispatch
-	 */
 	public function test_reload_forces_the_update_check_and_refreshes_the_menu() {
 		$saw_force = null;
 		add_filter(

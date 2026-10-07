@@ -1,29 +1,9 @@
-/**
- * Window routing for the constellation flyout.
- *
- * The flyout is a second front door onto exactly the windows a dock
- * click already opens, so it MUST address them by the same ids —
- * otherwise the dock indicator, the hover-peek and the flyout's own
- * list of live windows would each be counting a different set.
- *
- * Everything here mirrors `Dock.openPage()` and the layout
- * dispatcher's `buildMountDeps().openSubmenuPick()`: same
- * `deriveWindowId( url, adminUrl )` key, same external-URL escape,
- * same native-window remap consult, same `parentUrl` pinning, and the
- * same split of doors — the menu's own page focuses the window it
- * already has, a submenu pick opens one of its own. The duplication
- * is deliberate — both of those live inside closures we
- * can't reach from here, and forwarding through the dispatcher would
- * mean widening its public interface for one internal caller.
- */
-
 import type { DockItem, SubmenuItem } from '../dock';
 import { tryOpenExternalUrl } from '../external-url';
 import { tryNativeUrlRemap } from '../native-url-remap';
 import { deriveWindowId } from '../utils';
 import type { WindowManager } from '../window-manager';
 
-/** Dashicons pass through; anything else falls back to the generic cog. */
 function safeIcon( icon: string ): string {
 	return icon.startsWith( 'dashicons-' ) ? icon : 'dashicons-admin-generic';
 }
@@ -33,10 +13,6 @@ export interface ConstellationRouting {
 	adminUrl: string;
 }
 
-/**
- * Open (or focus) a menu's own landing page — what clicking the dock
- * tile does.
- */
 export function openMenuItem(
 	deps: ConstellationRouting,
 	item: DockItem,
@@ -61,20 +37,6 @@ export function openMenuItem(
 	} );
 }
 
-/**
- * Open a submenu entry.
- *
- * Always a NEW window: picking a child page means "a window on this
- * page", and *Posts → Add New Post* with a draft open has to be a
- * second editor, not that draft pulled onto a new-post URL. Getting
- * back to a window that is open is the tile's job, and the flyout
- * lists this menu's live windows above these rows.
- *
- * `parentUrl` pins to the PARENT's landing page rather than to the
- * sub-page, so the window's tab strip still offers a way back to the
- * menu's own screen — the same reason the dispatcher's
- * `openSubmenuPick` does it.
- */
 export function openSubmenuItem(
 	deps: ConstellationRouting,
 	item: DockItem,
@@ -98,4 +60,3 @@ export function openSubmenuItem(
 		multi: !! item.multi,
 	} );
 }
-

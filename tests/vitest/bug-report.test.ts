@@ -1,17 +1,8 @@
-/**
- * Tests for the Bug Report native window — primarily the
- * GitHub-issue URL builder. The render path is covered by a small
- * integration test that confirms the form's structure.
- *
- * @group bug-report
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { buildGithubIssueUrl, renderBugReport } from '../../src/bug-report';
 
 beforeEach( () => {
-	// `collectMetadata()` reads navigator + window.location; jsdom
-	// gives both deterministic values, so no setup needed beyond a
-	// clean DOM.
+
 	document.body.innerHTML = '';
 } );
 
@@ -62,8 +53,7 @@ describe( 'buildGithubIssueUrl', () => {
 	} );
 
 	test( 'truncates oversized bodies with a note', () => {
-		// GitHub URLs cap around 8KB; we cap body at ~6KB for safety.
-		// Feeding 20KB of text exercises the truncation branch.
+
 		const huge = 'x'.repeat( 20_000 );
 		const url = buildGithubIssueUrl( {
 			type: 'bug',
@@ -117,8 +107,7 @@ describe( 'renderBugReport', () => {
 		const form = body.querySelector< HTMLFormElement >(
 			'.os-bug-report__form',
 		)!;
-		// jsdom's HTMLFormElement.requestSubmit isn't always
-		// implemented; fire `submit` directly so the handler runs.
+
 		form.dispatchEvent( new Event( 'submit', { cancelable: true } ) );
 
 		expect( body.querySelector( '.os-bug-report__error' ) ).not.toBeNull();

@@ -1,7 +1,3 @@
-/**
- * Installed plugins as a library: attention groups, local selection,
- * nearby actions and a focused inspector. No server state or API changes.
- */
 import { __, formatBytes, html, sprintf, type TemplateResult } from '@openstation/app';
 import '../../../src/ui/components/os-button/os-button';
 import '../../../src/ui/components/os-checkbox/os-checkbox';
@@ -16,7 +12,6 @@ import { buildInstalledDetail } from './installed-detail';
 import { DETAIL_STYLES, adoptStyles } from './styles';
 import { isActiveStatus, type Ctx, type InstalledPlugin, type PluginsHost } from './types';
 
-/** Per-window library state; selection never includes a hidden plugin. */
 export interface InstalledUi {
 	selected: string[];
 	savingView: boolean;
@@ -47,7 +42,6 @@ export const freshInstalledUi = (): InstalledUi => ( {
 	autoUpdate: null,
 } );
 
-/** The lowercase text a search matches against, computed once per list. */
 export function haystacksFor( rows: InstalledPlugin[], cache: InstalledUi['haystacks'] ): Map<string, string> {
 	if ( cache.source !== rows ) {
 		cache.source = rows;
@@ -61,7 +55,6 @@ export function haystacksFor( rows: InstalledPlugin[], cache: InstalledUi['hayst
 	return cache.byPlugin;
 }
 
-/** The plugins the current collection and search leave visible. */
 export function filterRows(
 	rows: InstalledPlugin[],
 	status: string,
@@ -91,12 +84,10 @@ export function filterRows(
 	} );
 }
 
-/** Rows with a pending update — the Updates collection count. */
 export function countUpdates( rows: InstalledPlugin[] ): number {
 	return rows.filter( ( r ) => !! r.openstation_update_available?.available ).length;
 }
 
-/** Group a plugin once, according to the next useful task. */
 export function pluginLane( row: InstalledPlugin ): string {
 	if ( row.openstation_update_available?.available ) {
 		return 'update';
@@ -104,7 +95,6 @@ export function pluginLane( row: InstalledPlugin ): string {
 	return isActiveStatus( row.status ) ? 'active' : 'inactive';
 }
 
-/** Keep controls stable while selecting, searching or opening details. */
 function actionsFor( host: PluginsHost, ui: InstalledUi, row: InstalledPlugin, surface = 'card' ): HTMLElement[] {
 	const key = JSON.stringify( [
 		row,
@@ -127,7 +117,6 @@ function actionsFor( host: PluginsHost, ui: InstalledUi, row: InstalledPlugin, s
 	return cached.actions;
 }
 
-/** Close the inspector and return keyboard focus to its library control. */
 function closeDetail( ctx: Ctx, ui: InstalledUi ): void {
 	const plugin = ui.focused;
 	ui.focused = '';
@@ -189,7 +178,7 @@ function pluginCard( ctx: Ctx, host: PluginsHost, ui: InstalledUi, row: Installe
 			<os-checkbox
 				class="os-plugins__pick"
 				?checked=${ ui.selected.includes( row.plugin ) }
-				aria-label=${ sprintf( /* translators: %s: plugin name */ __( 'Select %s', 'desktop-mode' ), name ) }
+				aria-label=${ sprintf( __( 'Select %s', 'desktop-mode' ), name ) }
 				@os-checkbox-change=${ select }
 			></os-checkbox>
 		</div>
@@ -214,7 +203,7 @@ function pluginCard( ctx: Ctx, host: PluginsHost, ui: InstalledUi, row: Installe
 				variant="ghost"
 				size="small"
 				data-plugin-details
-				aria-label=${ sprintf( /* translators: %s: plugin name */ __( 'Details for %s', 'desktop-mode' ), name ) }
+				aria-label=${ sprintf( __( 'Details for %s', 'desktop-mode' ), name ) }
 				@click=${ open }
 				>${ __( 'Details', 'desktop-mode' ) }<span aria-hidden="true"> ↗</span></os-button
 			>
@@ -222,7 +211,6 @@ function pluginCard( ctx: Ctx, host: PluginsHost, ui: InstalledUi, row: Installe
 	</os-card>`;
 }
 
-/** The inspector keeps its tabs and scroll position across unrelated repaints. */
 function detailPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): TemplateResult | string {
 	const row = host.installed.find( ( r ) => r.plugin === ui.focused );
 	if ( ! row ) {
@@ -267,7 +255,6 @@ function detailPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): TemplateRe
 	</aside>`;
 }
 
-/** A bulk tray anchored outside the scrollable library, at every width. */
 function selectionBar( ctx: Ctx, host: PluginsHost, ui: InstalledUi, rows: InstalledPlugin[] ): TemplateResult {
 	const clear = (): void => {
 		ui.selected = [];
@@ -287,7 +274,7 @@ function selectionBar( ctx: Ctx, host: PluginsHost, ui: InstalledUi, rows: Insta
 		></os-checkbox>
 		<span class="os-plugins__selection-count" role="status"
 			>${ sprintf(
-				/* translators: %d: selected plugins */ __( '%d selected', 'desktop-mode' ),
+				                                        __( '%d selected', 'desktop-mode' ),
 				ui.selected.length,
 			) }</span
 		>
@@ -310,7 +297,6 @@ function selectionBar( ctx: Ctx, host: PluginsHost, ui: InstalledUi, rows: Insta
 	</div>`;
 }
 
-/** The Installed tab: a local, responsive library of the server's live plugins. */
 export function installedPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): TemplateResult {
 	const { state, data } = ctx;
 	const rows = filterRows( data.installed, state.status, state.search, haystacksFor( data.installed, ui.haystacks ) );
@@ -337,10 +323,7 @@ export function installedPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): 
 			? ( b.openstation_size_kb ?? 0 ) - ( a.openstation_size_kb ?? 0 ) || a.name.localeCompare( b.name )
 			: a.name.localeCompare( b.name ),
 	);
-	// Template arrays reconcile positionally. Moving a cached Node between
-	// shelves lets the old slot dispose it after the new slot adopted it.
-	// Reuse controls only while the layout is stable (selection, detail and
-	// busy repaints); a new collection/order gets fresh nodes.
+
 	const layoutKey = JSON.stringify( [ state.installedView, state.status, state.search, ui.sort, rows.map( ( row ) => [ row.plugin, pluginLane( row ) ] ) ] );
 	if ( ui.layoutKey !== layoutKey ) {
 		ui.layoutKey = layoutKey;
@@ -473,7 +456,7 @@ export function installedPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): 
 				${ data.error
 					? html`<os-notice tone="error"
 							>${ sprintf(
-								/* translators: %s: error message */ __( 'Could not load plugins: %s', 'desktop-mode' ),
+								                                     __( 'Could not load plugins: %s', 'desktop-mode' ),
 								data.error,
 							) }</os-notice
 						>`
@@ -537,11 +520,6 @@ export function installedPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): 
 	</div>`;
 }
 
-/**
- * Core's three-state "Automatic Updates" cell: a read-only label when
- * a filter pinned the state, an em-dash when the plugin never checks
- * in with wp.org, a toggle otherwise (busy while in flight).
- */
 function renderAutoUpdateCell( host: PluginsHost, row: InstalledPlugin ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.setAttribute( 'data-noclick', '' );
@@ -593,7 +571,6 @@ function renderAutoUpdateCell( host: PluginsHost, row: InstalledPlugin ): HTMLEl
 	return wrap;
 }
 
-/** Mirror the library's names and pressed state onto the kit's native controls. */
 export function syncLibraryControls( root: HTMLElement ): void {
 	queueMicrotask( () => {
 		for ( const control of root.querySelectorAll(
@@ -610,7 +587,6 @@ export function syncLibraryControls( root: HTMLElement ): void {
 	} );
 }
 
-/** Load each plugin's icon once, with the existing directory fallback chain. */
 function pluginIcon( ui: InstalledUi, row: InstalledPlugin ): HTMLElement {
 	const key = JSON.stringify( [ row.name, row.openstation_icon_url ] );
 	let cached = ui.icons.get( row.plugin );
@@ -637,7 +613,6 @@ function pluginIcon( ui: InstalledUi, row: InstalledPlugin ): HTMLElement {
 	return cached.node;
 }
 
-/** Keep the table's imperative body in step with the same rows and selection as Cards. */
 export function syncLibraryTable( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): void {
 	syncInstalledTable( ui.table, {
 		root: ctx.root, host, rows: ui.rows, selected: ui.selected,

@@ -1,38 +1,16 @@
-/**
- * Code Editor — small reusable dialog helpers.
- *
- * One overlay primitive shared by every modal the editor needs.
- * Currently used for the unsaved-tab close confirm; the larger
- * three-choice conflict-resolution dialog (`conflict-dialog.ts`)
- * intentionally rolls its own to keep its more bespoke layout
- * uncoupled from this confirm shape.
- *
- * The dialogs render into `<body>` so they float above the desktop
- * shell. We can't use native `<dialog>`'s modal mode — the desktop
- * intercepts focus on its own windows and the native overlay
- * conflicts with that.
- */
-
 export interface ConfirmDialogArgs {
-	/** Bold first line. */
+
 	title: string;
-	/** Plain-text body explaining what the choice does. */
+
 	body: string;
-	/** Label on the affirmative button. Default: `'Confirm'`. */
+
 	confirmLabel?: string;
-	/** Label on the negative button. Default: `'Cancel'`. */
+
 	cancelLabel?: string;
-	/**
-	 * Render the confirm button with the destructive (red) wash.
-	 * Use for "discard" / "delete" / "overwrite" actions.
-	 */
+
 	danger?: boolean;
 }
 
-/**
- * Show a confirm modal. Resolves with `true` if the user confirmed,
- * `false` if cancelled (button, click-outside, or Escape).
- */
 export function showConfirm( args: ConfirmDialogArgs ): Promise< boolean > {
 	return new Promise( ( resolve ) => {
 		const overlay = document.createElement( 'div' );
@@ -100,7 +78,7 @@ export function showConfirm( args: ConfirmDialogArgs ): Promise< boolean > {
 		document.addEventListener( 'keydown', onKey );
 
 		document.body.append( overlay );
-		// Default focus on the safe option.
+
 		cancel.focus();
 	} );
 }

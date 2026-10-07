@@ -1,8 +1,3 @@
-/**
- * Multi-selection on the files layer: the Finder right-click rule,
- * the intersected action set for a mixed selection, and selection
- * survival across the layer's repaint paths.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -229,8 +224,7 @@ describe( 'files layer multi-selection', () => {
 		click( tileFor( host, 1 ) );
 		click( tileFor( host, 2 ), { metaKey: true } );
 		rightClick( tileFor( host, 1 ) );
-		// `delete-folder` and `remove` merge on `multiId: 'trash'`;
-		// rename and navigate-into are single-item and drop out.
+
 		expect( menuItemIds() ).toEqual( [ 'open', 'trash' ] );
 		handle.dispose();
 	} );
@@ -256,8 +250,7 @@ describe( 'files layer multi-selection', () => {
 		] );
 		click( tileFor( host, 1 ) );
 		click( tileFor( host, 2 ), { metaKey: true } );
-		// A peer adds a placement — the incremental path reuses the
-		// existing tiles.
+
 		store.upsertPlacement( placement( 4 ) as never, 'remote' );
 		expect( handle.getSelection().map( ( p ) => p.id ) ).toEqual( [ 1, 2 ] );
 		expect( tileFor( host, 1 ).hasAttribute( 'selected' ) ).toBe( true );
@@ -278,9 +271,7 @@ describe( 'files layer multi-selection', () => {
 
 	test( 'a modifier click does not lift a drag', async () => {
 		const started = vi.fn();
-		// Attach to the existing `wp` (the hooks stub lives there);
-		// replacing it wholesale would strip `wp.hooks` and the tile
-		// renderer's filters would throw.
+
 		const wp = ( window as unknown as { wp: Record< string, unknown > } ).wp;
 		const previousOs = wp.os;
 		wp.os = {

@@ -1,67 +1,17 @@
 <?php
-/**
- * OpenStation — Workspaces.
- *
- * A virtual desktop ("Space") is a container for windows. A workspace
- * is that container plus the answer to "what is this desk FOR": which
- * apps belong on it, which windows it opens with, and how they are
- * arranged. That answer is the desktop's `profile`, and it rides along
- * with the desktop through {@see openstation_sanitize_session()}.
- *
- * This file owns two things:
- *
- *   1. The server-side view of the shipped templates, so a plugin can
- *      add or drop one from PHP without shipping JavaScript.
- *   2. Sanitization of a profile arriving from the client. The session
- *      is user meta written from an untrusted payload, so every field
- *      is bounded here and nowhere else.
- *
- * The JS side is `src/workspaces/`, and the two lists of shipped
- * templates are deliberately separate: PHP's exists so a filter has
- * something to filter, JS's is what the switcher renders. Neither
- * generates the other, and `Tests_OpenStation_Workspaces` pins that
- * the ids match.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/** Hard cap on apps named by one workspace's visible set. */
 const OPENSTATION_WORKSPACE_MAX_APPS = 128;
 
-/** Hard cap on widgets named by one workspace's column. */
 const OPENSTATION_WORKSPACE_MAX_WIDGETS = 32;
 
-/**
- * How many nested arrays an appearance value may hold.
- *
- * Two is exactly what the deepest real shape needs:
- * `wallpaperSettings` is a record of wallpaper ids (one), each holding
- * that wallpaper's own settings (two), each holding scalars.
- * `customGradient` and `customImage` stop at one. Anything below that
- * is not a setting, and user meta is not a place to store an object
- * graph.
- */
 const OPENSTATION_WORKSPACE_APPEARANCE_MAX_DEPTH = 2;
 
-/** Hard cap on windows one workspace opens with. */
 const OPENSTATION_WORKSPACE_MAX_WINDOWS = 12;
 
-/** Arrangements a workspace's `layout` may name. Mirrors `WORKSPACE_LAYOUTS`. */
 const OPENSTATION_WORKSPACE_LAYOUTS = array( 'free', 'cascade', 'tile', 'columns', 'focus' );
 
-/**
- * Appearance settings a workspace may repaint the desk with.
- *
- * Mirrors `WORKSPACE_APPEARANCE_KEYS` in `src/workspaces/types.ts`,
- * and enforcing it here is not belt-and-braces: a profile is user meta
- * round-tripped through an untrusted client, and an unfiltered patch
- * spread onto the settings state at boot would be a way to write any
- * settings key from anywhere. Everything on the list is visual and
- * instantly reversible, which is the test for belonging — switching
- * desks must never leave a user somewhere they cannot get back from.
- */
 const OPENSTATION_WORKSPACE_APPEARANCE_KEYS = array(
 	'wallpaper',
 	'wallpaperSettings',
@@ -81,32 +31,6 @@ const OPENSTATION_WORKSPACE_APPEARANCE_KEYS = array(
 	'adminBarMode',
 );
 
-/**
- * The workspace templates the server knows about.
- *
- * Mirrors `builtInPresets()` in `src/workspaces/presets.ts` — the ids,
- * labels and layouts are the contract; the app/window token lists live
- * on the JS side, which is where they are resolved against the live
- * navigation.
- *
- * Named for the job, not for the plugin: a desk called "Woo" is wrong
- * on a store running something else, and wrong again the day the
- * product is renamed. The products are still what the templates reach
- * for — the JS token lists name WooCommerce and Sensei directly — so
- * on a site that has them, Commerce is a WooCommerce desk in
- * everything but its label.
- *
- * And on a site that does not have them, the template is left out:
- * `requires` names the plugin, and this is the side of the wire that
- * knows whether it is active. The client's switcher shows what this
- * list names — see `installWorkspacePresetSync()` — so dropping an
- * entry here is what hides the card.
- *
- * Filterable so a site can add a template, or drop one it has no use
- * for.
- *
- * @return array[] List of `array{ id, label, description, icon, color, layout }`.
- */
 function openstation_workspace_presets() {
 	$presets = array(
 		array(
@@ -140,24 +64,6 @@ function openstation_workspace_presets() {
 		),
 	);
 
-	/**
-	 * Filters the workspace templates offered in the switcher.
-	 *
-	 * A template added here is a complete one: give it `apps` and
-	 * `windows` (lists of match tokens — see
-	 * `openstation_sanitize_workspace_preset()`) and the client will
-	 * resolve them against the live navigation the same way it
-	 * resolves a built-in's. The three shipped entries deliberately
-	 * carry neither, because the client already has their token lists
-	 * and duplicating them here would be two places to keep in step.
-	 *
-	 * `requires` is the one field that stays on this side: a list of
-	 * plugin basenames that must be active for the template to be
-	 * offered at all. Unset it on a shipped entry to be offered that
-	 * desk whatever is installed.
-	 *
-	 * @param array[] $presets List of preset definitions.
-	 */
 	$presets = apply_filters( 'openstation_workspace_presets', $presets );
 
 	if ( ! is_array( $presets ) ) {
@@ -177,20 +83,6 @@ function openstation_workspace_presets() {
 	return $clean;
 }
 
-/**
- * Whether the plugins a template is built around are active here.
- *
- * `requires` is a list of plugin basenames — `woocommerce/woocommerce.php`,
- * the same string `is_plugin_active()` takes — and every one of them has
- * to be active or the template is not offered at all. A template that
- * names none is always offered.
- *
- * The gate runs after the `openstation_workspace_presets` filter, so a
- * site that wants a template anyway can unset its `requires` there.
- *
- * @param mixed $preset Raw preset definition.
- * @return bool Whether the template may be offered.
- */
 function openstation_workspace_preset_requirements_met( $preset ) {
 	if ( ! is_array( $preset ) || empty( $preset['requires'] ) || ! is_array( $preset['requires'] ) ) {
 		return true;
@@ -202,8 +94,7 @@ function openstation_workspace_preset_requirements_met( $preset ) {
 		if ( ! is_string( $plugin ) ) {
 			continue;
 		}
-		// A basename is a path, so the traversal characters go — the
-		// value is compared against `active_plugins`, never opened.
+
 		$plugin = str_replace( '..', '', substr( preg_replace( '#[^A-Za-z0-9_./-]#', '', $plugin ), 0, 256 ) );
 		if ( '' === $plugin || ! is_plugin_active( $plugin ) ) {
 			return false;
@@ -212,18 +103,6 @@ function openstation_workspace_preset_requirements_met( $preset ) {
 	return true;
 }
 
-/**
- * Sanitizes a launch entry's `place` — where a window goes, as
- * fractions of the work area.
- *
- * Four numbers in `[0, 1]`, width and height at least 5% so a saved
- * window can never come back as a sliver the user cannot grab. Null
- * for anything else: the window then lands wherever the arrangement
- * puts it, which is what an entry written before positions does.
- *
- * @param mixed $raw Raw place from the payload.
- * @return array|null Sanitized place, or null.
- */
 function openstation_sanitize_workspace_place( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return null;
@@ -245,23 +124,6 @@ function openstation_sanitize_workspace_place( $raw ) {
 	return $out;
 }
 
-/**
- * Sanitizes a workspace's appearance patch.
- *
- * Keys outside {@see OPENSTATION_WORKSPACE_APPEARANCE_KEYS} are
- * dropped, and so is any value that isn't a scalar or a plain array —
- * the settings layer's own deserializer validates the shapes, so this
- * only has to guarantee the patch cannot reach a key it has no
- * business setting, and cannot carry an object graph into user meta.
- *
- * `wallpaperSettings`, `customGradient` and `customImage` are the
- * array-valued members, so arrays are allowed but bounded by
- * {@see OPENSTATION_WORKSPACE_APPEARANCE_MAX_DEPTH} — exactly the
- * nesting the deepest of them reaches, and nothing below it.
- *
- * @param mixed $raw Raw appearance patch.
- * @return array Sanitized patch, possibly empty.
- */
 function openstation_sanitize_workspace_appearance( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
@@ -286,13 +148,6 @@ function openstation_sanitize_workspace_appearance( $raw ) {
 	return $clean;
 }
 
-/**
- * Depth-bounded scalar filter for an appearance value's sub-arrays.
- *
- * @param array $value Raw sub-array.
- * @param int   $depth Remaining levels to descend.
- * @return array Sanitized sub-array.
- */
 function openstation_sanitize_workspace_appearance_branch( $value, $depth ) {
 	$out = array();
 	foreach ( $value as $key => $item ) {
@@ -311,19 +166,6 @@ function openstation_sanitize_workspace_appearance_branch( $value, $depth ) {
 	return $out;
 }
 
-/**
- * Sanitizes one workspace template.
- *
- * Applied to everything the `openstation_workspace_presets` filter
- * returns, shipped entries included — a template reaches the client in
- * the shell config blob, and a plugin returning a malformed one should
- * cost that template rather than the whole switcher.
- *
- * Returns `null` for an entry with no usable id.
- *
- * @param mixed $raw Raw preset definition.
- * @return array|null Sanitized preset, or null.
- */
 function openstation_sanitize_workspace_preset( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return null;
@@ -363,7 +205,7 @@ function openstation_sanitize_workspace_preset( $raw ) {
 			if ( ! is_string( $id ) ) {
 				continue;
 			}
-			// Namespaced registry keys — the slash is part of the id.
+
 			$id = substr( preg_replace( '#[^A-Za-z0-9_/-]#', '', $id ), 0, 128 );
 			if ( '' !== $id ) {
 				$widgets[] = $id;
@@ -419,17 +261,6 @@ function openstation_sanitize_workspace_preset( $raw ) {
 	);
 }
 
-/**
- * Sanitizes one workspace profile from an untrusted session payload.
- *
- * Returns `null` for anything that is not a profile, which is the
- * signal for "this desktop is a plain Space" — the field is optional
- * and absent is meaningful, so a malformed profile degrades the
- * desktop rather than the session.
- *
- * @param mixed $raw Raw profile from the client.
- * @return array|null Sanitized profile, or null when there isn't one.
- */
 function openstation_sanitize_workspace_profile( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return null;
@@ -440,9 +271,6 @@ function openstation_sanitize_workspace_profile( $raw ) {
 		$layout = 'free';
 	}
 
-	// Colour is a `#rrggbb` accent or empty for "use the shell accent".
-	// `sanitize_hex_color()` returns null for anything else, which we
-	// fold back to empty rather than dropping the whole profile.
 	$color = isset( $raw['color'] ) ? sanitize_hex_color( (string) $raw['color'] ) : '';
 
 	$mode = 'all';
@@ -456,12 +284,7 @@ function openstation_sanitize_workspace_profile( $raw ) {
 				if ( ! is_string( $id ) && ! is_numeric( $id ) ) {
 					continue;
 				}
-				// Nav ids are slugs derived from admin URLs and window
-				// ids, so the character class is the same one
-				// `sanitize_key()` allows — but NOT `sanitize_key()`
-				// itself, which lowercases: a native window registered
-				// as `wpdcEditor` would be stored as `wpdceditor` and
-				// then match nothing on the client.
+
 				$id = substr( preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) $id ), 0, 128 );
 				if ( '' === $id ) {
 					continue;
@@ -474,9 +297,6 @@ function openstation_sanitize_workspace_profile( $raw ) {
 		}
 	}
 
-	// Widgets are a separate decision from apps, with a separate rule:
-	// `only` means the column IS these ids, whether or not the user
-	// enabled them globally. See `WorkspaceWidgets` on the JS side.
 	$widget_mode = 'all';
 	$widget_ids  = array();
 	if ( isset( $raw['widgets'] ) && is_array( $raw['widgets'] ) ) {
@@ -488,9 +308,7 @@ function openstation_sanitize_workspace_profile( $raw ) {
 				if ( ! is_string( $id ) ) {
 					continue;
 				}
-				// Widget ids are namespaced registry keys
-				// (`desktop-mode/post-stats`), so the slash is part of
-				// the id and the character class has to allow it.
+
 				$id = substr( preg_replace( '#[^A-Za-z0-9_/-]#', '', $id ), 0, 128 );
 				if ( '' === $id ) {
 					continue;
@@ -515,11 +333,7 @@ function openstation_sanitize_workspace_profile( $raw ) {
 			}
 			$entry = array( 'match' => substr( $match, 0, 128 ) );
 			if ( isset( $win['url'] ) && is_string( $win['url'] ) ) {
-				// Relative by design — a template has to survive being
-				// read on a subdirectory install — so this is not a URL
-				// validator. It strips markup and bounds the length;
-				// the client resolves it against wp-admin and the
-				// window manager refuses anything that lands outside.
+
 				$url = substr( wp_strip_all_tags( $win['url'] ), 0, 512 );
 				if ( '' !== $url ) {
 					$entry['url'] = $url;
@@ -531,9 +345,7 @@ function openstation_sanitize_workspace_profile( $raw ) {
 					$entry['title'] = $title;
 				}
 			}
-			// Where the window goes — cells or fractions of the work
-			// area, both of which survive a different display. See
-			// `openstation_sanitize_workspace_place()`.
+
 			$grid_span = openstation_sanitize_session_grid_span( $win['gridSpan'] ?? null );
 			if ( null !== $grid_span ) {
 				$entry['gridSpan'] = $grid_span;
@@ -564,9 +376,7 @@ function openstation_sanitize_workspace_profile( $raw ) {
 		),
 		'windows'     => $windows,
 		'layout'      => $layout,
-		// Absent means "the launch list has not run", and a workspace
-		// restored mid-provision would otherwise open its windows a
-		// second time on top of the ones the session just restored.
+
 		'provisioned' => ! empty( $raw['provisioned'] ),
 	);
 }

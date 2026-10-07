@@ -1,4 +1,3 @@
-/** Shared touch input for spatial views, using Corkboard's anchored camera math. */
 import { pinchCamera, type Camera, type Point, type ZoomBounds } from './pinch';
 export interface PinchInputOptions {
 	read(): Camera;
@@ -8,7 +7,6 @@ export interface PinchInputOptions {
 	end(): void;
 }
 
-/** Track above Pixi's document listeners; keep releases flowing so its pointer state clears. */
 export function wirePinchInput( surface: HTMLElement, options: PinchInputOptions ): { active(): boolean; dispose(): void } {
 	const owner = surface.ownerDocument.defaultView!;
 	const controller = new AbortController();

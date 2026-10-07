@@ -1,24 +1,7 @@
 <?php
-/**
- * Re-derives WordPress Core's *global* admin notices — the ones that would
- * otherwise repeat in every desktop window — into shell descriptors, so the
- * shell can surface each once. The update nag is handled separately (see
- * update-notice.php); this covers the rest.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * The in-scope global core notices for the current user, as shell
- * descriptors. Each descriptor is `{ id, title, message, actionLabel?,
- * actionUrl? }`, re-derived from authoritative state (never scraped) and
- * capability-gated exactly as Core gates the underlying notice. The shell
- * renders each as a persistent, dismissible toast.
- *
- * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
- */
 function openstation_get_core_notices() {
 	$builders = array(
 		'openstation_core_notice_maintenance',
@@ -37,21 +20,9 @@ function openstation_get_core_notices() {
 		}
 	}
 
-	/**
-	 * Filters the core notices surfaced once in the desktop shell. Return an
-	 * empty array to suppress them all, or unset individual entries by `id`.
-	 *
-	 * @param array $notices List of notice descriptors.
-	 */
 	return apply_filters( 'openstation_core_notices', $notices );
 }
 
-/**
- * Normalizes a notice descriptor, filling optional fields.
- *
- * @param array $notice Partial descriptor with at least `id` + `message`.
- * @return array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}
- */
 function openstation_core_notice( array $notice ) {
 	return array(
 		'id'          => (string) $notice['id'],
@@ -62,11 +33,6 @@ function openstation_core_notice( array $notice ) {
 	);
 }
 
-/**
- * Interrupted / failed automated core update — mirrors `maintenance_nag()`.
- *
- * @return array|null
- */
 function openstation_core_notice_maintenance() {
 	$nag = isset( $GLOBALS['upgrading'] );
 
@@ -98,11 +64,6 @@ function openstation_core_notice_maintenance() {
 	);
 }
 
-/**
- * Site is in recovery mode — mirrors `wp_recovery_mode_nag()`.
- *
- * @return array|null
- */
 function openstation_core_notice_recovery_mode() {
 	if ( ! function_exists( 'wp_is_recovery_mode' ) || ! wp_is_recovery_mode() ) {
 		return null;
@@ -123,12 +84,6 @@ function openstation_core_notice_recovery_mode() {
 	);
 }
 
-/**
- * User is still on their auto-generated password — mirrors
- * `default_password_nag()`.
- *
- * @return array|null
- */
 function openstation_core_notice_default_password() {
 	if ( ! get_user_option( 'default_password_nag' ) ) {
 		return null;
@@ -145,12 +100,6 @@ function openstation_core_notice_default_password() {
 	);
 }
 
-/**
- * Plugins force-deactivated on a WordPress upgrade — mirrors
- * `deactivated_plugins_notice()`.
- *
- * @return array|null
- */
 function openstation_core_notice_deactivated_plugins() {
 	if ( ! current_user_can( 'activate_plugins' ) ) {
 		return null;
@@ -176,7 +125,7 @@ function openstation_core_notice_deactivated_plugins() {
 			'id'          => 'deactivated-plugins',
 			'title'       => __( 'Plugins', 'desktop-mode' ),
 			'message'     => sprintf(
-				/* translators: %s: comma-separated list of plugin names. */
+
 				__( 'Deactivated during a WordPress upgrade for incompatibility: %s.', 'desktop-mode' ),
 				implode( ', ', $names )
 			),
@@ -186,11 +135,6 @@ function openstation_core_notice_deactivated_plugins() {
 	);
 }
 
-/**
- * Plugins paused by recovery mode — mirrors `paused_plugins_notice()`.
- *
- * @return array|null
- */
 function openstation_core_notice_paused_plugins() {
 	if ( ! current_user_can( 'resume_plugins' ) || ! function_exists( 'wp_paused_plugins' ) ) {
 		return null;
@@ -211,11 +155,6 @@ function openstation_core_notice_paused_plugins() {
 	);
 }
 
-/**
- * Themes paused by recovery mode — mirrors `paused_themes_notice()`.
- *
- * @return array|null
- */
 function openstation_core_notice_paused_themes() {
 	if ( ! current_user_can( 'resume_themes' ) || ! function_exists( 'wp_paused_themes' ) ) {
 		return null;

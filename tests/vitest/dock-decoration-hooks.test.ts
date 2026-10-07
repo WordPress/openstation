@@ -1,14 +1,3 @@
-/**
- * Tests for the dock decoration hooks the default `Dock` renderer
- * fires while painting tiles. Plugins extend the rail through these
- * filters/actions without forking the renderer; the contract is part
- * of the public API surface, so a regression here
- * means a plugin author finds their decoration silently disappear.
- *
- * Each hook is exercised end-to-end against a real DOM-mounted
- * `Dock` so the behaviour pins the actual subscriber wiring rather
- * than just an internal call site.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	Dock,
@@ -96,7 +85,7 @@ describe( 'dock decoration hooks', () => {
 		const tile = container.querySelector( '[data-menu-slug="edit.php"]' );
 		expect( tile ).not.toBeNull();
 		expect( tile?.classList.contains( 'plugin-decorated' ) ).toBe( true );
-		// Default classes survive — filters must not stomp on the base.
+
 		expect( tile?.classList.contains( 'os-dock__item' ) ).toBe(
 			true,
 		);
@@ -116,10 +105,7 @@ describe( 'dock decoration hooks', () => {
 		);
 
 		const { container } = mount( [ makeItem() ] );
-		// Wrapper sits inside the dock's `__scroll` host; the original
-		// tile lives inside the wrapper. Plugin contract: the returned
-		// element is what gets painted as the tile; the shell still
-		// finds `[data-menu-slug]` descendants for active state.
+
 		const wrap = container.querySelector( '.os-dock__scroll > .plugin-wrap' );
 		expect( wrap ).not.toBeNull();
 		expect( wrap?.querySelector( '[data-menu-slug="edit.php"]' ) ).not.toBeNull();
@@ -144,8 +130,6 @@ describe( 'dock decoration hooks', () => {
 		expect( tile?.dataset.dockTooltip ).toBe( 'Posts ✨' );
 		expect( calls ).toEqual( [ 'edit.php' ] );
 
-		// Pointerenter / pointerleave must not re-fire the filter — the
-		// resolved text comes off the dataset, not the filter chain.
 		tile?.dispatchEvent( new Event( 'pointerenter' ) );
 		tile?.dispatchEvent( new Event( 'pointerleave' ) );
 		expect( calls ).toEqual( [ 'edit.php' ] );
@@ -165,8 +149,6 @@ describe( 'dock decoration hooks', () => {
 		);
 		expect( tile?.dataset.dockTooltip ).toBe( '' );
 
-		// Even with a pointerenter, the shared tooltip element must not
-		// pick up the `--visible` class.
 		tile?.dispatchEvent( new Event( 'pointerenter' ) );
 		const tooltip = document.querySelector(
 			'.os-dock__tooltip',
@@ -229,10 +211,6 @@ describe( 'dock decoration hooks', () => {
 		const { dock } = mount( [ makeItem() ] );
 		dock.appendSystemItem( noopSystem );
 
-		// Every render announces every tile it painted, so appending
-		// re-announces the menu tile alongside the new one. Decorations
-		// have always had to be idempotent — `replaceItems` re-fired
-		// this on every live menu refresh long before zones.
 		expect( seen.map( ( s ) => s.id ) ).toEqual( [
 			'edit.php',
 			'edit.php',
@@ -257,7 +235,7 @@ describe( 'dock decoration hooks', () => {
 		wp.hooks.addAction( HOOKS.DOCK_TILE_RENDERED, 'test/t', tiles );
 
 		const { dock } = mount( [ makeItem() ] );
-		// Initial paint counted: 1 before, 1 tile, 1 after.
+
 		expect( before ).toHaveBeenCalledTimes( 1 );
 		expect( tiles ).toHaveBeenCalledTimes( 1 );
 		expect( after ).toHaveBeenCalledTimes( 1 );
@@ -271,7 +249,6 @@ describe( 'dock decoration hooks', () => {
 			} ),
 		] );
 
-		// One before, two tile-rendered (one per item), one after.
 		expect( before ).toHaveBeenCalledTimes( 2 );
 		expect( tiles ).toHaveBeenCalledTimes( 3 );
 		expect( after ).toHaveBeenCalledTimes( 2 );

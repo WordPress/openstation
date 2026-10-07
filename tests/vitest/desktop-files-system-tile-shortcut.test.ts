@@ -1,19 +1,3 @@
-/**
- * The wallpaper copy of a system tile has to BE the tile.
- *
- * Two halves, and they only work together:
- *
- * 1. The shortcut opener runs the tile's own `onOpen`, so a tile that
- *    toggles something (Mio) behaves the same on both surfaces as one
- *    that opens a window (the Trash).
- * 2. The placement's `ref` is the bare tile id, which
- *    `nav-desktop-sync.test.ts` pins. Three lookups in the files layer
- *    and the dock find the bin by
- *    `file.ref === 'desktop-mode-recycle-bin'` — the drag-to-trash drop
- *    target, the drop-rejection exemption, and the empty/full art swap.
- *    Prefixing it turned the wallpaper bin into a tile that refused
- *    every drop and never filled up.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -50,8 +34,7 @@ describe( 'the shortcut opener, on a promoted system tile', () => {
 
 		const onOpen = vi.fn();
 		const openWindow = vi.fn();
-		// Beside the hooks stub, not instead of it: the shell always
-		// has `wp.hooks`, and the opener announces every click on it.
+
 		( window as unknown as { wp: { os: unknown } } ).wp = {
 			...( window as unknown as { wp: object } ).wp,
 			os: {
@@ -78,14 +61,12 @@ describe( 'the shortcut opener, on a promoted system tile', () => {
 		);
 
 		expect( onOpen ).toHaveBeenCalledTimes( 1 );
-		// Mio has no window; deriving one would have opened nothing.
+
 		expect( openWindow ).not.toHaveBeenCalled();
 	} );
 
 	test( 'announces the click, so an icon with nothing to open still answers', async () => {
-		// On a files-layer desk the legacy icon rail is hidden, and it
-		// was the only thing firing this action: the shell tour's
-		// relaunch icon, which has no window or URL, did nothing.
+
 		const hooks = installHooksStub();
 		const { openers, builtins, file } = await loadOpeners();
 		builtins.registerBuiltInFileOpeners();

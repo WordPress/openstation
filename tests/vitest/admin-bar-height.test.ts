@@ -1,28 +1,3 @@
-/**
- * The shell starts where the admin bar ENDS, not where Core says it
- * should.
- *
- * `--wp-admin--admin-bar--height` is Core's promise about Core's bar:
- * 32px, 46px under 783px. The bar is the one piece of chrome the
- * shell does not own, and a host can make it taller, give it a
- * border or push it down under a fixed strip of its own —
- * WordPress.com's staff debug chrome adds a strip above the bar, and
- * the shell then started 4px under it, with the bar painted over the
- * top of every title bar. `src/admin-bar-height.ts` measures the
- * bar's real bottom edge and publishes it as `--os-admin-bar-height`;
- * every consumer reads that first and falls back to Core's token.
- *
- * Pinned here:
- *
- * - the value is the bar's bottom edge in viewport px — height AND
- *   offset — so a pushed-down bar and a taller bar both land right;
- * - a bar with no box at the top edge publishes nothing: hidden by a
- *   mode or a viewport, or parked above the viewport by the dynamic
- *   mode, so those modes keep resolving Core's token as before;
- * - every consumer in the stylesheets reads the measured token with
- *   Core's token as the fallback, so the first paint is unchanged.
- */
-
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -151,7 +126,7 @@ describe( 'installAdminBarHeight', () => {
 		install( bar );
 		bar.getBoundingClientRect = rect( 0, 0 );
 		document.body.classList.add( 'os-has-fullscreen-window' );
-		// MutationObserver delivers on a microtask.
+
 		await Promise.resolve();
 		expect( published() ).toBe( '' );
 	} );
@@ -195,10 +170,7 @@ describe( 'every consumer reads the measured edge with Core’s token behind it'
 	} );
 
 	test( 'no top-level admin-bar item may be taller than the bar', () => {
-		// A host that lays a group out as a flex row (WordPress.com's
-		// Debug Bar) stretches every item to the tallest one and paints
-		// the group's background under the title bars; the cap is the
-		// bar's own height token so the 46px mobile bar keeps it too.
+
 		const rule = css( 'desktop.css' ).match(
 			/body\.os-active #wpadminbar \.ab-top-menu > li\s*\{([^}]*)\}/,
 		);

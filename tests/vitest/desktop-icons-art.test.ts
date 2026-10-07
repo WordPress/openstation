@@ -1,23 +1,3 @@
-/**
- * Tests for the wallpaper-icon art surface
- * (`wp.os.icons.setArt` / `getArt`).
- *
- * `setArt` is the counterpart to `setBadge` for a tile whose icon
- * means something different depending on state rather than counting
- * something. Every event-driven contract that holds for the badge
- * surface has to hold here too, plus two properties this rail has
- * that the badge rail doesn't:
- *
- *   - it paints BOTH desktop layouts. Classic renders the
- *     `.os-icons` grid, Spatial renders an `<os-tile>` placement,
- *     and on a stock install only the second is on screen. A
- *     regression here is invisible in Classic and total in Spatial,
- *     which is the worse way round;
- *   - the override survives a full grid rebuild, so a plugin doesn't
- *     have to re-decorate after every live menu refresh.
- *
- * @group icons
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	_resetIconArtForTests,
@@ -59,7 +39,6 @@ function mountGrid( icons: DesktopIconServerEntry[] ): HTMLElement {
 	return host;
 }
 
-/** A Spatial-layout shortcut placement for the same id. */
 function mountFileTile( ref: string ): HTMLElement {
 	const tile = document.createElement( 'os-tile' );
 	tile.setAttribute( 'data-file-ref', ref );
@@ -154,9 +133,7 @@ describe( 'wp.os.icons.setArt', () => {
 		const cb = vi.fn();
 		const off = activity.subscribe( 'os/art-changed', cb );
 		expect( () => setIconArt( 'not-on-this-rail', FULL ) ).not.toThrow();
-		// The id space is unified across rails, so recording art for a
-		// tile this rail doesn't own is legitimate: it lands if the
-		// icon later enters the registry.
+
 		expect( getIconArt( 'not-on-this-rail' ) ).toBe( FULL );
 		off();
 	} );
@@ -165,9 +142,6 @@ describe( 'wp.os.icons.setArt', () => {
 		const host = mountGrid( [ makeIcon() ] );
 		setIconArt( 'os-bin', FULL );
 
-		// A live menu refresh rebuilds the grid from the server payload,
-		// which carries the ORIGINAL icon. Without the override map the
-		// swap would silently revert on the next plugin activation.
 		host.innerHTML = '';
 		mountGrid( [ makeIcon( { title: 'Trash rebuilt' } ) ] );
 

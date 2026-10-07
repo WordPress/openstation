@@ -1,50 +1,8 @@
-/**
- * OpenStation — Shell Layout.
- *
- * When OpenStation is active, the classic admin chrome still renders
- * server-side (for hook compatibility) but is hidden with CSS. The
- * plugin-injected shell floats above it, positioned just below the
- * fixed admin bar, covering the rest of the viewport.
- *
- * @since 0.1.0
- */
-
-/*
- * Solid backdrop behind the shell. Reads the backstop token rather
- * than a literal so it moves with the desk: this is the colour a
- * dropped frame shows, and it has to be the same one the shell paints
- * or the seam is visible at exactly the wrong moment.
- */
 body.os-active {
 	background: var( --os-backstop, #1d2327 );
 	overflow: hidden;
 }
 
-/*
- * Text selection.
- *
- * The shell had no ::selection rule at all, so every selection in it
- * was the browser default — a colour chosen for a white page, landing
- * on a near-black one. In Chrome that is a dark translucent blue over
- * Obsidian, which is roughly 1.3:1 against the surface and leaves the
- * selected text at a contrast the UA never checked, because the UA
- * assumed a light background. Dragging across a paragraph produced no
- * visible change at all on some displays.
- *
- * Both halves are set on purpose. `background` alone is the common
- * half-fix: the UA then keeps its own selected-text colour, which is
- * frequently forced to black and lands on this violet at ~2:1.
- *
- * Scoped to the shell document. `variables.css` is a dependency of
- * `chromeless.css` and so loads inside every iframe window, but this
- * file does not — a wp-admin page in a window keeps the selection
- * colour it has outside one, which is the same promise the palette
- * makes about everything else.
- *
- * `::-moz-selection` is a separate rule rather than a second selector
- * on this one: an unrecognised pseudo-element invalidates the entire
- * selector list, so pairing them would leave Chrome unstyled too.
- */
 body.os-active ::selection {
 	background: var( --os-ui-selection-bg, rgba( 159, 152, 255, 0.6 ) );
 	color: var( --os-ui-selection-fg, #fffbff );
@@ -55,35 +13,6 @@ body.os-active ::-moz-selection {
 	color: var( --os-ui-selection-fg, #fffbff );
 }
 
-/*
- * Cursor policy — default arrow everywhere in OpenStation.
- *
- * Per user preference (since 0.20.0): no hand/pointer/grab/grabbing/
- * copy/no-drop cursors on icons, tiles, dock items, dock peek,
- * window chrome, or any other clickable surface. The default arrow
- * is the only "neutral" cursor we render.
- *
- * Exceptions:
- *   - Window + widget resize handles keep their direction-specific
- *     cursors (ns-resize, ew-resize, nesw-resize, nwse-resize) —
- *     they're a functional cue, not a hover affordance, and removing
- *     them would make corner-grabs guesswork.
- *   - Text inputs / textareas / contenteditable surfaces keep the
- *     browser-default I-beam.
- *   - The AI assistant's inline "AI Settings" recovery link keeps a
- *     pointer so it reads as a genuine link (rule lives in
- *     ai-assistant.css).
- *
- * `!important` is needed because the specific `cursor: pointer` and
- * drag-state declarations elsewhere in the codebase have the same or
- * higher specificity. The resize-handle exceptions use `!important`
- * for the same reason.
- *
- * Shadow-DOM web components (`os-*`) define their own cursors
- * inside their shadow trees; those internal rules win regardless of
- * what we set on the host. Anything visible on the desktop shell
- * (light DOM) is covered by this policy.
- */
 body.os-active,
 body.os-active * {
 	cursor: default !important;
@@ -120,13 +49,6 @@ body.os-active .os-widgets__resize--w {
 	cursor: ew-resize !important;
 }
 
-/*
- * Hide the classic admin chrome while the shell is active.
- *
- * The markup still exists in the DOM so server-side action hooks that
- * target these regions (admin_notices, in_admin_footer, etc.) continue
- * to fire — we just take them out of the visual flow.
- */
 body.os-active #adminmenuwrap,
 body.os-active #adminmenuback,
 body.os-active #wpbody,
@@ -136,16 +58,6 @@ body.os-active #collapse-menu {
 	display: none !important;
 }
 
-/*
- * The admin bar is the ONLY escape hatch in OpenStation — it hosts the
- * "Switch to Classic Admin" toggle. Any plugin CSS, Gutenberg state,
- * user preference, or stray `display:none` that hides it would strand
- * the user inside the shell with no way out. Hard-pin it visible.
- *
- * The exception: while a window is in immersive fullscreen, we *want*
- * the bar hidden (macOS convention). That rule lives below and wins on
- * specificity because it also targets #wpadminbar under a body class.
- */
 body.os-active #wpadminbar {
 	display: block !important;
 	visibility: visible !important;
@@ -156,68 +68,12 @@ body.os-active #wpadminbar {
 	inset-inline-end: 0 !important;
 }
 
-/*
- * No top-level item may be taller than the bar.
- *
- * Core lays the two item groups out as floats, and a float that
- * overflows the 32px bar overflows invisibly. A host may lay a group
- * out as a flex row instead — WordPress.com's Debug Bar does, to
- * order its own item first — and then every item stretches to the
- * tallest one and the group's background paints the difference under
- * the windows' title bars. Our own items were that tallest one once
- * (an `inline-flex` item on a 32px line box grew to 37px; fixed at
- * the source in `includes/admin-bar.php`), but any item from any
- * plugin can be, so the cap lives here: the bar's own height token,
- * which is also the 46px mobile bar. Submenus are absolutely
- * positioned and unaffected.
- */
 body.os-active #wpadminbar .ab-top-menu > li {
 	max-height: var(--wp-admin--admin-bar--height, 32px);
 }
 
-/*
- * Admin-bar presentation modes — OS Settings → Appearance → Admin bar,
- * persisted as `adminBarMode` and emitted as a
- * `os-admin-bar-<mode>` body class by PHP on first paint and
- * re-written by the shell's apply pass on every change.
- *
- * `static` is the absence of rules: the pin above stands and the shell
- * starts below the bar. The two modes below both take the bar out of
- * the shell's way, so the shell reclaims the full viewport in each.
- *
- * Every selector here carries two body classes, so it outranks the
- * one-class pin rule above on specificity; the one property the pin
- * marks `!important` (`inset-block-start`) is re-declared `!important`
- * where a mode moves the bar, and wins the same way.
- */
-
-/*
- * Dynamic — the bar parks off the top edge leaving a peek strip, and
- * slides back in when the pointer reaches the top of the viewport or
- * something inside it takes keyboard focus. The classic Windows
- * auto-hide taskbar.
- *
- * It parks by moving its `inset-block-start`, NOT by a `transform`,
- * and that is load-bearing. A transformed element becomes the
- * containing block for every `position: fixed` descendant, and the
- * bar has descendants like that which it does not own: the
- * WordPress.com notifications panel is `position: fixed; top: 32px;
- * bottom: 0` inside `#wp-admin-bar-notes`. Measured against a
- * transformed 32px bar instead of the viewport, that panel computes to
- * zero height — the button "did nothing" in this mode and worked in
- * `static`. `translate`, `filter`, `perspective`, `contain` and
- * `will-change: transform` all create the same containing block;
- * `tests/vitest/admin-bar-dynamic.test.ts` keeps every one of them off
- * this rule. Moving `inset-block-start` hit-tests the same way — the
- * part above the viewport is simply outside it — so what catches the
- * pointer is still only the peek strip plus the reveal zone below.
- *
- * The pin above sets `inset-block-start: 0 !important`; these carry
- * `!important` too and win on specificity. The bar's height is Core's
- * own token, so the parked offset follows the 46px mobile bar as well.
- */
 body.os-active.os-admin-bar-dynamic #wpadminbar {
-	/* One number for the slide; the reveal zone below waits on it. */
+
 	--os-admin-bar-slide: 180ms;
 	inset-block-start: calc(
 		var(--os-admin-bar-peek, 4px) - var(--wp-admin--admin-bar--height, 32px)
@@ -231,66 +87,22 @@ body.os-active.os-admin-bar-dynamic #wpadminbar:active {
 	inset-block-start: 0 !important;
 }
 
-/*
- * Reveal zone — an invisible extension of the bar's hit area, hanging
- * below the parked peek strip.
- *
- * Hovering a pseudo-element counts as hovering its originating
- * element, so this widens what `:hover` above responds to WITHOUT
- * widening the visible seam. The two wants are genuinely different:
- * the seam should be a hairline, the target should be forgiving, and
- * `--os-admin-bar-peek` alone can't be both.
- *
- * Core ships no bare `#wpadminbar::before/::after` rule, so this
- * claims the slot rather than fighting one.
- */
 body.os-active.os-admin-bar-dynamic #wpadminbar::after {
 	content: "";
 	position: absolute;
 	inset-inline: 0;
 	inset-block-start: 100%;
 	height: var(--os-admin-bar-reveal-zone, 16px);
-	/*
-	 * The zone changes size only once the bar has come to rest — a
-	 * step, not a slide, held back for the length of the bar's own
-	 * slide. That delay is what keeps the reveal stable. Collapsed the
-	 * instant hover began, the zone was gone while the bar was still
-	 * on its way down: a pointer resting in the band the zone had
-	 * covered was outside the bar's box for the rest of the slide, so
-	 * hover dropped, the bar turned back, the zone returned under the
-	 * pointer, hover resumed — the bar flickered up and down for as
-	 * long as the pointer stayed near the edge. Held for the slide,
-	 * the zone still hangs off the moving bar and the two together
-	 * always cover the pointer that tripped it; by the time the zone
-	 * goes, the bar's own box is over that pointer. The same delay on
-	 * the way back keeps the zone from reappearing under a pointer
-	 * that just left the bar while the bar is still retracting.
-	 */
+
 	transition: height 0s linear var(--os-admin-bar-slide, 180ms);
 }
 
-/*
- * ...but only while the bar is parked. Left standing once the bar is
- * out, the zone would hang over the top of the desktop and swallow
- * clicks on whatever window is up there.
- *
- * Collapsing it is also what keeps the reveal stable: the pointer
- * that tripped the zone is, post-reveal, inside the bar's real box,
- * so `:hover` holds without the zone's help — and it collapses only
- * once the bar is there (the transition above).
- */
 body.os-active.os-admin-bar-dynamic #wpadminbar:hover::after,
 body.os-active.os-admin-bar-dynamic #wpadminbar:focus-within::after,
 body.os-active.os-admin-bar-dynamic #wpadminbar:active::after {
 	height: 0;
 }
 
-/*
- * Coarse pointers have no hover state and a much fatter contact patch,
- * so a 4px seam is neither discoverable nor tappable. Widen both the
- * seam and the zone — `:active` above is what actually reveals the bar
- * there. Kept under the 32px bar height, same ceiling as the default.
- */
 @media (hover: none) {
 	body.os-active.os-admin-bar-dynamic #wpadminbar {
 		--os-admin-bar-peek: 10px;
@@ -301,57 +113,25 @@ body.os-active.os-admin-bar-dynamic #wpadminbar:active::after {
 @media (prefers-reduced-motion: reduce) {
 	body.os-active.os-admin-bar-dynamic #wpadminbar,
 	body.os-active.os-admin-bar-dynamic #wpadminbar::after {
-		/* The bar jumps, so the zone has nothing to wait for. */
+
 		transition: none;
 	}
 }
 
-/*
- * Hidden — the bar is gone. This removes the "Switch to Classic Admin"
- * toggle, which is why it is safe: the dock's core rail always carries
- * an "Exit OpenStation" tile (src/exit-os.ts) hitting the
- * same endpoint. Do not add a mode that removes both.
- */
 body.os-active.os-admin-bar-hidden #wpadminbar {
 	display: none !important;
 }
 
-/*
- * Both non-static modes: the shell owns the whole viewport. Two body
- * classes beat the `.os-shell` base rule AND its <783px
- * media-query variant on specificity, so source order doesn't matter.
- */
 body.os-active.os-admin-bar-dynamic .os-shell,
 body.os-active.os-admin-bar-hidden .os-shell {
 	inset-block-start: 0;
 }
 
-/*
- * Core reserves the bar's height as `padding-top` on <html>. In both
- * non-static modes the bar is out of flow (or absent) and the shell
- * covers the viewport anyway, so the reserve is dead space — release
- * it so any classic content behind the shell isn't pushed down by a
- * bar that isn't sitting there. Same idiom as chromeless.css.
- */
 html.wp-toolbar:has(body.os-admin-bar-dynamic),
 html.wp-toolbar:has(body.os-admin-bar-hidden) {
 	padding-top: 0 !important;
 }
 
-/*
- * Align the admin-bar W logo with the dock below it.
- *
- * Without this rule the admin bar's leftmost item (the WordPress W)
- * renders at its Core-dictated ~44 px width, while the dock below it
- * can be 48, 56, or 72 px wide depending on the user's OS-Settings
- * preference. The misalignment reads as "two disconnected left
- * regions" — visually scruffy on an otherwise tight shell.
- *
- * We size the logo's <li> to match the dock's width and center the
- * W inside, so the two columns share an axis. `--os-dock-width`
- * is now set on :root (see settings.ts → apply()) so it reaches
- * siblings of #os-shell like the admin bar.
- */
 body.os-active #wpadminbar #wp-admin-bar-menu-toggle {
 	display: none;
 }
@@ -367,42 +147,15 @@ body.os-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item {
 	padding-inline: 0 !important;
 }
 
-/*
- * The W glyph is painted via a ::before pseudo on `.ab-icon`. Center
- * it within the flex cell so varying dock widths don't leave it
- * visually offset.
- */
 body.os-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon {
 	margin: 0;
 }
 
-/*
- * Classic wpcontent carries a `margin-left: 160px` for the sidebar. With
- * the sidebar hidden we let wpcontent fall back to flush — the shell is
- * fixed-positioned anyway so this doesn't change the shell's layout, it
- * just prevents a phantom sidebar gutter in any stray visible content.
- */
 body.os-active #wpcontent {
 	margin-inline-start: 0;
 	padding-inline-start: 0;
 }
 
-/*
- * Desktop shell — fills the viewport below the admin bar.
- * Uses position: fixed so it's unaffected by any containing-block
- * quirks in #wpwrap/#wpcontent.
- *
- * The inset is the bar's MEASURED bottom edge, `--os-admin-bar-height`
- * (written on <html> by `src/admin-bar-height.ts`), with Core's own
- * token behind it for the first paint. Core's token is Core's promise
- * about Core's bar; a host can make the bar taller, give it a border
- * or push it down under a strip of its own — WordPress.com's staff
- * debug chrome does — and the shell then started under the bar by
- * exactly the difference. The measured token is absent whenever the
- * bar has no box at the top edge (hidden, mobile, solo, fullscreen,
- * parked in the dynamic mode), so every mode that rebinds Core's
- * token below still resolves through it.
- */
 .os-shell {
 	position: fixed;
 	inset-block-start: var(
@@ -416,38 +169,12 @@ body.os-active #wpcontent {
 	flex-direction: column;
 	overflow: hidden;
 	z-index: var(--os-z-base);
-	/*
-	 * Opaque floor. The wallpaper paints over this and is what anyone
-	 * actually sees — but the wallpaper is one layer among several,
-	 * and behind this shell is the classic admin page, which is WHITE.
-	 * Without a background here, any frame in which the wallpaper
-	 * doesn't paint flashes that white through the whole viewport.
-	 * See `--os-backstop`.
-	 */
+
 	background: var(--os-backstop, #1d2327);
-	/*
-	 * Shell typeface. Every piece of chrome that doesn't set its own
-	 * face inherits from here — dock labels, desktop icon labels,
-	 * widgets, the overview. Windows override with `--os-ui-font` on
-	 * their body, so a theme can run a display face on the desk and a
-	 * text face inside windows. `inherit` is the no-theme value, i.e.
-	 * identical to not declaring the property at all.
-	 */
+
 	font-family: var(--os-font, inherit);
 }
 
-/*
- * Wallpaper layer — first child of the shell, sits behind the dock
- * and desktop area so a translucent dock shows through to the
- * background (macOS pattern). CSS wallpapers paint via the
- * `--os-bg` custom property; canvas wallpapers mount their
- * own DOM (typically a <canvas>) into this element via JS.
- *
- * z-index: 0 keeps it below the shell body flex row which has no
- * explicit z-index of its own but establishes its own local
- * stacking context via `position: relative`, so the dock + windows
- * always render above the wallpaper regardless of DOM order.
- */
 .os-wallpaper {
 	position: absolute;
 	inset: 0;
@@ -457,24 +184,6 @@ body.os-active #wpcontent {
 	pointer-events: none;
 }
 
-/*
- * Mio layer — the desk companion.
- *
- * A sibling of the wallpaper inside the shell, but at the far end of
- * the stack: Mio paints ABOVE windows (it perches on them)
- * and below the dock (it must never cover navigation). Created on
- * demand by `src/mio/controller.ts`. A shell whose user has never
- * switched Mio on has no extra element at all; switching it off
- * hides this one rather than removing it, because the instance is
- * parked (WebGL context intact) rather than destroyed — see the
- * `parked` field there.
- *
- * The layer and its <canvas> are permanently inert. Making a
- * full-shell canvas interactive — even conditionally, from a
- * per-frame hit test — would swallow clicks meant for the window
- * underneath. Only the small round `__handle` inside it takes
- * pointer events, and it rides on the blob.
- */
 .os-mio {
 	position: absolute;
 	inset: 0;
@@ -485,22 +194,13 @@ body.os-active #wpcontent {
 
 .os-mio__handle {
 	position: absolute;
-	/*
-	 * PHYSICAL `top` / `left`, deliberately — the one place in this
-	 * sheet that isn't logical. The handle is positioned every frame
-	 * by a `translate3d()` carrying the body's canvas coordinates,
-	 * and `transform` is always physical. Anchoring with
-	 * `inset-inline-start` would flip the origin to the right edge
-	 * under RTL while the translation kept pushing rightwards, and
-	 * the handle would walk off screen.
-	 */
+
 	top: 0;
 	left: 0;
 	border-radius: 50%;
 	pointer-events: auto;
 	cursor: grab;
-	/* Promote to its own layer: the handle is re-positioned via
-	 * `transform` on every animation frame. */
+
 	will-change: transform;
 	touch-action: none;
 }
@@ -509,28 +209,6 @@ body.os-active #wpcontent {
 	cursor: grabbing;
 }
 
-/*
- * "Make it yours" panel — a live-preview dialog, not a modal.
- *
- * `<os-modal>` is built for the usual case: dim the page, blur it
- * slightly, put the decision in front of everything. Every one of
- * those defaults is wrong here, because the thing being edited is
- * ON the page and the whole point is watching it change.
- *
- *   - No scrim and no `backdrop-filter`, or the companion the sliders
- *     are driving is a blurred grey smudge behind them.
- *   - `pointer-events: none` on the scrim so the desk stays live: Mio
- *     can still be picked up and thrown while the panel is open, and a
- *     click on the wallpaper doesn't dismiss the panel mid-adjustment.
- *     `::part(dialog)` puts them back for the box itself.
- *   - Parked against the inline end rather than centred, so it isn't
- *     sitting on top of the subject.
- *
- * Mio never treats the panel as an obstacle: the collision set comes
- * from `getWallpaperSurfaces()`, which seeds windows, the shell floor,
- * docks and widget cards — a dialog on `document.body` is none of
- * those, so there is nothing to bump into.
- */
 .os-mio-panel {
 	background: transparent;
 	background-image: none;
@@ -540,30 +218,11 @@ body.os-active #wpcontent {
 	padding-inline-end: clamp(16px, 4vw, 64px);
 }
 
-/*
- * Both halves are required, and the second one is easy to miss.
- *
- * `::part(dialog)` reaches the box in the modal's SHADOW tree — its
- * header, title and close button inherit from there. But the controls
- * are slotted LIGHT-DOM children of `<os-modal>`, and slotted content
- * inherits from its light-DOM parent (the host) rather than from the
- * shadow ancestor it is projected into. So the host's
- * `pointer-events: none` reaches them regardless of what the part
- * says, and without this second rule every slider and button in the
- * panel is inert while looking perfectly normal.
- */
 .os-mio-panel::part(dialog),
 .os-mio-panel > * {
 	pointer-events: auto;
 }
 
-/*
- * Overview (Exposé) hides the desk furniture so the window grid
- * reads cleanly — Mio goes with the widgets and the notes.
- * `:has()` rather than a descendant selector because Mio
- * layer is a sibling of `.os-shell__body`, not a child of
- * the desktop area.
- */
 .os-mio {
 	transition: opacity 160ms ease;
 }
@@ -572,32 +231,6 @@ body.os-active #wpcontent {
 	opacity: 0;
 }
 
-/*
- * Reduced motion is handled in the simulation, not here: the runtime
- * zeroes the idle float and the hue drift so Mio holds still
- * until the user actually interacts with it. Hiding it would be
- * wrong — the user switched it on deliberately.
- */
-
-/*
- * Desktop-theme wallpaper texture (DESKTOP slot).
- *
- * On a `::before` rather than this element's own background, because
- * `--os-bg` is set by the wallpaper picker and can be a
- * gradient — i.e. a background-IMAGE. Overriding `background-image`
- * here would silently erase every gradient wallpaper the moment a
- * theme was active. The pseudo-element layers instead of replacing.
- *
- * Resulting precedence, bottom to top:
- *   CSS wallpaper (`--os-bg`)
- *   → theme DESKTOP texture (this rule)
- *   → canvas wallpapers, which mount as CHILDREN of the layer and
- *     therefore paint above both.
- *
- * A theme that wants the user's wallpaper to remain visible ships a
- * texture with transparency; an opaque one takes the desk over.
- * With no theme active the image is `none` and this paints nothing.
- */
 .os-wallpaper::before {
 	content: "";
 	position: absolute;
@@ -609,12 +242,6 @@ body.os-active #wpcontent {
 	background-position: var(--os-desktop-image-position, center);
 }
 
-/*
- * Canvas children fill the layer and ignore pointer events by
- * default — a wallpaper is presentational chrome, not an interactive
- * element. Plugins that genuinely need a clickable wallpaper can
- * override `pointer-events` on their own mounted node.
- */
 .os-wallpaper > canvas,
 .os-wallpaper > * {
 	width: 100%;
@@ -622,7 +249,6 @@ body.os-active #wpcontent {
 	display: block;
 }
 
-/* Below 783px WP collapses the admin bar to 46px. */
 @media screen and (max-width: 782px) {
 	.os-shell {
 		inset-block-start: var(
@@ -632,18 +258,6 @@ body.os-active #wpcontent {
 	}
 }
 
-/*
- * Immersive fullscreen: when any window is in fullscreen state, hide the
- * admin bar and let the shell cover the full viewport. This keeps the
- * fullscreen window visually above all chrome without fighting the shell's
- * stacking context (a fullscreen window lives inside the shell, so its
- * z-index is always bounded by the shell's — moving it out of the shell
- * to raise it would break focus, drag, and session snapshotting).
- *
- * The window's title bar remains visible because the window itself is
- * position: fixed at top: 0, so the focus/exit-fullscreen button is
- * still reachable.
- */
 body.os-has-fullscreen-window #wpadminbar {
 	display: none !important;
 }
@@ -652,7 +266,6 @@ body.os-has-fullscreen-window .os-shell {
 	inset-block-start: 0;
 }
 
-/* Shell body: contains dock + desktop area side by side. */
 .os-shell__body {
 	flex: 1;
 	display: flex;
@@ -660,22 +273,6 @@ body.os-has-fullscreen-window .os-shell {
 	position: relative;
 }
 
-/*
- * Desktop area — where windows float. Background is now transparent
- * because the wallpaper renders in the shell-level layer behind
- * both this area and the dock. Stacking context via position: relative
- * ensures children (windows) sit above the wallpaper.
- *
- * The padding reserves the band the floating bottom dock pill covers.
- * It reads the work-area insets `src/work-area/index.ts` writes on
- * `#os-shell` from the pill's LIVE geometry, so it is 0 with a side
- * dock (which is a flex sibling and already narrows the area) and
- * tracks the dock-size preference with the pill at the bottom. The
- * `80px` literal is the pre-measurement floor: 40px tile + 16px pill
- * padding + 12px gap below + 8px breathing room, what the rule
- * hardcoded before the work area existed, in force until the shell
- * has measured once.
- */
 .os-area {
 	flex: 1;
 	position: relative;
@@ -688,42 +285,6 @@ body.os-has-fullscreen-window .os-shell {
 	transition: opacity 180ms ease;
 }
 
-/*
- * Boot reveal gate.
- *
- * On F5 the shell paints in stages: the dispatcher's
- * `repaintIcons()` lands the server-rendered wallpaper icons
- * synchronously from `openStationConfig.desktopIcons`, then the
- * files-layer mounts and momentarily renders an empty bucket while
- * REST `listPlacements(0)` is in flight, then folders/posts/links
- * slot in on the next paint. The user reads that as "plugins show
- * first, then everything blinks and the rest arrives."
- *
- * The `--booting` modifier is applied BY PHP (see
- * `includes/render/shell.php`) on the initial HTML so the area
- * starts invisible BEFORE any JS runs — otherwise the dispatcher
- * gets to paint the wallpaper icons into a visible area first and
- * the user sees them flash before our gate kicks in.
- *
- * `desktop.ts` removes the class inside a `requestAnimationFrame`
- * after the root files-layer's `hydrated` promise resolves (with a
- * 2 s JS safety timeout). The opacity transition declared on
- * `.os-area` smooths the reveal.
- *
- * The fallback animation is a resilience layer for the case where
- * the shell JS never runs (network error mid-load, ad-blocker
- * tearing down a bundle, …). The animation holds the area
- * invisible for 2.7 s then flips it to opacity 1; the
- * `animation-fill-mode: forwards` keeps the revealed state held
- * after the animation ends. In the normal case JS removes the
- * class long before 2.7 s and the animation is discarded.
- *
- * `pointer-events: none` while booting prevents a stray click on
- * the still-hidden surface from triggering Show-Desktop or opening
- * a tile that's about to reposition once REST returns.
- *
- * @since 0.18.x
- */
 .os-area--booting {
 	opacity: 0;
 	pointer-events: none;
@@ -742,50 +303,15 @@ body.os-has-fullscreen-window .os-shell {
 	}
 }
 
-/* ---------------------------------------------------------------
- * Desktop icons — wallpaper shortcut tiles registered via the
- * `wp_register_desktop_icon()` PHP API. Rendered inside the
- * desktop area as the first child after the wallpaper, so they
- * paint above the wallpaper but beneath any window.
- *
- * Grid layout is fixed-width columns; tiles wrap onto multiple
- * rows when the desktop is wide enough to host more than one
- * column's worth. `pointer-events: none` on the container keeps
- * the background clickable (for "minimize all" on wallpaper
- * click) while individual tiles re-enable pointer events so they
- * remain clickable.
- * --------------------------------------------------------------- */
-
 .os-icons {
 	position: absolute;
-	/*
-	 * 16px of gutter inside the WORK AREA, not inside the desktop
-	 * area: an absolutely positioned box ignores its parent's
-	 * padding, so without the insets the grid's last row sat under
-	 * the bottom dock pill. Same tokens `.os-area` reserves with.
-	 *
-	 * Physical `left` / `right`, not the logical pair: the insets are
-	 * measured from rects, so `-left` is the visual left whichever
-	 * way the locale reads. The gutter is 16px on both sides, so
-	 * nothing is lost by going physical here.
-	 */
+
 	top: calc( var( --os-work-area-inset-top, 0px ) + 16px );
 	bottom: calc( var( --os-work-area-inset-bottom, 80px ) + 16px );
 	left: calc( var( --os-work-area-inset-left, 0px ) + 16px );
 	right: calc( var( --os-work-area-inset-right, 0px ) + 16px );
 	display: grid;
-	/*
-	 * Column-major flow: icons fill the first column top-to-bottom,
-	 * then start the next column. Matches the macOS / Finder
-	 * convention. `grid-auto-flow: column` plus `auto-fill` rows
-	 * (sized to the container height) yields exactly that layout.
-	 *
-	 * All four insets are pinned so the container has a definite
-	 * height — `repeat(auto-fill, 96px)` needs that to compute the
-	 * row count. 96px is one icon button (48px image + 6px gap +
-	 * up-to-two-line label + 8px vertical padding); a slightly
-	 * generous figure leaves room for descenders without clipping.
-	 */
+
 	grid-auto-flow: column;
 	grid-template-rows: repeat(auto-fill, 96px);
 	grid-auto-columns: 88px;
@@ -794,13 +320,7 @@ body.os-has-fullscreen-window .os-shell {
 	gap: 12px;
 	z-index: 1;
 	pointer-events: none;
-	/*
-	 * Spill protection: if a user ever pins more icons than fit
-	 * vertically, the grid scrolls horizontally so the unreachable
-	 * tiles can be reached without clipping the visible ones.
-	 * Individual tiles re-enable pointer events so they stay
-	 * clickable inside the scroll surface.
-	 */
+
 	overflow: auto;
 }
 
@@ -815,43 +335,25 @@ body.os-has-fullscreen-window .os-shell {
 	padding: 8px 4px;
 	border: 0;
 	background-color: transparent;
-	/*
-	 * ICON_TILE texture slot — a plate behind each wallpaper icon.
-	 * Painted under the icon image and its label, so a theme can give
-	 * desktop shortcuts a physical tile the way a phone home screen
-	 * does. Unset = `none` = the transparent tile we always had.
-	 */
+
 	background-image: var(--os-tile-image, none);
 	background-repeat: var(--os-tile-image-repeat, no-repeat);
 	background-size: var(--os-tile-image-size, auto);
 	background-position: var(--os-tile-image-position, center);
-	/* Also the glyph: silhouette art is masked with `currentColor`. */
+
 	color: var(--os-desk-fg, var(--os-fg, #fff));
 	cursor: pointer;
 	border-radius: 8px;
 	transition: background-color 0.15s ease;
-	/* Positioning context for `.os-icon__badge`. */
+
 	position: relative;
 }
 
-/*
- * Icon badge — symmetric to `.os-dock__badge` but anchored
- * to the wallpaper-icon image. Same gradient, same ring, slightly
- * larger so it reads at the longer wallpaper viewing distance.
- * Painted by `wp.os.icons.setBadge( id, count )` — see
- * `src/desktop-icons.ts` for the imperative API and
- * `src/recycle-bin/badge.ts` for the canonical multi-rail
- * consumer. The class name is part of the stable contract; the
- * positioning, color, and shadow are not — themes or future
- * shell builds may restyle freely.
- */
 .os-icon__badge {
 	position: absolute;
 	top: 4px;
 	inset-inline-end: 14px;
-	/* Same derivation as the dock badge, sized off the wallpaper icon
-	 * rather than the dock icon. The default resolves to 18px / 11px —
-	 * exactly the old values. */
+
 	--os-icon-badge-computed-size: var(
 		--os-icon-badge-size,
 		calc( var( --os-icon-image-size, 48px ) * 0.375 )
@@ -887,9 +389,7 @@ body.os-has-fullscreen-window .os-shell {
 
 .os-icon:hover,
 .os-icon:focus-visible {
-	/* background-COLOR, not the shorthand: the shorthand would reset
-	 * the ICON_TILE texture declared above, so a themed tile would
-	 * vanish on hover. */
+
 	background-color: var(--os-icon-hover-bg, rgba(255, 255, 255, 0.12));
 	outline: none;
 }
@@ -902,8 +402,7 @@ body.os-has-fullscreen-window .os-shell {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	/* Tokenized so a theme can scale wallpaper icons — and so the
-	 * badge above has something to derive its own size from. */
+
 	width: var( --os-icon-image-size, 48px );
 	height: var( --os-icon-image-size, 48px );
 	font-size: calc( var( --os-icon-image-size, 48px ) * 0.667 );
@@ -925,31 +424,17 @@ body.os-has-fullscreen-window .os-shell {
 	text-align: center;
 	background: var(--os-icon-label-bg, transparent);
 	border-radius: 6px;
-	/* Inline only: a two-line caption already fills the 96px grid row. */
+
 	padding: 0 6px;
 	text-shadow: var(--os-icon-label-shadow, 0 1px 2px rgba(0, 0, 0, 0.45));
 	line-height: 1.2;
 	word-break: break-word;
 }
 
-/* ---------------------------------------------------------------
- * Widgets column — right-edge glass strip that paints above the
- * wallpaper but beneath windows. Hosts stacked widget cards and a
- * trailing "Add widget" tile. Interactive only on its own cards +
- * the add tile; every other pixel is pointer-transparent so window
- * drag / resize / click-through behaviour is unaffected.
- * --------------------------------------------------------------- */
-
 .os-widgets {
 	border-radius: 14px;
 	position: absolute;
-	/*
-	 * Inside the work area vertically — see `.os-icons` for why the
-	 * insets are here. The inline edge stays a plain 16px: the column
-	 * hugs the trailing side, which is a logical choice, while the
-	 * side insets are physical; and a side rail never claims one
-	 * anyway (it is a flex sibling, the area is already narrower).
-	 */
+
 	top: calc( var( --os-work-area-inset-top, 0px ) + 16px );
 	bottom: calc( var( --os-work-area-inset-bottom, 80px ) + 16px );
 	inset-inline-end: 16px;
@@ -960,13 +445,9 @@ body.os-has-fullscreen-window .os-shell {
 	z-index: 1;
 	pointer-events: none;
 	overflow-y: auto;
-	/* Hide the scrollbar chrome unless the user actually overflows —
-	 * most setups never will. */
+
 	scrollbar-width: thin;
-	/* Fade alongside the overview backdrop. The class flip that
-	 * drives this is on the parent area, set at t=0 of enter and
-	 * removed at t=0 of exit, so widgets fade in parallel with the
-	 * dock collapse / return — never sequential. */
+
 	opacity: 1;
 	transition:
 		opacity 0.22s ease,
@@ -975,8 +456,7 @@ body.os-has-fullscreen-window .os-shell {
 
 .os-area--overview .os-widgets {
 	opacity: 0;
-	/* Slight slide-off-right so the fade reads as "the column is
-	 * stepping back out of the way" rather than flat-dimming. */
+
 	transform: translateX( 16px );
 	pointer-events: none;
 }
@@ -988,34 +468,16 @@ body.os-has-fullscreen-window .os-shell {
 	padding: 4px;
 }
 
-/*
- * Individual widget card — glass backdrop matching the dock /
- * overview top bar. Card root is pointer-events: auto so clicks on
- * content + the remove X land; the column itself stays
- * pointer-transparent so a drag that grazes the column's margin
- * falls through to the window beneath.
- */
 .os-widgets__card {
 	position: relative;
 	padding: 0;
-	/* Column layout so the body can flex-shrink and scroll when the
-	 * frame writes a fixed inline height (floating / resized cards).
-	 * Without this the body keeps its natural height and content
-	 * spills past the card's rounded bottom edge. */
+
 	display: flex;
 	flex-direction: column;
 	pointer-events: auto;
-	/*
-	 * The glass is also `--os-ui-color-surface`, the one name in the
-	 * widget contract that describes the card itself. Declared in
-	 * `variables.css` so a widget reading it and the card painting it
-	 * cannot drift apart.
-	 */
+
 	background-color: var( --os-ui-color-surface, rgba( 20, 20, 22, 0.55 ) );
-	/*
-	 * WIDGET texture slot — layered over the frosted card colour, so a
-	 * translucent texture still gets the blur underneath.
-	 */
+
 	background-image: var( --os-widget-image, none );
 	background-repeat: var( --os-widget-image-repeat, repeat );
 	background-size: var( --os-widget-image-size, auto );
@@ -1033,9 +495,6 @@ body.os-has-fullscreen-window .os-shell {
 		opacity 0.18s ease;
 }
 
-/* Hover feedback is shadow-only — no transform. Cards must feel
- * anchored; a hover nudge reads as the widget drifting under the
- * pointer (and fought the user's chosen position on floating cards). */
 .os-widgets__card:hover {
 	box-shadow:
 		0 12px 36px rgba( 0, 0, 0, 0.45 ),
@@ -1055,8 +514,7 @@ body.os-has-fullscreen-window .os-shell {
 	position: absolute;
 	top: 6px;
 	inset-inline-end: 6px;
-	/* 24px is the WCAG 2.2 SC 2.5.8 floor. The glyph inside is unchanged;
-	   only the target grows. */
+
 	width: 24px;
 	height: 24px;
 	display: flex;
@@ -1080,13 +538,6 @@ body.os-has-fullscreen-window .os-shell {
 	opacity: 1;
 }
 
-/*
- * The corner close button rests at `opacity: 0` and only the card's
- * hover reveals it, so on touch it is invisible and the widget cannot
- * be dismissed at all. Rest it at the same 0.7 the chrome header's
- * close button uses there, rather than a full 1, so a card that is
- * only being read does not wear a hard × in its corner.
- */
 @media ( hover: none ) {
 	.os-widgets__card-close {
 		opacity: 0.7;
@@ -1098,13 +549,6 @@ body.os-has-fullscreen-window .os-shell {
 	color: var( --os-ui-fg-on-accent, #fff );
 }
 
-/*
- * Movable widgets — a thin chrome header at the top of the card holds
- * the drag grip, the widget's own label, and the × button. The whole
- * header is the drag handle (except for interactive children — those
- * remain clickable as normal). Non-movable widgets keep today's
- * corner-× layout unchanged.
- */
 .os-widgets__chrome {
 	display: flex;
 	flex-shrink: 0;
@@ -1153,8 +597,6 @@ body.os-has-fullscreen-window .os-shell {
 	white-space: nowrap;
 }
 
-/* When the close button sits inside the chrome it's inline, not
-   corner-absolute — reset position + always-visible opacity. */
 .os-widgets__chrome .os-widgets__card-close {
 	position: static;
 	opacity: 0.7;
@@ -1167,19 +609,6 @@ body.os-has-fullscreen-window .os-shell {
 	opacity: 1;
 }
 
-/*
- * Re-dock button — sits in the chrome next to the close button and
- * returns a floating widget to the right column. Visibility is
- * gated on the `--floating` modifier class so docked widgets never
- * expose it (tapping it on a docked card would be a confusing
- * no-op). The DOM node stays mounted either way so state flips
- * don't rebuild chrome.
- *
- * Styling mirrors the inline close button: 24×24 round tile
- * (the WCAG 2.2 SC 2.5.8 target-size floor),
- * dimmed by default, full-opacity on hover / focus. Distinct hover
- * color (theme accent, not red) signals "put back" vs. "remove."
- */
 .os-widgets__card-redock {
 	display: none;
 	align-items: center;
@@ -1210,20 +639,11 @@ body.os-has-fullscreen-window .os-shell {
 	color: var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) );
 }
 
-/*
- * Floating widgets — absolute-positioned, inline top/left/width/height
- * written by the frame.
- */
 .os-widgets__card--floating {
 	position: absolute;
 	margin: 0;
 }
 
-/*
- * A liberated card is reparented to the desktop area, so the column's
- * overview fade above no longer reaches it. Direct children only: a
- * card inside a window body belongs to that window's thumbnail.
- */
 .os-area--overview > .os-widgets__card--floating {
 	opacity: 0;
 	pointer-events: none;
@@ -1235,14 +655,6 @@ body.os-has-fullscreen-window .os-shell {
 	z-index: 2;
 }
 
-/*
- * Resize handles — 8 in all, with the 4 edges as hair-line strips and
- * the 4 corners as small squares. Invisible by default; cursor change
- * telegraphs them on hover. The frame attaches pointer listeners to
- * every handle; a non-movable widget ignores everything except the
- * `s` (bottom-edge, height-only) handle at the pointer layer, so we
- * visually hide the mismatched handles via the modifier class.
- */
 .os-widgets__resize {
 	position: absolute;
 	z-index: 1;
@@ -1312,30 +724,10 @@ body.os-has-fullscreen-window .os-shell {
 	cursor: nesw-resize;
 }
 
-/*
- * Only floating cards expose the full 8-direction handle set. A
- * column-docked card — non-movable OR movable-but-not-yet-liberated —
- * resizes on the height axis alone (the frame ignores every other
- * direction while docked), so hide all handles except the bottom
- * edge and the cursor never lies about what's interactive.
- */
 .os-widgets__card--resizable:not( .os-widgets__card--floating ) .os-widgets__resize:not( .os-widgets__resize--s ) {
 	display: none;
 }
 
-/*
- * Add-widget tile — a compact pill that trails the widget stack, not
- * a full-width drop zone. Hidden until the pointer comes near the
- * column (the layer toggles `--hovered`), so the desktop stays clean
- * for people who never touch widgets.
- *
- * Absolute rather than in flow because "the bottom of the stack" is
- * not something the column's layout knows: a widget dragged out of
- * the column becomes a floating card parented to the desktop, so it
- * leaves the flex flow while still sitting visually in the column.
- * The layer measures those too and writes `top` — see
- * `positionAddTile()`.
- */
 .os-widgets__add {
 	position: absolute;
 	top: 0;
@@ -1347,8 +739,7 @@ body.os-has-fullscreen-window .os-shell {
 	justify-content: center;
 	gap: 7px;
 	pointer-events: none;
-	/* `.os-widgets__card`'s glass, to the number: the pill trails a
-	   stack of those cards. Its dashed edge is what makes it a slot. */
+
 	background: var( --os-widgets-add-bg, transparent );
 	backdrop-filter: blur( 18px ) saturate( 140% );
 	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
@@ -1367,12 +758,6 @@ body.os-has-fullscreen-window .os-shell {
 		color 0.15s ease;
 }
 
-/*
- * Reveal conditions. An empty column is no exception — approaching
- * the right side is the gesture, whether or not there's a card there
- * to aim at. `:focus-visible` keeps it reachable by keyboard, where
- * there is no pointer to bring near.
- */
 .os-widgets--hovered .os-widgets__add,
 .os-widgets--picking .os-widgets__add,
 .os-widgets__add:focus-visible {
@@ -1380,12 +765,6 @@ body.os-has-fullscreen-window .os-shell {
 	pointer-events: auto;
 }
 
-/*
- * Touch has no hover to approach the column with. The wallpaper's
- * right-click menu carries an "Add widget" entry, but a long-press
- * to reach it is a lot to ask of someone who just wants a clock, so
- * on those devices the pill stays put.
- */
 @media ( hover: none ) {
 	.os-widgets__add {
 		opacity: 1;
@@ -1415,12 +794,9 @@ body.os-has-fullscreen-window .os-shell {
 	letter-spacing: 0.02em;
 }
 
-/* Built-in clock widget */
 .os-widget-clock {
 	text-align: center;
-	/* The time + date are passive glyphs, not content users would
-	 * ever reasonably select — turning it off avoids the accidental-
-	 * highlight mess that happens when a drag starts on the clock. */
+
 	user-select: none;
 	-webkit-user-select: none;
 }
@@ -1440,17 +816,9 @@ body.os-has-fullscreen-window .os-shell {
 	letter-spacing: 0.02em;
 }
 
-/* ---------------------------------------------------------------
- * Widget picker popover — opens from the add tile, lists every
- * registered widget. Positioned fixed so it can extend outside
- * the desktop-area clip.
- * --------------------------------------------------------------- */
-
 .os-widget-picker {
 	position: fixed;
-	/* Border-box so the picker script can cap max-height to the
-	 * room it measured, frame included. 342 = the 320px list plus
-	 * the padding and border it always carried. */
+
 	box-sizing: border-box;
 	width: 342px;
 	max-height: 60vh;
@@ -1564,63 +932,17 @@ body.os-has-fullscreen-window .os-shell {
 	line-height: 1.4;
 }
 
-/**
- * Chromeless mode: pages loaded inside iframes.
- * Remove all shell chrome and let content fill the frame.
- */
 .os-chromeless {
 	margin: 0;
 	padding: 0;
 	background: var(--os-window-bg);
 }
 
-/*
- * Chromeless #wpbody-content, #adminmenuwrap, #wpfooter overrides are in
- * chromeless.css to keep all legacy page tweaks in one place.
- */
-
-/*
- * Hide WordPress core's built-in command palette (`@wordpress/commands`).
- * OpenStation force-enqueues `wp_enqueue_command_palette_assets()` so
- * the `core/commands` data store is populated for our shell harvester
- * (see `src/commands/shell-harvester.ts`); the side effect is that WP
- * also mounts its own `<CommandPalette>` to the document body. We
- * already block its Cmd+K handler in `src/palette-registry.ts`, but if
- * a third-party script opens it programmatically (`wp.data.dispatch(
- * 'core/commands' ).open()`), the dialog would float over the desktop
- * with admin-menu navigation callbacks whose `document.location = url`
- * would unload the shell. Keep it permanently hidden.
- */
 .commands-command-menu,
 .commands-command-menu__overlay {
 	display: none !important;
 }
 
-/*
- * ---- Links slotted into <os-notice> ---------------------------
- *
- * `<os-notice>` styles its slotted links from inside its shadow root,
- * through `::slotted( a )` and the `--os-ui-notice-link` tokens. That
- * rule cannot win here, and no amount of specificity on it would help.
- *
- * A slotted element lives in the DOCUMENT tree; the shadow root only
- * borrows it for rendering. When declarations from two trees collide,
- * CSS Scoping resolves normal (non-`!important`) ones in favour of the
- * OUTER tree regardless of specificity — so `wp-admin/css/common.css`,
- * which sets `a { color: #2271b1 }` and `a:hover { color: #135e96 }` on
- * every anchor in the admin, beats `::slotted( a )` every time. The
- * shell renders inside wp-admin, so it always loses: the link painted
- * WordPress Blue at rest and a darker blue on hover, the second of
- * which is close to illegible on a notice's dark wash.
- *
- * Hence a document-tree rule. It reads the same tokens the component
- * documents, so a theme still restyles the link by setting them; this
- * only moves the declaration into a tree that can win. `a:hover` is
- * (0,1,1), so the hover selector has to carry its own pseudo-class to
- * outrank it — matching `os-notice a` alone would lose the hover state
- * while winning the base one, which is exactly the inert-looking link
- * the component's own styles already went out of their way to avoid.
- */
 os-notice a {
 	color: var(--os-ui-notice-link, #ec9bff);
 }
@@ -1631,33 +953,16 @@ os-notice a:active {
 	color: var(--os-ui-notice-link-hover, #fffbff);
 }
 
-/* --------------------------------------------------------------------
- * The workspace hop — cross-document view transitions between shells.
- *
- * Loaded only on the SHELL screen (this sheet never reaches chromeless
- * iframes), so only shell→shell navigations transition: hopping between
- * a site's desktop and the network admin's crossfades the two desktops
- * instead of hard-cutting, which is what makes the per-admin sessions
- * read as workspaces. Classic admin pages never opt in, so entering or
- * leaving the shell stays a plain navigation, and reloads are excluded
- * by the spec. Browsers without cross-document view transitions ignore
- * all of this and navigate plainly. See docs/multisite.md.
- */
 @view-transition {
 	navigation: auto;
 }
 
-/* Reduced motion swaps instantly — the hop still happens, the
- * animation does not. */
 @media ( prefers-reduced-motion: reduce ) {
 	@view-transition {
 		navigation: none;
 	}
 }
 
-/* A gentle zoom-through: the desktop being left recedes as the one
- * arriving settles in. Subtle on purpose — this runs on a full page
- * swap, and anything louder reads as a reload effect. */
 ::view-transition-old(root) {
 	animation: os-workspace-hop-out 220ms cubic-bezier( 0.4, 0, 1, 1 ) both;
 }
@@ -1680,16 +985,6 @@ os-notice a:active {
 	}
 }
 
-/* The instance hop's two halves, on either side of that page swap.
- * The switcher slides this desk out towards the site it picked
- * (`os-shell--hop-out-next` / `-prev`, for the beat before it
- * navigates), and a shell asked to boot into overview arrives with its
- * desk hidden (`os-shell--arriving`, stamped server-side) until overview
- * is up, then slides it in from the same side (`-next` / `-prev`, the
- * hint the switcher left in sessionStorage; no hint, a plain fade). The
- * wallpaper never moves, which is what makes it read as the tiles
- * changing rather than the page. `src/multisite/instance-transition.ts`
- * drives the classes. */
 .os-shell--hop-out-next #os-area,
 .os-shell--hop-out-prev #os-area {
 	opacity: 0;
@@ -1726,9 +1021,6 @@ os-notice a:active {
 	transform: translateX( -48px );
 }
 
-/* The reveal: the arriving classes come off and this goes on in the
- * same frame, so the desk transitions from hidden to its resting
- * place. */
 .os-shell--revealing #os-area {
 	transition:
 		opacity 360ms cubic-bezier( 0, 0, 0.2, 1 ),
@@ -1739,9 +1031,6 @@ os-notice a:active {
 	transition: opacity 360ms ease;
 }
 
-/* A desk must never stay hidden: if the boot that reveals it never
- * runs, the area and the dock come back on their own a few seconds
- * in. */
 @keyframes os-instance-arrive-fallback {
 	to {
 		opacity: 1;
@@ -1772,7 +1061,6 @@ os-notice a:active {
 	}
 }
 
-/* A residency frame follows the window body without scrolling with its contents. */
 .os-mio-residence {
 	position: absolute;
 	z-index: 50;
@@ -1904,7 +1192,6 @@ os-notice a:active {
 	text-decoration: underline;
 }
 
-/* Shared MIO chrome: the same portrait with a softly revealed off-state slash. */
 .os-mio-window-toggle svg {
 	width: 20px;
 	height: 20px;
@@ -1996,7 +1283,6 @@ os-notice a:active {
 	.os-mio-window-toggle[data-mio-available="false"] { transition: none; }
 }
 
-/* The launcher stays available; the companion only speaks when invited. */
 .os-mio > canvas,
 .os-mio > .os-mio__handle {
 	transition: opacity 180ms ease, visibility 180ms;
@@ -2038,7 +1324,6 @@ os-notice a:active {
 	line-height: 1;
 }
 
-/* A small rounded tail joins the companion without a second outlined shape. */
 .os-mio-callout::after {
 	content: "";
 	position: absolute;
@@ -2061,7 +1346,6 @@ os-notice a:active {
 	.os-mio-callout { animation: none; }
 }
 
-/* Response controls belong to their message; all layout follows inline flow. */
 .os-mio-chat__actions {
 	display: flex;
 	flex-wrap: wrap;

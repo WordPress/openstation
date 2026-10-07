@@ -1,24 +1,3 @@
-/**
- * Posts app — what every cell renderer works with.
- *
- * Cells build their DOM imperatively because `<os-table>` paints rows
- * inside its own shadow root, where the document's stylesheets never
- * reach: inline styles are the working contract. What a cell needs
- * from the app arrives as one {@link CellEnv} — the config extra, the
- * REST client, the shell doors (`openUrl`, `confirm`, `toast`,
- * `announce`), and the per-window caches (the parent-title roster,
- * the category tree and its live pickers) that used to be module
- * singletons and now die with the window.
- *
- * The cell cache ({@link memoCell}) keeps a row stable across the
- * table's own repaints: `<os-table>` rebuilds its body on every
- * selection / expand / sort change, and without the cache every
- * avatar and chip flashed for a frame. The app clears it on a real
- * data change.
- *
- * @public
- */
-
 import { __ } from '@openstation/app';
 import { pickAvatarUrl } from '../../../../src/ui/util/avatar-resolve';
 import { decodeHTML } from '../../../../src/utils';
@@ -29,7 +8,6 @@ import type {
 import type { PostsRestClient } from '../rest';
 import type { ListExtra, PostListItem } from '../types';
 
-/** The cells only one mode renders — Posts hands in its tag and category pickers. */
 export interface CellRenderers {
 	tags?: ( row: PostListItem, env: CellEnv ) => HTMLElement;
 	categories?: ( row: PostListItem, env: CellEnv ) => HTMLElement;
@@ -39,24 +17,23 @@ export interface CellEnv {
 	extra: ListExtra;
 	client: PostsRestClient;
 	cells: CellRenderers;
-	/** Open an admin URL in an iframe window. */
+
 	openUrl: ( url: string, title: string, icon: string ) => void;
-	/** The shell's confirm dialog. */
+
 	confirm: ( options: { title?: string; message: string; confirmLabel?: string; danger?: boolean } ) => Promise< boolean >;
-	/** A mutation failed: say so, with the server's reason. */
+
 	toast: ( title: string, err: unknown ) => void;
-	/** A row changed — the window's own announce (its watch skips the echo). */
+
 	announce: ( action: string, ids: number[] ) => void;
-	/** In-page parent titles (Pages), refreshed on every data change. */
+
 	parentTitles: Map< number, string >;
-	/** The category tree, fetched once per window, and every live picker. */
+
 	categories: {
 		tree: Promise< OsCategoryItem[] > | null;
 		pickers: Set< OsCategoryPicker >;
 	};
 }
 
-/** Per-(rowId, columnKey) cell-node cache. */
 export type CellCache = Map< string, HTMLElement >;
 
 export function memoCell( cache: CellCache, rowId: number, columnKey: string, build: () => HTMLElement ): HTMLElement {
@@ -96,7 +73,6 @@ export function statusBadgeColor( status: string ): { bg: string; fg: string } {
 	}
 }
 
-/** The editor URL for a row — `post.php?post=<id>&action=edit`. */
 export function buildEditPostUrl( extra: ListExtra, id: number ): string {
 	const base = extra.editPostUrlBase ?? '';
 	const sep = base.includes( '?' ) ? '&' : '?';
@@ -115,7 +91,6 @@ export function authorOf( row: PostListItem ): { id: number; name: string; avata
 	return { id: row.author, name: __( 'Unknown' ) };
 }
 
-/** The embedded term records for a taxonomy — seed for the pickers. */
 export function termRecordsOf( row: PostListItem, taxonomy: 'category' | 'post_tag' ): Array< { id: number; name: string } > {
 	for ( const group of row._embedded?.[ 'wp:term' ] ?? [] ) {
 		if ( group.length > 0 && group[ 0 ].taxonomy === taxonomy ) {
@@ -137,16 +112,10 @@ export function featuredMediaOf( row: PostListItem ): { url: string; alt: string
 	};
 }
 
-/** The row's title as text, entities decoded. */
 export function titleOf( row: PostListItem ): string {
 	return decodeHTML( row.title.rendered );
 }
 
-/**
- * A small inline pill — the lock, status and assignment badges share
- * it. `icon` is a glyph (a dashicon class, or text for a glyph the
- * shadow root cannot style through the class).
- */
 export function pill(
 	text: string,
 	colors: { fg: string; bg: string },

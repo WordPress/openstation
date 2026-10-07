@@ -1,14 +1,5 @@
 <?php
-/**
- * Tests for the games REST surface: permission gates, score
- * submission/leaderboard, and the challenge lifecycle endpoints.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group desktop-mode-games
- */
+
 class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 
 	protected static $challenger;
@@ -50,9 +41,6 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		return $req;
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_permission
-	 */
 	public function test_permission_requires_login() {
 		wp_set_current_user( 0 );
 		$result = openstation_games_rest_permission();
@@ -60,9 +48,6 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertSame( 401, $result->get_error_data()['status'] );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_permission
-	 */
 	public function test_permission_requires_openstation() {
 		delete_user_meta( self::$challenger, 'desktop_mode_mode' );
 		$result = openstation_games_rest_permission();
@@ -70,9 +55,6 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertSame( 403, $result->get_error_data()['status'] );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_permission
-	 */
 	public function test_permission_filter_can_lock_down() {
 		$this->assertTrue( openstation_games_rest_permission() );
 		add_filter( 'openstation_games_rest_permission', '__return_false' );
@@ -80,9 +62,6 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_submit_score
-	 */
 	public function test_submit_score_404s_unknown_game() {
 		$req = $this->request( 'POST', '/desktop-mode/v1/games/nope/scores', array(
 			'game'  => 'nope',
@@ -93,10 +72,6 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_unknown_game', $result->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_submit_score
-	 * @covers ::openstation_games_rest_list_scores
-	 */
 	public function test_submit_then_list_scores() {
 		$req = $this->request( 'POST', '/desktop-mode/v1/games/test-game/scores', array(
 			'game'  => 'test-game',
@@ -118,8 +93,7 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertSame( 1, $data['total'] );
 		$this->assertSame( 250, $data['scores'][0]['score'] );
 		$this->assertSame( 61, $data['scores'][0]['meta']['wpm'] );
-		// The submitting session is the credited player — no
-		// impersonation path exists.
+
 		$this->assertSame( self::$challenger, $data['scores'][0]['userId'] );
 	}
 
@@ -134,9 +108,6 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		return $resp->get_data()['challenge'];
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_create_challenge
-	 */
 	public function test_challenge_create_and_can_challenge_filter() {
 		$challenge = $this->create_challenge_via_rest();
 		$this->assertSame( 'pending', $challenge['state'] );
@@ -152,13 +123,9 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_challenge_blocked', $blocked->get_error_code() );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_accept_challenge
-	 */
 	public function test_only_recipient_can_accept() {
 		$challenge = $this->create_challenge_via_rest();
 
-		// The challenger themselves cannot accept.
 		$forbidden = openstation_games_rest_accept_challenge(
 			$this->request( 'POST', "/desktop-mode/v1/games/challenges/{$challenge['id']}/accept", array( 'id' => $challenge['id'] ) )
 		);
@@ -173,14 +140,10 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertSame( 'accepted', $resp->get_data()['challenge']['state'] );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_complete_challenge
-	 */
 	public function test_complete_flow_and_wrong_state_conflict() {
 		$challenge = $this->create_challenge_via_rest();
 		wp_set_current_user( self::$recipient );
 
-		// Completing before accepting: 409.
 		$early = openstation_games_rest_complete_challenge(
 			$this->request( 'POST', "/desktop-mode/v1/games/challenges/{$challenge['id']}/complete", array(
 				'id'    => $challenge['id'],
@@ -206,9 +169,6 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertSame( 500, $data['resultScore'] );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_decline_challenge
-	 */
 	public function test_decline() {
 		$challenge = $this->create_challenge_via_rest();
 		wp_set_current_user( self::$recipient );
@@ -219,9 +179,6 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertSame( 'declined', $resp->get_data()['challenge']['state'] );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_list_challenges
-	 */
 	public function test_list_challenges_boxes() {
 		$this->create_challenge_via_rest();
 
@@ -242,9 +199,6 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 		$this->assertCount( 1, $incoming['challenges'] );
 	}
 
-	/**
-	 * @covers ::openstation_games_rest_search_users
-	 */
 	public function test_users_search_excludes_viewer() {
 		$resp  = openstation_games_rest_search_users(
 			$this->request( 'GET', '/desktop-mode/v1/games/users/search', array( 'q' => '', 'exclude' => '' ) )

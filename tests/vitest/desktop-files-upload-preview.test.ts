@@ -1,9 +1,3 @@
-/**
- * Tests for the upload preview pane: inline media rendering via
- * the authenticated download URL, the no-preview fallback with a
- * Download action, and the `os.files.preview` filter
- * that lets plugins take over (the PDF-extension seam).
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -61,9 +55,9 @@ describe( 'upload preview', () => {
 		expect( img!.src ).toBe(
 			'https://example.test/wp-json/desktop-mode/v1/files/uploads/7/download?_wpnonce=abc',
 		);
-		// Meta line carries mime + human size.
+
 		expect( host.textContent ).toContain( 'image/jpeg · 2.0 KB' );
-		// Download action is present.
+
 		expect( host.querySelector( 'os-button' )?.textContent ).toBe( 'Download' );
 	} );
 
@@ -124,11 +118,11 @@ describe( 'upload preview', () => {
 			uploadPlacement( 'pdf', 'application/pdf' ),
 			host,
 		);
-		// Filter path is synchronous — no tick needed.
+
 		expect( host.querySelector( '.my-plugin-pdf-viewer' )?.textContent ).toBe(
 			'PDF.js viewer here',
 		);
-		// Non-PDF uploads keep the built-in renderer.
+
 		const host2 = document.createElement( 'div' );
 		preview.renderPlacementPreview( uploadPlacement( 'image', 'image/jpeg' ), host2 );
 		await tick();

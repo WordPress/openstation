@@ -1,18 +1,8 @@
-/**
- * The here-or-there state machine.
- *
- * A window is either in the shell or out on the real desktop, never
- * both and never neither, and two independent processes can change
- * that. Everything below is a way of getting the two out of sync, and
- * an assertion that it does not happen.
- */
-
 import { describe, expect, test, vi } from 'vitest';
 
 import { FreedWindows } from '../src/freed-windows';
 import type { ManagedWindow } from '../src/freed-windows';
 
-/** A window double that records what was done to it. */
 function fakeWindow( id: string, state = 'normal' ) {
 	const classes = new Set< string >();
 	const attrs: Record< string, string > = {};
@@ -41,9 +31,6 @@ function fakeWindow( id: string, state = 'normal' ) {
 	return { win: win as unknown as ManagedWindow, classes, attrs, raw: win };
 }
 
-/**
- * @param windows Windows the manager knows about.
- */
 function harness( windows: Record< string, ReturnType< typeof fakeWindow > > = {} ) {
 	const focusNative = vi.fn();
 	const closeNative = vi.fn();
@@ -100,8 +87,7 @@ describe( 'adopting a window', () => {
 	} );
 
 	test( 'still records an id whose window the shell does not have', () => {
-		// The host can free a window the shell has since forgotten
-		// (a reload, a navigation). The bookkeeping has to survive it.
+
 		const h = harness();
 		h.freed.adopt( 'ghost' );
 		expect( h.freed.list() ).toEqual( [ 'ghost' ] );
@@ -133,12 +119,11 @@ describe( 'releasing a window', () => {
 
 describe( 'redirecting focus to the native window', () => {
 	test( 'raises the native window instead of restoring the shell copy', () => {
-		// This is the rule that keeps the dock honest: clicking Posts
-		// while Posts is out on the desktop must not open a second one.
+
 		const posts = fakeWindow( 'edit-php' );
 		const h = harness( { 'edit-php': posts } );
 		h.freed.adopt( 'edit-php' );
-		posts.raw.state = 'normal'; // Something restored it behind our back.
+		posts.raw.state = 'normal';
 
 		h.freed.redirect( 'edit-php' );
 
@@ -177,9 +162,7 @@ describe( 'forgetting a closed window', () => {
 
 describe( 're-adopting after a shell reload', () => {
 	test( 'records the ids without announcing transitions that did not happen', () => {
-		// Native windows outlive the page that created them, so boot
-		// is not a clean slate — but nothing *changed*, so subscribers
-		// must not be told a window was just freed.
+
 		const h = harness();
 
 		h.freed.adoptExisting( [ 'edit-php', 'os-files' ] );

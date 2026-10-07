@@ -1,40 +1,10 @@
-/**
- * `<os-multiselect>` — multi-select dropdown picker.
- *
- * The multi-select sibling of `<os-select>`. Same `<os-option>`
- * data-carrier children, same compact-trigger visual language; the
- * difference is that the popover lists checkboxes instead of a
- * native `<select>`, multiple options can be checked at once, and
- * `value` is a comma-joined id list (e.g. `"1,4,7"`) so it round-
- * trips through plain `string` attributes the same way every other
- * `os-*` value does.
- *
- * ```html
- * <os-multiselect value="1,4" label="Authors">
- *     <os-option value="1">Daniel</os-option>
- *     <os-option value="4">Peter</os-option>
- *     <os-option value="9">Pat</os-option>
- * </os-multiselect>
- * ```
- *
- * The popover is appended to `document.body` with `position: fixed`
- * so it escapes any overflow / clip ancestor — required for filter
- * cells inside scrolling tables, kebab menus inside windows, etc.
- *
- * Emits `os-pick` with `{ value, values }` on every change.
- *
- * @public
- */
-
 import {
 	Component,
 	defineComponent,
 	ensureAutoId,
 	html,
 } from '../../core';
-// `<os-option>` is already defined by `<os-select>`. Side-effect
-// import wires it in environments that load multiselect without
-// touching select first (third-party bundles).
+
 import '../os-select/os-select';
 import { osIcon } from '../../icons';
 import { multiselectStyles } from './os-multiselect.styles';
@@ -132,11 +102,6 @@ export class OsMultiselect extends Component {
 		`,
 	} as const;
 
-	/**
-	 * Declarative item-list setter. Replaces the existing
-	 * `<os-option>` children with a fresh set; preserves any values
-	 * that still match.
-	 */
 	set items( list: ReadonlyArray< { value: string; label: string } > ) {
 		const existing = this.querySelectorAll( ':scope > os-option' );
 		for ( const el of Array.from( existing ) ) {
@@ -148,9 +113,7 @@ export class OsMultiselect extends Component {
 			opt.textContent = item.label;
 			this.appendChild( opt );
 		}
-		// A full bulk replacement also concludes any in-flight
-		// load-more cycle — the consumer effectively just re-seeded
-		// the option list, so we should drop the spinner row.
+
 		this._loadingMore = false;
 		const validSet = new Set( list.map( ( i ) => i.value ) );
 		const next = this._readValues().filter( ( v ) => validSet.has( v ) );
@@ -159,15 +122,10 @@ export class OsMultiselect extends Component {
 		this._refreshPopover();
 	}
 
-	/** Programmatic getter for the parsed selection. */
 	get values(): string[] {
 		return this._readValues();
 	}
 
-	/**
-	 * Programmatic setter — accepts an array of values; serialises
-	 * back to the `value` attribute as a comma-joined string.
-	 */
 	set values( next: readonly string[] | null | undefined ) {
 		const arr = Array.isArray( next )
 			? next.map( ( v ) => String( v ) ).filter( ( v ) => v !== '' )
@@ -180,18 +138,10 @@ export class OsMultiselect extends Component {
 	private _optionObserver: MutationObserver | null = null;
 	private _popover: HTMLDivElement | null = null;
 	private _teardownOpen: ( () => void ) | null = null;
-	/**
-	 * Pagination state for the infinite-scroll mode. Set
-	 * `picker.hasMore = true` to opt in; the popover then watches its
-	 * scroll position and emits `os-multiselect-load-more` near the
-	 * bottom. The consumer calls `picker.appendItems(more)` when the
-	 * fetch lands and toggles `picker.hasMore` off when no more pages
-	 * remain.
-	 */
+
 	private _hasMore = false;
 	private _loadingMore = false;
 
-	/** Whether more pages are available (drives the load-more emit). */
 	get hasMore(): boolean {
 		return this._hasMore;
 	}
@@ -200,11 +150,6 @@ export class OsMultiselect extends Component {
 		this._refreshPopover();
 	}
 
-	/**
-	 * Whether a load-more fetch is currently in flight. While true,
-	 * the popover paints a small spinner row and suppresses further
-	 * `os-multiselect-load-more` emits.
-	 */
 	get loadingMore(): boolean {
 		return this._loadingMore;
 	}
@@ -213,18 +158,9 @@ export class OsMultiselect extends Component {
 		this._refreshPopover();
 	}
 
-	/**
-	 * Append additional options without dropping any already in the
-	 * tree. Used by infinite-scroll consumers — call when the next
-	 * page lands, then set `loadingMore = false` and update
-	 * `hasMore` based on whether more pages remain.
-	 */
 	appendItems(
 		more: ReadonlyArray< { value: string; label: string } >,
 	): void {
-		// Clear the in-flight flag whenever a load-more landing
-		// surface comes in, even if the page was empty — that's how
-		// the consumer signals "fetch finished, you can ask again".
 		this._loadingMore = false;
 		if ( ! more || more.length === 0 ) {
 			this._refreshPopover();
@@ -364,10 +300,7 @@ export class OsMultiselect extends Component {
 		if ( vals.length === 1 ) {
 			return byValue.get( vals[ 0 ] ) ?? vals[ 0 ];
 		}
-		// "N selected" — os-* components stay i18n-agnostic at the
-		// component level (consumers that want a custom summary can
-		// listen for `os-pick` and paint their own trigger label
-		// outside the component).
+
 		return `${ vals.length } selected`;
 	}
 
@@ -398,8 +331,7 @@ export class OsMultiselect extends Component {
 		popover.className = 'os-multiselect__popover';
 		popover.setAttribute( 'role', 'listbox' );
 		popover.setAttribute( 'aria-multiselectable', 'true' );
-		// Inherit the host's CSS custom-property scope so accent /
-		// admin-theme-color resolve the same as the trigger does.
+
 		popover.style.setProperty(
 			'--wp-admin-theme-color',
 			getComputedStyle( this ).getPropertyValue(
@@ -440,11 +372,6 @@ export class OsMultiselect extends Component {
 		};
 		const onResizeScroll = (): void => this._placePopover();
 
-		// Infinite-scroll: when the popover is itself scrolled past
-		// ~80% of its content, ask the consumer for the next page.
-		// `loadingMore` and `hasMore` flags gate the emit so we don't
-		// re-fire while a fetch is in flight or after the consumer
-		// has indicated no more pages remain.
 		const onPopoverScroll = (): void => {
 			if ( ! this._hasMore || this._loadingMore ) {
 				return;
@@ -567,10 +494,6 @@ export class OsMultiselect extends Component {
 			popover.appendChild( row );
 		}
 
-		// Loading row + a sentinel so the user sees the next-page
-		// fetch land on a recognisable surface and the
-		// IntersectionObserver / scroll heuristic has a node to
-		// anchor to.
 		if ( this._loadingMore ) {
 			const loading = document.createElement( 'div' );
 			loading.className = 'os-multiselect__loading';

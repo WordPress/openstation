@@ -1,30 +1,3 @@
-/**
- * OpenStation — Note Pad widget.
- *
- * The composer for pinned notes: a physical pad of pastel paper on
- * the widget card. The top sheet is the live draft; two peek sheets
- * beneath it are tinted with the NEXT colors in the cycle (the pad
- * advertises its own palette), a folded bottom-right corner whose
- * underside shows the next color doubles as the cycler, and a row of
- * paper-dot swatches picks directly.
- *
- * Creating a note:
- *
- *   - Drag the sheet (its glued top edge, or any paper margin) out
- *     of the pad and drop it on the wallpaper — a `'note-draft'`
- *     DragManager payload the notes layer (main bundle) turns into a
- *     POST + the pin-insertion thunk.
- *   - Or press Ctrl/Cmd+Enter in the textarea — this bundle POSTs
- *     directly and hands the note to the layer via the
- *     `os-note-created` CustomEvent. The keyboard is the only
- *     drag-free path on purpose: a button under the pad duplicated
- *     the tear-off gesture the pad exists to teach.
- *
- * Cross-bundle rules honored here: only plain data crosses to the
- * main bundle (payload / CustomEvent detail); the REST client copy
- * compiled into THIS bundle gets its own deps installed from
- * `window.openStationConfig`.
- */
 import './styles.css';
 import '../../ui/components/os-textarea/os-textarea';
 import { __ } from '../../i18n';
@@ -86,15 +59,9 @@ const mount = (
 	let color = normalizeNoteColor(
 		ctx.storage.get< string >( 'color' ) ?? NOTE_COLORS[ 0 ],
 	);
-	// A fresh note is always private. Visibility is the pinned note's
-	// own decision — the lock/globe button on its paper — so the pad
-	// carries no second control for it.
+
 	const isPublic = false;
 	let text = '';
-
-	// ------------------------------------------------------------------
-	// DOM
-	// ------------------------------------------------------------------
 
 	const root = document.createElement( 'div' );
 	root.className = 'dm-notes-pad';
@@ -157,10 +124,6 @@ const mount = (
 	root.append( stack, footer );
 	container.appendChild( root );
 
-	// ------------------------------------------------------------------
-	// Color state
-	// ------------------------------------------------------------------
-
 	function refreshColors(): void {
 		const next1 = nextNoteColor( color );
 		const next2 = nextNoteColor( next1 );
@@ -192,17 +155,11 @@ const mount = (
 	corner.addEventListener( 'click', onCornerClick );
 	refreshColors();
 
-	// ------------------------------------------------------------------
-	// Draft state
-	// ------------------------------------------------------------------
-
 	const onInput = ( ev: Event ): void => {
 		text = ( ev as CustomEvent< { value: string } > ).detail.value;
 	};
 	editor.addEventListener( 'os-input-change', onInput );
 
-	// Shell shortcuts must not fire while writing on the pad — and
-	// Ctrl/Cmd+Enter is the keyboard pin path.
 	const onEditorKeydown = ( ev: Event ): void => {
 		const kev = ev as KeyboardEvent;
 		if ( kev.key === 'Enter' && ( kev.ctrlKey || kev.metaKey ) ) {
@@ -226,7 +183,6 @@ const mount = (
 		editor.setAttribute( 'value', '' );
 	};
 
-	/** A tiny "nothing to pin" shake for empty-draft attempts. */
 	const shakeSheet = (): void => {
 		if (
 			typeof window.matchMedia === 'function' &&
@@ -245,15 +201,6 @@ const mount = (
 		);
 	};
 
-	// ------------------------------------------------------------------
-	// Tear-off drag
-	// ------------------------------------------------------------------
-
-	/**
-	 * Ghost: a real-looking pinned note held by its pin — reuses the
-	 * `.os-pinned-note-ghost` classes styled by the shell's
-	 * notes.css (the ghost mounts on the shell body, not the widget).
-	 */
 	const buildDraftGhost = (): {
 		root: HTMLElement;
 		tipX: number;
@@ -268,7 +215,7 @@ const mount = (
 		const swing = document.createElement( 'div' );
 		swing.className = 'os-pinned-note-ghost__swing';
 		swing.dataset.noteColor = color;
-		// Needle tip: top-center of the paper (no jitter on a draft).
+
 		const tipX = width / 2;
 		const tipY = 10;
 		swing.style.transformOrigin = `${ tipX }px ${ tipY }px`;
@@ -297,8 +244,7 @@ const mount = (
 			return;
 		}
 		const target = ev.target as Element | null;
-		// The textarea keeps normal text editing; the corner keeps its
-		// click. Everything else on the sheet is a tear-off handle.
+
 		if ( target?.closest( 'os-textarea, .dm-notes-pad__corner' ) ) {
 			return;
 		}
@@ -310,10 +256,7 @@ const mount = (
 		if ( ! dragManager ) {
 			return;
 		}
-		// Without this, the browser treats the gesture as a text-drag:
-		// moving the pointer across the sheet sweeps a native selection
-		// through the textarea while the ghost flies. Also drop any
-		// selection that already exists (e.g. from a previous edit).
+
 		ev.preventDefault();
 		sheet.ownerDocument.defaultView?.getSelection()?.removeAllRanges();
 		const ghost = buildDraftGhost();
@@ -341,13 +284,10 @@ const mount = (
 			origin: ev,
 			onClickOnly: () => editor.focusInput?.(),
 			onCommit: () => {
-				// Torn off — the layer owns the note now. Reveal a
-				// fresh sheet with a springy pop.
 				clearDraft();
 				playTearOffPromotion();
 			},
-			// onCancel: the sheet reappears untouched (the manager
-			// removes its source-dragging class) — the draft survives.
+
 		} );
 	};
 	sheet.addEventListener( 'pointerdown', onSheetPointerDown );
@@ -375,12 +315,6 @@ const mount = (
 		);
 	};
 
-	// ------------------------------------------------------------------
-	// Keyboard pin path
-	// ------------------------------------------------------------------
-
-	// One POST at a time: a held Ctrl+Enter must not pin the same
-	// draft twice.
 	let pinning = false;
 	async function pinWithoutDrag(): Promise< void > {
 		if ( destroyed || ! canCreate || pinning ) {
@@ -393,8 +327,6 @@ const mount = (
 		}
 		pinning = true;
 		try {
-			// A gentle cascade keeps repeated keyboard pins from
-			// stacking exactly on top of each other.
 			const slot = Math.floor( Date.now() / 1000 ) % 5;
 			const note = await createNote( {
 				text,
@@ -413,10 +345,8 @@ const mount = (
 				new CustomEvent( NOTE_CREATED_EVENT, { detail: { note } } ),
 			);
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( '[openstation] note pad: create failed:', err );
-			// Same user-visible feedback the drag path gets — a silent
-			// failure reads as "the feature is broken".
+
 			shakeSheet();
 			toastRestFailure( shellToast, err, {
 				fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),

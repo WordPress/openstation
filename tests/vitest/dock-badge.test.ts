@@ -1,15 +1,3 @@
-/**
- * Tests for `Dock.setBadge` — the rail discriminator on the
- * `os/badge-changed` activity channel and the
- * client-override map that lets `replaceItems()` (live menu
- * refresh) preserve a badge a plugin had already set.
- *
- * Together with `desktop-icons-badge.test.ts` and the dock
- * resolver suite, this round-trips the "one shape across every
- * rail" contract.
- *
- * @group dock
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type DockItem } from '../../src/dock';
 import { activity } from '../../src/activity';
@@ -100,10 +88,6 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 		dock.setBadge( 'plugin-x', 6 );
 		expect( badgeText( container, 'plugin-x' ) ).toBe( '6' );
 
-		// Live menu refresh wipes the items + rebuilds. Without
-		// the override map the plugin's badge would silently
-		// vanish on the next plugin activation; with it, the
-		// renderer re-applies the value as part of the build.
 		dock.replaceItems( [ makeItem() ] );
 		expect( badgeText( container, 'plugin-x' ) ).toBe( '6' );
 	} );
@@ -113,8 +97,7 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 		dock.setBadge( 'plugin-x', 6 );
 		dock.setBadge( 'plugin-x', 0 );
 		dock.replaceItems( [ makeItem( { badge: 3 } ) ] );
-		// Server-declared badge of 3 paints; the cleared override
-		// did not stick around to suppress it.
+
 		expect( badgeText( container, 'plugin-x' ) ).toBe( '3' );
 	} );
 } );
@@ -136,16 +119,6 @@ describe( 'Dock.replaceItems tears down peek attachments', () => {
 		el.dispatchEvent( evt );
 	}
 
-	/**
-	 * Regression: a peek panel (popover attached to `document.body`)
-	 * shown when `replaceItems` runs used to leak — its tile was
-	 * removed but the popover lived on, and a fresh popover for the
-	 * rebuilt tile collided with it on `view-transition-name`. Chrome
-	 * surfaced this as "Unexpected duplicate view-transition-name:
-	 * os-peek-card-<id>". `replaceItems` now drains
-	 * `peekTeardowns` for the items being replaced; system tile
-	 * peeks (keyed `system:*`) stay untouched.
-	 */
 	test( 'visible peek popover is removed when replaceItems fires', () => {
 		const win = {
 			id: 'themes-php',
@@ -194,14 +167,8 @@ describe( 'Dock.replaceItems tears down peek attachments', () => {
 		vi.advanceTimersByTime( 500 );
 		expect( document.querySelectorAll( '.os-dock-peek' ).length ).toBe( 1 );
 
-		// Live menu refresh — would happen on plugin install/activate
-		// or any chromeless `os-plugins-changed` postMessage.
 		dock.replaceItems( [ item ] );
 
-		// The orphaned popover must be gone before the rebuilt tile
-		// is allowed to spawn a fresh one. Without the teardown drain
-		// in `replaceItems`, the old popover lingers and a second
-		// peek collides on `view-transition-name`.
 		expect( document.querySelectorAll( '.os-dock-peek' ).length ).toBe( 0 );
 	} );
 
@@ -251,8 +218,7 @@ describe( 'Dock.replaceItems tears down peek attachments', () => {
 		);
 		pointerEnter( tile! );
 		vi.advanceTimersByTime( 500 );
-		// Exactly one peek — not zero (teardown over-drained), not
-		// two (leaked old listener also fired).
+
 		expect( document.querySelectorAll( '.os-dock-peek' ).length ).toBe( 1 );
 	} );
 } );

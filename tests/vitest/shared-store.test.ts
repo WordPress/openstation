@@ -1,6 +1,3 @@
-/**
- * Unit tests for the cross-bundle shared-store primitive.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	_resetAllSharedStoresForTests,
@@ -37,10 +34,10 @@ describe( 'shared-store', () => {
 	test( 'second call with the same key returns the SAME store', () => {
 		const a = createSharedStore< DemoState >( 'test/dedupe', buildDemo );
 		a.state.count = 7;
-		// Different call site, same key — must reuse.
+
 		const b = createSharedStore< DemoState >( 'test/dedupe', buildDemo );
 		expect( b.getState().count ).toBe( 7 );
-		// Mutations through `b` are visible to `a` since they share state.
+
 		b.state.count = 9;
 		expect( a.getState().count ).toBe( 9 );
 	} );
@@ -82,7 +79,7 @@ describe( 'shared-store', () => {
 			throw new Error( 'kaboom' );
 		} );
 		store.subscribe( survivor );
-		// Quiet the console for the duration of the call.
+
 		const errSpy = vi.spyOn( console, 'error' ).mockImplementation( () => {} );
 		store.notify();
 		expect( survivor ).toHaveBeenCalledTimes( 1 );
@@ -96,10 +93,9 @@ describe( 'shared-store', () => {
 		captured.items.set( 'x', 1 );
 		captured.user = 'eve';
 		store.reset();
-		// Same outer object reference — captures into module-level
-		// `const state = store.state` survive.
+
 		expect( store.state ).toBe( captured );
-		// But fields restored to initial.
+
 		expect( captured.count ).toBe( 0 );
 		expect( captured.user ).toBeNull();
 		expect( captured.items.size ).toBe( 0 );
@@ -144,8 +140,7 @@ describe( 'shared-store', () => {
 
 	test( 'registers under the framework window slot', () => {
 		const slotKey = '__openStationSharedStores';
-		// Slot may already exist from earlier tests in this file —
-		// clear and verify the createSharedStore call (re-)creates it.
+
 		delete ( window as unknown as Record< string, unknown > )[ slotKey ];
 		createSharedStore( 'test/registers', buildDemo );
 		const slot = ( window as unknown as Record< string, unknown > )[ slotKey ];
@@ -162,9 +157,7 @@ describe( 'shared-store with vi.resetModules across "bundles"', () => {
 	} );
 
 	test( 'a re-imported module sees the same underlying state', async () => {
-		// Simulate two IIFE bundles: each runs `import { createSharedStore }`
-		// and creates its own handle for the same key. The store must
-		// dedupe them into one underlying record.
+
 		const first = await import( '../../src/shared-store' );
 		const storeA = first.createSharedStore< DemoState >(
 			'test/cross-bundle',
@@ -173,9 +166,6 @@ describe( 'shared-store with vi.resetModules across "bundles"', () => {
 		storeA.state.count = 42;
 		storeA.notify();
 
-		// Force the import cache to drop and reload the module — this
-		// approximates the second IIFE bundle compiling its OWN copy of
-		// shared-store.ts and calling createSharedStore again.
 		vi.resetModules();
 		const second = await import( '../../src/shared-store' );
 		const storeB = second.createSharedStore< DemoState >(

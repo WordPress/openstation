@@ -1,13 +1,3 @@
-/**
- * `<os-user-profile>`'s form — the role-save flow over the host the
- * element hands it.
- *
- * The bug the first test guards against: an admin opens the editor
- * for another user, picks a new role, saves. The server updates the
- * role, but the header chip (rendered from the pre-save snapshot)
- * silently stays on the OLD role — which reads as "the update didn't
- * take". The form re-paints the header from the saved record.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import '../../../src/ui/components/os-form/os-form';
 import '../../../src/ui/components/os-select/os-select';
@@ -91,8 +81,6 @@ describe( 'the profile form — role save flow', () => {
 
 		expect( formHost.querySelector( '[slot="header"]' )!.textContent ).toContain( 'Editor' );
 
-		// Pick "author" through the component's own listbox — the path
-		// a user takes.
 		const roleSelect = formHost.querySelector( 'os-select[name="roles[0]"]' ) as ( HTMLElement & { shadowRoot: ShadowRoot } ) | null;
 		expect( roleSelect ).not.toBeNull();
 		( roleSelect!.shadowRoot.querySelector( '.os-select__trigger' ) as HTMLButtonElement ).click();
@@ -119,8 +107,6 @@ describe( 'the profile form — role save flow', () => {
 	} );
 
 	test( 'the role select renders when editing someone else, even without canPromote in the config', async () => {
-		// Capability gating belongs on the server — the UI surfaces the
-		// control whenever the viewer is editing someone else.
 		const { host } = hostWith( () => json( peter() ), {
 			currentUserId: 1,
 			allRoles: { administrator: 'Administrator', editor: 'Editor' },
@@ -151,7 +137,7 @@ describe( 'the profile form — role save flow', () => {
 		expect( formHost.querySelector( '[name="meta.rich_editing"]' ) ).not.toBeNull();
 		expect( formHost.querySelector( '[name="meta.syntax_highlighting"]' ) ).not.toBeNull();
 		expect( formHost.querySelector( '[name="meta.show_admin_bar_front"]' ) ).not.toBeNull();
-		// No network-only affordance on a single site.
+
 		expect( formHost.querySelector( '[name="meta.is_super_admin"]' ) ).toBeNull();
 	} );
 
@@ -176,9 +162,6 @@ describe( 'the profile form — role save flow', () => {
 	} );
 
 	test( 'meta checkbox values are saved as strings, not booleans (WP REST schema)', async () => {
-		// `<os-form>` harvests a checkbox as a boolean; core's user-meta
-		// schema for the personal-options keys is `string`. A boolean
-		// failed the whole patch — and the role change in it.
 		const { host, fetch } = hostWith( ( path, init ) => {
 			if ( init?.method === 'POST' && path.includes( 'wp/v2/users/2' ) ) {
 				return json( { id: 2, username: 'peter', roles: [ 'author' ], meta: { rich_editing: 'true' } } );
@@ -209,8 +192,6 @@ describe( 'the profile form — role save flow', () => {
 	} );
 
 	test( 'names reach the form, and go back on save, as the text the person typed', async () => {
-		// Core returns them as stored. The form sends back what it shows,
-		// so the decode may drop nothing: the `<3` and the tags survive.
 		const stored = peter( {
 			name: 'Q&amp;A Helper',
 			first_name: 'Q&amp;A',
@@ -236,7 +217,7 @@ describe( 'the profile form — role save flow', () => {
 			nickname: 'Q&A Helper',
 			description: 'R&D <em>lead</em>',
 		} );
-		// The saved record comes back encoded again.
+
 		expect( header() ).toContain( 'Q&A Helper' );
 	} );
 

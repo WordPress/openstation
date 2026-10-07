@@ -1,18 +1,3 @@
-/**
- * OpenStation — Files Heartbeat sync (JS).
- *
- * Mirror of `includes/desktop-files/heartbeat.php`. Contributes a
- * `openstation_files_subscribe` block on every Heartbeat send
- * carrying the per-folder version map + the latest placement
- * `updated_at_ms` we've seen. Subscribes to the
- * `openstation_files` block on the response and merges deltas
- * into the shared store with `source: 'remote'`.
- *
- * On `truncated: true` we issue a one-shot REST resync of every
- * hydrated folder (the server signaled that it skipped rows
- * past the cap).
- */
-
 import { heartbeat } from '../heartbeat';
 import {
 	getFilesState,
@@ -37,7 +22,6 @@ interface FilesHeartbeatPayload {
 let started = false;
 let highWaterMs = 0;
 
-/** Hook the Heartbeat bus. Idempotent. */
 export function startFilesHeartbeat(): void {
 	if ( started ) {
 		return;
@@ -94,8 +78,6 @@ function applyDelta( payload: FilesHeartbeatPayload ): void {
 	}
 
 	if ( payload.truncated ) {
-		// Server cap was hit — do a one-shot REST resync of every
-		// hydrated folder to catch the rows the heartbeat skipped.
 		const hydrated = Array.from( getFilesState().hydratedFolders );
 		for ( const folderId of hydrated ) {
 			void listPlacements( folderId )
@@ -103,13 +85,12 @@ function applyDelta( payload: FilesHeartbeatPayload ): void {
 					setFolderPlacements( folderId, res.placements );
 				} )
 				.catch( () => {
-					// Quiet — the next tick will retry.
+
 				} );
 		}
 	}
 }
 
-/** Test-only: reset the started flag + highWaterMs. */
 export function __resetFilesHeartbeatForTests(): void {
 	started = false;
 	highWaterMs = 0;

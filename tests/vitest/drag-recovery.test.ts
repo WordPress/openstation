@@ -1,12 +1,3 @@
-/**
- * DragManager recovery paths — Escape, blur, visibilitychange,
- * pointercancel. Each path must:
- *
- *   1. Cancel the active session (`onCancel` fires with the right reason).
- *   2. Strip every drag-state DOM marker so `findOrphans()` returns [].
- *   3. Be idempotent — a second cancel call (or a second listener
- *      firing) doesn't double-fire any callback.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { DragManager } from '../../src/drag/manager';
@@ -51,11 +42,7 @@ describe( 'DragManager recovery', () => {
 	beforeEach( () => {
 		installHooksStub();
 		__resetRecoveryForTests();
-		// jsdom doesn't implement elementFromPoint natively. The
-		// manager's hover update calls it on every pointermove past
-		// threshold; without the stub the tests crash before they
-		// can exercise the recovery paths. Returning null is fine —
-		// recovery doesn't depend on a particular target being found.
+
 		document.elementFromPoint = () => null;
 	} );
 
@@ -98,7 +85,7 @@ describe( 'DragManager recovery', () => {
 		document.dispatchEvent( new Event( 'visibilitychange' ) );
 
 		expect( onCancel ).toHaveBeenCalledWith( 'visibility' );
-		// Reset for next test.
+
 		Object.defineProperty( document, 'hidden', { value: false, configurable: true } );
 	} );
 
@@ -126,9 +113,7 @@ describe( 'DragManager recovery', () => {
 
 	test( 'Escape WITHOUT an active drag is a no-op', () => {
 		const manager = new DragManager();
-		// Don't start a drag — but recovery may have been installed by
-		// an earlier test in the suite. Issue Escape; nothing should
-		// happen.
+
 		expect( () => {
 			document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape' } ) );
 		} ).not.toThrow();

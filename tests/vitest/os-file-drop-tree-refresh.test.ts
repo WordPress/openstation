@@ -1,12 +1,3 @@
-/**
- * Regression test: a folder-tree upload must repaint the desktop
- * immediately. The server creates the folder rows + placements
- * (mkdir-p from relativePath), but each per-file response only
- * carries that file's own placement — so after the batch the
- * dialog re-pulls the canonical container list into the store
- * instead of leaving the new folder tile invisible until the next
- * heartbeat tick.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -22,7 +13,7 @@ vi.mock( '../../src/desktop-files/rest', () => ( {
 
 class FakeXhr {
 	static last: FakeXhr | null = null;
-	/** parentId the canned response places the upload in. */
+
 	static nextParentId = 0;
 	status = 200;
 	responseText = '';
@@ -30,7 +21,7 @@ class FakeXhr {
 	withCredentials = false;
 	upload = {
 		addEventListener() {
-			/* progress unused here */
+
 		},
 	};
 	private listeners = new Map< string, () => void >();
@@ -43,7 +34,7 @@ class FakeXhr {
 		this.listeners.set( name, cb );
 	}
 	send() {
-		// Auto-respond on the next tick with a created placement.
+
 		setTimeout( () => {
 			this.status = 201;
 			this.responseText = JSON.stringify( {
@@ -117,7 +108,7 @@ describe( 'tree upload desktop refresh', () => {
 			placements: [ folderPlacement ],
 			folderId: 0,
 		} );
-		FakeXhr.nextParentId = 3; // Leaf folder created server-side.
+		FakeXhr.nextParentId = 3;
 
 		void dialog.openUploadDialog( {
 			entries: [
@@ -142,7 +133,6 @@ describe( 'tree upload desktop refresh', () => {
 			forceDesktop: true,
 		} );
 
-		// Click the primary Upload button.
 		const buttons = Array.from(
 			document.querySelectorAll< HTMLElement >( 'os-button[variant="primary"]' ),
 		);
@@ -163,7 +153,7 @@ describe( 'tree upload desktop refresh', () => {
 		store.__resetFilesStoreForTests();
 		const dialog = await import( '../../src/os-file-drop/dialog' );
 
-		FakeXhr.nextParentId = 0; // Flat upload lands at the root.
+		FakeXhr.nextParentId = 0;
 		void dialog.openUploadDialog( {
 			entries: [
 				{
@@ -190,12 +180,10 @@ describe( 'tree upload desktop refresh', () => {
 		);
 		buttons[ 0 ].click();
 
-		// Wait for the modal to close (batch finished)…
 		await vi.waitFor( () => {
 			expect( document.querySelector( 'os-modal' ) ).toBeNull();
 		} );
-		// …and confirm no canonical re-pull happened (the returned
-		// placement was ingested directly instead).
+
 		expect( listPlacements ).not.toHaveBeenCalled();
 		expect( listFolders ).not.toHaveBeenCalled();
 		const roots = store.getFilesState().placementsByFolder.get( 0 ) ?? [];

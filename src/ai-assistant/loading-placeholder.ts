@@ -1,25 +1,3 @@
-/**
- * OpenStation — first-open placeholder for the command palette.
- *
- * The palette is lazy in three separate ways, and the first ⌘K of a
- * session pays for all of them: the implementation bundle
- * (`ai-assistant.min.js`), its stylesheet (a `deferredStyles` entry),
- * and the Core command-palette runtime the manifest replays. Until the
- * first two land, pressing ⌘K would do nothing visible at all, and the
- * shell would look like it had ignored the keystroke, which is the
- * exact moment a user presses it again.
- *
- * So we paint the palette's frame immediately through
- * `src/ui/surface-placeholder.ts` and swap it for the real thing when
- * it arrives. The declarations below mirror `.os-ai`, `.os-ai__backdrop`
- * and `.os-ai__panel` in `assets/css/ai-assistant.css`: same `clamp()`
- * offset from the top, same scrim and blur, same 600px cap, radius and
- * hairline ring. When the panel replaces it, it lands where the
- * placeholder already was, on a backdrop that was already there. A
- * label floating over whatever window was underneath, with no scrim
- * and no edge, read as a stray tooltip rather than as the palette.
- */
-
 import { __ } from '../i18n';
 import {
 	hideSurfacePlaceholder,
@@ -29,14 +7,6 @@ import {
 
 const PLACEHOLDER_ID = 'os-ai-loading';
 
-/**
- * Paint the placeholder, unless one is already up.
- *
- * @param onCancel Invoked when the user presses Escape before the
- *                 panel arrives. The caller uses it to drop its
- *                 pending-open intent, so the panel does not open
- *                 afterwards behind the user's back.
- */
 export function showPalettePlaceholder( onCancel?: () => void ): void {
 	showSurfacePlaceholder( {
 		id: PLACEHOLDER_ID,
@@ -69,13 +39,6 @@ export function showPalettePlaceholder( onCancel?: () => void ): void {
 	} );
 }
 
-/**
- * Remove the placeholder, if one is up.
- *
- * @param handoff Keep it under the panel that just opened until the
- *                panel's entrance fade is over, rather than leaving
- *                that fade to start from an undimmed desk.
- */
 export function hidePalettePlaceholder( handoff = false ): void {
 	hideSurfacePlaceholder( PLACEHOLDER_ID, handoff ? SURFACE_HANDOFF_MS : 0 );
 }

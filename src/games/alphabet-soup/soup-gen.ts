@@ -1,18 +1,3 @@
-/**
- * Alphabet Soup — seeded grid generation + selection geometry.
- *
- * `generateSoup()` builds one wave's word-search grid: draw words
- * from the shared dictionary, place them in the 8 compass
- * directions — words NEVER share a cell, every letter belongs to at
- * most one hidden word — then fill the leftover cells with decoy
- * letters drawn mostly from the placed words' own letter bag, so
- * the soup still looks like it is ALL words.
- *
- * Everything here is pure and driven by an injected `rng`, which is
- * what makes the daily puzzle identical worldwide: same date seed +
- * same dictionary asset → same soup for every player.
- */
-
 import type { Dictionary } from '../dictionary';
 
 export interface SoupCell {
@@ -22,18 +7,17 @@ export interface SoupCell {
 
 export interface PlacedWord {
 	word: string;
-	/** Grid cells the word occupies, first letter first. */
+
 	cells: SoupCell[];
 }
 
 export interface SoupGrid {
 	size: number;
-	/** `letters[row][col]`, lowercase. */
+
 	letters: string[][];
 	words: PlacedWord[];
 }
 
-/** The 8 compass directions a word can run in. */
 const DIRECTIONS: ReadonlyArray< readonly [ number, number ] > = [
 	[ 0, 1 ],
 	[ 1, 0 ],
@@ -45,11 +29,9 @@ const DIRECTIONS: ReadonlyArray< readonly [ number, number ] > = [
 	[ -1, 1 ],
 ];
 
-/** Bounded attempts so generation stays deterministic AND finite. */
 const WORD_DRAW_ATTEMPTS = 24;
 const PLACEMENT_ATTEMPTS = 120;
 
-/** Share of filler letters drawn from the placed words' letter bag. */
 const DECOY_BAG_BIAS = 0.6;
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz';
@@ -63,11 +45,6 @@ export interface GenerateSoupOptions {
 	rng: () => number;
 }
 
-/**
- * Generate one wave's soup. Words that cannot be placed after the
- * bounded attempts are dropped (rare on sane configs), so the
- * returned `words` list is the authoritative find-list.
- */
 export function generateSoup( opts: GenerateSoupOptions ): SoupGrid {
 	const { size, dictionary, rng } = opts;
 	const maxLen = Math.min( opts.maxLen, size );
@@ -78,7 +55,6 @@ export function generateSoup( opts: GenerateSoupOptions ): SoupGrid {
 		letters.push( new Array( size ).fill( null ) );
 	}
 
-	// Draw the word set: unique, in-band, bounded redraws.
 	const chosen: string[] = [];
 	const seen = new Set< string >();
 	for ( let i = 0; i < opts.wordCount; i++ ) {
@@ -92,7 +68,7 @@ export function generateSoup( opts: GenerateSoupOptions ): SoupGrid {
 			break;
 		}
 	}
-	// Longest first packs better (short words slot into leftovers).
+
 	chosen.sort( ( a, b ) => b.length - a.length || ( a < b ? -1 : 1 ) );
 
 	const placed: PlacedWord[] = [];
@@ -103,8 +79,6 @@ export function generateSoup( opts: GenerateSoupOptions ): SoupGrid {
 		}
 	}
 
-	// Decoy fill: mostly letters the hidden words already use, so
-	// near-misses abound and every glance looks promising.
 	const bag: string[] = [];
 	for ( const entry of placed ) {
 		for ( const ch of entry.word ) {
@@ -126,7 +100,6 @@ export function generateSoup( opts: GenerateSoupOptions ): SoupGrid {
 	return { size, letters: filled, words: placed };
 }
 
-/** Try to place one word; returns its cells or null. */
 function tryPlaceWord(
 	letters: Array< Array< string | null > >,
 	size: number,
@@ -136,7 +109,7 @@ function tryPlaceWord(
 	for ( let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++ ) {
 		const dir = DIRECTIONS[ Math.floor( rng() * DIRECTIONS.length ) ];
 		const span = word.length - 1;
-		// Start range so the word stays in bounds for this direction.
+
 		const rowMin = dir[ 0 ] < 0 ? span : 0;
 		const rowMax = dir[ 0 ] > 0 ? size - 1 - span : size - 1;
 		const colMin = dir[ 1 ] < 0 ? span : 0;
@@ -154,8 +127,7 @@ function tryPlaceWord(
 		for ( let i = 0; i < word.length; i++ ) {
 			const r = row + dir[ 0 ] * i;
 			const c = col + dir[ 1 ] * i;
-			// No crossings: a cell belongs to at most one hidden word,
-			// so a found word's capsule never bites into another word.
+
 			if ( null !== letters[ r ][ c ] ) {
 				fits = false;
 				break;
@@ -173,11 +145,6 @@ function tryPlaceWord(
 	return null;
 }
 
-/**
- * Snap a drag from `anchor` toward `target` onto the nearest of the
- * 8 legal directions and return the covered cells (inclusive). A
- * zero-length drag returns just the anchor.
- */
 export function lineCells(
 	anchor: SoupCell,
 	target: SoupCell,
@@ -188,7 +155,7 @@ export function lineCells(
 	if ( 0 === dRow && 0 === dCol ) {
 		return [ anchor ];
 	}
-	// Snap the drag angle to the nearest 45° spoke.
+
 	const angle = Math.atan2( dRow, dCol );
 	const spoke = Math.round( angle / ( Math.PI / 4 ) );
 	const stepRow = [ 0, 1, 1, 1, 0, -1, -1, -1 ][ ( spoke + 8 ) % 8 ];
@@ -210,15 +177,10 @@ export function lineCells(
 	return cells;
 }
 
-/** Stable key for a cell path (used to compare selections to words). */
 function pathKey( cells: SoupCell[] ): string {
 	return cells.map( ( cell ) => `${ cell.row }:${ cell.col }` ).join( '|' );
 }
 
-/**
- * Match a selection against the grid's words, forwards or
- * backwards. Returns the word index or -1.
- */
 export function selectionMatches(
 	grid: SoupGrid,
 	selection: SoupCell[],

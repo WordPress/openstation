@@ -1,4 +1,3 @@
-/** Capability-gated server actions and non-destructive Preferences utilities. */
 import type { MioAbility } from '../../../src/mio/assistant/types';
 import type { OsSettingsState } from '../../../src/settings/types';
 import { SNOW_LIMITS } from '../../../src/plugins/snow-wallpaper/settings';

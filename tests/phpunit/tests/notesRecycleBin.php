@@ -1,14 +1,5 @@
 <?php
-/**
- * Tests for trashed notes (and custom post types generally) surfacing
- * in the Recycle Bin.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-notes
- */
+
 class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -49,9 +40,6 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		return $note_id;
 	}
 
-	/**
-	 * @covers ::openstation_recycle_bin_capture_post_types
-	 */
 	public function test_show_ui_custom_post_types_are_captured_by_default() {
 		register_post_type(
 			'wpd_test_book',
@@ -64,16 +52,13 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		);
 		$types = openstation_recycle_bin_capture_post_types();
 		$this->assertContains( 'wpd_test_book', $types );
-		// The notes CPT is headless but opted in by its own feature.
+
 		$this->assertContains( OPENSTATION_NOTES_POST_TYPE, $types );
-		// Builtin utility types never leak in.
+
 		$this->assertNotContains( 'revision', $types );
 		$this->assertNotContains( 'wp_block', $types );
 	}
 
-	/**
-	 * @covers ::openstation_recycle_bin_shape_item
-	 */
 	public function test_custom_post_type_rows_use_their_menu_dashicon() {
 		register_post_type(
 			'wpd_test_book',
@@ -101,9 +86,6 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'Call me Ishmael.', $item['subtitle'] );
 	}
 
-	/**
-	 * @covers ::openstation_notes_recycle_bin_gate
-	 */
 	public function test_owner_sees_their_trashed_note_in_the_bin() {
 		$note_id = $this->create_trashed_note( self::$owner_id, 'my trashed note' );
 
@@ -122,14 +104,8 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers ::openstation_recycle_bin_plain_text
-	 * @covers ::openstation_recycle_bin_shape_item
-	 */
 	public function test_titles_with_apostrophes_are_not_entity_encoded() {
-		// Regression: wptexturize (the_title filter) encodes the
-		// apostrophe as &#8217;, and the bin table renders titles as
-		// plain text, so the user saw the literal entity.
+
 		$note_id = $this->create_trashed_note(
 			self::$owner_id,
 			"Don't forget to feed the cat"
@@ -141,40 +117,26 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'forget to feed the cat', $item['title'] );
 	}
 
-	/**
-	 * @covers ::openstation_recycle_bin_plain_text
-	 * @covers ::openstation_strip_all_tags
-	 */
 	public function test_a_less_than_sign_that_opens_no_tag_is_kept() {
-		// No tag opens before a digit, so the `<` is text. The tags
-		// around it are still removed.
+
 		$this->assertSame(
 			'I <3 WordPress',
 			openstation_recycle_bin_plain_text( '<em>I</em> <3 <b>WordPress</b>' )
 		);
 
-		// The strip runs before the decode: an encoded tag is text the
-		// author typed, and it comes back as text.
 		$this->assertSame(
 			'How to use the <b> tag',
 			openstation_recycle_bin_plain_text( 'How to use the &lt;b&gt; tag' )
 		);
 	}
 
-	/**
-	 * @covers ::openstation_recycle_bin_excerpt
-	 */
 	public function test_a_subtitle_keeps_a_less_than_sign_through_the_trim() {
-		// Typed, stored as an entity or part of an encoded tag, the `<`
-		// is text, and `wp_trim_words()` must not take it for a tag.
+
 		$this->assertSame(
 			'I <3 it, 1 <2, and the <b> tag',
 			openstation_recycle_bin_excerpt( '<p>I <3 it, 1 &lt;2, and the &lt;b&gt; tag</p>' )
 		);
 
-		// Where WordPress counts characters instead of words, the count
-		// runs over the decoded text: `&amp;` is one character, and is
-		// never cut in half.
 		global $wp_locale;
 		$word_count_type            = $wp_locale->word_count_type;
 		$wp_locale->word_count_type = 'characters_excluding_spaces';
@@ -186,13 +148,9 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'Research is at R&D…', $subtitle );
 	}
 
-	/**
-	 * @covers ::openstation_notes_recycle_bin_item
-	 */
 	public function test_unstamped_trashed_notes_fall_back_to_the_owner_as_deleter() {
 		$note_id = $this->create_trashed_note( self::$owner_id, 'legacy trash' );
-		// Simulate a note trashed before capture existed (or via
-		// WP-CLI/cron with no logged-in user): no who-deleted stamp.
+
 		delete_post_meta( $note_id, '_desktop_mode_trash_user_id' );
 
 		$item = openstation_recycle_bin_shape_item( get_post( $note_id ) );
@@ -203,9 +161,6 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_notes_recycle_bin_gate
-	 */
 	public function test_admins_do_not_see_other_users_trashed_notes() {
 		$note_id = $this->create_trashed_note( self::$owner_id, 'private business' );
 
@@ -213,7 +168,6 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$ids = wp_list_pluck( openstation_recycle_bin_get_items()['items'], 'id' );
 		$this->assertNotContains( $note_id, $ids );
 
-		// Nor can they restore or purge it through the bin.
 		$restore = openstation_recycle_bin_restore( $note_id );
 		$this->assertWPError( $restore );
 		$purge = openstation_recycle_bin_purge( $note_id );
@@ -221,9 +175,6 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'trash', get_post_status( $note_id ) );
 	}
 
-	/**
-	 * @covers ::openstation_notes_recycle_bin_gate
-	 */
 	public function test_subscribers_manage_their_own_trashed_notes() {
 		$note_id = $this->create_trashed_note( self::$subscriber_id, 'subscriber note' );
 
@@ -235,9 +186,6 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'private', get_post_status( $note_id ) );
 	}
 
-	/**
-	 * @covers ::openstation_recycle_bin_restore
-	 */
 	public function test_bin_restore_returns_a_public_note_to_publish() {
 		$note_id = wp_insert_post(
 			array(
@@ -254,24 +202,16 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'publish', get_post_status( $note_id ) );
 	}
 
-	/**
-	 * @covers ::openstation_notes_recycle_bin_count
-	 */
 	public function test_badge_count_scopes_notes_to_the_owner() {
 		$this->create_trashed_note( self::$owner_id );
 		$this->create_trashed_note( self::$subscriber_id );
 
-		// The admin holds edit_others_posts: the generic bucket counts
-		// BOTH notes; the adjustment keeps only their own (zero here).
 		wp_set_current_user( self::$admin_id );
 		$this->assertSame( 0, openstation_recycle_bin_count() );
 
-		// The subscriber holds no edit caps: the generic bucket counts
-		// nothing; the adjustment adds their own note back.
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertSame( 1, openstation_recycle_bin_count() );
 
-		// The owner (editor, edit_others_posts) sees exactly their own.
 		wp_set_current_user( self::$owner_id );
 		$this->assertSame( 1, openstation_recycle_bin_count() );
 	}

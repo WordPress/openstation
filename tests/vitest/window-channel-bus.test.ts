@@ -1,12 +1,3 @@
-/**
- * Tests for the unified window-channel bus.
- *
- * These pin the abstraction the framework promises plugin authors:
- * regardless of whether a window is iframe-backed or pure-native,
- * `Window.send( channel, payload )` and `Window.on( channel, cb )`
- * behave identically. The plugin author never has to know the
- * window's rendering strategy.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	addNativeSubscriber,
@@ -156,16 +147,11 @@ describe( 'window-channel bus', () => {
 	} );
 
 	test( 'sends queued AFTER ready do NOT flush retroactively (caller delivers directly)', () => {
-		// `enqueueWindowSend` is the queue-on-not-ready primitive.
-		// `Window.send` only enqueues when isWindowContentReady is
-		// false. Verify that once ready, the registry no longer
-		// holds queued items that fire on subsequent ready signals.
+
 		const flush = vi.fn();
 		markWindowContentReady( 'win-1' );
 		enqueueWindowSend( 'win-1', 'a', null, flush );
-		// We did not call markWindowContentReady again — but it was
-		// already ready so the queue stays. This documents that
-		// nothing flushes the second-batch automatically.
+
 		expect( flush ).not.toHaveBeenCalled();
 	} );
 
@@ -175,8 +161,7 @@ describe( 'window-channel bus', () => {
 		markWindowContentReady( 'win-1' );
 		clearWindowChannels( 'win-1' );
 		expect( isWindowContentReady( 'win-1' ) ).toBe( false );
-		// Re-queue + re-flush — the previous flush ran exactly once
-		// during the ready signal; the post-clear state is fresh.
+
 		enqueueWindowSend( 'win-1', 'b', null, flush );
 		markWindowContentReady( 'win-1' );
 		expect( flush ).toHaveBeenCalledTimes( 2 );

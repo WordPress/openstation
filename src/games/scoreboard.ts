@@ -1,23 +1,3 @@
-/**
- * OpenStation — per-game scoreboard section.
- *
- * Renders one game's leaderboard (`GET /desktop-mode/v1/games/
- * {game}/scores`) into a `<os-table>` whose columns derive from
- * the game's declared `scoreColumns` — a fixed Player column first,
- * a Date column last. Rows belonging to the current user carry a
- * "Challenge…" action that opens the send-challenge dialog
- * pre-filled with that score.
- *
- * Hosted by the Games hub's detail panel (Steam-library style):
- * one instance per selected game, torn down on re-selection.
- *
- * Refreshes itself when `os/game-score-recorded` names
- * the mounted game, so a run finishing in the game's own window
- * repaints the board here without a re-selection or an F5.
- */
-
-// Side-effect imports — register the `<os-*>` components this module
-// constructs. `defineComponent` is idempotent across bundles.
 import '../ui/components/os-avatar/os-avatar';
 import '../ui/components/os-button/os-button';
 import '../ui/components/os-relative-time/os-relative-time';
@@ -39,7 +19,6 @@ function currentUserId(): number {
 	return Number( wpGlobal?.os?.config?.currentUserId ) || 0;
 }
 
-/** Seconds → `m:ss` for `type: 'time'` columns. */
 export function formatTimeValue( value: unknown ): string {
 	const seconds = Math.max( 0, Math.round( Number( value ) || 0 ) );
 	const minutes = Math.floor( seconds / 60 );
@@ -54,10 +33,7 @@ function buildColumns( game: GameRegistryEntry ): OsTableColumn< GameScoreRow >[
 			label: __( 'Player' ),
 			render: ( _value, row ) => {
 				const cell = document.createElement( 'span' );
-				// The cell lands inside `<os-table>`'s shadow DOM,
-				// where light-DOM stylesheets (games.css) can't reach
-				// — style inline, same as the Users window's identity
-				// cell.
+
 				cell.style.cssText =
 					'display:inline-flex;align-items:center;gap:8px;min-width:0;';
 				const avatar = document.createElement( 'os-avatar' );
@@ -127,10 +103,6 @@ function buildColumns( game: GameRegistryEntry ): OsTableColumn< GameScoreRow >[
 	return columns;
 }
 
-/**
- * Mount one game's scoreboard into its container. Returns a
- * teardown.
- */
 export function renderScoreboard(
 	container: HTMLElement,
 	game: GameRegistryEntry,
@@ -197,7 +169,7 @@ export function renderScoreboard(
 				page: toPage,
 				perPage: PER_PAGE,
 			} );
-			// Out-of-order guard — only the latest request paints.
+
 			if ( disposed || seq !== loadSeq ) {
 				return;
 			}
@@ -216,11 +188,6 @@ export function renderScoreboard(
 		}
 	};
 
-	// Games play in their own window, so a run finishing is invisible
-	// here without the bus. Reload the page the viewer is looking at
-	// rather than jumping back to page 1. A new score lands at the
-	// top, but yanking them off page 3 to show it is worse than
-	// leaving them where they were.
 	const unsubscribe = activity.subscribe(
 		'os/game-score-recorded',
 		( payload ) => {

@@ -1,13 +1,3 @@
-/**
- * Unit tests for the window actions-menu registry.
- *
- * The registry's job is to let a plugin put a row in every window's ⋯
- * menu without the shell knowing what the row means. Two properties
- * carry most of the weight: the label / icon / visibility resolvers are
- * read fresh on every menu open (so one row can express a toggle), and
- * a plugin throwing inside one of them must not take the menu down —
- * the ⋯ menu is shared surface, and the user's "Reload" lives there.
- */
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	isActionChecked,
@@ -23,12 +13,8 @@ import {
 import type { WindowActionDef } from '../../src/window-actions/registry';
 import type { Window as DesktopWindow } from '../../src/window';
 
-/** A window double — the registry only ever reads what a def reads. */
 const WIN = { id: 'edit-php', config: { native: false } } as unknown as DesktopWindow;
 
-/**
- * @param over Fields to override on a minimal valid def.
- */
 function def( over: Partial< WindowActionDef > = {} ): WindowActionDef {
 	return {
 		id: 'test/action',
@@ -130,9 +116,7 @@ describe( 'validation', () => {
 	} );
 
 	test( 'rejects checkable without a checked reader', () => {
-		// A checkbox nobody can ask renders permanently unticked, which
-		// reads as broken persistence in the plugin rather than a
-		// missing field here.
+
 		expect( () =>
 			registerWindowAction( def( { checkable: true } ) ),
 		).toThrow();
@@ -204,7 +188,7 @@ describe( 'visibility', () => {
 	} );
 
 	test( 'a throwing predicate hides the row rather than breaking the menu', () => {
-		// One plugin's bug must not cost the user their "Reload".
+
 		const isVisible = () => {
 			throw new Error( 'boom' );
 		};
@@ -228,8 +212,7 @@ describe( 'check state', () => {
 	} );
 
 	test( 'a throwing reader paints unchecked rather than dropping the row', () => {
-		// Losing the indicator is recoverable on the next open; losing
-		// the row is not.
+
 		const checked = () => {
 			throw new Error( 'boom' );
 		};

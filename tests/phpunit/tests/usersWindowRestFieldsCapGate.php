@@ -1,22 +1,5 @@
 <?php
-/**
- * Tests for the capability gate on the Users-window REST fields.
- *
- * The `openstation_last_login` and `openstation_presence` fields
- * register on the core `user` resource on every REST request, and
- * the `user` resource is partially public — any author with a
- * published post is visible to low-cap (or logged-out) viewers via
- * `/wp/v2/users/<id>`. The field callbacks must therefore gate on
- * `list_users` (or self) and return their empty defaults (`null` /
- * `'offline'`) to everyone else, so last-login times and live
- * presence of site authors never leak to unprivileged viewers.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-users-window
- */
+
 class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -30,8 +13,6 @@ class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
 		self::$author_id     = $factory->user->create( array( 'role' => 'author' ) );
 
-		// A published post makes the author publicly visible on
-		// `/wp/v2/users/<id>` — the exact surface the gate protects.
 		$factory->post->create(
 			array(
 				'post_author' => self::$author_id,
@@ -47,22 +28,11 @@ class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 		openstation_presence_record( self::$author_id, true );
 	}
 
-	/**
-	 * Fetch the author's user resource as the current user.
-	 *
-	 * @return array Response data.
-	 */
 	private function get_author_resource() {
 		$request = new WP_REST_Request( 'GET', '/wp/v2/users/' . (int) self::$author_id );
 		return rest_get_server()->dispatch( $request )->get_data();
 	}
 
-	/**
-	 * A viewer without `list_users` must only ever see the empty
-	 * defaults for another user's last-login and presence.
-	 *
-	 * @covers ::openstation_users_window_register_rest_fields
-	 */
 	public function test_subscriber_gets_empty_defaults_for_other_user() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -82,11 +52,6 @@ class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * A viewer with `list_users` gets the real values.
-	 *
-	 * @covers ::openstation_users_window_register_rest_fields
-	 */
 	public function test_admin_sees_last_login_and_presence() {
 		wp_set_current_user( self::$admin_id );
 
@@ -96,12 +61,6 @@ class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 		$this->assertSame( 'online', $data['openstation_presence'] );
 	}
 
-	/**
-	 * Users can always see their own last-login and presence, even
-	 * without `list_users`.
-	 *
-	 * @covers ::openstation_users_window_register_rest_fields
-	 */
 	public function test_user_sees_own_last_login_and_presence() {
 		wp_set_current_user( self::$author_id );
 

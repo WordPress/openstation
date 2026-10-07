@@ -1,22 +1,3 @@
-/**
- * Public API facade — `wp.os.*` assembly.
- *
- * **Why this exists.** The runtime side of the public API used to
- * be assembled inline inside `init()` as a single ~280-LOC object
- * literal. Plugin authors who wanted to know "what's available on
- * `wp.os`?" had to scroll through `desktop.ts` looking for
- * the literal. Phase 5 of the architecture-0.8.1 boot
- * decomposition pulls the literal out: `init()` builds a
- * dependency bag and calls `buildPublicApi(deps)`; this module
- * owns the literal, the reserved-namespace allowlist, and the
- * merge-onto-shim assignment.
- *
- * **Backwards compatibility.** Everything attached to
- * `window.wp.os` before the extraction is still attached
- * after — same names, same shapes, same semantics. Tests
- * exercising `wp.os.*` continue to pass unchanged.
- */
-
 import {
 	HOOKS,
 	doAction,
@@ -187,17 +168,6 @@ import { loadComponents } from '../ui/components/loader';
 import { registerNativeUrlRemap } from '../native-url-remap';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
-/**
- * Built-in keys on `wp.os` that `registerNamespace()` refuses
- * to overwrite. The runtime check inside `registerNamespace`
- * consults this allowlist; keep it in sync with
- * {@link OpenStationPublicApi}.
- *
- * Lives here (not in `desktop.ts`) because the facade is the one
- * place that owns the assembly of `wp.os.*`. A new public
- * key SHOULD be added here in the same change that adds the
- * field to the interface.
- */
 export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'windowManager', 'dock', 'sideDock', 'taskbar', 'desktopLayout',
 	'dockPlacement', 'icons', 'iconSet',
@@ -257,11 +227,6 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'fetch',
 ] );
 
-/**
- * Bag of dependencies the facade needs from `init()`. Every value
- * here is a closure or instance created during boot; everything
- * else is imported directly inside this module.
- */
 export interface BuildPublicApiDeps {
 	manager: WindowManager;
 	dock: Dock | null;
@@ -299,20 +264,12 @@ export interface BuildPublicApiDeps {
 	getConnection: ( connectionId: string ) => WindowConnection | null;
 	wallpaperSuspend: WallpaperSuspendApi;
 	mio: MioApi;
-	/** `wp.os.mode` — the responsive mode (`src/mode/index.ts`). */
+
 	mode: OsModeApi;
 	workspaces: WorkspacesApi;
 	config: DesktopConfig;
 }
 
-/**
- * Build the `wp.os.*` public API object.
- *
- * Pure: no side effects, no mutation of `window.wp.os`. The
- * caller (init in `desktop.ts`) is responsible for merging the
- * returned object onto the early-shim slot — see
- * {@link installPublicApi}.
- */
 export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi {
 	const {
 		manager,
@@ -362,20 +319,11 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		isActive: () => !! document.getElementById( 'os-shell' ),
 		registerWallpaper: ( def: WallpaperDef ) => {
 			wallpaperRegistry.register( def );
-			// Re-apply so a plugin that registers its own wallpaper
-			// and sets the user's selection to it in the same breath
-			// sees an immediate repaint rather than having to wait
-			// for the next OS Settings open.
+
 			osSettings.apply();
 		},
 		registerWidget: ( def ) => {
 			widgetRegistry.register( def );
-			// No re-paint needed: the layer only mounts IDs the
-			// user explicitly enabled, so adding a new def just
-			// makes it available in the next picker open. Plugins
-			// wanting to force a widget on can call
-			// `wp.os.widgetLayer.add(id)` /
-			// `ensureMounted(id)` — exposed below.
 		},
 		widgetLayer,
 		widgets: {
@@ -392,15 +340,11 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		registerWindow,
 		openWindow: openWindowById,
 		openNewWindow: openNewWindowById,
-		// No dep injection: the helper reads the window id off the
-		// host element's own ancestry, the way every other
-		// DOM-anchored shell helper does.
+
 		embedAdminPage,
 		loadWindowScript: loadWindowScriptById,
 		prewarmWindow: prewarmWindowById,
-		// No dep injection — the loader reads its URL off the boot
-		// config and owns its own single-flight state, so the facade
-		// hands the function through untouched.
+
 		loadComponents,
 		fetch: ( input, requestInit, opts ) =>
 			trackedFetch( manager, input, requestInit, opts ),
@@ -444,26 +388,8 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			patch: Partial< OsSettingsSnapshot >,
 			opts: { windowId?: string } = {},
 		) => {
-			// The store owns the write: every `OsSettingsState` key is
-			// admitted through the same sanitizer that reads user meta
-			// (an invalid value is ignored, an unknown key never
-			// lands, the seeded-theme ledger stays shell-owned), the
-			// save runs the debounced REST sync + localStorage write +
-			// notifies every subscriber, and a presentation key is
-			// applied so the change is visible now rather than on the
-			// next page load.
 			osSettings.update( patch, opts );
-			// Belt-and-suspenders live repaint for visibility / order
-			// changes. The `subscribeOsSettings` listener installed in
-			// `desktop.ts` already calls `layoutDispatcher.refresh()`,
-			// but that wiring sits behind a few defensive guards (TDZ
-			// on `desktopApi`, conditional layout compare, third-party
-			// subscribers that may throw and short-circuit downstream
-			// listeners since `save()` iterates a single Set). Re-
-			// invoking refresh() directly here makes the dock + icon
-			// grid pick up the new placement synchronously with the
-			// write — no F5 required for "Hide from dock" / "Show on
-			// desktop" picks from the right-click menu.
+
 			if ( patch.navPlacement || patch.navOrder ) {
 				layoutDispatcher?.refresh();
 			}
@@ -510,20 +436,14 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			list: listDesktopThemes,
 			getActive: getActiveDesktopThemeId,
 			setActive: applyDesktopTheme,
-			// Hydrate boot-slimmed entries (`cssDeferred: true`) with
-			// their full `cssText` / `tokens` WITHOUT activating
-			// anything — the awaitable the `cssDeferred` docs point
-			// consumers at. `setActive()` triggers the same fetch
-			// itself, but activation must not be the only door.
+
 			ensureFull: ensureFullDesktopThemes,
 			subscribe: subscribeDesktopThemes,
 			resolveIcon: resolveThemedIcon,
 			resolveIconColor: resolveThemedIconColor,
 			applyRecommendedOsSettings: ( themeId ) => {
 				const target = themeId !== undefined ? themeId : ( getActiveDesktopThemeId() ?? '' );
-				// Forced, because this entry point IS the deliberate
-				// re-apply. A caller reaching for this is asking for the
-				// author's arrangement back (including OpenStation's system default).
+
 				return osSettings.applyThemeRecommendations( target );
 			},
 		},
@@ -600,31 +520,25 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		clearKeyedList,
 		registerNamespace: ( name: string, api: object ) => {
 			if ( typeof name !== 'string' || name === '' ) {
-				// eslint-disable-next-line no-console
 				console.warn(
 					'[openstation] registerNamespace: name must be a non-empty string',
 				);
 				return;
 			}
 			if ( ! api || typeof api !== 'object' ) {
-				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] registerNamespace("${ name }"): api must be an object`,
 				);
 				return;
 			}
 			if ( RESERVED_NAMESPACE_KEYS.has( name ) ) {
-				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
 				);
 				return;
 			}
 			( desktopApi as unknown as Record< string, unknown > )[ name ] = api;
-			// `wp.os` is the boot shim with this literal's members COPIED
-			// onto it (`installPublicApi`), not this object — so a write
-			// here alone never reached the page. The app runtime's
-			// `wp.os.apps` was the namespace that showed it.
+
 			const live = window.wp?.os as unknown as Record< string, unknown > | undefined;
 			if ( live && live !== ( desktopApi as unknown ) ) {
 				live[ name ] = api;
@@ -640,20 +554,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			const value = ( store as Record< string, unknown > )[ id ];
 			return value === undefined ? undefined : ( value as T );
 		},
-		/**
-		 * What an OPEN window is showing right now.
-		 *
-		 * The render callback receives the same object as
-		 * `ctx.params`, and that is the right place to read it when
-		 * you have one. This is for the code that doesn't: a
-		 * declarative window whose body is a PHP template, a module
-		 * that mounts after the render callback ran, anything
-		 * reacting to a retarget from outside a
-		 * `HOOKS.WINDOW_REOPENED` subscriber. The manager keeps the
-		 * live copy — a reopen with new params writes it before the
-		 * reopen event fires — so this and `ctx.params` never
-		 * disagree.
-		 */
+
 		getWindowParams: (
 			id: string,
 		): Record< string, string | number | boolean > | undefined => {
@@ -661,14 +562,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			if ( ! win ) {
 				return undefined;
 			}
-			// Copy: the caller must not be able to retarget a window
-			// by mutating what it was handed.
+
 			return { ...( win.config.params ?? {} ) };
 		},
-		// Re-exported straight from the registry module. The
-		// singleton lives in a shared store, so main and the lazy
-		// window-system bundle write to and read from one list —
-		// which is exactly why this can be handed out as-is.
+
 		registerNativeUrlRemap,
 		debug: {
 			window: ( id: string ): DesktopDebugWindow | null => {
@@ -678,9 +575,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				if ( ! entry ) {
 					return null;
 				}
-				// Wire entries reference their bundle by handle; the
-				// resolved URL lives in the handle-keyed script-data
-				// map. Old inline entries still carry it directly.
+
 				const url =
 					entry.scriptUrl ||
 					( entry.scriptHandle
@@ -697,9 +592,6 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 						loadPath = 'lazy';
 						tagInDom = true;
 					} else {
-						// Match a non-lazy `<script src>` whose URL
-						// equals our resolved URL (with or without
-						// the `?ver=` query).
 						const eagerTag = Array.from(
 							document.querySelectorAll< HTMLScriptElement >(
 								'script[src]',
@@ -738,20 +630,6 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 	return desktopApi;
 }
 
-/**
- * Merge a built API onto the early-shim object on
- * `window.wp.os` (or set it directly if the shim is
- * missing — degraded path that should never trigger in
- * production because the IIFE at the top of `desktop.ts`
- * installs the shim before `init()` runs).
- *
- * Critically: we MERGE rather than reassign because the shim's
- * `whenReady` closure captures `_earlyReadyQueue`. Reassigning
- * would orphan the queue from the bootstrap's drain step and
- * `whenReady` callbacks queued before the API attached would
- * never fire. `Object.assign` overwrites `whenReady` / `ready` /
- * `isReady` with the canonical versions from `src/hooks.ts`.
- */
 export function installPublicApi( api: OpenStationPublicApi ): void {
 	if ( ! window.wp ) {
 		window.wp = {};

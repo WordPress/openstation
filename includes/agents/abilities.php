@@ -1,40 +1,7 @@
 <?php
-/**
- * OpenStation — Agents: abilities bridge.
- *
- * Two halves:
- *
- * 1. Registers the agent-oriented abilities against Core's Abilities
- *    API: `desktop-mode/get-post` and `desktop-mode/get-media`
- *    (read-only) plus the mutating trio `desktop-mode/update-post`,
- *    `desktop-mode/update-media` (alt text / title / caption /
- *    description), and `desktop-mode/create-post` (draft-only). The
- *    `openstation` category ships from the AI Copilot module
- *    (always loaded), so this file only adds abilities to it. The
- *    read abilities carry the `readonly` annotation and therefore
- *    also become available to the AI Copilot assistant; the mutating
- *    ones do not — they are reachable only through an agent whose
- *    allowlist includes them.
- *
- * 2. Provides the abilities catalogue the picker UI consumes: every
- *    ability registered on the site, projected to
- *    `{ slug, label, description, category, readonly }`. Unlike the
- *    Copilot (which advertises only read-only abilities), agents may
- *    be granted mutating abilities — that is the point. The
- *    compensating controls are the explicit per-agent allowlist set by
- *    an `edit_users` human, the agent's role, and each ability's own
- *    `permission_callback` evaluated against the agent user.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Registers the agent-oriented abilities.
- *
- * @return void
- */
 function openstation_agents_register_abilities() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
 		return;
@@ -44,13 +11,7 @@ function openstation_agents_register_abilities() {
 		'desktop-mode/get-post',
 		array(
 			'label'               => __( 'Get post by id', 'desktop-mode' ),
-			// The rawness of `content` is load-bearing for any agent that
-			// edits posts, and it belongs here rather than in a prompt:
-			// stated once on the ability, every agent's generated tool
-			// manifest carries it. Saying it only in an agent's own
-			// instructions leaves every other agent guessing, and a
-			// cautious one will refuse to write rather than risk
-			// flattening blocks.
+
 			'description'         => 'Return a post — title, content, excerpt, status, author, dates — by its numeric id. `content` is the RAW stored content exactly as saved, with block delimiter comments (`<!-- wp:… -->`) intact; it is never rendered output, so it is safe to edit and write back. Honours the caller\'s read capability.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
@@ -261,12 +222,6 @@ function openstation_agents_register_abilities() {
 }
 add_action( 'wp_abilities_api_init', 'openstation_agents_register_abilities' );
 
-/**
- * `desktop-mode/get-post` execute callback.
- *
- * @param array $args Validated input.
- * @return array|WP_Error
- */
 function openstation_agents_ability_get_post( $args ) {
 	$args    = (array) $args;
 	$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
@@ -288,39 +243,6 @@ function openstation_agents_ability_get_post( $args ) {
 	);
 }
 
-/**
- * `desktop-mode/get-post` permission callback.
- *
- * Asks every gate a single read has, in the order Core's REST
- * controllers ask them:
- *
- *  - A zero id is refused before any fetch: `get_post( 0 )` returns
- *    the global post, which would judge the request against whatever
- *    another plugin left there.
- *  - `read_post` decides visibility (published / private / draft) and
- *    stays the floor for every row.
- *  - The post password is a separate question — WordPress splits the
- *    two deliberately. A sealed post stays sealed unless the caller can
- *    edit it (the same escape hatch
- *    `WP_REST_Posts_Controller::check_password_required()` grants), and
- *    because this ability returns RAW `post_content` there is no empty
- *    rendered field to fall back to, so the answer is to refuse.
- *  - A post type with no readable front end (`is_post_type_viewable()`
- *    false: an order, a submission log, a queue entry) is read only by
- *    a caller who can edit the row. `map_meta_cap()` resolves
- *    `read_post` on a published row of such a type to plain `read`,
- *    which every logged-in user holds, so `read_post` alone does not
- *    answer the question for it.
- *
- * `openstation_ai_can_read_post()` (loaded unconditionally from the AI
- * Copilot bootstrap, ahead of this module) implements the password and
- * post-type gates; this callback keeps `read_post` in front of it so a
- * plugin that narrows `read_post` on a public post still narrows this
- * ability.
- *
- * @param array $args Input args.
- * @return bool
- */
 function openstation_agents_ability_get_post_can( $args ) {
 	$args    = (array) $args;
 	$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
@@ -333,12 +255,6 @@ function openstation_agents_ability_get_post_can( $args ) {
 	return openstation_ai_can_read_post( $post_id );
 }
 
-/**
- * `desktop-mode/get-media` execute callback.
- *
- * @param array $args Validated input.
- * @return array|WP_Error
- */
 function openstation_agents_ability_get_media( $args ) {
 	$args          = (array) $args;
 	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
@@ -367,37 +283,6 @@ function openstation_agents_ability_get_media( $args ) {
 	);
 }
 
-/**
- * `desktop-mode/get-media` permission callback.
- *
- * Gates on `upload_files` (author+) — the capability the Media
- * Library itself requires — rather than on `read_post` of the
- * attachment.
- *
- * An attached file is a child of its parent post, and the result
- * carries the attachment's title, caption and `attachedTo` (the parent
- * id), so an attached file also requires that the caller can read the
- * parent. That follows the shape of Core's rule for `inherit`-status
- * attachments, `WP_REST_Posts_Controller::check_read_permission()`
- * (the attachments controller inherits it): an attachment defers to
- * its parent whenever one exists. The parent is judged by `read_post`,
- * plus the post-type rule `desktop-mode/get-post` applies (a type with
- * no readable front end needs `edit_post`), which is stricter than Core
- * on a non-viewable parent: Core admits any `publish` parent of a
- * REST-enabled type. Core's other requirement, that the parent's type
- * be `show_in_rest`, is not copied: it would refuse media attached to a
- * non-REST type for every caller, administrators included. The
- * parent's password is not asked: the attachment's own fields are not
- * the parent's body, and Core's attachment read does not ask it either.
- *
- * An unattached file, or one whose parent row no longer exists, is
- * judged on `upload_files` alone, as Core treats a parentless
- * `inherit` attachment as published. A zero id is refused before any
- * fetch, because `get_post( 0 )` returns the global post.
- *
- * @param array $args Input args.
- * @return bool
- */
 function openstation_agents_ability_get_media_can( $args ) {
 	$args          = (array) $args;
 	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
@@ -410,7 +295,7 @@ function openstation_agents_ability_get_media_can( $args ) {
 
 	$attachment = get_post( $attachment_id );
 	if ( ! ( $attachment instanceof WP_Post ) || 'attachment' !== $attachment->post_type ) {
-		// The execute callback answers "not found" for these.
+
 		return true;
 	}
 
@@ -433,12 +318,6 @@ function openstation_agents_ability_get_media_can( $args ) {
 	return true;
 }
 
-/**
- * `desktop-mode/update-media` execute callback.
- *
- * @param array $args Validated input.
- * @return array|WP_Error
- */
 function openstation_agents_ability_update_media( $args ) {
 	$args          = (array) $args;
 	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
@@ -474,13 +353,6 @@ function openstation_agents_ability_update_media( $args ) {
 	);
 }
 
-/**
- * `desktop-mode/update-media` permission callback — the same edit
- * capability wp-admin requires to change attachment details.
- *
- * @param array $args Input args.
- * @return bool
- */
 function openstation_agents_ability_update_media_can( $args ) {
 	$args          = (array) $args;
 	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
@@ -490,14 +362,6 @@ function openstation_agents_ability_update_media_can( $args ) {
 	return current_user_can( 'edit_post', $attachment_id );
 }
 
-/**
- * `desktop-mode/create-post` execute callback. Status is hard-forced
- * to `draft` — this ability can never publish, whatever the model
- * asks for.
- *
- * @param array $args Validated input.
- * @return array|WP_Error
- */
 function openstation_agents_ability_create_post( $args ) {
 	$args = (array) $args;
 	$type = isset( $args['type'] ) && 'page' === $args['type'] ? 'page' : 'post';
@@ -526,12 +390,6 @@ function openstation_agents_ability_create_post( $args ) {
 	);
 }
 
-/**
- * `desktop-mode/create-post` permission callback.
- *
- * @param array $args Input args.
- * @return bool
- */
 function openstation_agents_ability_create_post_can( $args ) {
 	$args = (array) $args;
 	if ( isset( $args['type'] ) && 'page' === $args['type'] ) {
@@ -540,12 +398,6 @@ function openstation_agents_ability_create_post_can( $args ) {
 	return current_user_can( 'edit_posts' );
 }
 
-/**
- * `desktop-mode/update-post` execute callback.
- *
- * @param array $args Validated input.
- * @return array|WP_Error
- */
 function openstation_agents_ability_update_post( $args ) {
 	$args    = (array) $args;
 	$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
@@ -581,15 +433,6 @@ function openstation_agents_ability_update_post( $args ) {
 	);
 }
 
-/**
- * `desktop-mode/update-post` permission callback.
- *
- * Publishing needs `publish_posts` on top of `edit_post` — the same
- * split wp-admin enforces on a human editor.
- *
- * @param array $args Input args.
- * @return bool
- */
 function openstation_agents_ability_update_post_can( $args ) {
 	$args    = (array) $args;
 	$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
@@ -602,16 +445,6 @@ function openstation_agents_ability_update_post_can( $args ) {
 	return true;
 }
 
-/**
- * Catalogue of abilities exposed to the agents picker.
- *
- * Primary source: Core's Abilities API (`wp_get_abilities()`) — every
- * ability the site registered, Core's, this plugin's, or any third
- * party's, projected into the picker shape with an honest
- * readonly/mutating badge derived from `meta.annotations.readonly`.
- *
- * @return array<int, array{slug:string, label:string, description:string, category:string, readonly:bool}>
- */
 function openstation_agents_abilities_catalogue() {
 	$catalogue = array();
 
@@ -633,16 +466,6 @@ function openstation_agents_abilities_catalogue() {
 		}
 	}
 
-	/**
-	 * Filter the catalogue of abilities exposed to the agents picker.
-	 *
-	 * Sites can narrow the pickable set (drop rows) or append
-	 * Desktop-Mode-only entries. The preferred extension path stays
-	 * `wp_register_ability()` so every agent runtime sees the same
-	 * registry.
-	 *
-	 * @param array $catalogue Abilities projected from `wp_get_abilities()`.
-	 */
 	$catalogue = apply_filters( 'openstation_agent_abilities_catalogue', $catalogue );
 	if ( ! is_array( $catalogue ) ) {
 		return array();

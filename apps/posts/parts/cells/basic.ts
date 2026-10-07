@@ -1,11 +1,3 @@
-/**
- * Posts app — the cells both modes render: the title (with its lock,
- * status and reading-page badges and the Pages "View" link), the
- * author, the date, and the expanded sub-row.
- *
- * @public
- */
-
 import { __, sprintf } from '@openstation/app';
 import { applyAvatarSrc } from '../../../../src/ui/util/avatar-resolve';
 import { decodeHTML } from '../../../../src/utils';
@@ -31,11 +23,6 @@ function dashicon( name: string, size = 13 ): HTMLElement {
 	return icon;
 }
 
-/**
- * The lock glyph: document-level dashicon rules do not pierce the
- * table's shadow root, but the @font-face is document-wide — set the
- * family inline and emit the glyph (U+F160, "lock") as text.
- */
 function lockGlyph(): HTMLElement {
 	const icon = document.createElement( 'span' );
 	icon.setAttribute( 'aria-hidden', 'true' );
@@ -75,20 +62,17 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 	} );
 	titleRow.appendChild( link );
 
-	// Another user is editing this row right now (the `openstation_lock`
-	// REST field).
 	const lock = row.openstation_lock ?? null;
 	if ( lock ) {
 		titleRow.appendChild(
 			pill( lock.userName, { fg: 'var(--os-ui-danger, #b32d2e)', bg: 'var(--os-ui-surface-raised, rgba(179, 45, 46, 0.1))' }, {
 				icon: lockGlyph(),
-				/* translators: %s is the user name currently editing the post. */
+
 				title: sprintf( __( '%s is currently editing' ), lock.userName ),
 			} ),
 		);
 	}
 
-	// Pages: the rows the reading settings point at.
 	const isPages = env.extra.mode === 'pages';
 	if ( isPages && typeof env.extra.frontPageId === 'number' && env.extra.frontPageId === row.id ) {
 		titleRow.appendChild(
@@ -105,8 +89,6 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 		titleRow.appendChild( pill( STATUS_LABELS[ row.status ] ?? row.status, statusBadgeColor( row.status ), { uppercase: true } ) );
 	}
 
-	// Pages: a "View" link to the public URL, in a new tab so the user
-	// keeps the table state.
 	if ( isPages && typeof row.link === 'string' && row.link && row.status === 'publish' ) {
 		const view = document.createElement( 'a' );
 		view.href = row.link;
@@ -130,9 +112,6 @@ export function buildAuthorCell( row: PostListItem ): HTMLElement {
 	const wrap = document.createElement( 'span' );
 	wrap.style.cssText = 'display:inline-flex;align-items:center;gap:8px;min-width:0;';
 
-	// `<os-avatar>`: initials fallback, hue-by-name, the hover effect.
-	// The Gravatar URL is probed through the shared helper so an email
-	// with no registered avatar drops to initials without a 404.
 	const avatar = document.createElement( 'os-avatar' );
 	avatar.setAttribute( 'size', '24' );
 	if ( a.name ) {
@@ -157,8 +136,7 @@ export function buildDateCell( row: PostListItem ): HTMLElement {
 	const wrap = document.createElement( 'span' );
 	wrap.style.cssText = 'display:flex;flex-direction:column;line-height:1.2;';
 	const time = document.createElement( 'os-relative-time' );
-	// `date_gmt`, not `date`: neither carries a designator and
-	// `<os-relative-time>` reads an undesignated value as UTC.
+
 	time.setAttribute( 'datetime', row.date_gmt || row.date );
 	wrap.appendChild( time );
 	if ( row.modified_gmt && row.modified_gmt !== row.date_gmt ) {
@@ -170,7 +148,6 @@ export function buildDateCell( row: PostListItem ): HTMLElement {
 	return wrap;
 }
 
-/** The expanded sub-row: featured image + plain-text excerpt. */
 export function buildSubRow( row: PostListItem ): Node {
 	const wrap = document.createElement( 'div' );
 	wrap.style.cssText = 'display:flex;gap:16px;padding:12px 16px;background:var(--os-ui-surface-sunken, #fafafa);align-items:flex-start;';

@@ -1,8 +1,3 @@
-/**
- * User Edit app — the client view: `<os-user-profile>` on the state's
- * id, re-pointed in place when the id changes, fed the app's facts,
- * REST access and toast as properties.
- */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
 import app from './user-edit.os';
@@ -40,7 +35,7 @@ describe( 'the user edit app view', () => {
 		expect( host ).not.toBeNull();
 		const profile = host?.querySelector< ProfileEl >( 'os-user-profile[data-os-user-profile-host]' );
 		expect( profile?.getAttribute( 'user-id' ) ).toBe( '7' );
-		// The element itself ships in the companion bundle, not here.
+
 		expect( profile?.config ).toEqual( ctx.extra );
 		expect( profile?.fetch ).toBe( ctx.fetch );
 		profile?.toast?.( 'Saved', 'success' );

@@ -1,18 +1,3 @@
-/**
- * Unit tests for `src/desktop-files/cross-frame-drop.ts` — the sink
- * that lets a drag lifted inside an iframe (an image in the core
- * Media Library) land on a files canvas as a shortcut.
- *
- * The gesture never becomes a DragManager session, so none of the
- * pointer-driven drop-target machinery applies. What the parent
- * document receives is a plain native `dragover` / `drop` pair, and
- * these tests drive exactly that.
- *
- * jsdom implements neither `DragEvent` nor `DataTransfer`, so both are
- * synthesised — the module only ever reads `types`, `getData()` and
- * writes `dropEffect`, which is a small enough surface to fake
- * honestly.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	attachCrossFrameDrop,
@@ -52,7 +37,6 @@ function fireDrag(
 	return ev;
 }
 
-/** Build a canvas that mirrors the shell's shape: host > container. */
 function mountCanvas() {
 	const host = document.createElement( 'div' );
 	host.id = 'os-area';
@@ -63,13 +47,6 @@ function mountCanvas() {
 	return { host, container };
 }
 
-/**
- * A tile as this module sees one: the canonical class, the file-type
- * dataset stamp, and the entity `ref`. Deliberately a plain element
- * rather than a real `<os-tile>` — the contract under test is that
- * DOM shape, and constructing the component would drag its whole
- * render path (and a `wp.hooks` global) into a test about drag events.
- */
 function folderTile( ref: string ): HTMLElement {
 	const tile = document.createElement( 'div' );
 	tile.className = 'os-file-tile';
@@ -104,16 +81,11 @@ describe( 'cross-frame drops onto a files canvas', () => {
 		delete ( window as { wp?: unknown } ).wp;
 	} );
 
-	/** Publish a bridge payload the way an iframe-source drag would. */
 	function bridgeHolds( payload: unknown ): void {
 		( window as { wp?: unknown } ).wp = {
 			os: { dragBridge: { getPayload: () => payload } },
 		};
 	}
-
-	// ------------------------------------------------------------
-	// Accepting the drag
-	// ------------------------------------------------------------
 
 	test( 'dragover over the canvas is accepted and marked copy', () => {
 		bridgeHolds( { kind: 'attachment', id: 7, url: 'x', title: 'Photo' } );
@@ -142,11 +114,7 @@ describe( 'cross-frame drops onto a files canvas', () => {
 	} );
 
 	test( 'an OS file drag is left to the upload manager', () => {
-		// Bridge payload present AND `Files` on the transfer: the file
-		// drag wins, because claiming it here would swap the upload
-		// dialog for a placement pointing at nothing. The `Files` test
-		// runs FIRST for exactly this case — a stale bridge payload
-		// from an earlier gesture must not capture a real upload.
+
 		bridgeHolds( { kind: 'attachment', id: 7, url: 'x', title: 'Photo' } );
 		const dt = dataTransfer( [ 'Files', ATTACHMENT_DROP_MIME ] );
 
@@ -157,10 +125,7 @@ describe( 'cross-frame drops onto a files canvas', () => {
 	} );
 
 	test( 'a file dropped from the OS still reaches the upload manager', () => {
-		// `src/os-file-drop/` listens on `window`, above this canvas in
-		// the bubble path. Dropping a photo out of Finder onto the
-		// desktop has to arrive there untouched — no `preventDefault`,
-		// no `stopPropagation` — or the upload dialog never opens.
+
 		bridgeHolds( { kind: 'attachment', id: 7, url: 'x', title: 'Photo' } );
 		const uploadManager = vi.fn();
 		window.addEventListener( 'drop', uploadManager );
@@ -172,10 +137,6 @@ describe( 'cross-frame drops onto a files canvas', () => {
 		expect( ev.defaultPrevented ).toBe( false );
 		expect( filed ).toHaveLength( 0 );
 	} );
-
-	// ------------------------------------------------------------
-	// Surfaces that are not the canvas
-	// ------------------------------------------------------------
 
 	test( 'a drop on a window floating over the canvas is not claimed', () => {
 		bridgeHolds( { kind: 'attachment', id: 7, url: 'x', title: 'Photo' } );
@@ -204,9 +165,7 @@ describe( 'cross-frame drops onto a files canvas', () => {
 	} );
 
 	test( 'a folder window canvas inside a window still accepts', () => {
-		// The host itself lives inside `.wp-window` for a folder
-		// window. The window check has to be relative to the host or
-		// every folder drop is refused.
+
 		dispose();
 		document.body.innerHTML = '';
 		const win = document.createElement( 'div' );
@@ -231,10 +190,6 @@ describe( 'cross-frame drops onto a files canvas', () => {
 		expect( inner ).toHaveLength( 1 );
 		expect( inner[ 0 ].parentId ).toBe( 12 );
 	} );
-
-	// ------------------------------------------------------------
-	// Filing the drop
-	// ------------------------------------------------------------
 
 	test( 'a bridge attachment drop files a shortcut in this folder', () => {
 		bridgeHolds( {
@@ -309,10 +264,6 @@ describe( 'cross-frame drops onto a files canvas', () => {
 		expect( filed ).toHaveLength( 0 );
 	} );
 
-	// ------------------------------------------------------------
-	// Folder tiles
-	// ------------------------------------------------------------
-
 	test( 'dropping on a closed folder tile files into that folder', () => {
 		bridgeHolds( { kind: 'attachment', id: 42, url: 'x', title: 'A photo' } );
 		const tile = folderTile( '31' );
@@ -350,10 +301,6 @@ describe( 'cross-frame drops onto a files canvas', () => {
 
 		expect( filed[ 0 ].parentId ).toBe( 0 );
 	} );
-
-	// ------------------------------------------------------------
-	// Teardown
-	// ------------------------------------------------------------
 
 	test( 'leaving the host clears the affordance', () => {
 		bridgeHolds( { kind: 'attachment', id: 42, url: 'x', title: 'A photo' } );

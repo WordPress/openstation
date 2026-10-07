@@ -1,7 +1,3 @@
-/**
- * Code Blue — the client half: the pure model, the local actions,
- * and one render of the view into jsdom.
- */
 import { describe, expect, it } from 'vitest';
 import { formatBytes } from '@openstation/app';
 import { mockViewContext } from '../../src/app-runtime/testing';
@@ -89,8 +85,6 @@ describe( 'model', () => {
 	} );
 
 	it( 'carries the server-classified origin onto the group', () => {
-		// Attribution is `log-reader.php`'s job (`Tests_OpenStation_CodeBlue`
-		// pins the classification); the client only has to keep it.
 		const woo = { kind: 'plugin', slug: 'woocommerce' } as const;
 		const groups = groupEntries( [
 			entry( { timestamp: 1, signature: 's', origin: woo } ),
@@ -160,8 +154,6 @@ describe( 'app', () => {
 		expect( root.querySelector( 'os-histogram' )?.getAttribute( 'hidden-series' ) ?? '' ).toBe( '' );
 		expect( root.querySelector( '.os-cb-issue__detail' ) ).toBeNull();
 
-		// The whole row is the toggle — an error list is scanned, so
-		// expanding must not ask for aim at a chevron.
 		const row = root.querySelector( '.os-cb-issue__row' )!;
 		expect( row.tagName ).toBe( 'BUTTON' );
 		expect( row.getAttribute( 'os-action' ) ).toBe( 'toggle' );
@@ -172,9 +164,6 @@ describe( 'app', () => {
 		expect( root.querySelector( '.os-cb-issue__detail' ) ).not.toBeNull();
 		expect( root.querySelector( 'os-histogram' )?.getAttribute( 'hidden-series' ) ).toBe( 'warning' );
 
-		// The detail is where the error can be taken away: the full
-		// message and the file path both carry a copy button, and
-		// neither sits inside the row's button.
 		const full = root.querySelector( '.os-cb-issue__full' )!;
 		expect( full.textContent ).toBe( 'Needle' );
 		expect( full.hasAttribute( 'copy' ) && full.hasAttribute( 'wrap' ) ).toBe( true );

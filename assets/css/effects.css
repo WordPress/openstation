@@ -1,74 +1,24 @@
-/**
- * OpenStation — Window effects.
- *
- * Visual treatments applied to windows by the unfocus-effect engine
- * (`src/effects/unfocus-engine.ts`). The engine toggles a per-effect
- * class on the window root (`.os-window`) while the window
- * is NOT focused; each effect ships the matching rule here (or, for
- * plugin effects, in the plugin's own stylesheet).
- *
- * The fade is driven by the `filter` entry in the shared
- * `.os-window` transition (see `window-chrome.css`), so
- * effects that animate via `filter` get a smooth two-way transition as
- * focus moves between windows — and collapse to instant under
- * `prefers-reduced-motion` along with every other window transition.
- *
- * Registered as its own `os-effects` style handle, chained
- * by dependency between `os-settings` and
- * `os-window-links` so its position in the cascade matches
- * where it sat when these sheets were `@import`ed. Enqueuing
- * `os-windows` still pulls it in via that chain.
- *
- * @since 0.26.0
- */
-
-/*
- * Built-in effect tuning knobs. Every shipped effect is driven by
- * custom properties so a theme or plugin can re-tune the intensity
- * without overriding the whole rule (and so the values read as a set).
- */
 .os-window {
-	/* How long an effect takes to ramp in/out as focus moves between
-	 * windows. Drives the `filter` entry of the shared window
-	 * transition (see `window-chrome.css`); applies to every
-	 * filter-based effect (darken, frost, grayscale) in BOTH
-	 * directions — losing focus and regaining it. Bump it up for a
-	 * slower, dreamier blur; drop it for a snappier feel. Collapses to
-	 * instant under `prefers-reduced-motion`. */
+
 	--os-fx-transition-duration: 0.5s;
 
-	/* darken — dim + slight desaturate */
 	--os-fx-darken-brightness: 0.82;
 	--os-fx-darken-saturate: 0.92;
 
-	/* frost — frosted-glass blur, lifted + cooled */
 	--os-fx-frost-blur: 3px;
 	--os-fx-frost-saturate: 0.7;
 	--os-fx-frost-brightness: 1.08;
 
-	/* grayscale — drain colour, settle brightness */
 	--os-fx-grayscale-amount: 1;
 	--os-fx-grayscale-brightness: 0.95;
 }
 
-/*
- * `darken` — dims unfocused windows (title bar and body alike) so the
- * focused window reads as the active surface.
- */
 .os-window--fx-darken {
 	filter:
 		brightness( var( --os-fx-darken-brightness, 0.82 ) )
 		saturate( var( --os-fx-darken-saturate, 0.92 ) );
 }
 
-/*
- * `frost` — throws the window literally out of focus. Blur is the
- * universal "not in focus" cue; lifting the brightness and pulling the
- * saturation down turns it into a pane of cold, frosted glass between
- * the user and the content. `filter: blur()` rasterizes the whole
- * window subtree — iframe content included — so the frosting is total,
- * not just chrome-deep.
- */
 .os-window--fx-frost {
 	filter:
 		blur( var( --os-fx-frost-blur, 3px ) )
@@ -76,13 +26,6 @@
 		brightness( var( --os-fx-frost-brightness, 1.08 ) );
 }
 
-/*
- * `grayscale` — drains the colour from unfocused windows so the focused
- * one is the only thing still in colour. The eye is drawn to colour, so
- * this makes the active window pop without dimming anything into the
- * dark. A touch of brightness settling keeps the mono windows from
- * glaring.
- */
 .os-window--fx-grayscale {
 	filter:
 		grayscale( var( --os-fx-grayscale-amount, 1 ) )

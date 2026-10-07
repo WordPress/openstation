@@ -1,11 +1,3 @@
-/**
- * `<os-badge>` — colored-dot status pill.
- *
- * Five built-in tones map to common UI states; per-tone variables
- * pick up plugin theming where needed. The dot uses
- * `currentColor` so the dot tracks `--os-ui-badge-color` automatically;
- * the surrounding pill background is independently themable.
- */
 import { css } from '../../core';
 import { holoTokens } from '../../holo';
 
@@ -37,13 +29,6 @@ export const styles = css`
 		flex: 0 0 auto;
 	}
 
-	/*
-	 * Tone palette — opt-in via the \`tone\` attribute. The label
-	 * inherits the parent text color so each tone's accent is carried
-	 * by the dot only; this keeps badges legible against any
-	 * background. Plugins can override any single tone via the
-	 * variables below without redefining the rest.
-	 */
 	:host( [ tone="success" ] ) {
 		--os-ui-badge-color: var( --os-ui-badge-success, var( --os-ui-success-fg, #1a7f37 ) );
 		--os-ui-badge-bg: var( --os-ui-badge-success-bg, rgba( 26, 127, 55, 0.12 ) );
@@ -65,19 +50,6 @@ export const styles = css`
 		--os-ui-badge-bg: var( --os-ui-badge-neutral-bg, rgba( 87, 96, 106, 0.12 ) );
 	}
 
-	/*
-	 * The sixth tone, and the only one that is not a status: "accent"
-	 * is the badge saying "this is the one", and it takes the mesh.
-	 *
-	 * A badge is a good place for it — small, one per row, already a
-	 * filled pill — and it stays deliberately OUT of the five status
-	 * tones above, because a badge that means "failing" has to say so
-	 * in red. Brand is not a status.
-	 *
-	 * Longhands: --_holo-fill is a nine-layer list and a trailing
-	 * position in the background shorthand would bind to the last
-	 * layer only.
-	 */
 	:host( [ tone="accent" ] ) {
 		--os-ui-badge-color: var( --os-ui-badge-accent, var( --_holo-ink ) );
 		background-color: transparent;
@@ -89,16 +61,10 @@ export const styles = css`
 		font-weight: 600;
 	}
 
-	/* The dot would be a Void hole punched in a bright pill. */
 	:host( [ tone="accent" ] ) .dot {
 		display: none;
 	}
 
-	/*
-	 * \`no-dot\` hides the leading marker entirely — useful when the
-	 * label itself carries the meaning (counts, version pills) and
-	 * the dot would just be visual noise.
-	 */
 	:host( [ no-dot ] ) .dot {
 		display: none;
 	}

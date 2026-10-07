@@ -1,29 +1,3 @@
-/**
- * OpenStation — generic icon-canvas context menu.
- *
- * Any window that mounts an icon grid can call
- * {@link attachIconCanvasMenu} to get the same right-click /
- * background-click context menu the wallpaper offers — currently
- * the **Sort By** submenu (name / date, asc / desc), with room for
- * plugins to add more entries via the
- * `os.icon-canvas.menu` JS filter.
- *
- * The helper deliberately stays small: it doesn't know how the
- * canvas stores its tiles or how it persists positions. It just
- * forwards a `sort` event to the caller. The caller (e.g. the
- * **My WordPress** folder window) provides a closure that re-orders
- * its tiles however it wants — REST writeback, localStorage, or a
- * pure DOM reflow are all valid strategies.
- *
- * **Bundle hygiene.** This module reaches the `<os-context-menu>`
- * web component via `document.createElement` — the tag is already
- * defined by the always-loaded main desktop bundle. We deliberately
- * avoid importing the wallpaper menu's helper directly because that
- * pulls in the entire files-layer dependency tree (~20KB).
- *
- * @public
- */
-
 import { applyFilters } from '../hooks';
 import { __ } from '../i18n';
 import { openWithShellOverlays } from '../shell-overlays/loader';
@@ -43,29 +17,13 @@ export interface IconCanvasMenuItem {
 }
 
 export interface IconCanvasMenuDeps {
-	/**
-	 * Stable scope id for this canvas (e.g. `'my-wordpress:posts'`).
-	 * Forwarded to the JS filter so plugins can target a specific
-	 * surface.
-	 */
+
 	scope: string;
-	/**
-	 * Called when the user picks a Sort By entry. The implementation
-	 * decides how to reorder + persist.
-	 */
+
 	onSort: ( mode: SortMode ) => void;
-	/**
-	 * Optional extra menu items to merge in alongside the built-in
-	 * Sort By entry. Useful for surfaces that want a "Refresh" or
-	 * "New folder" entry without subscribing to the JS filter.
-	 */
+
 	extraItems?: IconCanvasMenuItem[];
-	/**
-	 * Whether to also open the menu on a primary (left) click on
-	 * the canvas background — matches the wallpaper's UX. Defaults
-	 * to `true`. Set `false` for surfaces where bg clicks should
-	 * mean something else (e.g. clear selection).
-	 */
+
 	openOnBackgroundClick?: boolean;
 }
 
@@ -77,51 +35,30 @@ const MENU_CLASS = 'os-icon-canvas-menu';
 
 let activeMenu: HTMLElement | null = null;
 let activeFlyout: HTMLElement | null = null;
-/**
- * The canvas that opened the active menu. The outside-click
- * dismisser ignores clicks on this element so the canvas's own
- * click handler can run the toggle (open → close → open) instead
- * of the dismisser eating the second click. Mirrors the wallpaper
- * pattern (`openWallpaperMenu`'s `excludeOutsideTarget`).
- */
+
 let activeCanvas: HTMLElement | null = null;
 let outsideHandler: ( ( e: MouseEvent ) => void ) | null = null;
 let escHandler: ( ( e: KeyboardEvent ) => void ) | null = null;
 
-/**
- * Wire a canvas element to open the standard icon-canvas context
- * menu on right-click (and, by default, on a primary click on the
- * background — matches the wallpaper's UX).
- *
- * Tile-targeted clicks (anything inside `.os-file-tile`)
- * are ignored so per-tile menus keep working unchanged.
- */
 export function attachIconCanvasMenu(
 	canvas: HTMLElement,
 	deps: IconCanvasMenuDeps,
 ): AttachedHandle {
 	const openOnBg = deps.openOnBackgroundClick !== false;
 
-	// `openOnBackgroundClick` was the legacy left-click toggle; we
-	// keep the parameter for API stability but no longer wire a
-	// left-click handler — the CMO is right-click only now.
 	void openOnBg;
 
 	const onContextMenu = ( e: MouseEvent ) => {
 		if ( isInsideTile( e.target ) || isInsideMenu( e.target ) ) {
 			return;
 		}
-		// Suppress the native browser context menu and surface ours.
+
 		e.preventDefault();
 		toggle( e.clientX, e.clientY );
 	};
 
 	let toggleGen = 0;
 	const toggle = ( x: number, y: number ) => {
-		// Cycle: open → close → open. If the menu is already open
-		// from THIS canvas, the right-click closes it and we stop.
-		// If it's open from a different canvas, close that one
-		// first and reopen anchored here.
 		if ( activeCanvas === canvas && activeMenu ) {
 			closeMenu();
 			return;
@@ -133,11 +70,7 @@ export function attachIconCanvasMenu(
 			deps.scope,
 		);
 		const finalItems = Array.isArray( filtered ) ? filtered : items;
-		// Lazy-load the `<os-context-menu>` class from the shell-
-		// overlays bundle before constructing. In steady state the
-		// bundle is preloaded after first paint so this resolves
-		// immediately; the generation check just drops a stale
-		// right-click that fires while a later one is in flight.
+
 		const myGen = ++toggleGen;
 		openWithShellOverlays(
 			() => myGen === toggleGen,
@@ -273,22 +206,15 @@ function openMenu(
 
 	document.body.appendChild( menu );
 	activeMenu = menu;
-	// Measured a frame later, once the component has rendered. See
-	// `src/ui/util/menu-position.ts`.
+
 	clampToViewport( menu );
 
-	// Outside-click + Escape dismiss. We attach the dismissers
-	// asynchronously so the click that opened the menu doesn't
-	// instantly close it when it bubbles up.
 	queueMicrotask( () => {
 		outsideHandler = ( e: MouseEvent ) => {
 			if ( isInsideMenu( e.target ) ) {
 				return;
 			}
-			// Any click outside the menu closes it — including
-			// clicks on the canvas's own background. Right-click
-			// reopens via the `contextmenu` handler above; left-
-			// clicking the bg should always dismiss.
+
 			closeMenu();
 		};
 		escHandler = ( e: KeyboardEvent ) => {

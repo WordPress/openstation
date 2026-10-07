@@ -1,12 +1,3 @@
-/**
- * `App::watch()` and the window's own echo.
- *
- * An app's `announce` effect (or `ctx.host.announce`) broadcasts
- * `os.<type>.changed` tagged with this window; its own `watch()` must
- * not answer that broadcast with a second round trip — the dispatch
- * that announced already returned the fresh `data()`. A change made
- * anywhere else still refreshes.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSession } from '../../src/app-runtime/session';
 import { appAnnounceSource, type AppConfig, type RuntimeHost } from '../../src/app-runtime/types';

@@ -1,15 +1,8 @@
-/**
- * Mio pointer tracking — including the cross-iframe half, which
- * is the whole reason this module exists: pointer events stop at an
- * iframe boundary, so Mio floating over a window would otherwise
- * lose the cursor exactly where it matters most.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createPointerTracker } from '../../src/mio/pointer';
 
 const ORIGIN = 'http://localhost:3000';
 
-/** Build an iframe whose `contentWindow` is a stub we can post from. */
 function fakeIframe( rect: { left: number; top: number } ): {
 	el: HTMLIFrameElement;
 	source: Window;
@@ -30,18 +23,12 @@ function fakeIframe( rect: { left: number; top: number } ): {
 	return { el, source, posted };
 }
 
-/**
- * jsdom has no `PointerEvent` constructor; the tracker only reads
- * `clientX` / `clientY`, so a `MouseEvent` under the pointer event's
- * name is a faithful stand-in.
- */
 function movePointer( x: number, y: number ): void {
 	window.dispatchEvent(
 		new MouseEvent( 'pointermove', { clientX: x, clientY: y } ),
 	);
 }
 
-/** Deliver a message as if it came from `source`. */
 function post( source: Window | null, data: unknown, origin = ORIGIN ): void {
 	const event = new MessageEvent( 'message', { data, origin } );
 	Object.defineProperty( event, 'source', { value: source } );
@@ -142,8 +129,7 @@ describe( 'createPointerTracker', () => {
 		const tracker = createPointerTracker();
 		movePointer( 10, 10 );
 		document.documentElement.dispatchEvent( new MouseEvent( 'mouseleave' ) );
-		// Still known during the grace period — entering an iframe
-		// fires the same event and the forward lands a frame later.
+
 		expect( tracker.get() ).not.toBeNull();
 		vi.advanceTimersByTime( 300 );
 		expect( tracker.get() ).toBeNull();

@@ -6,7 +6,7 @@ export const styles = css`
 		flex-direction: column;
 		gap: var( --os-ui-panel-gap, 12px );
 		padding: var( --os-ui-panel-padding, 16px );
-		/* Desktop-theme texture slot: unset resolves to none. */
+
 		background-image: var( --os-ui-panel-bg-image, none );
 		background-repeat: var( --os-ui-panel-bg-image-repeat, repeat );
 		background-size: var( --os-ui-panel-bg-image-size, auto );

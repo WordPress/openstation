@@ -1,11 +1,3 @@
-/**
- * Posts app — the Categories mind map's name + count chips: in-world,
- * counter-scaled so their on-screen size is constant at any zoom,
- * relaid out only when the facts they show diverge from the node.
- *
- * @public
- */
-
 import { isPinchGesture, stopBubble, type Interaction } from './canvas/camera';
 import { CHIP_TEXT_RES, FONT_FAMILY, truncate, type PixiContainer, type PixiGraphics, type PixiNamespace, type PixiText } from './canvas/pixi';
 import { badgeInk, type CanvasPalette } from './canvas/palette';
@@ -27,14 +19,10 @@ interface CategoryChip {
 }
 
 export interface ChipStore {
-	/** Repaint a node's chip from its current facts. */
+
 	relayout( node: MindNode ): void;
 	destroy( id: number ): void;
-	/**
-	 * Per frame: prune dead chips, position the live ones, dim the
-	 * unfocused branches while a node is deployed, and relayout any
-	 * chip whose cached facts diverged from its node.
-	 */
+
 	sync( nodes: Map< number, MindNode >, counterScale: number, focusId: number | null ): void;
 }
 
@@ -51,7 +39,7 @@ export function createChipStore(
 		const focused = opts.isFocused( node.id );
 		const displayName = truncate( node.name, CHIP_NAME_MAX_CHARS );
 		const countStr = String( node.count );
-		// Pixi.Text re-rasterises on assignment — only when changed.
+
 		if ( chip.nameText.text !== displayName ) {
 			chip.nameText.text = displayName;
 		}
@@ -76,8 +64,7 @@ export function createChipStore(
 		const badgeH = countH + countPadY * 2;
 		const totalW = padX + nameW + gap + badgeW + padX;
 		const totalH = Math.max( nameH, badgeH ) + padY * 2;
-		// Anchor: top-centre at the container origin, placed at the
-		// disc's bottom-centre.
+
 		const left = -totalW / 2;
 		chip.bg.clear();
 		chip.bg.roundRect( left, 0, totalW, totalH, totalH / 2 );

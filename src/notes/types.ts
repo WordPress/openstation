@@ -1,69 +1,31 @@
-/**
- * OpenStation — Pinned notes types.
- *
- * The wire shape mirrors `openstation_notes_prepare()` in
- * `includes/notes/rest.php`; the drag payload data shapes are the
- * cross-bundle contract between the Note Pad widget (its own IIFE
- * bundle) and the notes layer (main bundle). Only PLAIN DATA crosses
- * that boundary — the widget imports nothing but types from here.
- */
-
-/** Mirrors `OPENSTATION_NOTES_POST_TYPE` in `includes/notes/cpt.php`. */
 export const NOTES_POST_TYPE = 'wpd_note';
 
-/** Wire shape of one note. */
 export interface Note {
 	id: number;
 	text: string;
 	color: string;
-	/** Normalized 0–1 position of the note's top-left in the desktop area. */
+
 	x: number;
 	y: number;
 	z: number;
 	public: boolean;
-	/**
-	 * Jitter seed: hashed from the note's text ONCE at creation and
-	 * persisted — edits never re-tilt a note. Drives the subtle
-	 * per-note paper rotation + pin offset/twist.
-	 */
+
 	seed: number;
 	ownerId: number;
 	ownerName: string;
 	ownerAvatar: string;
 	canEdit: boolean;
-	/** Concurrency token — echo back verbatim on PATCH. */
+
 	updatedAtMs: number;
 }
 
-/**
- * DragPayload `type` slugs. `'note-draft'` = a not-yet-created note
- * being torn out of the Note Pad widget; `'note'` = an existing
- * pinned note being carried by its pushpin.
- */
 export const NOTE_DRAFT_PAYLOAD_TYPE = 'note-draft';
 export const NOTE_PAYLOAD_TYPE = 'note';
 
-/**
- * CustomEvent (document-level) announcing a note created outside the
- * layer — the Note Pad widget's keyboard "Pin to desktop" path POSTs
- * from its own bundle and hands the note over via this event.
- * `detail: { note: Note }`.
- */
 export const NOTE_CREATED_EVENT = 'os-note-created';
 
-/**
- * Heartbeat tick field carrying note changes.
- *
- * It lives here rather than in `./heartbeat` because the SENTINEL needs
- * it: a desktop with no notes yet watches this field so the site's
- * first public note arrives live rather than on the next reload, and
- * the sentinel ships in the shell bundle. Importing `./heartbeat` from
- * there would pull the presence-gated module back onto every boot —
- * `shell-bundle-boundary.test.ts` enforces exactly that, and caught it.
- */
 export const NOTES_HEARTBEAT_RESPONSE_FIELD = 'openstation_notes';
 
-/** `payload.data` for a `'note-draft'` drag (widget → wallpaper). */
 export interface NoteDraftDragData {
 	text: string;
 	color: string;
@@ -71,7 +33,6 @@ export interface NoteDraftDragData {
 	[ key: string ]: unknown;
 }
 
-/** `payload.data` for a `'note'` drag (reposition / trash). */
 export interface NoteDragData {
 	noteId: number;
 	canEdit: boolean;
@@ -79,13 +40,11 @@ export interface NoteDragData {
 	[ key: string ]: unknown;
 }
 
-/** Heartbeat subscribe payload (`openstation_notes_subscribe`). */
 export interface NotesHeartbeatSubscribe {
 	knownIds: number[];
 	sinceMs: number;
 }
 
-/** Heartbeat response payload (`openstation_notes`). */
 export interface NotesHeartbeatPayload {
 	notes?: Note[];
 	removed?: number[];

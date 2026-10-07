@@ -22,7 +22,7 @@ export const styles = css`
 		transition: background-color 0.15s ease, color 0.15s ease,
 			transform 0.12s ease;
 	}
-	/* Detach (lift + soft accent wash) */
+
 	:host( [ variant='detach' ] ) button:hover {
 		color: var( --wp-admin-theme-color, #2271b1 );
 		background: var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.12 ) );
@@ -34,16 +34,12 @@ export const styles = css`
 		background: var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.12 ) );
 		box-shadow: var( --_holo-focus );
 	}
-	/* Close (red destructive wash) */
+
 	:host( [ variant='close' ] ) button:hover {
 		color: var( --os-ui-fg-on-accent, #fff );
 		background: var( --os-ui-danger, #d63638 );
 	}
-	/*
-	 * Close keeps a RED ring rather than the kit's Pulse one. The
-	 * shared ring says "this has focus"; on the one control that
-	 * destroys something, the ring should also say what it destroys.
-	 */
+
 	:host( [ variant='close' ] ) button:focus-visible {
 		color: var( --os-ui-fg-on-accent, #fff );
 		background: var( --os-ui-danger, #d63638 );

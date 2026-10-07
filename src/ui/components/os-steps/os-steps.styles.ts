@@ -1,12 +1,3 @@
-/**
- * `<os-steps>` + `<os-step>` — shadow-DOM styles.
- *
- * Numbers come from a CSS counter (`--os-ui-step-counter`) established
- * on `<os-steps>` and incremented by each `<os-step>` host via
- * `:host` — that's why counters-in-shadow-DOM works here: the host
- * itself lives in the parent's light DOM, so it inherits the
- * counter scope from the `<os-steps>` ancestor.
- */
 import { css } from '../../core';
 
 export const stepsStyles = css`
@@ -25,22 +16,10 @@ export const stepsStyles = css`
 		padding: 0;
 		list-style: none;
 	}
-	/*
-	 * A trail rather than a list: the steps sit on one line with a
-	 * rule between them, which is the shape a wizard header takes.
-	 * The connector itself is drawn by <os-step>, which is the only
-	 * element that knows whether it is the last one; the width is
-	 * declared here because it is a fact about the layout, and on a
-	 * state modifier rather than the bare :host so a theme can still
-	 * reach the token.
-	 */
+
 	:host( [ horizontal ] ) {
 		--os-ui-step-connector-width: 20px;
-		/* A trail is read as a line of labels, so the one you are on
-		   has to be the one that stands out. Muting the rest is what
-		   makes the current step visible at all; in the vertical layout each
-		   title is a heading over its own body and stays full
-		   contrast. */
+
 		--os-ui-step-title-color: var( --os-ui-fg-muted, #646970 );
 		--os-ui-step-title-weight: 400;
 	}
@@ -65,8 +44,7 @@ export const stepStyles = css`
 	:host( [ hidden ] ) {
 		display: none;
 	}
-	/* Number chip — rendered via ::before on the host so the CSS
-	 * counter (reset on <os-steps>) is in scope. */
+
 	:host::before {
 		content: counter( os-step );
 		display: inline-flex;
@@ -74,21 +52,10 @@ export const stepStyles = css`
 		justify-content: center;
 		width: var( --os-ui-step-chip-size, 28px );
 		height: var( --os-ui-step-chip-size, 28px );
-		/* The chip size is the size of the CIRCLE, border included.
-		   Without this the outline variant below draws its 1px outside
-		   the box, so an unreached step comes out 2px wider and taller
-		   than the filled one beside it and its whole row grows with
-		   it. With the default border of 0 the two box models agree,
-		   so this changes nothing for a trail that has not opted in. */
+
 		box-sizing: border-box;
 		border-radius: 50%;
-		/*
-		 * The step number sits on a bright fill, which is exactly the
-		 * shape an identity moment takes: small, round, one per row.
-		 * The mesh arrives through --os-ui-step-chip-bg from the
-		 * palette rather than from here, so this literal stays the
-		 * pre-brand blue Legacy collected.
-		 */
+
 		background: var(
 			--os-ui-step-chip-bg,
 			var( --wp-admin-theme-color, #2271b1 )
@@ -96,9 +63,7 @@ export const stepStyles = css`
 		background-size: 200% 200%;
 		background-position: 30% 40%;
 		color: var( --os-ui-step-chip-fg, var( --os-ui-fg-on-accent, #fff ) );
-		/* Zero-width by default so nothing moves for existing trails;
-		   an instrument-voiced trail turns the idle chip into an
-		   outline by setting the border and clearing the fill. */
+
 		border: var( --os-ui-step-chip-border, 0 );
 		font-family: var( --os-ui-step-chip-family, inherit );
 		font-size: var( --os-ui-step-chip-font-size, 13px );
@@ -106,7 +71,7 @@ export const stepStyles = css`
 		line-height: 1;
 		flex-shrink: 0;
 	}
-	/* Completed state — tick instead of number, muted chip. */
+
 	:host( [ done ] )::before {
 		content: '✓';
 		background: var(
@@ -114,26 +79,12 @@ export const stepStyles = css`
 			var( --os-ui-fg-muted, #646970 )
 		);
 	}
-	/*
-	 * Where you are now. The chip already wears the brand; what marks
-	 * the current step is the title going from muted to full contrast,
-	 * because a wizard header is read as a line of labels and the one
-	 * you are on should be the one you can read.
-	 */
+
 	:host( [ current ] ) .os-step__title {
 		color: var( --os-ui-fg, #1d2327 );
 		font-weight: 600;
 	}
-	/*
-	 * A jump target says so before it is pressed. The title steps up
-	 * to full contrast, exactly as an <os-tabs> tab does on hover, and
-	 * an outlined chip (a trail that set --os-ui-step-chip-border)
-	 * takes the same ink; a filled chip has no border to recolour and
-	 * keeps its fill, so this is safe on the default blue too. Inside
-	 * the shell the pointer never shows: the cursor policy in
-	 * desktop.css sets the host back to the arrow, by design, which
-	 * is why the hover state is what says "this one can be clicked".
-	 */
+
 	:host( [ interactive ] ) {
 		cursor: pointer;
 	}
@@ -154,12 +105,7 @@ export const stepStyles = css`
 		outline-offset: 2px;
 		border-radius: var( --os-ui-radius, 4px );
 	}
-	/*
-	 * The connector between two steps on a trail. ::before is spent on
-	 * the number chip, so this takes ::after, which nothing else in
-	 * this component uses. It collapses to zero width when the parent
-	 * is not horizontal, so there is no vertical-layout special case.
-	 */
+
 	:host::after {
 		content: '';
 		inline-size: var( --os-ui-step-connector-width, 0 );
@@ -173,10 +119,7 @@ export const stepStyles = css`
 	.os-step__body {
 		min-width: 0;
 	}
-	/* On a trail the row is one line, so the chip and the label centre
-	   against each other and the title loses its heading margin. The
-	   parent sets these on its children rather than the child guessing:
-	   horizontal is the container's fact, not the step's. */
+
 	:host( [ trail ] ) {
 		align-items: center;
 	}

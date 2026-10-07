@@ -1,59 +1,17 @@
-/**
- * OpenStation — Mio pointer tracking.
- *
- * Mio looks at the cursor. That is trivially easy right up
- * until the cursor moves over a window, because a window's content
- * is a chromeless `<iframe>` and pointer events do not cross frame
- * boundaries — the parent document simply stops hearing about the
- * mouse. Since Mio floats *above* windows, that is most of
- * the desk, and Mio whose gaze freezes the moment you touch a
- * window looks broken rather than alive.
- *
- * So this module tracks two sources and merges them:
- *
- *   1. `pointermove` on the shell document (wallpaper, dock,
- *      taskbar, window chrome).
- *   2. `os-pointer-move` messages forwarded by the
- *      chromeless bridge inside each window iframe, rebased from the
- *      iframe's own client coordinates into viewport coordinates via
- *      the iframe element's rect.
- *
- * The forwarder inside the iframe is **opt-in and off by default**:
- * the tracker broadcasts `os-pointer-track` when it starts
- * and again whenever an iframe announces `os-bridge-ready`
- * (which fires on every navigation), and broadcasts the disable on
- * teardown. A shell with no companion pays nothing.
- *
- * See `docs/bridge-protocol.md` for the message contract.
- */
-
-/** Latest-known pointer position, in viewport coordinates. */
 export interface PointerTracker {
-	/**
-	 * The pointer, or `null` when its position is genuinely unknown —
-	 * the cursor left the browser window and no iframe is reporting.
-	 * Callers should treat `null` as "look straight ahead".
-	 */
+
 	get: () => { x: number; y: number } | null;
-	/** Stop listening and tell every iframe to stop forwarding. */
+
 	destroy: () => void;
 }
 
-/** Grace period before a cursor that left the document counts as gone. */
 const LEAVE_GRACE_MS = 250;
 
-/**
- * Start tracking. Idempotent per caller — each call installs its own
- * listeners and must be individually destroyed.
- */
 export function createPointerTracker(): PointerTracker {
 	let position: { x: number; y: number } | null = null;
 	let leaveTimer: ReturnType< typeof setTimeout > | null = null;
 	let destroyed = false;
 
-	// Window → iframe element. Rebuilt lazily on a miss; a stale
-	// entry is harmless because we re-verify `contentWindow` before
-	// trusting it.
 	const frameCache = new WeakMap< MessageEventSource, HTMLIFrameElement >();
 
 	const cancelLeave = (): void => {
@@ -72,10 +30,6 @@ export function createPointerTracker(): PointerTracker {
 		set( e.clientX, e.clientY );
 	};
 
-	// Entering an iframe fires `mouseout` on the parent document even
-	// though the cursor is still on screen, so we can't clear
-	// immediately — the iframe's first forwarded position lands a
-	// frame or two later and cancels this.
 	const onLeave = (): void => {
 		cancelLeave();
 		leaveTimer = setTimeout( () => {
@@ -114,7 +68,7 @@ export function createPointerTracker(): PointerTracker {
 				window.location.origin,
 			);
 		} catch {
-			/* Cross-origin or torn-down frame — nothing to do. */
+
 		}
 	};
 
@@ -127,7 +81,7 @@ export function createPointerTracker(): PointerTracker {
 					window.location.origin,
 				);
 			} catch {
-				/* Cross-origin or torn-down frame — nothing to do. */
+
 			}
 		}
 	};
@@ -140,8 +94,7 @@ export function createPointerTracker(): PointerTracker {
 		if ( ! data || typeof data.type !== 'string' ) {
 			return;
 		}
-		// A freshly-loaded (or freshly-navigated) iframe announces
-		// itself; turn its forwarder on.
+
 		if ( data.type === 'os-bridge-ready' ) {
 			enableIn( e.source );
 			return;

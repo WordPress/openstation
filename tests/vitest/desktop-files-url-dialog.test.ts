@@ -1,13 +1,3 @@
-/**
- * Tests for the "New web link / window" dialog.
- *
- * Shares its surface classes — and now its control components and
- * field plumbing — with the create-folder / rename dialog, so the
- * two look and behave like one dialog system. The raw-control guard
- * is the same one that file carries, for the same reason: core's
- * `forms.css` reaches raw inputs in the parent shell and repaints
- * them as white core chrome on this dark surface.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 

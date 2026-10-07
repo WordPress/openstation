@@ -1,22 +1,3 @@
-/**
- * My WordPress — the list view.
- *
- * Part of the `my-wordpress` client view: imported by `list-views.ts`,
- * which hands a section's rows here when the window is in `list`
- * mode. This part owns the TABLE: one column model per kind (posts and
- * custom post types, media, users), sortable headers that drive the
- * same server orders the icon view's "Sort by" menu does, infinite
- * scroll through the framework's paged list, drag-out and selection
- * through the same row attributes the tiles carry, a per-row action
- * cluster (edit, copy link, copy the `?p=` shortlink, more), an ID
- * cell that copies itself, and a column chooser the server remembers.
- *
- * Plugins add columns through the `os.my-wordpress.list-columns`
- * filter; a row carries the same REST-visible fields the tiles do.
- *
- * @public
- */
-
 import { __, _n, formatDate, html, sprintf, type TemplateResult } from '@openstation/app';
 import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
 import {
@@ -32,9 +13,6 @@ import { longPress } from './long-press';
 import { openPreview } from './optimistic';
 import { copyIdMessage, copyLinks, copyWithToast, rowInteractions } from './rows';
 
-// ------------------------------------------------------------ columns
-
-/** A short label for a post status, and the badge tone that says it. */
 function statusBadge( status: string ): TemplateResult | '' {
 	if ( status === '' || status === 'publish' ) {
 		return '';
@@ -54,7 +32,6 @@ function statusBadge( status: string ): TemplateResult | '' {
 	return html`<os-badge tone=${ tones[ status ] ?? 'neutral' } no-dot class="os-mywp__cell-badge">${ labels[ status ] ?? status }</os-badge>`;
 }
 
-/** The title cell: thumbnail or glyph, the title, the status, the lock. */
 function titleCell( item: ListItem, section: SectionDef ): TemplateResult {
 	const visual = item.thumb
 		? html`<img class="os-mywp__cell-thumb" src=${ item.thumb } alt="" loading="lazy" />`
@@ -68,7 +45,7 @@ function titleCell( item: ListItem, section: SectionDef ): TemplateResult {
 				? html`<span
 					class="dashicons dashicons-lock os-mywp__cell-lock"
 					title=${ sprintf(
-						/* translators: %s: user display name. */
+
 						__( '%s is editing' ),
 						item.lockedBy,
 					) }
@@ -78,7 +55,6 @@ function titleCell( item: ListItem, section: SectionDef ): TemplateResult {
 	`;
 }
 
-/** A date cell: the long form, with the full timestamp on hover. */
 function dateCell( iso: string | undefined ): TemplateResult | '' {
 	if ( ! iso ) {
 		return '';
@@ -86,7 +62,6 @@ function dateCell( iso: string | undefined ): TemplateResult | '' {
 	return html`<time datetime=${ iso } title=${ formatDate( iso, 'datetime' ) }>${ formatDate( iso, 'long' ) }</time>`;
 }
 
-/** A "how long ago" cell that keeps aging, the absolute moment on hover. */
 function agoCell( iso: string | undefined ): TemplateResult | '' {
 	if ( ! iso ) {
 		return '';
@@ -298,11 +273,6 @@ function userColumns(): ListColumn[] {
 	];
 }
 
-/**
- * The columns a section lists, after the `os.my-wordpress.list-columns`
- * filter. A filter that hands back something broken (not an array,
- * rows without an id or a render) is ignored rather than trusted.
- */
 export function columnsFor( section: SectionDef ): ListColumn[] {
 	let columns: ListColumn[];
 	if ( section.kind === 'user' ) {
@@ -323,7 +293,7 @@ export function columnsFor( section: SectionDef ): ListColumn[] {
 		const col = c as ListColumn;
 		return typeof col.id === 'string' && col.id !== '' && typeof col.render === 'function';
 	} );
-	// The two the table cannot work without stay whatever the filter did.
+
 	const ids = new Set( valid.map( ( c ) => c.id ) );
 	if ( ! ids.has( 'title' ) ) {
 		valid.unshift( columns.find( ( c ) => c.id === 'title' )! );
@@ -334,7 +304,6 @@ export function columnsFor( section: SectionDef ): ListColumn[] {
 	return valid;
 }
 
-/** Which column ids the section hides: the remembered set, else the defaults. */
 export function hiddenFor( ctx: Ctx, section: SectionDef, columns: ListColumn[] ): Set< string > {
 	const remembered = ctx.data.hiddenColumns?.[ section.id ];
 	if ( Array.isArray( remembered ) ) {
@@ -343,9 +312,6 @@ export function hiddenFor( ctx: Ctx, section: SectionDef, columns: ListColumn[] 
 	return new Set( columns.filter( ( c ) => c.hidden ).map( ( c ) => c.id ) );
 }
 
-// ---------------------------------------------------------------- sort
-
-/** The sort key a click on a sortable header applies next. */
 export function nextSort( column: ListColumn, active: string ): string {
 	if ( ! column.sort ) {
 		return active;
@@ -356,14 +322,10 @@ export function nextSort( column: ListColumn, active: string ): string {
 	return active === firstKey ? otherKey : firstKey;
 }
 
-/** Whether the section's server orders include the column's. */
 function sortable( column: ListColumn, sortOptions: Record< string, string > ): boolean {
 	return !! column.sort && column.sort.asc in sortOptions && column.sort.desc in sortOptions;
 }
 
-// ------------------------------------------------------------- actions
-
-/** One icon button in a row's action cluster. */
 function actionButton( icon: string, label: string, run: () => void ): TemplateResult {
 	return html`
 		<os-button
@@ -449,8 +411,6 @@ function actionsCell( ctx: Ctx, section: SectionDef, item: ListItem, order: numb
 	return html`<span class="os-mywp__row-actions">${ buttons }</span>`;
 }
 
-// ---------------------------------------------------------------- rows
-
 function cell( ctx: Ctx, column: ListColumn, item: ListItem, section: SectionDef, order: number[] ): TemplateResult {
 	const classes = [
 		'os-mywp__td',
@@ -459,7 +419,6 @@ function cell( ctx: Ctx, column: ListColumn, item: ListItem, section: SectionDef
 		`os-mywp__td--${ column.id }`,
 	].filter( Boolean ).join( ' ' );
 	if ( column.id === 'id' ) {
-		// The id copies itself — the one fact this view exists for.
 		return html`
 			<td class=${ classes }>
 				<button
@@ -482,7 +441,6 @@ function cell( ctx: Ctx, column: ListColumn, item: ListItem, section: SectionDef
 	try {
 		content = column.render( item, section );
 	} catch {
-		// Plugin code — contained, per cell.
 		content = '';
 	}
 	return html`<td class=${ classes }>${ content }</td>`;
@@ -536,9 +494,6 @@ function renderRow(
 	`;
 }
 
-// -------------------------------------------------------------- table
-
-/** The list view of one section: header, rows, skeletons, sentinel. */
 export function renderTable( ctx: Ctx, section: SectionDef, items: ListItem[] ): TemplateResult {
 	const ui = uiOf( ctx );
 	const all = columnsFor( section );
@@ -617,8 +572,7 @@ export function renderTable( ctx: Ctx, section: SectionDef, items: ListItem[] ):
 		ui.menu = { x: e.clientX, y: e.clientY, item: null };
 		ctx.repaint();
 	};
-	// The canvas menu on a finger held still beside the rows; a press
-	// that began on a row is the row's.
+
 	const canvasPress = longPress(
 		( x, y ) => {
 			ui.menu = { x, y, item: null };
@@ -666,7 +620,6 @@ export function renderTable( ctx: Ctx, section: SectionDef, items: ListItem[] ):
 	`;
 }
 
-/** The column chooser: every unlocked column, ticked when shown. */
 export function renderColumnsMenu( ctx: Ctx, section: SectionDef | null ): TemplateResult | '' {
 	const ui = uiOf( ctx );
 	if ( ! ui.columnsMenu || ! section ) {
@@ -692,7 +645,7 @@ export function renderColumnsMenu( ctx: Ctx, section: SectionDef | null ): Templ
 		} else {
 			next.add( id );
 		}
-		// The menu stays open — one toggle rarely means done.
+
 		void ctx.dispatch( 'set-columns', { hidden: Array.from( next ) } );
 	};
 	const optional = all.filter( ( c ) => ! c.locked );
@@ -722,7 +675,6 @@ export function renderColumnsMenu( ctx: Ctx, section: SectionDef | null ): Templ
 	`;
 }
 
-/** The status-bar phrase for the active order, e.g. "Sorted by ID, highest first". */
 export function sortStatus( ctx: Ctx ): string {
 	const active = ctx.state.sort || 'default';
 	const label = ctx.data.sortOptions?.[ active ];
@@ -730,13 +682,12 @@ export function sortStatus( ctx: Ctx ): string {
 		return '';
 	}
 	return sprintf(
-		/* translators: %s: the sort option label. */
+
 		__( 'Sorted by %s' ),
 		label,
 	);
 }
 
-/** "3 columns hidden" for the status bar, '' when none are. */
 export function hiddenStatus( ctx: Ctx, section: SectionDef ): string {
 	const all = columnsFor( section );
 	const hidden = hiddenFor( ctx, section, all );
@@ -745,7 +696,7 @@ export function hiddenStatus( ctx: Ctx, section: SectionDef ): string {
 		return '';
 	}
 	return sprintf(
-		/* translators: %d: hidden column count. */
+
 		_n( '%d column hidden', '%d columns hidden', count ),
 		count,
 	);

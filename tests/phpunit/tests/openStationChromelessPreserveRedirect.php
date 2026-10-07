@@ -1,14 +1,5 @@
 <?php
-/**
- * Tests for openstation_chromeless_preserve_redirect() — the wp_redirect
- * filter that re-appends `openstation_chromeless=1` to same-site admin redirects so
- * chromeless iframes don't "break out" of chromeless mode after a
- * POST-then-redirect flow (e.g., saving a classic-editor post).
- *
- * @package OpenStation
- *
- * @group openstation
- */
+
 class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -17,11 +8,6 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
 	}
 
-	/**
-	 * `$pagenow` as the test bootstrap left it.
-	 *
-	 * @var string|null
-	 */
 	protected $pagenow;
 
 	public function set_up() {
@@ -44,9 +30,6 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$_GET['openstation_chromeless'] = '1';
 	}
 
-	/**
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 */
 	public function test_appends_flag_to_admin_redirect_in_chromeless() {
 		$this->enter_chromeless();
 
@@ -55,18 +38,12 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'openstation_chromeless=1', $filtered );
 	}
 
-	/**
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 */
 	public function test_leaves_admin_redirect_alone_when_not_chromeless() {
 		$location = admin_url( 'edit.php' );
 
 		$this->assertSame( $location, openstation_chromeless_preserve_redirect( $location ) );
 	}
 
-	/**
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 */
 	public function test_leaves_non_admin_redirect_alone() {
 		$this->enter_chromeless();
 
@@ -75,9 +52,6 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertSame( $location, openstation_chromeless_preserve_redirect( $location ) );
 	}
 
-	/**
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 */
 	public function test_does_not_double_append_when_flag_already_present() {
 		$this->enter_chromeless();
 
@@ -88,18 +62,12 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertSame( 1, substr_count( $filtered, 'openstation_chromeless=' ) );
 	}
 
-	/**
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 */
 	public function test_leaves_empty_location_alone() {
 		$this->enter_chromeless();
 
 		$this->assertSame( '', openstation_chromeless_preserve_redirect( '' ) );
 	}
 
-	/**
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 */
 	public function test_preserves_existing_query_args() {
 		$this->enter_chromeless();
 
@@ -113,12 +81,6 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'openstation_chromeless=1', $filtered );
 	}
 
-	/**
-	 * The filter must be wired on `wp_redirect` so Core's redirect path
-	 * actually runs through it.
-	 *
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 */
 	public function test_filter_is_registered_on_wp_redirect() {
 		$this->assertSame(
 			999,
@@ -126,18 +88,6 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Regression: `user-new.php` redirects with `wp_redirect( 'users.php?...' )`
-	 * — a relative URL. The earlier `strpos( $location, '/wp-admin/' )`
-	 * check skipped these and the iframe ended up loading the next page
-	 * without `openstation_chromeless=1`, which painted the full desktop
-	 * shell inside the window. The relative-target branch in
-	 * `openstation_is_admin_redirect_target()` must catch it whenever
-	 * `is_admin()` is true.
-	 *
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 * @covers ::openstation_is_admin_redirect_target
-	 */
 	public function test_appends_flag_to_relative_admin_redirect_in_chromeless() {
 		set_current_screen( 'user-new' );
 		$this->enter_chromeless();
@@ -149,13 +99,6 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'id=42', $filtered );
 	}
 
-	/**
-	 * Absolute-path admin URLs (without scheme/host) get the flag too —
-	 * `wp_redirect( '/wp-admin/users.php' )` is rare but legal.
-	 *
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 * @covers ::openstation_is_admin_redirect_target
-	 */
 	public function test_appends_flag_to_absolute_path_admin_redirect() {
 		$this->enter_chromeless();
 
@@ -164,13 +107,6 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'openstation_chromeless=1', $filtered );
 	}
 
-	/**
-	 * An external host is left alone — login → SSO providers, OAuth
-	 * callbacks etc. shouldn't get our query flag tattooed on them.
-	 *
-	 * @covers ::openstation_chromeless_preserve_redirect
-	 * @covers ::openstation_is_admin_redirect_target
-	 */
 	public function test_leaves_external_redirect_alone() {
 		$this->enter_chromeless();
 
@@ -178,15 +114,6 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertSame( $location, openstation_chromeless_preserve_redirect( $location ) );
 	}
 
-	/**
-	 * A plugin redirecting its activation landing to its own screen
-	 * (Elementor's onboarding) sends the window back to the plugins
-	 * screen, which opens that screen once, as a new-context admin link.
-	 * Core's own landing on the plugins screen passes through.
-	 *
-	 * @covers ::openstation_chromeless_hand_off_plugins_redirect
-	 * @covers ::openstation_chromeless_open_handed_off_redirect
-	 */
 	public function test_a_plugin_redirect_off_the_plugins_screen_opens_in_its_own_window() {
 		$this->enter_chromeless();
 		$GLOBALS['pagenow']     = 'plugins.php';
@@ -206,12 +133,6 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( '"newContext":true', $markup );
 	}
 
-	/**
-	 * One hop only: a plugin that redirects on every load gets through
-	 * the second time instead of looping the window.
-	 *
-	 * @covers ::openstation_chromeless_hand_off_plugins_redirect
-	 */
 	public function test_a_plugin_that_redirects_again_is_let_through() {
 		$this->enter_chromeless();
 		$GLOBALS['pagenow']     = 'plugins.php';

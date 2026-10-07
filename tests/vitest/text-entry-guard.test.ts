@@ -1,15 +1,3 @@
-/**
- * Tests for the text-entry guard (`src/text-entry-guard.ts`).
- *
- * The scenario that produced the module: a third-party script binds a
- * bare letter on `document` and guards it with `e.target.tagName ===
- * 'INPUT'`. Typed into a light-DOM input that guard works; typed into
- * the input inside an `<os-text-field>`'s shadow root it sees the
- * host's tag name, fires, and moves focus — the WordPress.com
- * notifications panel on `n`. The guard stops that keystroke at
- * `window`'s capture phase; everything that is not a bare printable
- * key into a shadow input keeps flowing.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
 	installTextEntryGuard,
@@ -19,7 +7,6 @@ import '../../src/ui/components/os-text-field/os-text-field';
 
 const tick = (): Promise< void > => Promise.resolve();
 
-/** A keydown as the browser would dispatch it: bubbling, composed, cancelable. */
 function keydown( init: KeyboardEventInit ): KeyboardEvent {
 	return new KeyboardEvent( 'keydown', {
 		bubbles: true,
@@ -29,7 +16,6 @@ function keydown( init: KeyboardEventInit ): KeyboardEvent {
 	} );
 }
 
-/** The third-party shape: a document listener with a tag-name guard. */
 function thirdPartyShortcut( letter: string ): {
 	fired: number;
 	off: () => void;
@@ -49,7 +35,6 @@ function thirdPartyShortcut( letter: string ): {
 	return state;
 }
 
-/** A host with an open shadow root holding one text-entry element. */
 function shadowLeaf< T extends HTMLElement >( leaf: T ): T {
 	const host = document.createElement( 'div' );
 	document.body.appendChild( host );
@@ -84,8 +69,7 @@ describe( 'text-entry guard', () => {
 
 		expect( shortcut.fired ).toBe( 0 );
 		expect( seenByDocument ).toEqual( [] );
-		// Stopping propagation is not cancelling: the character still
-		// gets inserted.
+
 		expect( ev.defaultPrevented ).toBe( false );
 
 		document.removeEventListener( 'keydown', capture, true );
@@ -105,8 +89,6 @@ describe( 'text-entry guard', () => {
 
 		input.dispatchEvent( keydown( { key: 'n' } ) );
 
-		// The guard is scoped to shadow roots: the light-DOM event
-		// propagates as before, and the script's own guard handles it.
 		expect( reached ).toBe( 1 );
 		expect( shortcut.fired ).toBe( 0 );
 
@@ -199,7 +181,7 @@ describe( 'text-entry guard', () => {
 		expect( shortcut.fired ).toBe( 1 );
 
 		shortcut.off();
-		// `afterEach` calls `off()` again — it is a no-op by then.
+
 	} );
 
 	test( 'installing twice is one listener', () => {

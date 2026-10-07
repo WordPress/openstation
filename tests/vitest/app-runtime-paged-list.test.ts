@@ -1,10 +1,3 @@
-/**
- * The App Framework's infinitely scrolled list and selection math —
- * the machinery the first app hand-rolled and the framework now owns.
- * Accumulation semantics (per-page replacement, key resets, dedupe),
- * the one-page-per-gesture arming protocol with the short-list
- * deadlock guard, skeleton sizing, and modified-click selection.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	applySelection,
@@ -57,7 +50,7 @@ describe( 'createPagedList', () => {
 		const list = createPagedList< Row >();
 		list.accumulate( 'k', page( [ 1, 2 ], { pages: 3, page: 1, total: 50 } ) );
 		expect( list.hasMore() ).toBe( true );
-		// Not loading: no ghosts.
+
 		expect( list.ghosts( 24 ) ).toBe( 0 );
 		expect( list.accumulate( 'k', null ) ).toEqual( [] );
 		expect( list.total ).toBe( 0 );
@@ -95,7 +88,7 @@ describe( 'createPagedList', () => {
 			list.accumulate( 'k', page( [ 1 ], { pages: 3, page: 1, total: 60 } ) );
 			const sentinel = document.createElement( 'div' );
 			const canvas = document.createElement( 'div' );
-			// A canvas that scrolls (no deadlock guard interference).
+
 			Object.defineProperty( canvas, 'scrollHeight', { value: 500, configurable: true } );
 			Object.defineProperty( canvas, 'clientHeight', { value: 100, configurable: true } );
 			const loads: number[] = [];
@@ -122,10 +115,10 @@ describe( 'createPagedList', () => {
 			expect( h.loads ).toEqual( [ 2 ] );
 			h.done();
 			await new Promise( ( r ) => setTimeout( r, 0 ) );
-			// Still intersecting, but disarmed — no chain-load.
+
 			intersect( [ { isIntersecting: true } ] );
 			expect( h.loads ).toEqual( [ 2 ] );
-			// The user scrolls: re-armed, the next page loads.
+
 			h.canvas.dispatchEvent( new Event( 'scroll' ) );
 			intersect( [ { isIntersecting: true } ] );
 			expect( h.loads ).toEqual( [ 2, 2 ] );
@@ -136,7 +129,7 @@ describe( 'createPagedList', () => {
 			intersect( [ { isIntersecting: true } ] );
 			expect( h.list.loadingPage ).toBe( 2 );
 			expect( h.list.ghosts( 24 ) ).toBe( 24 );
-			// The page landing zeroes the ghosts even before load resolves.
+
 			h.list.accumulate( 'k', page( [ 2 ], { pages: 3, page: 2, total: 60 } ) );
 			expect( h.list.ghosts( 24 ) ).toBe( 0 );
 		} );
@@ -146,8 +139,7 @@ describe( 'createPagedList', () => {
 			intersect( [ { isIntersecting: true } ] );
 			h.done();
 			await new Promise( ( r ) => setTimeout( r, 0 ) );
-			// Disarmed — but the canvas has no scrollbar, so a re-sync
-			// (the paint after the page landed) re-arms without a gesture.
+
 			Object.defineProperty( h.canvas, 'scrollHeight', { value: 90, configurable: true } );
 			h.sync();
 			intersect( [ { isIntersecting: true } ] );
@@ -189,7 +181,7 @@ describe( 'createMarquee', () => {
 			</div>
 		`;
 		document.body.appendChild( root );
-		// jsdom has no layout: give each row a real box.
+
 		const boxes: Record< string, DOMRect > = {
 			'1': { left: 0, right: 50, top: 0, bottom: 50 } as DOMRect,
 			'2': { left: 0, right: 50, top: 200, bottom: 250 } as DOMRect,
@@ -213,12 +205,12 @@ describe( 'createMarquee', () => {
 	it( 'draws from empty canvas, reports intersected ids, and cleans up', () => {
 		const { root, picks, teardown } = rig();
 		const canvas = root.querySelector( '.canvas' )!;
-		// A press on a row never starts a marquee.
+
 		root.querySelector( '[data-item-id="1"]' )!.dispatchEvent(
 			new MouseEvent( 'pointerdown', { bubbles: true } ),
 		);
 		expect( document.body.querySelector( '.os-app__marquee' ) ).toBeNull();
-		// A plain press on empty canvas clears, then the drag selects.
+
 		canvas.dispatchEvent(
 			new MouseEvent( 'pointerdown', { bubbles: true, clientX: 10, clientY: 60 } ),
 		);
@@ -227,7 +219,7 @@ describe( 'createMarquee', () => {
 		document.dispatchEvent(
 			new MouseEvent( 'pointermove', { clientX: 40, clientY: 10 } ),
 		);
-		// The box spans y 10–60: row 1 (0–50) intersects, row 2 (200–250) does not.
+
 		expect( picks.at( -1 ) ).toEqual( [ 1 ] );
 		document.dispatchEvent( new MouseEvent( 'pointerup' ) );
 		expect( document.body.querySelector( '.os-app__marquee' ) ).toBeNull();

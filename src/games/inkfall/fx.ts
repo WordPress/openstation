@@ -1,16 +1,3 @@
-/**
- * Inkfall — effects: the musical-note flight, the word tear
- * (per-character scatter), and the ink-blot miss marker.
- *
- * Friendly vocabulary by design (content rule: no war terms): a
- * completed word sends a NOTE up the page; on arrival the word
- * TEARS into characters that SCATTER and fade; a missed word leaves
- * an ink BLOT on the page bottom.
- *
- * Trajectory math lives in `fx-math.ts` (pure, tested); this module
- * owns the Pixi display objects and their per-frame updates.
- */
-
 import {
 	SCATTER_LIFETIME,
 	integrateStep,
@@ -62,7 +49,7 @@ interface Blot {
 type Effect = NoteFlight | Scatter | Blot;
 
 export interface FxLayer {
-	/** Launch a note from the page bottom toward a point; fires `onArrive` on impact. */
+
 	launchNote: (
 		fromX: number,
 		fromY: number,
@@ -70,15 +57,15 @@ export interface FxLayer {
 		toY: number,
 		onArrive: () => void,
 	) => void;
-	/** Tear a word sprite into scattering characters (removes the sprite). */
+
 	tearWord: ( sprite: WordSprite ) => void;
-	/** Splash an ink blot where a word reached the page bottom. */
+
 	splashBlot: ( x: number, y: number ) => void;
-	/** Advance every live effect by `dt` seconds. */
+
 	update: ( dt: number ) => void;
-	/** True while any effect is animating (game-over drain check). */
+
 	busy: () => boolean;
-	/** Drop every live effect (teardown). */
+
 	clear: () => void;
 }
 
@@ -136,8 +123,6 @@ export function createFxLayer(
 		},
 
 		tearWord( sprite ) {
-			// Cache per-character x offsets BEFORE removing the sprite:
-			// measure prefix widths with a scratch Text.
 			const scratch = new pixi.Text( {
 				text: '',
 				style: {
@@ -197,7 +182,7 @@ export function createFxLayer(
 						1,
 						effect.age / NOTE_FLIGHT_SECONDS,
 					);
-					// Slight arc: lateral ease-out, vertical ease-in.
+
 					const eased = 1 - ( 1 - progress ) * ( 1 - progress );
 					effect.node.x =
 						effect.fromX + ( effect.toX - effect.fromX ) * eased;
@@ -226,7 +211,7 @@ export function createFxLayer(
 					}
 					continue;
 				}
-				// Blot: sit, then fade out over the tail of its life.
+
 				const fadeStart = BLOT_LIFETIME * 0.4;
 				if ( effect.age <= fadeStart ) {
 					effect.node.alpha = 1;

@@ -1,20 +1,9 @@
-/**
- * Focus Timer — a self-contained alarm synthesized with the Web Audio
- * API. No audio files are bundled.
- *
- * Browsers only allow audio to start from a user gesture. We `prime()`
- * the AudioContext on the Start click (a gesture), which unlocks it; the
- * same context is then reused when the timer finishes minutes later, so
- * the alarm plays even though no gesture happens at that moment.
- */
-
 type AudioCtor = typeof AudioContext;
 
 export class Alarm {
 	private ctx: AudioContext | null = null;
 	private loop: ReturnType< typeof setInterval > | null = null;
 
-	/** Create/resume the audio context from within a user gesture. */
 	prime(): void {
 		if ( ! this.ctx ) {
 			const Impl: AudioCtor | undefined =
@@ -28,7 +17,6 @@ export class Alarm {
 		void this.ctx?.resume?.();
 	}
 
-	/** One rising three-note chime (an A major arpeggio). */
 	private chime(): void {
 		const ctx = this.ctx;
 		if ( ! ctx ) {
@@ -50,7 +38,6 @@ export class Alarm {
 		} );
 	}
 
-	/** Begin ringing on a loop until `stop()`. */
 	start(): void {
 		if ( this.loop !== null ) {
 			return;

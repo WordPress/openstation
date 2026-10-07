@@ -1,38 +1,12 @@
 <?php
-/**
- * Tests for the built-in "Legacy" desktop theme.
- *
- * Legacy is the plugin's own defaults expressed as a theme manifest,
- * registered from code so it is always present and cannot be deleted.
- * Two properties are worth defending with tests, because both fail
- * silently:
- *
- *   - **Nothing is dropped.** The manifest is generated from the
- *     stylesheets, so a value that does not satisfy the token grammar
- *     would vanish during sanitization with no error anywhere. The
- *     count assertion below is what turns that into a red test.
- *   - **The accent-derived chrome IS declared.** The focused title
- *     bar and its relatives resolve through `--wp-admin-theme-color`,
- *     which the manifest grammar cannot express — so they have to be
- *     captured as the literal behind that chain, WordPress blue.
- *     Leave them out and Legacy silently keeps the station's grey
- *     title bar, which is the one thing everybody notices.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- * @group os-themes
- */
+
 class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 
-	/** Storage slug: the manifest id with `/` flattened. */
 	const SLUG = 'desktop-mode-legacy';
 
 	public function set_up() {
 		parent::set_up();
-		// Other suites unregister every code theme in tear_down, and
-		// `init` has already fired for this process — re-assert it.
+
 		openstation_register_builtin_desktop_themes();
 	}
 
@@ -42,7 +16,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/** The raw manifest, straight off disk. */
 	private function manifest() {
 		$path = OPENSTATION_DIR . 'assets/desktop-themes/legacy/theme.json';
 		$this->assertFileExists( $path, 'The Legacy theme manifest ships with the plugin.' );
@@ -51,9 +24,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		return $manifest;
 	}
 
-	/**
-	 * @covers ::openstation_register_builtin_desktop_themes
-	 */
 	public function test_legacy_is_registered_as_a_code_theme() {
 		$entry = openstation_desktop_theme_registry( self::SLUG );
 
@@ -64,11 +34,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$this->assertNotSame( '', (string) $entry['cssText'], 'A code theme carries its compiled CSS inline.' );
 	}
 
-	/**
-	 * Without a preview the card falls back to two initials — "DE" —
-	 * which tells a user nothing. The artwork is the theme previewing
-	 * itself, so it also has to survive the asset resolver.
-	 */
 	public function test_legacy_ships_preview_artwork() {
 		$this->assertFileExists( OPENSTATION_DIR . 'assets/desktop-themes/legacy/preview.svg' );
 
@@ -80,14 +45,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The packaged ZIP is advertised as installable, so the artwork
-	 * has to pass the same SVG sanitizer an uploaded theme's would —
-	 * which parses with DOMDocument and therefore rejects, among
-	 * other things, a stray `--` inside an XML comment.
-	 *
-	 * @covers ::openstation_desktop_theme_sanitize_svg
-	 */
 	public function test_preview_artwork_survives_the_svg_sanitizer() {
 		$copy = get_temp_dir() . 'legacy-preview-' . wp_generate_password( 8, false ) . '.svg';
 		copy( OPENSTATION_DIR . 'assets/desktop-themes/legacy/preview.svg', $copy );
@@ -100,9 +57,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Desktop Mode (Legacy)', $after, 'The label survives sanitization.' );
 	}
 
-	/**
-	 * @covers ::openstation_build_desktop_themes_payload
-	 */
 	public function test_legacy_reaches_the_shell_payload() {
 		$payload = openstation_build_desktop_themes_payload();
 		$found   = null;
@@ -118,11 +72,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$this->assertNotSame( '', $found['previewUrl'], 'The card renders artwork, not initials.' );
 	}
 
-	/**
-	 * The whole point of the theme: it cannot be removed.
-	 *
-	 * @covers ::openstation_desktop_theme_delete
-	 */
 	public function test_legacy_cannot_be_deleted() {
 		$deleted = openstation_desktop_theme_delete( self::SLUG );
 
@@ -134,15 +83,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Every token in the manifest survives the sanitizer.
-	 *
-	 * A dropped entry is invisible at runtime — the shell simply keeps
-	 * the built-in value — so nothing but this count would ever tell
-	 * us that a generated value stopped satisfying the grammar.
-	 *
-	 * @covers ::openstation_sanitize_desktop_theme_manifest
-	 */
 	public function test_no_token_is_dropped_by_the_sanitizer() {
 		$raw   = $this->manifest();
 		$entry = openstation_desktop_theme_registry( self::SLUG );
@@ -158,56 +98,10 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$this->assertGreaterThan( 380, count( $kept ), 'The manifest covers the token surface.' );
 	}
 
-	/**
-	 * The snapshot does not move.
-	 *
-	 * Legacy exists so that someone who picks it keeps the look they
-	 * know while the shell's own defaults move on. Re-collecting it
-	 * from today's stylesheets would take that away one release at a
-	 * time — so a change to an existing value should fail loudly and
-	 * be answered with a NEW snapshot theme under a new id, never with
-	 * a rewrite of this one.
-	 *
-	 * **Adding a token the snapshot never had is a different act, and
-	 * it is allowed.** The freeze protects values that were collected;
-	 * a token minted after the snapshot has no collected value to
-	 * protect, and leaving it out does not preserve the old look — it
-	 * hands that name to whatever the palette declares, which is the
-	 * brand. `--os-tabs-bg-unfocused` is the case that proved it: the
-	 * strip Legacy paints `#f6f7f7` came back Void on every unfocused
-	 * window, because the palette declared a name Legacy could not
-	 * have known to answer. See `test_no_brand_value_reaches_legacy`.
-	 *
-	 * So the count below rises when the token surface grows, and the
-	 * per-token assertions are what actually hold the line: those
-	 * values are the snapshot and they do not move.
-	 */
 	public function test_the_snapshot_is_frozen() {
 		$tokens = $this->manifest()['tokens'];
 		$why    = 'Legacy is a frozen snapshot — mint a new theme instead of moving it.';
 
-		// 469 collected, plus the three kit-field sizing tokens, the
-		// ten phone-layer tokens and the ten selection-presence tokens
-		// (tab edge width, bloom opacity, fill, radius and inset; swatch
-		// ring width, lift and badge; dock focused plate; tab-strip rail
-		// opacity; file-tile ring width), the
-		// accent-ink token, the seven content-graph chip tokens (accent
-		// amount; edge and on edge; on fill; count pill fill and numerals,
-		// off and on), the tab wash opacity, the six segmented tokens
-		// (track edge; selected accent amount, base and shadow; hover
-		// shade and film), the three Site assistant tokens (accent
-		// amount, row fill, tile fill) and the seven wallpaper-chrome
-		// tokens (desktop icon glyph shadow, label plate and label
-		// shadow; the Add widget border) and the two desk-ink tokens
-		// (the ink a light wallpaper switches to, and the desktop icon
-		// hover wash) minted after the snapshot, each at the value its
-		// consuming rule falls back to.
-		//
-		// The Add widget's two plates are NOT among them: the surface
-		// postdates this snapshot, so there is no pre-brand value to
-		// protect, and the palette derives them from the widget card. An
-		// entry here would sever that chain, the way one would for the
-		// accent.
 		$this->assertCount( 517, $tokens, $why );
 		foreach ( array(
 			'--os-bg'             => 'linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% )',
@@ -220,10 +114,7 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			'--os-ui-border'                  => '#dcdcde',
 			'--os-ui-accent'                  => '#2271b1',
 			'--os-ui-danger'                  => '#d63638',
-			// The one everybody recognises. It resolved through
-			// `--wp-admin-theme-color`, which the manifest grammar has
-			// no way to express, so the snapshot names the literal —
-			// otherwise Legacy silently keeps the station's grey.
+
 			'--os-titlebar-bg-focused'    => '#2271b1',
 			'--os-titlebar-color-focused' => '#fff',
 		) as $name => $value ) {
@@ -231,17 +122,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * Literal defaults inherited from the shell palette, excluding local overrides.
-	 *
-	 * A descendant's component alias is not a body default. Adding it to Legacy
-	 * would affect unrelated controls without overriding that local declaration.
-	 * This stylesheet uses flat declaration blocks. Cover compound selectors
-	 * (including window-wide defaults), but exclude descendant/component aliases.
-	 *
-	 * @param string $css Palette stylesheet.
-	 * @return array<string, bool> Literal token names.
-	 */
 	private function palette_literals( $css ) {
 		$css = preg_replace( '~/\*.*?\*/~s', '', $css );
 		preg_match_all( '/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER );
@@ -252,7 +132,7 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			}
 			preg_match_all( '/(--os-[a-z0-9-]+)\s*:\s*([^;]+);/', $rule[2], $declarations, PREG_SET_ORDER );
 			foreach ( $declarations as $declaration ) {
-				// Derived values follow the upstream theme token or accent picker.
+
 				if ( false !== strpos( $declaration[2], 'var(' ) || false !== strpos( $declaration[2], 'var (' ) ) {
 					continue;
 				}
@@ -262,15 +142,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		return $literals;
 	}
 
-	/**
-	 * Whether a selector list includes a compound selector, not a descendant.
-	 *
-	 * Spaces and commas inside :not(), :is() or attribute strings are not
-	 * combinators. Strip those interiors before inspecting each list member.
-	 *
-	 * @param string $selectors CSS selector list.
-	 * @return bool Whether the rule carries a palette default.
-	 */
 	private function has_palette_selector( $selectors ) {
 		$outer = '';
 		$depth = 0;
@@ -309,7 +180,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		return false;
 	}
 
-	/** Global literals stay covered even when a descendant derives the same token. */
 	public function test_palette_literal_scope_excludes_component_overrides() {
 		$css = '
 			/* body.os-active { --os-comment: red; } */
@@ -332,7 +202,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
-	/** Window-wide defaults must remain covered independently of body defaults. */
 	public function test_palette_literals_include_compound_window_rules() {
 		$css = '
 			.os-window:not( .os-window--native ) { --os-window-reveal-surface: #fff; }
@@ -352,69 +221,12 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$this->assertArrayHasKey( '--os-window-reveal-surface', $this->palette_literals( $palette ) );
 	}
 
-	/**
-	 * Every token the palette declares, Legacy answers.
-	 *
-	 * This is the guard for the whole class of bug, and it is worth
-	 * being precise about why a `var()` fallback does not cover it.
-	 *
-	 * A consuming rule reads `var( --os-tabs-bg-unfocused, var(
-	 * --os-tabs-bg, … ) )`, and the palette's own comment promises
-	 * that a theme naming only `--os-tabs-bg` "resolves through it in
-	 * both states". It does not. A `var()` fallback fires only when
-	 * the name is **undeclared**, and `variables.css` declares it on
-	 * `body.os-active`. A theme compiles onto
-	 * `body.os-desktop-theme-<slug>`; a name it omits is not undeclared,
-	 * it is inherited from the palette. The fallback never runs and
-	 * the theme's base colour is bypassed.
-	 *
-	 * So every palette token is a token a theme MUST answer, and a new
-	 * one added to `variables.css` without a Legacy entry silently
-	 * repaints part of Legacy in the brand. That is invisible in
-	 * review, invisible in the JS suite, and shows up as a user
-	 * reporting that a strip went black.
-	 *
-	 * The fix when this fails is to add the token to the manifest at
-	 * the value its consuming rule's fallback literal resolves to —
-	 * which, per the standing rule that those literals stay at the
-	 * pre-brand WordPress-admin value, IS the Legacy value.
-	 *
-	 * **This applies to LITERALS only, and the exclusion is the more
-	 * important half of the rule.** Where the palette declares a token
-	 * by computing it from another token —
-	 *
-	 *     --os-ui-tab-wash: linear-gradient( 90deg,
-	 *         color-mix( in srgb, var( --os-ui-accent-dim ) 16%, … ) );
-	 *
-	 * — that declaration is not a colour Legacy needs to answer. It is
-	 * a *rule* that already resolves correctly under Legacy, because
-	 * the accent it reads is the one Legacy declares. Pinning a literal
-	 * over it does not restore anything; it severs the chain, and the
-	 * accent picker — which writes `--os-ui-accent` / `-dim` inline on
-	 * `<body>` and `.os-shell`, see `applyOsSettings()` — stops
-	 * reaching the wash, the bloom, the glows and the rails. The user
-	 * picks teal and the selected sidebar row stays WordPress blue.
-	 *
-	 * So the guard checks only what the palette states outright. A
-	 * derivation is a token the palette is already answering on
-	 * Legacy's behalf, correctly, for every accent.
-	 */
 	public function test_legacy_answers_every_palette_literal() {
 		$css = file_get_contents( OPENSTATION_DIR . 'assets/css/variables.css' );
 		$this->assertIsString( $css, 'The palette stylesheet ships with the plugin.' );
 
 		$literals = $this->palette_literals( $css );
 
-		/*
-		 * `--os-ui-accent-dim` is a literal in the palette and still
-		 * must not be pinned: the accent picker owns the
-		 * accent/accent-dim pair at runtime and REMOVES the inline
-		 * `-dim` for the brand's own Pulse, so the palette's
-		 * hand-mixed twin can show through. A Legacy answer would
-		 * win that removal and split one pick into two colours.
-		 * Asserted from the other side in
-		 * `test_accent_driven_tokens_are_left_to_derive`.
-		 */
 		unset( $literals['--os-ui-accent-dim'] );
 
 		$literals = array_keys( $literals );
@@ -433,19 +245,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * The accent picker still reaches everything it drives.
-	 *
-	 * The counterpart to the test above, and the one that would have
-	 * caught the regression it describes. Every token here is declared
-	 * by the palette as a function of the accent; Legacy must leave
-	 * each alone so a pick propagates. `--os-ui-accent-dim` is in the
-	 * list for a subtler reason: `applyOsSettings()` *removes* its
-	 * inline value when the pick is the brand's own Pulse, expecting
-	 * the palette's hand-mixed twin to show through — a Legacy pin
-	 * would answer that with WordPress blue and leave a pink accent
-	 * sitting on a blue ambient layer.
-	 */
 	public function test_accent_driven_tokens_are_left_to_derive() {
 		$tokens = $this->manifest()['tokens'];
 
@@ -472,17 +271,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * The tab strip is one surface in both focus states.
-	 *
-	 * The reported symptom: an unfocused window's tab strip came back
-	 * near-black on a Legacy desktop, because the palette declares
-	 * `--os-tabs-bg-unfocused` (Void) and Legacy — written before that
-	 * token existed — answered only `--os-tabs-bg`. Pinned here
-	 * because the pair is the case that makes the general rule above
-	 * concrete, and because a strip that disagrees with itself across
-	 * focus is exactly what Legacy exists to prevent.
-	 */
 	public function test_legacy_tab_strip_holds_one_colour_across_focus() {
 		$tokens = $this->manifest()['tokens'];
 
@@ -492,45 +280,13 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			$tokens['--os-tabs-bg-unfocused'],
 			'Legacy names one strip colour; both focus states wear it.'
 		);
-		// The mesh crown and the frosted face are brand-era layers
-		// with no pre-brand counterpart — off, not recoloured. Both
-		// are `background-image` over `--os-tabs-active-bg`, so `none`
-		// costs a decoration and nothing else.
+
 		$this->assertSame( 'none', $tokens['--os-tabs-active-crown'] );
 		$this->assertSame( 'none', $tokens['--os-tabs-active-frost'] );
-		// The rail is NOT one of those: it traces the active tab in
-		// the accent, so it is left to derive and follows the picker.
+
 		$this->assertArrayNotHasKey( '--os-tabs-rail', $tokens );
 	}
 
-	/**
-	 * Switching a brand layer off means `none` for an OVERLAY, never
-	 * for a surface that carries state.
-	 *
-	 * Legacy drops the iridescence, and for a `::before` film or a
-	 * `::after` stroke that is simply `none` — the control keeps the
-	 * background it already had and loses a decoration. The tokens
-	 * below are not that. Each is the fill of an element whose CSS
-	 * sets `background-color: transparent` (or nothing at all) and
-	 * paints the state entirely through this one image:
-	 *
-	 *   - `--os-ui-holo-fill` is the surface of `<os-button
-	 *     variant="holo">` and `<os-switch>`. `none` renders them
-	 *     invisible, not flat.
-	 *   - `--os-tabs-active-bg` is the active tab's plate, and the
-	 *     joint that fillets it into the page reads the same token.
-	 *
-	 * The selected settings row went the same way — `--os-ui-tab-wash`
-	 * and `-bloom` answered with `none` left a sidebar with no
-	 * selection at all. Those are not asserted here: they derive from
-	 * the accent, so the fix was to stop answering them entirely. See
-	 * `test_accent_driven_tokens_are_left_to_derive`, which is the
-	 * form this guard takes for anything the picker drives.
-	 *
-	 * The distinction is "is this token the surface, or over it?", and
-	 * it is not visible from the token's name. Check the consuming
-	 * rule before answering one with `none`.
-	 */
 	public function test_state_carrying_fills_are_not_switched_off() {
 		$tokens = $this->manifest()['tokens'];
 
@@ -551,16 +307,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * No brand colour reaches a Legacy surface.
-	 *
-	 * Legacy is the pre-brand look, so none of the brand's own hexes
-	 * belong in it. Worth asserting separately from the values above:
-	 * a token added at its consuming rule's fallback is only correct
-	 * if that fallback was itself kept at the pre-brand value, and
-	 * several had already drifted to the brand palette by the time
-	 * this sweep ran.
-	 */
 	public function test_no_brand_value_reaches_legacy() {
 		$brand = array(
 			'#f252fc' => 'Pulse',
@@ -585,9 +331,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers ::openstation_desktop_theme_compile_css
-	 */
 	public function test_compiled_css_declares_every_token() {
 		$entry = openstation_desktop_theme_registry( self::SLUG );
 		$css   = (string) $entry['cssText'];
@@ -598,15 +341,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * The chrome that used to follow the admin colour scheme is
-	 * captured as WordPress blue.
-	 *
-	 * `var()` is not in the manifest's value grammar, so a theme
-	 * cannot say "whatever the accent is". For Legacy that trade is
-	 * the right one — it exists to reproduce a look people remember,
-	 * and what they remember is a blue title bar.
-	 */
 	public function test_accent_derived_chrome_is_wordpress_blue() {
 		$tokens = $this->manifest()['tokens'];
 
@@ -628,11 +362,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * The accent is not a TOKEN — OS Settings writes it as an inline
-	 * style that no stylesheet can reach, so a theme cannot declare it
-	 * and have it stick.
-	 */
 	public function test_the_accent_is_not_declared_as_a_token() {
 		$this->assertArrayNotHasKey(
 			'--wp-admin-theme-color',
@@ -640,25 +369,11 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * …it is a RECOMMENDATION instead, which is the one channel that
-	 * can move a user setting.
-	 *
-	 * Without it, wearing Legacy would restore the whole pre-brand
-	 * palette and leave Pulse on every focus ring, tab underline and
-	 * sort arrow — the one thing the theme exists to undo. It is also
-	 * what puts the "Apply Desktop Mode (Legacy)'s recommended layout
-	 * and effects" button on the card.
-	 *
-	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
-	 */
 	public function test_legacy_recommends_the_wordpress_blue_accent() {
 		$raw = $this->manifest();
 		$this->assertSame( 2, $raw['manifestVersion'], 'v2 declares a recommendation block.' );
 		$this->assertSame( 'wp-blue', $raw['recommendedOsSettings']['accent'] );
 
-		// Survives the sanitizer's allow-list, which is the part that
-		// would silently drop it if `accent` left the schema.
 		$entry = openstation_desktop_theme_registry( self::SLUG );
 		$this->assertSame(
 			'wp-blue',
@@ -667,9 +382,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * @covers ::openstation_desktop_theme_recommended_os_settings_schema
-	 */
 	public function test_accent_is_a_registry_slug_in_the_schema() {
 		$schema = openstation_desktop_theme_recommended_os_settings_schema();
 
@@ -680,11 +392,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
-	/**
-	 * Texture slots are written by the manifest's `textures` block.
-	 * A `tokens` entry for one would be a category error, and the
-	 * grammar would reject the `url()` it needs anyway.
-	 */
 	public function test_no_texture_slot_properties_are_declared() {
 		foreach ( array_keys( $this->manifest()['tokens'] ) as $name ) {
 			$this->assertDoesNotMatchRegularExpression(
@@ -695,10 +402,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * Every key is inside one of the three namespaces the sanitizer
-	 * accepts — the cheap way to catch a typo in the generator.
-	 */
 	public function test_every_token_is_in_a_themable_namespace() {
 		foreach ( array_keys( $this->manifest()['tokens'] ) as $name ) {
 			$this->assertMatchesRegularExpression(
@@ -708,9 +411,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * @covers ::openstation_legacy_theme_manifest_path
-	 */
 	public function test_manifest_path_is_filterable() {
 		add_filter( 'openstation_legacy_theme_manifest_path', static function () {
 			return '/nonexistent/theme.json';

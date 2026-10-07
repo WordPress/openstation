@@ -1,34 +1,3 @@
-/**
- * Cross-plugin activity channel API.
- *
- * **What it is.** A thin, named-channel layer on top of `wp.hooks`
- * for plugin-internal events that other plugins might care about.
- * Example: an inbox plugin publishes `inbox/unread-changed`; a
- * global "what's happening?" widget subscribes and aggregates
- * without coupling to the inbox plugin's internals. A plugin
- * split across two bundles can subscribe to its own channel from
- * the second bundle without sharing module state with the first.
- *
- * **Why a thin wrapper.** `wp.hooks.doAction('inbox.unread-changed', …)`
- * already works. Three reasons to ship a typed shim anyway:
- *
- *   1. A documented naming convention (`<plugin>/<event>`,
- *      matching `createSharedStore` keys) so plugins don't bikeshed
- *      every new channel name.
- *   2. A predictable hook prefix (`os.activity.<channel>`)
- *      so the devtools "what's firing" panel can list activity
- *      events as a discrete group.
- *   3. Type safety: callers can extend `ActivityChannelMap` in
- *      `.d.ts` so `publish( 'inbox/unread-changed', payload )`
- *      typechecks the payload shape.
- *
- * **The pattern.** Apps subscribe to OS lifecycle events
- * (`wp.os.onWindow`, `os-window-*` CustomEvents) AND
- * to peer-app activity channels. They query window state when they
- * need to (`windowManager.isActive(id)`) and decide for themselves
- * what to do. The framework is the bus, not the policy.
- */
-
 import {
 	addAction,
 	applyFilters,
@@ -36,35 +5,8 @@ import {
 	removeAction,
 } from './hooks';
 
-/**
- * Type-extension hook for plugin authors. Augment via:
- *
- * ```ts
- * import type {} from 'openstation/activity';
- *
- * declare module 'openstation/activity' {
- *     interface ActivityChannelMap {
- *         'my-plugin/something-happened': { id: number; reason: string };
- *     }
- * }
- * ```
- *
- * The `publish`/`subscribe`/`filter` calls below pick up the
- * extended shape automatically.
- *
- * Framework channels (defined here) cover the cross-cutting
- * surfaces the shell publishes / filters: toast intents, attention
- * intents, badge changes. Each is documented next to the consumer
- * (`src/toast.ts`, `src/window/index.ts` requestAttention,
- * `src/dock.ts` setBadge).
- */
 export interface ActivityChannelMap {
-	/**
-	 * Framework: a toast was *requested*. Filter this channel to
-	 * cancel (`cancel: true`), mutate the message, or audit. Fires
-	 * BEFORE the toast appears in the DOM; subscribers shouldn't
-	 * use this for "show another toast" or you'll loop.
-	 */
+
 	'os/toast-requested': {
 		message: string;
 		action?: { label: string; onClick: () => void };
@@ -73,11 +15,7 @@ export interface ActivityChannelMap {
 		meta?: Record< string, unknown >;
 		cancel?: boolean;
 	};
-	/**
-	 * Framework: a toast was *shown*. Fire-and-forget broadcast
-	 * for audit / aggregation widgets. Filtering this is a no-op —
-	 * by the time it fires, the toast is on screen.
-	 */
+
 	'os/toast-shown': {
 		message: string;
 		action?: { label: string; onClick: () => void };
@@ -86,11 +24,7 @@ export interface ActivityChannelMap {
 		meta?: Record< string, unknown >;
 		cancel?: boolean;
 	};
-	/**
-	 * Framework: `wp.os.notify()` was called. Filter to cancel
-	 * (`cancel: true`), mutate fields, or audit before the
-	 * Notification surface (or its toast fallback) is rendered.
-	 */
+
 	'os/notification-requested': {
 		title: string;
 		body?: string;
@@ -101,13 +35,7 @@ export interface ActivityChannelMap {
 		meta?: Record< string, unknown >;
 		cancel?: boolean;
 	};
-	/**
-	 * Framework: a notification was rendered (real Notification or
-	 * toast fallback). `fallback: 'toast'` flags the degraded path
-	 * so analytics can distinguish "user has notifications muted"
-	 * from "user explicitly hides nothing." `fallback: null` means
-	 * a real OS-level notification went up.
-	 */
+
 	'os/notification-shown': {
 		title: string;
 		body?: string;
@@ -118,14 +46,7 @@ export interface ActivityChannelMap {
 		meta?: Record< string, unknown >;
 		fallback: 'toast' | null;
 	};
-	/**
-	 * Framework: `Window.requestAttention()` was called. The
-	 * filtered result is routed to the dock/taskbar tiles via
-	 * `setAttention()`, which does not re-apply this filter.
-	 * Filter to cancel (`cancel: true`) for DND modes /
-	 * reduced-motion, mutate `mode` / `durationMs` / `intensity`
-	 * to scale the animation, or audit.
-	 */
+
 	'os/window-attention-requested': {
 		windowId: string;
 		mode: 'pulse' | 'shake' | 'bounce' | null;
@@ -134,45 +55,19 @@ export interface ActivityChannelMap {
 		source?: string;
 		cancel?: boolean;
 	};
-	/**
-	 * Framework: a tile's badge count changed. Useful for global
-	 * notification-center widgets that aggregate across plugins
-	 * without having to bind low-level DOM events or know which
-	 * surface emitted the change.
-	 *
-	 * `rail` is the routing discriminator — `'dock'` (left-edge),
-	 * `'taskbar'` (bottom), or `'icon'` (wallpaper shortcut). Every
-	 * rail emits the same event shape so a single subscriber can
-	 * compose a unified count without duplicating logic per
-	 * surface.
-	 */
+
 	'os/badge-changed': {
 		itemId: string;
 		count: number;
-		/** Which rail painted the change. */
+
 		rail: 'dock' | 'taskbar' | 'icon';
 	};
-	/**
-	 * Framework: a caller asked to open a registered window —
-	 * either a new instance OR re-focus an existing one. Fires
-	 * BEFORE the manager decides which path to take, so
-	 * subscribers see the user's intent independent of the
-	 * outcome (`source: 'dock' | 'api' | 'shortcut' | …`).
-	 *
-	 * Distinct from `WINDOW_OPENED` (fires only on first creation)
-	 * and `WINDOW_REOPENED` (fires only on already-open instances).
-	 * Useful for analytics + DND that want "user requested" rather
-	 * than "framework completed".
-	 */
+
 	'os/open-requested': {
 		windowId: string;
 		source: string;
 	};
-	/**
-	 * Framework: a user's presence transitioned. Mirrors the
-	 * `os-presence-changed` CustomEvent on the activity
-	 * bus so plugins can subscribe through the unified API.
-	 */
+
 	'os/presence-changed': {
 		userId: number;
 		oldStatus: 'online' | 'inactive' | 'offline' | null;
@@ -180,29 +75,12 @@ export interface ActivityChannelMap {
 		lastSeenMs: number;
 		lastActiveMs: number;
 	};
-	/**
-	 * Framework: a presence snapshot was applied (a batch of one
-	 * or more updates). Fires after the store has been mutated
-	 * and per-transition events have fired. Useful for "redraw
-	 * everything that depends on presence" callers that don't
-	 * need per-user granularity.
-	 */
+
 	'os/presence-snapshot-applied': {
 		applied: number;
 		transitions: number;
 	};
-	/**
-	 * Framework: a game run landed on the leaderboard. Fires after
-	 * the REST write resolves, so a subscriber that refetches sees
-	 * the new row. Games run in their own window
-	 * (`os-game-<id>`); this is how the Games hub, a
-	 * different window and possibly a different bundle, learns that
-	 * its scoreboard went stale.
-	 *
-	 * Both submission paths publish: free play and challenge
-	 * completion (completing a challenge writes a leaderboard row
-	 * too). `challengeId` is set only on the latter.
-	 */
+
 	'os/game-score-recorded': {
 		game: string;
 		score: number;
@@ -210,46 +88,12 @@ export interface ActivityChannelMap {
 		windowId: string;
 		challengeId?: number;
 	};
-	/**
-	 * Framework: a file dropped on the shell finished uploading.
-	 * Published by the floating progress HUD rather than by the
-	 * uploader — the upload itself runs on XHR (the only transport
-	 * that reports determinate progress) and so never routes
-	 * through `wp.os.fetch`, which makes this the activity bus's
-	 * only view of a completed drop.
-	 */
+
 	'os/upload-hud-complete': {
 		filename: string;
 		attachmentId: number;
 	};
-	/**
-	 * Framework: a request made through `wp.os.fetch` settled.
-	 * Fire-and-forget broadcast for debug, audit and aggregation
-	 * widgets; filtering it is a no-op, since by the time it fires
-	 * the response is already in the caller's hands.
-	 *
-	 * `source` is the caller's own free-form attribution tag, which
-	 * is what lets a plugin group its traffic apart from the
-	 * shell's. It is absent when the caller passed none.
-	 *
-	 * Published regardless of `silent`: `silent` suppresses the
-	 * title-bar ring, which is a question about the window's
-	 * chrome, not about whether the request happened.
-	 *
-	 * `ok` and `status` are absent when the request never got a
-	 * response at all (a network-level rejection); `error` carries
-	 * the reason in that case, and `aborted` is `true` when the
-	 * caller cancelled it rather than the network failing.
-	 *
-	 * `windowId` is the window the request is attributed to: the one
-	 * the caller named, or, for a request with no named window, the
-	 * focused window whose title-bar ring it moves. A silent request
-	 * that named no window has no ring to move, so it is `null`.
-	 *
-	 * A subscriber must not answer this with a `wp.os.fetch` of its
-	 * own (shipping an audit log, say) without guarding against its
-	 * own traffic: that request settles too, and publishes again.
-	 */
+
 	'os/request-settled': {
 		url: string;
 		method: string;
@@ -261,64 +105,30 @@ export interface ActivityChannelMap {
 		source?: string;
 		silent: boolean;
 	};
-	// Plugin channels go here. The catch-all index signature lets
-	// third-party plugins fall through without explicit type
-	// augmentation; declare specific channels in your own .d.ts
-	// for compile-time payload checking.
+
 	[ key: `${ string }/${ string }` ]: unknown;
 }
 
 const HOOK_PREFIX = 'os.activity.';
 
-/**
- * Channel slug → hook name. Characters outside the charset
- * `@wordpress/hooks` accepts in a hook name collapse to a period,
- * the separator the prefix already uses.
- */
 function hookName< K extends keyof ActivityChannelMap >( channel: K ): string {
 	return HOOK_PREFIX + String( channel ).replace( /[^a-zA-Z0-9_.-]/g, '.' );
 }
 
-/**
- * Counter that produces unique handler namespaces inside this
- * module so multiple subscribers to the same channel don't
- * clobber each other when removed. Per-bundle module state: each
- * compiled bundle carries its own copy starting at zero, so the
- * namespaces it mints are only unique within that bundle.
- */
 let subscribeSeq = 0;
 
 export interface ActivityApi {
-	/**
-	 * Publish an activity event. Subscribers registered against
-	 * the same channel fire synchronously. Filters registered
-	 * against the same channel can mutate the payload BEFORE the
-	 * action fires — see {@link filter}.
-	 *
-	 * @param channel `<plugin>/<event>` slug — namespaced to your plugin.
-	 * @param payload Optional payload.
-	 */
+
 	publish< K extends keyof ActivityChannelMap >(
 		channel: K,
 		payload?: ActivityChannelMap[ K ],
 	): void;
 
-	/**
-	 * Register a subscriber for `channel`. Returns an
-	 * unsubscribe function (calling it twice is safe).
-	 */
 	subscribe< K extends keyof ActivityChannelMap >(
 		channel: K,
 		cb: ( payload: ActivityChannelMap[ K ] ) => void,
 	): () => void;
 
-	/**
-	 * Run the registered filters for `channel` against `value`.
-	 * Returns the (possibly mutated) value. Use this when a
-	 * publisher wants to let plugins veto / shape the event before
-	 * it goes out — e.g. `<plugin>/outgoing-payload` so a logging
-	 * plugin can redact PII before peers see it.
-	 */
 	filter< K extends keyof ActivityChannelMap >(
 		channel: K,
 		value: ActivityChannelMap[ K ],
@@ -326,16 +136,6 @@ export interface ActivityApi {
 	): ActivityChannelMap[ K ];
 }
 
-/**
- * Activity bus entry point. The handler registry lives on the
- * `wp.hooks` global, so publishes, subscriptions, and filters
- * interoperate across bundles — but the handler-namespace counter
- * above is per-bundle module state, NOT shared: two bundles
- * subscribing through their own copies of this module can mint the
- * same namespace, and an unsubscribe removes every callback
- * registered under that namespace. Safe to call from anywhere
- * within a single bundle.
- */
 export const activity: ActivityApi = {
 	publish( channel, payload ) {
 		doAction( hookName( channel ), payload );

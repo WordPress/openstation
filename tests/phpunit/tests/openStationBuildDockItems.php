@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the dock item builder that converts $menu / $submenu into
- * the JSON structure consumed by the desktop shell JavaScript.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- *
- * @covers ::openstation_build_dock_items
- */
+
 class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -20,10 +10,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
 
-		// On multisite a plain administrator lacks the super-admin-only
-		// capabilities these tests exercise (update_core, edit_users,
-		// activate_plugins and friends). The admin fixture means "the
-		// fully-capable admin", which multisite spells super admin.
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -31,7 +17,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		// Snapshot the menu globals so each test can mutate them safely.
+
 		global $menu, $submenu;
 		$this->original_menu    = $menu;
 		$this->original_submenu = $submenu;
@@ -51,10 +37,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
-	/**
-	 * Helper: build a $menu row in the canonical 7-element layout used
-	 * throughout wp-admin/menu.php.
-	 */
 	private function make_menu_row( $title, $cap, $slug, $page_title = '', $classes = '', $hookname = '', $icon = 'dashicons-admin-post' ) {
 		return array(
 			$title,
@@ -101,8 +83,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 	public function test_filters_items_by_capability() {
 		global $menu;
-		// Use a logged-in user without the manage_options capability so
-		// the second row should be filtered out.
+
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
@@ -118,16 +99,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertNotContains( 'Settings', $titles );
 	}
 
-	/**
-	 * Update badges live inside <span class="update-plugins count-N"> in
-	 * the title HTML. The builder must extract the count and strip the
-	 * span from the visible title.
-	 *
-	 * Uses the Themes menu rather than Plugins because the Plugins entry
-	 * gets a recomputed-from-transient override (see
-	 * `test_plugins_dock_badge_recomputed_from_installed_plugin_intersection`)
-	 * — `themes.php` exercises the plain regex path.
-	 */
 	public function test_extracts_update_badge_and_strips_span_from_title() {
 		global $menu;
 		$menu = array(
@@ -148,28 +119,13 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 3, $items[0]['badge'] );
 	}
 
-	/**
-	 * The Plugins menu badge is built by Core from
-	 * `count( $update_plugins->response )` — a raw transient count that
-	 * can drift above the in-window "Update available" filter when the
-	 * transient holds orphan entries (deleted plugin files, rows
-	 * injected by third-party update servers that key on a file
-	 * `get_plugins()` doesn't return).
-	 *
-	 * The dock builder must recompute the badge for `plugins.php` as
-	 * the intersection of the transient with `get_plugins()` so the
-	 * dock count agrees with the Plugins window — fixes GH#258.
-	 */
 	public function test_plugins_dock_badge_recomputed_from_installed_plugin_intersection() {
 		if ( is_multisite() ) {
 			$this->markTestSkipped( 'Plugins menu badge is suppressed on multisite by Core.' );
 		}
 
 		global $menu;
-		// Title carries `count-3` even though only one of the three
-		// transient rows corresponds to an installed plugin
-		// (`desktop-mode/desktop-mode.php`). The other two are orphans
-		// — exactly the shape that produced GH#258.
+
 		$menu = array(
 			array(
 				'Plugins <span class="update-plugins count-3"><span class="plugin-count">3</span></span>',
@@ -184,7 +140,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		$installed = get_plugins();
-		// Sanity check: the test environment includes openstation itself.
+
 		$this->assertArrayHasKey( 'desktop-mode/desktop-mode.php', $installed );
 
 		set_site_transient(
@@ -219,11 +175,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * When the `update_plugins` transient is unset / empty, the Plugins
-	 * dock badge falls through to zero — the regex-captured value is
-	 * ignored because the override is authoritative.
-	 */
 	public function test_plugins_dock_badge_is_zero_when_transient_is_empty() {
 		if ( is_multisite() ) {
 			$this->markTestSkipped( 'Plugins menu badge is suppressed on multisite by Core.' );
@@ -259,7 +210,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	public function test_falls_back_to_generic_icon_when_unset() {
 		global $menu;
 		$menu = array(
-			// Index 6 (icon) is empty.
+
 			array( 'Custom', 'read', 'custom.php', '', '', 'menu-custom', '' ),
 		);
 
@@ -271,9 +222,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		global $menu, $submenu;
 		$menu               = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 		$submenu['edit.php'] = array(
-			// WordPress's auto-prepended self-link — stripped by the
-			// dock builder so the JS layer's `submenu.length > 0`
-			// invariant ("has real children") holds.
+
 			array( 'All Posts', 'edit_posts', 'edit.php' ),
 			array( 'Add New', 'edit_posts', 'post-new.php' ),
 			array( 'Tags', 'manage_categories', 'edit-tags.php?taxonomy=post_tag' ),
@@ -281,7 +230,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 		$items = openstation_build_dock_items();
 
-		// Self-link stripped — only the two genuine children survive.
 		$this->assertCount( 2, $items[0]['submenu'] );
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
 		$this->assertSame( array( 'Add New', 'Tags' ), $titles );
@@ -301,25 +249,10 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 		$items = openstation_build_dock_items();
 
-		// `All Posts` is the self-link (stripped). `Add New` is
-		// capability-filtered out (subscribers can't `edit_posts`).
-		// `Tags` survives both gates.
 		$this->assertCount( 1, $items[0]['submenu'] );
 		$this->assertSame( 'Tags', $items[0]['submenu'][0]['title'] );
 	}
 
-	/**
-	 * The self-link is stripped from `submenu`, but its LABEL survives
-	 * on `selfLabel`.
-	 *
-	 * Two consumers need `submenu` to be child links only — the
-	 * in-window tab strip, which would otherwise grow a duplicate first
-	 * tab, and the right-click popover, which is suppressed on an empty
-	 * list. Surfaces that LIST a menu's pages want the main page back,
-	 * named the way wp-admin names it; the constellation flyout puts it
-	 * first. Dropping the label entirely made that list open with
-	 * "Add New", which reads as a missing row.
-	 */
 	public function test_keeps_the_self_link_label_on_self_label() {
 		global $menu, $submenu;
 
@@ -333,7 +266,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'All Posts', $items[0]['selfLabel'] );
-		// …and it is still absent from `submenu` itself.
+
 		$this->assertSame(
 			array( 'Tags' ),
 			wp_list_pluck( $items[0]['submenu'], 'title' )
@@ -354,23 +287,15 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( '', $items[0]['selfLabel'] );
 	}
 
-	/**
-	 * Plugins register hidden submenu rows by passing `menu_title => null`
-	 * to `add_submenu_page()` — the page stays reachable but classic
-	 * admin's left-menu row has no label. WooCommerce uses this for the
-	 * `wc-addons` Extensions row (it's a duplicate of a labeled
-	 * "Extensions" entry registered separately). Without filtering, the
-	 * dock renders an empty, label-less tab.
-	 */
 	public function test_skips_submenu_items_with_empty_title() {
 		global $menu, $submenu;
 		$menu               = array( $this->make_menu_row( 'WooCommerce', 'manage_options', 'woocommerce' ) );
 		$submenu['woocommerce'] = array(
-			array( 'WooCommerce', 'manage_options', 'woocommerce' ),     // self-link, stripped
+			array( 'WooCommerce', 'manage_options', 'woocommerce' ),
 			array( 'Home', 'manage_options', 'wc-admin' ),
-			array( null, 'manage_options', 'wc-addons' ),                 // hidden row
-			array( '', 'manage_options', 'wc-empty-string' ),             // also empty
-			array( '   ', 'manage_options', 'wc-whitespace' ),            // whitespace only
+			array( null, 'manage_options', 'wc-addons' ),
+			array( '', 'manage_options', 'wc-empty-string' ),
+			array( '   ', 'manage_options', 'wc-whitespace' ),
 			array( 'Extensions', 'manage_options', 'wc-addons-shop' ),
 		);
 
@@ -381,26 +306,15 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertContains( 'Extensions', $titles );
 		$this->assertNotContains( '', $titles );
 		$this->assertNotContains( null, $titles );
-		// Verify only the labeled rows survive — the three empty ones
-		// are filtered out and don't ship as ghost tabs.
+
 		$this->assertCount( 2, $items[0]['submenu'] );
 	}
 
-	/**
-	 * Entries tagged `hide-if-no-customize` must remain in the dock.
-	 *
-	 * Core stamps Appearance → Customize / Header / Background with
-	 * that class. It means "shown by default; hide only on
-	 * `<body class=\"no-customize-support\">`". The Customizer is
-	 * supported inside chromeless iframes, so the entry must stay in
-	 * the submenu; without it the user has no path from the dock to
-	 * the Additional CSS editor.
-	 */
 	public function test_preserves_hide_if_no_customize_submenu_items() {
 		global $menu, $submenu;
 		$menu                  = array( $this->make_menu_row( 'Themes', 'edit_theme_options', 'themes.php' ) );
 		$submenu['themes.php'] = array(
-			array( 'Themes', 'edit_theme_options', 'themes.php' ), // self-link, stripped
+			array( 'Themes', 'edit_theme_options', 'themes.php' ),
 			array( 'Customize', 'customize', 'customize.php', '', 'hide-if-no-customize' ),
 			array( 'Menus', 'edit_theme_options', 'nav-menus.php' ),
 		);
@@ -408,36 +322,21 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$items = openstation_build_dock_items();
 
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
-		$this->assertNotContains( 'Themes', $titles ); // self-link strip
+		$this->assertNotContains( 'Themes', $titles );
 		$this->assertContains( 'Customize', $titles );
 		$this->assertContains( 'Menus', $titles );
 	}
 
-	/**
-	 * Self-link strip — pin the invariant the JS layer documents
-	 * (`submenu.length > 0` reliably means "has real children").
-	 *
-	 * Every parent menu page WordPress registers via
-	 * `add_menu_page()` auto-prepends a child entry whose URL
-	 * matches the parent's. Without the strip, every top-level
-	 * item appears to "have a submenu" — the user-reported gap
-	 * that motivated this fix.
-	 */
 	public function test_strips_self_link_submenu_entry() {
 		global $menu, $submenu;
 		$menu               = array( $this->make_menu_row( 'Comments', 'edit_posts', 'edit-comments.php' ) );
 
-		// A leaf menu — no real children. WordPress would still
-		// prepend a self-link in some scenarios; assert that the
-		// dock builder yields an empty submenu in either case.
 		$submenu['edit-comments.php'] = array(
 			array( 'Comments', 'edit_posts', 'edit-comments.php' ),
 		);
 		$leaf_only = openstation_build_dock_items();
 		$this->assertSame( array(), $leaf_only[0]['submenu'] );
 
-		// A parent with one self-link + one real child — only the
-		// real child survives.
 		$submenu['edit-comments.php'] = array(
 			array( 'Comments', 'edit_posts', 'edit-comments.php' ),
 			array( 'Recent', 'edit_posts', 'edit-comments.php?status=approved' ),
@@ -447,23 +346,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'Recent', $with_real_child[0]['submenu'][0]['title'] );
 	}
 
-	/**
-	 * Mirrors `wp-admin/menu-header.php`: when a parent menu has
-	 * submenu entries whose URL differs from the parent's slug-derived
-	 * URL, the parent's clickable URL must point at the first such
-	 * submenu — not at `admin.php?page=<parent-slug>`.
-	 *
-	 * Reproduces the WooCommerce regression: WC registers its
-	 * top-level menu with slug `woocommerce` and a null callback, then
-	 * registers `Home` as the first submenu at slug `wc-admin`.
-	 * Hitting `admin.php?page=woocommerce` directly invokes WC's stub
-	 * callback and 500s; the working landing page is `?page=wc-admin`.
-	 *
-	 * Classic admin never navigates to `?page=woocommerce` because
-	 * `menu-header.php` rewrites the parent link. The dock builder
-	 * must do the same so plugins of this shape (Yoast SEO and
-	 * others share the pattern) load instead of erroring.
-	 */
 	public function test_parent_url_falls_through_to_first_submenu_when_different() {
 		global $menu, $submenu;
 		$menu                  = array( $this->make_menu_row( 'WooCommerce', 'read', 'woocommerce' ) );
@@ -481,41 +363,26 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$items[0]['url'],
 			'Parent URL should be rewritten to the first visible submenu (mirrors wp-admin/menu-header.php).'
 		);
-		// All three submenu entries are real children — none of them
-		// match the original `?page=woocommerce` self-link, so none
-		// are stripped.
+
 		$this->assertCount( 3, $items[0]['submenu'] );
 	}
 
-	/**
-	 * Pin the no-op case: when WP auto-prepends a self-link as the
-	 * first submenu (slug == parent slug), the rewrite is a no-op —
-	 * the parent URL stays at `admin.php?page=<slug>` (or the file
-	 * path for Core menus). This is the historical behavior; a
-	 * regression here would change every Core menu's URL.
-	 */
 	public function test_parent_url_unchanged_when_first_submenu_is_self_link() {
 		global $menu, $submenu;
 		$menu               = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 		$submenu['edit.php'] = array(
-			array( 'All Posts', 'edit_posts', 'edit.php' ),       // self-link
+			array( 'All Posts', 'edit_posts', 'edit.php' ),
 			array( 'Add New',   'edit_posts', 'post-new.php' ),
 		);
 
 		$items = openstation_build_dock_items();
 
 		$this->assertSame( admin_url( 'edit.php' ), $items[0]['url'] );
-		// Self-link still gets stripped; only the real child remains.
+
 		$this->assertCount( 1, $items[0]['submenu'] );
 		$this->assertSame( 'Add New', $items[0]['submenu'][0]['title'] );
 	}
 
-	/**
-	 * Capability filtering interacts with the parent-URL rewrite:
-	 * the "first submenu" we follow is the first one the current
-	 * user can actually access. A submenu the user can't see must
-	 * not become the parent's effective URL.
-	 */
 	public function test_parent_url_falls_through_to_first_capability_passing_submenu() {
 		global $menu, $submenu;
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
@@ -523,8 +390,8 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 		$menu                = array( $this->make_menu_row( 'Tools', 'read', 'tools-root' ) );
 		$submenu['tools-root'] = array(
-			array( 'Admin Only', 'manage_options', 'admin-only' ),  // filtered out
-			array( 'Public',     'read',           'public-page' ), // visible
+			array( 'Admin Only', 'manage_options', 'admin-only' ),
+			array( 'Public',     'read',           'public-page' ),
 		);
 
 		$items = openstation_build_dock_items();
@@ -569,12 +436,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'replaced', $items[0]['id'] );
 	}
 
-	/**
-	 * Dashicons values are passed through intact — these are CSS class
-	 * names baked into Core's menu config and safe to render.
-	 *
-	 * @covers ::openstation_sanitize_dock_icon
-	 */
 	public function test_icon_dashicon_class_preserved() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php', '', '', '', 'dashicons-admin-post' ) );
@@ -584,12 +445,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-post', $items[0]['icon'] );
 	}
 
-	/**
-	 * Falling back to the generic icon when the menu row doesn't supply
-	 * one (or supplies an empty string) keeps the shell renderable.
-	 *
-	 * @covers ::openstation_sanitize_dock_icon
-	 */
 	public function test_icon_falls_back_to_generic_when_empty() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php', '', '', '', '' ) );
@@ -599,13 +454,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
 
-	/**
-	 * Core treats 'none' and 'div' as "no inline icon, style via CSS".
-	 * The shell has no special handling for them, so collapsing to the
-	 * generic dashicon gives a safe, visible fallback.
-	 *
-	 * @covers ::openstation_sanitize_dock_icon
-	 */
 	public function test_icon_none_and_div_collapse_to_generic() {
 		global $menu;
 		$menu = array(
@@ -619,12 +467,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-generic', $items[1]['icon'] );
 	}
 
-	/**
-	 * http(s) URLs — e.g. a plugin bundling its own PNG — pass through
-	 * esc_url_raw so scheme-shaped bytes can't slip past.
-	 *
-	 * @covers ::openstation_sanitize_dock_icon
-	 */
 	public function test_icon_http_url_preserved_after_sanitizing() {
 		global $menu;
 		$menu = array(
@@ -636,19 +478,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'https://example.com/icon.png', $items[0]['icon'] );
 	}
 
-	/**
-	 * Inline SVG data URIs are the canonical menu-icon shape for
-	 * modern WP plugins (Yoast, WooCommerce, Jetpack, etc.). The
-	 * shell renders them via CSS `background-image`, which sandboxes
-	 * scripts inside the SVG just like an `<img>` would, so passing
-	 * a well-formed `data:image/svg+xml;base64,…` value through is
-	 * safe and necessary — without it every plugin tile collapses to
-	 * the gear fallback. The strict regex in `openstation_sanitize_dock_icon`
-	 * still rejects malformed shapes and non-SVG `data:` schemes
-	 * (covered by sibling tests).
-	 *
-	 * @covers ::openstation_sanitize_dock_icon
-	 */
 	public function test_icon_well_formed_svg_data_uri_passes_through() {
 		global $menu;
 		$svg  = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
@@ -659,13 +488,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( $svg, $items[0]['icon'] );
 	}
 
-	/**
-	 * A `javascript:` URL from a hostile plugin would execute as soon as
-	 * the shell wrote it to an `<img src>` or anchor. Must be dropped to
-	 * the fallback icon, not passed through.
-	 *
-	 * @covers ::openstation_sanitize_dock_icon
-	 */
 	public function test_icon_javascript_url_is_rejected() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Z', 'read', 'z.php', '', '', 'hook-z', 'javascript:alert(1)' ) );
@@ -675,13 +497,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
 
-	/**
-	 * Non-image data URIs (e.g. `data:text/html,<script>...`) are a
-	 * common XSS vector and must be rejected, even though `data:` itself
-	 * is allowed for the SVG case.
-	 *
-	 * @covers ::openstation_sanitize_dock_icon
-	 */
 	public function test_icon_non_svg_data_uri_is_rejected() {
 		global $menu;
 		$menu = array(
@@ -693,13 +508,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
 
-	/**
-	 * A dashicons-prefixed value with embedded quotes would let a
-	 * hostile plugin break out of the class attribute on the shell side.
-	 * Strip everything that isn't a legal dashicon class character.
-	 *
-	 * @covers ::openstation_sanitize_dock_icon
-	 */
 	public function test_icon_dashicon_breakout_attempt_is_scrubbed() {
 		global $menu;
 		$menu = array(
@@ -713,17 +521,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( ' ', $items[0]['icon'] );
 	}
 
-	/**
-	 * Every built dock item carries a `placement` field — defaults to
-	 * `'dock'` for every menu (the unified rail hosts both core and
-	 * plugin items) — and an `isCore` flag the renderer uses to insert
-	 * a visual separator between the core cluster and the plugin
-	 * cluster.
-	 *
-	 * @covers ::openstation_build_dock_items
-	 * @covers ::openstation_is_core_menu_slug
-	 * @covers ::openstation_dock_placement
-	 */
 	public function test_placement_distinguishes_core_from_plugin_menus() {
 		global $menu;
 		$menu = array(
@@ -731,9 +528,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 			$this->make_menu_row( 'Settings', 'manage_options', 'options-general.php' ),
 			$this->make_menu_row( 'Plugins', 'activate_plugins', 'plugins.php' ),
-			// Plugin-registered top-level route. WP stores these as
-			// the slug passed to `add_menu_page()` (no .php extension)
-			// and routes them through admin.php?page=<slug>.
+
 			$this->make_menu_row( 'WooCommerce', 'read', 'woocommerce' ),
 			$this->make_menu_row( 'Yoast SEO', 'read', 'wpseo_dashboard' ),
 		);
@@ -744,7 +539,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$by_id[ $item['id'] ] = $item;
 		}
 
-		// Every visible item lands on the unified dock by default.
 		$this->assertSame( 'dock', $by_id['menu-index-php']['placement'] );
 		$this->assertSame( 'dock', $by_id['menu-edit-php']['placement'] );
 		$this->assertSame( 'dock', $by_id['menu-options-general-php']['placement'] );
@@ -752,8 +546,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dock', $by_id['menu-woocommerce']['placement'] );
 		$this->assertSame( 'dock', $by_id['menu-wpseo_dashboard']['placement'] );
 
-		// `isCore` is what the JS renderer uses to insert the visual
-		// separator between core and plugin tile clusters.
 		$this->assertTrue( $by_id['menu-index-php']['isCore'] );
 		$this->assertTrue( $by_id['menu-edit-php']['isCore'] );
 		$this->assertTrue( $by_id['menu-options-general-php']['isCore'] );
@@ -762,25 +554,11 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertFalse( $by_id['menu-wpseo_dashboard']['isCore'] );
 	}
 
-	/**
-	 * CPTs registered by plugins route through `edit.php?post_type=…`.
-	 * They should be treated as Core (left dock) because conceptually
-	 * they're content, same as Posts and Pages.
-	 *
-	 * @covers ::openstation_is_core_menu_slug
-	 */
 	public function test_cpt_routes_count_as_core() {
 		$this->assertTrue( openstation_is_core_menu_slug( 'edit.php?post_type=product' ) );
 		$this->assertTrue( openstation_is_core_menu_slug( 'edit.php?post_type=wp_block' ) );
 	}
 
-	/**
-	 * `openstation_dock_placement` lets plugins + site admins hide
-	 * any menu item from the dock. Returning anything else coerces
-	 * back to `'dock'` (the default).
-	 *
-	 * @covers ::openstation_dock_placement
-	 */
 	public function test_placement_filter_can_hide_items() {
 		add_filter(
 			'openstation_dock_placement',
@@ -794,19 +572,12 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			2
 		);
 
-		// Hidden items disappear from the dock.
 		$this->assertSame( 'hidden', openstation_dock_placement( 'background-tool' ) );
-		// Unrelated slugs still get the default answer.
+
 		$this->assertSame( 'dock', openstation_dock_placement( 'edit.php' ) );
 		$this->assertSame( 'dock', openstation_dock_placement( 'jetpack' ) );
 	}
 
-	/**
-	 * Elementor 4 hides its legacy menus from the sidebar with CSS once
-	 * `elementor-home` exists; before that they are its only menus.
-	 *
-	 * @covers ::openstation_compat_elementor_dock_placement
-	 */
 	public function test_elementor_4_legacy_menus_stay_out_of_the_dock() {
 		global $admin_page_hooks;
 
@@ -822,32 +593,17 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		}
 	}
 
-	/**
-	 * A filter that returns garbage is ignored — items default to
-	 * `'dock'` to keep the shell rendering predictably.
-	 *
-	 * @covers ::openstation_dock_placement
-	 */
 	public function test_placement_filter_rejects_unknown_values() {
 		add_filter(
 			'openstation_dock_placement',
 			static function () {
-				return 'sidebar'; // not a valid placement
+				return 'sidebar';
 			}
 		);
 		$this->assertSame( 'dock', openstation_dock_placement( 'edit.php' ) );
 		$this->assertSame( 'dock', openstation_dock_placement( 'some-plugin' ) );
 	}
 
-	/**
-	 * Plugins that don't want to claim chrome real estate can return
-	 * `'hidden'` from the placement filter. The item must disappear
-	 * from the unified dock payload while still being a valid
-	 * server-side menu entry.
-	 *
-	 * @covers ::openstation_dock_placement
-	 * @covers ::openstation_build_menu_payload
-	 */
 	public function test_hidden_placement_removes_item_from_dock() {
 		add_filter(
 			'openstation_dock_placement',
@@ -876,14 +632,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertContains( 'menu-other-plugin', $dock_ids );
 	}
 
-	/**
-	 * The payload aggregates pending-update counts so the shell can
-	 * repaint the admin-bar "updates" notifier live (GH#296) — the
-	 * top-left circle-arrows badge is static server HTML that would
-	 * otherwise show its boot-time count until a hard refresh.
-	 *
-	 * @covers ::openstation_build_menu_payload
-	 */
 	public function test_payload_carries_update_counts() {
 		require_once ABSPATH . 'wp-admin/includes/update.php';
 
@@ -892,8 +640,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Dashboard', 'read', 'index.php' ),
 		);
 
-		// Two pending plugin updates, nothing else. Mirrors the raw
-		// transient shape wp_get_update_data() counts.
 		set_site_transient(
 			'update_plugins',
 			(object) array(
@@ -913,20 +659,11 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( '2 updates available', $counts['text'] );
 		$this->assertSame( network_admin_url( 'update-core.php' ), $counts['url'] );
 
-		// And the zero case — the client hides the node on this signal.
 		set_site_transient( 'update_plugins', (object) array( 'response' => array() ) );
 		$payload = openstation_build_menu_payload();
 		$this->assertSame( 0, $payload['updateCounts']['total'] );
 	}
 
-	/**
-	 * Core menu slugs never resolve to a plugin file — even if some
-	 * callback happens to be registered on the page hook. The classifier
-	 * short-circuits before reflecting on $wp_filter, so the dock never
-	 * shows a "Deactivate" action for Dashboard, Posts, Plugins, etc.
-	 *
-	 * @covers ::openstation_resolve_menu_plugin_file
-	 */
 	public function test_resolve_plugin_file_returns_null_for_core_slugs() {
 		$this->assertNull( openstation_resolve_menu_plugin_file( 'index.php' ) );
 		$this->assertNull( openstation_resolve_menu_plugin_file( 'plugins.php' ) );
@@ -934,43 +671,12 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertNull( openstation_resolve_menu_plugin_file( 'edit.php?post_type=page' ) );
 	}
 
-	/**
-	 * Unknown slugs with no registered page hook (or no plugin-owned
-	 * callbacks on it) resolve to null. The right-click menu then skips
-	 * the deactivate option entirely — better than a false positive
-	 * that would 404 on the REST mutation.
-	 *
-	 * @covers ::openstation_resolve_menu_plugin_file
-	 */
 	public function test_resolve_plugin_file_returns_null_for_unknown_slug() {
 		$this->assertNull(
 			openstation_resolve_menu_plugin_file( 'nonexistent-menu-slug-xyz' )
 		);
 	}
 
-	/**
-	 * OpenStation is always its own special case — even when its own
-	 * code registers a callback for a menu page hook, we MUST return
-	 * null so the dock right-click can never offer to deactivate the
-	 * very plugin rendering the dock. The plugins-window's
-	 * self-deactivate path handles that scenario with the right
-	 * confirmation + reload affordances.
-	 *
-	 * @covers ::openstation_resolve_menu_plugin_file
-	 */
-	/**
-	 * Positive path: a callback whose declaring file lives under
-	 * `WP_PLUGIN_DIR/<folder>/…` resolves to the plugin file
-	 * `get_plugins()` has under that folder.
-	 *
-	 * Setup is messy on purpose — we need a real on-disk PHP file
-	 * inside the plugins directory (Reflection reads the absolute
-	 * path) and a matching entry in `get_plugins()`. The fixture is
-	 * written, included, used, and torn down within a single test.
-	 *
-	 * @covers ::openstation_resolve_menu_plugin_file
-	 * @covers ::openstation_plugin_file_for_path
-	 */
 	public function test_resolve_plugin_file_returns_plugin_basename_when_callback_lives_in_plugin_dir() {
 		$fake_folder   = 'dm-positive-resolver-fixture';
 		$fake_dir      = WP_PLUGIN_DIR . '/' . $fake_folder;
@@ -980,9 +686,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		if ( ! is_dir( $fake_dir ) ) {
 			mkdir( $fake_dir, 0755, true );
 		}
-		// Write a real plugin header so `get_plugins()` discovers the
-		// fixture on its filesystem scan after we bust the plugin cache.
-		// Without a `Plugin Name:` header WP skips the file entirely.
+
 		file_put_contents(
 			$fake_file,
 			"<?php\n/**\n * Plugin Name: DM Positive Resolver Fixture\n * Version: 0.0.0\n */\nfunction dm_positive_resolver_fixture_render() {}\n"
@@ -998,21 +702,13 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			return $plugins;
 		};
 		add_filter( 'all_plugins', $inject );
-		// `get_plugins()` caches results per request and only runs the
-		// `all_plugins` filter on a cache miss. The bootstrap has
-		// almost certainly populated that cache already, so we must
-		// invalidate it for our injected entry to be visible.
+
 		wp_cache_delete( 'plugins', 'plugins' );
 
 		$slug     = 'dm-positive-resolver-fixture-page';
 		$hookname = get_plugin_page_hookname( $slug, '' );
 		add_action( $hookname, 'dm_positive_resolver_fixture_render' );
 
-		// `try`/`finally` so an assertion failure can't leave the
-		// fixture directory + plugin-cache override behind for the
-		// next test run. Without this, `get_plugins()` would
-		// permanently pick up `dm-positive-resolver-fixture` as an
-		// installed plugin on subsequent runs.
 		try {
 			$resolved = openstation_resolve_menu_plugin_file( $slug );
 			$this->assertSame( $fake_basename, $resolved );
@@ -1020,40 +716,17 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			remove_action( $hookname, 'dm_positive_resolver_fixture_render' );
 			remove_filter( 'all_plugins', $inject );
 			wp_cache_delete( 'plugins', 'plugins' );
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+
 			@unlink( $fake_file );
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.rmdir_rmdir
+
 			@rmdir( $fake_dir );
 		}
 	}
 
-	/**
-	 * The self-exclusion guard fires when the page-hook reflection
-	 * lands on a callback that lives inside OpenStation's own folder
-	 * — the dock right-click should never offer the "Deactivate
-	 * OpenStation" action (that's the plugins-window's
-	 * self-deactivate path's job, which knows how to handle the
-	 * shell-shutdown side effects).
-	 *
-	 * To exercise the guard specifically (not the "no callback in
-	 * WP_PLUGIN_DIR" early return), we register a real OpenStation
-	 * function — `openstation_is_pure_core_file()` — as the callback
-	 * on a fake page hook. Reflection on that function returns a
-	 * filename inside `WP_PLUGIN_DIR/desktop-mode/…`, so the resolver
-	 * walks through the page-hook reflection branch, matches the
-	 * openstation plugin file, then hits the `$self_basename` guard
-	 * and returns null.
-	 *
-	 * @covers ::openstation_resolve_menu_plugin_file
-	 */
 	public function test_resolve_plugin_file_excludes_openstation_itself() {
 		$slug     = 'os-self-exclusion-test';
 		$hookname = get_plugin_page_hookname( $slug, '' );
 
-		// Sanity-check the precondition the test depends on. If this
-		// fails, the test is exercising the wrong branch and should be
-		// re-thought rather than silently regress to the old "outside
-		// WP_PLUGIN_DIR" path.
 		$callback_file = ( new ReflectionFunction( 'openstation_is_pure_core_file' ) )
 			->getFileName();
 		$this->assertNotFalse(

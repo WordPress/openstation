@@ -1,7 +1,3 @@
-/**
- * Users app — capability gates, people tabs, continuous loading,
- * selection and the preserved details table.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OsTable } from '../../src/ui/components/os-table/os-table';
 import { mockViewContext } from '../../src/app-runtime/testing';
@@ -41,7 +37,6 @@ const facts: ProfileConfig = {
 	colorSchemes: {},
 };
 
-/** The declaration's tab list, as the PHP side builds it. */
 const usersTabs = ( cfg: ProfileConfig ) => [
 	{ id: 'all', label: 'People' },
 	{ id: 'roles', label: 'Roles' },
@@ -73,9 +68,7 @@ function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = 
 		},
 		data: { list: { items: [ user() ], total: 1, pages: 1, page: 1, perPage: 20 }, ...data },
 		root,
-		// `menuTabs` is what `App::menu()` ships in the config extra and
-		// what the strip renders from, caps already applied — see
-		// `apps/users/users.os.php`.
+
 		extra: { menuTabs: usersTabs( { ...facts, ...extra } ), ...facts, ...extra } as Record< string, unknown >,
 	} );
 	ctx.repaint = () => app.render( ctx );
@@ -230,8 +223,7 @@ describe( 'the users app view', () => {
 		expect( bar?.hasAttribute( 'hidden' ) ).toBe( true );
 		expect( bar?.classList.contains( 'os-app-list__bulk--footer' ) ).toBe( true );
 		expect( bar?.closest( 'header' ) ).toBeNull();
-		// A selection paints the count, the role pick, who inherits the
-		// content (the viewer by default), and Delete.
+
 		table!.selection = [ '2', '3' ];
 		table!.dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
 		expect( bar?.hasAttribute( 'hidden' ) ).toBe( false );
@@ -349,9 +341,7 @@ describe( 'the table parts', () => {
 		expect( cell( 'identity' ).querySelector( 'os-avatar' )?.getAttribute( 'presence' ) ).toBe( 'offline' );
 		const buttons = cell( 'actions' ).querySelectorAll( 'button' );
 		expect( buttons.length ).toBe( 2 );
-		// The face resolves through the palette, never an inherited
-		// colour on a white fallback — that painted white glyphs on a
-		// white chip under the dark palette.
+
 		for ( const btn of Array.from( buttons ) ) {
 			expect( btn.hasAttribute( 'data-noclick' ) ).toBe( true );
 			expect( btn.style.background ).toContain( '--os-ui-surface' );

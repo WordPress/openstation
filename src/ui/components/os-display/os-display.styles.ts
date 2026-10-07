@@ -18,9 +18,7 @@ export const styles = css`
 		border-radius: var( --os-ui-display-border-radius, 0 );
 		line-height: 1.1;
 		overflow: hidden;
-		/* A readout SHOULD truncate on overflow — a numeric display
-		 * that silently wraps is a UX bug. Callers that want the full
-		 * value visible size their display or cap their input upstream. */
+
 		white-space: nowrap;
 		text-overflow: ellipsis;
 	}

@@ -1,78 +1,3 @@
-/**
- * `<os-log>` — virtualized streaming log container.
- *
- * High-rate append-only list designed for inspector / monitor /
- * debugger UIs that need to display thousands of rows without
- * tanking layout. A naive `<div>` per row dies past a few thousand
- * entries: every layout pass becomes O(n²), scroll lag is visible,
- * and the GPU layer cost climbs with every batch.
- *
- * This component virtualises:
- *
- *   - Only rows in (or near) the viewport exist in the DOM.
- *   - A `.spacer` sized to the total content height provides the
- *     scrollbar geometry; the `.window` (absolutely positioned
- *     inside it) stamps the visible slice and is re-stamped on
- *     scroll.
- *   - Optional LRU eviction via `max-rows="N"` — once the buffer
- *     grows past N, the oldest entries fall off FIFO so memory
- *     stays bounded for long-running sessions.
- *   - Tail-stickiness: when the viewport is at the bottom, new
- *     appends keep it pinned (classic `tail -f` behavior). When the
- *     user scrolls up to inspect a past row, sticking is
- *     suspended until they scroll back to the bottom edge.
- *
- * ## Row-height contract — read this before shipping
- *
- * **Default mode (fast path) is fixed-row-height.** Each rendered row
- * MUST fit inside `row-height` pixels. Content taller than
- * `row-height` is **clipped silently** — the component does not
- * measure rendered rows, so a multi-line entry that exceeds the
- * height looks like a broken layout. This is the price the fixed-
- * height virtualizer pays for O(1) viewport-finding (no per-row
- * measurement passes, no DOM read on the hot append path).
- *
- * If your rows are one-liners (typical for SQL inspectors, log
- * tails, REST timing): leave the default. It's the cheapest path.
- *
- * If your rows have variable content (a header line + a body block,
- * collapsible details, inline previews): set `auto-row-height` on
- * the host. The component will measure each row on first render and
- * cache per-entry heights for the virtualizer. One extra layout pass
- * per visible row, scrollbar height settles after the first scroll
- * through the buffer, but no more silent clipping.
- *
- * ```html
- * <!-- One-liners — fast path -->
- * <os-log row-height="22"></os-log>
- *
- * <!-- Variable rows — measured -->
- * <os-log auto-row-height></os-log>
- * ```
- *
- * Usage (programmatic — typical for streaming log consumers):
- *
- * ```ts
- * const log = document.querySelector< OsLog< QueryEvent > >( '#sql-log' )!;
- * log.rowHeight = 24;
- * log.maxRows = 5000;
- * log.renderRow = ( entry, index ) => {
- *     const el = document.createElement( 'div' );
- *     el.textContent = `[${ index }] ${ entry.sql }`;
- *     return el;
- * };
- * subscribe( ( event ) => log.push( event ) );
- * ```
- *
- * Consumers can also assign `entries` wholesale to seed the buffer
- * from a snapshot (e.g. session restore).
- *
- * Designed to be the canonical primitive for every devtool that
- * surfaces a streaming feed — SQL inspector, network inspector,
- * REST timing viewer, action-fire trace, log tail. None of those
- * should reinvent virtualization.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-log.styles';
 
@@ -81,11 +6,6 @@ export type OsLogRowRenderer< T = unknown > = (
 	index: number,
 ) => HTMLElement | string;
 
-/**
- * Default row renderer. Stringifies each entry into a `<span>`. Plugins
- * almost always replace this — the default exists so a freshly-mounted
- * `<os-log>` paints something useful before the consumer wires up.
- */
 function defaultRowRenderer( entry: unknown ): HTMLElement {
 	const span = document.createElement( 'span' );
 	let text: string;
@@ -156,11 +76,7 @@ export class OsLog< T = unknown > extends Component {
 			{ name: '--os-ui-log-row-border', default: '1px solid rgba(0,0,0,0.04)' },
 			{ name: '--os-ui-log-min-height', default: '120px' },
 		],
-		/*
-		 * `entries` is a property, so the markup alone renders the
-		 * empty-state. Height comes from the caller — the log is a
-		 * scroll container and has no intrinsic one.
-		 */
+
 		example: html`
 			<div style="height:160px">
 				<os-log row-height="22" max-rows="500"></os-log>
@@ -185,25 +101,12 @@ export class OsLog< T = unknown > extends Component {
 	private _renderRow: OsLogRowRenderer< T > = defaultRowRenderer as OsLogRowRenderer< T >;
 	private _stickToBottom = true;
 
-	/**
-	 * Per-entry measured height — auto-row-height mode only. Sparse:
-	 * unmeasured indices read as `rowHeight` (default). Stays index-
-	 * aligned with `_entries`; trimmed in lockstep when `max-rows` evicts.
-	 */
 	private _heights: number[] = [];
-	/**
-	 * Cumulative offsets — `_offsets[i]` is the top edge of entry i.
-	 * Auto-row-height mode only. Lazily computed by `_ensureOffsets()`
-	 * and invalidated whenever `_heights` changes.
-	 */
+
 	private _offsets: number[] = [];
 	private _offsetsValid = false;
 
 	private _onScroll = (): void => {
-		// User scrolled — recompute stickiness based on whether they
-		// landed on the bottom edge. A 4px slop accounts for sub-pixel
-		// scroll positions on retina displays where strict equality
-		// would never trigger.
 		const distance = this.scrollHeight - this.clientHeight - this.scrollTop;
 		this._stickToBottom = distance <= 4;
 		this._paintWindow();
@@ -214,16 +117,12 @@ export class OsLog< T = unknown > extends Component {
 	connectedCallback(): void {
 		super.connectedCallback();
 		this.addEventListener( 'scroll', this._onScroll, { passive: true } );
-		// Repaint when the host resizes — without this the visible
-		// slice gets stale after a window resize / split-view swap.
+
 		if ( typeof ResizeObserver !== 'undefined' ) {
 			this._resizeObserver = new ResizeObserver( () => this._paintWindow() );
 			this._resizeObserver.observe( this );
 		}
-		// First paint runs AFTER the base-class render microtask drops
-		// the skeleton into the shadow root. Without this, entries
-		// pushed before connect (or while the render loop hasn't run
-		// yet) sit invisible until the next mutation.
+
 		queueMicrotask( () => {
 			this._paintSpacer();
 			if ( this._stickToBottom ) {
@@ -239,17 +138,6 @@ export class OsLog< T = unknown > extends Component {
 		this._resizeObserver = null;
 	}
 
-	/**
-	 * Per-row renderer. Receives the entry + its absolute index in the
-	 * buffer (NOT the visible slice). Return a DOM node — strings are
-	 * stamped into a `<span>`. Default is a JSON stringification, so a
-	 * freshly-mounted log paints something useful before the consumer
-	 * wires up.
-	 *
-	 * Reassigning `renderRow` invalidates measured heights — under
-	 * `auto-row-height` mode, the new renderer's row sizes will likely
-	 * differ from the previous, so we re-measure on next paint.
-	 */
 	get renderRow(): OsLogRowRenderer< T > {
 		return this._renderRow;
 	}
@@ -261,7 +149,6 @@ export class OsLog< T = unknown > extends Component {
 		this._paintWindow();
 	}
 
-	/** Snapshot (read) / replace (write) the entire entry buffer. */
 	get entries(): readonly T[] {
 		return this._entries;
 	}
@@ -273,14 +160,6 @@ export class OsLog< T = unknown > extends Component {
 		this._afterEntriesMutation();
 	}
 
-	/**
-	 * Append a single entry. The cheap hot path — designed for
-	 * `subscribe( e => log.push( e ) )` patterns where the consumer
-	 * fires it from a postMessage or polling callback.
-	 *
-	 * Named `push` (not `append`) because `Element.append( …Node )` is
-	 * already a DOM method on the host and we don't want to shadow it.
-	 */
 	push( entry: T ): void {
 		this._entries.push( entry );
 		this._enforceMaxRows();
@@ -288,7 +167,6 @@ export class OsLog< T = unknown > extends Component {
 		this.emit( 'os-log-append', { entry, length: this._entries.length } );
 	}
 
-	/** Append many entries at once — single repaint. */
 	pushMany( entries: readonly T[] ): void {
 		if ( ! Array.isArray( entries ) || entries.length === 0 ) {
 			return;
@@ -300,7 +178,6 @@ export class OsLog< T = unknown > extends Component {
 		this._afterEntriesMutation();
 	}
 
-	/** Drop every entry. */
 	clear(): void {
 		this._entries = [];
 		this._heights = [];
@@ -308,7 +185,6 @@ export class OsLog< T = unknown > extends Component {
 		this._afterEntriesMutation();
 	}
 
-	/** Scroll to the very bottom and re-pin tail-stickiness. */
 	scrollToBottom(): void {
 		this._stickToBottom = true;
 		this.scrollTop = this.scrollHeight;
@@ -318,10 +194,7 @@ export class OsLog< T = unknown > extends Component {
 		const cap = this._readMaxRows();
 		if ( cap > 0 && this._entries.length > cap ) {
 			const drop = this._entries.length - cap;
-			// Drop the oldest. `splice` mutates in-place — cheaper than
-			// reassigning a slice for the typical case where we trim
-			// 1-N entries off the front. Heights array follows in
-			// lockstep so index alignment with entries holds.
+
 			this._entries.splice( 0, drop );
 			if ( this._heights.length > 0 ) {
 				this._heights.splice( 0, Math.min( drop, this._heights.length ) );
@@ -333,9 +206,6 @@ export class OsLog< T = unknown > extends Component {
 	private _afterEntriesMutation(): void {
 		this._paintSpacer();
 		if ( this._stickToBottom ) {
-			// Sync scroll position to the new total height, then paint.
-			// Scrolling first means `scrollTop` is correct when the
-			// window-stamping math runs.
 			this.scrollTop = this.scrollHeight;
 		}
 		this._paintWindow();
@@ -365,12 +235,6 @@ export class OsLog< T = unknown > extends Component {
 		this._offsets = [];
 	}
 
-	/**
-	 * Build / refresh the cumulative-offsets array under
-	 * auto-row-height mode. Unmeasured entries fall back to the
-	 * declared `row-height`; once they paint and we measure them, the
-	 * invalidation flag flips and we rebuild.
-	 */
 	private _ensureOffsets(): void {
 		if ( this._offsetsValid ) {
 			return;
@@ -396,12 +260,6 @@ export class OsLog< T = unknown > extends Component {
 		return this._entries.length * this._readRowHeight();
 	}
 
-	/**
-	 * Binary-search the auto-mode offsets array for the first entry
-	 * whose top edge is at or past `scrollTop`. Returns the index of
-	 * the LAST entry that starts at or before scrollTop — i.e. the
-	 * topmost row that's still partially visible.
-	 */
 	private _findIndexAtOffset( scrollTop: number ): number {
 		const offsets = this._offsets;
 		if ( offsets.length === 0 ) {
@@ -467,9 +325,6 @@ export class OsLog< T = unknown > extends Component {
 			);
 		}
 
-		// Stamp the visible slice into a fragment so we touch the live
-		// DOM exactly once per paint. `replaceChildren( frag )` swaps in
-		// a single layout pass.
 		const frag = document.createDocumentFragment();
 		const renderedRows: Array< { idx: number; el: HTMLElement } > = [];
 		for ( let i = startIdx; i < endIdx; i++ ) {
@@ -487,10 +342,7 @@ export class OsLog< T = unknown > extends Component {
 			row.style.right = '0';
 			if ( auto ) {
 				row.style.top = `${ this._offsets[ i ] }px`;
-				// Don't pin a height — the measured-mode whole point
-				// is letting content drive height. `min-height: 0`
-				// override on the row class would also work; using
-				// `auto` here avoids fighting the CSS default.
+
 				row.style.height = 'auto';
 			} else {
 				row.style.top = `${ i * rowHeight }px`;
@@ -505,12 +357,6 @@ export class OsLog< T = unknown > extends Component {
 			return;
 		}
 
-		// Measurement pass — read each freshly-mounted row's actual
-		// height and update the cache. If anything changed, invalidate
-		// offsets, re-paint the spacer, and re-paint the window. Guard
-		// the recursion by only re-painting when at least one row
-		// actually moved; otherwise we'd spin forever on a row whose
-		// clientHeight rounds the cached value.
 		let changed = false;
 		const fallback = this._readRowHeight();
 		for ( const { idx, el } of renderedRows ) {
@@ -524,9 +370,7 @@ export class OsLog< T = unknown > extends Component {
 		if ( changed ) {
 			this._invalidateOffsets();
 			this._ensureOffsets();
-			// Reposition the rows we already stamped — cheaper than a
-			// full re-render, and visually identical. Subsequent paints
-			// will pick up the cached heights without measurement.
+
 			for ( const { idx, el } of renderedRows ) {
 				el.style.top = `${ this._offsets[ idx ] }px`;
 			}
@@ -538,10 +382,6 @@ export class OsLog< T = unknown > extends Component {
 	}
 
 	protected render() {
-		// Static skeleton — the heavy lifting is in `_paintWindow`,
-		// which mutates `.window` directly. Keeping the skeleton
-		// declarative means the host's slot / part anchors stay
-		// inspectable without re-rendering on every append.
 		const emptyText = this.getAttribute( 'empty' ) || 'No entries';
 		return html`
 			<div class="spacer">

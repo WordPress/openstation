@@ -1,15 +1,3 @@
-/**
- * Hook-firing tests for {@link WindowManager}.
- *
- * Covers the actions the manager is responsible for emitting:
- *   - os.window.opened
- *   - os.window.focused
- *   - os.window.closed
- *   - os.arrange.cascade.starting / applied
- *
- * Window-owned hooks (minimized, maximized, fullscreen, title, …)
- * are covered in `window-lifecycle-hooks.test.ts`.
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { HOOKS } from '../../src/hooks';
@@ -47,8 +35,7 @@ describe( 'WindowManager — hook firing', async () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
 		desktop.id = 'os-area';
-		// Give the desktop a non-zero bounding box so cascade math
-		// doesn't divide-by-zero or cascade windows into nowhere.
+
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
 			value: () =>
 				( {
@@ -63,8 +50,7 @@ describe( 'WindowManager — hook firing', async () => {
 					toJSON: () => ( {} ),
 				} ) as DOMRect,
 		} );
-		// jsdom doesn't compute layout — stub clientWidth/Height so
-		// `maximize` / cascade still produce sensible numbers.
+
 		Object.defineProperty( desktop, 'clientWidth', { value: 1600, configurable: true } );
 		Object.defineProperty( desktop, 'clientHeight', { value: 900, configurable: true } );
 		document.body.appendChild( desktop );
@@ -108,9 +94,7 @@ describe( 'WindowManager — hook firing', async () => {
 		const focusedIdx = names.indexOf( 'os.window.focused' );
 		expect( openedIdx ).toBeGreaterThanOrEqual( 0 );
 		expect( focusedIdx ).toBeGreaterThanOrEqual( 0 );
-		// `createWindow` calls `focus()` before emitting `opened`, so
-		// the focus action is logged first — either order is valid so
-		// long as both fire.
+
 		expect( focusedIdx ).not.toBe( -1 );
 	} );
 
@@ -163,9 +147,6 @@ describe( 'WindowManager — hook firing', async () => {
 		const log = recordActions( hooks, MANAGER_HOOKS );
 		win.close();
 
-		// Stack is empty, so there's no survivor to re-focus. The
-		// manager must NOT synthesize a focused event for a
-		// nonexistent window.
 		const focuses = log.filter(
 			( e ) => e.name === 'os.window.focused',
 		);
@@ -179,7 +160,6 @@ describe( 'WindowManager — hook firing', async () => {
 
 		a.close();
 
-		// `a` wasn't on top; `b` keeps focus — one focused action fires.
 		const focuses = log.filter(
 			( e ) => e.name === 'os.window.focused',
 		);
@@ -232,7 +212,7 @@ describe( 'WindowManager — hook firing', async () => {
 			( ( geometry: unknown, ctx: unknown ) => {
 				seen.push( { geometry, ctx } );
 				const g = geometry as { x: number; y: number; width: number; height: number };
-				// Force the bottom-right corner with a clearly-above-min frame.
+
 				const desktop = ( ctx as { desktopRect: { width: number; height: number } } ).desktopRect;
 				return {
 					...g,
@@ -294,12 +274,7 @@ describe( 'WindowManager — hook firing', async () => {
 	} );
 
 	test( 'WINDOW_GEOMETRY filter can override the registry-pinned dimensions of a native-style open', async () => {
-		// Native windows open with explicit width/height from the
-		// registry. The filter MUST still be able to override them —
-		// `callerPinned: true` does not mean "leave it alone." This
-		// pins the regression: the source enum used to bucket this as
-		// `'explicit'` and the common "only on fresh opens" guard
-		// skipped it.
+
 		hooks.addFilter(
 			HOOKS.WINDOW_GEOMETRY,
 			'vitest/native-override',
@@ -319,11 +294,9 @@ describe( 'WindowManager — hook firing', async () => {
 			} ) as ( ...a: unknown[] ) => unknown,
 		);
 
-		// Mimic the native-window opener: pass explicit width/height
-		// from the "registry" defaults.
 		await manager.open( {
 			...openConfig( 'native-shop' ),
-			width: 1000,    // registry default — filter should override
+			width: 1000,
 			height: 700,
 			native: true,
 		} );
@@ -349,15 +322,13 @@ describe( 'WindowManager — hook firing', async () => {
 		await manager.open( openConfig( 'tinybox' ) );
 
 		const win = manager.getById( 'tinybox' );
-		// Default minWidth/minHeight come from createWindow's `?? 320` /
-		// `?? 200` fallbacks — a buggy filter cannot bypass them.
+
 		expect( win!.config.width ).toBe( 320 );
 		expect( win!.config.height ).toBe( 200 );
 	} );
 
 	test( 'WINDOW_GEOMETRY filter — partial return drops back to pre-filter values', async () => {
-		// A careless filter returns only the dimensions it cared about
-		// — the missing fields must NOT come through as NaN / undefined.
+
 		hooks.addFilter(
 			HOOKS.WINDOW_GEOMETRY,
 			'vitest/geometry-partial',
@@ -367,8 +338,8 @@ describe( 'WindowManager — hook firing', async () => {
 		await manager.open( openConfig( 'partial' ) );
 
 		const win = manager.getById( 'partial' );
-		expect( win!.config.width ).toBe( 800 ); // honored
-		// Default fallthrough: cascade x/y + 80% desktopRect for h.
+		expect( win!.config.width ).toBe( 800 );
+
 		expect( Number.isFinite( win!.config.x ) ).toBe( true );
 		expect( Number.isFinite( win!.config.y ) ).toBe( true );
 		expect( Number.isFinite( win!.config.height ) ).toBe( true );
@@ -412,7 +383,7 @@ describe( 'WindowManager — hook firing', async () => {
 				errors.push( args[ 0 ] );
 			},
 		);
-		// Silence the console.error our handler emits.
+
 		const origErr = console.error;
 		console.error = () => undefined;
 
@@ -424,7 +395,7 @@ describe( 'WindowManager — hook firing', async () => {
 
 		const win = manager.getById( 'crasher' );
 		expect( win ).toBeDefined();
-		// Pre-filter resolved geometry survives unscathed.
+
 		expect( Number.isFinite( win!.config.x ) ).toBe( true );
 		expect( win!.config.width ).toBeGreaterThanOrEqual( 320 );
 		const reported = errors.find(
@@ -439,8 +410,7 @@ describe( 'WindowManager — hook firing', async () => {
 		hooks.addFilter(
 			HOOKS.WINDOW_GEOMETRY,
 			'vitest/geometry-nonsense',
-			// Plugin author returns garbage (e.g. forgot `return` and got
-			// undefined back).
+
 			( ( () => undefined ) as ( ...a: unknown[] ) => unknown ),
 		);
 
@@ -463,8 +433,6 @@ describe( 'WindowManager — hook firing', async () => {
 			} ) as ( ...a: unknown[] ) => unknown,
 		);
 
-		// Native windows ride the same `manager.open()` path with
-		// `native: true` set on the config.
 		await manager.open( {
 			...openConfig( 'jorvy' ),
 			native: true,
@@ -474,9 +442,7 @@ describe( 'WindowManager — hook firing', async () => {
 	} );
 
 	test( 'WINDOW_GEOMETRY ctx.hasSavedGeometry is true when localStorage has saved geometry', async () => {
-		// Pre-seed the per-baseId geometry store the same way the
-		// native-window persistence listener does — see
-		// `src/window-manager/native-window-geometry.ts`.
+
 		const STORAGE_KEY = 'desktop-mode-native-window-geometry';
 		const saved = JSON.stringify( {
 			'restoreme': { x: 100, y: 100, width: 700, height: 500, state: 'normal' },
@@ -484,7 +450,7 @@ describe( 'WindowManager — hook firing', async () => {
 		try {
 			window.localStorage.setItem( STORAGE_KEY, saved );
 		} catch {
-			/* jsdom */
+
 		}
 
 		const seen: Array< { hasSavedGeometry: boolean; callerPinned: boolean } > = [];
@@ -502,7 +468,7 @@ describe( 'WindowManager — hook firing', async () => {
 		try {
 			window.localStorage.removeItem( STORAGE_KEY );
 		} catch {
-			/* jsdom */
+
 		}
 
 		expect( seen ).toHaveLength( 1 );
@@ -521,14 +487,14 @@ describe( 'WindowManager — hook firing', async () => {
 				...( geometry as Record< string, unknown > ),
 				width: 500,
 			} ) ) as ( ...a: unknown[] ) => unknown,
-			5, // earlier priority
+			5,
 		);
 		hooks.addFilter(
 			HOOKS.WINDOW_GEOMETRY,
 			'vitest/geometry-second',
 			( ( geometry: unknown ) => {
 				const g = geometry as { width: number };
-				// Sees the upstream filter's value, doubles it.
+
 				return { ...g, width: g.width * 2 };
 			} ) as ( ...a: unknown[] ) => unknown,
 			10,

@@ -1,21 +1,9 @@
-/**
- * Users app — the table: the column descriptors, the cell renderers,
- * the presence filter and its client-side slice.
- *
- * Cells render inside `<os-table>`'s shadow DOM, which document
- * stylesheets never reach, so they carry inline styles (palette
- * tokens with their pre-brand literals as fallbacks). Every cap-gated
- * affordance reads the config (`canEdit`) AND the per-row
- * `openstation_can_edit` flag; the flags are UX hints — the server
- * re-checks every action.
- */
-
 import { __, copyText, formatDate } from '@openstation/app';
 import { isMobileStamped } from '../../../src/mode/stamp';
 import { applyAvatarSrc, pickAvatarUrl } from '../../../src/ui/util/avatar-resolve';
 import { makeRowActionButton } from '../../../src/ui/util/row-action-button';
 import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
-// os-preserve excludes the table from the runtime component loader.
+
 import '../../../src/ui/components/os-table/os-table';
 import '../../../src/ui/components/os-avatar/os-avatar';
 import '../../../src/ui/components/os-icon/os-icon';
@@ -24,7 +12,6 @@ import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table
 import { relativeTimeNode, serverDateMs } from '../profile/client';
 import type { ListConfig, RowActions, UserListItem } from './types';
 
-/** The presence filter above the table — a client-side slice of the page. */
 export const STATUS_SEGMENTS = (): Array< { value: string; label: string } > => [
 	{ value: '', label: __( 'All' ) },
 	{ value: 'online', label: __( 'Online' ) },
@@ -49,21 +36,14 @@ export function applyStatusFilter( rows: UserListItem[], status: string ): UserL
 	return rows;
 }
 
-/** The columns a phone shows — a card per row, labelled lines under the name. */
 const MOBILE_COLUMN_KEYS = new Set< string >( [ 'identity', 'email', 'role', 'last_login', 'actions' ] );
 
-/** The table's sortable columns → the `orderby` values `wp/v2/users` accepts. */
 export const SORT_KEYS: Record< string, string > = {
 	identity: 'name',
 	email: 'email',
 	registered: 'registered_date',
 };
 
-/**
- * What a row paints, as one string: the cells are memoised per row
- * and rebuilt only when this changes — a profile saved elsewhere
- * repaints its row without flickering the rest.
- */
 export function rowKey( row: UserListItem ): string {
 	const s = row.openstation_user_stats;
 	return [
@@ -80,10 +60,6 @@ export function rowKey( row: UserListItem ): string {
 	].join( '|' );
 }
 
-/**
- * Per-(rowId, columnKey) cell-node cache, so selection / pagination
- * repaints don't rebuild every avatar image (the avatar blink).
- */
 export type UserCellCache = Map< string, Node >;
 
 function memo( cache: UserCellCache, id: number, key: string, build: () => Node ): Node {
@@ -97,7 +73,6 @@ function memo( cache: UserCellCache, id: number, key: string, build: () => Node 
 	return node;
 }
 
-/** Drop the cached cells of one row — its payload changed. */
 export function forgetRow( cache: UserCellCache, id: number ): void {
 	for ( const k of Array.from( cache.keys() ) ) {
 		if ( k.startsWith( `${ id }::` ) ) {
@@ -114,8 +89,6 @@ function buildIdentityCell( row: UserListItem, actions: RowActions ): HTMLElemen
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'display:flex;align-items:center;gap:10px;min-width:0;';
 
-	// Presence is authoritative from the REST row (it already includes
-	// the per-user heartbeat) — no `user-id` auto-subscribe here.
 	const avatar = document.createElement( 'os-avatar' );
 	avatar.setAttribute( 'size', '32' );
 	if ( row.name ) {
@@ -159,12 +132,10 @@ function buildIdentityCell( row: UserListItem, actions: RowActions ): HTMLElemen
 	return cell;
 }
 
-/** Open the User Edit window on this person; say so when the door is missing. */
 export function openProfile( userId: number, actions: RowActions ): void {
 	openUserEditWindow( userId, {
 		source: 'users-window/row-click',
 		fallback: () => {
-			// eslint-disable-next-line no-console
 			console.error( '[openstation:desktop-mode-users] the User Edit window is not registered for this user.' );
 			actions.toast( __( 'Profile window not registered — see console.' ) );
 		},
@@ -244,8 +215,7 @@ function buildStatsCell( row: UserListItem ): HTMLElement {
 		const span = document.createElement( 'span' );
 		span.style.cssText = 'display:inline-flex;align-items:center;gap:3px;';
 		span.title = label;
-		// `<os-icon>` works inside any shadow tree — a bare dashicons
-		// class renders blank in the table cell's shadow.
+
 		const ic = document.createElement( 'os-icon' );
 		ic.setAttribute( 'name', dashicon );
 		ic.setAttribute( 'size', '14' );
@@ -266,7 +236,6 @@ function buildStatsCell( row: UserListItem ): HTMLElement {
 	return cell;
 }
 
-/** A ticking "3 days ago" over a time, or a muted fallback word. */
 function timeCell( value: number | string | null | undefined, never: string ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'font-size:13px;font-variant-numeric:tabular-nums;';
@@ -289,9 +258,7 @@ function buildActionsCell( row: UserListItem, cfg: ListConfig, actions: RowActio
 		cell.style.color = MUTED;
 		return cell;
 	}
-	// The Recycle Bin's row button, so the two lists share one face
-	// and one colour chain. `<os-icon>` works inside the table's
-	// shadow tree where a bare dashicons class renders blank.
+
 	const mk = ( label: string, dashicon: string, fn: () => void ): HTMLElement => {
 		const ic = document.createElement( 'os-icon' );
 		ic.setAttribute( 'name', dashicon );
@@ -305,7 +272,6 @@ function buildActionsCell( row: UserListItem, cfg: ListConfig, actions: RowActio
 	return cell;
 }
 
-/** The column descriptors, for a desk or a phone. */
 export function buildColumns(
 	cache: UserCellCache,
 	cfg: ListConfig,
@@ -360,8 +326,7 @@ export function buildColumns(
 			render: ( _v, row ) => memo( cache, row.id, 'registered', () => timeCell( row.registered_date, '—' ) ),
 		},
 	];
-	// Quick actions — only when the viewer has any edit cap; the cell
-	// falls back to "—" per row when `openstation_can_edit` is false.
+
 	if ( cfg.canEdit === true ) {
 		cols.push( {
 			key: 'actions',

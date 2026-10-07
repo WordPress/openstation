@@ -1,11 +1,3 @@
-/**
- * The App Framework's developer-experience layer: the guards that
- * turn the two silent first-hour failures into console warnings (an
- * os-action nothing implements; a state key the schema doesn't
- * declare), the per-window dispatch trace, the shadow-piercing
- * renderedText() test helper, and the client-API queue that makes
- * client views writable outside this repo.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSession, setSessionDebug } from '../../src/app-runtime/session';
 import { renderedText } from '../../src/app-runtime/testing';
@@ -62,15 +54,14 @@ describe( 'the dev guards', () => {
 			windowId: 'w1',
 			host: host( '<button os-action="svae">Save</button><button os-action="save">OK</button>' ),
 		} );
-		// finishRender runs after a local repaint; provoke one via the
-		// morph path by dispatching mount.
+
 		return session.dispatch( 'mount' ).then( async () => {
 			await flush();
 			const typoWarnings = warn.mock.calls.filter( ( c ) =>
 				String( c[ 0 ] ).includes( 'os-action="svae"' ),
 			);
 			expect( typoWarnings ).toHaveLength( 1 );
-			// A declared action and the built-ins stay silent.
+
 			expect(
 				warn.mock.calls.some( ( c ) => String( c[ 0 ] ).includes( '"save"' ) ),
 			).toBe( false );
@@ -169,7 +160,7 @@ describe( 'renderedText', () => {
 		expect( text ).toContain( 'Events' );
 		expect( text ).toContain( 'today' );
 		expect( text ).toContain( 'plain' );
-		// The very hole this helper exists for:
+
 		expect( hostEl.textContent ).not.toContain( '1,204' );
 		hostEl.remove();
 	} );
@@ -181,18 +172,18 @@ describe( 'the client-API queue', () => {
 		const early = vi.fn();
 		( window as unknown as { openStationAppsPending?: unknown } ).openStationAppsPending = [ early ];
 		const { publishClientApi } = await import( '../../src/app-runtime/index' );
-		// The module's own load already drained the queue.
+
 		expect( early ).toHaveBeenCalledTimes( 1 );
 		const api = early.mock.calls[ 0 ][ 0 ] as Record< string, unknown >;
 		expect( typeof api.defineApp ).toBe( 'function' );
 		expect( typeof api.html ).toBe( 'function' );
 		expect( typeof api.createPagedList ).toBe( 'function' );
-		// A push after the runtime loaded runs synchronously.
+
 		const late = vi.fn();
 		( window as unknown as { openStationAppsPending: { push: ( fn: unknown ) => void } } )
 			.openStationAppsPending.push( late );
 		expect( late ).toHaveBeenCalledTimes( 1 );
-		// Re-publishing is idempotent.
+
 		publishClientApi();
 		expect( early ).toHaveBeenCalledTimes( 1 );
 	} );

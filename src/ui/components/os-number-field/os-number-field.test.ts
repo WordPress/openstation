@@ -37,9 +37,6 @@ describe( '<os-number-field>', () => {
 		let fired = 0;
 		el.addEventListener( 'os-input-change', () => fired++ );
 
-		// Mid-typing "abc" wouldn't parse as a number; we simulate by
-		// setting an empty string (native number inputs reject letters
-		// anyway but jsdom is permissive).
 		input.value = '';
 		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
 		expect( fired ).toBe( 0 );

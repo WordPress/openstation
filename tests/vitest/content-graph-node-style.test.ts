@@ -1,17 +1,3 @@
-/**
- * Content Graph — node body style contract.
- *
- * Pins the two things the ⋯ "Show pins" toggle depends on: that the
- * scene defaults to disc bodies, and that `setNodeStyle()` both flips
- * the style and invalidates every cached disc signature so the next
- * frame actually repaints. Without that invalidation the toggle would
- * be a no-op on a settled graph — the discs are painted once and then
- * skipped every frame, which is the whole point of the cache.
- *
- * Renderer-free: the scene constructor builds no Pixi objects, all
- * the heavy work lives in `mount()`.
- */
-
 import { describe, expect, test } from 'vitest';
 import { GraphScene, type NodeStyle } from '../../src/content-graph/scene';
 import type { PostTypeDescriptor } from '../../src/content-graph/types';
@@ -33,9 +19,6 @@ const POST_TYPES: PostTypeDescriptor[] = [
 	},
 ];
 
-// Private state reached through a structural cast — same approach as
-// the grouping test, so the contract stays testable without widening
-// the public API.
 interface SceneInternals {
 	postTypeColor: Map< string, number >;
 	nodeViews: Map< number, { discKey: string } >;
@@ -57,10 +40,7 @@ describe( 'node style', () => {
 	} );
 
 	test( 'honours the style passed at construction', () => {
-		// The host reads the persisted preference before the scene
-		// exists, so the very first paint must already be right —
-		// a disc flashing before the pins appear would be a visible
-		// regression for anyone who picked pins.
+
 		expect( makeScene( 'icon' ).getNodeStyle() ).toBe( 'icon' );
 	} );
 
@@ -86,8 +66,7 @@ describe( 'node style', () => {
 	} );
 
 	test( 'setNodeStyle to the current style leaves the cache alone', () => {
-		// A redundant call must not force a full repaint of every
-		// disc on the next frame.
+
 		const scene = makeScene();
 		const internals = scene as unknown as SceneInternals;
 		internals.nodeViews.set( 1, { discKey: 'painted' } );

@@ -1,57 +1,9 @@
-/**
- * Vite configuration for the WP OpenStation plugin.
- *
- * Builds the TypeScript entries listed in the `TARGETS` map below into
- * IIFE bundle pairs under `assets/js/`:
- *
- *   `<fileBase>.js`     (development, unminified — loaded when SCRIPT_DEBUG is true)
- *   `<fileBase>.min.js` (production, esbuild-minified — loaded otherwise)
- *
- * Which entry the current invocation builds is controlled by the
- * `OPENSTATION_TARGET` env var (`desktop` is the default). `npm run build`
- * invokes every target — one `build:<target>` script per entry in
- * `package.json`, each running Vite twice (dev + prod mode).
- * `npm run dev` watches and rebuilds the unminified `desktop` bundle
- * only — other targets need a one-shot `npm run build:<target>`.
- *
- * **Source policy:** `assets/js/*.js` is build output. NEVER hand-edit
- * those files — only edit the TS sources under `src/` and run a build.
- *
- * @since 0.5.0
- */
-
-import { defineConfig } from 'vite';
+import { defineConfig, transformWithEsbuild } from 'vite';
+import ts from 'typescript';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { visualizer } from 'rollup-plugin-visualizer';
 
-/**
- * Strip `static help = { … };` blocks from production builds.
- *
- * Every `<os-*>` component class declares a `static help = { … }`
- * descriptor — title, summary, props/slots/parts/cssProps tables,
- * examples, status, since. ~82 kB of plain documentation across the
- * 47 components in the kit.
- *
- * That descriptor has exactly one runtime consumer: the OS Settings
- * → Help tab (`src/settings/sections/help.ts`), which iterates
- * `OS_COMPONENT_TAGS` and renders the metadata. The same module
- * already handles components without a descriptor — it falls back
- * to a minimal stub built from `static props`. So in production we
- * can drop the descriptor from the bundle entirely and the help
- * screen still works, just without the rich copy.
- *
- * Dev builds keep `static help` intact so live exploration and the
- * component help screen stay fully informative during development.
- * Production builds get a one-liner: `static help = void 0;`.
- *
- * Conservative parser:
- *   - Only `.ts` files under `src/ui/components/` are inspected.
- *   - Block must begin with the exact source `\tstatic help = {`
- *     to avoid false-positives elsewhere.
- *   - Strings and nested object literals are balanced before the
- *     replacement; the trailing `;` is consumed if present.
- */
 function stripStaticHelpInProd( enabled ) {
 	if ( ! enabled ) {
 		return null;
@@ -108,12 +60,7 @@ function stripStaticHelpInProd( enabled ) {
 					i++;
 				}
 			}
-			// Trailing tokens: optional ` as const` (TypeScript widening
-			// guard some component classes apply to the descriptor) and
-			// the closing `;`. Walk forward until the next `;` or EOL,
-			// whichever comes first — we control the source shape so a
-			// stray `;` inside the descriptor would already have been
-			// consumed by the string/object scanner above.
+
 			let blockEnd = i;
 			while ( blockEnd < code.length && code[ blockEnd ] !== ';' && code[ blockEnd ] !== '\n' ) {
 				blockEnd++;
@@ -128,49 +75,8 @@ function stripStaticHelpInProd( enabled ) {
 	};
 }
 
-/**
- * Minify the contents of `css\`...\`` tagged-template literals.
- *
- * Esbuild's JS minifier treats template literals as opaque string
- * data — it won't touch their content even when that content is CSS.
- * Every `*.styles.ts` file in `src/ui/components/` defines its
- * stylesheet inside one of these templates, so its CSS comments and
- * indentation ship into the bundle byte-for-byte. This transform
- * runs at the Vite `transform` stage (before esbuild) and rewrites
- * each `css\`…\`` body with a minimal CSS minifier: strip `/* … *\/`
- * block comments, collapse runs of whitespace, drop whitespace
- * adjacent to `{ } : ; , >`.
- *
- * Conservative on purpose:
- *   - Only `.ts` files are inspected.
- *   - Only tagged templates whose tag is the bare identifier `css`
- *     are touched (no `someObj.css\`\``, no `customCss\`\``).
- *   - Interpolation slots (`${…}`) are preserved verbatim — we
- *     minify the literal segments between them and leave the
- *     expression text alone.
- *   - Disabled in dev so source still maps cleanly during debug.
- */
 function minifyCssTemplates() {
-	// Minify one CSS chunk *between* template interpolations.
-	//
-	// Crucially, we do NOT `.trim()` here — chunks that end right
-	// before a `${…}` slot need to keep their trailing whitespace,
-	// and chunks that start right after a `${…}` slot need to keep
-	// their leading whitespace. Otherwise a literal like
-	//
-	//   calc( 100% - ${ CHEVRON_W } )
-	//
-	// minifies to `calc(100% -${CHEVRON_W} )` and resolves at
-	// runtime to `calc(100% -10px)`, which CSS rejects because `-`
-	// in `calc()` requires whitespace on both sides (without it,
-	// `-10px` parses as a single negative-length token). The
-	// `os-crumb-chain` chevron polygon broke exactly this way.
-	//
-	// We still collapse adjacent whitespace and strip it around
-	// punctuation that doesn't care (`{ } : ; , >`), so the
-	// per-chunk minification is unchanged everywhere else. The
-	// leading/trailing whitespace of the WHOLE template gets
-	// trimmed once at the call site.
+
 	const minifyCssChunk = ( text ) =>
 		text
 			.replace( /\/\*[\s\S]*?\*\//g, '' )
@@ -194,9 +100,7 @@ function minifyCssTemplates() {
 			let i = 0;
 			let changed = false;
 			while ( i < code.length ) {
-				// Look for the literal `css\`` not preceded by an
-				// identifier character — avoids matching `.css\``,
-				// `myCss\``, etc.
+
 				const m = code.indexOf( 'css`', i );
 				if ( m < 0 ) {
 					out += code.slice( i );
@@ -204,12 +108,12 @@ function minifyCssTemplates() {
 				}
 				const prev = m === 0 ? '' : code[ m - 1 ];
 				if ( /[A-Za-z0-9_$.]/.test( prev ) ) {
-					// Not the bare `css` tag — keep walking.
+
 					out += code.slice( i, m + 4 );
 					i = m + 4;
 					continue;
 				}
-				out += code.slice( i, m + 4 ); // up to and including ``css``
+				out += code.slice( i, m + 4 );
 				let j = m + 4;
 				let segStart = j;
 				let interpStart = -1;
@@ -253,8 +157,7 @@ function minifyCssTemplates() {
 					}
 				}
 				if ( ! closed ) {
-					// Unterminated template (shouldn't happen on valid TS,
-					// but be defensive) — keep the original rest.
+
 					out += code.slice( m + 4 );
 					i = code.length;
 				}
@@ -268,9 +171,7 @@ const TARGETS = {
 	desktop: {
 		entry:    'src/desktop.ts',
 		fileBase: 'desktop',
-		// Exports from the entry land on `window.openStation` — a no-op
-		// today (no external consumers) but leaves the door open for
-		// tests or devtools probing.
+
 		iifeName: 'openStation',
 	},
 	'iframe-bridge': {
@@ -278,332 +179,187 @@ const TARGETS = {
 		fileBase: 'iframe-bridge',
 		iifeName: 'openStationIframeBridge',
 	},
-	// Chromeless bridge — the iframe side of every window. Plain JS
-	// rather than TypeScript because it is a verbatim lift of the
-	// nowdoc that `includes/render/chromeless-bridge.php` used to
-	// inline into every window's HTML (~125 KB, unminified, in the one
-	// document no cache can help with). Building it means it is
-	// fetched once and then served from cache for every later window.
-	// Per-request values arrive on `window.__osChromelessData`.
+
 	'chromeless-bridge': {
 		entry:    'src/chromeless-bridge.js',
 		fileBase: 'chromeless-bridge',
 		iifeName: 'openStationChromelessBridge',
 	},
-	// Gutenberg drop-receiver — tiny iframe-side bundle enqueued only
-	// on post.php / post-new.php. Listens for `os-drop`
-	// messages from the shell and inserts the corresponding block via
-	// `wp.data.dispatch('core/block-editor').insertBlocks(...)`. See
-	// `src/drag/iframe-drop-targets.ts` for the shell side.
+
 	'gutenberg-drop-receiver': {
 		entry:    'src/gutenberg-drop-receiver.ts',
 		fileBase: 'gutenberg-drop-receiver',
 		iifeName: 'openStationGutenbergDropReceiver',
 	},
-	// The Recycle Bin window is an App Framework app (`apps/trash/`),
-	// built by `build:apps`; the closed tile's art is the one piece the
-	// shell keeps (`src/desktop-files/recycle-bin-icon-state.ts`).
-	// Station Home is an App Framework app too (`apps/station-home/`),
-	// a server view with no bundle at all; the Dashboard URL matcher
-	// it needs in the shell is `src/open-targets/station-home-url.ts`.
-	// Posts, Pages, Users, User Edit, Plugins and Comments are App
-	// Framework apps (`apps/posts/`, `apps/pages/`, `apps/users/`,
-	// `apps/user-edit/`, `apps/plugins/`, `apps/comments/`), built by
-	// `build:apps` into `assets/js/apps/<name>[.min].js`.
-	// WooCommerce integration for the WP Explorer app — subscribes to
-	// the app's `preview-extras` / `group-extras` actions to paint
-	// merchant panels. Loaded as the app window's companion only when
-	// WooCommerce is active, so stores without it ship none of this.
+
 	'my-wordpress-woocommerce': {
 		entry:    'src/plugins/my-wordpress-woocommerce/index.ts',
 		fileBase: 'my-wordpress-woocommerce',
 		iifeName: 'openStationMyWordpressWoo',
 	},
-	// Content Graph — PixiJS-driven force-directed map of every post
-	// and page (and any opt-in public CPT) wired together by their
-	// internal hyperlinks. Lazy-loads PixiJS via the same module
-	// registry the wallpapers + the Posts app's mindmap use. Registers a
-	// render callback on `window.openStationNativeWindows['desktop-mode-content-graph']`.
+
 	'content-graph': {
 		entry:    'src/content-graph/index.ts',
 		fileBase: 'content-graph',
 		iifeName: 'openStationContentGraph',
 	},
-	// App Framework runtime — the ONE bundle every `.os.php` window
-	// shares. Mounts the window, dispatches `os-action` triggers to
-	// the app's REST endpoint, morphs the returned markup into place,
-	// performs effects, and wires the title-bar buttons / ⋯ rows the
-	// PHP manifest declared. Registers a render callback on
-	// `window.openStationNativeWindows[<id>]` for every app config it
-	// finds. Apps ship no JavaScript of their own — Code Blue
-	// (`apps/code-blue/`) is the shipped example.
+
 	'app-runtime': {
 		entry:    'src/app-runtime/index.ts',
 		fileBase: 'app-runtime',
 		iifeName: 'openStationAppRuntime',
 	},
-	// `<os-user-profile>` — the profile surface the Users app's Profile
-	// tab and the User Edit app both mount. One bundle registered as a
-	// companion script of both windows (see `apps/users/profile/`)
-	// instead of a copy compiled into each app's client view.
+
 	'user-profile': {
 		entry:    'apps/users/profile/index.ts',
 		fileBase: 'apps/user-profile',
 		iifeName: 'openStationUserProfile',
 	},
-	// Games hub — launcher grid + scoreboard + challenges client.
-	// Registers a render callback on
-	// `window.openStationNativeWindows['desktop-mode-games']`; the
-	// games registry itself is shared cross-bundle via
-	// `createSharedStore`. `<os-*>` tags come from the main bundle.
+
 	games: {
 		entry:    'src/games/entry.ts',
 		fileBase: 'games',
 		iifeName: 'openStationGames',
 	},
-	// Inkfall — the built-in typing game. Lazy-loaded by the games
-	// framework on first launch; publishes its GameDef on
-	// `window.openStationGames.inkfall`. Loads PixiJS through the
-	// module registry like content-graph / the canvas wallpapers.
+
 	'game-inkfall': {
 		entry:    'src/games/inkfall/index.ts',
 		fileBase: 'game-inkfall',
 		iifeName: 'openStationGameInkfall',
 	},
-	// Alphabet Soup — the built-in daily word search. Seeded by the
-	// current date (dd-mm-yyyy) so the puzzle is identical worldwide;
-	// lazy-loaded by the games framework on first launch; publishes
-	// its GameDef on `window.openStationGames['alphabet-soup']`.
-	// Loads PixiJS through the module registry like Inkfall.
+
 	'game-alphabet-soup': {
 		entry:    'src/games/alphabet-soup/index.ts',
 		fileBase: 'game-alphabet-soup',
 		iifeName: 'openStationGameAlphabetSoup',
 	},
-	// Service worker — own bundle so it can be served from a stable
-	// path with the `Service-Worker-Allowed: /` header. The IIFE
-	// wrapper is harmless inside a SW context: top-level
-	// `self.addEventListener` calls happen synchronously when the
-	// IIFE runs, which is exactly what the SW spec wants.
+
 	'pwa-sw': {
 		entry:    'src/pwa/sw.ts',
 		fileBase: 'sw',
 		iifeName: 'openStationServiceWorker',
 	},
-	// AI Assistant — moved out of the main bundle in 0.8.4. The
-	// main `desktop[.min].js` bundle ships a tiny `AiAssistantStub`
-	// matching the public `wp.os.ai` contract; this bundle
-	// holds the 38 kB implementation and is `<script>`-injected by
-	// the stub on the user's first invocation. Publishes
-	// `window.openStationCreateAiAssistant`.
+
 	'ai-assistant': {
 		entry:    'src/ai-assistant/entry.ts',
 		fileBase: 'ai-assistant',
 		iifeName: 'openStationAiAssistant',
 	},
-	// Animated WP Logo wallpaper — built-in canvas wallpaper moved
-	// out of the main bundle in 0.8.4. PHP registers the wallpaper
-	// via `openstation_register_wallpaper()` with a `script` handle;
-	// the shell's wallpaper sync loads this bundle only when the
-	// user selects (or hovers in OS Settings) the wallpaper. The
-	// bundle's only side effect is publishing the `WallpaperDef` on
-	// `window.openStationWallpapers['wp-animated-logo']`.
+
 	'animated-logo-wallpaper': {
 		entry:    'src/plugins/animated-logo-wallpaper/index.ts',
 		fileBase: 'animated-logo-wallpaper',
 		iifeName: 'openStationAnimatedLogoWallpaper',
 	},
-	// Living Tree wallpaper — built-in canvas wallpaper that renders the
-	// site as a growing plant organism (posts=leaves, comments=flowers,
-	// tags=lianas, users=fireflies, traffic=wind). PixiJS-driven, lazy-
-	// loaded by the wallpaper server-sync when selected. Publishes the
-	// `WallpaperDef` on `window.openStationWallpapers['wp-living-tree']`.
-	// See docs/living-tree-algorithm.md.
+
 	'living-tree-wallpaper': {
 		entry:    'src/plugins/living-tree-wallpaper/index.ts',
 		fileBase: 'living-tree-wallpaper',
 		iifeName: 'openStationLivingTreeWallpaper',
 	},
-	// Snow wallpaper — built-in canvas wallpaper: PixiJS snowfall that
-	// accumulates on window tops (via `wp.os.getWallpaperSurfaces`)
-	// and melts away. Lazy-loaded by the wallpaper server-sync when
-	// selected. Publishes the `WallpaperDef` on
-	// `window.openStationWallpapers['wp-snow']`; first built-in
-	// consumer of the `renderConfig` wallpaper-settings dialog.
+
 	'snow-wallpaper': {
 		entry:    'src/plugins/snow-wallpaper/index.ts',
 		fileBase: 'snow-wallpaper',
 		iifeName: 'openStationSnowWallpaper',
 	},
-	// Mio — the desk companion: a PixiJS soft-body blob with a
-	// chroma neon outline that floats over the wallpaper, falls onto
-	// nearby windows, watches the pointer, and can be dragged around.
-	// Off by default and toggled from Mio's dock tile; the
-	// main bundle only carries `src/mio/controller.ts`, which
-	// script-injects this bundle on the first switch-on. Publishes
-	// `window.openStationMountMio`. See docs/mio.md.
+
 	mio: {
 		entry:    'src/mio/entry.ts',
 		fileBase: 'mio',
 		iifeName: 'openStationMio',
 	},
-	// Item-visibility menu — the right-click "hide from dock /
-	// desktop" menu + plugin provenance actions. Pure interaction UI
-	// that can never be on screen at first paint; injected by the
-	// main bundle's `src/item-visibility-menu-loader.ts` shim on the
-	// first right-click. Publishes
-	// `window.openStationItemVisibilityMenu`.
+
 	'item-visibility-menu': {
 		entry:    'src/item-visibility-menu-entry.ts',
 		fileBase: 'item-visibility-menu',
 		iifeName: 'openStationItemVisibilityMenu',
 	},
-	// Workspace wizard — the modal behind the overview bar's `+` and a
-	// tile's Edit. The only surface in the shell that needs
-	// `<os-modal>`, `<os-steps>`, `<os-card>` and the picker kit at
-	// once, and one most sessions never open; injected by the main
-	// bundle's `src/workspaces/wizard-loader.ts` shim on the first
-	// open. Publishes `window.openStationWorkspaceWizard`.
+
 	'workspace-wizard': {
 		entry:    'src/workspaces/wizard-entry.ts',
 		fileBase: 'workspace-wizard',
 		iifeName: 'openStationWorkspaceWizardBundle',
 	},
-	// Release card — the vinyl core-update announcement (card DOM +
-	// animation CSS + art resolver). Only needed when an update is
-	// pending; injected by `maybeShowUpdate()` in
-	// `src/update-notice.ts` after it confirms there is something to
-	// announce. Publishes `window.openStationReleaseCard`.
+
 	'release-card': {
 		entry:    'src/release-card-entry.ts',
 		fileBase: 'release-card',
 		iifeName: 'openStationReleaseCardBundle',
 	},
-	// Shell tour — the five first-boot coachmarks (`<os-coachmark>` +
-	// the step driver). Only a user's first boot, a reset or "Take the
-	// tour" needs it; injected by `src/shell-tour/loader.ts` from the
-	// main bundle. Publishes `window.openStationShellTour`.
+
 	'shell-tour': {
 		entry:    'src/shell-tour/entry.ts',
 		fileBase: 'shell-tour',
 		iifeName: 'openStationShellTourBundle',
 	},
-	// Deactivation feedback — the one-question dialog shown when an
-	// admin deactivates OpenStation. Enqueued on `plugins.php` (classic
-	// and chromeless, where no `<os-*>` kit exists, hence plain DOM)
-	// and lazy-loaded by the native Plugins app. Publishes
-	// `window.openStationDeactivationFeedback`.
+
 	'deactivation-feedback': {
 		entry:    'src/deactivation-feedback/entry.ts',
 		fileBase: 'deactivation-feedback',
 		iifeName: 'openStationDeactivationFeedbackBundle',
 	},
-	// Usage feedback — the one-time "how is it going?" prompt card and
-	// the short optional form it opens. The main bundle keeps only the
-	// gate; this holds the card, the modal and its field kit, and is
-	// injected by `src/usage-feedback/loader.ts` for a user the server
-	// found eligible. Publishes `window.openStationUsageFeedback`.
+
 	'usage-feedback': {
 		entry:    'src/usage-feedback/entry.ts',
 		fileBase: 'usage-feedback',
 		iifeName: 'openStationUsageFeedbackBundle',
 	},
-	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
-	// Components for action-triggered overlays that aren't constructed
-	// at first paint. Preloaded by main after first paint via
-	// `preloadShellOverlays( … )` so the first toast / osConfirm /
-	// right-click feels instant. Side-effect-only bundle: each leaf
-	// import runs its `defineComponent( … )` call at top level.
+
 	'shell-overlays': {
 		entry:    'src/shell-overlays/entry.ts',
 		fileBase: 'shell-overlays',
 		iifeName: 'openStationShellOverlays',
 	},
-	// OS-file drop machinery — dialog, progress HUD, upload pipeline.
-	// Loaded by the sentinel in `src/os-file-drop/sentinel.ts` on the
-	// first dragenter that carries files; a drop can land before the
-	// load resolves, so the sentinel captures and the bundle replays.
+
 	'file-drop': {
 		entry:    'src/os-file-drop/entry.ts',
 		fileBase: 'file-drop',
 		iifeName: 'openStationFileDrop',
 	},
-	// Click-opened desktop-files surfaces: the share-settings /
-	// share-invite modals and the URL-file dialog. Loaded on first
-	// use by `src/desktop-files/overlays-loader.ts`. (The file
-	// PREVIEW pane deliberately stays in the shell for now — see the
-	// folder-window renderer note in `built-in-openers.ts`.)
+
 	'files-overlays': {
 		entry:    'src/desktop-files/overlays-entry.ts',
 		fileBase: 'files-overlays',
 		iifeName: 'openStationFilesOverlays',
 	},
-	// Pinned desktop notes. Presence-gated: the sentinel
-	// (`src/notes/sentinel.ts`) loads it when the user HAS notes, and
-	// on the actions that would create the first one.
+
 	'notes': {
 		entry:    'src/notes/entry.ts',
 		fileBase: 'notes',
 		iifeName: 'openStationNotes',
 	},
-	// Dock hover-submenu flyout. Loaded on the first pointer entering
-	// a dock rail — see `src/dock-constellation/sentinel.ts`.
+
 	'dock-constellation': {
 		entry:    'src/dock-constellation/entry.ts',
 		fileBase: 'dock-constellation',
 		iifeName: 'openStationDockConstellation',
 	},
-	// Window-link visuals: the render host + the built-in svg-splines
-	// renderer. The relations ENGINE stays in the shell (it tracks
-	// identities continuously); the visuals load on the first
-	// `os.window-links.groups-changed` that has something to draw.
+
 	'window-link-visuals': {
 		entry:    'src/window-links/visuals-entry.ts',
 		fileBase: 'window-link-visuals',
 		iifeName: 'openStationWindowLinkVisuals',
 	},
-	// Full `<os-*>` kit — every tag in `OS_COMPONENT_TAGS`, for
-	// `wp.os.loadComponents()`. The shell never loads this itself:
-	// its own bundles import the components they render, and this
-	// bundle exists for code that CAN'T import — a third-party
-	// plugin shipped as a zip, with no path to this repo at build
-	// time. Overlaps the eagerly-registered subset on purpose; a
-	// lazy bundle cannot import from `desktop.min.js`, and
-	// `defineComponent()` no-ops on an already-defined tag.
+
 	components: {
 		entry:    'src/ui/components/entry.ts',
 		fileBase: 'os-components',
 		iifeName: 'openStationComponentKit',
 	},
-	// Window system (Stage 11) — the `Window` class + DOM / pointer
-	// / tab / chrome helpers. Largest single module in the pre-0.8.4
-	// main bundle (~68 kB pre-min just for `window/index.ts`).
-	// Loaded on demand by the first call to
-	// `WindowManager.open()` / `openNew()` — both async since
-	// 0.8.4. Publishes `window.openStationWindowSystem`. Pre-loaded
-	// by `desktop.ts` after first paint via
-	// `preloadWindowSystem( … )` so any "user clicks the first icon"
-	// click typically lands on the sync fast path.
+
 	'window-system': {
 		entry:    'src/window-system/entry.ts',
 		fileBase: 'window-system',
 		iifeName: 'openStationWindowSystemBundle',
 	},
-	// The phone layer — home grid, top bar, tab bar, app switcher.
-	// Fetched by `src/mobile/loader.ts` only when the mode resolves
-	// to `mobile`; a desktop never loads it.
+
 	mobile: {
 		entry:    'src/mobile/entry.ts',
 		fileBase: 'mobile',
 		iifeName: 'openStationMobileBundle',
 	},
-	// Heartbeat widget — built-in PixiJS widget moved out of the
-	// main bundle in 0.18.0. Same registration shape third-party
-	// widgets use: PHP declares it via `openstation_register_widget()`
-	// with the `os-heartbeat-widget` script handle; the
-	// shell's widgets server-sync loads the bundle on demand. The
-	// bundle ships JS + a co-located `styles.css` chunk so widget
-	// chrome stays out of the main `desktop.css`.
+
 	'widget-heartbeat': {
 		entry:    'src/plugins/heartbeat-widget/index.ts',
 		fileBase: 'widget-heartbeat',
@@ -640,30 +396,19 @@ const TARGETS = {
 		fileBase: 'widget-starter',
 		iifeName: 'openStationStarterWidget',
 	},
-	// Note Pad widget — the pinned-notes composer. Ships JS + a
-	// co-located `styles.css` chunk (`widget-notes[.min].css`) that
-	// `includes/widgets/widget-notes.php` registers.
+
 	'widget-notes': {
 		entry:    'src/plugins/notes-widget/index.ts',
 		fileBase: 'widget-notes',
 		iifeName: 'openStationNotesWidget',
 	},
-	// Focus Timer widget — a countdown that links to a window and
-	// shakes it (via Window.shake()) with an alarm when time is up.
-	// Ships JS + a co-located `styles.css` chunk (widget-focus-timer[.min].css)
-	// that includes/widgets/widget-focus-timer.php registers.
+
 	'widget-focus-timer': {
 		entry:    'src/plugins/focus-timer-widget/index.ts',
 		fileBase: 'widget-focus-timer',
 		iifeName: 'openStationFocusTimerWidget',
 	},
 
-	// "Agent chat" window — conversation surface for the agents
-	// framework (extended option `agents`). Registers a render
-	// callback on `window.openStationNativeWindows['desktop-mode-agent-run']`
-	// and consumes the `<os-*>` tags defined by the main bundle plus
-	// the cross-bundle `desktop-mode/agents-chat` shared store seeded
-	// by the My WordPress Agents section.
 	'agent-run-window': {
 		entry:    'src/agent-run-window.ts',
 		fileBase: 'agent-run-window',
@@ -672,12 +417,6 @@ const TARGETS = {
 
 };
 
-/**
- * App client views: every `apps/<dir>/<name>.os.ts` is the target
- * `app:<name>`, built to `assets/js/apps/<name>[.min].js`. Discovered
- * here so a new app needs no registration; `bin/build-apps.mjs` walks
- * the same directory to run one build per target.
- */
 function discoverAppTargets() {
 	const out = {};
 	const appsDir = resolve( __dirname, 'apps' );
@@ -715,9 +454,6 @@ export default defineConfig( ( { mode } ) => {
 		);
 	}
 
-	// Bundle treemap: `BUNDLE_REPORT=1 npm run build:desktop` writes an
-	// HTML treemap next to the bundle so we can see which modules are
-	// pulling weight. Off by default — has zero impact on shipped code.
 	const wantReport = process.env.BUNDLE_REPORT === '1' && isProd;
 	const reportPlugins = wantReport
 		? [
@@ -735,6 +471,23 @@ export default defineConfig( ( { mode } ) => {
 
 	return {
 		plugins: [
+			{
+				name: 'openstation-remove-bundle-comments',
+				async generateBundle( _options, bundle ) {
+					const printer = ts.createPrinter( { removeComments: true } );
+					for ( const output of Object.values( bundle ) ) {
+						if ( output.type === 'chunk' ) {
+							const code = printer.printFile( ts.createSourceFile(
+								output.fileName, output.code, ts.ScriptTarget.Latest,
+								true, ts.ScriptKind.JS
+							) );
+							output.code = isProd ? ( await transformWithEsbuild( code, output.fileName, {
+								minify: true, legalComments: 'none', target: 'es2020',
+							} ) ).code : code;
+						}
+					}
+				},
+			},
 			minifyCssTemplates(),
 			stripStaticHelpInProd( isProd ),
 			...reportPlugins,
@@ -750,25 +503,21 @@ export default defineConfig( ( { mode } ) => {
 				'@protocol/':      resolve( __dirname, 'src/protocol/' ) + '/',
 				'@ui/':            resolve( __dirname, 'src/ui/' ) + '/',
 				'@window-system/': resolve( __dirname, 'src/window-system/' ) + '/',
-				// What an `apps/*/*.os.ts` imports: `defineApp`, `html`, i18n.
+
 				'@openstation/app': resolve( __dirname, 'src/app-runtime/client.ts' ),
 			},
 		},
 		build: {
 			outDir: 'assets/js',
-			// Every run writes into the same dir — don't let later runs
-			// delete what earlier ones produced.
+
 			emptyOutDir: false,
 			target: 'es2020',
-			// esbuild minification is ~10x faster than terser with comparable
-			// output for plain TS; no separate dep needed.
+
 			minify: isProd ? 'esbuild' : false,
 			sourcemap: false,
 			lib: {
 				entry: resolve( __dirname, target.entry ),
-				// IIFE wraps the module so it runs on script load without any
-				// module-system glue. WordPress admin can't reliably import
-				// <script type="module">, so we ship a self-contained bundle.
+
 				formats: [ 'iife' ],
 				name: target.iifeName,
 				fileName: () =>
@@ -778,16 +527,9 @@ export default defineConfig( ( { mode } ) => {
 			},
 			rollupOptions: {
 				output: {
-					// An app's `.os.ts` exports its model for tests beside
-					// the default `defineApp()`; nothing reads the IIFE's
-					// return value, so silence Rollup's mixed-exports note.
+
 					exports: 'named',
-					// Vite's lib mode defaults `style.css` for bundled CSS.
-					// Rename to match the target's fileBase so a widget
-					// bundle and its co-located CSS share a name —
-					// `widget-heartbeat[.min].css` next to the JS,
-					// matching what `wp_register_style()` looks for in
-					// `includes/widgets/heartbeat.php`.
+
 					assetFileNames: ( asset ) => {
 						if ( asset.name && asset.name.endsWith( '.css' ) ) {
 							return isProd

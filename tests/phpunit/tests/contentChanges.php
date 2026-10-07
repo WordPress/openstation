@@ -1,15 +1,5 @@
 <?php
-/**
- * Tests for the generic content-change realtime layer
- * (includes/content-changes.php): recorder dedupe + gates, post /
- * comment hook wiring, the redirect-surviving buffer, the chromeless
- * footer emitter, and the Heartbeat catch-all.
- *
- * @package WordPress
- * @subpackage UnitTests
- *
- * @group openstation
- */
+
 class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -48,13 +38,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$_GET['openstation_chromeless'] = '1';
 	}
 
-	/* ---------------------------------------------------------------------
-	 * Recorder
-	 * ------------------------------------------------------------------- */
-
-	/**
-	 * @covers ::openstation_content_changes_record
-	 */
 	public function test_record_rejects_invalid_args() {
 		$this->assertFalse( openstation_content_changes_record( '', 1, 'updated' ) );
 		$this->assertFalse( openstation_content_changes_record( 'post', 0, 'updated' ) );
@@ -62,9 +45,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_content_changes_log() );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_record
-	 */
 	public function test_record_dedupes_first_writer_wins() {
 		$this->assertTrue( openstation_content_changes_record( 'post', 9, 'trashed' ) );
 		$this->assertFalse( openstation_content_changes_record( 'post', 9, 'updated' ) );
@@ -74,18 +54,12 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'updated', $log['post'] );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_record
-	 */
 	public function test_should_record_filter_vetoes() {
 		add_filter( 'openstation_content_changes_should_record', '__return_false' );
 		$this->assertFalse( openstation_content_changes_record( 'post', 3, 'updated' ) );
 		$this->assertSame( array(), openstation_content_changes_log() );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_record
-	 */
 	public function test_recorded_action_fires() {
 		$seen = array();
 		add_action(
@@ -102,13 +76,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertSame( array( array( 'shop_order', 12, 'created' ) ), $seen );
 	}
 
-	/* ---------------------------------------------------------------------
-	 * Post hooks
-	 * ------------------------------------------------------------------- */
-
-	/**
-	 * @covers ::openstation_content_changes_on_after_insert_post
-	 */
 	public function test_new_post_records_created() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 
@@ -116,9 +83,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertContains( $post_id, $log['post']['created'] );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_on_after_insert_post
-	 */
 	public function test_updating_a_post_records_updated_and_skips_the_revision() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		openstation_content_changes_reset();
@@ -135,9 +99,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'revision', $log );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_on_after_insert_post
-	 */
 	public function test_first_real_save_of_an_auto_draft_records_created() {
 		$post_id = wp_insert_post(
 			array(
@@ -145,7 +106,7 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 				'post_status' => 'auto-draft',
 			)
 		);
-		// The auto-draft shell itself must not be recorded.
+
 		$this->assertSame( array(), openstation_content_changes_log() );
 
 		wp_update_post(
@@ -160,9 +121,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertSame( array( $post_id ), $log['post']['created'] );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_on_after_insert_post
-	 */
 	public function test_post_type_without_show_ui_is_skipped() {
 		register_post_type( 'wpd_hidden_cpt', array( 'show_ui' => false ) );
 
@@ -171,9 +129,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'wpd_hidden_cpt', openstation_content_changes_log() );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_on_after_insert_post
-	 */
 	public function test_show_ui_cpt_is_recorded_under_its_own_type() {
 		register_post_type( 'wpd_shown_cpt', array( 'show_ui' => true ) );
 
@@ -183,15 +138,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertContains( $post_id, $log['wpd_shown_cpt']['created'] );
 	}
 
-	/**
-	 * Trashing must record ONLY the recycle-bin's `trashed` verb — the
-	 * internal status write reaches `wp_after_insert_post` afterwards
-	 * and the first-writer-wins dedupe (plus the trash-status skip)
-	 * must drop it. Proves the recycle-bin delegation end to end.
-	 *
-	 * @covers ::openstation_content_changes_record
-	 * @covers ::openstation_recycle_bin_record_change
-	 */
 	public function test_trash_records_only_the_trashed_verb() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		openstation_content_changes_reset();
@@ -203,10 +149,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'updated', $log['post'] );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_record
-	 * @covers ::openstation_recycle_bin_record_change
-	 */
 	public function test_untrash_records_only_the_untrashed_verb() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		wp_trash_post( $post_id );
@@ -219,13 +161,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'updated', $log['post'] );
 	}
 
-	/* ---------------------------------------------------------------------
-	 * Comment hooks
-	 * ------------------------------------------------------------------- */
-
-	/**
-	 * @covers ::openstation_content_changes_on_comment_transition
-	 */
 	public function test_new_comment_records_created() {
 		$post_id    = self::factory()->post->create();
 		openstation_content_changes_reset();
@@ -235,9 +170,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertContains( $comment_id, $log['comment']['created'] );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_on_comment_transition
-	 */
 	public function test_approving_a_comment_records_updated() {
 		$post_id    = self::factory()->post->create();
 		$comment_id = self::factory()->comment->create(
@@ -254,9 +186,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertSame( array( $comment_id ), $log['comment']['updated'] );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_on_comment_transition
-	 */
 	public function test_trashing_a_comment_records_only_the_trashed_verb() {
 		$post_id    = self::factory()->post->create();
 		$comment_id = self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
@@ -269,25 +198,11 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'updated', $log['comment'] );
 	}
 
-	/* ---------------------------------------------------------------------
-	 * WooCommerce guard
-	 * ------------------------------------------------------------------- */
-
-	/**
-	 * @covers ::openstation_content_changes_register_wc_hooks
-	 */
 	public function test_wc_hooks_are_not_registered_without_woocommerce() {
 		$this->assertFalse( class_exists( 'WooCommerce' ) );
 		$this->assertFalse( openstation_content_changes_register_wc_hooks() );
 	}
 
-	/* ---------------------------------------------------------------------
-	 * Redirect-surviving buffer + footer emitter
-	 * ------------------------------------------------------------------- */
-
-	/**
-	 * @covers ::openstation_content_changes_on_shutdown
-	 */
 	public function test_shutdown_buffers_an_unflushed_changelog() {
 		openstation_content_changes_record( 'post', 5, 'updated' );
 
@@ -297,17 +212,12 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertSame( array( 5 ), $buffered['post']['updated'] );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_emit_footer
-	 */
 	public function test_footer_emits_broadcasts_and_consumes_the_buffer() {
 		$this->enter_chromeless();
 
-		// Mutating request: record + buffer across the redirect.
 		openstation_content_changes_record( 'shop_order', 12, 'updated' );
 		openstation_content_changes_on_shutdown();
 
-		// Redirect target: fresh request state, footer flushes the buffer.
 		openstation_content_changes_reset();
 		ob_start();
 		openstation_content_changes_emit_footer();
@@ -318,16 +228,12 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertStringContainsString( '"action":"updated"', $html );
 		$this->assertFalse( get_transient( openstation_content_changes_buffer_key( self::$admin_id ) ) );
 
-		// A later chromeless render with nothing new emits nothing.
 		openstation_content_changes_reset();
 		ob_start();
 		openstation_content_changes_emit_footer();
 		$this->assertSame( '', ob_get_clean() );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_emit_footer
-	 */
 	public function test_footer_emits_nothing_outside_chromeless() {
 		openstation_content_changes_record( 'post', 7, 'updated' );
 
@@ -336,14 +242,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertSame( '', ob_get_clean() );
 	}
 
-	/**
-	 * The footer must consume the in-memory changelog even when it
-	 * emits: shutdown afterwards must not re-buffer what the parent
-	 * shell already received.
-	 *
-	 * @covers ::openstation_content_changes_emit_footer
-	 * @covers ::openstation_content_changes_on_shutdown
-	 */
 	public function test_shutdown_does_not_rebuffer_a_flushed_changelog() {
 		$this->enter_chromeless();
 		openstation_content_changes_record( 'post', 21, 'updated' );
@@ -357,9 +255,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertFalse( get_transient( openstation_content_changes_buffer_key( self::$admin_id ) ) );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_emit_footer
-	 */
 	public function test_broadcasts_filter_can_suppress_the_emit() {
 		$this->enter_chromeless();
 		openstation_content_changes_record( 'post', 8, 'updated' );
@@ -370,22 +265,11 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertSame( '', ob_get_clean() );
 	}
 
-	/* ---------------------------------------------------------------------
-	 * Heartbeat catch-all
-	 * ------------------------------------------------------------------- */
-
-	/**
-	 * @covers ::openstation_content_changes_heartbeat_received
-	 */
 	public function test_heartbeat_without_opt_in_key_is_untouched() {
 		$response = openstation_content_changes_heartbeat_received( array(), array() );
 		$this->assertArrayNotHasKey( 'openstation_content_changes', $response );
 	}
 
-	/**
-	 * @covers ::openstation_content_changes_on_shutdown
-	 * @covers ::openstation_content_changes_heartbeat_received
-	 */
 	public function test_heartbeat_returns_entries_newer_than_seen_ts() {
 		openstation_content_changes_record( 'page', 33, 'updated' );
 		openstation_content_changes_on_shutdown();
@@ -402,7 +286,6 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 		$this->assertSame( 'updated', $block['entries'][0]['action'] );
 		$this->assertSame( array( 33 ), $block['entries'][0]['ids'] );
 
-		// A client already at the high-water mark gets no entries.
 		$caught_up = openstation_content_changes_heartbeat_received(
 			array(),
 			array( 'openstation_content_changes_seen_ts' => $block['ts'] )

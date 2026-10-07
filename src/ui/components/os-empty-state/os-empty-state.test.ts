@@ -27,7 +27,7 @@ describe( '<os-empty-state>', () => {
 		expect( sr.querySelector( 'h3' )?.textContent ).toBe( 'No plugins' );
 		expect( sr.querySelector( 'p' )?.textContent ).toBe( 'Install something.' );
 		expect( sr.querySelector( 'os-icon' ) ).not.toBeNull();
-		// CTA slot picks up the slotted button in light DOM.
+
 		expect( empty.querySelector( '.go' ) ).not.toBeNull();
 	} );
 

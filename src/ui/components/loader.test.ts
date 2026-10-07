@@ -1,27 +1,7 @@
-/**
- * `wp.os.loadComponents()` — the runtime route to the component kit.
- *
- * The contract these pin, in the order a caller meets them: don't
- * fetch what the page already has, do fetch what it doesn't, share
- * one `<script>` between concurrent callers, and say something
- * useful when a tag name isn't a component.
- *
- * `tests/vitest/setup.ts` registers the kit directly, which is
- * convenient here: "already registered" is the default state, so
- * the no-fetch path is the one that needs no arranging and the
- * fetch path is arranged by naming a tag the setup file leaves out.
- */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const URL = 'https://example.test/assets/js/os-components.min.js';
 
-/**
- * A real component the vitest setup leaves unregistered — it only
- * pre-registers the overlay kit. This is the tag a plugin author
- * hits in production too: `<os-switch>` is in the kit and is not on
- * the page.
- */
 const UNREGISTERED = 'os-switch';
 
 async function freshLoader(): Promise< typeof import( './loader' ) > {
@@ -105,8 +85,7 @@ describe( 'loadComponents', () => {
 
 		expect( error ).toHaveBeenCalledTimes( 1 );
 		expect( String( error.mock.calls[ 0 ][ 0 ] ) ).toContain( '<os-buton>' );
-		// `os-button` was registered, so nothing had to be fetched —
-		// a bad name in the list must not drag in the whole kit.
+
 		expect( injectedScripts() ).toHaveLength( 0 );
 	} );
 
@@ -114,9 +93,6 @@ describe( 'loadComponents', () => {
 		const { loadComponents } = await freshLoader();
 		config().openStationConfig = { componentsBundleUrl: '' };
 
-		// Unit tests and misconfigured deploys land here. Letting the
-		// caller render and leaving the missing-import warner to name
-		// the tag beats suppressing their UI.
 		await expect( loadComponents( [ UNREGISTERED ] ) ).resolves.toBeUndefined();
 	} );
 

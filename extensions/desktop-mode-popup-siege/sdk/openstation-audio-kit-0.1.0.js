@@ -551,7 +551,7 @@
 				try {
 					voice.stop();
 				} catch ( error ) {
-					// A voice that has already ended is already clean.
+
 				}
 			}
 			voices.clear();

@@ -199,7 +199,6 @@ test( 'an authoritative status receipt survives a late failed save response', as
 	expect( session.operations.list()[ 0 ] ).toMatchObject( { status: 'confirmed', receipt: 'committed-1' } );
 } );
 
-
 test( 'semantic rejection history preserves compact resource metadata and mandatory errors', async () => {
 	const reject = ability( { run: () => ( { effect: 'none', status: 'rejected', errors: failure.errors, retryable: true, data: { document: 'x'.repeat( 100000 ) } } ), history: () => ( { editId: 'draft-1', documentHash: 'sha256', byteLength: 100000 } ) } );
 	const transport = scripted( [ { message: '', calls: [ call( 'save', {} ) ] }, done ] );
@@ -208,7 +207,6 @@ test( 'semantic rejection history preserves compact resource metadata and mandat
 	expect( outcome ).toMatchObject( { effect: 'none', errors: failure.errors, data: { editId: 'draft-1', byteLength: 100000 } } );
 	expect( transport.mock.calls[ 1 ][ 0 ].transcript ).not.toContain( 'x'.repeat( 1000 ) );
 } );
-
 
 test( 'an operation observer that closes the window cannot leave a write queued to run', async () => {
 	const save = ability( { run: vi.fn() } );

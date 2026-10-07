@@ -1,12 +1,3 @@
-/**
- * Unit tests for `src/effects/registry.ts`.
- *
- * The registry is shared-store-backed (so the main bundle and the
- * lazy OS-settings-panel bundle share one list), so we reset the
- * shared stores and re-import fresh in each test. The built-in
- * `darken` effect is seeded at module load through the public
- * `register()` path, so a fresh import always starts with it present.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
@@ -45,7 +36,7 @@ describe( 'effects/registry.ts', () => {
 		expect( getUnfocusEffect( 'grayscale' )?.className ).toBe(
 			'os-window--fx-grayscale',
 		);
-		// All three built-ins resolve and each carries a description.
+
 		const ids = listUnfocusEffects().map( ( e ) => e.id );
 		expect( ids ).toEqual(
 			expect.arrayContaining( [ 'darken', 'frost', 'grayscale' ] ),

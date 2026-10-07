@@ -1,15 +1,3 @@
-/**
- * Tests for the service worker's admin-asset-cache policy
- * (`src/pwa/sw-policy.ts`).
- *
- * The policy is the correctness boundary of the shared asset cache:
- * a URL classified too eagerly caches something dynamic (nonce drift,
- * stale uploads); one classified too shyly just forfeits the speedup.
- * These tests pin the classification matrix, the own-plugin
- * precedence, and the response-hygiene rules so a future edit that
- * loosens any of them fails loudly.
- */
-
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -84,8 +72,7 @@ describe( 'classifyAdminAssetRequest', () => {
 	} );
 
 	it( 'keeps own-plugin precedence — never reclassified', () => {
-		// Own assets must stay with the pre-existing precache /
-		// network-first / SWR branches in sw.ts, versioned or not.
+
 		expect(
 			classify( `https://site.test${ OWN }assets/css/desktop.css?ver=123` ),
 		).toBe( 'own-plugin' );
@@ -213,8 +200,7 @@ describe( 'readSwConfig', () => {
 		expect(
 			readSwConfig( { shellBuild: '0123456789abcdef' }, FALLBACK ).shellBuild,
 		).toBe( '0123456789abcdef' );
-		// A body without a stamp, or with something that is not one,
-		// reports '' — "unknown", which the shell never reads as a change.
+
 		expect( readSwConfig( {}, FALLBACK ).shellBuild ).toBe( '' );
 		expect( readSwConfig( { shellBuild: 42 }, FALLBACK ).shellBuild ).toBe( '' );
 		expect(

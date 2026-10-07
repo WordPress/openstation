@@ -1,23 +1,3 @@
-/**
- * App Framework runtime — entry point.
- *
- * The one bundle every `.os.php` window shares. On load it finds
- * every app config the PHP host shipped (`wp.os.getWindowConfig()`
- * entries flagged `osApp: true`), publishes a render callback for
- * each on `window.openStationNativeWindows[ id ]`, and registers the
- * title-bar buttons and ⋯-menu rows the manifest declared. When a
- * window opens, the callback mounts a {@link Session} on each of its
- * mount roots (the body, plus one per declared tab): first dispatch
- * is `mount`, every `os-action` after that is a round trip that
- * morphs the returned markup into place.
- *
- * Also publishes `wp.os.apps` — `dispatch( windowId, action, args,
- * view? )` and `session( windowId, view? )` — so another bundle can
- * drive an app window without knowing its endpoint.
- *
- * @public
- */
-
 import { tryNativeUrlRemap } from '../native-url-remap';
 import { openActionMenu } from '../selection/menu';
 import type { NativeRenderContext } from '../types';
@@ -58,7 +38,6 @@ interface RuntimeGlobals {
 	openStationWindowConfig?: Record< string, unknown >;
 }
 
-/** windowId → view → session. */
 const sessions = new Map< string, Map< string, Session > >();
 const registeredApps = new Set< string >();
 
@@ -70,17 +49,6 @@ function sessionOf( windowId: string, view = 'main' ): Session | undefined {
 	return sessions.get( windowId )?.get( view );
 }
 
-/**
- * The shell surface the sessions use, built from `wp.os` per window —
- * the window id tags every content-change announce, so the window's
- * own `watch()` can skip its own echo.
- *
- * Exported for the suite only: the `open_url` remap rule below is a
- * property of THIS surface, not of a session, and a session test that
- * stubs the host cannot see it.
- *
- * @internal
- */
 export function buildHost( ownerWindowId: string ): RuntimeHost {
 	const api = os();
 	return {
@@ -126,16 +94,7 @@ export function buildHost( ownerWindowId: string ): RuntimeHost {
 			if ( ! api ) {
 				return;
 			}
-			// An app's `open_url` effect is a URL, and a URL that a native
-			// window has claimed (`admin.php?page=my-entries` → the native
-			// Entries window) must open THAT window, not an iframe of the
-			// classic page underneath it. Every other opener in the shell
-			// consults the remap registry first (the dock, the portal, the
-			// top-window link interceptor, files-on-the-desktop, related
-			// entities); this one did not, so a plugin app's own "open X
-			// in my Dashboard" door landed on classic chrome while the
-			// dock tile beside it opened the native window. Same call,
-			// same order: remap, else iframe.
+
 			if ( tryNativeUrlRemap( url ) ) {
 				return;
 			}
@@ -149,17 +108,10 @@ export function buildHost( ownerWindowId: string ): RuntimeHost {
 			} );
 		},
 		setBadge: ( appId, count ) => {
-			// The desktop icon and the dock tile share the app id.
 			api?.icons.setBadge( appId, count );
 			api?.dock?.setBadge( appId, count );
 		},
 		setIcon: ( appId, art ) => {
-			// Every rail that might host the tile exposes the same
-			// `setArt( id, art )` shape and silently no-ops for ids it
-			// doesn't own — fanning to all three is the canonical
-			// pattern (see the recycle-bin icon-state module), not a
-			// hack. The rails own paint state, including survival
-			// across grid rebuilds.
 			interface ArtRail {
 				setArt?: ( id: string, value: string ) => void;
 			}
@@ -192,14 +144,10 @@ export function buildHost( ownerWindowId: string ): RuntimeHost {
 			} );
 		},
 		refreshMenu: () => {
-			// Best-effort, like `spendMenuRefresh()`: absent before the
-			// shell has booted, and a failed refresh costs the user the
-			// F5 the effect exists to remove — never the response that
-			// just landed.
 			try {
 				void api?.refreshMenu?.();
 			} catch {
-				// Swallowed on purpose; see above.
+
 			}
 		},
 		onBroadcast: ( topic, cb ) =>
@@ -234,12 +182,6 @@ function applyAppearance( windowId: string, appearance: AppearanceDef ): void {
 	}
 }
 
-/**
- * Focus REQUESTS into focus TRANSITIONS. A window opens focused, so
- * the first `focus()` after creation is not a transition; every
- * `focus()` after a `blur()` is one, and every `blur()` after a
- * `focus()` is one. Repeats of the same side are no-ops.
- */
 export function createFocusGate(): { focus: () => boolean; blur: () => boolean } {
 	let focused = true;
 	return {
@@ -260,7 +202,6 @@ export function createFocusGate(): { focus: () => boolean; blur: () => boolean }
 	};
 }
 
-/** The window id a body element belongs to (`wp-window-<id>`). */
 function windowIdOf( body: HTMLElement, fallback: string ): string {
 	const root = body.closest< HTMLElement >( '[id^="wp-window-"]' );
 	return root ? root.id.slice( 'wp-window-'.length ) : fallback;
@@ -274,7 +215,6 @@ function dispatchControl( win: DesktopWindow, control: ControlDef ): void {
 	void sessionOf( win.id )?.dispatch( control.action, control.args, { confirm: control.confirm } );
 }
 
-/** Title-bar buttons + ⋯ rows for one app, from its manifest. */
 function registerChrome( config: AppConfig ): void {
 	const api = os();
 	if ( ! api ) {
@@ -305,7 +245,6 @@ function registerChrome( config: AppConfig ): void {
 	}
 }
 
-/** The render callback the shell invokes when an app window opens. */
 function buildRender( config: AppConfig ): RenderCallback {
 	return async ( body, ctx ) => {
 		const windowId = windowIdOf( body, config.id );
@@ -315,17 +254,13 @@ function buildRender( config: AppConfig ): RenderCallback {
 
 		host.applyAppearance?.( windowId, config.appearance ?? {} );
 
-		// One session per mount root: the main body plus each tab panel.
 		const roots = Array.from(
 			body.querySelectorAll< HTMLElement >( `[data-os-app="${ config.id }"]` ),
 		);
 		if ( roots.length === 0 ) {
 			roots.push( body );
 		}
-		// The `.os.ts` half, if the app shipped one: its bundle travels
-		// with the window as a companion script, so it is in the tab by
-		// now. Only the main body is client-rendered; tab panels stay
-		// server views.
+
 		const client = config.client ? clientAppFor( config.id ) : undefined;
 		const byView = new Map< string, Session >();
 		for ( const root of roots ) {
@@ -379,12 +314,7 @@ function buildRender( config: AppConfig ): RenderCallback {
 			}
 			host.send = ( channel, payload ) => ctx.window.send( channel, payload );
 		}
-		// A singleton asked to open while already open — a deep link
-		// landing on a live window, `wp.os.openWindow( id, { params } )`
-		// from another surface. The shell has already written the new
-		// params onto the window; adopt them on every session so
-		// `$os->params` answers with the new subject, then let the app
-		// retarget through its `reopen` handler.
+
 		const onReopened = ( ev: Event ): void => {
 			const detail = ( ev as CustomEvent< {
 				windowId?: string;
@@ -404,11 +334,6 @@ function buildRender( config: AppConfig ): RenderCallback {
 
 		const api = os();
 		if ( api && ( lifecycle.has( 'focus' ) || lifecycle.has( 'blur' ) ) ) {
-			// The shell reports `focused` on every focus REQUEST — each
-			// pointerdown inside an already-focused window included —
-			// while the lifecycle promises transitions. The gate turns
-			// requests into transitions, so a `focus` handler costs one
-			// round trip per return to the window, not one per click.
 			const gate = createFocusGate();
 			teardowns.push( api.onWindow( windowId, {
 				focused: () => {
@@ -424,17 +349,6 @@ function buildRender( config: AppConfig ): RenderCallback {
 			} ) );
 		}
 
-		// The first render of every view. With prefetched data
-		// (`App::prefetch()`) or a client `placeholder` the main view
-		// paints NOW from the declared state and the shell drops its
-		// loading overlay at once; `mount` then refreshes state and data
-		// in the background (a placeholder paint shows the busy mark
-		// and `ctx.loading` until it does). A window
-		// opened WITH params waits for `mount` instead — the state those
-		// params produce is the server's to derive, and painting the
-		// defaults first would show the wrong page for a beat. Every
-		// other view (the tab panels) waits for its own `mount` as
-		// before; each carries its own spinner.
 		const mounts = Array.from( byView.values(), ( s ) => s.dispatch( 'mount' ) );
 		const eager =
 			Object.keys( ctx?.params ?? {} ).length === 0 && byView.get( 'main' )?.paintEagerly() === true;
@@ -454,7 +368,6 @@ function buildRender( config: AppConfig ): RenderCallback {
 	};
 }
 
-/** Publish a render callback for every app config not yet seen. */
 export function registerApps(): string[] {
 	const globals = window as unknown as RuntimeGlobals;
 	const configs = globals.openStationWindowConfig ?? {};
@@ -473,12 +386,6 @@ export function registerApps(): string[] {
 	return added;
 }
 
-/**
- * The client-view API, published for scripts that cannot import
- * `@openstation/app` — a third-party plugin's client view, built (or
- * hand-written) outside this repo. Everything an in-repo `.os.ts`
- * imports, as one value.
- */
 const CLIENT_API = {
 	defineApp,
 	html,
@@ -498,7 +405,6 @@ const CLIENT_API = {
 	createListTableSync,
 } as const;
 
-/** What a queued third-party client view receives. */
 export type ClientApi = typeof CLIENT_API;
 
 interface ClientApiGlobals {
@@ -507,26 +413,12 @@ interface ClientApiGlobals {
 		| { push: ( fn: ( api: ClientApi ) => void ) => void };
 }
 
-/**
- * Serve the client API to third-party client views, load order be
- * damned. A companion script loads BEFORE this runtime, so it cannot
- * read `wp.os.apps` at parse time; instead it queues:
- *
- *     ( window.openStationAppsPending ??= [] ).push( ( { defineApp, html } ) =>
- *         defineApp( 'my-window', { view: ( { state } ) => html`…` } ) );
- *
- * On load the runtime drains the queue, then replaces it with a
- * live object whose `push` runs immediately — the same snippet works
- * whether the script ran before or after the runtime.
- */
 export function publishClientApi(): void {
 	const globals = window as unknown as ClientApiGlobals;
 	const run = ( fn: ( api: ClientApi ) => void ): void => {
 		try {
 			fn( CLIENT_API );
 		} catch ( err ) {
-			// Third-party code — contained, named, never fatal to the shell.
-			// eslint-disable-next-line no-console
 			console.error( '[openstation] a queued client view threw.', err );
 		}
 	};
@@ -539,37 +431,30 @@ export function publishClientApi(): void {
 
 publishClientApi();
 registerApps();
-// An app registered mid-session (a plugin activation) arrives with a
-// payload refresh; pick its config up without a reload.
+
 document.addEventListener( 'os-registry-changed', () => {
 	registerApps();
 } );
 
 os()?.registerNamespace( 'apps', {
 	...CLIENT_API,
-	/** Log every dispatch of one window (or `'*'`) to the console. */
+
 	debug: ( windowId = '*', on = true ) => setSessionDebug( windowId, on ),
-	/** Run an action on a mounted app window (optionally on one tab). */
+
 	dispatch: (
 		windowId: string,
 		action: string,
 		args: Record< string, unknown > = {},
 		view = 'main',
 	) => sessionOf( windowId, view )?.dispatch( action, args ) ?? Promise.resolve( false ),
-	/** Run a client-side action on a mounted app window; no request. */
+
 	local: ( windowId: string, action: string, args: Record< string, unknown > = {} ) =>
 		sessionOf( windowId )?.local( action, args ),
-	/** The live session of a mounted app window (optionally one tab), if any. */
+
 	session: ( windowId: string, view = 'main' ) => sessionOf( windowId, view ),
-	/** Re-scan window configs for app definitions. */
+
 	refresh: () => registerApps(),
-	/**
-	 * Send a closed app window's first `mount` ahead of its open — the
-	 * dock's hover intent. The open then takes the answer instead of
-	 * fetching. `false` for an open window, an unknown id, or one
-	 * already warm; see `wp.os.prewarmWindow( id )` for the door the
-	 * shell uses (it loads the bundles first).
-	 */
+
 	prewarm: ( id: string ) => {
 		const config = ( window as unknown as RuntimeGlobals ).openStationWindowConfig?.[ id ] as
 			| Partial< AppConfig >

@@ -1,42 +1,15 @@
-/**
- * The Living Tree — Space Colonization growth simulator.
- *
- * The morphology engine (Runions et al., 2007). Starts with a single root
- * node at the origin and a cloud of auxin attractors inside the envelope;
- * each iteration grows the skeleton toward the attractors, biased upward
- * by tropism so growth reads bottom→top. Terminates when attractors are
- * exhausted, growth stalls, or the age-derived node cap is hit. See
- * `docs/living-tree-algorithm.md` §A.5.
- *
- * **Determinism contract:** `step( budget )` runs up to `budget` *whole*
- * SCA iterations — an iteration is atomic (every eligible node spawns,
- * then kills happen). Pacing (how many iterations per frame) therefore
- * never changes the final skeleton, only how fast it appears. This is
- * what lets `growthRate` derive from vigour while the topology invariant
- * (same age + seed → same skeleton) holds.
- */
-
 import { sampleAttractors } from './envelope';
 import type { BranchNode, Envelope, GrowthConfig, Vec2 } from '../types';
 
 export class GrowthSimulator {
-	/** The growing skeleton. Read by the mesh builder + leaf placer. */
 	public readonly nodes: BranchNode[] = [];
 
-	/** Live auxin sources; consumed as the skeleton reaches them. */
 	private attractors: Vec2[];
 
-	/** Children spawned per node — drives depth (level) bookkeeping. */
 	private readonly childCount: number[] = [];
 
-	/** True once growth has terminated. */
 	private finished = false;
 
-	/**
-	 * @param env The envelope bounding growth + supplying the attractors.
-	 * @param cfg Growth tuning (segment length, influence/kill radii, …).
-	 * @param rng Seeded PRNG — every stochastic choice draws from here.
-	 */
 	constructor(
 		private readonly env: Envelope,
 		private readonly cfg: GrowthConfig,
@@ -46,16 +19,10 @@ export class GrowthSimulator {
 		this.addNode( { x: 0, y: 0 }, null, 0, { x: 0, y: -1 } );
 	}
 
-	/** Whether growth has terminated. */
 	public get done(): boolean {
 		return this.finished;
 	}
 
-	/**
-	 * Advance growth by up to `budget` whole SCA iterations.
-	 *
-	 * @param budget Iterations to run this frame (≥1).
-	 */
 	public step( budget: number ): void {
 		for ( let i = 0; i < Math.max( 1, Math.floor( budget ) ); i++ ) {
 			if ( this.finished ) {
@@ -65,7 +32,6 @@ export class GrowthSimulator {
 		}
 	}
 
-	/** One atomic SCA iteration: associate → spawn → kill. */
 	private iterate(): void {
 		if ( this.attractors.length === 0 || this.nodes.length >= this.cfg.maxNodes ) {
 			this.finished = true;
@@ -74,9 +40,6 @@ export class GrowthSimulator {
 
 		const { influenceRadius, killRadius, segLen, jitter, tropism, droop } = this.cfg;
 
-		// 1. Each attractor associates with its nearest node within the
-		// influence radius; accumulate pull vectors per node. Squared
-		// distances in the scan; one sqrt for the winner only.
 		const pullX = new Float64Array( this.nodes.length );
 		const pullY = new Float64Array( this.nodes.length );
 		const pulls = new Int32Array( this.nodes.length );
@@ -103,8 +66,6 @@ export class GrowthSimulator {
 			}
 		}
 
-		// 2. Every pulled node spawns one child toward its averaged
-		// direction, with jitter + upward tropism + tip droop.
 		const spawnedFrom: number[] = [];
 		const nodeCountBefore = this.nodes.length;
 		for ( let n = 0; n < nodeCountBefore; n++ ) {
@@ -123,15 +84,12 @@ export class GrowthSimulator {
 
 			let dx = pullX[ n ] / pulls[ n ] + ( this.rng() - 0.5 ) * jitter;
 			let dy = pullY[ n ] / pulls[ n ] + ( this.rng() - 0.5 ) * jitter - tropism;
-			// Deep, thin extremities droop a touch under gravity.
+
 			dy += droop * ( parent.depth / Math.max( 1, this.env.maxDepth ) );
 			let len = Math.max( 1e-6, Math.hypot( dx, dy ) );
 			dx /= len;
 			dy /= len;
-			// Anti-dive clamp: late in growth only low leftover attractors
-			// remain and branches start chasing them DOWNWARD. Real limbs
-			// sag gently; they don't plunge. Allow a mild downward slope,
-			// damp anything steeper hard.
+
 			if ( dy > 0.2 ) {
 				dy = 0.2 + ( dy - 0.2 ) * 0.25;
 				len = Math.max( 1e-6, Math.hypot( dx, dy ) );
@@ -148,8 +106,6 @@ export class GrowthSimulator {
 			spawnedFrom.push( n );
 		}
 
-		// 3. Kill attractors the NEW nodes reached (older nodes already had
-		// their chance in earlier iterations).
 		if ( spawnedFrom.length > 0 ) {
 			const killSq = killRadius * killRadius;
 			const newNodes = this.nodes.slice( nodeCountBefore );
@@ -166,19 +122,15 @@ export class GrowthSimulator {
 			return;
 		}
 
-		// Stalled: no attractor is reachable yet. Extend the highest tip
-		// toward the nearest attractor (this is what grows the bare trunk
-		// through the crown gap). If even that is illegal, we're done.
 		this.extendTowardNearest();
 	}
 
-	/** Trunk bootstrap: grow the highest tip toward the nearest attractor. */
 	private extendTowardNearest(): void {
 		if ( this.nodes.length >= this.cfg.maxNodes ) {
 			this.finished = true;
 			return;
 		}
-		// Highest (smallest y) tip node.
+
 		let tip = 0;
 		for ( let n = 0; n < this.nodes.length; n++ ) {
 			if ( this.childCount[ n ] === 0 && this.nodes[ n ].pos.y < this.nodes[ tip ].pos.y ) {
@@ -199,9 +151,7 @@ export class GrowthSimulator {
 			this.finished = true;
 			return;
 		}
-		// A leftover attractor steeply BELOW the canopy is unreachable
-		// without diving. Prune it instead of chain-chasing it — chasing
-		// is what produced both plunging limbs and long bare chains.
+
 		if ( ( nearest.y - from.pos.y ) / nearestD > 0.45 ) {
 			const dead = nearest;
 			this.attractors = this.attractors.filter( ( a ) => a !== dead );
@@ -213,7 +163,7 @@ export class GrowthSimulator {
 		let len = Math.max( 1e-6, Math.hypot( dx, dy ) );
 		dx /= len;
 		dy /= len;
-		// Same anti-dive clamp as the main spawn path.
+
 		if ( dy > 0.2 ) {
 			dy = 0.2 + ( dy - 0.2 ) * 0.25;
 			len = Math.max( 1e-6, Math.hypot( dx, dy ) );
@@ -252,7 +202,6 @@ export class GrowthSimulator {
 		}
 	}
 
-	/** Terminal (childless) node indices — where leaves want to live. */
 	public tips(): number[] {
 		const out: number[] = [];
 		for ( let n = 0; n < this.nodes.length; n++ ) {

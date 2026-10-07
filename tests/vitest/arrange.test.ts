@@ -1,9 +1,3 @@
-/**
- * Behavioural + hook-firing tests for the Arrange features:
- *   - tile() lays out windows into a uniform grid
- *   - setSnapEnabled / isSnapEnabled / getSnapConfig
- *   - drag of a maximized window auto-unmaximizes
- */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import { Window } from '../../src/window';
@@ -40,7 +34,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		try {
 			window.localStorage.removeItem( 'desktop-mode-snap-to-grid' );
 		} catch {
-			/* jsdom always supports localStorage; defensive */
+
 		}
 		desktop = document.createElement( 'div' );
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
@@ -100,8 +94,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 			rows: number;
 		};
 		expect( payload.windowCount ).toBe( 4 );
-		// 1600x900 area — closest to areaAspect 1.78 is 2x2
-		// (cellAspect 1.78), beating 4x1 (3.56) and 1x4 (0.44).
+
 		expect( payload.cols ).toBe( 2 );
 		expect( payload.rows ).toBe( 2 );
 	} );
@@ -112,7 +105,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 
 		manager.tile();
 
-		// One row of two: 1568 - 12 of gap = 1556, not two cells of 778.
 		expect( [ wide.element.style.left, wide.element.style.width ] ).toEqual( [ '16px', '1000px' ] );
 		expect( [ other.element.style.left, other.element.style.width ] ).toEqual( [ '1028px', '556px' ] );
 	} );
@@ -195,10 +187,10 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		const cfg = manager.getSnapConfig();
 
 		expect( cfg.enabled ).toBe( true );
-		// 1600 / 12 cols ≈ 133 px cells horizontally; clamped to ≥ 40.
+
 		expect( cfg.cellWidth ).toBeGreaterThanOrEqual( 40 );
 		expect( cfg.cellHeight ).toBeGreaterThanOrEqual( 40 );
-		// And not absurd — should be on the order of "fraction of area".
+
 		expect( cfg.cellWidth ).toBeLessThan( 400 );
 		expect( cfg.cellHeight ).toBeLessThan( 400 );
 	} );
@@ -216,7 +208,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		await manager.open( openConfig( 'b' ) );
 		await manager.open( openConfig( 'c' ) );
 		await manager.open( openConfig( 'd' ) );
-		// Force a 1×4 layout instead of the default 2×2.
+
 		hooks.addFilter(
 			'os.arrange.tile.dimensions',
 			'test/force-1x4',
@@ -264,8 +256,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		await manager.open( openConfig( 'b' ) );
 		await manager.open( openConfig( 'c' ) );
 		await manager.open( openConfig( 'd' ) );
-		// 1×2 only fits 2 windows; we have 4. Filter return must
-		// be discarded, default 2×2 used.
+
 		hooks.addFilter(
 			'os.arrange.tile.dimensions',
 			'test/bad-grid',
@@ -299,8 +290,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 			( e ) => e.name === 'os.arrange.tile.applied',
 		);
 		const payload = applied!.args[ 0 ] as { cols: number; rows: number };
-		// Default for 2 windows on landscape is 2×1 (cellAspect 800
-		// vs area 1.78 — closer than 1×2's 0.89).
+
 		expect( payload.cols * payload.rows ).toBeGreaterThanOrEqual( 2 );
 	} );
 
@@ -328,7 +318,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 
 		const cfg = manager.getSnapConfig();
 
-		// Default for a 1600×900 area: ~133 px × ~112 px.
 		expect( cfg.cellWidth ).toBeGreaterThan( 0 );
 		expect( cfg.cellHeight ).toBeGreaterThan( 0 );
 	} );
@@ -357,11 +346,7 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 
 	test( 'un-maximize with snap on rounds restored geometry to grid cells', async () => {
 		const win = await manager.open( openConfig( 'a' ) );
-		// Force an obviously non-grid saved geometry by maximizing
-		// while snap was OFF. The pre-maximize position is the
-		// constructor's default cascade slot (40, 40, ~1280×720),
-		// which only happens to be grid-aligned by accident — set
-		// concrete inline styles to make the assertion deterministic.
+
 		win.element.style.left = '137px';
 		win.element.style.top = '83px';
 		win.element.style.width = '801px';
@@ -374,20 +359,15 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 
 		manager.setSnapEnabled( true );
 		const cfg = manager.getSnapConfig();
-		win.toggleMaximize(); // un-maximize
+		win.toggleMaximize();
 
-		// Restored x/y/width/height should each be a multiple of the
-		// grid cell on its axis (or, for width/height, at least the
-		// configured minimum if the round produced something smaller).
 		const finalLeft = parseInt( win.element.style.left, 10 );
 		const finalTop = parseInt( win.element.style.top, 10 );
 		const finalW = parseInt( win.element.style.width, 10 );
 		const finalH = parseInt( win.element.style.height, 10 );
 		expect( finalLeft % cfg.cellWidth ).toBe( 0 );
 		expect( finalTop % cfg.cellHeight ).toBe( 0 );
-		// width/height clamped to >= minWidth/minHeight so they may
-		// not be exact multiples — but they must be at least the
-		// minimum and snap-aligned when above the floor.
+
 		if ( finalW > 320 ) {
 			expect( finalW % cfg.cellWidth ).toBe( 0 );
 		}
@@ -439,12 +419,10 @@ describe( 'Window — drag of a maximized window auto-unmaximizes', async () => 
 		const titleBar = win.element.querySelector(
 			'.os-window__titlebar',
 		) as HTMLElement;
-		// jsdom doesn't implement setPointerCapture — stub.
+
 		titleBar.setPointerCapture =
 			titleBar.setPointerCapture ?? ( () => undefined );
-		// jsdom 25 doesn't ship `PointerEvent` either — synthesize a
-		// MouseEvent with the pointer fields the handler reads
-		// (`pointerId` is the only PointerEvent-specific bit).
+
 		const down = new MouseEvent( 'pointerdown', {
 			bubbles: true,
 			clientX: 400,
@@ -453,10 +431,7 @@ describe( 'Window — drag of a maximized window auto-unmaximizes', async () => 
 		} );
 		Object.defineProperty( down, 'pointerId', { value: 1 } );
 		titleBar.dispatchEvent( down );
-		// Un-state is threshold-gated (DRAG_THRESHOLD_PX = 5) so a
-		// stationary pointerdown doesn't un-max a window. Simulate a
-		// 20 px right-move on the title bar so the deferred un-state
-		// commits.
+
 		const move = new MouseEvent( 'pointermove', {
 			bubbles: true,
 			clientX: 420,

@@ -1,25 +1,4 @@
 <?php
-/**
- * Merge per-source-file Jed JSONs produced by `wp i18n make-json` into
- * a single per-handle JSON for one locale. Driven by env vars set by
- * bin/build-i18n.sh; not intended to run on its own.
- *
- * Inputs (env):
- *   HANDLE_MAP_PREFIX   Source path prefix that selects which hashed
- *                       JSONs feed this handle, e.g. "apps/trash/".
- *                       Files whose `source` starts with the prefix of an
- *                       earlier (more specific) handle are skipped here,
- *                       so the most specific handle should run first.
- *   HANDLE_OUT_FILE     Final output file path for this handle.
- *   HANDLE_SOURCES_DIR  Directory containing the hashed JSONs from
- *                       `wp i18n make-json`.
- *   HANDLE_LOCALE       Locale slug (e.g. es_ES). Used in the output
- *                       header and revision-date passthrough.
- *   HANDLE_DOMAIN       Text domain (e.g. openstation).
- *
- * Output: writes HANDLE_OUT_FILE if at least one translation matches the
- * prefix, removes a stale file otherwise.
- */
 
 $prefix      = getenv( 'HANDLE_MAP_PREFIX' );
 $out_file    = getenv( 'HANDLE_OUT_FILE' );
@@ -32,10 +11,6 @@ if ( ! $prefix || ! $out_file || ! $sources_dir || ! $locale || ! $domain ) {
 	exit( 1 );
 }
 
-// Determine which prefixes are MORE specific than ours, so we can
-// exclude their sources from this handle's bundle. We re-derive the
-// list from the script's own ordering hint: anything passed via the
-// EXCLUDE_PREFIXES env var (newline separated) is skipped.
 $exclude = array_filter( preg_split( '/\R/', (string) getenv( 'HANDLE_EXCLUDE_PREFIXES' ) ) );
 
 $plurals       = '';

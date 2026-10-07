@@ -1,33 +1,3 @@
-/**
- * `<os-user-profile user-id="N">` — the full WordPress user profile
- * surface as one drop-in custom element: the sidebar summary, the
- * editable form and the activity feed of `wp-admin/user-edit.php`.
- *
- * Hosted by the User Edit app (the whole window) and by the Users
- * app's Profile tab (the viewer's own profile), which set the
- * element's PROPERTIES from `updated()`:
- *
- *   - `config` — the profile facts (`ctx.extra`: roles, locales,
- *     colour schemes, contact methods, the viewer's id);
- *   - `fetch`  — a REST fetch over a relative path (`ctx.fetch`: the
- *     nonce and the window attribution ride along);
- *   - `toast`  — `( message, kind? )`.
- *
- * A bare element with none of them falls back to the shell's REST
- * root, nonce and toast. Set or change `user-id` at any time; the
- * element (re-)mounts the profile for the new id without losing the
- * layout, fetching the record and the insights ONCE each and painting
- * the aside and the activity feed from the same payload. Light-DOM
- * rendering: the layout shell is direct children the mount functions
- * work on with `replaceChildren`.
- *
- * Built as its own bundle (`assets/js/apps/user-profile[.min].js`,
- * the `openstation-user-profile` companion of both windows); the
- * definition is guarded so a second load never redefines the tag.
- *
- * @public
- */
-
 import { shellToast } from '../../../src/core/shell-toast';
 import { joinRestUrl } from '../../../src/rest-url';
 import { trackedFetch } from '../../../src/tracked-fetch';
@@ -38,7 +8,6 @@ import type { ProfileConfig, ProfileHost } from './types';
 
 export type { ProfileConfig, ProfileHost } from './types';
 
-/** The shell's REST root + nonce, for an element no app is feeding. */
 function shellFetch( path: string, init: RequestInit = {} ): Promise< Response > {
 	const cfg = ( window as unknown as { openStationConfig?: { restRoot?: string; restNonce?: string } } ).openStationConfig ?? {};
 	const headers = new Headers( init.headers );
@@ -64,7 +33,6 @@ export class OsUserProfile extends HTMLElement {
 	private _generation = 0;
 	private _scheduled = false;
 
-	/** The profile facts. Setting them (re-)evaluates the mount. */
 	get config(): ProfileConfig {
 		return this._config;
 	}
@@ -73,7 +41,6 @@ export class OsUserProfile extends HTMLElement {
 		this._schedule();
 	}
 
-	/** REST over a relative path — the hosting app's `ctx.fetch`. */
 	get fetch(): ProfileHost[ 'fetch' ] | null {
 		return this._fetch;
 	}
@@ -82,7 +49,6 @@ export class OsUserProfile extends HTMLElement {
 		this._schedule();
 	}
 
-	/** `( message, kind? )` — the hosting app's toast. */
 	get toast(): ProfileHost[ 'toast' ] | null {
 		return this._toast;
 	}
@@ -113,7 +79,6 @@ export class OsUserProfile extends HTMLElement {
 		}
 	}
 
-	/** The host contract as the element sees it now. */
 	host(): ProfileHost {
 		return {
 			config: this._config,
@@ -124,17 +89,10 @@ export class OsUserProfile extends HTMLElement {
 		};
 	}
 
-	/** Re-fetch the insights (fresh) and repaint this element's own aside and feed — after a save. */
 	refreshInsights(): Promise< void > {
 		return this._loadInsights( this._generation, true );
 	}
 
-	/**
-	 * Mount on a microtask, never synchronously: a hosting app appends
-	 * the element with `user-id` already set and assigns the properties
-	 * right after, in `updated()` — the same task. Deferring lets those
-	 * land before the first fetch goes out under the right window.
-	 */
 	private _schedule(): void {
 		if ( this._scheduled ) {
 			return;
@@ -181,7 +139,7 @@ export class OsUserProfile extends HTMLElement {
 		paintInsightsLoading( activity );
 		try {
 			const data = await fetchInsights( this.host(), userId, fresh );
-			// A retarget while the request was out: that mount paints its own.
+
 			if ( generation !== this._generation ) {
 				return;
 			}

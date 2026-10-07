@@ -1,23 +1,3 @@
-/**
- * Tests for the dock rail renderer registry, the default-renderer
- * adapter that wraps the shipped `Dock` class, and the layout
- * dispatcher's integration with both.
- *
- * Three layers exercised:
- *
- * 1. Registry (`src/dock-rail/registry`) — register / unregister /
- *    fallback chain / setActive / resolveActive. Mirrors the
- *    submenu registry test shape so divergences across the two
- *    registries are visible.
- * 2. Default renderer (`src/dock-rail/default-renderer`) — adapter
- *    over `Dock`. The escape-hatch symbol (`unwrapDefaultDock`)
- *    must recover the underlying Dock for backwards compat.
- * 3. Dispatcher integration (`src/desktop-layout`) — custom
- *    renderer's mount() invoked with the expected deps;
- *    `getPrimary` returns null with a custom renderer; switching
- *    the active id rebuilds rails; throwing renderers fall back
- *    to default + emit SHELL_ERROR.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createLayoutDispatcher } from '../../src/desktop-layout';
 import { Dock, type DockItem } from '../../src/dock';
@@ -295,9 +275,7 @@ describe( 'dock-rail dispatcher integration', () => {
 		const deps = mount.mock.calls[ 0 ][ 0 ];
 		expect( deps.container ).toBe( shell.bottomDockEl );
 		expect( deps.orientation ).toBe( 'bottom' );
-		// Rails mount empty and are filled through the controller on
-		// the same turn, so a renderer learns its contents from exactly
-		// one place. `fullMenu` still carries the whole admin menu.
+
 		expect( deps.items ).toHaveLength( 0 );
 		expect( deps.fullMenu ).toHaveLength( 1 );
 		expect( typeof deps.openItem ).toBe( 'function' );
@@ -308,7 +286,6 @@ describe( 'dock-rail dispatcher integration', () => {
 	test( 'getPrimary returns Dock for default renderer; null for custom', () => {
 		const shell = makeShell();
 
-		// Default renderer first — primary unwraps to a Dock.
 		const dispatcher1 = createLayoutDispatcher(
 			{
 				shellRoot: shell.shellRoot,
@@ -326,9 +303,6 @@ describe( 'dock-rail dispatcher integration', () => {
 		expect( dispatcher1.getPrimary() ).toBeInstanceOf( Dock );
 		dispatcher1.destroy();
 
-		// Reset and try with a custom renderer — primary is null
-		// because the custom controller didn't expose the escape
-		// hatch.
 		document.body.innerHTML = '';
 		registerDockRailRenderer( {
 			id: 'ring',
@@ -376,7 +350,7 @@ describe( 'dock-rail dispatcher integration', () => {
 			[ makeItem() ],
 			[],
 		);
-		// Default renderer mounted.
+
 		expect(
 			shell.bottomDockEl.querySelector( '[data-menu-slug="edit.php"]' ),
 		).not.toBeNull();
@@ -397,7 +371,7 @@ describe( 'dock-rail dispatcher integration', () => {
 		setActiveDockRailRenderer( 'ring' );
 
 		expect( customMount ).toHaveBeenCalledTimes( 1 );
-		// Default renderer's DOM should be torn down.
+
 		expect(
 			shell.bottomDockEl.querySelector( '[data-menu-slug="edit.php"]' ),
 		).toBeNull();
@@ -437,7 +411,7 @@ describe( 'dock-rail dispatcher integration', () => {
 		);
 
 		expect( onError ).toHaveBeenCalled();
-		// Fallback default renderer rendered the tile.
+
 		expect(
 			shell.bottomDockEl.querySelector( '[data-menu-slug="edit.php"]' ),
 		).not.toBeNull();

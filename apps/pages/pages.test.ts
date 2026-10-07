@@ -1,8 +1,3 @@
-/**
- * Pages app — the Posts list body composed for pages: every string
- * picks the page noun, the hierarchical columns paint, the declared
- * sort is the fallback, and there are no taxonomy tabs or cells.
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
 import type { ListData, ListState, PostListItem } from '../posts/parts/types';
@@ -83,7 +78,7 @@ describe( 'the pages view', () => {
 		expect( root.querySelector( '.os-app-list__pager' ) ).toBeNull();
 		expect( root.querySelector( '[data-content-feed-end]' )?.textContent ).toContain( 'caught up' );
 		expect( root.querySelector( '.os-app-list__empty p' )!.textContent ).toBe( 'No pages found.' );
-		// The hero button goes where the Add Page tab goes.
+
 		( root.querySelector( '[data-os-posts-new]' ) as HTMLElement ).click();
 		expect( ( root.querySelector( 'os-tabs' ) as HTMLElement & { value: string } ).value ).toBe( 'new' );
 	} );
@@ -95,8 +90,7 @@ describe( 'the pages view', () => {
 			sort?: { key: string; direction: string } | null;
 		};
 		expect( ( table.columns ?? [] ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'parent', 'template', 'slug', 'comments', 'date' ] );
-		// `menu_order` is no column, so no header wears a sort arrow —
-		// the table refuses a sort it cannot show.
+
 		expect( table.sort ).toBeNull();
 		table.dispatchEvent( new CustomEvent( 'os-table-sort-change', { detail: { sort: null } } ) );
 		expect( dispatch ).toHaveBeenCalledWith( 'sort', { orderby: 'menu_order', order: 'asc' } );

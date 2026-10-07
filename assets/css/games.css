@@ -1,12 +1,3 @@
-/**
- * OpenStation — Games hub window styles (Steam-library layout).
- *
- * Scoped to `.desktop-mode-games` so the rules can't leak into
- * other windows. Layout: a compact game grid across the top; the
- * selected game's detail panel (hero + scoreboard + challenges)
- * fills the rest and scrolls.
- */
-
 .desktop-mode-games {
 	display: flex;
 	flex-direction: column;
@@ -26,10 +17,6 @@
 	gap: 14px;
 }
 
-/* ------------------------------------------------------------------
- * Game grid (compact tiles, selection = which detail shows below)
- * ---------------------------------------------------------------- */
-
 .os-games__grid {
 	display: flex;
 	flex-wrap: wrap;
@@ -38,8 +25,6 @@
 	flex-shrink: 0;
 }
 
-/* Empty state (no games registered): centered in the window body
-   instead of hugging the grid's top-left corner. */
 .os-games__grid:has( os-empty-state ) {
 	flex: 1;
 	align-content: center;
@@ -93,10 +78,6 @@
 	font-weight: 600;
 	font-size: 13px;
 }
-
-/* ------------------------------------------------------------------
- * Detail panel — hero row + sections
- * ---------------------------------------------------------------- */
 
 .os-games__detail {
 	display: flex;
@@ -205,10 +186,6 @@
 	color: var( --os-ui-fg-muted, #646970 );
 }
 
-/* ------------------------------------------------------------------
- * Scoreboard
- * ---------------------------------------------------------------- */
-
 .os-games__scoreboard-table {
 	max-height: 340px;
 	overflow: auto;
@@ -233,10 +210,6 @@
 	font-variant-numeric: tabular-nums;
 	color: var( --os-ui-fg-muted, #646970 );
 }
-
-/* ------------------------------------------------------------------
- * Challenges
- * ---------------------------------------------------------------- */
 
 .os-games__challenge-list {
 	list-style: none;
@@ -279,10 +252,6 @@
 	align-items: center;
 	gap: 8px;
 }
-
-/* ------------------------------------------------------------------
- * Send-challenge dialog
- * ---------------------------------------------------------------- */
 
 .os-games__challenge-dialog {
 	display: flex;

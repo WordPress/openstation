@@ -33,7 +33,7 @@ export const styles = css`
 		touch-action: none;
 		user-select: none;
 	}
-	/* A narrow visual seam inside the full pointer target. */
+
 	.divider.enabled::before, .divider.enabled::after {
 		content: '';
 		position: absolute;

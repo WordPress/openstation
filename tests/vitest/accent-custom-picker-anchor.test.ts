@@ -1,14 +1,3 @@
-/**
- * The Custom accent swatch opens the native colour wheel IN PLACE.
- *
- * Where the wheel appears is not something `showPicker()` takes an
- * argument for: it is a browser popup anchored to the box of the
- * `<input type="color">` it belongs to. So the input has to live in
- * the Custom swatch's cell and fill it through CSS — measured and
- * moved by hand, the wheel opened under the FIRST swatch, because an
- * inline position written in the same tick leaves layout dirty and
- * the popup is placed from the box the browser already computed.
- */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -31,7 +20,6 @@ function build(): HTMLElement {
 	return el;
 }
 
-/** Pick a swatch the way `<os-swatch>` does when a user clicks it. */
 function pick( el: HTMLElement, value: string ): void {
 	el.querySelector( 'os-swatch-grid' )!.dispatchEvent(
 		new CustomEvent( 'os-pick', { detail: { value }, bubbles: true, composed: true } ),
@@ -43,8 +31,7 @@ let showPicker: ReturnType< typeof vi.fn >;
 beforeEach( () => {
 	stub = installOsSettingsStub( { accent: 'pulse', customAccent: '#f252fc' } );
 	showPicker = vi.fn();
-	// jsdom ships no showPicker; the section falls back to click()
-	// without it, which would hide a broken call site.
+
 	( HTMLInputElement.prototype as unknown as { showPicker: unknown } ).showPicker = showPicker;
 } );
 

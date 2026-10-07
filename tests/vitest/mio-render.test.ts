@@ -1,13 +1,3 @@
-/**
- * Mio renderer geometry — the resampled outline the whole ring is
- * built on, and the band tiling that keeps it continuous.
- *
- * The two properties worth defending here are the ones that were bugs
- * before the rewrite: the outline must be smooth regardless of how few
- * mass points the simulation runs, and consecutive quads of a band must
- * share their edges *exactly*, because any overlap doubles up under
- * additive blending and beads the ring at every joint.
- */
 import { describe, expect, test } from 'vitest';
 import { MIO_DEFAULTS } from '../../src/mio/config';
 import {
@@ -23,7 +13,6 @@ import {
 import type { Particle } from '../../src/mio/environment';
 import type { MioAppearance } from '../../src/mio/types';
 
-/** A rim of `n` points on a circle of `r` about the origin. */
 function ring( n: number, r = 50 ): Particle[] {
 	const out: Particle[] = [];
 	for ( let i = 0; i < n; i++ ) {
@@ -37,15 +26,13 @@ const CENTRE = { x: 0, y: 0 };
 
 describe( 'buildRibbon', () => {
 	test( 'hits the requested total, rounded up to an even per-segment', () => {
-		// 100 / 12 = 8.33 → 10 per segment (9 rounded up to even).
+
 		expect( buildRibbon( ring( 12 ), CENTRE, 100 ) ).toHaveLength( 120 );
 		expect( buildRibbon( ring( 10 ), CENTRE, 40 ) ).toHaveLength( 40 );
 	} );
 
 	test( 'the ring keeps its resolution when the rim is coarsened', () => {
-		// The point of a total rather than a per-segment multiplier:
-		// dropping the simulation to nine mass points must not coarsen
-		// the colour ramp with it.
+
 		const coarse = buildRibbon( ring( 9 ), CENTRE, 144 );
 		const fine = buildRibbon( ring( 36 ), CENTRE, 144 );
 		expect( coarse.length ).toBeGreaterThanOrEqual( 144 );
@@ -53,9 +40,7 @@ describe( 'buildRibbon', () => {
 	} );
 
 	test( 'always yields an even count per segment, for the curve midpoints', () => {
-		// A cell spans two samples and curves through the one between
-		// them; an odd per-segment count would leave cells straddling a
-		// segment boundary with no midpoint of their own.
+
 		for ( const n of [ 7, 9, 11, 13 ] ) {
 			expect( buildRibbon( ring( n ), CENTRE, 50 ).length % 2 ).toBe( 0 );
 		}
@@ -68,15 +53,13 @@ describe( 'buildRibbon', () => {
 	test( 'normals are unit length and point outward', () => {
 		for ( const s of buildRibbon( ring( 16 ), CENTRE ) ) {
 			expect( Math.hypot( s.nx, s.ny ) ).toBeCloseTo( 1, 6 );
-			// Outward means agreeing with the direction from the centre.
+
 			expect( s.nx * s.x + s.ny * s.y ).toBeGreaterThan( 0 );
 		}
 	} );
 
 	test( 'a degenerate rim still yields usable normals', () => {
-		// Every point coincident: the curve has no tangent anywhere, so
-		// the radial fallback is the only thing standing between this
-		// and a NaN-poisoned frame.
+
 		const collapsed: Particle[] = [
 			{ x: 10, y: 0, vx: 0, vy: 0 },
 			{ x: 10, y: 0, vx: 0, vy: 0 },
@@ -89,15 +72,12 @@ describe( 'buildRibbon', () => {
 	} );
 
 	test( 'smoothing beats the polygon it came from', () => {
-		// The sampled outline of a coarse circle sits closer to the true
-		// circle than the raw rim does — that is the whole reason the
-		// simulation can be coarsened without the edge going faceted.
+
 		const rim = ring( 8 );
 		const samples = buildRibbon( rim, CENTRE, 4 );
 		const spread = ( radii: number[] ): number =>
 			Math.max( ...radii ) - Math.min( ...radii );
-		// Chaikin-style smoothing shrinks the shape slightly, so compare
-		// how *round* each is rather than how big.
+
 		const smoothed = samples.map( ( s ) => Math.hypot( s.x, s.y ) );
 		const chords: number[] = [];
 		for ( let i = 0; i < rim.length; i++ ) {
@@ -114,18 +94,11 @@ describe( 'buildRibbon', () => {
 	} );
 } );
 
-/** One recorded path command. */
 interface Cmd {
 	op: 'moveTo' | 'lineTo' | 'quadraticCurveTo' | 'closePath' | 'poly';
 	args: number[];
 }
 
-/**
- * Minimal stand-in for the slice of `Graphics` the renderer uses.
- *
- * Records the path commands verbatim so the tests can assert on the
- * geometry actually handed to Pixi rather than on a summary of it.
- */
 function recorder(): {
 	cmds: Cmd[];
 	cells: Cmd[][];
@@ -157,7 +130,7 @@ function recorder(): {
 
 	return {
 		cmds,
-		// One group per `fill()`, i.e. per cell.
+
 		get cells(): Cmd[][] {
 			const out: Cmd[][] = [];
 			let current: Cmd[] = [];
@@ -175,21 +148,18 @@ function recorder(): {
 	};
 }
 
-/** First and last anchor of a recorded cell's outer edge. */
 function outerEdge( cell: Cmd[] ): { start: number[]; end: number[] } {
 	const move = cell.find( ( c ) => 'moveTo' === c.op );
 	const curve = cell.find( ( c ) => 'quadraticCurveTo' === c.op );
 	return {
 		start: move ? move.args : [],
-		// `quadraticCurveTo( cx, cy, x, y, smoothness )` — the control
-		// point, then the end anchor, then the tessellation tolerance.
+
 		end: curve ? curve.args.slice( 2, 4 ) : [],
 	};
 }
 
 describe( 'fillBand', () => {
-	// Eight samples per rim segment, so a stride of 2 still leaves a
-	// halfway sample for every cell.
+
 	const samples: RibbonSample[] = buildRibbon( ring( 10 ), CENTRE, 40 );
 	const colors = samples.map( ( _, i ) => i );
 
@@ -197,9 +167,7 @@ describe( 'fillBand', () => {
 		const rec = recorder();
 		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
 		expect( rec.cells ).toHaveLength( samples.length / 2 );
-		// Two curved edges per cell — outer and inner. A cell with
-		// straight edges here means the control-point path was skipped
-		// and the facets are back.
+
 		for ( const cell of rec.cells ) {
 			expect(
 				cell.filter( ( c ) => 'quadraticCurveTo' === c.op ),
@@ -208,8 +176,7 @@ describe( 'fillBand', () => {
 	} );
 
 	test( 'the curve passes through the halfway sample', () => {
-		// The whole point of the control-point solve: at t = 0.5 the
-		// quadratic must sit exactly on the ribbon, not inside the chord.
+
 		const rec = recorder();
 		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
 		const cell = rec.cells[ 0 ];
@@ -224,9 +191,7 @@ describe( 'fillBand', () => {
 	} );
 
 	test( 'consecutive cells share their edge exactly', () => {
-		// This is the anti-beading invariant. Anything less than bit
-		// equality here is either a seam of wallpaper showing through or
-		// a double-covered joint glowing twice as bright.
+
 		const rec = recorder();
 		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
 		const cells = rec.cells;
@@ -248,8 +213,7 @@ describe( 'fillBand', () => {
 	} );
 
 	test( 'an odd stride falls back to straight edges', () => {
-		// No halfway sample to curve through, so the cell has to stay a
-		// flat quad rather than inventing a control point.
+
 		const rec = recorder();
 		fillBand( rec.g as never, samples, colors, 6, 2, 1, 3 );
 		expect( rec.cmds.every( ( c ) => 'poly' === c.op ) ).toBe( true );
@@ -267,7 +231,6 @@ describe( 'fillSheen', () => {
 	const samples: RibbonSample[] = buildRibbon( ring( 12 ), CENTRE, 48 );
 	const colors = samples.map( () => 0xff00ff );
 
-	/** Every alpha the sheen asked for, in draw order. */
 	function alphas( scale = 1 ): number[] {
 		const seen: number[] = [];
 		const noop = (): unknown => g;
@@ -293,9 +256,7 @@ describe( 'fillSheen', () => {
 		expect( cells.length ).toBeGreaterThan( 0 );
 		expect( cells.every( ( c ) => c.some( ( x ) => 'quadraticCurveTo' === x.op ) ) )
 			.toBe( true );
-		// The innermost shell collapses to the centroid: one curved arc
-		// closed by two straight radii, never a zero-length curve
-		// between three coincident points.
+
 		const last = cells[ cells.length - 1 ];
 		expect( last.filter( ( c ) => 'quadraticCurveTo' === c.op ) ).toHaveLength(
 			1,
@@ -303,9 +264,8 @@ describe( 'fillSheen', () => {
 		expect( last.filter( ( c ) => 'lineTo' === c.op ) ).toHaveLength( 1 );
 	} );
 
-	/** Shell alphas in order, outermost first. */
 	function shells(): number[] {
-		// Each shell is drawn in full before the next one starts.
+
 		return [ ...new Set( alphas() ) ];
 	}
 
@@ -318,10 +278,7 @@ describe( 'fillSheen', () => {
 	} );
 
 	test( 'the body still reads as black', () => {
-		// The shells are adjacent rather than nested, so the brightest
-		// lift anywhere inside the body is simply the largest alpha. The
-		// sheen is a film over black, not a paint job — well under half
-		// coverage even at its hottest.
+
 		expect( Math.max( ...shells() ) ).toBeLessThan( 0.4 );
 	} );
 
@@ -335,7 +292,7 @@ describe( 'fillSheen', () => {
 } );
 
 describe( 'the inner line', () => {
-	/** Layer names `drawMio` draws into. */
+
 	const NAMES = [
 		'halo',
 		'bloom',
@@ -346,14 +303,6 @@ describe( 'the inner line', () => {
 		'eyes',
 	] as const;
 
-	/**
-	 * Run a whole frame with a recorder behind every layer.
-	 *
-	 * Through `drawMio` rather than through `fillLiner` directly,
-	 * because half of what is being asserted is the wiring: which
-	 * config key feeds the pass, and that its boundary is computed the
-	 * same way the `core` band computes the one it meets.
-	 */
 	function draw(
 		over: Partial< MioAppearance > = {},
 	): Record< ( typeof NAMES )[ number ], ReturnType< typeof recorder > > {
@@ -363,8 +312,7 @@ describe( 'the inner line', () => {
 		const layers = Object.fromEntries(
 			NAMES.map( ( name ) => {
 				const g = recs[ name ].g;
-				// `drawMio` clears every layer and gives the eyes a
-				// rounded rect; neither is geometry this test reads.
+
 				Object.assign( g, { clear: () => g, roundRect: () => g } );
 				return [ name, g ];
 			} ),
@@ -387,10 +335,7 @@ describe( 'the inner line', () => {
 	}
 
 	test( 'the shipped Mio wears one, in one flat colour', () => {
-		// The artwork's white line between the black body and the
-		// chroma. Flat, deliberately: the hue sweep and the glint
-		// belong to the tube, and a line that picked up either would
-		// read as a second, dimmer ring.
+
 		const { liner } = draw();
 		expect( liner.cells.length ).toBeGreaterThan( 0 );
 		expect( new Set( liner.colors ) ).toEqual(
@@ -399,23 +344,19 @@ describe( 'the inner line', () => {
 	} );
 
 	test( 'meets the ring exactly — no seam, no overlap', () => {
-		// The liner's outer boundary and the core's inner boundary are
-		// the same offset of the same samples, so they have to come out
-		// bit-identical. Anything less is either a hairline of body
-		// showing between the two or a doubled edge.
+
 		const { liner, core } = draw();
 		expect( liner.cells ).toHaveLength( core.cells.length );
 
 		for ( let i = 0; i < liner.cells.length; i++ ) {
 			const inner = core.cells[ i ];
 			const outer = liner.cells[ i ];
-			// The core traces its inner edge backwards to close the
-			// path: `lineTo( innerB )`, then a curve back to `innerA`.
+
 			const innerB = inner.find( ( c ) => 'lineTo' === c.op )!.args;
 			const backToA = inner.filter(
 				( c ) => 'quadraticCurveTo' === c.op,
 			)[ 1 ].args;
-			// The liner traces the same edge forwards, as its outer one.
+
 			const outerA = outer.find( ( c ) => 'moveTo' === c.op )!.args;
 			const toOuterB = outer.find(
 				( c ) => 'quadraticCurveTo' === c.op,
@@ -423,20 +364,17 @@ describe( 'the inner line', () => {
 
 			expect( outerA ).toEqual( backToA.slice( 2, 4 ) );
 			expect( toOuterB.slice( 2, 4 ) ).toEqual( innerB );
-			// And the same control point, so the two curves are the
-			// same curve rather than two arcs through the same ends.
+
 			expect( toOuterB.slice( 0, 2 ) ).toEqual( backToA.slice( 0, 2 ) );
 		}
 	} );
 
 	test( 'reaches inward, so the ring keeps its own width', () => {
-		// Thickening the line eats into the body; it never moves the
-		// chroma outward. The core's geometry must not budge.
+
 		const thin = draw( { linerWidth: 1 } );
 		const fat = draw( { linerWidth: 9 } );
 		expect( fat.core.cmds ).toEqual( thin.core.cmds );
 
-		// And the line itself does grow, inward.
 		const reach = ( rec: ReturnType< typeof recorder > ): number => {
 			const radii = rec.cmds
 				.filter( ( c ) => 'moveTo' === c.op || 'lineTo' === c.op )

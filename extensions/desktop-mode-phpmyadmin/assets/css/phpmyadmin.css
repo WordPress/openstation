@@ -1,11 +1,3 @@
-/*
- * phpMyAdmin window styles.
- *
- * Mounted into the native window body by `src/phpmyadmin/index.ts`.
- * Loading state shows briefly until the iframe replaces it; error
- * state shows when the bundle is missing or config didn't localize.
- */
-
 .wpdc-phpmyadmin {
 	display: flex;
 	flex-direction: column;

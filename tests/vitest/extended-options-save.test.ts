@@ -1,13 +1,3 @@
-/**
- * Extended Options — the site-wide toggles are an app ACTION.
- *
- * A toggle dispatches `extended` with the full option set (the server
- * merges over what it holds), the controls stay live while the
- * request is in flight (the framework serialises dispatches, so a
- * second toggle lands after the first with the newest set), and a
- * successful save announces the saved set so windows already on
- * screen reconcile without an F5.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 import { HOOKS } from '../../src/hooks';
@@ -23,12 +13,10 @@ let ctx: Ctx;
 let el: HTMLElement;
 let dispatch: ReturnType< typeof vi.fn >;
 
-/** The options the nth `extended` dispatch carried, in call order. */
 function optionsOf( call: number ): Record< string, boolean > {
 	return ( dispatch.mock.calls[ call ][ 1 ] as { options: Record< string, boolean > } ).options;
 }
 
-/** Drive a checkbox the way the component does when a user clicks it. */
 function toggle( label: string, checked: boolean ): void {
 	const box = Array.from( el.querySelectorAll( 'os-checkbox-label' ) ).find(
 		( node ) => node.getAttribute( 'label' ) === label,
@@ -49,7 +37,7 @@ beforeEach( () => {
 	el = document.createElement( 'div' );
 	document.body.appendChild( el );
 	const data = appData();
-	// The server merges and echoes the saved set — mirror that.
+
 	dispatch = vi.fn( async ( action: string, args?: Record< string, unknown > ) => {
 		if ( action === 'extended' ) {
 			Object.assign( data.extendedOptions!, ( args as { options: Record< string, boolean > } ).options );
@@ -113,11 +101,9 @@ describe( 'Extended Options — saving', () => {
 			return true;
 		} );
 
-		// Rapidly toggle Media Library off, then Games on without awaiting first save
 		toggle( 'Enable drag-and-drop in the Media Library', false );
 		toggle( 'Enable games', true );
 
-		// Saving indicator is visible
 		expect( el.querySelector( '.os-ext__saving' ) ).not.toBeNull();
 
 		await new Promise( ( resolve ) => setTimeout( resolve, 150 ) );

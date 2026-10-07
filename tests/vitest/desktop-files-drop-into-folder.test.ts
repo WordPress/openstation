@@ -1,16 +1,3 @@
-/**
- * Regression test for the user-reported "drop a shortcut onto a
- * folder tile, then open the folder — tiles don't render" bug.
- *
- * Scenario:
- *   1. A folder layer is mounted on the wallpaper.
- *   2. A folder tile is rendered (the placement is a folder).
- *   3. A drag from "outside" (faking a My WordPress entity tile)
- *      drops a `'shortcut'` payload onto the folder tile.
- *   4. Open the folder window (mount a SECOND layer keyed at the
- *      target folder id).
- *   5. The layer should display the new tile.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { DragManager } from '../../src/drag/manager';
@@ -93,9 +80,6 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
 
-		// REST fetch behaviour. The server keeps a tiny in-memory
-		// table keyed by parent folder so a POST followed by a GET
-		// reads back what the POST wrote — the realistic flow.
 		const serverByFolder = new Map< number, Array< Record< string, unknown > > >();
 		serverByFolder.set( 0, [ folderPlacement( 1, 0, '5' ) ] );
 		let nextPlacementId = 1000;
@@ -141,7 +125,6 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 		const manager = new DragManager();
 		installManagerOnWindow( manager );
 
-		// Seed the wallpaper with a folder tile.
 		store.setFolderPlacements( 0, [ folderPlacement( 1, 0, '5' ) ] );
 
 		const wallpaper = document.createElement( 'div' );
@@ -166,7 +149,6 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 			} ) as DOMRect,
 		} );
 
-		// Hit-test stub: cursor at (140, 140) is on folderTile.
 		document.elementFromPoint = ( x, y ) => {
 			if ( x >= 100 && x < 188 && y >= 100 && y < 196 ) {
 				return folderTile;
@@ -177,7 +159,6 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 			return null;
 		};
 
-		// Synthesize a dragstart from a faked My WordPress post tile.
 		const sourceTile = document.createElement( 'div' );
 		sourceTile.className = 'os-my-wordpress__tile';
 		document.body.appendChild( sourceTile );
@@ -197,24 +178,20 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 			origin: pointerEvent( 'pointerdown', 200, 200, sourceTile ),
 		} );
 
-		// Cross threshold + move to over folderTile.
 		document.dispatchEvent( pointerEvent( 'pointermove', 250, 250 ) );
 		document.dispatchEvent( pointerEvent( 'pointermove', 140, 140 ) );
 		document.dispatchEvent( pointerEvent( 'pointerup', 140, 140 ) );
 
-		// Wait for REST POST + the optimistic upsert to land.
 		await new Promise( ( r ) => setTimeout( r, 20 ) );
 
-		// Store should now have a placement under folder 5.
 		const folderBucket = store.getFilesState().placementsByFolder.get( 5 );
 		expect( folderBucket?.length ).toBe( 1 );
 		expect( folderBucket?.[ 0 ].file.type ).toBe( 'post' );
 		expect( folderBucket?.[ 0 ].file.ref ).toBe( '42' );
 
-		// Now open the folder by mounting a layer for folderId=5.
 		const folderHost = document.createElement( 'div' );
 		folderHost.classList.add( 'os-window__body' );
-		// Wrap in a fake `.os-window` to mirror production.
+
 		const folderWindow = document.createElement( 'div' );
 		folderWindow.classList.add( 'os-window' );
 		folderWindow.appendChild( folderHost );
@@ -224,11 +201,8 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 
 		const folderLayer = layer.mountFilesLayer( folderHost, 5 );
 
-		// Wait for any pending REST settles.
 		await new Promise( ( r ) => setTimeout( r, 20 ) );
 
-		// The folder layer's container should now hold a tile for the
-		// dropped shortcut.
 		const folderTiles = folderHost.querySelectorAll( '.os-file-tile' );
 		expect( folderTiles.length ).toBe( 1 );
 
@@ -284,7 +258,6 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 		const manager = new DragManager();
 		installManagerOnWindow( manager );
 
-		// Mount an open folder window for folder 7 (empty).
 		const folderWindow = document.createElement( 'div' );
 		folderWindow.classList.add( 'os-window' );
 		const folderHost = document.createElement( 'div' );
@@ -301,15 +274,11 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 		} );
 		const folderLayer = layer.mountFilesLayer( folderHost, 7 );
 
-		// Wait for hydration to complete.
 		await new Promise( ( r ) => setTimeout( r, 20 ) );
 
-		// Faked source tile (My WordPress post).
 		const sourceTile = document.createElement( 'div' );
 		document.body.appendChild( sourceTile );
 
-		// Hit-test resolves the cursor over the folder window's body
-		// (i.e. over the open folder canvas).
 		document.elementFromPoint = ( x, y ) => {
 			if ( x >= 200 && x < 800 && y >= 100 && y < 500 ) {
 				return folderHost;
@@ -339,18 +308,16 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 			},
 			origin: pointerEvent( 'pointerdown', 0, 0, sourceTile ),
 		} );
-		document.dispatchEvent( pointerEvent( 'pointermove', 50, 50 ) ); // off-target
-		document.dispatchEvent( pointerEvent( 'pointermove', 400, 250 ) ); // over folder host
+		document.dispatchEvent( pointerEvent( 'pointermove', 50, 50 ) );
+		document.dispatchEvent( pointerEvent( 'pointermove', 400, 250 ) );
 		document.dispatchEvent( pointerEvent( 'pointerup', 400, 250 ) );
 
 		await new Promise( ( r ) => setTimeout( r, 20 ) );
 
-		// Verify the placement was created with parentId=7.
 		const folderBucket = store.getFilesState().placementsByFolder.get( 7 );
 		expect( folderBucket?.length ).toBe( 1 );
 		expect( folderBucket?.[ 0 ].file.ref ).toBe( '99' );
 
-		// Verify the layer painted a tile.
 		const tilesAfter = folderHost.querySelectorAll( '.os-file-tile' );
 		expect( tilesAfter.length ).toBe( 1 );
 

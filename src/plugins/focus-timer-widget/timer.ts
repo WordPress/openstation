@@ -1,21 +1,3 @@
-/**
- * The Focus Timer runtime — a DOM-independent state machine that owns
- * the countdown, the alarm, and the window-shake loop.
- *
- * It lives as a single instance on `window.__openStationFocusTimer` so a
- * running timer survives the widget being torn down and re-mounted (the
- * widget layer re-docks / re-renders cards freely). The view subscribes
- * for change notifications and never holds timer state itself.
- *
- * Why a `window` global and not `createSharedStore`: this is a live
- * controller (open intervals, an AudioContext, methods) rather than
- * serialisable state, and only this one bundle instantiates it — so the
- * cross-bundle divergence that `createSharedStore` guards against can't
- * arise here. Durable settings + an in-flight countdown are mirrored to
- * the widget's `ctx.storage` (localStorage) so a page reload can resume
- * a timer that is still counting down.
- */
-
 import { Alarm } from './alarm';
 import { shakeWindow } from './desktop';
 import { shellToast } from '../../core/shell-toast';
@@ -25,13 +7,13 @@ export type Phase = 'idle' | 'running' | 'paused' | 'finished';
 
 export interface TimerSnapshot {
 	phase: Phase;
-	/** Milliseconds left (0 when finished). */
+
 	remainingMs: number;
-	/** The configured full duration, in ms. */
+
 	durationMs: number;
-	/** Id of the linked OpenStation window, or null. */
+
 	linkedWindowId: string | null;
-	/** Whether the countdown digits are shown while running. */
+
 	showRemaining: boolean;
 }
 
@@ -76,13 +58,6 @@ class FocusTimer {
 		this.installWindowListener();
 	}
 
-	/**
-	 * React to the linked window being closed. The runtime (not the view)
-	 * owns this subscription so it fires even when the widget card has
-	 * been torn down or re-docked — a running timer must still respond to
-	 * its target window going away. Per the widget's product decision
-	 * (see issue #410): closing the linked window cancels the timer.
-	 */
 	private installWindowListener(): void {
 		if ( this.windowListenerInstalled ) {
 			return;
@@ -103,7 +78,6 @@ class FocusTimer {
 			this.phase === 'running' || this.phase === 'paused';
 		this.linkedWindowId = null;
 		if ( wasActive ) {
-			// reset() persists (with the now-cleared link) and notifies.
 			this.reset();
 			shellToast( {
 				message: __(
@@ -117,10 +91,6 @@ class FocusTimer {
 		}
 	}
 
-	/**
-	 * Wire up persistence and restore any saved timer. Called on every
-	 * mount but only acts the first time (the instance is long-lived).
-	 */
 	attachStorage( storage: StorageLike ): void {
 		if ( this.hydrated ) {
 			return;
@@ -144,7 +114,6 @@ class FocusTimer {
 				this.phase = 'running';
 				this.startTick();
 			} else {
-				// Expired while the page was closed — ring on return.
 				this.remainingMs = 0;
 				this.enterFinished();
 			}
@@ -188,8 +157,6 @@ class FocusTimer {
 		this.subs.forEach( ( cb ) => cb() );
 	}
 
-	// --- Settings (only mutable while not running / ringing) -----------
-
 	setDuration( ms: number ): void {
 		if ( this.phase === 'running' || this.phase === 'finished' ) {
 			return;
@@ -214,8 +181,6 @@ class FocusTimer {
 		this.notify();
 	}
 
-	// --- Transport -----------------------------------------------------
-
 	start(): void {
 		if ( this.phase === 'running' ) {
 			return;
@@ -224,7 +189,7 @@ class FocusTimer {
 			this.phase === 'paused' ? this.remainingMs : this.durationMs;
 		this.endAt = Date.now() + Math.max( 0, base );
 		this.phase = 'running';
-		// Unlock audio inside the click gesture so the alarm can fire later.
+
 		this.alarm.prime();
 		this.startTick();
 		this.persist();
@@ -253,7 +218,6 @@ class FocusTimer {
 		this.notify();
 	}
 
-	/** Silence the alarm + stop the shake, returning to idle. */
 	dismiss(): void {
 		this.stopRinging();
 		this.phase = 'idle';
@@ -266,8 +230,6 @@ class FocusTimer {
 	isRinging(): boolean {
 		return this.alarm.isRinging();
 	}
-
-	// --- Internals -----------------------------------------------------
 
 	private startTick(): void {
 		this.stopTick();
@@ -293,7 +255,7 @@ class FocusTimer {
 		this.endAt = null;
 		this.remainingMs = 0;
 		this.persist();
-		// Ring + shake the linked window until dismissed.
+
 		this.alarm.start();
 		this.doShake();
 		this.shaker = setInterval( () => this.doShake(), SHAKE_MS );
@@ -333,10 +295,6 @@ function clampDuration( ms: number ): number {
 	return Math.min( MAX_DURATION, Math.max( MIN_DURATION, Math.round( ms ) ) );
 }
 
-/**
- * The single, page-wide timer instance. Held on `window` so it outlives
- * any single widget mount (re-dock / re-render) — see the module note.
- */
 export function focusTimer(): FocusTimer {
 	const holder = window as unknown as {
 		__openStationFocusTimer?: FocusTimer;

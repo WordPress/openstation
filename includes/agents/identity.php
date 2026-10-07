@@ -1,37 +1,9 @@
 <?php
-/**
- * OpenStation — Agents: identity layer (synthetic WordPress users).
- *
- * Each agent has a real row in `wp_users` so capability checks, edit
- * locks, comment attribution, and the standard WP audit trail work
- * without a parallel ACL. The row is "synthetic" only in that every
- * login and session path is blocked — the agent never authenticates;
- * it is invoked on the site's behalf.
- *
- * Those blocks, and `openstation_agent_is_agent()` itself, live in
- * guard.php, which loads unconditionally. This file owns the row
- * lifecycle (create / delete) and the identity surface: the bot avatar
- * and the wp-admin Users list "Type" column, so administrators can
- * tell synthetic accounts apart.
- *
- * Definition meta constants live in store.php.
- *
- * @package OpenStation
- */
 
 defined( 'ABSPATH' ) || exit;
 
 require_once OPENSTATION_DIR . 'includes/agents/guard.php';
 
-/**
- * Resolve a unique `user_login` for an agent given its desired slug.
- *
- * Returns the input prefixed with `agent-`, or appends a numeric suffix
- * if a user with that login already exists.
- *
- * @param string $slug Sanitized slug.
- * @return string
- */
 function openstation_agent_resolve_unique_login( $slug ) {
 	$base    = 'agent-' . $slug;
 	$login   = $base;
@@ -43,16 +15,6 @@ function openstation_agent_resolve_unique_login( $slug ) {
 	return $login;
 }
 
-/**
- * Build a synthetic, RFC-shaped email for an agent.
- *
- * The address is never sent to — it just satisfies `wp_insert_user`'s
- * schema validation and reserves the slot so `email_exists()` stays
- * unique across agents.
- *
- * @param string $slug Sanitized agent slug.
- * @return string
- */
 function openstation_agent_synthetic_email( $slug ) {
 	$host = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 	if ( ! is_string( $host ) || '' === $host ) {
@@ -67,16 +29,6 @@ function openstation_agent_synthetic_email( $slug ) {
 	return $email;
 }
 
-/**
- * Create a synthetic agent user row. Definition meta is written by the
- * `openstation_agent_create()` orchestrator in store.php — call that,
- * not this, unless you only need the bare row.
- *
- * @param array{name:string, role:string, slug?:string} $args Agent
- *        creation args. `role` MUST be one of the site's registered
- *        roles. `slug` defaults to `sanitize_title( $name )`.
- * @return WP_User|WP_Error
- */
 function openstation_agent_create_user( $args ) {
 	$name = isset( $args['name'] ) ? trim( (string) $args['name'] ) : '';
 	$role = isset( $args['role'] ) ? sanitize_key( $args['role'] ) : '';
@@ -128,16 +80,6 @@ function openstation_agent_create_user( $args ) {
 	return new WP_User( $user_id );
 }
 
-/**
- * Delete an agent user. Definition meta rows die with the user
- * (`wp_delete_user()` removes all usermeta). Content the agent
- * authored is NOT reassigned — pass a reassign id when the caller
- * wants to keep it.
- *
- * @param int      $user_id  Agent user id.
- * @param int|null $reassign Optional user id to reassign authored content to.
- * @return true|WP_Error
- */
 function openstation_agent_delete( $user_id, $reassign = null ) {
 	if ( ! openstation_agent_is_agent( $user_id ) ) {
 		return new WP_Error(
@@ -150,17 +92,12 @@ function openstation_agent_delete( $user_id, $reassign = null ) {
 		require_once ABSPATH . 'wp-admin/includes/user.php';
 	}
 
-	// On multisite `wp_delete_user()` only removes the user from the
-	// CURRENT site — the network account (and the agent's meta with
-	// it) lives on. The agent's whole identity is its wp user, so
-	// deleting the agent means the network-wide delete.
 	if ( is_multisite() ) {
 		if ( ! function_exists( 'wpmu_delete_user' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/ms.php';
 		}
 		if ( null !== $reassign ) {
-			// `wpmu_delete_user()` has no reassign parameter; hand the
-			// current site's content over before the user goes.
+
 			wp_delete_user( (int) $user_id, $reassign );
 		}
 		$deleted = wpmu_delete_user( (int) $user_id );
@@ -174,32 +111,11 @@ function openstation_agent_delete( $user_id, $reassign = null ) {
 		);
 	}
 
-	/**
-	 * Fires after an agent is deleted.
-	 *
-	 * @param int $user_id  Agent user id (row no longer exists when this fires).
-	 * @param int $actor_id User who deleted the agent.
-	 */
 	do_action( 'openstation_agent_deleted', (int) $user_id, get_current_user_id() );
 
 	return true;
 }
 
-// ---------------------------------------------------------------------------
-// Identity surface
-//
-// `openstation_agent_avatar_url()` lives in bootstrap.php: the WP
-// Explorer integration needs it for the entity icon and loads while the
-// feature flag is off, when this file does not.
-// ---------------------------------------------------------------------------
-
-/**
- * Substitute the bot glyph for agent avatars across the WP admin.
- *
- * @param array                         $args        Args being assembled by `get_avatar_data()`.
- * @param int|string|WP_User|WP_Comment $id_or_email Identifier the caller passed.
- * @return array
- */
 function openstation_agent_avatar( $args, $id_or_email ) {
 	$user_id = 0;
 	if ( is_numeric( $id_or_email ) ) {
@@ -223,26 +139,12 @@ function openstation_agent_avatar( $args, $id_or_email ) {
 }
 add_filter( 'pre_get_avatar_data', 'openstation_agent_avatar', 10, 2 );
 
-/**
- * Add a "Type" column to the wp-admin Users list that labels agents.
- *
- * @param string[] $columns Existing column id => label map.
- * @return string[]
- */
 function openstation_agent_users_columns( $columns ) {
 	$columns['openstation_agent_type'] = __( 'Type', 'desktop-mode' );
 	return $columns;
 }
 add_filter( 'manage_users_columns', 'openstation_agent_users_columns' );
 
-/**
- * Render the cell for the "Type" column.
- *
- * @param string $output      Existing rendered HTML.
- * @param string $column_name Column id.
- * @param int    $user_id     User id being rendered.
- * @return string
- */
 function openstation_agent_users_custom_column( $output, $column_name, $user_id ) {
 	if ( 'openstation_agent_type' !== $column_name ) {
 		return $output;

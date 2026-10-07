@@ -1,11 +1,3 @@
-/**
- * Tests for the pre-navigation unsaved-changes guard.
- *
- * The behaviour being pinned is a negative one: a window whose page
- * is holding unsaved changes must NOT paint the navigation it is
- * about to attempt, because the browser's own "Leave site?" prompt
- * can cancel it and nothing ever fires to take the paint back.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	navigateWithUnsavedGuard,
@@ -15,11 +7,6 @@ import type { Window } from './index';
 
 type SentMessage = { type?: string; requestId?: string };
 
-/**
- * A frame whose content window records what the guard posts and can
- * answer on demand — standing in for a bridge inside a real admin
- * document.
- */
 function mockFrame(): {
 	frame: { contentWindow: { postMessage: ( m: unknown ) => void } };
 	sent: SentMessage[];
@@ -33,9 +20,7 @@ function mockFrame(): {
 			},
 		},
 	};
-	// `requestId` omitted echoes the last query's id (the bridge's
-	// normal behaviour); `null` answers with no id at all, which is
-	// what the uncorrelated pre-close reply looks like.
+
 	const answer = (
 		prevent: boolean,
 		requestId?: string | null,
@@ -83,8 +68,7 @@ describe( 'queryUnsavedGuard', () => {
 		const { frame, answer } = mockFrame();
 
 		const pending = queryUnsavedGuard( frame, { timeoutMs: 20 } );
-		// The pre-CLOSE query's uncorrelated reply, and a different
-		// asker's correlated one. Neither is ours.
+
 		answer( true, null );
 		answer( true, 'os-unsaved-guard-someone-else' );
 
@@ -127,11 +111,6 @@ describe( 'queryUnsavedGuard', () => {
 	} );
 } );
 
-/**
- * A window stub with just the surface the guard reaches for, plus a
- * real implementation of the deferred-commit slot so the release path
- * can be exercised end to end.
- */
 function mockWindow( overrides: Partial< Window > = {} ): Window {
 	const win = {
 		_iframeBridgeReady: true,
@@ -172,8 +151,6 @@ describe( 'navigateWithUnsavedGuard', () => {
 
 		navigateWithUnsavedGuard( win, { commit, navigate } );
 
-		// No await: a window whose bridge never announced itself must
-		// not pay the query's latency on every navigation.
 		expect( commit ).toHaveBeenCalledTimes( 1 );
 		expect( navigate ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -206,12 +183,8 @@ describe( 'navigateWithUnsavedGuard', () => {
 		answer( true );
 		await vi.waitFor( () => expect( navigate ).toHaveBeenCalledTimes( 1 ) );
 
-		// The whole point: the prompt is still on screen and its answer
-		// decides. Cancelling it leaves the window exactly as it was.
 		expect( commit ).not.toHaveBeenCalled();
 
-		// …and accepting it produces a real unload, which releases the
-		// paint the shell was holding.
 		win._commitDeferredNavigation();
 		expect( commit ).toHaveBeenCalledTimes( 1 );
 	} );

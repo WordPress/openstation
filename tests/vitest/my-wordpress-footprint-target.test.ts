@@ -1,16 +1,3 @@
-/**
- * Unit tests for the cross-bundle "open this user's activity
- * footprint" hand-off (`src/open-targets/footprint-target.ts`) and the
- * parent-shell bridge handler that drives it
- * (`os-open-user-footprint` in `src/window/iframe-bridge.ts`).
- *
- * The footprint launcher's whole reason for existing is robustness:
- * the click originates in the chromeless `users.php` iframe (no shell
- * API), the target is threaded through a shared store so it survives
- * the lazy My WordPress bundle load, and the source window must NOT be
- * closed (it's an auxiliary peek, not a navigation away). Each of
- * those properties is asserted below.
- */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	_resetAllSharedStoresForTests,
@@ -26,7 +13,6 @@ import {
 import { handleWindowMessage } from '../../src/window/iframe-bridge';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
-// The explorer APP's window id — footprints render inside it now.
 const WINDOW_ID = 'my-wordpress';
 
 let openWindow: ReturnType< typeof vi.fn >;
@@ -86,9 +72,7 @@ describe( 'footprint-target — openUserFootprintWindow', () => {
 		expect( got.userId ).toBe( 12 );
 		expect( got.userName ).toBe( 'Carol' );
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
-		// The person rides as open-time params too, so a cold open
-		// mounts straight onto the footprint (no folder-grid flash)
-		// and a live window retargets through `reopen`.
+
 		expect( openWindow ).toHaveBeenCalledWith( WINDOW_ID, {
 			source: 'my-wordpress/open-user-footprint',
 			params: { footprint: 12, fpName: 'Carol' },
@@ -110,11 +94,6 @@ describe( 'footprint-target — openUserFootprintWindow', () => {
 	);
 } );
 
-/**
- * Build a Window-shaped fake exposing the fields the bridge inspects
- * for this message: the iframe contentWindow (source gate) and a
- * `close` spy so we can assert the source window is left open.
- */
 function buildFakeWindow() {
 	const close = vi.fn();
 	const fakeContentWindow = {} as Window;
@@ -156,8 +135,7 @@ describe( 'iframe-bridge — os-open-user-footprint', () => {
 			params: { footprint: 42, fpName: 'Jane Doe' },
 		} );
 		expect( readFootprintTarget().userId ).toBe( 42 );
-		// The defining property: a row-action peek must NOT close the
-		// users list it was launched from.
+
 		expect( close ).not.toHaveBeenCalled();
 	} );
 
@@ -191,10 +169,7 @@ describe( 'iframe-bridge — os-open-user-footprint', () => {
 
 describe( 'footprint-target — window-stash fallback (no shared store yet)', () => {
 	test( 'set / read round-trip via window._wpdFootprintTarget before the store exists', async () => {
-		// A fresh module instance so its memoized `_store` starts null,
-		// plus a facade with no `createSharedStore`, so `getStore()`
-		// returns null and the `window._wpdFootprintTarget` stash path
-		// runs end to end (the env always has the real store otherwise).
+
 		vi.resetModules();
 		( window as unknown as { wp?: unknown } ).wp = {};
 		delete ( window as unknown as { _wpdFootprintTarget?: unknown } )
@@ -203,7 +178,6 @@ describe( 'footprint-target — window-stash fallback (no shared store yet)', ()
 		const mod = await import( '../../src/open-targets/footprint-target' );
 		mod.setFootprintTarget( 77, 'Stash User' );
 
-		// The stash actually held the value...
 		expect(
 			(
 				window as unknown as {
@@ -212,12 +186,10 @@ describe( 'footprint-target — window-stash fallback (no shared store yet)', ()
 			)._wpdFootprintTarget?.userId,
 		).toBe( 77 );
 
-		// ...and read returns it while the store is still unavailable.
 		const got = mod.readFootprintTarget();
 		expect( got.userId ).toBe( 77 );
 		expect( got.userName ).toBe( 'Stash User' );
 
-		// clear zeroes the stash too.
 		mod.clearFootprintTarget();
 		expect( mod.readFootprintTarget().userId ).toBeNull();
 	} );

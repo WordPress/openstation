@@ -1,9 +1,3 @@
-/**
- * `<os-swatch-grid>` — flex grid container for `<os-swatch>`
- * children. Carries the radiogroup semantics so screen readers
- * announce the set as a unit.
- */
-
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-swatch-grid.styles';
 
