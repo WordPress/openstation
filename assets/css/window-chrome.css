@@ -579,6 +579,43 @@
 }
 
 /*
+ * "Copy link" confirms in its own row: the label becomes "Link copied"
+ * with a tick that pops in, then the row reverts and the menu closes unless it is still hovered. The tick sits in the
+ * slotted label, so it is styled here rather than in the menu's shadow
+ * root. Transform and opacity only.
+ */
+.os-window__menu-copied-icon {
+	/* Hangs in the gutter so "Link copied" stays aligned with the
+	   other labels. Out of flow, so the label's overflow clip, whose
+	   box is not this icon's containing block, does not cut it off. */
+	position: absolute;
+	translate: -28px -1px;
+	color: var( --os-ui-accent, #2271b1 );
+	animation: os-menu-copied-pop 0.24s cubic-bezier( 0.34, 1.56, 0.64, 1 ) both;
+}
+
+.os-window__menu-copied-icon:dir( rtl ) {
+	translate: 28px -1px;
+}
+
+@keyframes os-menu-copied-pop {
+	from {
+		opacity: 0;
+		transform: scale( 0.4 );
+	}
+	to {
+		opacity: 1;
+		transform: scale( 1 );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-window__menu-copied-icon {
+		animation: none;
+	}
+}
+
+/*
  * "Related" dropdown — opened by the related-entities title-bar
  * button (`src/related-entities/`). The panel ALSO carries
  * `.os-window__menu-panel` (positioning + the drag-tracker

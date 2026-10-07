@@ -21,6 +21,8 @@ import { isMobileStamped } from '../mode/stamp';
 import { workAreaRectOf } from '../work-area';
 import { snapHalfRect } from '../window-manager/geometry';
 import { __, _x, sprintf } from './../i18n';
+import { copyText } from '../app-runtime/clipboard';
+import { shareableUrl } from './share-link';
 import { attachTooltip } from '../ui/components/os-tooltip/os-tooltip';
 import {
 	addParentSubscriber,
@@ -130,6 +132,7 @@ import {
 import type { PanelTabEntry } from './tabs';
 import {
 	closeActionsMenu,
+	confirmCopyInMenu,
 	describeActionsMenu,
 	flipMenuItemCheckOptimistically,
 	openActionsMenu,
@@ -1314,6 +1317,19 @@ export class Window {
 					e.stopPropagation();
 					closeActionsMenu( this );
 					this.onOpenInNewWindow?.( this );
+				} );
+			}
+			const copyLink = menuPanel.querySelector(
+				'.os-window__menu-item--copy-link',
+			);
+			if ( copyLink ) {
+				copyLink.addEventListener( 'os-menu-item-click', ( e: Event ) => {
+					// The menu stays open: the row itself says "Link
+					// copied", then the menu closes on its own.
+					e.stopPropagation();
+					void this.copyLink().then( ( copied ) =>
+						confirmCopyInMenu( this, copyLink as HTMLElement, copied ),
+					);
 				} );
 			}
 			// "Reload" + "Open in classic wp-admin" moved here from the
@@ -2833,6 +2849,19 @@ export class Window {
 			'aria-label',
 			isFullscreen ? __( 'Exit fullscreen' ) : __( 'Enter fullscreen' ),
 		);
+	}
+
+	/**
+	 * Put a shareable link to the page this window shows on the
+	 * clipboard. The URL is read now, so a window that navigated since
+	 * it opened shares where it is. The ⋯ menu's row confirms it (see
+	 * `confirmCopyInMenu()`).
+	 *
+	 * Resolves whether the link was copied.
+	 */
+	public async copyLink(): Promise< boolean > {
+		const link = shareableUrl( this.getCurrentUrl(), INITIAL_ORIGIN );
+		return link !== '' && copyText( link );
 	}
 
 	/**

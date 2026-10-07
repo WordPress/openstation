@@ -4,7 +4,8 @@
  * Open / close lifecycle for the ⋯ menu in every window's title bar
  * (native and iframe). Built-in items: "Open on startup" (checkable),
  * optional "Open another <page>" for multi-capable pages, and — iframe
- * windows only — "Open in new window", "Reload", "Open in classic wp-admin".
+ * windows only — "Open in new window", "Copy link", "Reload", "Open in
+ * classic wp-admin".
  * Plugin-registered rows (`wp.os.registerWindowAction`) are appended
  * after those on every open by {@link paintWindowActions}, as verbs
  * or as checkboxes of their own. The ⋯ button's hover tooltip lists
@@ -13,6 +14,8 @@
  */
 
 import { HOOKS, doAction } from '../hooks';
+import { __ } from '../i18n';
+import { osIconSvg } from '../ui/icons';
 import { urlMatchKey } from '../utils';
 import {
 	isActionChecked,
@@ -181,6 +184,61 @@ export function closeActionsMenu( win: Window ): void {
 	// Stop repainting a menu nobody is looking at.
 	win._unsubscribeWindowActions?.();
 	win._unsubscribeWindowActions = null;
+}
+
+/** How long the "Link copied" row holds before it reverts. */
+const COPY_CONFIRM_MS = 1000;
+
+/**
+ * Confirm a "Copy link" where the user is looking: the row itself turns
+ * into "Link copied" with a tick and holds for a moment, then goes back
+ * to its label. The menu closes with it unless the pointer is still on
+ * the menu, in which case it stays open until the user closes it. A failed
+ * copy says so in the same place. A polite live region carries the same
+ * words to screen readers, since a relabelled menu row is not announced.
+ */
+export function confirmCopyInMenu( win: Window, row: HTMLElement, copied: boolean ): void {
+	if ( row.classList.contains( 'is-confirming' ) ) {
+		return;
+	}
+	const label = row.textContent ?? '';
+	const message = copied ? __( 'Link copied' ) : __( 'Could not copy the link' );
+	// The tick goes in the label, not the row's `icon` slot: that slot
+	// is a dashicons class inside the menu's shadow root, where the
+	// dashicons font does not reach.
+	row.innerHTML = copied
+		? osIconSvg( 'check', { size: 20, className: 'os-window__menu-copied-icon' } )
+		: '';
+	row.append( message );
+	row.classList.add( 'is-confirming', copied ? 'is-copied' : 'is-copy-failed' );
+	announce( win, message );
+	window.setTimeout( () => {
+		row.textContent = label;
+		row.classList.remove( 'is-confirming', 'is-copied', 'is-copy-failed' );
+		// Someone still pointing at the menu is still using it: leave it
+		// open and let them close it as usual.
+		const panel = row.closest< HTMLElement >( '.os-window__menu-panel' );
+		if ( ! panel || panel.hidden || panel.matches( ':hover' ) ) {
+			return;
+		}
+		const hadFocus = panel.contains( panel.ownerDocument.activeElement );
+		closeActionsMenu( win );
+		if ( hadFocus ) {
+			win.element.querySelector< HTMLElement >( '.os-window__menu-btn' )?.focus();
+		}
+	}, COPY_CONFIRM_MS );
+}
+
+/** Speak `message` through the window's own polite live region. */
+function announce( win: Window, message: string ): void {
+	let region = win.element.querySelector<HTMLElement>( '.os-window__status' );
+	if ( ! region ) {
+		region = document.createElement( 'span' );
+		region.className = 'os-window__status screen-reader-text';
+		region.setAttribute( 'role', 'status' );
+		win.element.appendChild( region );
+	}
+	region.textContent = message;
 }
 
 /**
