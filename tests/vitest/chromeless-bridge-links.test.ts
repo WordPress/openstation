@@ -39,7 +39,7 @@ beforeAll( () => {
 		window as unknown as { __openStationScreenMetaInstalled: boolean }
 	).__openStationScreenMetaInstalled = true;
 
-	// eslint-disable-next-line no-eval -- the point is to exercise the
+	// eslint-disable-next-line no-eval
 	( 0, eval )( emittedBridgeScript() );
 
 	document.addEventListener( 'click', ( e ) => e.preventDefault() );

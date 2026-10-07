@@ -22,7 +22,7 @@ async function api(): Promise<
 	try {
 		await loadVendorScript( url );
 	} catch ( err ) {
-		// eslint-disable-next-line no-console -- a dialog that silently never opens is undebuggable.
+		// eslint-disable-next-line no-console
 		console.warn(
 			'[openstation] files-overlays bundle failed to load',
 			err,

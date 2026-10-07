@@ -52,7 +52,7 @@ export async function exitOpenStation(): Promise< void > {
 
 	let target = fallback;
 	try {
-		// eslint-disable-next-line no-restricted-syntax -- exit flow navigates the top frame away immediately; activity bus / spinner attribution would never be observable.
+		// eslint-disable-next-line no-restricted-syntax
 		const res = await fetch( cfg.ajaxUrl, {
 			method: 'POST',
 			headers: {

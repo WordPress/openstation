@@ -11,8 +11,6 @@
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       desktop-mode-feed-buddy
  * Domain Path:       /languages
- *
- * @package OpenStationFeedBuddy
  */
 
 defined( 'ABSPATH' ) || exit;

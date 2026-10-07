@@ -1,6 +1,4 @@
-/* eslint-disable no-bitwise -- Pixi takes colours as packed 24-bit
- * ints; shifting channels in and out is the native representation,
- * not a clever trick. */
+/* eslint-disable no-bitwise */
 
 import type { MioAppearance } from './types';
 

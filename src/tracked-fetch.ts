@@ -18,6 +18,6 @@ export function trackedFetch(
 		return fn( input, init, opts );
 	}
 	const finalInit = injectRestNonce( input, init );
-	// eslint-disable-next-line no-restricted-syntax -- this IS the framework-fetch wrapper; the boot fallback before `wp.os` exists is the one legitimate use of raw fetch in the codebase.
+	// eslint-disable-next-line no-restricted-syntax
 	return fetch( input, finalInit );
 }

@@ -193,13 +193,7 @@ export class ShellCommandHarvester {
 			this.publish( merged );
 		};
 
-		/* eslint-disable react-hooks/exhaustive-deps --
-		   Dependency arrays intentionally key off the fingerprint
-		   (or are deliberately empty) rather than tracking the raw
-		   arrays / props that hooks return fresh on every render. A
-		   "complete" dependency list would re-fire the effects every
-		   render → re-publish → infinite loop. Same trick as the
-		   chromeless bridge's harvester. */
+		/* eslint-disable react-hooks/exhaustive-deps */
 		const LoaderSlot = ( props: { loader: { name: string; hook: ( a: { search: string } ) => { commands?: RawCommand[] } } } ) => {
 			const loader = props.loader;
 			let result: { commands?: RawCommand[] } | null = null;

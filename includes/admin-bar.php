@@ -65,8 +65,6 @@ function openstation_enqueue_toggle_assets() {
 			position: static;
 		}
 		@media screen and (max-width: 782px) {
-			/* WP core hides most admin-bar items on mobile. Force the toggle to
-			   stay visible so users can switch back to OpenStation/Classic. */
 			#wpadminbar #wp-admin-bar-os-toggle {
 				display: block;
 			}

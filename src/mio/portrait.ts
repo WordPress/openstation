@@ -19,8 +19,7 @@ function fix( value: number ): string {
 }
 
 function hex( rgb: number ): string {
-	/* eslint-disable-next-line no-bitwise -- Colours are packed 24-bit
-	 * ints throughout Mio; masking is how you read one back out. */
+	/* eslint-disable-next-line no-bitwise */
 	const rgb24 = rgb & 0xffffff;
 	return '#' + rgb24.toString( 16 ).padStart( 6, '0' );
 }

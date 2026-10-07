@@ -273,7 +273,7 @@ async function fetchJson< T >(
 			{ source: 'desktop-mode/woocommerce' },
 		);
 		if ( ! response.ok ) {
-			// eslint-disable-next-line no-console -- surfaces a failure the user would otherwise see as a blank panel.
+			// eslint-disable-next-line no-console
 			console.warn(
 				`[openstation] WooCommerce request failed: ${ response.status } ${ url }`,
 			);
@@ -285,7 +285,7 @@ async function fetchJson< T >(
 		}
 		return { data: ( await response.json() ) as T };
 	} catch ( err ) {
-		// eslint-disable-next-line no-console -- ditto.
+		// eslint-disable-next-line no-console
 		console.warn(
 			`[openstation] WooCommerce request errored: ${ url }`,
 			err,
@@ -491,7 +491,7 @@ function paintPanel(
 				return;
 			}
 			shell.removeAttribute( 'aria-busy' );
-			// eslint-disable-next-line no-console -- the panel shows a summary; the console carries the cause.
+			// eslint-disable-next-line no-console
 			console.warn( '[openstation] WooCommerce panel failed to render', err );
 			fail( __( 'Could not show WooCommerce details.', 'desktop-mode' ) );
 		} );

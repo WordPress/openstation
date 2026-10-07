@@ -1,6 +1,4 @@
-/* eslint-disable no-bitwise -- FNV-1a and mulberry32 are defined in terms of
-   32-bit XOR / shift / OR; bitwise operators are intrinsic to the algorithms,
-   not a stylistic choice. The WP preset disallows them by default. */
+/* eslint-disable no-bitwise */
 
 export function hash32( input: string ): number {
 	let h = 0x811c9dc5;

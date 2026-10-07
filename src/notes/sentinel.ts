@@ -46,7 +46,7 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 				} )
 				.catch( ( err ) => {
 					loading = null;
-					// eslint-disable-next-line no-console -- silently missing notes would read as data loss.
+					// eslint-disable-next-line no-console
 					console.warn(
 						'[openstation] notes bundle failed to load',
 						err,

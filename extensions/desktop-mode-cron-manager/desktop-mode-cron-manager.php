@@ -11,8 +11,6 @@
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       desktop-mode-cron-manager
  * Domain Path:       /languages
- *
- * @package OpenStationCronManager
  */
 
 defined( 'ABSPATH' ) || exit;

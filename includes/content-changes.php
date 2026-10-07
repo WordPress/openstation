@@ -234,7 +234,7 @@ function openstation_content_changes_emit_footer() {
 						topic: broadcasts[ i ].topic,
 						payload: broadcasts[ i ].payload
 					}, origin );
-				} catch ( _err ) { /* parent gone */ }
+				} catch ( _err ) { }
 			}
 		} )();
 	</script>

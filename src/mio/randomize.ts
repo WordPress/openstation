@@ -58,14 +58,12 @@ export function randomMioLook( random: () => number = Math.random ): MioLook {
 
 function randomInk( random: () => number ): number {
 	const channel = (): number => Math.floor( random() * 42 );
-	/* eslint-disable-next-line no-bitwise -- Pixi takes colours as
-	 * packed 24-bit ints; this is the native representation. */
+	/* eslint-disable-next-line no-bitwise */
 	return ( channel() << 16 ) | ( channel() << 8 ) | channel();
 }
 
 export function mulberry32( seed: number ): () => number {
-	/* eslint-disable no-bitwise -- A PRNG is bit arithmetic; written
-	 * any other way this is neither this algorithm nor fast. */
+	/* eslint-disable no-bitwise */
 	let a = seed >>> 0;
 	return (): number => {
 		a = ( a + 0x6d2b79f5 ) >>> 0;

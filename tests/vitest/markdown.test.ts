@@ -18,7 +18,7 @@ describe( 'renderMarkdown', () => {
 		expect( renderMarkdown( '[ok](https://example.test)' ) ).toContain(
 			'<a href="https://example.test"',
 		);
-		// eslint-disable-next-line no-script-url -- asserting the guard.
+		// eslint-disable-next-line no-script-url
 		const unsafe = renderMarkdown( '[bad](javascript:alert(1))' );
 		expect( unsafe ).not.toContain( '<a' );
 		expect( unsafe ).not.toContain( 'javascript' );

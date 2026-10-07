@@ -208,13 +208,6 @@ const warnerDemo = () => html`
 			<pre class="os-settings__help-warner-code"><code>${ WARNER_DEMO_SNIPPET }</code></pre>
 		</div>
 	</os-disclosure>
-	<!--
-		The live copies. Real elements, because the warner watches the
-		document for tags nothing registered. Clipped rather than
-		display:none, and OUTSIDE the disclosure (a closed disclosure's
-		body is display:none), so the upgrade path runs exactly as it
-		would on a visible element.
-	-->
 	<div
 		class="os-settings__help-warner-demo"
 		aria-hidden="true"

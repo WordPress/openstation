@@ -11,25 +11,6 @@
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       desktop-mode-phpmyadmin
  * Domain Path:       /languages
- *
- * Embeds a bundled phpMyAdmin install (~5.2.x) as a built-in app:
- * registered as a native desktop window (`wpdc-phpmyadmin`), pinned to
- * the bottom taskbar, with a matching wallpaper icon.
- *
- * Hard constraints — fail-closed if any of these aren't met:
- *
- *   1. `wp_get_environment_type() === 'local'`. phpMyAdmin runs with
- *      `auth_type=config`, reusing the WordPress DB credentials, so any
- *      visitor that finds the URL gets full DB access. We refuse to
- *      register the shortcut on production / staging environments.
- *   2. `current_user_can( 'manage_options' )`. Hides the shortcut from
- *      lower-privilege users — does NOT gate the underlying URL, which
- *      is why constraint #1 above also matters.
- *   3. `assets/vendor/phpmyadmin/index.php` exists. The vendor
- *      distribution ships with the plugin; the gate is defensive in
- *      case it's been removed.
- *
- * @package OpenStationPhpMyAdmin
  */
 
 defined( 'ABSPATH' ) || exit;

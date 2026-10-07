@@ -53,8 +53,6 @@ add_filter(
 	}
 );
 
-// The other instance still has to see the host it knows itself by: a
-// multisite keyed on localhost:8890 sends any other Host to signup.
 add_filter(
 	'http_request_args',
 	static function ( $args, $url ) {

@@ -714,7 +714,7 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	private _warnBusy( what: string ): void {
-		// eslint-disable-next-line no-console -- a dropped action is otherwise indistinguishable from a no-op; see the doc block.
+		// eslint-disable-next-line no-console
 		console.warn(
 			`[openstation] command palette is busy — ignored: ${ what }. A search or command is still running.`,
 		);

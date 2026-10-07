@@ -296,9 +296,7 @@ export async function playCrumpleIntoBin( parts: CrumpleParts ): Promise< void >
 }
 
 export function hashNoteSeed( text: string ): number {
-	/* eslint-disable no-bitwise -- FNV-1a is defined in terms of XOR
-	   and unsigned shifts; a non-bitwise rewrite would obscure the
-	   reference algorithm. */
+	/* eslint-disable no-bitwise */
 	let hash = 0x811c9dc5;
 	for ( let i = 0; i < text.length; i++ ) {
 		hash ^= text.charCodeAt( i );
@@ -314,8 +312,7 @@ export function noteJitter( seed: number ): {
 	pinOffsetX: number;
 	pinRotation: number;
 } {
-	/* eslint-disable no-bitwise -- decorrelate the three knobs with
-	   unsigned shifts of the same seed. */
+	/* eslint-disable no-bitwise */
 	let hash = 0x811c9dc5;
 	const key = `os-note-${ seed }`;
 	for ( let i = 0; i < key.length; i++ ) {

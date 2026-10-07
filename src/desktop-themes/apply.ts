@@ -156,7 +156,7 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 								persistent: true,
 								dismissible: true,
 							} );
-							// eslint-disable-next-line no-console -- the toast says what happened; this says why.
+							// eslint-disable-next-line no-console
 							console.warn(
 								'[openstation] desktop theme stylesheet failed to load',
 								err,

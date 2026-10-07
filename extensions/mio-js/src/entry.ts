@@ -20,13 +20,6 @@ const LAYER_CSS = `
 }
 
 #${ LAYER_ID } .os-mio__handle {
-	/*
-	 * PHYSICAL top/left, deliberately: the handle is placed every
-	 * frame by a translate3d() carrying canvas coordinates, and
-	 * transform is always physical. A logical inset-inline-start would
-	 * flip the origin under RTL while the translation kept pushing
-	 * rightwards, and the handle would walk off screen.
-	 */
 	position: absolute;
 	top: 0;
 	left: 0;

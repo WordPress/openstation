@@ -50,7 +50,7 @@ export function installFileDropSentinel( args: SentinelArgs ): () => void {
 				} )
 				.catch( ( err ) => {
 					loading = null;
-					// eslint-disable-next-line no-console -- a dead drop path would otherwise fail silently.
+					// eslint-disable-next-line no-console
 					console.warn(
 						'[openstation] file-drop bundle failed to load',
 						err,

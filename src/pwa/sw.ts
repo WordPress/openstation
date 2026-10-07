@@ -184,7 +184,7 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 					if ( res ) {
 						return res;
 					}
-					// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+					// eslint-disable-next-line no-restricted-syntax
 					return fetch( req );
 				} ),
 			);
@@ -327,7 +327,7 @@ function beginSpeculation( href: string ): Promise< Response | null > | null {
 	}
 	const inFlight = ( async () => {
 		try {
-			// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+			// eslint-disable-next-line no-restricted-syntax
 			const res = await fetch( href, {
 				credentials: 'same-origin',
 				redirect: 'follow',
@@ -401,7 +401,7 @@ function isJsAssetPath( pathname: string ): boolean {
 async function networkFirstForAsset( req: Request ): Promise< Response > {
 	const cache = await caches.open( RUNTIME_CACHE );
 	try {
-		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+		// eslint-disable-next-line no-restricted-syntax
 		const fresh = await fetch( req.url, { cache: 'reload' } );
 		if ( fresh && fresh.status === 200 ) {
 			cache.put( req, fresh.clone() ).catch( () => undefined );
@@ -427,7 +427,7 @@ async function staleWhileRevalidate(
 ): Promise< Response > {
 	const cache = await caches.open( cacheName );
 	const cached = await cache.match( req );
-	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+	// eslint-disable-next-line no-restricted-syntax
 	const network = fetch( req )
 		.then( ( res ) => {
 			if (
@@ -470,7 +470,7 @@ async function cacheFirstAdminAsset( req: Request ): Promise< Response > {
 	if ( cached ) {
 		return cached;
 	}
-	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
+	// eslint-disable-next-line no-restricted-syntax
 	const fresh = await fetch( req );
 	if (
 		isCacheableResponse(
@@ -521,7 +521,7 @@ async function networkFirstWithOfflineFallback(
 	req: Request,
 ): Promise< Response > {
 	try {
-		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available.
+		// eslint-disable-next-line no-restricted-syntax
 		const fresh = await fetch( req );
 		return fresh;
 	} catch {

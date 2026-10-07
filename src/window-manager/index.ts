@@ -901,7 +901,7 @@ export class WindowManager {
 			typeof winOrId === 'string' ? this.getById( winOrId ) : winOrId;
 		if ( ! requested || typeof requested.setZIndex !== 'function' ) {
 			if ( winOrId && typeof winOrId !== 'string' ) {
-				// eslint-disable-next-line no-console -- Surfacing a call that would otherwise corrupt the z-stack silently.
+				// eslint-disable-next-line no-console
 				console.warn(
 					'[openstation] windowManager.focus() expects a Window or a window id; received',
 					winOrId,

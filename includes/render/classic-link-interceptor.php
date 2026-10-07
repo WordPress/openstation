@@ -74,8 +74,6 @@ function openstation_classic_link_interceptor() {
 		}
 	}, true );
 
-	// The block editor rewrites the address bar on load, dropping the
-	// flag; the server reads it off the Referer of script navigations.
 	[ 'pushState', 'replaceState' ].forEach( function ( method ) {
 		var original = window.history[ method ];
 		if ( typeof original !== 'function' ) {

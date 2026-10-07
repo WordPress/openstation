@@ -120,7 +120,7 @@ export class AiAssistantStub implements AiAssistantApi {
 				},
 				( err ) => {
 					this._runtime = 'idle';
-					// eslint-disable-next-line no-console -- a failed palette-runtime load would otherwise be silent; the palette still works with shell commands only.
+					// eslint-disable-next-line no-console
 					console.warn( '[openstation] command-palette runtime failed to load', err );
 				},
 			)
@@ -142,7 +142,7 @@ export class AiAssistantStub implements AiAssistantApi {
 			.catch( ( err ) => {
 				this._intendOpen = false;
 				hidePalettePlaceholder();
-				// eslint-disable-next-line no-console -- a failed impl load would otherwise leave ⌘K silently dead.
+				// eslint-disable-next-line no-console
 				console.warn( '[openstation] command palette failed to load', err );
 			} );
 	}

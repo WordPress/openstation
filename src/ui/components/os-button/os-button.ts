@@ -108,13 +108,6 @@ export class OsButton extends Component {
 					? html`<span class="os-button__spinner" aria-hidden="true"></span>`
 					: '' }
 				<slot></slot>
-				<!--
-					The two motion layers. Elements rather than
-					pseudo-elements because the sheen and the hairline
-					have already taken this button's ::before and
-					::after — see the pseudo-element budget note in
-					src/ui/holo.ts. Both are inert and aria-hidden.
-				-->
 				<span class="os-holo-glint" aria-hidden="true"></span>
 				<span class="os-holo-ring" aria-hidden="true"></span>
 			</button>

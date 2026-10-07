@@ -634,7 +634,7 @@ export function defaultFields(
 export function sanitizeFilename( name: string ): string {
 	const cleaned = name
 		.replace( /[\\/]/g, '-' )
-		// eslint-disable-next-line no-control-regex -- C0 + DEL.
+		// eslint-disable-next-line no-control-regex
 		.replace( /[\x00-\x1f\x7f]/g, '' )
 		.replace( /\s+/g, ' ' )
 		.replace( / *- */g, '-' )

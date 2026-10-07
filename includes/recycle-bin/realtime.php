@@ -72,7 +72,7 @@ function openstation_recycle_bin_emit_footer_signal() {
 					},
 					window.location.origin
 				);
-			} catch ( _err ) { /* swallow */ }
+			} catch ( _err ) { }
 		} )();
 	</script>
 	<?php

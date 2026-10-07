@@ -11,8 +11,6 @@
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       desktop-mode-code-editor
  * Domain Path:       /languages
- *
- * @package OpenStationCodeEditor
  */
 
 defined( 'ABSPATH' ) || exit;

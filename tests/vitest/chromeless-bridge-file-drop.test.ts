@@ -44,7 +44,7 @@ beforeAll( () => {
 	( globalThis as unknown as { DataTransfer: unknown } ).DataTransfer =
 		FakeDataTransfer;
 
-	// eslint-disable-next-line no-eval -- the point is to exercise the
+	// eslint-disable-next-line no-eval
 	( 0, eval )(
 		readFileSync( resolve( ROOT, 'src/chromeless-bridge.js' ), 'utf8' )
 	);

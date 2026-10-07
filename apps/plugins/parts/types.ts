@@ -203,7 +203,7 @@ export function fullPluginFile( plugin: string ): string {
 }
 
 export function pluginChangeId( pluginFile: string ): number {
-	/* eslint-disable no-bitwise -- CRC-32 is bit arithmetic; this mirrors PHP's crc32(). */
+	/* eslint-disable no-bitwise */
 	let crc = 0xffffffff;
 	for ( let i = 0; i < pluginFile.length; i++ ) {
 		crc ^= pluginFile.charCodeAt( i ) & 0xff;

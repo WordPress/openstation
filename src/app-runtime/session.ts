@@ -138,7 +138,7 @@ export function createSession( deps: SessionDeps ): Session {
 		if ( disposed ) {
 			return false;
 		}
-		// eslint-disable-next-line @wordpress/no-unused-vars-before-return -- the trace must clock the WHOLE dispatch; the guards above return before any work exists to time.
+		// eslint-disable-next-line @wordpress/no-unused-vars-before-return
 		const startedAt = Date.now();
 		inFlight++;
 		root.setAttribute( 'aria-busy', 'true' );

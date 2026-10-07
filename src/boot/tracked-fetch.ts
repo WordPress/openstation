@@ -20,7 +20,7 @@ export function trackedFetch(
 	opts?: TrackedFetchImplOpts,
 ): Promise< Response > {
 	const finalInit = injectRestNonce( input, requestInit );
-	// eslint-disable-next-line no-restricted-syntax -- this IS the framework fetch wrapper exposed as `wp.os.fetch`; it's the one legitimate place to call the raw global.
+	// eslint-disable-next-line no-restricted-syntax
 	const promise = window.fetch( input, finalInit );
 	void promise.then(
 		( res ) => {

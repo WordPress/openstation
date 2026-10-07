@@ -12,15 +12,6 @@
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       openstation-beta
- *
- * This companion plugin is distributed from the plugin's GitHub
- * releases only — it is deliberately NOT part of the desktop-mode
- * plugin nor of its WordPress.org distribution. Keeping the installer
- * out of the main plugin means (a) no self-update machinery ever ships
- * to WordPress.org, and (b) a broken branch build of OpenStation
- * can't take down the tool you need to switch back to stable.
- *
- * @package OpenStationBeta
  */
 
 defined( 'ABSPATH' ) || exit;

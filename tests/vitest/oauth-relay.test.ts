@@ -44,7 +44,7 @@ describe( 'startOAuth', () => {
 	} );
 
 	function stubFetch( body: unknown, ok = true ): void {
-		// eslint-disable-next-line no-restricted-syntax -- test stub
+		// eslint-disable-next-line no-restricted-syntax
 		window.fetch = vi.fn( async () => {
 			return new Response( JSON.stringify( body ), {
 				status: ok ? 200 : 500,

@@ -43,7 +43,7 @@ describe( 'randomMioLook', () => {
 	test( 'keeps the body dark enough for the ring to read against', () => {
 		for ( const look of samples() ) {
 			const body = look.appearance.bodyColor as number;
-			/* eslint-disable no-bitwise -- packed 24-bit colour. */
+			/* eslint-disable no-bitwise */
 			for ( const channel of [
 				( body >> 16 ) & 0xff,
 				( body >> 8 ) & 0xff,
