@@ -5220,7 +5220,6 @@ function init(): void {
 	// ("Take the tour", "Reset what's-new dialogs"). Steps advance on
 	// the real events; the shell only lends the tour its own
 	// entry points so the lazy bundle never reads shell module state.
-	let tourMioSpot: { x: number; y: number } | null = null;
 	installShellTour( {
 		config,
 		windowManager: manager,
@@ -5256,27 +5255,18 @@ function init(): void {
 				notifyPaletteVisibility( palette.id, false );
 			}
 		},
-		// Mío walks the tour, summoned for it: on screen without touching
-		// the user's saved preference, and handed back to that preference
-		// when the tour ends. Not on a phone, where Mío never boots.
+		// Mío gets a card of its own, which switches it on the way its dock
+		// tile does: for real, as the user's choice. The tour never runs on
+		// a phone, where Mío never boots.
 		mio: {
-			size: () =>
-				modeController.api.isMobile() ? 0 : mioApi.getConfig().appearance.radius * 2,
-			summon: () => {
-				// The bundle loads on a first summon, so Mío arrives after
-				// the first card; send it to wherever the tour has asked
-				// for by then.
-				void mio.summon().then( () => mio.setAnchor( tourMioSpot ) );
+			isOn: () => mioApi.isEnabled(),
+			turnOn: () => {
+				void mioApi.enable();
 			},
-			follow: ( spot ) => {
-				tourMioSpot = spot;
-				mio.setAnchor( spot );
-			},
-			release: () => {
-				tourMioSpot = null;
-				mio.setAnchor( null );
-				mio.dismiss();
-			},
+			findTile: () =>
+				document.querySelector(
+					`.os-dock__item[data-system-id="${ MIO_TILE_ID }"]`,
+				),
 		},
 		refreshDesktopIcons: spendMenuRefresh,
 		// The assistant is a modal with a full-screen backdrop, so its

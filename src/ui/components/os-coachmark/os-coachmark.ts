@@ -1,8 +1,9 @@
 /**
  * `<os-coachmark>` — an anchored callout with a step counter.
  *
- * Points at an element, outlines it, and says one thing about it:
- * "1 of 3 · Open a window". The shell tour is the first consumer; the
+ * Points at an element and says one thing about it: "1 of 3 · Open a
+ * window". The card's tail points at the element; a quiet ring can trace
+ * it as well (`highlight`). The shell tour is the first consumer; the
  * shape is generic (any stepped, in-place explanation of a live UI),
  * which is why it is a kit component rather than tour-private DOM.
  *
@@ -11,6 +12,11 @@
  * coachmark is that the user does the thing it describes — drags the
  * window, clicks the tile — while it is up. Only the card itself takes
  * pointer and keyboard events.
+ *
+ * Instruction, not a hero moment: the card is neutral, the counter is
+ * muted text and the primary button is the card's own ink inverted, so
+ * nothing in it competes with the accent the UI around it uses to say
+ * "this is the one you are on".
  *
  * The card and the outline live in ONE top-layer popover
  * (`popover="manual"`, the way `<os-action-menu>` escapes clipping),
@@ -43,6 +49,14 @@ type Side = 'top' | 'bottom' | 'start' | 'end';
 
 /** The card edge the tail sits on, in physical terms. */
 type TailEdge = 'top' | 'bottom' | 'left' | 'right';
+
+/** Which way the anchor is from the card, as the peek content reads it. */
+const LOOK: Record< TailEdge, [ number, number ] > = {
+	top: [ 0, -1 ],
+	bottom: [ 0, 1 ],
+	left: [ -1, 0 ],
+	right: [ 1, 0 ],
+};
 
 /** Distance between the outline and the card. */
 const GAP = 12;
@@ -112,6 +126,7 @@ export class OsCoachmark extends Component {
 		'primary-label',
 		'secondary-label',
 		'speaker-size',
+		'highlight',
 	] as const;
 	static styles = [ styles ];
 
@@ -119,7 +134,7 @@ export class OsCoachmark extends Component {
 		title: 'Coachmark',
 		status: 'stable',
 		summary:
-			'Anchored callout with a step counter. Outlines the element it points at and floats a small card beside it in the browser top layer, so windows and the dock cannot cover it. No scrim: the desk stays fully usable while it is up, which is the point — the user does the thing the card describes. Focus moves into the card on open and returns on close; Tab cycles the card, Escape dismisses.',
+			'Anchored callout with a step counter. Floats a small card beside the element it points at, its tail aimed at it, in the browser top layer, so windows and the dock cannot cover it; a quiet ring traces the element too unless `highlight` is `none`. No scrim: the desk stays fully usable while it is up, which is the point — the user does the thing the card describes. Focus moves into the card on open and returns on close; Tab cycles the card, Escape dismisses.',
 		props: [
 			{
 				name: 'open',
@@ -130,7 +145,7 @@ export class OsCoachmark extends Component {
 				name: 'anchor',
 				type: 'Element | null (property)',
 				description:
-					'The element the card points at and outlines. Set it from script — an element reference, never an id. `null` centres the card in the viewport with no outline. The outline follows the anchor while the coachmark is open, so a dragged window keeps its highlight. An anchor that leaves the document or stops being rendered (a closed panel, a hidden tab pane) is treated as `null` until it is back.',
+					'The element the card points at. Set it from script — an element reference, never an id. `null` centres the card in the viewport with no tail and no ring. The card, its tail and the ring follow the anchor while the coachmark is open, so a dragged window keeps its highlight. An anchor that leaves the document or stops being rendered (a closed panel, a hidden tab pane) is treated as `null` until it is back.',
 			},
 			{
 				name: 'placement',
@@ -156,13 +171,27 @@ export class OsCoachmark extends Component {
 				description: 'Label of the secondary button. An empty string hides it.',
 			},
 			{
+				name: 'highlight',
+				type: "'ring' | 'none'",
+				default: 'ring',
+				description:
+					'How the anchor is marked besides the tail. `ring` traces it with a thin neutral outline (`--os-ui-coachmark-ring`); `none` leaves the anchor exactly as its own UI draws it, for a target that already shows its state, or one whose own colours are the point.',
+			},
+			{
 				name: 'speaker-size',
 				type: 'number (px)',
 				description:
-					'Turns the card into a speech balloon for someone standing beside it: a character, an avatar. The speaker goes across from the anchor, never between the two (left or right of a card above or below its anchor, above or below one beside it), on whichever of the two sides has more room. The card grows a tail pointing at them and reports where they should stand through `os-coachmark-speaker`. Omit it for a plain card.',
+					'Turns the card into a speech balloon for someone standing beside it: a character, an avatar. The speaker goes across from the anchor, never between the two (left or right of a card above or below its anchor, above or below one beside it), on whichever of the two sides has more room. The tail then points at them instead of at the anchor, and the card reports where they should stand through `os-coachmark-speaker`. For a character that belongs on the card itself, use the `peek` slot instead.',
 			},
 		],
-		slots: [ { name: '(default)', description: 'The card body — a sentence or two; `<os-key>` for a chord.' } ],
+		slots: [
+			{ name: '(default)', description: 'The card body — a sentence or two; `<os-key>` for a chord.' },
+			{
+				name: 'peek',
+				description:
+					'A small figure peeking over the card\'s top edge, near its end corner: a mascot, an avatar. Only the top `--os-ui-coachmark-peek-reveal` (23px) shows; it pops up once per step and sits still, and under reduced motion it is simply there. While the card points at something, the coachmark sets `--os-coachmark-look-x` and `--os-coachmark-look-y` on itself (-1, 0 or 1, towards the anchor) so the figure can look at it. Decorative: mark it `aria-hidden`.',
+			},
+		],
 		events: [
 			{ name: 'os-coachmark-primary', detail: '{ step }', description: 'The primary button was activated.' },
 			{ name: 'os-coachmark-secondary', detail: '{ step }', description: 'The secondary button was activated.' },
@@ -294,6 +323,7 @@ export class OsCoachmark extends Component {
 				@keydown=${ this._onKeyDown }
 			>
 				<span class="tail" hidden aria-hidden="true"></span>
+				<span class="peek" aria-hidden="true"><slot name="peek"></slot></span>
 				<p class="meta">${ meta }</p>
 				<h2 id="os-coachmark-heading">${ this.getAttribute( 'heading' ) ?? '' }</h2>
 				<div class="body"><slot></slot></div>
@@ -520,13 +550,21 @@ export class OsCoachmark extends Component {
 			// remembered as such, so tracking re-positions once when it
 			// goes and once when it comes back, not every frame between.
 			this._lastKey = this._anchor ? ANCHOR_GONE : '';
-			this._placeSpeaker( 'top', left, top, cr, speaker );
+			if ( speaker > 0 ) {
+				this._placeSpeaker( 'top', left, top, cr, speaker );
+			} else {
+				const tail = card.querySelector< HTMLElement >( '.tail' );
+				if ( tail ) {
+					tail.hidden = true;
+				}
+				this._look( null );
+			}
 			return;
 		}
 
 		const ar = anchor.getBoundingClientRect();
 		this._lastKey = `${ ar.left },${ ar.top },${ ar.width },${ ar.height }`;
-		outline.hidden = false;
+		outline.hidden = this.getAttribute( 'highlight' ) === 'none';
 		outline.style.left = `${ ar.left - OUTLINE_INSET }px`;
 		outline.style.top = `${ ar.top - OUTLINE_INSET }px`;
 		outline.style.width = `${ ar.width + OUTLINE_INSET * 2 }px`;
@@ -586,7 +624,62 @@ export class OsCoachmark extends Component {
 		card.style.left = `${ left }px`;
 		card.style.top = `${ top }px`;
 
-		this._placeSpeaker( side, left, top, cr, speaker );
+		if ( speaker > 0 ) {
+			this._placeSpeaker( side, left, top, cr, speaker );
+		} else {
+			this._pointTail( side, left, top, cr, ar, rtl );
+		}
+	}
+
+	/**
+	 * Aim the tail at the anchor: on the card edge facing it, level with
+	 * its centre, kept off the rounded corners. A card clamped against
+	 * the viewport edge still points at the right place, because the
+	 * position along the edge comes from the anchor, not the card.
+	 *
+	 * Also tells the peek content which way to look.
+	 */
+	private _pointTail(
+		side: Side,
+		left: number,
+		top: number,
+		cr: DOMRect,
+		ar: DOMRect,
+		rtl: boolean,
+	): void {
+		const tail = this.card?.querySelector< HTMLElement >( '.tail' );
+		if ( ! tail ) {
+			return;
+		}
+		let edge: TailEdge;
+		if ( side === 'top' ) {
+			edge = 'bottom';
+		} else if ( side === 'bottom' ) {
+			edge = 'top';
+		} else {
+			// The card is on the anchor's start or end side; the tail is on
+			// the card edge that faces back towards it.
+			edge = ( side === 'start' ) !== rtl ? 'right' : 'left';
+		}
+		const vertical = edge === 'top' || edge === 'bottom';
+		const length = vertical ? cr.width : cr.height;
+		const at = vertical ? ar.left + ar.width / 2 - left : ar.top + ar.height / 2 - top;
+		tail.hidden = false;
+		tail.dataset.edge = edge;
+		tail.style.setProperty(
+			'--_tail-at',
+			`${ Math.min( Math.max( at, TAIL_EDGE ), Math.max( TAIL_EDGE, length - TAIL_EDGE ) ) }px`,
+		);
+		this._look( edge );
+	}
+
+	/** Point the peek content's gaze, or let it look ahead. */
+	private _look( edge: TailEdge | null ): void {
+		// No speaker on this card, so the next one is told where to stand.
+		this._speakerKey = '';
+		const [ x, y ] = edge ? LOOK[ edge ] : [ 0, 0 ];
+		this.style.setProperty( '--os-coachmark-look-x', String( x ) );
+		this.style.setProperty( '--os-coachmark-look-y', String( y ) );
 	}
 
 	/**

@@ -1,6 +1,6 @@
 /**
- * The shell tour — five coachmarks, three of which advance on the real
- * events.
+ * The shell tour — up to six coachmarks, most of which advance on the
+ * real events.
  *
  * Pins the contract the tour exists for: the two opening cards orient
  * and step on click, a gesture step completes when the user does the
@@ -409,34 +409,79 @@ describe( 'shell tour', () => {
 		expect( mark().anchor ).toBe( section );
 	} );
 
-	test( 'Mío walks the tour: summoned, following each balloon, released at the end', async () => {
-		const mio = { size: () => 112, summon: vi.fn(), follow: vi.fn(), release: vi.fn() };
+	/** A Mío on this desk, off until something turns it on. */
+	const fakeMio = ( on = false ) => {
+		const tile = document.createElement( 'div' );
+		document.body.appendChild( tile );
+		const mio = {
+			on,
+			isOn: () => mio.on,
+			// What the controller does: switch on, then fire the action.
+			turnOn: vi.fn( () => {
+				mio.on = true;
+				hooks.doAction( 'os.mio.enabled', {} );
+			} ),
+			findTile: () => tile,
+		};
+		return { mio, tile };
+	};
+	/** From 'Open a window' to the card after the snap. */
+	const openAndSnap = ( id: string ): void => {
+		const win = fakeWindow( id );
+		windows.set( id, win );
+		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: id } );
+		hooks.doAction( HOOKS.SNAP_ZONE_COMMITTED, { windowId: id, zone: 'left' } );
+	};
+
+	test( 'Mío peeks over every card, and its own card switches it on for real', async () => {
+		const { mio, tile } = fakeMio();
 		deps.mio = mio;
 		startShellTour( deps );
 		await settle();
-		expect( mio.summon ).toHaveBeenCalledTimes( 1 );
-		// The balloon leaves room for Mío before Mío has even loaded.
-		expect( mark().getAttribute( 'speaker-size' ) ).toBe( '112' );
+		// Pointing with the tail, leaving the target's own look alone.
+		expect( mark().getAttribute( 'highlight' ) ).toBe( 'none' );
+		expect( mark().querySelector( '[slot="peek"]' ) ).not.toBeNull();
+		expect( mark().getAttribute( 'total' ) ).toBe( '6' );
 
-		// Wherever the balloon puts its speaker, Mío goes.
-		mark().dispatchEvent( new CustomEvent( 'os-coachmark-speaker', { detail: { x: 40, y: 50 } } ) );
-		expect( mio.follow ).toHaveBeenLastCalledWith( { x: 40, y: 50 } );
+		skipIntroCards();
+		// Still there on later cards: the body is replaced, the peek is not.
+		expect( mark().querySelector( '[slot="peek"]' ) ).not.toBeNull();
+		openAndSnap( 'w7' );
+		expect( mark().getAttribute( 'heading' ) ).toBe( 'Meet Mío' );
+		expect( mark().anchor ).toBe( tile );
 
-		// A restart hands Mío to the next run instead of flickering it.
-		startShellTour( deps );
-		expect( mio.release ).not.toHaveBeenCalled();
-
-		endShellTour();
-		expect( mio.release ).toHaveBeenCalledTimes( 1 );
+		primary().click();
+		expect( mio.turnOn ).toHaveBeenCalledTimes( 1 );
+		expect( mark().getAttribute( 'heading' ) ).toBe( 'Find anything' );
 	} );
 
-	test( 'without a Mío on this screen the cards stay plain', async () => {
-		deps.mio = { size: () => 0, summon: vi.fn(), follow: vi.fn(), release: vi.fn() };
+	test( 'no Mío card for someone who keeps Mío on, or turns it on from the dock first', async () => {
+		deps.mio = fakeMio( true ).mio;
 		startShellTour( deps );
 		await settle();
-		// A phone, say: no gap, no summon.
-		expect( mark().hasAttribute( 'speaker-size' ) ).toBe( false );
-		expect( deps.mio.summon ).not.toHaveBeenCalled();
+		expect( mark().getAttribute( 'total' ) ).toBe( '5' );
+		endShellTour();
+		// Still fading out; the next run's card is the one to click.
+		mark().remove();
+
+		const { mio } = fakeMio();
+		deps.mio = mio;
+		startShellTour( deps );
+		await settle();
+		skipIntroCards();
+		// The dock tile, clicked while the tour is on another card.
+		mio.on = true;
+		hooks.doAction( 'os.mio.enabled', {} );
+		expect( mark().getAttribute( 'heading' ) ).toBe( 'Open a window' );
+		openAndSnap( 'w8' );
+		expect( mark().getAttribute( 'heading' ) ).toBe( 'Find anything' );
+	} );
+
+	test( 'without a Mío on this desk there is no Mío on the cards and no Mío card', async () => {
+		startShellTour( deps );
+		await settle();
+		expect( mark().querySelector( '[slot="peek"]' ) ).toBeNull();
+		expect( mark().getAttribute( 'total' ) ).toBe( '5' );
 	} );
 
 	test( 'the closing card goes under the assistant, once its panel has painted', async () => {
@@ -445,10 +490,8 @@ describe( 'shell tour', () => {
 		// after the card does.
 		let panel: Element | null = null;
 		deps.findAssistant = () => panel;
-		deps.mio = { size: () => 112, summon: vi.fn(), follow: vi.fn(), release: vi.fn() };
 		startShellTour( deps );
 		await settle();
-		expect( mark().getAttribute( 'speaker-size' ) ).toBe( '112' );
 		skipIntroCards();
 		const win = fakeWindow( 'w6' );
 		windows.set( 'w6', win );
@@ -460,9 +503,6 @@ describe( 'shell tour', () => {
 		document.dispatchEvent( new CustomEvent( 'os-palette-opened', { detail: { id: 'x' } } ) );
 		expect( mark().getAttribute( 'heading' ) ).toBe( 'You are set' );
 		expect( mark().getAttribute( 'placement' ) ).toBe( 'bottom' );
-		// A plain card: the assistant's backdrop covers the whole shell,
-		// Mío included, so a balloon would point at an empty gap.
-		expect( mark().hasAttribute( 'speaker-size' ) ).toBe( false );
 		expect( mark().anchor ).toBeNull();
 
 		panel = document.createElement( 'div' );
