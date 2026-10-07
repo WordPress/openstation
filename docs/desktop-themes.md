@@ -386,6 +386,16 @@ the Posts table, the Trash, file tiles, every dialog — read the
 `--os-ui-*` palette. A theme that sets only the shell tokens produces a
 dark frame around a white page.
 
+One thing to know about `--os-ui-accent` before reading the table: in
+the OpenStation palette it marks **state** and nothing else — a checked
+control, the sidebar row you are on, the dock dividers, icons. Every
+other place a theme might expect the accent (a selected card's ring,
+the segmented control's key, a filter chip, the assistant's chrome, a
+coachmark) reads it through a literal "how much" token listed further
+down, which the OpenStation palette answers with `0%` or `0px` and
+Legacy with the old look. Turn those up to bring the accent back; the
+kit's own stylesheets never hard-wire it to a decorative surface.
+
 | Token | Role |
 |---|---|
 | `--os-ui-surface` | Cards, panels, table rows |
